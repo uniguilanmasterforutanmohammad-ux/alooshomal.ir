@@ -1,0 +1,86 @@
+# ---------------------------------------------------------------------------
+#  Production stack — pulls prebuilt images from GHCR (no local build).
+#
+#  Deployed automatically by .github/workflows/deploy.yml.
+#  This file is copied to the server by the workflow and lives next to a
+#  hand-managed `.env` file (see docs/DEPLOY.md).
+#
+#  Run on the server with:
+#    docker compose -f docker-compose.prod.yml pull
+#    docker compose -f docker-compose.prod.yml up -d --remove-orphans
+# ---------------------------------------------------------------------------
+name: alooshomal
+
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: alooshomal-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-alooshomal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_production}
+      POSTGRES_DB: ${POSTGRES_DB:-alooshomal}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-alooshomal} -d ${POSTGRES_DB:-alooshomal}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - alooshomal
+
+  api:
+    image: ghcr.io/uniguilanmasterforutanmohammad-ux/alooshomal.ir-api:latest
+    container_name: alooshomal-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://alooshomal:change_me_in_production@db:5432/alooshomal?schema=public}
+      API_PORT: "4000"
+      JWT_SECRET: ${JWT_SECRET:-please_change_me}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@alooshomal.local}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@12345}
+      ENABLE_SWAGGER: ${ENABLE_SWAGGER:-false}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      BACKUP_DIR: ${BACKUP_DIR:-/usr/src/app/backups}
+      BACKUP_KEEP: ${BACKUP_KEEP:-20}
+    ports:
+      - "127.0.0.1:${API_PORT:-4000}:4000"
+    volumes:
+      - api_backups:/usr/src/app/backups
+    networks:
+      - alooshomal
+
+  web:
+    image: ghcr.io/uniguilanmasterforutanmohammad-ux/alooshomal.ir-web:latest
+    container_name: alooshomal-web
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      INTERNAL_API_URL: http://api:4000/api
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    networks:
+      - alooshomal
+
+volumes:
+  db_data:
+    name: alooshomal_db_data
+  api_backups:
+    name: alooshomal_api_backups
+
+networks:
+  alooshomal:
+    name: alooshomal_network
+    driver: bridge
