@@ -84,8 +84,9 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
-          source: "docker-compose.prod.yml"
+          source: "docker-compose.prod.yml,deploy/nginx"
           target: ${{ vars.DEPLOY_PATH || '/var/www/alooshomal.ir' }}
+          overwrite: true
 
       - name: Pull new images and restart services
         uses: appleboy/ssh-action@v1.2.0

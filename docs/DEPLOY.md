@@ -71,36 +71,37 @@ ADMIN_PASSWORD=<رمز-ادمین>
 ENABLE_SWAGGER=false
 
 WEB_PORT=3000
+HTTP_PORT=80
 NEXT_PUBLIC_API_URL=https://alooshomal.ir/api
 NEXT_PUBLIC_APP_URL=https://alooshomal.ir
 EOF
 ```
 
-### نکته‌ی مهم: یک دامنه، دو سرویس
+### نکته‌ی مهم: یک دامنه، سه سرویس
 
-`web` روی `3000` و `api` روی `4000` هستند. جلوی آن‌ها Nginx قرار می‌گیرد و مسیرها را تقسیم می‌کند:
+`web` روی `3000` و `api` روی `4000` هستند و **Nginx داخل داکر** جلوی آن‌ها قرار می‌گیرد
+(سرویس `nginx` در `docker-compose.prod.yml`) و مسیرها را تقسیم می‌کند:
 
-- `https://alooshomal.ir/api/proxy/*` → `http://127.0.0.1:3000` (روت‌هندلرهای خود Next.js)
-- بقیه‌ی `https://alooshomal.ir/api/*` → `http://127.0.0.1:4000` (NestJS API)
-- بقیه‌ی مسیرها → `http://127.0.0.1:3000`
+- `https://alooshomal.ir/api/proxy/*` → `web:3000` (روت‌هندلرهای خود Next.js)
+- بقیه‌ی `https://alooshomal.ir/api/*` → `api:4000` (NestJS API)
+- بقیه‌ی مسیرها → `web:3000`
 
-کانفیگ آماده در `deploy/nginx/alooshomal.ir.conf` است (به همین دلیل در
-`docker-compose.prod.yml` پورت API به `127.0.0.1` بایند شده و از بیرون پنهان است).
-
-#### نصب کانفیگ Nginx
+کانفیگ داخل `deploy/nginx/conf.d/` است و در کانتینر به `/etc/nginx/conf.d` mount می‌شود؛
+ورک‌فلوی deploy این پوشه را همراه کامپوز روی سرور به‌روز می‌کند. Nginx روی پورت `HTTP_PORT`
+(پیش‌فرض `80`) سرور گوش می‌دهد و `web`/`api` فقط به `127.0.0.1` بایند شده‌اند.
 
 ```bash
-sudo apt update && sudo apt install -y nginx
+# وضعیت کانتینر nginx
+docker compose -f docker-compose.prod.yml ps nginx
+docker compose -f docker-compose.prod.yml logs -f nginx
 
-# کانفیگ را روی سرور کپی کنید (مسیر را مطابق سرور خودتان تنظیم کنید)
-sudo cp deploy/nginx/alooshomal.ir.conf /etc/nginx/sites-available/alooshomal.ir.conf
-sudo ln -sf /etc/nginx/sites-available/alooshomal.ir.conf /etc/nginx/sites-enabled/
-
-# کانفیگ پیش‌فرض را غیرفعال کنید تا با آن تداخل نکند
-sudo rm -f /etc/nginx/sites-enabled/default
-
-sudo nginx -t && sudo systemctl reload nginx
+# تست و ری‌لود دستی کانفیگ
+docker exec alooshomal-nginx nginx -t
+docker exec alooshomal-nginx nginx -s reload
 ```
+
+> نیازی به نصب Nginx روی خود سرور نیست. اگر سروری از قبل Nginx روی پورت `80`
+> داشته، یا آن را متوقف کنید یا `HTTP_PORT` را در `.env` به مثلاً `8080` تغییر دهید.
 
 #### سازگاری با CDN آروان
 
@@ -116,7 +117,7 @@ sudo nginx -t && sudo systemctl reload nginx
 لیست IPهای آروان گاهی عوض می‌شود؛ برای به‌روزرسانی خودکار بلاک real-IP:
 
 ```bash
-sudo deploy/nginx/sync-arvancloud-ips.sh /etc/nginx/sites-available/alooshomal.ir.conf
+sudo deploy/nginx/sync-arvancloud-ips.sh
 ```
 
 ---

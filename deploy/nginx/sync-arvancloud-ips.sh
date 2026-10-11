@@ -1,25 +1,20 @@
 #!/usr/bin/env bash
 # ---------------------------------------------------------------------------
-# Refresh the ArvanCloud real-IP block inside alooshomal.ir.conf.
+# Refresh the ArvanCloud real-IP block for the containerized Nginx.
 #
 # ArvanCloud's edge IP ranges change occasionally. Run this on the server to
-# regenerate the `set_real_ip_from ...` lines from the official list, then it
-# reloads Nginx.
+# regenerate deploy/nginx/conf.d/00-arvancloud-real-ip.conf from the official
+# list, then it reloads the nginx container.
 #
-# Usage (as root):
-#   ./sync-arvancloud-ips.sh /etc/nginx/sites-available/alooshomal.ir.conf
+# Usage (from the deploy directory, e.g. /var/www/alooshomal.ir):
+#   ./deploy/nginx/sync-arvancloud-ips.sh
+#   ./deploy/nginx/sync-arvancloud-ips.sh /custom/path/00-arvancloud-real-ip.conf
 # ---------------------------------------------------------------------------
 set -euo pipefail
 
-CONF_FILE="${1:-/etc/nginx/sites-available/alooshomal.ir.conf}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONF_FILE="${1:-$SCRIPT_DIR/conf.d/00-arvancloud-real-ip.conf}"
 IP_URL="https://www.arvancloud.ir/ips.txt"
-START_MARK="# --- Real visitor IP behind ArvanCloud"
-END_MARK="real_ip_recursive on;"
-
-if [ ! -f "$CONF_FILE" ]; then
-  echo "error: config file not found: $CONF_FILE" >&2
-  exit 1
-fi
 
 echo "Fetching ArvanCloud IP ranges from $IP_URL ..."
 IPS="$(curl -fsSL "$IP_URL" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/[0-9]+$')"
@@ -29,38 +24,30 @@ if [ -z "$IPS" ]; then
   exit 1
 fi
 
-BLOCK="$(mktemp)"
+mkdir -p "$(dirname "$CONF_FILE")"
+
 {
-  echo "$START_MARK"
+  echo "# --- Real visitor IP behind ArvanCloud"
   echo "# ArvanCloud proxies requests, so \$remote_addr is an edge node, not the visitor."
   echo "# The real IP arrives in the \"ar-real-ip\" header."
   echo "# Source of ranges: https://www.arvancloud.ir/ips.txt  (refresh occasionally)."
+  echo "# Regenerate this block with: deploy/nginx/sync-arvancloud-ips.sh"
   while read -r ip; do
     [ -n "$ip" ] && echo "set_real_ip_from $ip;"
   done <<< "$IPS"
   echo "real_ip_header ar-real-ip;"
   echo "real_ip_recursive on;"
-} > "$BLOCK"
+} > "$CONF_FILE"
 
-BACKUP="${CONF_FILE}.bak.$(date +%Y%m%d%H%M%S)"
-cp "$CONF_FILE" "$BACKUP"
+echo "Wrote $(grep -c '^set_real_ip_from' "$CONF_FILE") ranges to $CONF_FILE"
 
-# Replace everything between START_MARK and END_MARK (inclusive) with the new block.
-awk -v start="$START_MARK" -v end="$END_MARK" -v blockfile="$BLOCK" '
-  index($0, start) && !done {
-    while ((getline line < blockfile) > 0) print line
-    close(blockfile)
-    done = 1
-    skip = 1
-  }
-  skip && index($0, end) { skip = 0; next }
-  skip { next }
-  { print }
-' "$CONF_FILE" > "${CONF_FILE}.tmp"
+# Validate and reload the containerized nginx if the compose project is running.
+if docker ps --format '{{.Names}}' | grep -q '^alooshomal-nginx$'; then
+  docker exec alooshomal-nginx nginx -t
+  docker exec alooshomal-nginx nginx -s reload
+  echo "Reloaded alooshomal-nginx."
+else
+  echo "note: alooshomal-nginx is not running; reload skipped."
+fi
 
-mv "${CONF_FILE}.tmp" "$CONF_FILE"
-rm -f "$BLOCK"
-
-echo "Updated ArvanCloud ranges (backup: $BACKUP)"
-nginx -t && systemctl reload nginx
 echo "Done."
