@@ -9,6 +9,7 @@ import { BiolinkStatus, NotificationType, Prisma } from '@prisma/client';
 import * as QRCode from 'qrcode';
 
 import { biolinkOrderBy } from '../common/directory-sort';
+import { FacetsCacheService } from '../common/facets-cache.service';
 import { planLimitsFrom } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
@@ -27,6 +28,7 @@ export class BiolinksService {
     private readonly settings: SettingsService,
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
+    private readonly facetsCache: FacetsCacheService,
   ) {}
 
   private get appUrl(): string {
@@ -295,7 +297,7 @@ export class BiolinksService {
         : {}),
     };
 
-    const [items, total, cities, businesses] = await this.prisma.$transaction([
+    const [items, total, facets] = await Promise.all([
       this.prisma.biolink.findMany({
         where,
         select: {
@@ -319,22 +321,7 @@ export class BiolinksService {
         take: limit,
       }),
       this.prisma.biolink.count({ where }),
-      this.prisma.city.findMany({
-        where: {
-          isActive: true,
-          biolinks: { some: { status: BiolinkStatus.APPROVED, isPublished: true } },
-        },
-        select: { id: true, name: true },
-        orderBy: { name: 'asc' },
-      }),
-      this.prisma.businessCategory.findMany({
-        where: {
-          isActive: true,
-          biolinks: { some: { status: BiolinkStatus.APPROVED, isPublished: true } },
-        },
-        select: { id: true, name: true },
-        orderBy: { name: 'asc' },
-      }),
+      this.getDirectoryFacets(),
     ]);
 
     const itemIds = items.map((item) => item.id);
@@ -372,8 +359,36 @@ export class BiolinksService {
         hasNext: page * limit < total,
         hasPrev: page > 1,
       },
-      filters: { cities, businesses },
+      filters: facets,
     };
+  }
+
+  /**
+   * Active cities/businesses that actually have a published biolink. Cached
+   * briefly because it is identical across directory requests.
+   */
+  private getDirectoryFacets() {
+    return this.facetsCache.get('biolinks:facets', async () => {
+      const [cities, businesses] = await Promise.all([
+        this.prisma.city.findMany({
+          where: {
+            isActive: true,
+            biolinks: { some: { status: BiolinkStatus.APPROVED, isPublished: true } },
+          },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        }),
+        this.prisma.businessCategory.findMany({
+          where: {
+            isActive: true,
+            biolinks: { some: { status: BiolinkStatus.APPROVED, isPublished: true } },
+          },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        }),
+      ]);
+      return { cities, businesses };
+    });
   }
 
   async recordScan(

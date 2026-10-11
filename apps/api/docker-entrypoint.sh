@@ -66,10 +66,20 @@ if [ -n "${DATABASE_URL:-}" ] && [ -f "$SCHEMA_FILE" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 2) Apply the schema and start the application
+# 2) Apply the schema, then the raw-SQL bootstrap (extensions + GIN/trigram
+#    indexes) and start the application
 # ---------------------------------------------------------------------------
 if command -v npx >/dev/null 2>&1; then
   npx prisma db push --skip-generate --accept-data-loss
+fi
+
+if [ -n "${DATABASE_URL:-}" ] && [ -f "prisma/bootstrap.sql" ]; then
+  CLEAN_URL="$(printf '%s' "$DATABASE_URL" | sed 's/?.*$//')"
+  if psql "$CLEAN_URL" -v ON_ERROR_STOP=1 -q -f prisma/bootstrap.sql >/dev/null 2>&1; then
+    log "database bootstrap applied (pg_trgm + trigram/composite indexes)"
+  else
+    log "database bootstrap failed (continuing without it)"
+  fi
 fi
 
 exec "$@"

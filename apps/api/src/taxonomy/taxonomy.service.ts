@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { FacetsCacheService } from '../common/facets-cache.service';
 import { CreateTaxonomyDto } from './dto/create-taxonomy.dto';
 import { UpdateTaxonomyDto } from './dto/update-taxonomy.dto';
 
@@ -18,7 +19,14 @@ type Delegate = {
 
 @Injectable()
 export class TaxonomyService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly facetsCache: FacetsCacheService,
+  ) {}
+
+  private invalidateFacets(): void {
+    this.facetsCache.invalidate();
+  }
 
   private model(kind: 'city' | 'business'): Delegate {
     return (
@@ -40,10 +48,12 @@ export class TaxonomyService {
     if (existing) {
       throw new ConflictException('این مورد قبلاً ثبت شده است');
     }
-    return this.model(kind).create({
+    const created = await this.model(kind).create({
       data: { name },
       select: { id: true, name: true, isActive: true, createdAt: true },
     });
+    this.invalidateFacets();
+    return created;
   }
 
   async update(kind: 'city' | 'business', id: string, dto: UpdateTaxonomyDto) {
@@ -54,11 +64,13 @@ export class TaxonomyService {
     const data: Record<string, unknown> = {};
     if (dto.name !== undefined) data.name = dto.name.trim();
     if (dto.isActive !== undefined) data.isActive = dto.isActive;
-    return this.model(kind).update({
+    const updated = await this.model(kind).update({
       where: { id },
       data,
       select: { id: true, name: true, isActive: true, createdAt: true },
     });
+    this.invalidateFacets();
+    return updated;
   }
 
   async remove(kind: 'city' | 'business', id: string) {
@@ -67,6 +79,7 @@ export class TaxonomyService {
       throw new NotFoundException('مورد یافت نشد');
     }
     await this.model(kind).delete({ where: { id } });
+    this.invalidateFacets();
     return { deleted: true };
   }
 }

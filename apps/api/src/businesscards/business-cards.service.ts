@@ -9,6 +9,7 @@ import { BiolinkStatus, NotificationType, Prisma } from '@prisma/client';
 import * as QRCode from 'qrcode';
 
 import { businessCardOrderBy } from '../common/directory-sort';
+import { FacetsCacheService } from '../common/facets-cache.service';
 import { planLimitsFrom } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
@@ -27,6 +28,7 @@ export class BusinessCardsService {
     private readonly settings: SettingsService,
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
+    private readonly facetsCache: FacetsCacheService,
   ) {}
 
   private get appUrl(): string {
@@ -294,7 +296,7 @@ export class BusinessCardsService {
         : {}),
     };
 
-    const [items, total, cities, businesses] = await this.prisma.$transaction([
+    const [items, total, facets] = await Promise.all([
       this.prisma.businessCard.findMany({
         where,
         select: {
@@ -318,26 +320,7 @@ export class BusinessCardsService {
         take: limit,
       }),
       this.prisma.businessCard.count({ where }),
-      this.prisma.city.findMany({
-        where: {
-          isActive: true,
-          businessCards: {
-            some: { status: BiolinkStatus.APPROVED, isPublished: true },
-          },
-        },
-        select: { id: true, name: true },
-        orderBy: { name: 'asc' },
-      }),
-      this.prisma.businessCategory.findMany({
-        where: {
-          isActive: true,
-          businessCards: {
-            some: { status: BiolinkStatus.APPROVED, isPublished: true },
-          },
-        },
-        select: { id: true, name: true },
-        orderBy: { name: 'asc' },
-      }),
+      this.getDirectoryFacets(),
     ]);
 
     const itemIds = items.map((item) => item.id);
@@ -375,8 +358,40 @@ export class BusinessCardsService {
         hasNext: page * limit < total,
         hasPrev: page > 1,
       },
-      filters: { cities, businesses },
+      filters: facets,
     };
+  }
+
+  /**
+   * Active cities/businesses that actually have a published card. Cached
+   * briefly because it is identical across directory requests.
+   */
+  private getDirectoryFacets() {
+    return this.facetsCache.get('businesscards:facets', async () => {
+      const [cities, businesses] = await Promise.all([
+        this.prisma.city.findMany({
+          where: {
+            isActive: true,
+            businessCards: {
+              some: { status: BiolinkStatus.APPROVED, isPublished: true },
+            },
+          },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        }),
+        this.prisma.businessCategory.findMany({
+          where: {
+            isActive: true,
+            businessCards: {
+              some: { status: BiolinkStatus.APPROVED, isPublished: true },
+            },
+          },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        }),
+      ]);
+      return { cities, businesses };
+    });
   }
 
 
