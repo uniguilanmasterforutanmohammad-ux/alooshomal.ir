@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,8 +8,11 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { BoostStatus, SubscriptionStatus } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
@@ -23,6 +27,7 @@ import { CreatePlanDto } from '../subscriptions/dto/create-plan.dto';
 import { DecideSubscriptionDto } from '../subscriptions/dto/decide-subscription.dto';
 import { UpdatePlanDto } from '../subscriptions/dto/update-plan.dto';
 import { AdminService } from './admin.service';
+import { BulkKind, BulkService } from './bulk.service';
 import { ListBiolinksDto } from './dto/list-biolinks.dto';
 import { ListBusinessCardsDto } from './dto/list-business-cards.dto';
 import { ListUsersDto } from './dto/list-users.dto';
@@ -40,6 +45,7 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly subscriptionsService: SubscriptionsService,
     private readonly boostsService: BoostsService,
+    private readonly bulkService: BulkService,
   ) {}
 
   @Get('stats')
@@ -222,5 +228,39 @@ export class AdminController {
     @Body() dto: DecideBoostDto,
   ) {
     return this.boostsService.decide(admin.id, id, dto);
+  }
+
+  // ----- Bulk import / delete (load-testing) -----
+
+  @Get('bulk/counts')
+  @ApiOperation({ summary: 'تعداد داده‌های تستی ایمپورت‌شده' })
+  bulkCounts() {
+    return this.bulkService.counts();
+  }
+
+  @Post('bulk/import')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({ summary: 'ایمپورت گروهی بیولینک/کارت ویزیت از فایل اکسل یا CSV' })
+  bulkImport(
+    @UploadedFile() file: Express.Multer.File,
+    @Body('kind') kind: BulkKind,
+    @Body('ownerUserId') ownerUserId: string,
+  ) {
+    if (!file?.buffer) {
+      throw new BadRequestException('فایلی آپلود نشده است');
+    }
+    if (kind !== 'BIOLINK' && kind !== 'BUSINESS_CARD') {
+      throw new BadRequestException('نوع ایمپورت باید BIOLINK یا BUSINESS_CARD باشد');
+    }
+    if (!ownerUserId) {
+      throw new BadRequestException('کاربر مالک ردیف‌های ایمپورت‌شده را انتخاب کنید');
+    }
+    return this.bulkService.importRows(kind, ownerUserId, file.buffer);
+  }
+
+  @Delete('bulk/test-data')
+  @ApiOperation({ summary: 'حذف گروهی داده‌های تستی ایمپورت‌شده' })
+  bulkDelete(@Query('kind') kind?: BulkKind | 'ALL') {
+    return this.bulkService.deleteTestData(kind ?? 'ALL');
   }
 }

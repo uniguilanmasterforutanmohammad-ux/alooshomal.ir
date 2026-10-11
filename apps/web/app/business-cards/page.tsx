@@ -25,7 +25,6 @@ function DirectoryContent() {
     sort: (searchParams.get('sort') as 'recent' | 'liked') ?? 'recent',
   };
   const [filters, setFilters] = useState<DirectoryFilterState>(initial);
-  const [debouncedQuery, setDebouncedQuery] = useState(initial.q);
   const [page, setPage] = useState(Number(searchParams.get('page') ?? 1));
   const [selectedSlug, setSelectedSlug] = useState<string | null>(
     searchParams.get('card'),
@@ -36,23 +35,18 @@ function DirectoryContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(filters.q), 400);
-    return () => clearTimeout(timer);
-  }, [filters.q]);
-
-  useEffect(() => {
     setPage(1);
-  }, [debouncedQuery, filters.cityId, filters.businessId, filters.sort]);
+  }, [filters.q, filters.cityId, filters.businessId, filters.sort]);
 
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
-    if (debouncedQuery) params.set('q', debouncedQuery);
+    if (filters.q) params.set('q', filters.q);
     if (filters.cityId) params.set('cityId', filters.cityId);
     if (filters.businessId) params.set('businessId', filters.businessId);
     if (filters.sort !== 'recent') params.set('sort', filters.sort);
     if (page > 1) params.set('page', String(page));
     return params.toString();
-  }, [debouncedQuery, filters.cityId, filters.businessId, filters.sort, page]);
+  }, [filters.q, filters.cityId, filters.businessId, filters.sort, page]);
 
   const load = useCallback(async () => {
     setLoading(true);

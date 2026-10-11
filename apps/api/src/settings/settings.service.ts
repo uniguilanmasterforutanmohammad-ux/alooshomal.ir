@@ -12,6 +12,19 @@ export const ACTIVITY_RETENTION_MONTHS_KEY = 'activityRetentionMonths';
 export const DEFAULT_ACTIVITY_RETENTION_MONTHS = 6;
 
 /**
+ * Global kill-switches the admin can flip while load-testing the platform, so
+ * no real user can accidentally create content among thousands of imported
+ * test rows.
+ */
+export const ALLOW_BIOLINK_CREATION_KEY = 'allowBiolinkCreation';
+export const ALLOW_CARD_CREATION_KEY = 'allowBusinessCardCreation';
+
+export interface CreationLocks {
+  allowBiolinkCreation: boolean;
+  allowBusinessCardCreation: boolean;
+}
+
+/**
  * Categories of admin-facing notifications. Each one can be muted from the
  * admin settings panel: a muted category is skipped at creation time, so no
  * row is written at all (this is what keeps the notifications table small
@@ -74,6 +87,16 @@ export class SettingsService implements OnModuleInit {
           key: ACTIVITY_RETENTION_MONTHS_KEY,
           value: String(DEFAULT_ACTIVITY_RETENTION_MONTHS),
         },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: ALLOW_BIOLINK_CREATION_KEY },
+        update: {},
+        create: { key: ALLOW_BIOLINK_CREATION_KEY, value: 'true' },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: ALLOW_CARD_CREATION_KEY },
+        update: {},
+        create: { key: ALLOW_CARD_CREATION_KEY, value: 'true' },
       }),
       ...ADMIN_NOTIFY_CATEGORIES.map((category) =>
         this.prisma.setting.upsert({
@@ -191,6 +214,50 @@ export class SettingsService implements OnModuleInit {
       create: { key: ACTIVITY_RETENTION_MONTHS_KEY, value: String(clamped) },
     });
     return clamped;
+  }
+
+  /** Global creation locks — default ON (creation allowed). */
+  async getCreationLocks(): Promise<CreationLocks> {
+    const rows = await this.prisma.setting.findMany({
+      where: { key: { in: [ALLOW_BIOLINK_CREATION_KEY, ALLOW_CARD_CREATION_KEY] } },
+    });
+    const byKey = new Map(rows.map((row) => [row.key, row.value]));
+    return {
+      allowBiolinkCreation:
+        byKey.get(ALLOW_BIOLINK_CREATION_KEY) !== 'false',
+      allowBusinessCardCreation:
+        byKey.get(ALLOW_CARD_CREATION_KEY) !== 'false',
+    };
+  }
+
+  async setCreationLocks(locks: Partial<CreationLocks>): Promise<CreationLocks> {
+    const writes: Promise<unknown>[] = [];
+    if (locks.allowBiolinkCreation !== undefined) {
+      writes.push(
+        this.prisma.setting.upsert({
+          where: { key: ALLOW_BIOLINK_CREATION_KEY },
+          update: { value: locks.allowBiolinkCreation ? 'true' : 'false' },
+          create: {
+            key: ALLOW_BIOLINK_CREATION_KEY,
+            value: locks.allowBiolinkCreation ? 'true' : 'false',
+          },
+        }),
+      );
+    }
+    if (locks.allowBusinessCardCreation !== undefined) {
+      writes.push(
+        this.prisma.setting.upsert({
+          where: { key: ALLOW_CARD_CREATION_KEY },
+          update: { value: locks.allowBusinessCardCreation ? 'true' : 'false' },
+          create: {
+            key: ALLOW_CARD_CREATION_KEY,
+            value: locks.allowBusinessCardCreation ? 'true' : 'false',
+          },
+        }),
+      );
+    }
+    await Promise.all(writes);
+    return this.getCreationLocks();
   }
 
   async all(): Promise<Record<string, string>> {

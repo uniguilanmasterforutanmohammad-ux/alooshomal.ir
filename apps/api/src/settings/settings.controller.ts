@@ -29,6 +29,14 @@ class UpdateSettingsDto {
 
   @IsOptional()
   adminNotifications?: Partial<Record<AdminNotifyCategory, boolean>>;
+
+  @IsOptional()
+  @IsBoolean()
+  allowBiolinkCreation?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allowBusinessCardCreation?: boolean;
 }
 const ADMIN_NOTIFY_CATEGORY_SET = new Set<string>(ADMIN_NOTIFY_CATEGORIES);
 
@@ -41,8 +49,10 @@ export class SettingsController {
   @Get('public')
   @ApiOperation({ summary: 'تنظیمات عمومی (اندازه صفحه دایرکتوری)' })
   async publicSettings() {
+    const locks = await this.settingsService.getCreationLocks();
     return {
       directoryPageSize: await this.settingsService.getDirectoryPageSize(),
+      ...locks,
     };
   }
 }
@@ -59,11 +69,13 @@ export class AdminSettingsController {
   @ApiOperation({ summary: 'همه تنظیمات برای پنل مدیر' })
   async admin() {
     const { ...all } = await this.settingsService.all();
+    const locks = await this.settingsService.getCreationLocks();
     return {
       ...all,
       directoryPageSize: await this.settingsService.getDirectoryPageSize(),
       adminListPageSize: await this.settingsService.getAdminListPageSize(),
       adminNotifications: await this.settingsService.getAdminNotifyPrefs(),
+      ...locks,
     };
   }
 
@@ -74,6 +86,8 @@ export class AdminSettingsController {
       directoryPageSize?: number;
       adminListPageSize?: number;
       adminNotifications?: Record<AdminNotifyCategory, boolean>;
+      allowBiolinkCreation?: boolean;
+      allowBusinessCardCreation?: boolean;
     } = {};
     if (dto.directoryPageSize !== undefined) {
       result.directoryPageSize = await this.settingsService.setDirectoryPageSize(
@@ -94,6 +108,17 @@ export class AdminSettingsController {
       }
       result.adminNotifications =
         await this.settingsService.setAdminNotifyPrefs(clean);
+    }
+    if (
+      dto.allowBiolinkCreation !== undefined ||
+      dto.allowBusinessCardCreation !== undefined
+    ) {
+      const locks = await this.settingsService.setCreationLocks({
+        allowBiolinkCreation: dto.allowBiolinkCreation,
+        allowBusinessCardCreation: dto.allowBusinessCardCreation,
+      });
+      result.allowBiolinkCreation = locks.allowBiolinkCreation;
+      result.allowBusinessCardCreation = locks.allowBusinessCardCreation;
     }
     return result;
   }

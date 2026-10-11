@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
+  FlaskConical,
   Settings,
   TrendingUp,
   Users,
@@ -29,6 +30,7 @@ export type AdminSection =
   | 'users'
   | 'tickets'
   | 'reports'
+  | 'tools'
   | 'settings';
 
 interface Props {
@@ -46,6 +48,7 @@ const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboar
   { key: 'users', label: 'کاربران', icon: Users },
   { key: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
   { key: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
+  { key: 'tools', label: 'ابزار تست', icon: FlaskConical },
   { key: 'settings', label: 'تنظیمات', icon: Settings },
 ];
 

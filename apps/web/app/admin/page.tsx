@@ -14,6 +14,7 @@ import { AdminSubscriptions } from '@/components/admin/AdminSubscriptions';
 import { AdminBoosts } from '@/components/admin/AdminBoosts';
 import { AdminNotificationSettings } from '@/components/admin/AdminNotificationSettings';
 import { ActivityLogPanel } from '@/components/admin/ActivityLogPanel';
+import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
 import { BiolinkLiveEditor } from '@/components/admin/BiolinkLiveEditor';
 import { BusinessCardLiveEditor } from '@/components/admin/BusinessCardLiveEditor';
 import {
@@ -78,6 +79,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'users',
   'tickets',
   'reports',
+  'tools',
   'settings',
 ];
 
@@ -280,6 +282,7 @@ function AdminContent() {
     users: { title: 'کاربران', sub: 'لیست کاربران پلتفرم' },
     tickets: { title: 'تیکت‌ها', sub: 'مدیریت تیکت‌های پشتیبانی' },
     reports: { title: 'گزارش‌ها', sub: 'گزارش‌های سیستم' },
+    tools: { title: 'ابزار تست', sub: 'ایمپورت گروهی، حذف داده‌های تستی و قفل ساخت' },
     settings: { title: 'تنظیمات', sub: 'شهرها، کسب‌وکارها و نمایش دایرکتوری' },
   };
 
@@ -582,6 +585,8 @@ function AdminContent() {
       ) : null}
 
       {section === 'reports' ? <ActivityLogPanel /> : null}
+
+      {section === 'tools' ? <AdminBulkTools /> : null}
 
       {section === 'settings' ? (
         <div className="grid gap-4 lg:grid-cols-2">

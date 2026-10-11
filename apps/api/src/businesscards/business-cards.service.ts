@@ -47,6 +47,13 @@ export class BusinessCardsService {
   }
 
   async create(userId: string, dto: CreateBusinessCardDto) {
+    // Global kill-switch: the admin can pause creation while load-testing.
+    const locks = await this.settings.getCreationLocks();
+    if (!locks.allowBusinessCardCreation) {
+      throw new ForbiddenException(
+        'ساخت کارت ویزیت موقتاً توسط مدیر غیرفعال شده است. لطفاً بعداً تلاش کنید.',
+      );
+    }
     // enforce the user's subscription quota before creating a new business card
     await this.subscriptions.enforceNotExceeded(userId, 'businessCard');
     if (dto.cityId) {

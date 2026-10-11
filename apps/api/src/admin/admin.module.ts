@@ -6,10 +6,11 @@ import { SettingsModule } from '../settings/settings.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
+import { BulkService } from './bulk.service';
 
 @Module({
   imports: [SubscriptionsModule, BoostsModule, NotificationsModule, SettingsModule],
   controllers: [AdminController],
-  providers: [AdminService],
+  providers: [AdminService, BulkService],
 })
 export class AdminModule {}

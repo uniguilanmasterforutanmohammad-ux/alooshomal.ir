@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Building2, MapPin, Search } from 'lucide-react';
 
 import type { DirectoryFacet } from '@/lib/api';
@@ -26,12 +27,28 @@ export function DirectoryFilters({
   onChange,
   onReset,
 }: Props) {
+  // Draft state: edits stay local until the user presses «جستجو». Filtering on
+  // every keystroke would hammer the server once the directory has thousands of
+  // rows, so the query only fires on submit.
+  const [draft, setDraft] = useState<DirectoryFilterState>(value);
+
+  // Keep the draft aligned with the committed filters (e.g. after reset, or
+  // when arriving with `?q=`/`?cityId=` in the URL).
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  function submit(event: React.FormEvent) {
+    event.preventDefault();
+    onChange(draft);
+  }
+
   return (
     <div className="space-y-3">
       {/* Indeed-style search bar */}
       <form
         className="flex overflow-hidden rounded-lg border border-[var(--indeed-border)] bg-white shadow-sm"
-        onSubmit={(event) => event.preventDefault()}
+        onSubmit={submit}
       >
         <div className="relative flex flex-[2] items-center border-e border-[var(--indeed-border)]">
           <Search
@@ -41,8 +58,8 @@ export function DirectoryFilters({
           <input
             className="h-12 w-full bg-transparent px-4 pe-10 text-sm outline-none"
             placeholder="عنوان شغلی، نام یا کلمه کلیدی"
-            value={value.q}
-            onChange={(event) => onChange({ ...value, q: event.target.value })}
+            value={draft.q}
+            onChange={(event) => setDraft({ ...draft, q: event.target.value })}
           />
         </div>
 
@@ -53,8 +70,8 @@ export function DirectoryFilters({
           />
           <select
             className="h-12 w-full appearance-none bg-transparent px-4 pe-10 text-sm outline-none"
-            value={value.cityId}
-            onChange={(event) => onChange({ ...value, cityId: event.target.value })}
+            value={draft.cityId}
+            onChange={(event) => setDraft({ ...draft, cityId: event.target.value })}
           >
             <option value="">بر اساس شهر</option>
             {cities.map((city) => (
@@ -72,8 +89,8 @@ export function DirectoryFilters({
           />
           <select
             className="h-12 w-full appearance-none bg-transparent px-4 pe-10 text-sm outline-none"
-            value={value.businessId}
-            onChange={(event) => onChange({ ...value, businessId: event.target.value })}
+            value={draft.businessId}
+            onChange={(event) => setDraft({ ...draft, businessId: event.target.value })}
           >
             <option value="">بر اساس نوع کسب و کار</option>
             {businesses.map((business) => (
@@ -99,7 +116,7 @@ export function DirectoryFilters({
             className="ms-2 rounded-md border border-[var(--indeed-border)] bg-white px-2 py-1 text-sm font-bold text-ink outline-none"
             value={value.sort}
             onChange={(event) =>
-              onChange({ ...value, sort: event.target.value as 'recent' | 'liked' })
+              onChange({ ...draft, sort: event.target.value as 'recent' | 'liked' })
             }
           >
             <option value="recent">جدیدترین</option>

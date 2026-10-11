@@ -15,12 +15,74 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.7.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.8.0**.
 
 > **قانون همگام‌سازی `install.sh`:** پس از هر ویرایش روی فایل‌های تحت `apps/`،
 > `scripts/` و `docs/` (و فایل‌های ریشه‌ی فهرست‌شده در مولد)، اجرای
 > `python3 scripts/sync_install.py` اجباری است و کار تا سبز شدن
 > `python3 scripts/sync_install.py --check` تمام‌شده نیست.
+
+---
+
+## ۱۴۰۵/۰۷/۲۱ — اجرای فیلتر جست‌وجو فقط با دکمه‌ی «جستجو» + ابزارهای تست بار (ایمپورت/حذف گروهی + قفل ساخت) — نسخه `v2.8.0`
+
+**هدف:** (۷) در دایرکتوری‌های `/biolinks` و `/business-cards` فیلتر بر اساس شهر/نوع
+کسب‌وکار و تایپ کلمه‌ی جست‌وجو **بلافاصله** اعمال می‌شد و با زیادشدن کارت‌ها کند می‌شد؛
+باید فقط با زدن دکمه‌ی «جستجو» اعمال شود. (۸) برای تست بار روی سرور، ابزاری در پنل
+مدیر بسازیم که هزاران کارت ویزیت/بیولینک را از فایل اکسل (xlsx/csv) ایمپورت کند،
+بتواند آن‌ها را سریع و گروهی حذف کند، و مدیر در حین تست بتواند ساخت کاربر واقعی را
+موقتاً متوقف کند تا محتوای واقعی بین داده‌های تستی گم نشود.
+
+**بند ۷ — فیلتر فقط با submit:**
+- `apps/web/components/biolink/DirectoryFilters.tsx`: state محلی `draft` افزوده شد؛
+  تایپ/انتخاب شهر/نوع کسب‌وکار فقط `draft` را تغییر می‌دهد و `onChange` (فیلتر واقعی)
+  تنها در `onSubmit` فرم فراخوانی می‌شود. تغییر مرتب‌سازی (جدیدترین/محبوب‌ترین) همچنان
+  فوری اعمال می‌شود.
+- `apps/web/components/businesscard/DirectoryBusinessCardFilters.tsx`: همان الگو.
+- `apps/web/app/biolinks/page.tsx` و `apps/web/app/business-cards/page.tsx`: حذف
+  `debouncedQuery`/دیبانس؛ کوئری حالا مستقیم از `filters` تأییدشده مشتق می‌شود.
+
+**بند ۸ — ابزار تست بار:**
+- `apps/api/prisma/schema.prisma`: فیلد `isTestData Boolean @default(false)` به
+  مدل‌های `Biolink` و `BusinessCard` به‌همراه `@@index([isTestData])`.
+- `apps/api/src/admin/bulk.service.ts` (جدید): `BulkService` —
+  `parseWorkbook()` (ExcelJS؛ پشتیبانی xlsx و csv با هدرهای فارسی/انگلیسی)،
+  `importRows(kind, ownerUserId, buffer)` (برچسب `isTestData:true`، انتشار/تأیید خودکار،
+  ساخت خودکار City/BusinessCategory ناموجود، سقف ۵۰۰۰ ردیف)، `counts()`، و
+  `deleteTestData(kind|'ALL')` که **فقط** ردیف‌های `isTestData:true` را حذف می‌کند.
+- `apps/api/src/admin/admin.controller.ts`: تزریق `BulkService` و سه اندپوینت
+  `GET /api/admin/bulk/counts`، `POST /api/admin/bulk/import` (FileInterceptor روی
+  فیلد `file`)، `DELETE /api/admin/bulk/test-data?kind=`.
+- `apps/api/src/admin/admin.module.ts`: ثبت `BulkService`.
+- `apps/api/src/settings/settings.service.ts`: کلیدهای `allowBiolinkCreation` و
+  `allowBusinessCardCreation` + اینترفیس `CreationLocks` + متدهای `getCreationLocks()`
+  و `setCreationLocks()` (پیش‌فرض هر دو `true`).
+- `apps/api/src/settings/settings.controller.ts`: افزودن این دو فیلد به DTO، به
+  پاسخ ادمین، به `/settings/public` و به PATCH.
+- `apps/api/src/biolinks/biolinks.service.ts` و
+  `apps/api/src/businesscards/business-cards.service.ts`: در `create()` بررسی قفل و
+  پرتاب `ForbiddenException` با پیام فارسی در صورت غیرفعال بودن.
+- `apps/web/lib/api.ts`: `request()` وقتی بدنه `FormData` است هدر `Content-Type`
+  نمی‌گذارد (مرز multipart خودکار تنظیم می‌شود) + متد `api.upload<T>(path, form)`.
+- `apps/web/components/admin/AdminBulkTools.tsx` (جدید): رابط «ابزار تست» شامل
+  کلیدهای قفل ساخت، ایمپورت (نوع + کاربر مالک + فایل + دانلود نمونه) و شمارش/حذف
+  گروهی داده‌های تستی.
+- `apps/web/components/admin/AdminShell.tsx` و `apps/web/app/admin/page.tsx`: افزودن
+  بخش `tools` و آیتم ناوبری «ابزار تست» با آیکن `FlaskConical`.
+- `apps/api/package.json`: افزودن وابستگی اجرایی `exceljs@^4.4.0` و وابستگی توسعه
+  `@types/multer@^2.3.0`.
+
+**تأیید/تست:**
+- بند ۷: با `playwright-core` روی `/biolinks` — تایپ متن و انتخاب شهر بدون submit
+  صفر درخواست شبکه ثبت شد؛ با کلیک «جستجو» یک درخواست و URL شامل
+  `?q=تست&cityId=...` شد.
+- بند ۸ (UI): در `/admin?section=tools` ایمپورت ۵۰۰ ردیفی CSV از رابط کاربری
+  (`201`) و پیام «۵۰۰ ردیف افزوده شد»؛ سپس حذف گروهی (`200`) و «۵۰۰ ردیف تستی حذف
+  شد» و شمارش به ۰ برگشت. کلید قفل ساخت از `true` به `false` و بازگشت به `true`
+  تغییر کرد (بررسی از طریق `/settings/public`).
+- یکپارچگی داده: `select count(*)` روی دیتابیس محلی نشان داد پس از حذف گروهی، ۴
+  بیولینک و ۵ کارت ویزیت واقعی دست‌نخورده مانده و ردیف تستی صفر است.
+- بدون خطای کنسول در بارگذاری تب ابزارها (تنها یک ۴۰۴ گذرای نامرتبط).
 
 ---
 

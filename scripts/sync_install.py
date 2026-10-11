@@ -29,6 +29,9 @@ BINARY_EXT = (".woff2", ".woff", ".ttf", ".otf", ".eot", ".png", ".jpg", ".jpeg"
               ".ico", ".pdf", ".gz", ".zip")
 # Build/editor artifacts that must never be baked into the installer.
 SKIP_SUFFIXES = (".tsbuildinfo",)
+# Lockfiles are local `npm install` artifacts; they are gitignored and must not
+# be embedded in the installer.
+SKIP_NAMES = ("package-lock.json", "npm-shrinkwrap.json", "yarn.lock", "pnpm-lock.yaml")
 
 
 def marker_for(path: str) -> str:
@@ -55,6 +58,8 @@ def tracked_files() -> list[str]:
                 if name.lower().endswith(BINARY_EXT):
                     continue
                 if name.endswith(SKIP_SUFFIXES):
+                    continue
+                if name in SKIP_NAMES:
                     continue
                 files.append(path)
     # Root-level files that the generator also emits.

@@ -47,6 +47,13 @@ export class BiolinksService {
   }
 
   async create(userId: string, dto: CreateBiolinkDto) {
+    // Global kill-switch: the admin can pause creation while load-testing.
+    const locks = await this.settings.getCreationLocks();
+    if (!locks.allowBiolinkCreation) {
+      throw new ForbiddenException(
+        'ساخت بیولینک موقتاً توسط مدیر غیرفعال شده است. لطفاً بعداً تلاش کنید.',
+      );
+    }
     // enforce the user's subscription quota before creating a new biolink
     await this.subscriptions.enforceNotExceeded(userId, 'biolink');
     if (dto.cityId) {

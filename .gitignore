@@ -1,6 +1,7 @@
 # dependencies
 node_modules/
 .pnpm-store/
+package-lock.json
 
 # builds
 dist/

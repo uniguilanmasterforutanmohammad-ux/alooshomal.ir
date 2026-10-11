@@ -265,6 +265,9 @@ model Biolink {
   boostedUntil DateTime?
   pinnedAt     DateTime @default(now())
 
+  /// Seeded by the admin bulk importer for load-testing; safe to delete en masse.
+  isTestData Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -283,6 +286,7 @@ model Biolink {
   @@index([status, isPublished])
   @@index([boostedUntil])
   @@index([pinnedAt])
+  @@index([isTestData])
   @@map("biolinks")
 }
 
@@ -360,6 +364,9 @@ model BusinessCard {
   boostedUntil DateTime?
   pinnedAt     DateTime @default(now())
 
+  /// Seeded by the admin bulk importer for load-testing; safe to delete en masse.
+  isTestData Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -377,6 +384,7 @@ model BusinessCard {
   @@index([status, isPublished])
   @@index([boostedUntil])
   @@index([pinnedAt])
+  @@index([isTestData])
   @@map("business_cards")
 }
 
