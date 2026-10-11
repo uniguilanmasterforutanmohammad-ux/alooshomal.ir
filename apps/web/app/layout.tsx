@@ -1,0 +1,31 @@
+import type { Metadata, Viewport } from 'next';
+import { ToastViewport } from '@/components/ui/ToastViewport';
+import './globals.css';
+
+export const metadata: Metadata = {
+  title: {
+    default: 'آلوشمال | بیولینک دیجیتال',
+    template: '%s | آلوشمال',
+  },
+  description:
+    'پلتفرم ساخت، شخصی‌سازی و اشتراک‌گذاری بیولینک دیجیتال؛ مشاهده بدون نصب برنامه.',
+};
+
+export const viewport: Viewport = {
+  themeColor: '#F2E8D9',
+  width: 'device-width',
+  initialScale: 1,
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <html lang="fa" dir="rtl">
+      <body>
+        {children}
+        <ToastViewport />
+      </body>
+    </html>
+  );
+}

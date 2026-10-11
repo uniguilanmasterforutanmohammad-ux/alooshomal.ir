@@ -1,0 +1,538 @@
+// Alooshomal — Prisma schema
+// Digital business biolink platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum BiolinkStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  UNPUBLISHED
+}
+
+enum ModerationDecision {
+  APPROVED
+  REJECTED
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+}
+
+enum ReportStatus {
+  READY
+  PROCESSING
+  FAILED
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+  CANCELLED
+}
+
+enum BoostTargetKind {
+  BIOLINK
+  BUSINESS_CARD
+}
+
+enum BoostFeature {
+  POLE
+}
+
+enum BoostStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum SaveTargetKind {
+  BIOLINK
+  BUSINESS_CARD
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String?
+  role         Role     @default(USER)
+  isActive     Boolean  @default(true)
+  // admin moderation trail for account status changes
+  deactivatedReason String?
+  deactivatedAt     DateTime?
+  adminComment      String?
+  planId       String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  biolinks        Biolink[]
+  businessCards   BusinessCard[]
+  moderations ModerationLog[]
+  tickets    Ticket[]
+  ticketMessages TicketMessage[]
+  plan              SubscriptionPlan?  @relation(fields: [planId], references: [id], onDelete: SetNull)
+  subscriptions     UserSubscription[] @relation("UserSubscriptions")
+  subscriptionDecisions UserSubscription[] @relation("SubscriptionDecisions")
+  boostRequests     BoostRequest[]      @relation("UserBoostRequests")
+  boostDecisions    BoostRequest[]      @relation("BoostDecisions")
+  biolinkSaves      BiolinkSave[]
+  businessCardSaves BusinessCardSave[]
+  notifications     Notification[]    @relation("UserNotifications")
+  actingNotifications Notification[]  @relation("NotificationActors")
+
+  @@index([email])
+  @@index([planId])
+  @@map("users")
+}
+
+model Ticket {
+  id        String         @id @default(cuid())
+  subject   String
+  message   String?
+  userId    String?
+  status    TicketStatus   @default(OPEN)
+  priority  TicketPriority @default(NORMAL)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user     User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  messages TicketMessage[]
+
+  @@index([status])
+  @@index([userId])
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  authorId  String?
+  body      String
+  isStaff   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User?  @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@index([authorId])
+  @@map("ticket_messages")
+}
+
+model Report {
+  id          String       @id @default(cuid())
+  title       String
+  type        String       @default("general")
+  status      ReportStatus @default(READY)
+  sizeBytes   Int?
+  generatedAt DateTime     @default(now())
+  createdAt   DateTime     @default(now())
+
+  @@index([status])
+  @@map("reports")
+}
+
+model City {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  biolinks      Biolink[]
+  businessCards BusinessCard[]
+
+  @@index([name])
+  @@map("cities")
+}
+
+model BusinessCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  biolinks      Biolink[]
+  businessCards BusinessCard[]
+
+  @@index([name])
+  @@map("business_categories")
+}
+
+model Biolink {
+  id     String @id @default(cuid())
+  userId String
+  slug   String @unique
+  cityId       String?
+  businessId   String?
+
+  // personal / professional info
+  fullName    String
+  jobTitle    String?
+  company     String?
+  bio         String?
+  phone       String?
+  email       String?
+  website     String?
+  address     String?
+  avatarUrl   String?
+  logoUrl     String?
+
+  // social links
+  linkedin  String?
+  instagram String?
+  telegram  String?
+  twitter   String?
+  whatsapp  String?
+
+  // appearance
+  theme          String  @default("light")
+  primaryColor   String  @default("#8B3A1A")
+  template       String  @default("classic")
+
+  // visibility & moderation
+  isPublished     Boolean    @default(false)
+  status          BiolinkStatus @default(PENDING)
+  rejectionReason String?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  publishedAt     DateTime?
+
+  // boost ("پله") — when approved by an admin the biolink is pinned at the top
+  // of its directory by resetting `pinnedAt` to the approval time.
+  boostedUntil DateTime?
+  pinnedAt     DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  city        City?           @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  business    BusinessCategory? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  moderation  ModerationLog[]
+  scanEvents  ScanEvent[]
+  likes       BiolinkLike[]
+  saves       BiolinkSave[]
+
+  @@index([userId])
+  @@index([slug])
+  @@index([cityId])
+  @@index([businessId])
+  @@index([status, isPublished])
+  @@index([boostedUntil])
+  @@index([pinnedAt])
+  @@map("biolinks")
+}
+
+model ModerationLog {
+  id         String             @id @default(cuid())
+  biolinkId     String
+  adminId    String
+  decision   ModerationDecision
+  reason     String?
+  createdAt  DateTime           @default(now())
+
+  biolink  Biolink @relation(fields: [biolinkId], references: [id], onDelete: Cascade)
+  admin User @relation(fields: [adminId], references: [id], onDelete: Restrict)
+
+  @@index([biolinkId])
+  @@index([adminId])
+  @@map("moderation_logs")
+}
+
+model ScanEvent {
+  id        String   @id @default(cuid())
+  biolinkId    String
+  ipHash    String?
+  userAgent String?
+  referer   String?
+  createdAt DateTime @default(now())
+
+  biolink Biolink @relation(fields: [biolinkId], references: [id], onDelete: Cascade)
+
+  @@index([biolinkId])
+  @@map("scan_events")
+}
+
+model BusinessCard {
+  id     String @id @default(cuid())
+  userId String
+  slug   String @unique
+  cityId       String?
+  businessId   String?
+
+  // personal / professional info
+  fullName    String
+  jobTitle    String?
+  company     String?
+  bio         String?
+  phone       String?
+  email       String?
+  website     String?
+  address     String?
+  avatarUrl   String?
+  logoUrl     String?
+
+  // social links
+  linkedin  String?
+  instagram String?
+  telegram  String?
+  twitter   String?
+  whatsapp  String?
+
+  // appearance
+  theme          String  @default("light")
+  primaryColor   String  @default("#8B3A1A")
+  template       String  @default("classic")
+
+  // visibility & moderation
+  isPublished     Boolean    @default(false)
+  status          BiolinkStatus @default(PENDING)
+  rejectionReason String?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  publishedAt     DateTime?
+
+  // boost ("پله") — when approved by an admin the business card is pinned at the
+  // top of its directory by resetting `pinnedAt` to the approval time.
+  boostedUntil DateTime?
+  pinnedAt     DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  city        City?           @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  business    BusinessCategory? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  scans       BusinessCardScanEvent[]
+  likes       BusinessCardLike[]
+  saves       BusinessCardSave[]
+
+  @@index([userId])
+  @@index([slug])
+  @@index([cityId])
+  @@index([businessId])
+  @@index([status, isPublished])
+  @@index([boostedUntil])
+  @@index([pinnedAt])
+  @@map("business_cards")
+}
+
+model BusinessCardScanEvent {
+  id        String   @id @default(cuid())
+  businessCardId String
+  ipHash    String?
+  userAgent String?
+  referer   String?
+  createdAt DateTime @default(now())
+
+  businessCard BusinessCard @relation(fields: [businessCardId], references: [id], onDelete: Cascade)
+
+  @@index([businessCardId])
+  @@map("business_card_scan_events")
+}
+
+// ---------------------------------------------------------------------------
+// Likes — one row per (visitor, item). `visitorKey` is an anonymous, hashed
+// visitor id (or the logged-in user id), so a visitor can like an item once.
+// ---------------------------------------------------------------------------
+model BiolinkLike {
+  id         String   @id @default(cuid())
+  biolinkId  String
+  visitorKey String
+  createdAt  DateTime @default(now())
+
+  biolink Biolink @relation(fields: [biolinkId], references: [id], onDelete: Cascade)
+
+  @@unique([biolinkId, visitorKey])
+  @@index([biolinkId])
+  @@map("biolink_likes")
+}
+
+model BusinessCardLike {
+  id             String   @id @default(cuid())
+  businessCardId String
+  visitorKey     String
+  createdAt      DateTime @default(now())
+
+  businessCard BusinessCard @relation(fields: [businessCardId], references: [id], onDelete: Cascade)
+
+  @@unique([businessCardId, visitorKey])
+  @@index([businessCardId])
+  @@map("business_card_likes")
+}
+
+// ---------------------------------------------------------------------------
+// Saves ("ذخیره") — a logged-in user bookmarks a biolink / business card so it
+// shows up under "ذخیره‌شده‌های من". One row per (user, item).
+// ---------------------------------------------------------------------------
+model BiolinkSave {
+  id        String   @id @default(cuid())
+  userId    String
+  biolinkId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  biolink Biolink @relation(fields: [biolinkId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, biolinkId])
+  @@index([userId])
+  @@index([biolinkId])
+  @@map("biolink_saves")
+}
+
+model BusinessCardSave {
+  id             String   @id @default(cuid())
+  userId         String
+  businessCardId String
+  createdAt      DateTime @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessCard BusinessCard @relation(fields: [businessCardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, businessCardId])
+  @@index([userId])
+  @@index([businessCardId])
+  @@map("business_card_saves")
+}
+
+// ---------------------------------------------------------------------------
+// Settings — small key/value store for admin-configurable options such as the
+// directory page size.
+// ---------------------------------------------------------------------------
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+// ---------------------------------------------------------------------------
+// Subscriptions — admin-defined plans, user requests and the approval trail.
+// ---------------------------------------------------------------------------
+model SubscriptionPlan {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  description       String?
+  price             Int      @default(0)
+  maxBiolinks       Int      @default(1)
+  maxBusinessCards  Int      @default(1)
+  showSocialLinks   Boolean  @default(false)
+  features          String[] @default([])
+  isActive          Boolean  @default(true)
+  sortOrder         Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  userSubscriptions UserSubscription[]
+  planUsers         User[]
+
+  @@index([isActive, sortOrder])
+  @@map("subscription_plans")
+}
+
+model UserSubscription {
+  id          String             @id @default(cuid())
+  userId      String
+  planId      String
+  status      SubscriptionStatus @default(PENDING)
+  requestedAt DateTime           @default(now())
+  decidedAt   DateTime?
+  decidedById String?
+  note        String?
+  adminNote   String?
+
+  user    User              @relation("UserSubscriptions", fields: [userId], references: [id], onDelete: Cascade)
+  plan    SubscriptionPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
+  decidedBy User?           @relation("SubscriptionDecisions", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+  @@map("user_subscriptions")
+}
+
+// ---------------------------------------------------------------------------
+// Boost requests ("پله") — a user asks to pin an item near the top of the
+// directory; an admin approves it.
+// ---------------------------------------------------------------------------
+model BoostRequest {
+  id          String          @id @default(cuid())
+  userId      String
+  kind        BoostTargetKind
+  targetId    String
+  feature     BoostFeature    @default(POLE)
+  status      BoostStatus     @default(PENDING)
+  requestedAt DateTime        @default(now())
+  decidedAt   DateTime?
+  decidedById String?
+  note        String?
+  adminNote   String?
+
+  user    User  @relation("UserBoostRequests", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User? @relation("BoostDecisions", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([kind, targetId])
+  @@index([status])
+  @@map("boost_requests")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications — in-app feed for users and admins. Every meaningful action
+// (moderation decisions, subscription/boost decisions, account status changes,
+// new cards, tickets, ...) creates a row so the bell icon shows a badge.
+// `audience` is "USER" for a specific user (userId set) or "ADMIN" for the
+// admin team (userId null).
+// ---------------------------------------------------------------------------
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String?
+  audience  String           @default("USER")
+  type      NotificationType @default(INFO)
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  actorId   String?
+  createdAt DateTime         @default(now())
+
+  user  User? @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  actor User? @relation("NotificationActors", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([userId, readAt])
+  @@index([audience, readAt])
+  @@index([createdAt])
+  @@map("notifications")
+}

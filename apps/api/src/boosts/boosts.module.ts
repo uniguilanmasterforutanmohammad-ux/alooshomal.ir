@@ -1,0 +1,16 @@
+import { Module } from '@nestjs/common';
+
+import { BiolinksModule } from '../biolinks/biolinks.module';
+import { BusinessCardsModule } from '../businesscards/business-cards.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { PrismaModule } from '../prisma/prisma.module';
+import { BoostsController } from './boosts.controller';
+import { BoostsService } from './boosts.service';
+
+@Module({
+  imports: [PrismaModule, BiolinksModule, BusinessCardsModule, NotificationsModule],
+  controllers: [BoostsController],
+  providers: [BoostsService],
+  exports: [BoostsService],
+})
+export class BoostsModule {}

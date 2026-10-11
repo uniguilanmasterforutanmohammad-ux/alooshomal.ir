@@ -1,0 +1,27 @@
+{
+  "name": "alooshomal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Digital business card platform — NestJS + Next.js + Prisma + PostgreSQL",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up",
+    "up": "docker compose up --build -d",
+    "down": "docker compose down",
+    "logs": "docker compose logs -f",
+    "ps": "docker compose ps",
+    "db:migrate": "docker compose exec api npx prisma migrate deploy",
+    "db:studio": "docker compose exec api npx prisma studio",
+    "db:backup": "./scripts/backup.sh",
+    "db:backups": "./scripts/backup.sh --list",
+    "db:restore": "./scripts/restore.sh",
+    "seed": "docker compose exec api npm run prisma:seed",
+    "api:logs": "docker compose logs -f api",
+    "web:logs": "docker compose logs -f web"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

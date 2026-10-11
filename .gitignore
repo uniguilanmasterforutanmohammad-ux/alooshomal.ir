@@ -1,0 +1,48 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# builds
+dist/
+.next/
+out/
+build/
+
+# env
+.env
+.env.local
+.env.*.local
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# prisma
+apps/api/prisma/migrations/dev.db*
+apps/api/prisma/*.db
+
+# database snapshots
+backups/
+
+# uploads
+apps/api/uploads/
+apps/web/public/uploads/
+
+# coverage
+coverage/
+.nyc_output/
+
+
+install.sh
+PRD-1.pdf
+PRD-2.pdf

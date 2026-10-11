@@ -1,0 +1,21 @@
+services:
+  api:
+    build:
+      target: development
+    command: npm run start:dev
+    volumes:
+      - ./apps/api:/usr/src/app
+      - /usr/src/app/node_modules
+    environment:
+      NODE_ENV: development
+
+  web:
+    build:
+      target: development
+    command: npm run dev
+    volumes:
+      - ./apps/web:/usr/src/app
+      - /usr/src/app/node_modules
+      - /usr/src/app/.next
+    environment:
+      NODE_ENV: development
