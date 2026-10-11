@@ -12,7 +12,14 @@ interface Props {
   scope?: 'user' | 'admin';
 }
 
-const POLL_MS = 30000;
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
+
+/**
+ * Fallback poll. The bell normally updates over SSE the instant a notification
+ * is created; this slow poll only covers a dropped stream (e.g. a sleeping
+ * laptop) so the badge can never go permanently stale.
+ */
+const POLL_MS = 120000;
 
 const typeStyles: Record<AppNotification['type'], string> = {
   INFO: 'border-s-sky-400 bg-sky-50 text-sky-700',
@@ -27,6 +34,7 @@ export function NotificationBell({ scope = 'user' }: Props) {
   const ref = useRef<HTMLDivElement>(null);
 
   const listPath = scope === 'admin' ? '/admin/notifications' : '/notifications/mine';
+  const streamPath = scope === 'admin' ? '/admin/notifications/stream' : '/notifications/mine/stream';
 
   const load = useCallback(async () => {
     try {
@@ -42,6 +50,36 @@ export function NotificationBell({ scope = 'user' }: Props) {
     const timer = setInterval(() => void load(), POLL_MS);
     return () => clearInterval(timer);
   }, [load]);
+
+  // Live badge: one idle SSE connection per open tab. EventSource cannot send
+  // headers, so the JWT rides along as `?token=`.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const token = window.localStorage.getItem('alooshomal_token');
+    if (!token) return;
+
+    const source = new EventSource(
+      `${API_URL}${streamPath}?token=${encodeURIComponent(token)}`,
+    );
+    source.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data) as { unread?: number };
+        if (typeof data.unread === 'number') {
+          setFeed((prev) => ({ ...prev, unread: data.unread ?? prev.unread }));
+        }
+      } catch {
+        /* ignore malformed frame */
+      }
+    };
+    // On error the browser retries by itself; a fresh token is picked up when
+    // the effect re-runs after re-login.
+    return () => source.close();
+  }, [streamPath]);
+
+  // Refresh the list itself whenever the panel is opened.
+  useEffect(() => {
+    if (open) void load();
+  }, [open, load]);
 
   useEffect(() => {
     function onClick(event: MouseEvent) {

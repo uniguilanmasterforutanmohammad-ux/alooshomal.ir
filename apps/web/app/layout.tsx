@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next';
+import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { ToastViewport } from '@/components/ui/ToastViewport';
 import './globals.css';
 
@@ -23,6 +24,7 @@ export default function RootLayout({
   return (
     <html lang="fa" dir="rtl">
       <body>
+        <OfflineBanner />
         {children}
         <ToastViewport />
       </body>

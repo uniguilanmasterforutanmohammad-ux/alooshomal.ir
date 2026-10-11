@@ -46,3 +46,6 @@ coverage/
 install.sh
 PRD-1.pdf
 PRD-2.pdf
+
+# typescript incremental build
+*.tsbuildinfo

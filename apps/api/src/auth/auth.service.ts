@@ -41,6 +41,7 @@ export class AuthService {
     await this.subscriptions.assignDefaultPlan(user.id);
 
     await this.notifications.notifyAdmins({
+      category: 'NEW_USER',
       title: 'کاربر جدید ثبت‌نام کرد',
       body: `${user.fullName ?? user.email} به پلتفرم پیوست.`,
       link: '/admin?section=users',

@@ -137,6 +137,7 @@ export class BoostsService {
     });
 
     await this.notifications.notifyAdmins({
+      category: 'BOOST',
       title: 'درخواست پله جدید',
       body: `یک درخواست «پله» برای ${dto.kind === 'BIOLINK' ? 'بیولینک' : 'کارت ویزیت'} ثبت شد.`,
       type: NotificationType.INFO,

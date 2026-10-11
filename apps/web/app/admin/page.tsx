@@ -12,6 +12,7 @@ import { TaxonomyManager } from '@/components/admin/TaxonomyManager';
 import { AdminDirectorySettings } from '@/components/admin/AdminDirectorySettings';
 import { AdminSubscriptions } from '@/components/admin/AdminSubscriptions';
 import { AdminBoosts } from '@/components/admin/AdminBoosts';
+import { AdminNotificationSettings } from '@/components/admin/AdminNotificationSettings';
 import { BiolinkLiveEditor } from '@/components/admin/BiolinkLiveEditor';
 import { BusinessCardLiveEditor } from '@/components/admin/BusinessCardLiveEditor';
 import {
@@ -88,12 +89,6 @@ function AdminContent() {
   const searchParams = useSearchParams();
   const { token, user, hydrated } = useAuth();
 
-  const [section, setSection] = useState<AdminSection>(() => {
-    const requested = searchParams.get('section');
-    return requested && isAdminSection(requested)
-      ? (requested as AdminSection)
-      : 'overview';
-  });
   const [overview, setOverview] = useState<OverviewPayload | null>(null);
   const [biolinks, setBiolinks] = useState<AdminBiolink[]>([]);
   const [businessCards, setBusinessCards] = useState<AdminBusinessCard[]>([]);
@@ -187,30 +182,29 @@ function AdminContent() {
     void loadOverview();
   }, [hydrated, token, user, router, loadOverview]);
 
-  // Keep the URL (`?section=`) in sync with the active tab, and let admin
-  // notifications deep-link straight to the right panel.
-  //
-  // This is done with a single effect on purpose: two effects that mirror
-  // `section` <-> `?section=` fight each other (the `overview` case maps to an
-  // ABSENT param), which re-fired `router.replace` on every render and made the
-  // page jump/vibrate between panels.
+  // The active panel lives ONLY in the URL. Deriving it from `?section=` (with
+  // an `overview` fallback for an absent param) means there is a single source
+  // of truth, so the "URL -> state" and "state -> URL" effects that used to
+  // fight each other are gone. Those effects raced during Next.js client
+  // navigations (e.g. clicking a notification in the bell): `searchParams` is
+  // briefly empty mid-transition, `overview` was inferred from it, and the
+  // stale value was written back — re-firing `router.replace` dozens of times
+  // and making the whole panel jump/vibrate between tabs.
   const urlSection =
     searchParams.get('section') && isAdminSection(searchParams.get('section')!)
       ? (searchParams.get('section') as AdminSection)
       : 'overview';
 
-  // URL -> state: react to back/forward and deep links.
-  useEffect(() => {
-    setSection(urlSection);
-  }, [urlSection]);
+  // Selecting a panel simply navigates; the URL is the state.
+  const setSection = useCallback(
+    (next: AdminSection) => {
+      const target = next === 'overview' ? '/admin' : `/admin?section=${next}`;
+      router.replace(target, { scroll: false });
+    },
+    [router],
+  );
 
-  // State -> URL: only rewrite when the URL is actually out of sync, so this
-  // settles after a single `replace` instead of looping.
-  useEffect(() => {
-    if (urlSection === section) return;
-    const target = section === 'overview' ? '/admin' : `/admin?section=${section}`;
-    router.replace(target, { scroll: false });
-  }, [section, urlSection, router]);
+  const section = urlSection;
 
   useEffect(() => {
     if (section === 'biolinks') {
@@ -591,6 +585,7 @@ function AdminContent() {
       {section === 'settings' ? (
         <div className="grid gap-4 lg:grid-cols-2">
           <AdminDirectorySettings />
+          <AdminNotificationSettings />
           <TaxonomyManager
             title="مدیریت شهرها"
             description="شهرهای قابل انتخاب در فرم ساخت بیولینک"

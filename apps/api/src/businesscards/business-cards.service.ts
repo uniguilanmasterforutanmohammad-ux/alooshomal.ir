@@ -73,6 +73,7 @@ export class BusinessCardsService {
     });
 
     await this.notifications.notifyAdmins({
+      category: 'BUSINESS_CARD',
       title: 'کارت ویزیت جدید در انتظار تأیید',
       body: `کارت ویزیت «${businessCard.fullName}» برای بررسی ثبت شد.`,
       type: NotificationType.INFO,
@@ -167,6 +168,7 @@ export class BusinessCardsService {
     });
 
     await this.notifications.notifyAdmins({
+      category: 'BUSINESS_CARD',
       title: 'ویرایش کارت ویزیت در انتظار تأیید',
       body: `کارت ویزیت «${businessCard.fullName}» ویرایش شد و نیازمند بررسی مجدد است.`,
       type: NotificationType.WARNING,

@@ -49,6 +49,7 @@ export class TicketsService {
     });
 
     await this.notifications.notifyAdmins({
+      category: 'TICKET',
       title: 'تیکت پشتیبانی جدید',
       body: `تیکت «${ticket.subject}» ثبت شد.`,
       type: NotificationType.INFO,
@@ -109,6 +110,7 @@ export class TicketsService {
     });
 
     await this.notifications.notifyAdmins({
+      category: 'TICKET',
       title: 'پاسخ کاربر در تیکت',
       body: `کاربر به تیکت «${ticket.subject}» پاسخ داد.`,
       type: NotificationType.INFO,

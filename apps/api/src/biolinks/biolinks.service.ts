@@ -73,6 +73,7 @@ export class BiolinksService {
     });
 
     await this.notifications.notifyAdmins({
+      category: 'BIOLINK',
       title: 'بیولینک جدید در انتظار تأیید',
       body: `بیولینک «${biolink.fullName}» برای بررسی ثبت شد.`,
       type: NotificationType.INFO,
@@ -168,6 +169,7 @@ export class BiolinksService {
     });
 
     await this.notifications.notifyAdmins({
+      category: 'BIOLINK',
       title: 'ویرایش بیولینک در انتظار تأیید',
       body: `بیولینک «${biolink.fullName}» ویرایش شد و نیازمند بررسی مجدد است.`,
       type: NotificationType.WARNING,

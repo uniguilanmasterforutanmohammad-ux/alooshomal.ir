@@ -27,6 +27,8 @@ INSTALL = "install.sh"
 SKIP_DIRS = ("/node_modules/", "/.next/", "/dist/")
 BINARY_EXT = (".woff2", ".woff", ".ttf", ".otf", ".eot", ".png", ".jpg", ".jpeg",
               ".ico", ".pdf", ".gz", ".zip")
+# Build/editor artifacts that must never be baked into the installer.
+SKIP_SUFFIXES = (".tsbuildinfo",)
 
 
 def marker_for(path: str) -> str:
@@ -51,6 +53,8 @@ def tracked_files() -> list[str]:
                 if any(part in path for part in SKIP_DIRS):
                     continue
                 if name.lower().endswith(BINARY_EXT):
+                    continue
+                if name.endswith(SKIP_SUFFIXES):
                     continue
                 files.append(path)
     # Root-level files that the generator also emits.

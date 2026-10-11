@@ -2,6 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { NotificationType } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  AdminNotifyCategory,
+  SettingsService,
+} from '../settings/settings.service';
+import { NotificationsEventsService } from './notifications-events.service';
 
 export interface NotifyPayload {
   /** specific user; omit to notify the admin team */
@@ -13,6 +18,11 @@ export interface NotifyPayload {
   link?: string | null;
   /** the user who triggered the event (for the trail) */
   actorId?: string | null;
+  /**
+   * Admin-feed category. When set and the admin has muted that category, the
+   * notification is dropped before it is written (no row, no client poll hit).
+   */
+  category?: AdminNotifyCategory;
 }
 
 /**
@@ -23,14 +33,23 @@ export interface NotifyPayload {
  */
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly settings: SettingsService,
+    private readonly events: NotificationsEventsService,
+  ) {}
 
   async notify(payload: NotifyPayload) {
     try {
-      return await this.prisma.notification.create({
+      const audience = payload.audience ?? (payload.userId ? 'USER' : 'ADMIN');
+      if (audience === 'ADMIN' && payload.category) {
+        const enabled = await this.settings.isAdminNotifyEnabled(payload.category);
+        if (!enabled) return null;
+      }
+      const created = await this.prisma.notification.create({
         data: {
           userId: payload.userId ?? null,
-          audience: payload.audience ?? (payload.userId ? 'USER' : 'ADMIN'),
+          audience,
           type: payload.type ?? NotificationType.INFO,
           title: payload.title,
           body: payload.body ?? null,
@@ -38,6 +57,12 @@ export class NotificationsService {
           actorId: payload.actorId ?? null,
         },
       });
+      // Push a live signal to connected clients (badge updates instantly).
+      this.events.emit({
+        audience: audience === 'ADMIN' ? 'ADMIN' : 'USER',
+        userId: created.userId,
+      });
+      return created;
     } catch {
       return null;
     }
