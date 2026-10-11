@@ -35,6 +35,9 @@ apps/api/prisma/*.db
 # database snapshots
 backups/
 
+# load-testing fixtures (regenerate with scripts/generate_test_data.py)
+test-data/
+
 # uploads
 apps/api/uploads/
 apps/web/public/uploads/
