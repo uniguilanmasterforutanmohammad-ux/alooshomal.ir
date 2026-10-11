@@ -1,0 +1,27 @@
+# =============================================================================
+#  alooshomal.ir — HTTPS (port 443) server block.
+#
+#  This is a TEMPLATE. It is only activated once a certificate exists:
+#    deploy/nginx/enable-ssl.sh   (creates 02-alooshomal-ssl.conf from it)
+#
+#  The certificate is issued on the host with certbot (webroot method) and
+#  bind-mounted read-only into the container at /etc/letsencrypt.
+# =============================================================================
+
+server {
+    listen      443 ssl;
+    listen      [::]:443 ssl;
+    http2       on;
+    server_name alooshomal.ir www.alooshomal.ir;
+
+    ssl_certificate     /etc/letsencrypt/live/alooshomal.ir/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/alooshomal.ir/privkey.pem;
+
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache   shared:SSL:10m;
+    ssl_session_timeout 1d;
+
+    include /etc/nginx/conf.d/alooshomal-locations.inc;
+}
