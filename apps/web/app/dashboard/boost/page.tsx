@@ -52,15 +52,7 @@ function TargetRow({ item, kind, requests, busy, onBoost }: RowProps) {
       <div className="min-w-0">
         <div className="flex items-center gap-2">
           <h3 className="truncate text-base font-extrabold text-ink">{item.fullName}</h3>
-          {isBoosted ? (
-            <>
-              <BoostBadge />
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-                <Sparkles className="size-3" aria-hidden />
-                فعال تا {boostedUntil?.toLocaleDateString('fa-IR')}
-              </span>
-            </>
-          ) : null}
+          {isBoosted ? <BoostBadge /> : null}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted">
           <span

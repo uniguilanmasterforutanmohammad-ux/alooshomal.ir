@@ -6,6 +6,7 @@ import {
 import { NotificationType, TicketPriority, TicketStatus } from '@prisma/client';
 
 import { NotificationsService } from '../notifications/notifications.service';
+import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateTicketDto } from './dto/create-ticket.dto';
 import { ListTicketsDto } from './dto/list-tickets.dto';
@@ -24,6 +25,7 @@ export class TicketsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly activity: ActivityService,
   ) {}
 
   /** Create a ticket on behalf of the authenticated user. */
@@ -55,6 +57,13 @@ export class TicketsService {
       type: NotificationType.INFO,
       link: '/admin?section=tickets',
       actorId: userId,
+    });
+
+    await this.activity.log({
+      action: 'TICKET_CREATED',
+      summary: `ثبت تیکت «${ticket.subject}»`,
+      entityType: 'TICKET',
+      entityId: ticket.id,
     });
 
     return ticket;
@@ -116,6 +125,13 @@ export class TicketsService {
       type: NotificationType.INFO,
       link: '/admin?section=tickets',
       actorId: userId,
+    });
+
+    await this.activity.log({
+      action: 'TICKET_USER_REPLY',
+      summary: `پاسخ کاربر در تیکت «${ticket.subject}»`,
+      entityType: 'TICKET',
+      entityId: id,
     });
 
     return updated;
@@ -184,6 +200,13 @@ export class TicketsService {
       });
     }
 
+    await this.activity.log({
+      action: 'TICKET_STAFF_REPLY',
+      summary: `پاسخ مدیر به تیکت «${ticket.subject}»`,
+      entityType: 'TICKET',
+      entityId: id,
+    });
+
     return updated;
   }
 
@@ -205,6 +228,14 @@ export class TicketsService {
         title: 'وضعیت تیکت شما تغییر کرد',
         body: `وضعیت تیکت «${ticket.subject}» به «${labels[status]}» تغییر یافت.`,
         link: '/dashboard/tickets',
+      });
+    }
+    if (ticket.status !== status) {
+      await this.activity.log({
+        action: 'TICKET_STATUS_CHANGED',
+        summary: `تغییر وضعیت تیکت «${ticket.subject}»`,
+        entityType: 'TICKET',
+        entityId: id,
       });
     }
     return updated;

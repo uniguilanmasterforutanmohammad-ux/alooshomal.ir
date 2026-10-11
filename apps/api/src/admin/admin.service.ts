@@ -12,6 +12,7 @@ import {
 
 import { UpdateBiolinkDto } from '../biolinks/dto/update-biolink.dto';
 import { UpdateBusinessCardDto } from '../businesscards/dto/update-business-card.dto';
+import { ActivityService } from '../activity/activity.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -24,6 +25,7 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly settings: SettingsService,
+    private readonly activity: ActivityService,
   ) {}
 
   async listBiolinks(pagination: PaginationDto, status?: BiolinkStatus) {
@@ -114,6 +116,13 @@ export class AdminService {
         ? `/biolinks/${updated.slug}`
         : `/dashboard/biolinks/${updated.id}/edit`,
     );
+
+    await this.activity.log({
+      action: approved ? 'BIOLINK_APPROVED' : 'BIOLINK_REJECTED',
+      summary: `${approved ? 'تأیید' : 'رد'} بیولینک «${updated.fullName}»`,
+      entityType: 'BIOLINK',
+      entityId: biolinkId,
+    });
 
     return updated;
   }
@@ -237,6 +246,13 @@ export class AdminService {
         ? `/business-cards/${updated.slug}`
         : `/dashboard/business-cards/${updated.id}/edit`,
     );
+
+    await this.activity.log({
+      action: approved ? 'CARD_APPROVED' : 'CARD_REJECTED',
+      summary: `${approved ? 'تأیید' : 'رد'} کارت ویزیت «${updated.fullName}»`,
+      entityType: 'BUSINESS_CARD',
+      entityId: businessCardId,
+    });
 
     return updated;
   }
@@ -430,6 +446,13 @@ export class AdminService {
       );
     }
 
+    await this.activity.log({
+      action: isActive ? 'USER_ACTIVATED' : 'USER_DEACTIVATED',
+      summary: `${isActive ? 'فعال‌سازی' : 'غیرفعال‌سازی'} حساب «${user.fullName ?? user.email}»${reason ? ` — علت: ${reason}` : ''}`,
+      entityType: 'USER',
+      entityId: userId,
+    });
+
     return updated;
   }
 
@@ -439,7 +462,7 @@ export class AdminService {
     if (!user) {
       throw new NotFoundException('کاربر یافت نشد');
     }
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { adminComment: comment?.trim() || null },
       select: {
@@ -453,6 +476,13 @@ export class AdminService {
         createdAt: true,
       },
     });
+    await this.activity.log({
+      action: 'USER_COMMENT_SET',
+      summary: `ثبت یادداشت مدیر برای «${user.fullName ?? user.email}»`,
+      entityType: 'USER',
+      entityId: userId,
+    });
+    return updated;
   }
 
   /** Hard-delete a user (cascades their cards, likes, saves...). */
@@ -465,6 +495,12 @@ export class AdminService {
       throw new BadRequestException('حساب مدیر را نمی‌توان حذف کرد');
     }
     await this.prisma.user.delete({ where: { id: userId } });
+    await this.activity.log({
+      action: 'USER_DELETED',
+      summary: `حذف کاربر «${user.fullName ?? user.email}»`,
+      entityType: 'USER',
+      entityId: userId,
+    });
     return { deleted: true };
   }
 

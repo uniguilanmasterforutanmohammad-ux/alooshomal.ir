@@ -7,6 +7,10 @@ export const DEFAULT_DIRECTORY_PAGE_SIZE = 10;
 export const ADMIN_LIST_PAGE_SIZE_KEY = 'adminListPageSize';
 export const DEFAULT_ADMIN_LIST_PAGE_SIZE = 10;
 
+/** How many months of system activity logs to keep (older rows are pruned). */
+export const ACTIVITY_RETENTION_MONTHS_KEY = 'activityRetentionMonths';
+export const DEFAULT_ACTIVITY_RETENTION_MONTHS = 6;
+
 /**
  * Categories of admin-facing notifications. Each one can be muted from the
  * admin settings panel: a muted category is skipped at creation time, so no
@@ -61,6 +65,14 @@ export class SettingsService implements OnModuleInit {
         create: {
           key: ADMIN_LIST_PAGE_SIZE_KEY,
           value: String(DEFAULT_ADMIN_LIST_PAGE_SIZE),
+        },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: ACTIVITY_RETENTION_MONTHS_KEY },
+        update: {},
+        create: {
+          key: ACTIVITY_RETENTION_MONTHS_KEY,
+          value: String(DEFAULT_ACTIVITY_RETENTION_MONTHS),
         },
       }),
       ...ADMIN_NOTIFY_CATEGORIES.map((category) =>
@@ -157,6 +169,26 @@ export class SettingsService implements OnModuleInit {
       where: { key: ADMIN_LIST_PAGE_SIZE_KEY },
       update: { value: String(clamped) },
       create: { key: ADMIN_LIST_PAGE_SIZE_KEY, value: String(clamped) },
+    });
+    return clamped;
+  }
+
+  async getActivityRetentionMonths(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: ACTIVITY_RETENTION_MONTHS_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 1 && parsed <= 60
+      ? Math.floor(parsed)
+      : DEFAULT_ACTIVITY_RETENTION_MONTHS;
+  }
+
+  async setActivityRetentionMonths(value: number): Promise<number> {
+    const clamped = Math.min(60, Math.max(1, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: ACTIVITY_RETENTION_MONTHS_KEY },
+      update: { value: String(clamped) },
+      create: { key: ACTIVITY_RETENTION_MONTHS_KEY, value: String(clamped) },
     });
     return clamped;
   }

@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
 import { NotificationsService } from '../notifications/notifications.service';
+import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { LoginDto } from './dto/login.dto';
@@ -21,6 +22,7 @@ export class AuthService {
     private readonly jwt: JwtService,
     private readonly notifications: NotificationsService,
     private readonly subscriptions: SubscriptionsService,
+    private readonly activity: ActivityService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -48,6 +50,14 @@ export class AuthService {
       actorId: user.id,
     });
 
+    await this.activity.log({
+      actor: { id: user.id, email: user.email, role: user.role },
+      action: 'USER_REGISTERED',
+      summary: `ثبت‌نام کاربر جدید: ${user.fullName ?? user.email}`,
+      entityType: 'USER',
+      entityId: user.id,
+    });
+
     return this.buildAuthResponse(user);
   }
 
@@ -62,6 +72,14 @@ export class AuthService {
     if (!valid) {
       throw new UnauthorizedException('ایمیل یا رمز عبور اشتباه است');
     }
+
+    await this.activity.log({
+      actor: { id: user.id, email: user.email, role: user.role },
+      action: 'USER_LOGIN',
+      summary: `ورود به حساب: ${user.fullName ?? user.email}`,
+      entityType: 'USER',
+      entityId: user.id,
+    });
 
     return this.buildAuthResponse({
       id: user.id,

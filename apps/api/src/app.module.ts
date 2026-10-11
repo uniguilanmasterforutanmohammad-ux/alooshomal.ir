@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
+import { ActivityContextInterceptor } from './activity/activity-context.interceptor';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 import { AdminModule } from './admin/admin.module';
+import { ActivityModule } from './activity/activity.module';
 import { AuthModule } from './auth/auth.module';
 import { BiolinksModule } from './biolinks/biolinks.module';
 import { BoostsModule } from './boosts/boosts.module';
@@ -22,6 +24,7 @@ import { UsersModule } from './users/users.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env'] }),
     PrismaModule,
+    ActivityModule,
     AuthModule,
     UsersModule,
     BiolinksModule,
@@ -35,6 +38,9 @@ import { UsersModule } from './users/users.module';
     TicketsModule,
     HealthModule,
   ],
-  providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_INTERCEPTOR, useClass: ActivityContextInterceptor },
+  ],
 })
 export class AppModule {}

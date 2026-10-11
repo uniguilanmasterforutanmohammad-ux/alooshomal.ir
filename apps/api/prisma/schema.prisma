@@ -161,6 +161,38 @@ model Report {
   @@map("reports")
 }
 
+// ---------------------------------------------------------------------------
+// System activity log — one row per meaningful action by admins or users.
+// Retention is admin-configurable (months); older rows are pruned
+// automatically so the table never grows without bound.
+// ---------------------------------------------------------------------------
+model ActivityLog {
+  id        String   @id @default(cuid())
+  /// who did it; null for anonymous/system events
+  actorId     String?
+  actorEmail  String?
+  actorRole   String?
+  /// short machine action key, e.g. TICKET_CREATED / USER_DEACTIVATED
+  action      String
+  /// filled for admin actions so they can be filtered in the report table
+  actorIsAdmin Boolean @default(false)
+  /// Persian one-line description shown in the admin table
+  summary     String
+  /// affected resource (biolink / ticket / user / ...), if any
+  entityType  String?
+  entityId    String?
+  /// request metadata for auditing
+  ip          String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actorId])
+  @@index([action])
+  @@index([actorIsAdmin])
+  @@map("activity_logs")
+}
+
 model City {
   id        String   @id @default(cuid())
   name      String   @unique

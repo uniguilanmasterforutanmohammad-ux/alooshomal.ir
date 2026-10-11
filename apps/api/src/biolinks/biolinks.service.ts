@@ -11,6 +11,7 @@ import * as QRCode from 'qrcode';
 import { biolinkOrderBy } from '../common/directory-sort';
 import { planLimitsFrom } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
@@ -25,6 +26,7 @@ export class BiolinksService {
     private readonly subscriptions: SubscriptionsService,
     private readonly settings: SettingsService,
     private readonly notifications: NotificationsService,
+    private readonly activity: ActivityService,
   ) {}
 
   private get appUrl(): string {
@@ -79,6 +81,13 @@ export class BiolinksService {
       type: NotificationType.INFO,
       link: '/admin?section=biolinks',
       actorId: userId,
+    });
+
+    await this.activity.log({
+      action: 'BIOLINK_CREATED',
+      summary: `ساخت بیولینک «${biolink.fullName}»`,
+      entityType: 'BIOLINK',
+      entityId: biolink.id,
     });
 
     return biolink;
@@ -177,12 +186,25 @@ export class BiolinksService {
       actorId: userId,
     });
 
+    await this.activity.log({
+      action: 'BIOLINK_UPDATED',
+      summary: `ویرایش بیولینک «${biolink.fullName}»`,
+      entityType: 'BIOLINK',
+      entityId: biolink.id,
+    });
+
     return biolink;
   }
 
   async remove(userId: string, id: string) {
-    await this.findMineById(userId, id);
+    const biolink = await this.findMineById(userId, id);
     await this.prisma.biolink.delete({ where: { id } });
+    await this.activity.log({
+      action: 'BIOLINK_DELETED',
+      summary: `حذف بیولینک «${biolink.fullName}»`,
+      entityType: 'BIOLINK',
+      entityId: id,
+    });
     return { deleted: true };
   }
 

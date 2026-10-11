@@ -15,6 +15,7 @@ import {
   PlanLimits,
 } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { DecideSubscriptionDto } from './dto/decide-subscription.dto';
@@ -26,6 +27,7 @@ export class SubscriptionsService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
+    private readonly activity: ActivityService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -210,6 +212,13 @@ export class SubscriptionsService implements OnModuleInit {
       actorId: userId,
     });
 
+    await this.activity.log({
+      action: 'SUBSCRIPTION_REQUESTED',
+      summary: `درخواست اشتراک «${plan.name}»`,
+      entityType: 'SUBSCRIPTION',
+      entityId: request.id,
+    });
+
     return request;
   }
 
@@ -297,6 +306,13 @@ export class SubscriptionsService implements OnModuleInit {
       actorId: adminId,
     });
 
+    await this.activity.log({
+      action: approved ? 'SUBSCRIPTION_APPROVED' : 'SUBSCRIPTION_REJECTED',
+      summary: `${approved ? 'تأیید' : 'رد'} اشتراک «${request.plan?.name ?? ''}»`,
+      entityType: 'SUBSCRIPTION',
+      entityId: requestId,
+    });
+
     return updated;
   }
 
@@ -322,6 +338,15 @@ export class SubscriptionsService implements OnModuleInit {
         link: '/dashboard/subscriptions',
       });
     }
+
+    await this.activity.log({
+      action: 'SUBSCRIPTION_ASSIGNED',
+      summary: plan
+        ? `تخصیص اشتراک «${plan.name}» به کاربر`
+        : 'حذف اشتراک کاربر',
+      entityType: 'USER',
+      entityId: userId,
+    });
 
     return updated;
   }

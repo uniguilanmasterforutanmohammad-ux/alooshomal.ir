@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 
 import { NotificationsService } from '../notifications/notifications.service';
+import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BiolinksService } from '../biolinks/biolinks.service';
 import { BusinessCardsService } from '../businesscards/business-cards.service';
@@ -29,6 +30,7 @@ export class BoostsService {
     private readonly biolinks: BiolinksService,
     private readonly businessCards: BusinessCardsService,
     private readonly notifications: NotificationsService,
+    private readonly activity: ActivityService,
   ) {}
 
   /** Overview for the user's "افزایش بازدید" (increase visits) dashboard page. */
@@ -145,6 +147,13 @@ export class BoostsService {
       actorId: userId,
     });
 
+    await this.activity.log({
+      action: 'BOOST_REQUESTED',
+      summary: `درخواست پله برای ${dto.kind === 'BIOLINK' ? 'بیولینک' : 'کارت ویزیت'}`,
+      entityType: 'BOOST',
+      entityId: request.id,
+    });
+
     return request;
   }
 
@@ -249,6 +258,13 @@ export class BoostsService {
         : 'درخواست پله شما رد شد.' + (dto.adminNote ? ` دلیل: ${dto.adminNote}` : ''),
       link: '/dashboard/boost',
       actorId: adminId,
+    });
+
+    await this.activity.log({
+      action: approved ? 'BOOST_APPROVED' : 'BOOST_REJECTED',
+      summary: `${approved ? 'تأیید' : 'رد'} درخواست پله توسط مدیر`,
+      entityType: 'BOOST',
+      entityId: requestId,
     });
 
     return updated;

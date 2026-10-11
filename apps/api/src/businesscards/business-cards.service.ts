@@ -11,6 +11,7 @@ import * as QRCode from 'qrcode';
 import { businessCardOrderBy } from '../common/directory-sort';
 import { planLimitsFrom } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
@@ -25,6 +26,7 @@ export class BusinessCardsService {
     private readonly subscriptions: SubscriptionsService,
     private readonly settings: SettingsService,
     private readonly notifications: NotificationsService,
+    private readonly activity: ActivityService,
   ) {}
 
   private get appUrl(): string {
@@ -79,6 +81,13 @@ export class BusinessCardsService {
       type: NotificationType.INFO,
       link: '/admin?section=business-cards',
       actorId: userId,
+    });
+
+    await this.activity.log({
+      action: 'CARD_CREATED',
+      summary: `ساخت کارت ویزیت «${businessCard.fullName}»`,
+      entityType: 'BUSINESS_CARD',
+      entityId: businessCard.id,
     });
 
     return businessCard;
@@ -176,12 +185,25 @@ export class BusinessCardsService {
       actorId: userId,
     });
 
+    await this.activity.log({
+      action: 'CARD_UPDATED',
+      summary: `ویرایش کارت ویزیت «${businessCard.fullName}»`,
+      entityType: 'BUSINESS_CARD',
+      entityId: businessCard.id,
+    });
+
     return businessCard;
   }
 
   async remove(userId: string, id: string) {
-    await this.findMineById(userId, id);
+    const card = await this.findMineById(userId, id);
     await this.prisma.businessCard.delete({ where: { id } });
+    await this.activity.log({
+      action: 'CARD_DELETED',
+      summary: `حذف کارت ویزیت «${card.fullName}»`,
+      entityType: 'BUSINESS_CARD',
+      entityId: id,
+    });
     return { deleted: true };
   }
 

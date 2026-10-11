@@ -13,6 +13,7 @@ import { AdminDirectorySettings } from '@/components/admin/AdminDirectorySetting
 import { AdminSubscriptions } from '@/components/admin/AdminSubscriptions';
 import { AdminBoosts } from '@/components/admin/AdminBoosts';
 import { AdminNotificationSettings } from '@/components/admin/AdminNotificationSettings';
+import { ActivityLogPanel } from '@/components/admin/ActivityLogPanel';
 import { BiolinkLiveEditor } from '@/components/admin/BiolinkLiveEditor';
 import { BusinessCardLiveEditor } from '@/components/admin/BusinessCardLiveEditor';
 import {
@@ -580,7 +581,7 @@ function AdminContent() {
         </div>
       ) : null}
 
-      {section === 'reports' ? <ReportsTable reports={overview?.reports ?? []} /> : null}
+      {section === 'reports' ? <ActivityLogPanel /> : null}
 
       {section === 'settings' ? (
         <div className="grid gap-4 lg:grid-cols-2">
