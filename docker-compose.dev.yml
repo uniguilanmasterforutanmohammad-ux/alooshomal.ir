@@ -5,7 +5,7 @@ services:
     command: npm run start:dev
     volumes:
       - ./apps/api:/usr/src/app
-      - /usr/src/app/node_modules
+      - api_node_modules:/usr/src/app/node_modules
     environment:
       NODE_ENV: development
 
@@ -15,7 +15,23 @@ services:
     command: npm run dev
     volumes:
       - ./apps/web:/usr/src/app
-      - /usr/src/app/node_modules
-      - /usr/src/app/.next
+      - web_node_modules:/usr/src/app/node_modules
+      - web_next:/usr/src/app/.next
     environment:
       NODE_ENV: development
+
+# در حالت توسعه، پوشه‌ی سورس از هاست به داخل کانتینر bind می‌شود و در نتیجه
+# `node_modules` و `.next` تصویر را پوشش می‌دهد. برای همین این دو مسیر با
+# volumeهای نام‌دار پایدار (named volume) نگه داشته می‌شوند تا کانتینر همیشه
+# از همان `node_modules` سالمی که هنگام build داخل تصویر ساخته شده استفاده کند.
+#
+# نکته: اگر بعداً `package.json` تغییر کرد، یک‌بار volume را تازه کنید تا
+# وابستگی‌های جدید نصب شوند:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v
+volumes:
+  api_node_modules:
+    name: alooshomal_api_node_modules
+  web_node_modules:
+    name: alooshomal_web_node_modules
+  web_next:
+    name: alooshomal_web_next

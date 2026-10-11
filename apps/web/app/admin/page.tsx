@@ -187,26 +187,30 @@ function AdminContent() {
     void loadOverview();
   }, [hydrated, token, user, router, loadOverview]);
 
-  // Keep the URL (`?section=`) in sync with the active tab so admin
-  // notifications can deep-link straight to the right panel.
-  useEffect(() => {
-    const requested = searchParams.get('section');
-    if (requested && isAdminSection(requested) && requested !== section) {
-      setSection(requested);
-    }
-  }, [searchParams, section]);
+  // Keep the URL (`?section=`) in sync with the active tab, and let admin
+  // notifications deep-link straight to the right panel.
+  //
+  // This is done with a single effect on purpose: two effects that mirror
+  // `section` <-> `?section=` fight each other (the `overview` case maps to an
+  // ABSENT param), which re-fired `router.replace` on every render and made the
+  // page jump/vibrate between panels.
+  const urlSection =
+    searchParams.get('section') && isAdminSection(searchParams.get('section')!)
+      ? (searchParams.get('section') as AdminSection)
+      : 'overview';
 
+  // URL -> state: react to back/forward and deep links.
   useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (params.get('section') === section) return;
-    if (section === 'overview') {
-      params.delete('section');
-    } else {
-      params.set('section', section);
-    }
-    const query = params.toString();
-    router.replace(query ? `/admin?${query}` : '/admin', { scroll: false });
-  }, [section, searchParams, router]);
+    setSection(urlSection);
+  }, [urlSection]);
+
+  // State -> URL: only rewrite when the URL is actually out of sync, so this
+  // settles after a single `replace` instead of looping.
+  useEffect(() => {
+    if (urlSection === section) return;
+    const target = section === 'overview' ? '/admin' : `/admin?section=${section}`;
+    router.replace(target, { scroll: false });
+  }, [section, urlSection, router]);
 
   useEffect(() => {
     if (section === 'biolinks') {
