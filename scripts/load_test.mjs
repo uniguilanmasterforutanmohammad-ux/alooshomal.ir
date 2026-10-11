@@ -29,7 +29,8 @@ const PIPELINING = Number(flag('pipelining', '1'));
 const SCENARIOS = [
   { name: 'directory-page-1', path: '/biolinks/public?page=1' },
   { name: 'directory-deep-page', path: '/biolinks/public?page=100' },
-  { name: 'search-fa', path: '/biolinks/public?q=%D8%B9%D9%84%DB%8C' },
+  { name: 'search-biolinks', path: '/biolinks/public?q=%D8%B9%D9%84%DB%8C' },
+  { name: 'search-cards', path: '/business-cards/public?q=%D8%B9%D9%84%DB%8C' },
   { name: 'filter-city', path: '/biolinks/public?cityId=' + (process.env.LOAD_TEST_CITY ?? '') },
   { name: 'cards-page-1', path: '/business-cards/public?page=1' },
 ];
