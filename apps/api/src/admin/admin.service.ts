@@ -14,6 +14,7 @@ import { UpdateBiolinkDto } from '../biolinks/dto/update-biolink.dto';
 import { UpdateBusinessCardDto } from '../businesscards/dto/update-business-card.dto';
 import { ActivityService } from '../activity/activity.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { FacetsCacheService } from '../common/facets-cache.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
@@ -26,6 +27,7 @@ export class AdminService {
     private readonly notifications: NotificationsService,
     private readonly settings: SettingsService,
     private readonly activity: ActivityService,
+    private readonly facetsCache: FacetsCacheService,
   ) {}
 
   async listBiolinks(pagination: PaginationDto, status?: BiolinkStatus) {
@@ -124,6 +126,7 @@ export class AdminService {
       entityId: biolinkId,
     });
 
+    this.facetsCache.invalidateDirectory('biolink');
     return updated;
   }
 
@@ -160,11 +163,13 @@ export class AdminService {
       }
     }
 
-    return this.prisma.biolink.update({
+    const updated = await this.prisma.biolink.update({
       where: { id: biolinkId },
       data: { ...dto },
       include: { city: true, business: true },
     });
+    this.facetsCache.invalidateDirectory('biolink');
+    return updated;
   }
 
   async listBusinessCards(pagination: PaginationDto, status?: BiolinkStatus) {
@@ -254,6 +259,7 @@ export class AdminService {
       entityId: businessCardId,
     });
 
+    this.facetsCache.invalidateDirectory('businesscard');
     return updated;
   }
 
@@ -286,11 +292,13 @@ export class AdminService {
       }
     }
 
-    return this.prisma.businessCard.update({
+    const updated = await this.prisma.businessCard.update({
       where: { id: businessCardId },
       data: { ...dto },
       include: { city: true, business: true },
     });
+    this.facetsCache.invalidateDirectory('businesscard');
+    return updated;
   }
 
   async stats() {

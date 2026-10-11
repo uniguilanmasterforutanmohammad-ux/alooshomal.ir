@@ -20,6 +20,34 @@ import { CreateBiolinkDto } from './dto/create-biolink.dto';
 import { PublicBiolinkQueryDto } from './dto/public-biolink-query.dto';
 import { UpdateBiolinkDto } from './dto/update-biolink.dto';
 
+/** One row of the public directory (without the per-visitor liked/saved flags). */
+interface DirectoryBiolinkItem {
+  id: string;
+  slug: string;
+  fullName: string;
+  jobTitle: string | null;
+  company: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+  logoUrl: string | null;
+  primaryColor: string;
+  template: string;
+  publishedAt: Date | null;
+  pinnedAt: Date;
+  boostedUntil: Date | null;
+  likeCount: number;
+}
+
+/**
+ * How long a rendered directory page may be served from cache. Short enough
+ * that newly approved content appears almost immediately, long enough to
+ * absorb the repeated queries of a traffic burst.
+ */
+const DIRECTORY_CACHE_TTL_MS = (() => {
+  const parsed = Number(process.env.DIRECTORY_CACHE_TTL_MS ?? 15_000);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 15_000;
+})();
+
 @Injectable()
 export class BiolinksService {
   constructor(
@@ -202,6 +230,7 @@ export class BiolinksService {
       entityId: biolink.id,
     });
 
+    this.facetsCache.invalidateDirectory('biolink');
     return biolink;
   }
 
@@ -214,6 +243,7 @@ export class BiolinksService {
       entityType: 'BIOLINK',
       entityId: id,
     });
+    this.facetsCache.invalidateDirectory('biolink');
     return { deleted: true };
   }
 
@@ -280,6 +310,71 @@ export class BiolinksService {
     // limit so the frontend always fetches exactly one page worth of rows.
     const limit = await this.settings.getDirectoryPageSize();
 
+    // Cache the anonymous "base" page (items + total) so repeated identical
+    // searches/filters are served from Redis/memory instead of Postgres. The
+    // per-visitor `liked`/`saved` flags are always resolved fresh below.
+    const cacheKey = [
+      'dir:biolinks',
+      sort,
+      cityId ?? '-',
+      businessId ?? '-',
+      q ? q.trim().toLowerCase() : '-',
+      page,
+      limit,
+    ].join(':');
+
+    const { items, total } = await this.facetsCache.get(cacheKey, () =>
+      this.loadDirectoryPage(query, limit),
+      DIRECTORY_CACHE_TTL_MS,
+    );
+
+    const facets = await this.getDirectoryFacets();
+
+    const itemIds = items.map((item) => item.id);
+    const [likedIds, savedIds] = await Promise.all([
+      visitorKey
+        ? this.prisma.biolinkLike
+            .findMany({
+              where: { visitorKey, biolinkId: { in: itemIds } },
+              select: { biolinkId: true },
+            })
+            .then((rows) => new Set(rows.map((row) => row.biolinkId)))
+        : Promise.resolve(new Set<string>()),
+      userId
+        ? this.prisma.biolinkSave
+            .findMany({
+              where: { userId, biolinkId: { in: itemIds } },
+              select: { biolinkId: true },
+            })
+            .then((rows) => new Set(rows.map((row) => row.biolinkId)))
+        : Promise.resolve(new Set<string>()),
+    ]);
+
+    return {
+      items: items.map((item) => ({
+        ...item,
+        liked: likedIds.has(item.id),
+        saved: savedIds.has(item.id),
+      })),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+        hasNext: page * limit < total,
+        hasPrev: page > 1,
+      },
+      filters: facets,
+    };
+  }
+
+  /** Uncached database read for one directory page. */
+  private async loadDirectoryPage(
+    query: PublicBiolinkQueryDto,
+    limit: number,
+  ): Promise<{ items: DirectoryBiolinkItem[]; total: number }> {
+    const { page, q, cityId, businessId, sort } = query;
+
     const where: Prisma.BiolinkWhereInput = {
       status: BiolinkStatus.APPROVED,
       isPublished: true,
@@ -297,7 +392,7 @@ export class BiolinksService {
         : {}),
     };
 
-    const [items, total, facets] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.biolink.findMany({
         where,
         select: {
@@ -321,46 +416,13 @@ export class BiolinksService {
         take: limit,
       }),
       this.prisma.biolink.count({ where }),
-      this.getDirectoryFacets(),
     ]);
 
-    const itemIds = items.map((item) => item.id);
-    const [likedIds, savedIds] = await Promise.all([
-      visitorKey
-        ? this.prisma.biolinkLike
-            .findMany({
-              where: { visitorKey, biolinkId: { in: itemIds } },
-              select: { biolinkId: true },
-            })
-            .then((rows) => new Set(rows.map((row) => row.biolinkId)))
-        : Promise.resolve(new Set<string>()),
-      userId
-        ? this.prisma.biolinkSave
-            .findMany({
-              where: { userId, biolinkId: { in: itemIds } },
-              select: { biolinkId: true },
-            })
-            .then((rows) => new Set(rows.map((row) => row.biolinkId)))
-        : Promise.resolve(new Set<string>()),
-    ]);
-
-    return {
-      items: items.map(({ _count, ...item }) => ({
-        ...item,
-        likeCount: _count.likes,
-        liked: likedIds.has(item.id),
-        saved: savedIds.has(item.id),
-      })),
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.max(1, Math.ceil(total / limit)),
-        hasNext: page * limit < total,
-        hasPrev: page > 1,
-      },
-      filters: facets,
-    };
+    const items = rows.map(({ _count, ...item }) => ({
+      ...item,
+      likeCount: _count.likes,
+    }));
+    return { items, total };
   }
 
   /**

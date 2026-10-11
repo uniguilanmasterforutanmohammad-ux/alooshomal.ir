@@ -20,6 +20,29 @@ import { CreateBusinessCardDto } from './dto/create-business-card.dto';
 import { PublicBusinessCardQueryDto } from './dto/public-business-card-query.dto';
 import { UpdateBusinessCardDto } from './dto/update-business-card.dto';
 
+/** One row of the public directory (without the per-visitor liked/saved flags). */
+interface DirectoryBusinessCardItem {
+  id: string;
+  slug: string;
+  fullName: string;
+  jobTitle: string | null;
+  company: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+  logoUrl: string | null;
+  primaryColor: string;
+  template: string;
+  publishedAt: Date | null;
+  pinnedAt: Date;
+  boostedUntil: Date | null;
+  likeCount: number;
+}
+
+const DIRECTORY_CACHE_TTL_MS = (() => {
+  const parsed = Number(process.env.DIRECTORY_CACHE_TTL_MS ?? 15_000);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 15_000;
+})();
+
 @Injectable()
 export class BusinessCardsService {
   constructor(
@@ -99,6 +122,7 @@ export class BusinessCardsService {
       entityId: businessCard.id,
     });
 
+    this.facetsCache.invalidateDirectory('businesscard');
     return businessCard;
   }
 
@@ -213,6 +237,7 @@ export class BusinessCardsService {
       entityType: 'BUSINESS_CARD',
       entityId: id,
     });
+    this.facetsCache.invalidateDirectory('businesscard');
     return { deleted: true };
   }
 
@@ -279,6 +304,71 @@ export class BusinessCardsService {
     // limit so the frontend always fetches exactly one page worth of rows.
     const limit = await this.settings.getDirectoryPageSize();
 
+    // Cache the anonymous "base" page (items + total) so repeated identical
+    // searches/filters are served from Redis/memory instead of Postgres. The
+    // per-visitor `liked`/`saved` flags are always resolved fresh below.
+    const cacheKey = [
+      'dir:businesscards',
+      sort,
+      cityId ?? '-',
+      businessId ?? '-',
+      q ? q.trim().toLowerCase() : '-',
+      page,
+      limit,
+    ].join(':');
+
+    const { items, total } = await this.facetsCache.get(cacheKey, () =>
+      this.loadDirectoryPage(query, limit),
+      DIRECTORY_CACHE_TTL_MS,
+    );
+
+    const facets = await this.getDirectoryFacets();
+
+    const itemIds = items.map((item) => item.id);
+    const [likedIds, savedIds] = await Promise.all([
+      visitorKey
+        ? this.prisma.businessCardLike
+            .findMany({
+              where: { visitorKey, businessCardId: { in: itemIds } },
+              select: { businessCardId: true },
+            })
+            .then((rows) => new Set(rows.map((row) => row.businessCardId)))
+        : Promise.resolve(new Set<string>()),
+      userId
+        ? this.prisma.businessCardSave
+            .findMany({
+              where: { userId, businessCardId: { in: itemIds } },
+              select: { businessCardId: true },
+            })
+            .then((rows) => new Set(rows.map((row) => row.businessCardId)))
+        : Promise.resolve(new Set<string>()),
+    ]);
+
+    return {
+      items: items.map((item) => ({
+        ...item,
+        liked: likedIds.has(item.id),
+        saved: savedIds.has(item.id),
+      })),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+        hasNext: page * limit < total,
+        hasPrev: page > 1,
+      },
+      filters: facets,
+    };
+  }
+
+  /** Uncached database read for one directory page. */
+  private async loadDirectoryPage(
+    query: PublicBusinessCardQueryDto,
+    limit: number,
+  ): Promise<{ items: DirectoryBusinessCardItem[]; total: number }> {
+    const { page, q, cityId, businessId, sort } = query;
+
     const where: Prisma.BusinessCardWhereInput = {
       status: BiolinkStatus.APPROVED,
       isPublished: true,
@@ -296,7 +386,7 @@ export class BusinessCardsService {
         : {}),
     };
 
-    const [items, total, facets] = await Promise.all([
+    const [rows, total] = await Promise.all([
       this.prisma.businessCard.findMany({
         where,
         select: {
@@ -320,46 +410,13 @@ export class BusinessCardsService {
         take: limit,
       }),
       this.prisma.businessCard.count({ where }),
-      this.getDirectoryFacets(),
     ]);
 
-    const itemIds = items.map((item) => item.id);
-    const [likedIds, savedIds] = await Promise.all([
-      visitorKey
-        ? this.prisma.businessCardLike
-            .findMany({
-              where: { visitorKey, businessCardId: { in: itemIds } },
-              select: { businessCardId: true },
-            })
-            .then((rows) => new Set(rows.map((row) => row.businessCardId)))
-        : Promise.resolve(new Set<string>()),
-      userId
-        ? this.prisma.businessCardSave
-            .findMany({
-              where: { userId, businessCardId: { in: itemIds } },
-              select: { businessCardId: true },
-            })
-            .then((rows) => new Set(rows.map((row) => row.businessCardId)))
-        : Promise.resolve(new Set<string>()),
-    ]);
-
-    return {
-      items: items.map(({ _count, ...item }) => ({
-        ...item,
-        likeCount: _count.likes,
-        liked: likedIds.has(item.id),
-        saved: savedIds.has(item.id),
-      })),
-      meta: {
-        page,
-        limit,
-        total,
-        totalPages: Math.max(1, Math.ceil(total / limit)),
-        hasNext: page * limit < total,
-        hasPrev: page > 1,
-      },
-      filters: facets,
-    };
+    const items = rows.map(({ _count, ...item }) => ({
+      ...item,
+      likeCount: _count.likes,
+    }));
+    return { items, total };
   }
 
   /**

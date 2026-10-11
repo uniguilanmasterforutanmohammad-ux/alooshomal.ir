@@ -30,12 +30,27 @@ services:
     networks:
       - alooshomal
 
+  redis:
+    image: redis:7-alpine
+    container_name: alooshomal-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "192mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - alooshomal
+
   api:
     image: ghcr.io/uniguilanmasterforutanmohammad-ux/alooshomal.ir-api:latest
     container_name: alooshomal-api
     restart: unless-stopped
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       NODE_ENV: ${NODE_ENV:-production}
@@ -50,6 +65,7 @@ services:
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       BACKUP_DIR: ${BACKUP_DIR:-/usr/src/app/backups}
       BACKUP_KEEP: ${BACKUP_KEEP:-20}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     ports:
       - "127.0.0.1:${API_PORT:-4000}:4000"
     volumes:

@@ -15,6 +15,7 @@ import { BusinessCardsModule } from './businesscards/business-cards.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RedisModule } from './redis/redis.module';
 import { SettingsModule } from './settings/settings.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TaxonomyModule } from './taxonomy/taxonomy.module';
@@ -25,6 +26,7 @@ import { UsersModule } from './users/users.module';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env'] }),
     PrismaModule,
+    RedisModule,
     CommonModule,
     ActivityModule,
     AuthModule,

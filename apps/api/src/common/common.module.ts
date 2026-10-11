@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 
+import { RedisModule } from '../redis/redis.module';
 import { FacetsCacheService } from './facets-cache.service';
 
 /**
@@ -9,6 +10,7 @@ import { FacetsCacheService } from './facets-cache.service';
  */
 @Global()
 @Module({
+  imports: [RedisModule],
   providers: [FacetsCacheService],
   exports: [FacetsCacheService],
 })

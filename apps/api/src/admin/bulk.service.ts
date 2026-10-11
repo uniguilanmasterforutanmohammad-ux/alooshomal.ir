@@ -7,6 +7,7 @@ import { BiolinkStatus } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
 
 import { ActivityService } from '../activity/activity.service';
+import { FacetsCacheService } from '../common/facets-cache.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type BulkKind = 'BIOLINK' | 'BUSINESS_CARD';
@@ -68,6 +69,7 @@ export class BulkService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly activity: ActivityService,
+    private readonly facetsCache: FacetsCacheService,
   ) {}
 
   /** Parse an .xlsx/.csv buffer into rows keyed by canonical field names. */
@@ -221,6 +223,7 @@ export class BulkService {
       entityType: kind,
     });
 
+    this.facetsCache.invalidateDirectory(kind === 'BIOLINK' ? 'biolink' : 'businesscard');
     return result;
   }
 
@@ -255,6 +258,8 @@ export class BulkService {
       summary: `حذف گروهی داده‌های تستی: ${deleted} ردیف`,
       entityType: kind,
     });
+    this.facetsCache.invalidateDirectory('biolink');
+    this.facetsCache.invalidateDirectory('businesscard');
     return { deleted };
   }
 }

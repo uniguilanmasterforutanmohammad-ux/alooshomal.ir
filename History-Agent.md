@@ -15,12 +15,64 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.9.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.10.0**.
 
 > **قانون همگام‌سازی `install.sh`:** پس از هر ویرایش روی فایل‌های تحت `apps/`،
 > `scripts/` و `docs/` (و فایل‌های ریشه‌ی فهرست‌شده در مولد)، اجرای
 > `python3 scripts/sync_install.py` اجباری است و کار تا سبز شدن
 > `python3 scripts/sync_install.py --check` تمام‌شده نیست.
+
+---
+
+## ۱۴۰۵/۰۷/۲۰ — کش مشترک Redis + کش نتایج دایرکتوری (تست فشار ۵۰۰ کاربر: جست‌وجو ۴.۳ برابر) — نسخه `v2.10.0`
+
+**هدف:** رساندن تجربه‌ی جست‌وجو زیر بار ۵۰۰ کاربر همزمان بین بیولینک‌ها و کارت‌ها
+به سطح «بدون کندی محسوس»، با افزودن یک لایه‌ی کش مشترک Redis و کش‌کردن صفحات
+دایرکتوری (نه فقط facetها). Redis فقط کش است و هرگز جای Postgres را نمی‌گیرد.
+
+**تغییرات:**
+- `docker-compose.yml` و `docker-compose.prod.yml`: افزودن سرویس `redis:7-alpine`
+  با `--save "" --appendonly no` (بدون مصرف دیسک) و `--maxmemory-policy allkeys-lru`؛
+  `api` به‌صورت `condition: service_healthy` به آن وابسته شد.
+- `.env` / `.env.example`: افزودن `REDIS_URL=redis://redis:6379`.
+- `apps/api/src/redis/redis.service.ts` + `redis.module.ts`: کلاینت ioredis مقاوم؛
+  اتصال lazy و non-throwing، fallback خودکار به حافظه در صورت قطعی، و
+  `delByPrefix` با SCAN غیرمسدودکننده.
+- `apps/api/src/common/facets-cache.service.ts`: کش دو لایه (حافظه + Redis) با
+  `ttlOverrideMs` و متد `invalidateDirectory`.
+- `apps/api/src/biolinks/biolinks.service.ts` و `businesscards/business-cards.service.ts`:
+  کش صفحات دایرکتوری بر اساس کلید `(sort, cityId, businessId, q, page, limit)`
+  (TTL پیش‌فرض ۱۵ ثانیه)؛ `liked/saved` هر کاربر همیشه تازه محاسبه می‌شود.
+- `apps/api/src/admin/admin.service.ts`، `admin/bulk.service.ts`، `boosts/boosts.service.ts`،
+  `biolinks/biolinks.service.ts`، `businesscards/business-cards.service.ts`،
+  `taxonomy/taxonomy.service.ts`: باطل‌کردن کش پس از هر نوشتن محتوا (تأیید/رد،
+  ویرایش، حذف، پله، ایمپورت/حذف گروهی، تغییر شهر/دسته).
+- `docs/DEPLOY.md`: بخش «Redis (کش مشترک — اختیاری)» با تأکید بر اینکه Redis منبع
+  حقیقت نیست و به دیتابیس/دیسک دست نمی‌زند.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v2.10.0`.
+
+**تست فشار سه‌مرحله‌ای (۵۰۰ اتصال، ۲۰ ثانیه هر سناریو، صفر خطا/غیر‑2xx):**
+
+| سناریو | rps قبل | +trigram/کش‌حافظه | +Redis/کش‌صفحه | میانگین (قبل→نهایی) |
+| --- | --- | --- | --- | --- |
+| لیست صفحه‌ی ۱ | ۹۸ | ۱۴۹ | ۴۱۴ | ۴۵۳۰→۶۵۹ms |
+| صفحه‌ی عمیق (`page=100`) | ۱۰۲ | ۱۱۶ | ۴۰۲ | ۴۶۲۸→۱۲۰۲ms |
+| جست‌وجوی فارسی (`q=علی`) | ۷۵ | ۱۰۲ | ۳۲۴ | ۶۳۴۰→۱۵۱۵ms |
+| فیلتر شهر | ۱۰۹ | ۱۰۷ | ۳۴۶ | ۳۹۴۶→۱۴۱۴ms |
+| لیست کارت‌ها | ۱۰۲ | ۱۶۴ | ۲۴۸ | ۴۳۴۰→۱۹۰۳ms |
+
+**تأیید صحت:**
+- `docker exec alooshomal-redis redis-cli --scan --pattern 'alooshomal:cache:*'` →
+  کلیدهای `dir:biolinks:...` و `biolinks:facets` ساخته شدند.
+- تأیید یک بیولینک از پنل مدیر → تعداد کلیدهای `dir:*` از ۱ به ۰ رسید (باطل‌سازی فوری).
+- شمارش دیتابیس پس از همه‌ی تست‌ها بدون تغییر ماند (۲۵۰۴ بیولینک / ۲۳۰۵ کارت).
+- تأخیر تک‌درخواست با کش: ~۵ms (از ~۱۷–۲۶ms بدون کش).
+- `docker exec alooshomal-api npx tsc --noEmit` بدون خطا؛
+  `python3 scripts/sync_install.py --check` سبز.
+
+**یادداشت امنیت داده:** هیچ `DROP/DELETE/TRUNCATE` اضافه نشد؛ اسکیمای Postgres فقط
+additive است (`CREATE EXTENSION/INDEX IF NOT EXISTS`). Redis روی volume جدا و بدون
+persistence اجرا می‌شود و به `alooshomal_db_data` دسترسی ندارد.
 
 ---
 

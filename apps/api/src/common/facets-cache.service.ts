@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
+import { RedisService } from '../redis/redis.service';
+
 /**
  * Tiny in-process TTL cache for the public directory facets (active cities /
  * business categories). These are the same on every directory request and only
@@ -18,16 +20,31 @@ export class FacetsCacheService {
   private readonly store = new Map<string, { at: number; value: unknown }>();
   private readonly inflight = new Map<string, Promise<unknown>>();
 
+  constructor(private readonly redis: RedisService) {}
+
   /** Return the cached value for `key`, or compute and cache it via `factory`. */
-  async get<T>(key: string, factory: () => Promise<T>): Promise<T> {
-    if (this.ttlMs === 0) {
+  async get<T>(key: string, factory: () => Promise<T>, ttlOverrideMs?: number): Promise<T> {
+    const ttl = ttlOverrideMs ?? this.ttlMs;
+    if (ttl === 0) {
       return factory();
     }
+    // 1) in-process cache (fastest, no network)
     const cached = this.store.get(key);
-    if (cached && Date.now() - cached.at < this.ttlMs) {
+    if (cached && Date.now() - cached.at < ttl) {
       return cached.value as T;
     }
-    // Collapse concurrent misses into a single upstream query.
+    // 2) shared Redis cache (survives restarts, shared across replicas)
+    const fromRedis = await this.redis.get(this.redisKey(key));
+    if (fromRedis) {
+      try {
+        const value = JSON.parse(fromRedis) as T;
+        this.store.set(key, { at: Date.now(), value });
+        return value;
+      } catch {
+        // fall through to the factory on corrupt payloads
+      }
+    }
+    // 3) collapse concurrent misses into a single upstream query
     const pending = this.inflight.get(key);
     if (pending) {
       return pending as Promise<T>;
@@ -35,6 +52,11 @@ export class FacetsCacheService {
     const promise = factory()
       .then((value) => {
         this.store.set(key, { at: Date.now(), value });
+        void this.redis.set(
+          this.redisKey(key),
+          JSON.stringify(value),
+          Math.ceil(ttl / 1000),
+        );
         return value;
       })
       .finally(() => {
@@ -48,6 +70,7 @@ export class FacetsCacheService {
   invalidate(prefix?: string): void {
     if (!prefix) {
       this.store.clear();
+      void this.redis.delByPrefix(this.redisPrefix());
       return;
     }
     for (const key of this.store.keys()) {
@@ -55,5 +78,26 @@ export class FacetsCacheService {
         this.store.delete(key);
       }
     }
+    void this.redis.delByPrefix(this.redisKey(prefix));
+  }
+
+  private redisPrefix(): string {
+    return 'alooshomal:cache:';
+  }
+
+  private redisKey(key: string): string {
+    return `${this.redisPrefix()}${key}`;
+  }
+
+  /**
+   * Invalidate everything affected by a change to published directory content:
+   * the cached result pages and the facet lists. Called after every write that
+   * can add, remove or reorder a public entry.
+   */
+  invalidateDirectory(kind: 'biolink' | 'businesscard'): void {
+    const dir = kind === 'biolink' ? 'dir:biolinks' : 'dir:businesscards';
+    const facets = kind === 'biolink' ? 'biolinks:facets' : 'businesscards:facets';
+    this.invalidate(dir);
+    this.invalidate(facets);
   }
 }

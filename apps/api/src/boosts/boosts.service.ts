@@ -14,6 +14,7 @@ import {
 
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
+import { FacetsCacheService } from '../common/facets-cache.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BiolinksService } from '../biolinks/biolinks.service';
 import { BusinessCardsService } from '../businesscards/business-cards.service';
@@ -31,6 +32,7 @@ export class BoostsService {
     private readonly businessCards: BusinessCardsService,
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
+    private readonly facetsCache: FacetsCacheService,
   ) {}
 
   /** Overview for the user's "افزایش بازدید" (increase visits) dashboard page. */
@@ -267,6 +269,11 @@ export class BoostsService {
       entityId: requestId,
     });
 
+    if (approved) {
+      this.facetsCache.invalidateDirectory(
+        request.kind === BoostTargetKind.BIOLINK ? 'biolink' : 'businesscard',
+      );
+    }
     return updated;
   }
 
