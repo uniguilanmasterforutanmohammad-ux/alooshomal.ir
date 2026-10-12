@@ -155,6 +155,28 @@ body {
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior: contain;
+    /* Keep the (normally left-side) RTL scrollbar on the right and style it
+       thin + on-theme. Children are flipped back to RTL below. */
+    direction: ltr;
+    scrollbar-width: thin;
+    scrollbar-color: var(--vintage-accent) transparent;
+    padding-right: 10px;
+  }
+  .directory-shell .directory-list > * {
+    direction: rtl;
+  }
+  .directory-shell .directory-list::-webkit-scrollbar {
+    width: 5px;
+  }
+  .directory-shell .directory-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .directory-shell .directory-list::-webkit-scrollbar-thumb {
+    background: var(--vintage-accent);
+    border-radius: 9999px;
+  }
+  .directory-shell .directory-list::-webkit-scrollbar-thumb:hover {
+    background: var(--vintage-accent-hover);
   }
   .directory-shell .directory-aside,
   .directory-shell .directory-aside > div,

@@ -203,7 +203,11 @@ function DirectoryContent() {
         title="جزئیات بیولینک"
       >
         {selectedSlug ? (
-          <DirectoryDetail slug={selectedSlug} onClose={() => setSelectedSlug(null)} />
+          <DirectoryDetail
+            slug={selectedSlug}
+            onClose={() => setSelectedSlug(null)}
+            hideHeader
+          />
         ) : null}
       </MobileSheet>
     </main>

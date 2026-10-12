@@ -206,6 +206,7 @@ function DirectoryContent() {
           <DirectoryBusinessCardDetail
             slug={selectedSlug}
             onClose={() => setSelectedSlug(null)}
+            hideHeader
           />
         ) : null}
       </MobileSheet>

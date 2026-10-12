@@ -30,6 +30,7 @@ interface Payload {
 interface Props {
   slug: string;
   onClose: () => void;
+  hideHeader?: boolean;
 }
 
 /**
@@ -37,7 +38,7 @@ interface Props {
  * site's own vintage style rather than the biolink's theme, so browsing stays
  * calm and consistent; the themed look lives on the full biolink page.
  */
-export function DirectoryDetail({ slug, onClose }: Props) {
+export function DirectoryDetail({ slug, onClose, hideHeader }: Props) {
   const [data, setData] = useState<Payload | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -105,16 +106,18 @@ export function DirectoryDetail({ slug, onClose }: Props) {
 
   return (
     <div className="flex h-full flex-col bg-[var(--vintage-surface)]">
-      <div className="flex items-center justify-between border-b border-[var(--vintage-border)] px-5 py-3">
-        <p className="text-sm font-bold text-ink">جزئیات بیولینک</p>
-        <button
-          onClick={onClose}
-          className="flex size-8 items-center justify-center rounded-full text-muted hover:bg-soft"
-          aria-label="بستن جزئیات"
-        >
-          <X className="size-4" aria-hidden />
-        </button>
-      </div>
+      {hideHeader ? null : (
+        <div className="flex items-center justify-between border-b border-[var(--vintage-border)] px-5 py-3">
+          <p className="text-sm font-bold text-ink">جزئیات بیولینک</p>
+          <button
+            onClick={onClose}
+            className="flex size-8 items-center justify-center rounded-full text-muted hover:bg-soft"
+            aria-label="بستن جزئیات"
+          >
+            <X className="size-4" aria-hidden />
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-5 py-5">
         <div className="flex items-center gap-4">
