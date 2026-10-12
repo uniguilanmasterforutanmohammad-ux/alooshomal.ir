@@ -109,9 +109,12 @@ function DirectoryContent() {
         <p className="mt-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</p>
       ) : null}
 
-      {/* Indeed-like split view: list on the right, details on the left */}
-      <div className="mt-5 grid gap-4 lg:grid-cols-[1fr_420px]">
-        <section className="order-2 lg:order-1">
+      {/* Indeed-like split view: list on the right, details on the left.
+          From tablet up it is split (like desktop) but with a narrower detail
+          column so the list keeps enough room; phones show the list only and
+          open the detail in a bottom sheet. */}
+      <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(300px,38%)] lg:grid-cols-[1fr_420px]">
+        <section className="order-2 md:order-1">
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, index) => (
@@ -167,8 +170,8 @@ function DirectoryContent() {
           ) : null}
         </section>
 
-        <aside className="order-1 hidden lg:order-2 lg:block">
-          <div className="lg:sticky lg:top-20">
+        <aside className="order-1 hidden md:order-2 md:block">
+          <div className="md:sticky md:top-20">
             {selectedSlug ? (
               <div className="indeed-panel h-[calc(100vh-6rem)] overflow-hidden">
                 <DirectoryBusinessCardDetail

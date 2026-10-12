@@ -12,8 +12,9 @@ interface Props {
 
 /**
  * Mobile-only bottom sheet used by the directory pages: tapping a card opens
- * its details as a modal instead of the desktop side panel. Hidden from `md`
- * upwards, where the inline split view takes over. Locks body scroll while open.
+ * its details as a modal instead of the split side panel. Hidden from `md`
+ * upwards (tablet + desktop), where the inline split view takes over. Locks
+ * body scroll while open.
  */
 export function MobileSheet({ open, onClose, title, children }: Props) {
   useEffect(() => {
@@ -28,7 +29,7 @@ export function MobileSheet({ open, onClose, title, children }: Props) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[60] lg:hidden" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[60] md:hidden" role="dialog" aria-modal="true">
       <div
         className="absolute inset-0 bg-black/40"
         onClick={onClose}

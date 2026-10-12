@@ -125,9 +125,11 @@ body {
   background-position: 0 0, 11px 11px;
 }
 
-/* Mobile: leave room for the fixed bottom navigation so the last content
-   is never hidden behind it (plus the device safe-area inset). */
-@media (max-width: 767px) {
+/* Phone + tablet: leave room for the fixed bottom navigation so the last
+   content is never hidden behind it (plus the device safe-area inset). The
+   header/top-nav is hidden up to `lg` (1024px), so the bottom bar covers
+   phones and tablets alike. */
+@media (max-width: 1023px) {
   body {
     padding-bottom: calc(56px + env(safe-area-inset-bottom));
   }

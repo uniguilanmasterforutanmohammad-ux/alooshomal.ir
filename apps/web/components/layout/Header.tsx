@@ -3,7 +3,7 @@ import { BadgeCheck, IdCard, LayoutDashboard, ShieldCheck } from 'lucide-react';
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 hidden border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[#fbf3e9]/95 backdrop-blur md:block">
+    <header className="sticky top-0 z-50 hidden border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[#fbf3e9]/95 backdrop-blur lg:block">
       <div className="container-page flex h-16 items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 text-xl font-extrabold text-brand">
           <span className="vintage-avatar flex size-9 items-center justify-center">
@@ -12,7 +12,7 @@ export function Header() {
           <span>آلوشمال</span>
         </Link>
 
-        <nav className="hidden items-center gap-6 text-sm font-medium text-muted md:flex">
+        <nav className="hidden items-center gap-6 text-sm font-medium text-muted lg:flex">
           <Link href="/biolinks" className="hover:text-brand">
             دایرکتوری بیولینک
           </Link>
