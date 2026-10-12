@@ -135,6 +135,40 @@ body {
   }
 }
 
+/* Phone + tablet: on the directory pages keep the heading, filters and
+   pagination fixed and scroll only the card list. `directory-shell` fills the
+   viewport minus the fixed bottom nav; `directory-list` is the one scrollable
+   region. Desktop (lg+) is untouched and keeps normal page scrolling. */
+@media (max-width: 1023px) {
+  .directory-shell {
+    height: calc(100dvh - 56px - env(safe-area-inset-bottom));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .directory-shell .directory-grid {
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+  .directory-shell .directory-list {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .directory-shell .directory-aside,
+  .directory-shell .directory-aside > div,
+  .directory-shell .directory-aside .indeed-panel {
+    height: 100%;
+  }
+  .directory-shell .directory-aside {
+    min-height: 0;
+  }
+  .directory-shell .directory-sticky {
+    position: static;
+  }
+}
+
 a {
   color: inherit;
   text-decoration: none;

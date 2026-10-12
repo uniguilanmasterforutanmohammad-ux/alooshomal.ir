@@ -84,8 +84,8 @@ function DirectoryContent() {
   const items = data?.items ?? [];
 
   return (
-    <main className="container-page py-6">
-      <div className="mb-5 flex items-center gap-3">
+    <main className="container-page py-6 directory-shell">
+      <div className="mb-5 flex shrink-0 items-center gap-3">
         <Users className="size-7 text-brand" aria-hidden />
         <div>
           <h1 className="text-xl font-extrabold text-ink">دایرکتوری بیولینک‌ها</h1>
@@ -97,13 +97,15 @@ function DirectoryContent() {
         </div>
       </div>
 
-      <DirectoryFilters
-        value={filters}
-        cities={data?.filters.cities ?? []}
-        businesses={data?.filters.businesses ?? []}
-        onChange={setFilters}
-        onReset={reset}
-      />
+      <div className="shrink-0">
+        <DirectoryFilters
+          value={filters}
+          cities={data?.filters.cities ?? []}
+          businesses={data?.filters.businesses ?? []}
+          onChange={setFilters}
+          onReset={reset}
+        />
+      </div>
 
       {error ? (
         <p className="mt-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</p>
@@ -113,39 +115,41 @@ function DirectoryContent() {
           From tablet up it is split (like desktop) but with a narrower detail
           column so the list keeps enough room; phones show the list only and
           open the detail in a bottom sheet. */}
-      <div className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(300px,38%)] lg:grid-cols-[1fr_420px]">
-        <section className="order-2 md:order-1">
-          {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <div key={index} className="indeed-panel h-20 animate-pulse bg-soft" />
-              ))}
-            </div>
-          ) : items.length > 0 ? (
-            <div className="space-y-3">
-              {items.map((biolink) => (
-                <DirectoryBiolinkItem
-                  key={biolink.id}
-                  biolink={biolink}
-                  selected={biolink.slug === selectedSlug}
-                  onSelect={() => setSelectedSlug(biolink.slug)}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="indeed-panel p-10 text-center">
-              <p className="text-lg font-bold text-ink">بیولینکی پیدا نشد</p>
-              <p className="mt-2 text-sm text-muted">
-                عبارت جستجو یا فیلترها را تغییر دهید.
-              </p>
-              <button onClick={reset} className="indeed-btn indeed-btn-primary mt-6">
-                پاک‌کردن فیلترها
-              </button>
-            </div>
-          )}
+      <div className="directory-grid mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(300px,38%)] lg:grid-cols-[1fr_420px]">
+        <section className="order-2 flex min-h-0 flex-col md:order-1">
+          <div className="directory-list min-h-0 flex-1">
+            {loading ? (
+              <div className="space-y-3">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="indeed-panel h-20 animate-pulse bg-soft" />
+                ))}
+              </div>
+            ) : items.length > 0 ? (
+              <div className="space-y-3">
+                {items.map((biolink) => (
+                  <DirectoryBiolinkItem
+                    key={biolink.id}
+                    biolink={biolink}
+                    selected={biolink.slug === selectedSlug}
+                    onSelect={() => setSelectedSlug(biolink.slug)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="indeed-panel p-10 text-center">
+                <p className="text-lg font-bold text-ink">بیولینکی پیدا نشد</p>
+                <p className="mt-2 text-sm text-muted">
+                  عبارت جستجو یا فیلترها را تغییر دهید.
+                </p>
+                <button onClick={reset} className="indeed-btn indeed-btn-primary mt-6">
+                  پاک‌کردن فیلترها
+                </button>
+              </div>
+            )}
+          </div>
 
           {meta && meta.totalPages > 1 ? (
-            <div className="mt-6 flex items-center justify-center gap-3">
+            <div className="mt-4 flex shrink-0 items-center justify-center gap-3 pt-2">
               <button
                 onClick={() => setPage((current) => Math.max(1, current - 1))}
                 disabled={!meta.hasPrev}
@@ -170,8 +174,8 @@ function DirectoryContent() {
           ) : null}
         </section>
 
-        <aside className="order-1 hidden md:order-2 md:block">
-          <div className="md:sticky md:top-20">
+        <aside className="directory-aside order-1 hidden min-h-0 md:order-2 md:block">
+          <div className="directory-sticky md:sticky md:top-20">
             {selectedSlug ? (
               <div className="indeed-panel h-[calc(100vh-6rem)] overflow-hidden">
                 <DirectoryDetail
@@ -215,7 +219,10 @@ export default function DirectoryPage() {
       >
         <DirectoryContent />
       </Suspense>
-      <Footer />
+      {/* Mobile/tablet hide the footer so only the card list scrolls. */}
+      <div className="hidden lg:block">
+        <Footer />
+      </div>
     </>
   );
 }
