@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CheckCircle2, Clock, FileText, Newspaper, Plus, XCircle } from 'lucide-react';
+import { CheckCircle2, Clock, FileText, Newspaper, Plus, Trash2, XCircle } from 'lucide-react';
 
 import {
   api,
@@ -103,6 +103,19 @@ export function ReporterPanel() {
     try {
       await api.post('/news/reporter/request', {});
       toast.success('درخواست شما ثبت شد و در انتظار بررسی مدیر است.');
+      await loadAll();
+    } catch {
+      /* api layer already surfaces the error */
+    }
+  }
+
+  async function removeItem(item: NewsItem) {
+    if (!window.confirm(`خبر «${item.title}» حذف شود؟ این عملیات بازگشت‌پذیر نیست.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/news/reporter/mine/${item.id}`);
+      toast.success('خبر حذف شد.');
       await loadAll();
     } catch {
       /* api layer already surfaces the error */
@@ -297,6 +310,13 @@ export function ReporterPanel() {
                 className="indeed-btn indeed-btn-secondary py-1.5 text-xs"
               >
                 ویرایش
+              </button>
+              <button
+                onClick={() => removeItem(item)}
+                className="indeed-btn indeed-btn-secondary py-1.5 text-xs text-red-600"
+              >
+                <Trash2 className="size-3.5" aria-hidden />
+                حذف
               </button>
             </div>
           ))
