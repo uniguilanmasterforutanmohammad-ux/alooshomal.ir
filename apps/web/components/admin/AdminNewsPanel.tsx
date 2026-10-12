@@ -1,8 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Check, ExternalLink, Trash2, X } from 'lucide-react';
+import { Check, Pencil, Trash2, X } from 'lucide-react';
 
 import {
   api,
@@ -12,6 +11,7 @@ import {
   type NewsStatus,
 } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { AdminNewsEditor } from './AdminNewsEditor';
 
 interface ReporterRequest {
   id: string;
@@ -74,6 +74,7 @@ function NewsModeration() {
   const [status, setStatus] = useState<NewsStatus | ''>('PENDING');
   const [items, setItems] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -150,14 +151,23 @@ function NewsModeration() {
                 {STATUS_LABEL[item.status]}
               </span>
               <div className="flex items-center gap-2">
-                <Link
-                  href={`/pulse/${item.id}`}
-                  target="_blank"
+                <button
+                  onClick={() => setEditingId(item.id)}
                   className="indeed-btn indeed-btn-secondary py-1.5 text-xs"
                 >
-                  <ExternalLink className="size-3.5" aria-hidden />
-                  مشاهده
-                </Link>
+                  <Pencil className="size-3.5" aria-hidden />
+                  ویرایش
+                </button>
+                {item.status === 'APPROVED' ? (
+                  <a
+                    href={`/pulse/${item.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="indeed-btn indeed-btn-secondary py-1.5 text-xs"
+                  >
+                    مشاهده
+                  </a>
+                ) : null}
                 {item.status !== 'APPROVED' ? (
                   <button
                     onClick={() => decide(item.id, 'APPROVED')}
@@ -188,6 +198,14 @@ function NewsModeration() {
           ))
         )}
       </div>
+
+      {editingId ? (
+        <AdminNewsEditor
+          newsId={editingId}
+          onClose={() => setEditingId(null)}
+          onChanged={() => void load()}
+        />
+      ) : null}
     </div>
   );
 }

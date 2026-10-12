@@ -362,6 +362,57 @@ export class NewsService {
     return updated;
   }
 
+  /** Single item for the admin, regardless of moderation status. */
+  async adminById(id: string) {
+    const item = await this.prisma.newsItem.findUnique({
+      where: { id },
+      include: newsInclude,
+    });
+    if (!item) {
+      throw new NotFoundException('خبر یافت نشد');
+    }
+    return item;
+  }
+
+  /**
+   * Admin edit. Unlike the reporter flow this does NOT reset the status: an
+   * admin may fix a published item in place. If an optional `status` is given
+   * it is applied together with publish flags.
+   */
+  async adminUpdate(
+    adminId: string,
+    id: string,
+    dto: CreateNewsDto & { status?: NewsStatus },
+  ) {
+    const item = await this.prisma.newsItem.findUnique({ where: { id } });
+    if (!item) {
+      throw new NotFoundException('خبر یافت نشد');
+    }
+    const nextStatus = dto.status ?? item.status;
+    const approved = nextStatus === NewsStatus.APPROVED;
+    const updated = await this.prisma.newsItem.update({
+      where: { id },
+      data: {
+        title: dto.title,
+        summary: dto.summary ?? null,
+        body: dto.body ?? null,
+        categoryId: dto.categoryId ?? null,
+        status: nextStatus,
+        isPublished: approved,
+        publishedAt: approved ? item.publishedAt ?? new Date() : null,
+      },
+      include: newsInclude,
+    });
+    await this.activity.log({
+      actor: { id: adminId },
+      action: 'NEWS_UPDATED',
+      summary: `ویرایش خبر «${updated.title}» (مدیر)`,
+      entityType: 'NEWS',
+      entityId: id,
+    });
+    return updated;
+  }
+
   async remove(id: string) {
     const item = await this.prisma.newsItem.findUnique({ where: { id } });
     if (!item) {

@@ -18,6 +18,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { ListNewsDto } from './dto/list-news.dto';
+import { UpdateNewsAdminDto } from './dto/update-news-admin.dto';
 import { NewsService } from './news.service';
 
 // ---------------------------------------------------------------------------
@@ -135,23 +136,8 @@ export class AdminNewsController {
     return this.news.adminList(query);
   }
 
-  @Patch(':id/moderate')
-  @ApiOperation({ summary: 'تأیید یا رد خبر (مدیر)' })
-  moderate(
-    @CurrentUser() admin: AuthUser,
-    @Param('id') id: string,
-    @Body('decision') decision: NewsStatus,
-    @Body('reason') reason?: string,
-  ) {
-    return this.news.moderate(admin.id, id, decision, reason);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'حذف خبر (مدیر)' })
-  remove(@Param('id') id: string) {
-    return this.news.remove(id);
-  }
-
+  // NOTE: static routes must be declared before the `:id` routes below,
+  // otherwise `/admin/news/categories` would match `GET :id`.
   @Get('reporter-requests')
   @ApiOperation({ summary: 'درخواست‌های شهروند خبرنگار' })
   reporterRequests(@Query('status') status?: NewsStatus) {
@@ -194,5 +180,38 @@ export class AdminNewsController {
   @ApiOperation({ summary: 'حذف دسته‌بندی خبری' })
   removeCategory(@Param('id') id: string) {
     return this.news.removeCategory(id);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'جزئیات یک خبر برای مدیر (هر وضعیتی)' })
+  detail(@Param('id') id: string) {
+    return this.news.adminById(id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'ویرایش خبر توسط مدیر (بدون بازگشت به صف بررسی)' })
+  update(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateNewsAdminDto,
+  ) {
+    return this.news.adminUpdate(admin.id, id, dto);
+  }
+
+  @Patch(':id/moderate')
+  @ApiOperation({ summary: 'تأیید یا رد خبر (مدیر)' })
+  moderate(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body('decision') decision: NewsStatus,
+    @Body('reason') reason?: string,
+  ) {
+    return this.news.moderate(admin.id, id, decision, reason);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'حذف خبر (مدیر)' })
+  remove(@Param('id') id: string) {
+    return this.news.remove(id);
   }
 }
