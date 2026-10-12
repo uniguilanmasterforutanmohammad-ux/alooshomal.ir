@@ -265,6 +265,18 @@ function AdminContent() {
   }
 
   async function setUserRole(id: string, role: AdminUser['role']) {
+    const target = (allUsers ?? overview?.recentUsers ?? []).find((u) => u.id === id);
+    const name = target?.fullName ?? target?.email ?? 'این کاربر';
+    const roleLabel =
+      role === 'ADMIN' ? 'مدیر' : role === 'CITIZEN_REPORTER' ? 'شهروند خبرنگار' : 'کاربر';
+    if (
+      !window.confirm(
+        `آیا از تغییر نقش «${name}» به «${roleLabel}» مطمئن هستید؟`,
+      )
+    ) {
+      await loadAllUsers();
+      return;
+    }
     try {
       await api.patch(`/admin/users/${id}/role`, { role });
       await loadAllUsers();

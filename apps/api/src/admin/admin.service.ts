@@ -410,8 +410,14 @@ export class AdminService {
     if (!user) {
       throw new NotFoundException('کاربر یافت نشد');
     }
-    if (user.role === 'ADMIN') {
-      throw new BadRequestException('حساب مدیر را نمی‌توان غیرفعال کرد');
+    if (userId === adminId && !isActive) {
+      throw new BadRequestException('حساب خودتان را نمی‌توانید غیرفعال کنید');
+    }
+    if (user.role === 'ADMIN' && !isActive) {
+      await this.assertNotLastAdmin(
+        userId,
+        'آخرین مدیر فعال سامانه را نمی‌توان غیرفعال کرد',
+      );
     }
     if (!isActive && !reason?.trim()) {
       throw new BadRequestException('برای غیرفعال‌سازی، ذکر علت الزامی است');
@@ -499,12 +505,18 @@ export class AdminService {
     userId: string,
     role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN',
   ) {
+    if (role === 'ADMIN') {
+      throw new BadRequestException('ارتقای کاربر به نقش مدیر امکان‌پذیر نیست');
+    }
+    if (userId === adminId) {
+      throw new BadRequestException('نقش حساب خودتان را نمی‌توانید تغییر دهید');
+    }
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('کاربر یافت نشد');
     }
-    if (user.role === 'ADMIN' && role !== 'ADMIN') {
-      throw new BadRequestException('نقش مدیر را نمی‌توان از این طریق تغییر داد');
+    if (user.role === 'ADMIN') {
+      await this.assertNotLastAdmin(userId, 'آخرین مدیر سامانه را نمی‌توان تغییر داد');
     }
     const updated = await this.prisma.user.update({
       where: { id: userId },
@@ -520,8 +532,7 @@ export class AdminService {
         createdAt: true,
       },
     });
-    const roleLabel =
-      role === 'ADMIN' ? 'مدیر' : role === 'CITIZEN_REPORTER' ? 'شهروند خبرنگار' : 'کاربر';
+    const roleLabel = role === 'CITIZEN_REPORTER' ? 'شهروند خبرنگار' : 'کاربر';
     await this.notifications.notify({
       userId,
       title: 'نقش کاربری شما تغییر کرد',
@@ -540,17 +551,31 @@ export class AdminService {
     return updated;
   }
 
+  /** Guard: refuse an action that would remove the last remaining admin. */
+  private async assertNotLastAdmin(userId: string, message: string) {
+    const admins = await this.prisma.user.count({
+      where: { role: 'ADMIN', isActive: true, NOT: { id: userId } },
+    });
+    if (admins === 0) {
+      throw new BadRequestException(message);
+    }
+  }
+
   /** Hard-delete a user (cascades their cards, likes, saves...). */
-  async deleteUser(userId: string) {
+  async deleteUser(adminId: string, userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new NotFoundException('کاربر یافت نشد');
     }
+    if (userId === adminId) {
+      throw new BadRequestException('حساب خودتان را نمی‌توانید حذف کنید');
+    }
     if (user.role === 'ADMIN') {
-      throw new BadRequestException('حساب مدیر را نمی‌توان حذف کرد');
+      await this.assertNotLastAdmin(userId, 'آخرین مدیر سامانه را نمی‌توان حذف کرد');
     }
     await this.prisma.user.delete({ where: { id: userId } });
     await this.activity.log({
+      actor: { id: adminId },
       action: 'USER_DELETED',
       summary: `حذف کاربر «${user.fullName ?? user.email}»`,
       entityType: 'USER',

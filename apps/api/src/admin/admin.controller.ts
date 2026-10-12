@@ -106,8 +106,8 @@ export class AdminController {
 
   @Delete('users/:id')
   @ApiOperation({ summary: 'حذف کاربر' })
-  deleteUser(@Param('id') id: string) {
-    return this.adminService.deleteUser(id);
+  deleteUser(@CurrentUser() admin: AuthUser, @Param('id') id: string) {
+    return this.adminService.deleteUser(admin.id, id);
   }
 
   @Get('reports')

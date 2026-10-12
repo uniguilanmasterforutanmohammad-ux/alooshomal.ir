@@ -161,7 +161,7 @@ export function UsersTable({
                   {user.email}
                 </td>
                 <td className="px-4 py-2.5 text-xs text-muted">
-                  {onRole && user.role !== 'ADMIN' ? (
+                  {onRole ? (
                     <select
                       value={user.role}
                       onChange={(event) =>
@@ -171,15 +171,13 @@ export function UsersTable({
                     >
                       <option value="USER">کاربر</option>
                       <option value="CITIZEN_REPORTER">شهروند خبرنگار</option>
-                      <option value="ADMIN">مدیر</option>
+                      {user.role === 'ADMIN' ? (
+                        <option value="ADMIN" disabled>
+                          مدیر
+                        </option>
+                      ) : null}
                     </select>
-                  ) : user.role === 'ADMIN' ? (
-                    'مدیر'
-                  ) : user.role === 'CITIZEN_REPORTER' ? (
-                    'شهروند خبرنگار'
-                  ) : (
-                    'کاربر'
-                  )}
+                  ) : null}
                 </td>
                 <td className="px-4 py-2.5 text-xs text-muted">{fa(user.createdAt)}</td>
                 <td className="px-4 py-2.5">
@@ -190,7 +188,7 @@ export function UsersTable({
                 {manageable ? (
                   <td className="px-4 py-2.5">
                     <div className="flex items-center gap-1">
-                      {onToggleActive && user.role !== 'ADMIN' ? (
+                      {onToggleActive ? (
                         user.isActive ? (
                           <button
                             type="button"
@@ -224,7 +222,7 @@ export function UsersTable({
                           <MessageSquare className="size-3.5" aria-hidden />
                         </button>
                       ) : null}
-                      {onDelete && user.role !== 'ADMIN' ? (
+                      {onDelete ? (
                         <button
                           type="button"
                           onClick={() => confirmDelete(user)}
