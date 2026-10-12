@@ -11,6 +11,29 @@ export const DEFAULT_ADMIN_LIST_PAGE_SIZE = 10;
 export const ACTIVITY_RETENTION_MONTHS_KEY = 'activityRetentionMonths';
 export const DEFAULT_ACTIVITY_RETENTION_MONTHS = 6;
 
+// ---------------------------------------------------------------------------
+//  «نبض شهر» news settings
+// ---------------------------------------------------------------------------
+
+/** How many headlines the home-page «نبض شهر» table shows. */
+export const NEWS_HEADLINE_COUNT_KEY = 'newsHeadlineCount';
+export const DEFAULT_NEWS_HEADLINE_COUNT = 6;
+
+/**
+ * Who may file news once approved as a reporter:
+ *   - `REPORTERS_ONLY` — only users whose role is CITIZEN_REPORTER
+ *   - `ANY_ACTIVE_USER` — any active logged-in user
+ *   - `ADMINS_ONLY`     — only admins (reporters are effectively paused)
+ */
+export const NEWS_ACCESS_LEVEL_KEY = 'newsAccessLevel';
+export const NEWS_ACCESS_LEVELS = [
+  'REPORTERS_ONLY',
+  'ANY_ACTIVE_USER',
+  'ADMINS_ONLY',
+] as const;
+export type NewsAccessLevel = (typeof NEWS_ACCESS_LEVELS)[number];
+export const DEFAULT_NEWS_ACCESS_LEVEL: NewsAccessLevel = 'REPORTERS_ONLY';
+
 /**
  * Global kill-switches the admin can flip while load-testing the platform, so
  * no real user can accidentally create content among thousands of imported
@@ -97,6 +120,22 @@ export class SettingsService implements OnModuleInit {
         where: { key: ALLOW_CARD_CREATION_KEY },
         update: {},
         create: { key: ALLOW_CARD_CREATION_KEY, value: 'true' },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: NEWS_HEADLINE_COUNT_KEY },
+        update: {},
+        create: {
+          key: NEWS_HEADLINE_COUNT_KEY,
+          value: String(DEFAULT_NEWS_HEADLINE_COUNT),
+        },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: NEWS_ACCESS_LEVEL_KEY },
+        update: {},
+        create: {
+          key: NEWS_ACCESS_LEVEL_KEY,
+          value: DEFAULT_NEWS_ACCESS_LEVEL,
+        },
       }),
       ...ADMIN_NOTIFY_CATEGORIES.map((category) =>
         this.prisma.setting.upsert({
@@ -258,6 +297,50 @@ export class SettingsService implements OnModuleInit {
     }
     await Promise.all(writes);
     return this.getCreationLocks();
+  }
+
+  // ---- «نبض شهر» settings ----
+
+  async getNewsHeadlineCount(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: NEWS_HEADLINE_COUNT_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 1 && parsed <= 50
+      ? Math.floor(parsed)
+      : DEFAULT_NEWS_HEADLINE_COUNT;
+  }
+
+  async setNewsHeadlineCount(value: number): Promise<number> {
+    const clamped = Math.min(50, Math.max(1, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: NEWS_HEADLINE_COUNT_KEY },
+      update: { value: String(clamped) },
+      create: { key: NEWS_HEADLINE_COUNT_KEY, value: String(clamped) },
+    });
+    return clamped;
+  }
+
+  async getNewsAccessLevel(): Promise<NewsAccessLevel> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: NEWS_ACCESS_LEVEL_KEY },
+    });
+    const value = setting?.value as NewsAccessLevel | undefined;
+    return value && (NEWS_ACCESS_LEVELS as readonly string[]).includes(value)
+      ? value
+      : DEFAULT_NEWS_ACCESS_LEVEL;
+  }
+
+  async setNewsAccessLevel(value: NewsAccessLevel): Promise<NewsAccessLevel> {
+    const clean = (NEWS_ACCESS_LEVELS as readonly string[]).includes(value)
+      ? value
+      : DEFAULT_NEWS_ACCESS_LEVEL;
+    await this.prisma.setting.upsert({
+      where: { key: NEWS_ACCESS_LEVEL_KEY },
+      update: { value: clean },
+      create: { key: NEWS_ACCESS_LEVEL_KEY, value: clean },
+    });
+    return clean;
   }
 
   async all(): Promise<Record<string, string>> {

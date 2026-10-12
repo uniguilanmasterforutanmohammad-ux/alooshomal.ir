@@ -10,7 +10,12 @@ export function Footer() {
             {APP_VERSION}
           </span>
         </p>
-        <p>ساخته‌شده با NestJS، Next.js، Prisma و PostgreSQL</p>
+        <div className="flex items-center gap-4">
+          <a href="/pulse" className="hover:text-brand">
+            نبض شهر
+          </a>
+          <p>ساخته‌شده با NestJS، Next.js، Prisma و PostgreSQL</p>
+        </div>
       </div>
     </footer>
   );

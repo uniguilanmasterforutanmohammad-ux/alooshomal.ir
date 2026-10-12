@@ -1,6 +1,7 @@
 import {
   PrismaClient,
   Role,
+  NewsStatus,
   BiolinkStatus,
   TicketStatus,
   TicketPriority,
@@ -190,6 +191,45 @@ async function main() {
 
   console.log(`  Tickets: ${ticketSeed.length}`);
   console.log(`  Reports: ${reportSeed.length}`);
+
+  // ---- «نبض شهر»: default categories + a couple of sample headlines ----
+  const newsCategories = ['شهری', 'فرهنگی', 'ورزشی', 'اقتصادی', 'اجتماعی'];
+  await prisma.newsCategory.deleteMany({});
+  const createdCategories = await Promise.all(
+    newsCategories.map((name) => prisma.newsCategory.create({ data: { name } })),
+  );
+
+  await prisma.newsItem.deleteMany({});
+  const sampleNews: Array<{ title: string; summary: string; publisher: string; categoryIndex: number }> = [
+    {
+      title: 'افتتاح پارک محله پس از بازسازی',
+      summary: 'پارک مرکزی محله با امکانات تازه در اختیار شهروندان قرار گرفت.',
+      publisher: 'روابط عمومی شهرداری',
+      categoryIndex: 0,
+    },
+    {
+      title: 'برگزاری جشنواره فرهنگی شهر',
+      summary: 'جشنواره فرهنگی با حضور هنرمندان محلی این هفته برگزار می‌شود.',
+      publisher: 'خبرنگار محله',
+      categoryIndex: 1,
+    },
+  ];
+  for (const item of sampleNews) {
+    await prisma.newsItem.create({
+      data: {
+        title: item.title,
+        summary: item.summary,
+        publisherName: item.publisher,
+        categoryId: createdCategories[item.categoryIndex]?.id ?? null,
+        status: NewsStatus.APPROVED,
+        isPublished: true,
+        publishedAt: new Date(),
+      },
+    });
+  }
+
+  console.log(`  News categories: ${newsCategories.length}`);
+  console.log(`  Sample news: ${sampleNews.length}`);
 }
 
 main()

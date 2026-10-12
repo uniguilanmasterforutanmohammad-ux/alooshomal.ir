@@ -12,6 +12,7 @@ import {
   LifeBuoy,
   LogOut,
   Menu,
+  Newspaper,
   ShieldCheck,
   TrendingUp,
 } from 'lucide-react';
@@ -29,6 +30,7 @@ const NAV = [
   { href: '/dashboard/boost', label: 'افزایش بازدید', icon: TrendingUp, exact: false },
   { href: '/dashboard/subscriptions', label: 'اشتراک', icon: Crown, exact: false },
   { href: '/dashboard/tickets', label: 'تیکت‌های پشتیبانی', icon: LifeBuoy, exact: false },
+  { href: '/dashboard/reporter', label: 'شهروند خبرنگار', icon: Newspaper, exact: false },
 ] as const;
 
 export function UserShell({ children }: { children: React.ReactNode }) {

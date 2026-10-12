@@ -3,7 +3,7 @@ import { BadgeCheck, IdCard, LayoutDashboard, ShieldCheck } from 'lucide-react';
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-50 border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[#fbf3e9]/95 backdrop-blur">
+    <header className="sticky top-0 z-50 hidden border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[#fbf3e9]/95 backdrop-blur md:block">
       <div className="container-page flex h-16 items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 text-xl font-extrabold text-brand">
           <span className="vintage-avatar flex size-9 items-center justify-center">
@@ -18,6 +18,9 @@ export function Header() {
           </Link>
           <Link href="/business-cards" className="hover:text-brand">
             دایرکتوری کارت ویزیت
+          </Link>
+          <Link href="/pulse" className="hover:text-brand">
+            نبض شهر
           </Link>
           <Link href="/dashboard" className="hover:text-brand">
             داشبورد

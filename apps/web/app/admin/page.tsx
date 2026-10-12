@@ -14,6 +14,8 @@ import { AdminSubscriptions } from '@/components/admin/AdminSubscriptions';
 import { AdminBoosts } from '@/components/admin/AdminBoosts';
 import { AdminNotificationSettings } from '@/components/admin/AdminNotificationSettings';
 import { NotificationsInbox } from '@/components/ui/NotificationsInbox';
+import { AdminNewsPanel } from '@/components/admin/AdminNewsPanel';
+import { AdminNewsSettings } from '@/components/admin/AdminNewsSettings';
 import { ActivityLogPanel } from '@/components/admin/ActivityLogPanel';
 import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
 import { BiolinkLiveEditor } from '@/components/admin/BiolinkLiveEditor';
@@ -79,6 +81,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'boosts',
   'users',
   'tickets',
+  'news',
   'reports',
   'tools',
   'notifications',
@@ -283,6 +286,10 @@ function AdminContent() {
     boosts: { title: 'افزایش بازدید', sub: 'بررسی و تأیید درخواست‌های پله' },
     users: { title: 'کاربران', sub: 'لیست کاربران پلتفرم' },
     tickets: { title: 'تیکت‌ها', sub: 'مدیریت تیکت‌های پشتیبانی' },
+    news: {
+      title: 'نبض شهر',
+      sub: 'بررسی خبرهای شهروند خبرنگارها، درخواست‌ها و دسته‌بندی‌ها',
+    },
     reports: { title: 'گزارش‌ها', sub: 'گزارش‌های سیستم' },
     tools: { title: 'ابزار تست', sub: 'ایمپورت گروهی، حذف داده‌های تستی و قفل ساخت' },
     notifications: {
@@ -592,6 +599,8 @@ function AdminContent() {
 
       {section === 'reports' ? <ActivityLogPanel /> : null}
 
+      {section === 'news' ? <AdminNewsPanel /> : null}
+
       {section === 'notifications' ? <NotificationsInbox scope="admin" /> : null}
 
       {section === 'tools' ? <AdminBulkTools /> : null}
@@ -600,6 +609,7 @@ function AdminContent() {
         <div className="grid gap-4 lg:grid-cols-2">
           <AdminDirectorySettings />
           <AdminNotificationSettings />
+          <AdminNewsSettings />
           <TaxonomyManager
             title="مدیریت شهرها"
             description="شهرهای قابل انتخاب در فرم ساخت بیولینک"

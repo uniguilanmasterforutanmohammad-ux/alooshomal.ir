@@ -9,7 +9,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 export interface JwtPayload {
   sub: string;
   email: string;
-  role: 'USER' | 'ADMIN';
+  role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
 }
 
 @Injectable()

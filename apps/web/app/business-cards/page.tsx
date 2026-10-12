@@ -8,6 +8,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { DirectoryBusinessCardItem } from '@/components/businesscard/DirectoryBusinessCardItem';
 import { DirectoryBusinessCardDetail } from '@/components/businesscard/DirectoryBusinessCardDetail';
+import { MobileSheet } from '@/components/ui/MobileSheet';
 import {
   DirectoryBusinessCardFilters,
   type DirectoryFilterState,
@@ -90,7 +91,7 @@ function DirectoryContent() {
           <h1 className="text-xl font-extrabold text-ink">دایرکتوری کارت‌های ویزیت</h1>
           <p className="text-sm text-muted">
             {meta
-              ? `${meta.total.toLocaleString('fa-IR')} کارت ویزیت منتشرشده`
+              ? `${meta.total.toLocaleString('fa-IR')} کارت ویزیت منتشرشده — نمایش ${items.length.toLocaleString('fa-IR')} مورد`
               : 'در حال بارگذاری...'}
           </p>
         </div>
@@ -166,7 +167,7 @@ function DirectoryContent() {
           ) : null}
         </section>
 
-        <aside className="order-1 lg:order-2">
+        <aside className="order-1 hidden lg:order-2 lg:block">
           <div className="lg:sticky lg:top-20">
             {selectedSlug ? (
               <div className="indeed-panel h-[calc(100vh-6rem)] overflow-hidden">
@@ -187,6 +188,20 @@ function DirectoryContent() {
           </div>
         </aside>
       </div>
+
+      {/* Mobile: details open as a bottom-sheet modal instead of the side panel */}
+      <MobileSheet
+        open={Boolean(selectedSlug)}
+        onClose={() => setSelectedSlug(null)}
+        title="جزئیات کارت ویزیت"
+      >
+        {selectedSlug ? (
+          <DirectoryBusinessCardDetail
+            slug={selectedSlug}
+            onClose={() => setSelectedSlug(null)}
+          />
+        ) : null}
+      </MobileSheet>
     </main>
   );
 }

@@ -9,7 +9,7 @@ export interface AdminUser {
   id: string;
   email: string;
   fullName: string | null;
-  role: 'USER' | 'ADMIN';
+  role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
   isActive: boolean;
   deactivatedReason?: string | null;
   adminComment?: string | null;
@@ -159,7 +159,11 @@ export function UsersTable({
                   {user.email}
                 </td>
                 <td className="px-4 py-2.5 text-xs text-muted">
-                  {user.role === 'ADMIN' ? 'مدیر' : 'کاربر'}
+                  {user.role === 'ADMIN'
+                    ? 'مدیر'
+                    : user.role === 'CITIZEN_REPORTER'
+                      ? 'شهروند خبرنگار'
+                      : 'کاربر'}
                 </td>
                 <td className="px-4 py-2.5 text-xs text-muted">{fa(user.createdAt)}</td>
                 <td className="px-4 py-2.5">

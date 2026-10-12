@@ -14,6 +14,7 @@ import { BoostsModule } from './boosts/boosts.module';
 import { BusinessCardsModule } from './businesscards/business-cards.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { NewsModule } from './news/news.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { SettingsModule } from './settings/settings.module';
@@ -37,6 +38,7 @@ import { UsersModule } from './users/users.module';
     BoostsModule,
     SettingsModule,
     NotificationsModule,
+    NewsModule,
     AdminModule,
     TaxonomyModule,
     TicketsModule,

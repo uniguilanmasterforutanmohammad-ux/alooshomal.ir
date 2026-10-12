@@ -107,6 +107,10 @@ body {
   margin: 0;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   font-family: 'Shabnam', ui-serif, Georgia, 'Times New Roman', serif;
   color: var(--vintage-ink);
@@ -119,6 +123,14 @@ body {
     radial-gradient(rgba(139, 58, 26, 0.04) 1px, transparent 1px);
   background-size: 22px 22px, 22px 22px;
   background-position: 0 0, 11px 11px;
+}
+
+/* Mobile: leave room for the fixed bottom navigation so the last content
+   is never hidden behind it (plus the device safe-area inset). */
+@media (max-width: 767px) {
+  body {
+    padding-bottom: calc(56px + env(safe-area-inset-bottom));
+  }
 }
 
 a {

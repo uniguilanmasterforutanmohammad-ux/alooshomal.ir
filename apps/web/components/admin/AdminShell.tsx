@@ -12,6 +12,7 @@ import {
   LogOut,
   Menu,
   Bell,
+  Newspaper,
   FlaskConical,
   Settings,
   TrendingUp,
@@ -32,6 +33,7 @@ export type AdminSection =
   | 'tickets'
   | 'reports'
   | 'tools'
+  | 'news'
   | 'notifications'
   | 'settings';
 
@@ -49,6 +51,7 @@ const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboar
   { key: 'boosts', label: 'افزایش بازدید', icon: TrendingUp },
   { key: 'users', label: 'کاربران', icon: Users },
   { key: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
+  { key: 'news', label: 'نبض شهر', icon: Newspaper },
   { key: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
   { key: 'notifications', label: 'اعلانات', icon: Bell },
   { key: 'tools', label: 'ابزار تست', icon: FlaskConical },

@@ -405,6 +405,55 @@ export interface NotificationPage {
   };
 }
 
+export type NewsStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface NewsCategory {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+export interface NewsHeadline {
+  id: string;
+  title: string;
+  summary: string | null;
+  publisherName: string | null;
+  publishedAt: string | null;
+  createdAt: string;
+  category: { id: string; name: string } | null;
+}
+
+export interface NewsItem extends NewsHeadline {
+  body: string | null;
+  status: NewsStatus;
+  reason: string | null;
+  author: {
+    id: string;
+    email: string;
+    fullName: string | null;
+    role: string;
+  } | null;
+}
+
+export interface NewsListResponse {
+  items: NewsItem[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+export interface ReporterSummary {
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
+}
+
 export interface AdminSettingsPayload {
   directoryPageSize: number;
   adminListPageSize: number;

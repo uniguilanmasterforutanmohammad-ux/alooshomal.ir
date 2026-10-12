@@ -9,6 +9,8 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import {
   ADMIN_NOTIFY_CATEGORIES,
   AdminNotifyCategory,
+  NEWS_ACCESS_LEVELS,
+  NewsAccessLevel,
   SettingsService,
 } from './settings.service';
 
@@ -37,8 +39,19 @@ class UpdateSettingsDto {
   @IsOptional()
   @IsBoolean()
   allowBusinessCardCreation?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  newsHeadlineCount?: number;
+
+  @IsOptional()
+  newsAccessLevel?: NewsAccessLevel;
 }
 const ADMIN_NOTIFY_CATEGORY_SET = new Set<string>(ADMIN_NOTIFY_CATEGORIES);
+const NEWS_ACCESS_LEVEL_SET = new Set<string>(NEWS_ACCESS_LEVELS);
 
 @ApiTags('settings')
 @Controller('settings')
@@ -75,6 +88,8 @@ export class AdminSettingsController {
       directoryPageSize: await this.settingsService.getDirectoryPageSize(),
       adminListPageSize: await this.settingsService.getAdminListPageSize(),
       adminNotifications: await this.settingsService.getAdminNotifyPrefs(),
+      newsHeadlineCount: await this.settingsService.getNewsHeadlineCount(),
+      newsAccessLevel: await this.settingsService.getNewsAccessLevel(),
       ...locks,
     };
   }
@@ -88,6 +103,8 @@ export class AdminSettingsController {
       adminNotifications?: Record<AdminNotifyCategory, boolean>;
       allowBiolinkCreation?: boolean;
       allowBusinessCardCreation?: boolean;
+      newsHeadlineCount?: number;
+      newsAccessLevel?: NewsAccessLevel;
     } = {};
     if (dto.directoryPageSize !== undefined) {
       result.directoryPageSize = await this.settingsService.setDirectoryPageSize(
@@ -119,6 +136,19 @@ export class AdminSettingsController {
       });
       result.allowBiolinkCreation = locks.allowBiolinkCreation;
       result.allowBusinessCardCreation = locks.allowBusinessCardCreation;
+    }
+    if (dto.newsHeadlineCount !== undefined) {
+      result.newsHeadlineCount = await this.settingsService.setNewsHeadlineCount(
+        dto.newsHeadlineCount,
+      );
+    }
+    if (
+      dto.newsAccessLevel !== undefined &&
+      NEWS_ACCESS_LEVEL_SET.has(dto.newsAccessLevel)
+    ) {
+      result.newsAccessLevel = await this.settingsService.setNewsAccessLevel(
+        dto.newsAccessLevel,
+      );
     }
     return result;
   }

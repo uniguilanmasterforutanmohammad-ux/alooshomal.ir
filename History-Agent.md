@@ -15,7 +15,46 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.11.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.12.0**.
+
+## ۱۴۰۵/۰۷/۲۰ — سیستم خبری «نبض شهر» + نقش شهروند خبرنگار — نسخه `v2.12.0`
+
+**هدف:** افزودن بخش خبرها به صفحه اصلی (جدول تیترها با نویسنده/منتشرکننده و دکمه‌ی
+«مشاهده کامل خبر»)، صفحه‌ی کامل «نبض شهر» با جست‌وجو و فیلتر، نقش جدید «شهروند خبرنگار»
+با پنل کاربری مجزا، و یک بخش مدیریتی برای تأیید/تنظیمات خبر.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: enumهای `NewsStatus`، نقش `CITIZEN_REPORTER` و
+  مدل‌های `NewsCategory`، `NewsItem`، `ReporterRequest`.
+- `apps/api/prisma/seed.ts`: پنج دسته‌بندی پیش‌فرض خبری و دو خبر نمونه.
+- `apps/api/src/news/` (جدید): سرویس/کنترلر/ماژول/دی‌تی‌او — فید عمومی، پنل خبرنگار،
+  و مدیریت (تأیید خبر، درخواست‌های شهروند خبرنگار، دسته‌بندی‌ها).
+- `apps/api/src/settings/settings.service.ts` و `settings.controller.ts`: تنظیم
+  `newsHeadlineCount` و `newsAccessLevel` (سه سطح دسترسی).
+- `apps/api/src/common/decorators/{roles,current-user}.decorator.ts` و لایه‌های auth:
+  افزودن نقش `CITIZEN_REPORTER`.
+- `apps/web/components/news/PulseSection.tsx`: جدول تیترهای صفحه اصلی (badge، عنوان،
+  منتشرکننده، تاریخ، دکمه‌ی «مشاهده کامل خبر»).
+- `apps/web/app/pulse/page.tsx` و `apps/web/app/pulse/[id]/page.tsx`: لیست کامل با
+  جست‌وجو/فیلتر/صفحه‌بندی و صفحه‌ی جزئیات خبر.
+- `apps/web/components/news/PulseFilters.tsx` و `apps/web/components/reporter/ReporterPanel.tsx`:
+  فیلتر خبرها و پنل «خبرهای من» شهروند خبرنگار.
+- `apps/web/components/admin/AdminNewsPanel.tsx` و `AdminNewsSettings.tsx`: بخش تازه‌ی
+  «نبض شهر» و «تنظیمات نبض شهر» در پنل مدیر.
+- `apps/web/app/admin/page.tsx`، `components/admin/AdminShell.tsx`،
+  `components/dashboard/UserShell.tsx`، `components/layout/Header.tsx` و `Footer.tsx`:
+  ناوبری/ورود به بخش‌های تازه.
+
+**تأیید/تست:**
+- `tsc --noEmit` برای `apps/web` بدون خطا؛ build داکر `apps/api` و `apps/web` موفق.
+- تست API با curl: فید عمومی (headlines/list/search/categories)، درخواست نقش →
+  خطای ۴۰۳ پیش از تأیید → تأیید مدیر → نقش `CITIZEN_REPORTER` → ثبت خبر → تأیید خبر
+  → نمایش در headlines؛ تغییر `newsHeadlineCount` و `newsAccessLevel` نیز اثر کرد.
+- تست UI با Playwright + google-chrome: بخش نبض شهر در صفحه اصلی، صفحه‌ی `/pulse` با
+  جست‌وجو، صفحه‌ی جزئیات، بخش «نبض شهر» پنل مدیر (سه تب) و پنل «شهروند خبرنگار» رندر شدند.
+- داده‌های تستی خبرنگار و خبر تستی پس از تست پاک و تنظیمات به مقدار پیش‌فرض بازگشت.
+
+---
 
 ## ۱۴۰۵/۰۷/۲۰ — اعلانات: حذف خوانده‌ها از زنگ + صفحه‌ی تاریخچه‌ی کامل — نسخه `v2.11.0`
 

@@ -12,6 +12,7 @@ datasource db {
 
 enum Role {
   USER
+  CITIZEN_REPORTER
   ADMIN
 }
 
@@ -79,6 +80,47 @@ enum NotificationType {
   ERROR
 }
 
+// «نبض شهر» — city-news system. A citizen-reporter (a user whose role is
+// CITIZEN_REPORTER) writes news items that an admin reviews before they appear
+// on the public feed (`/pulse` or the «نبض شهر» table on the home page).
+enum NewsStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model NewsCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items NewsItem[]
+
+  @@index([name])
+  @@map("news_categories")
+}
+
+// Citizen-reporter access request: a normal user asks to become a reporter and
+// an admin approves or rejects it from the admin «نبض شهر» panel.
+model ReporterRequest {
+  id         String    @id @default(cuid())
+  userId     String
+  message    String?
+  status     NewsStatus @default(PENDING)
+  decidedAt  DateTime?
+  reason     String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  user User @relation("ReporterRequests", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([userId])
+  @@map("reporter_requests")
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -96,6 +138,8 @@ model User {
 
   biolinks        Biolink[]
   businessCards   BusinessCard[]
+  news            NewsItem[]
+  reporterRequests ReporterRequest[] @relation("ReporterRequests")
   moderations ModerationLog[]
   tickets    Ticket[]
   ticketMessages TicketMessage[]
@@ -112,6 +156,33 @@ model User {
   @@index([email])
   @@index([planId])
   @@map("users")
+}
+
+// One «نبض شهر» headline. `authorId` is the citizen-reporter who wrote it;
+// `publisherName` is the free-text «منتشرکننده» shown under the title.
+model NewsItem {
+  id         String     @id @default(cuid())
+  title      String
+  summary    String?
+  body       String?
+  authorId   String?
+  publisherName String?
+  categoryId String?
+  status     NewsStatus @default(PENDING)
+  reason     String?
+  isPublished Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  author   User?          @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  category NewsCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([isPublished, publishedAt])
+  @@index([authorId])
+  @@index([categoryId])
+  @@map("news_items")
 }
 
 model Ticket {

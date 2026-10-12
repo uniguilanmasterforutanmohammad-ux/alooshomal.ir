@@ -44,10 +44,10 @@ export function DirectoryBusinessCardFilters({
     <div className="space-y-3">
       {/* Indeed-style search bar */}
       <form
-        className="flex overflow-hidden rounded-lg border border-[var(--indeed-border)] bg-white shadow-sm"
+        className="flex flex-col gap-2 overflow-hidden rounded-lg border border-[var(--indeed-border)] bg-white shadow-sm md:flex-row md:gap-0"
         onSubmit={submit}
       >
-        <div className="relative flex flex-[2] items-center border-e border-[var(--indeed-border)]">
+        <div className="relative flex items-center border-b border-[var(--indeed-border)] md:flex-[2] md:border-b-0 md:border-e">
           <Search
             className="pointer-events-none absolute end-3 size-4 text-muted"
             aria-hidden
@@ -60,7 +60,7 @@ export function DirectoryBusinessCardFilters({
           />
         </div>
 
-        <div className="relative hidden flex-1 items-center border-e border-[var(--indeed-border)] md:flex">
+        <div className="relative flex items-center border-b border-[var(--indeed-border)] md:flex-1 md:border-b-0 md:border-e">
           <MapPin
             className="pointer-events-none absolute end-3 size-4 text-muted"
             aria-hidden
@@ -79,7 +79,7 @@ export function DirectoryBusinessCardFilters({
           </select>
         </div>
 
-        <div className="relative hidden flex-1 items-center md:flex">
+        <div className="relative flex items-center border-b border-[var(--indeed-border)] md:flex-1 md:border-b-0 md:border-e">
           <Building2
             className="pointer-events-none absolute end-3 size-4 text-muted"
             aria-hidden

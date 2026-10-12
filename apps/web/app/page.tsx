@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { PulseSection } from '@/components/news/PulseSection';
 import {
   BadgeCheck,
   Link2,
@@ -127,6 +128,8 @@ export default function HomePage() {
             </ol>
           </div>
         </section>
+
+        <PulseSection />
       </main>
 
       <Footer />

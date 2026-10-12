@@ -93,7 +93,7 @@ export class AuthService {
     id: string;
     email: string;
     fullName?: string | null;
-    role: 'USER' | 'ADMIN';
+    role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
   }) {
     const accessToken = this.jwt.sign({
       sub: user.id,
