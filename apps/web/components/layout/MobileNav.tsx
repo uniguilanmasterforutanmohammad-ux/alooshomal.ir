@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BadgeCheck, Home, IdCard, LayoutDashboard, LogIn } from 'lucide-react';
+import { BadgeCheck, Home, IdCard, LayoutDashboard, LogIn, Newspaper } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -17,7 +17,7 @@ interface Item {
 /**
  * Mobile-only fixed bottom navigation. Replaces the top header on phones
  * (the header is hidden below `md`), so the site is thumb-friendly: a fixed
- * bar with icon + label for the four primary destinations, plus «داشبورد»
+ * bar with icon + label for the primary destinations, plus «داشبورد»
  * when a session exists instead of «ورود».
  */
 export function MobileNav() {
@@ -31,6 +31,7 @@ export function MobileNav() {
     { href: '/', label: 'خانه', icon: Home, exact: true },
     { href: '/business-cards', label: 'کارت ویزیت‌ها', icon: BadgeCheck },
     { href: '/biolinks', label: 'بیولینک‌ها', icon: IdCard },
+    { href: '/pulse', label: 'نبض شهر', icon: Newspaper },
     hydrated && token
       ? { href: '/dashboard', label: 'داشبورد', icon: LayoutDashboard }
       : { href: '/login', label: 'ورود', icon: LogIn },
@@ -44,7 +45,7 @@ export function MobileNav() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-label="ناوبری پایین"
     >
-      <ul className="grid grid-cols-4">
+      <ul className="grid grid-cols-5">
         {items.map((item) => {
           const active = item.exact
             ? pathname === item.href
