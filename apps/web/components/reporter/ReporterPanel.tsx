@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { CheckCircle2, Clock, FileText, Newspaper, Plus, Trash2, XCircle } from 'lucide-react';
 
 import {
@@ -287,7 +288,19 @@ export function ReporterPanel() {
               className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-dashed border-[var(--vintage-border)] px-4 py-3 last:border-b-0"
             >
               <div className="min-w-48 flex-1">
-                <p className="font-bold text-ink">{item.title}</p>
+                {item.status === 'APPROVED' ? (
+                  <Link
+                    href={`/pulse/${item.id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="مشاهده خبر در صفحه جدید"
+                    className="font-bold text-ink hover:text-brand hover:underline"
+                  >
+                    {item.title}
+                  </Link>
+                ) : (
+                  <p className="font-bold text-ink">{item.title}</p>
+                )}
                 {item.status === 'REJECTED' && item.reason ? (
                   <p className="mt-1 text-xs text-red-600">دلیل رد: {item.reason}</p>
                 ) : null}
