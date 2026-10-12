@@ -15,6 +15,7 @@ import { AdminBoosts } from '@/components/admin/AdminBoosts';
 import { AdminNotificationSettings } from '@/components/admin/AdminNotificationSettings';
 import { NotificationsInbox } from '@/components/ui/NotificationsInbox';
 import { AdminNewsPanel } from '@/components/admin/AdminNewsPanel';
+import { AdminProfileRequests } from '@/components/admin/AdminProfileRequests';
 import { AdminNewsSettings } from '@/components/admin/AdminNewsSettings';
 import { ActivityLogPanel } from '@/components/admin/ActivityLogPanel';
 import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
@@ -260,6 +261,16 @@ function AdminContent() {
       await loadAllUsers();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ثبت کامنت ناموفق بود');
+    }
+  }
+
+  async function setUserRole(id: string, role: AdminUser['role']) {
+    try {
+      await api.patch(`/admin/users/${id}/role`, { role });
+      await loadAllUsers();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تغییر نقش کاربر ناموفق بود');
+      await loadAllUsers();
     }
   }
 
@@ -559,12 +570,14 @@ function AdminContent() {
 
       {section === 'users' ? (
         <div>
+          <AdminProfileRequests />
           <UsersTable
             title="همه کاربران"
             users={allUsers ?? overview?.recentUsers ?? []}
             onToggleActive={setUserActive}
             onDelete={deleteUser}
             onComment={setUserComment}
+            onRole={setUserRole}
           />
           {usersMeta ? (
             <Pagination meta={usersMeta} onPage={setUsersPage} />

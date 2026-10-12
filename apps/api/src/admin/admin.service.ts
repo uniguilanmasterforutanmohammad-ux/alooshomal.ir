@@ -493,6 +493,53 @@ export class AdminService {
     return updated;
   }
 
+  /** Change a user's role (USER / CITIZEN_REPORTER / ADMIN). */
+  async setUserRole(
+    adminId: string,
+    userId: string,
+    role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN',
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('کاربر یافت نشد');
+    }
+    if (user.role === 'ADMIN' && role !== 'ADMIN') {
+      throw new BadRequestException('نقش مدیر را نمی‌توان از این طریق تغییر داد');
+    }
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { role },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        isActive: true,
+        deactivatedReason: true,
+        adminComment: true,
+        createdAt: true,
+      },
+    });
+    const roleLabel =
+      role === 'ADMIN' ? 'مدیر' : role === 'CITIZEN_REPORTER' ? 'شهروند خبرنگار' : 'کاربر';
+    await this.notifications.notify({
+      userId,
+      title: 'نقش کاربری شما تغییر کرد',
+      body: `نقش جدید شما: ${roleLabel}`,
+      type: NotificationType.INFO,
+      link: '/dashboard/profile',
+      actorId: adminId,
+    });
+    await this.activity.log({
+      actor: { id: adminId },
+      action: 'USER_ROLE_CHANGED',
+      summary: `تغییر نقش «${user.fullName ?? user.email}» به ${roleLabel}`,
+      entityType: 'USER',
+      entityId: userId,
+    });
+    return updated;
+  }
+
   /** Hard-delete a user (cascades their cards, likes, saves...). */
   async deleteUser(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });

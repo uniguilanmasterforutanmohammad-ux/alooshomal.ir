@@ -20,7 +20,48 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.12.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.13.0**.
+
+## ۱۴۰۵/۰۷/۲۰ — نام منتشرکننده = نام کاربر + پروفایل کاربری با تأیید مدیر — نسخه `v2.13.0`
+
+**هدف:** در پنل شهروند خبرنگار «نام منتشرکننده» باید همان نام کاربر باشد و قابل تغییر
+نباشد؛ افزودن صفحه‌ی پروفایل کاربری با امکان درخواست تغییر نام که فقط پس از تأیید
+مدیر اعمال شود.
+
+**تغییرات:**
+- `apps/api/src/news/news.service.ts`: در `createMine` و `updateMine` مقدار
+  `publisherName` از نام کاربر (`fullName` و در نبودش ایمیل) پر می‌شود و ورودی کلاینت
+  نادیده گرفته می‌شود.
+- `apps/api/src/news/dto/create-news.dto.ts`: حذف فیلد `publisherName` از DTO (با
+  `forbidNonWhitelisted`، ارسال دستی آن ۴۰۰ می‌گیرد).
+- `apps/api/prisma/schema.prisma`: مدل جدید `ProfileChangeRequest` (changes JSON،
+  status، reason، decidedAt) برای درخواست‌های تغییر پروفایل.
+- `apps/api/src/profile/` (جدید): سرویس/کنترلر/ماژول/دی‌تی‌او — `GET /profile/me`،
+  `POST /profile/change-request`، `GET /admin/profile-requests` و
+  `PATCH /admin/profile-requests/:id` (تأیید/رد با اعمال فیلدهای مجاز).
+- `apps/api/src/admin/admin.service.ts` و `admin.controller.ts` و
+  `dto/manage-user.dto.ts`: افزودن `PATCH /admin/users/:id/role` برای تغییر نقش کاربر
+  (USER / CITIZEN_REPORTER / ADMIN) همراه با نوتیف و لاگ فعالیت.
+- `apps/web/components/reporter/ReporterPanel.tsx`: فیلد «نام منتشرکننده» فقط‌خواندنی
+  و برابر نام کاربر؛ حذف `publisherName` از payload.
+- `apps/web/components/dashboard/ProfilePanel.tsx` و
+  `apps/web/app/dashboard/profile/page.tsx` (جدید): صفحه‌ی پروفایل با اطلاعات حساب و
+  فرم درخواست تغییر نام.
+- `apps/web/components/admin/AdminProfileRequests.tsx` (جدید): بخش تأیید/رد درخواست‌های
+  تغییر پروفایل در «کاربران» پنل مدیر.
+- `apps/web/components/admin/AdminTables.tsx` و `apps/web/app/admin/page.tsx`:
+  انتخابگر نقش کاربر در جدول کاربران.
+- `apps/web/components/dashboard/UserShell.tsx`: لینک «پروفایل کاربری» در منوی پنل.
+
+**تأیید/تست:**
+- تست API با curl: ثبت خبر با `publisherName` دستی → ۴۰۰؛ ثبت خبر بدون آن →
+  `publisherName` برابر نام کاربر؛ `profile/me` → ثبت درخواست تغییر → تأیید مدیر →
+  نام اعمال شد و `pendingChange` خالی شد؛ `PATCH /admin/users/:id/role` نقش را تغییر
+  داد؛ نقش نامعتبر ۴۰۰ و دسترسی غیرمدیر ۴۰۳.
+- تست UI با Playwright: صفحه‌ی `/dashboard/profile`، بخش «درخواست‌های تغییر پروفایل»
+  و انتخابگر نقش در `admin?section=users` رندر شدند.
+
+---
 
 ## ۱۴۰۵/۰۷/۲۰ — قانون ۷: کامیت مرحله‌به‌مرحله‌ی تسک‌های نامرتبط — نسخه `v2.12.2`
 

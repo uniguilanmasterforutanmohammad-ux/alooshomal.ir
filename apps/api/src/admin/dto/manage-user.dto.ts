@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class SetUserActiveDto {
   @ApiPropertyOptional({ example: false })
@@ -19,4 +19,10 @@ export class SetUserCommentDto {
   @IsString()
   @MaxLength(500)
   comment?: string | null;
+}
+
+export class SetUserRoleDto {
+  @ApiPropertyOptional({ enum: ['USER', 'CITIZEN_REPORTER', 'ADMIN'] })
+  @IsIn(['USER', 'CITIZEN_REPORTER', 'ADMIN'])
+  role!: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
 }

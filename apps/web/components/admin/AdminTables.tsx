@@ -82,6 +82,7 @@ export function UsersTable({
   onToggleActive,
   onDelete,
   onComment,
+  onRole,
   title = 'لیست کاربران اخیر',
 }: {
   users: AdminUser[];
@@ -89,11 +90,12 @@ export function UsersTable({
   onToggleActive?: (id: string, isActive: boolean, reason?: string) => void;
   onDelete?: (id: string) => void;
   onComment?: (id: string, comment: string) => void;
+  onRole?: (id: string, role: AdminUser['role']) => void;
   title?: string;
 }) {
   const [commentFor, setCommentFor] = useState<AdminUser | null>(null);
   const [commentDraft, setCommentDraft] = useState('');
-  const manageable = Boolean(onToggleActive || onDelete || onComment);
+  const manageable = Boolean(onToggleActive || onDelete || onComment || onRole);
 
   function askDeactivate(user: AdminUser) {
     const reason = window.prompt('علت غیرفعال‌سازی حساب کاربری را وارد کنید:');
@@ -159,11 +161,25 @@ export function UsersTable({
                   {user.email}
                 </td>
                 <td className="px-4 py-2.5 text-xs text-muted">
-                  {user.role === 'ADMIN'
-                    ? 'مدیر'
-                    : user.role === 'CITIZEN_REPORTER'
-                      ? 'شهروند خبرنگار'
-                      : 'کاربر'}
+                  {onRole && user.role !== 'ADMIN' ? (
+                    <select
+                      value={user.role}
+                      onChange={(event) =>
+                        onRole(user.id, event.target.value as AdminUser['role'])
+                      }
+                      className="rounded-md border border-[var(--vintage-border)] bg-white px-2 py-1 text-xs font-bold text-ink"
+                    >
+                      <option value="USER">کاربر</option>
+                      <option value="CITIZEN_REPORTER">شهروند خبرنگار</option>
+                      <option value="ADMIN">مدیر</option>
+                    </select>
+                  ) : user.role === 'ADMIN' ? (
+                    'مدیر'
+                  ) : user.role === 'CITIZEN_REPORTER' ? (
+                    'شهروند خبرنگار'
+                  ) : (
+                    'کاربر'
+                  )}
                 </td>
                 <td className="px-4 py-2.5 text-xs text-muted">{fa(user.createdAt)}</td>
                 <td className="px-4 py-2.5">

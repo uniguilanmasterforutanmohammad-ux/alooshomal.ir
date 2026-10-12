@@ -152,10 +152,32 @@ model User {
   businessCardSaves BusinessCardSave[]
   notifications     Notification[]    @relation("UserNotifications")
   actingNotifications Notification[]  @relation("NotificationActors")
+  profileChangeRequests ProfileChangeRequest[]
 
   @@index([email])
   @@index([planId])
   @@map("users")
+}
+
+// A user asks an admin to change profile fields (name, ...). The change is
+// only applied to `User` after an admin approves it from the admin panel.
+model ProfileChangeRequest {
+  id        String     @id @default(cuid())
+  userId    String
+  // Requested field values, e.g. { "fullName": "..." }. Only whitelisted keys
+  // are applied on approval.
+  changes   Json
+  status    NewsStatus @default(PENDING)
+  reason    String?
+  decidedAt DateTime?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([userId])
+  @@map("profile_change_requests")
 }
 
 // One «نبض شهر» headline. `authorId` is the citizen-reporter who wrote it;

@@ -15,6 +15,7 @@ import {
   Newspaper,
   ShieldCheck,
   TrendingUp,
+  UserRound,
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
@@ -30,6 +31,7 @@ const NAV = [
   { href: '/dashboard/boost', label: 'افزایش بازدید', icon: TrendingUp, exact: false },
   { href: '/dashboard/subscriptions', label: 'اشتراک', icon: Crown, exact: false },
   { href: '/dashboard/tickets', label: 'تیکت‌های پشتیبانی', icon: LifeBuoy, exact: false },
+  { href: '/dashboard/profile', label: 'پروفایل کاربری', icon: UserRound, exact: false },
   { href: '/dashboard/reporter', label: 'شهروند خبرنگار', icon: Newspaper, exact: false },
 ] as const;
 

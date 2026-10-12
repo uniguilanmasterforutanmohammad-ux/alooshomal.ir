@@ -169,12 +169,17 @@ export class NewsService {
 
   async createMine(userId: string, dto: CreateNewsDto) {
     await this.assertCanPublish(userId);
+    const author = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true, email: true },
+    });
     const item = await this.prisma.newsItem.create({
       data: {
         title: dto.title,
         summary: dto.summary ?? null,
         body: dto.body ?? null,
-        publisherName: dto.publisherName ?? null,
+        // «منتشرکننده» is always the author's own name — never client-supplied.
+        publisherName: author?.fullName ?? author?.email ?? null,
         categoryId: dto.categoryId ?? null,
         authorId: userId,
         status: NewsStatus.PENDING,
@@ -244,7 +249,8 @@ export class NewsService {
         title: dto.title,
         summary: dto.summary ?? null,
         body: dto.body ?? null,
-        publisherName: dto.publisherName ?? null,
+        // Keep the publisher name locked to the author on edits too.
+        publisherName: item.publisherName,
         categoryId: dto.categoryId ?? null,
         status: NewsStatus.PENDING,
         reason: null,

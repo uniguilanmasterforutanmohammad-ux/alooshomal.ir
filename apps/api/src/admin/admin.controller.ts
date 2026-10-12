@@ -31,7 +31,11 @@ import { BulkKind, BulkService } from './bulk.service';
 import { ListBiolinksDto } from './dto/list-biolinks.dto';
 import { ListBusinessCardsDto } from './dto/list-business-cards.dto';
 import { ListUsersDto } from './dto/list-users.dto';
-import { SetUserActiveDto, SetUserCommentDto } from './dto/manage-user.dto';
+import {
+  SetUserActiveDto,
+  SetUserCommentDto,
+  SetUserRoleDto,
+} from './dto/manage-user.dto';
 import { ModerateBiolinkDto } from './dto/moderate-biolink.dto';
 import { ModerateBusinessCardDto } from './dto/moderate-business-card.dto';
 
@@ -88,6 +92,16 @@ export class AdminController {
   @ApiOperation({ summary: 'ثبت کامنت مدیر درباره کاربر' })
   setUserComment(@Param('id') id: string, @Body() dto: SetUserCommentDto) {
     return this.adminService.setUserComment(id, dto.comment ?? null);
+  }
+
+  @Patch('users/:id/role')
+  @ApiOperation({ summary: 'تغییر نقش کاربر' })
+  setUserRole(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: SetUserRoleDto,
+  ) {
+    return this.adminService.setUserRole(admin.id, id, dto.role);
   }
 
   @Delete('users/:id')

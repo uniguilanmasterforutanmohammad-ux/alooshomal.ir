@@ -20,12 +20,6 @@ export class CreateNewsDto {
   @MaxLength(4000)
   body?: string;
 
-  @ApiPropertyOptional({ example: 'خبرنگار محله' })
-  @IsOptional()
-  @IsString()
-  @MaxLength(120)
-  publisherName?: string;
-
   @ApiPropertyOptional({ description: 'شناسه دسته‌بندی خبر' })
   @IsOptional()
   @IsString()

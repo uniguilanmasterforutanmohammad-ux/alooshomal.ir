@@ -30,7 +30,6 @@ interface Draft {
   title: string;
   summary: string;
   body: string;
-  publisherName: string;
   categoryId: string;
 }
 
@@ -38,7 +37,6 @@ const EMPTY_DRAFT: Draft = {
   title: '',
   summary: '',
   body: '',
-  publisherName: '',
   categoryId: '',
 };
 
@@ -123,7 +121,6 @@ export function ReporterPanel() {
         title: draft.title.trim(),
         summary: draft.summary.trim() || undefined,
         body: draft.body.trim() || undefined,
-        publisherName: draft.publisherName.trim() || undefined,
         categoryId: draft.categoryId || undefined,
       };
       if (draft.id) {
@@ -217,13 +214,14 @@ export function ReporterPanel() {
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="نام منتشرکننده">
                 <input
-                  className="indeed-input"
-                  placeholder="مثلاً: خبرنگار محله"
-                  value={draft.publisherName}
-                  onChange={(event) =>
-                    setDraft({ ...draft, publisherName: event.target.value })
-                  }
+                  className="indeed-input cursor-not-allowed bg-soft text-muted"
+                  value={user?.fullName ?? user?.email ?? ''}
+                  readOnly
+                  disabled
                 />
+                <p className="mt-1 text-[11px] text-muted">
+                  نام منتشرکننده همان نام کاربری شماست و قابل تغییر نیست.
+                </p>
               </Field>
               <Field label="دسته‌بندی">
                 <select
@@ -293,7 +291,6 @@ export function ReporterPanel() {
                     title: item.title,
                     summary: item.summary ?? '',
                     body: item.body ?? '',
-                    publisherName: item.publisherName ?? '',
                     categoryId: item.category?.id ?? '',
                   })
                 }
