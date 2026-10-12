@@ -73,11 +73,14 @@ export class NotificationsService {
     return this.notify({ ...payload, userId: null, audience: 'ADMIN' });
   }
 
-  /** Notifications visible to the current user (their own + admin broadcast). */
+  /**
+   * Unread notifications for the bell popover. Read ones are hidden so the
+   * list stays a to-do queue; the full history lives on the notifications page.
+   */
   async listForUser(userId: string, limit = 30) {
     const [items, unread] = await Promise.all([
       this.prisma.notification.findMany({
-        where: { userId },
+        where: { userId, readAt: null },
         orderBy: { createdAt: 'desc' },
         take: limit,
       }),
@@ -86,18 +89,81 @@ export class NotificationsService {
     return { items, unread, total: unread };
   }
 
-  /** Notifications visible to admins (the shared ADMIN feed). */
+  /** Full history for the notifications page — read and unread, newest first. */
+  async pageForUser(userId: string, page = 1, limit = 20) {
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const safePage = Math.max(page, 1);
+    const where = { userId };
+    const [items, total, unread] = await Promise.all([
+      this.prisma.notification.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (safePage - 1) * safeLimit,
+        take: safeLimit,
+      }),
+      this.prisma.notification.count({ where }),
+      this.prisma.notification.count({ where: { userId, readAt: null } }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+    return {
+      items,
+      unread,
+      meta: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        totalPages,
+        hasNext: safePage < totalPages,
+        hasPrev: safePage > 1,
+      },
+    };
+  }
+
+  /**
+   * Unread notifications for the admin bell popover (read ones are hidden; the
+   * full admin history is available through `pageForAdmin`).
+   */
   async listForAdmin(limit = 50) {
     const where = { audience: 'ADMIN' };
     const [items, unread] = await Promise.all([
       this.prisma.notification.findMany({
-        where,
+        where: { ...where, readAt: null },
         orderBy: { createdAt: 'desc' },
         take: limit,
       }),
       this.prisma.notification.count({ where: { ...where, readAt: null } }),
     ]);
     return { items, unread, total: unread };
+  }
+
+  /** Full admin history — read and unread, newest first. */
+  async pageForAdmin(page = 1, limit = 20) {
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const safePage = Math.max(page, 1);
+    const where = { audience: 'ADMIN' as const };
+    const [items, total, unread] = await Promise.all([
+      this.prisma.notification.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (safePage - 1) * safeLimit,
+        take: safeLimit,
+      }),
+      this.prisma.notification.count({ where }),
+      this.prisma.notification.count({ where: { ...where, readAt: null } }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+    return {
+      items,
+      unread,
+      meta: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        totalPages,
+        hasNext: safePage < totalPages,
+        hasPrev: safePage > 1,
+      },
+    };
   }
 
   async unreadCountForUser(userId: string) {

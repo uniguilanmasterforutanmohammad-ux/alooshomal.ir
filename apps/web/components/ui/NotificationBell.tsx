@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Bell, CheckCheck } from 'lucide-react';
+import { Bell, CheckCheck, ChevronLeft } from 'lucide-react';
 
 import { api, type AppNotification, type NotificationFeed } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -35,6 +35,7 @@ export function NotificationBell({ scope = 'user' }: Props) {
 
   const listPath = scope === 'admin' ? '/admin/notifications' : '/notifications/mine';
   const streamPath = scope === 'admin' ? '/admin/notifications/stream' : '/notifications/mine/stream';
+  const allPath = scope === 'admin' ? '/admin?section=notifications' : '/dashboard/notifications';
 
   const load = useCallback(async () => {
     try {
@@ -112,12 +113,13 @@ export function NotificationBell({ scope = 'user' }: Props) {
     } catch {
       /* ignore */
     }
+    // Read notifications drop out of the popover (it only lists unread), so
+    // remove the row instead of just dimming it.
     setFeed((prev) => ({
       ...prev,
       unread: Math.max(0, prev.unread - 1),
-      items: prev.items.map((item) =>
-        item.id === id ? { ...item, readAt: new Date().toISOString() } : item,
-      ),
+      total: Math.max(0, prev.total - 1),
+      items: prev.items.filter((item) => item.id !== id),
     }));
     if (link) setOpen(false);
   }
@@ -156,7 +158,9 @@ export function NotificationBell({ scope = 'user' }: Props) {
 
           <div className="max-h-96 overflow-y-auto">
             {feed.items.length === 0 ? (
-              <p className="px-4 py-8 text-center text-sm text-muted">اعلانی وجود ندارد.</p>
+              <p className="px-4 py-8 text-center text-sm text-muted">
+                اعلان خوانده‌نشده‌ای وجود ندارد.
+              </p>
             ) : (
               feed.items.map((item) => {
                 const content = (
@@ -203,6 +207,15 @@ export function NotificationBell({ scope = 'user' }: Props) {
               })
             )}
           </div>
+
+          <Link
+            href={allPath}
+            onClick={() => setOpen(false)}
+            className="flex items-center justify-center gap-1 border-t border-dashed border-[var(--vintage-border)] px-4 py-3 text-xs font-bold text-brand transition hover:bg-soft"
+          >
+            مشاهده تمامی اعلانات
+            <ChevronLeft className="size-3.5" aria-hidden />
+          </Link>
         </div>
       ) : null}
     </div>

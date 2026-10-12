@@ -68,9 +68,23 @@ export class NotificationsController {
   ) {}
 
   @Get('mine')
-  @ApiOperation({ summary: 'اعلانات من' })
+  @ApiOperation({ summary: 'اعلانات خوانده‌نشده‌ی من (برای زنگ اعلان)' })
   mine(@CurrentUser() user: AuthUser, @Query('limit') limit?: string) {
     return this.notifications.listForUser(user.id, limit ? Number(limit) : 30);
+  }
+
+  @Get('mine/page')
+  @ApiOperation({ summary: 'تاریخچه‌ی کامل اعلانات من (خوانده + خوانده‌نشده)' })
+  minePage(
+    @CurrentUser() user: AuthUser,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.notifications.pageForUser(
+      user.id,
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 20,
+    );
   }
 
   @Get('mine/unread-count')
@@ -112,9 +126,18 @@ export class AdminNotificationsController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'اعلانات مدیران' })
+  @ApiOperation({ summary: 'اعلانات خوانده‌نشده‌ی مدیران (برای زنگ اعلان)' })
   admin(@Query('limit') limit?: string) {
     return this.notifications.listForAdmin(limit ? Number(limit) : 50);
+  }
+
+  @Get('page')
+  @ApiOperation({ summary: 'تاریخچه‌ی کامل اعلانات مدیران (خوانده + خوانده‌نشده)' })
+  adminPage(@Query('page') page?: string, @Query('limit') limit?: string) {
+    return this.notifications.pageForAdmin(
+      page ? Number(page) : 1,
+      limit ? Number(limit) : 20,
+    );
   }
 
   @Get('unread-count')

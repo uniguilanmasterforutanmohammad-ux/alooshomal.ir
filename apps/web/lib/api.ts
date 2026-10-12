@@ -152,7 +152,12 @@ export interface OwnerRank {
 
 export interface AuthResponse {
   accessToken: string;
-  user: { id: string; email: string; fullName: string | null; role: 'USER' | 'ADMIN' };
+  user: {
+    id: string;
+    email: string;
+    fullName: string | null;
+    role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
+  };
 }
 
 export interface TaxonomyItem {
@@ -385,6 +390,19 @@ export interface NotificationFeed {
   items: AppNotification[];
   unread: number;
   total: number;
+}
+
+export interface NotificationPage {
+  items: AppNotification[];
+  unread: number;
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
 }
 
 export interface AdminSettingsPayload {

@@ -15,12 +15,36 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.10.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.11.0**.
 
-> **قانون همگام‌سازی `install.sh`:** پس از هر ویرایش روی فایل‌های تحت `apps/`،
-> `scripts/` و `docs/` (و فایل‌های ریشه‌ی فهرست‌شده در مولد)، اجرای
-> `python3 scripts/sync_install.py` اجباری است و کار تا سبز شدن
-> `python3 scripts/sync_install.py --check` تمام‌شده نیست.
+## ۱۴۰۵/۰۷/۲۰ — اعلانات: حذف خوانده‌ها از زنگ + صفحه‌ی تاریخچه‌ی کامل — نسخه `v2.11.0`
+
+**هدف:** اعلان‌های خوانده‌شده از لیست زنگ حذف شوند، لینک «مشاهده تمامی اعلانات» به
+انتهای لیست اضافه شود، و صفحه‌ی اختصاصی نمایش همه‌ی اعلانات (قدیم و جدید) ساخته شود.
+
+**تغییرات:**
+- `apps/api/src/notifications/notifications.service.ts`: `listForUser`/`listForAdmin`
+  فقط اعلان‌های خوانده‌نشده (`readAt: null`) را برمی‌گردانند؛ متدهای تازه‌ی
+  `pageForUser`/`pageForAdmin` تاریخچه‌ی کامل را با صفحه‌بندی (`meta`) می‌دهند.
+- `apps/api/src/notifications/notifications.controller.ts`: روت‌های جدید
+  `GET /notifications/mine/page` و `GET /admin/notifications/page`.
+- `apps/web/lib/api.ts`: تایپ `NotificationPage`.
+- `apps/web/components/ui/NotificationBell.tsx`: بعد از خواندن، ردیف از لیست حذف
+  می‌شود؛ لینک «مشاهده تمامی اعلانات» به انتهای پاپ‌اور اضافه شد.
+- `apps/web/components/ui/NotificationsInbox.tsx`: کامپوننت تازه‌ی تاریخچه‌ی اعلانات
+  با صفحه‌بندی و «خواندن همه» (مشترک بین کاربر و مدیر).
+- `apps/web/app/dashboard/notifications/page.tsx`: صفحه‌ی اعلانات کاربر.
+- `apps/web/app/admin/page.tsx` و `apps/web/components/admin/AdminShell.tsx`: سکشن
+  تازه‌ی «اعلانات» در پنل مدیر.
+
+**تأیید/تست:**
+- `apps/web`: `tsc --noEmit` بدون خطا.
+- بازسازی ایمیج‌ها و `docker compose up -d --force-recreate api web`.
+- تست API: `/notifications/mine` فقط ۵ مورد خوانده‌نشده برگرداند در حالی که
+  `/notifications/mine/page` مجموع ۱۳ مورد را با `meta.totalPages=3` داد.
+- تست UI با Playwright + google-chrome: زنگ فقط خوانده‌نشده‌ها را نشان می‌دهد،
+  لینک «مشاهده تمامی اعلانات» موجود است، کلیک روی اعلان آن را از لیست حذف می‌کند،
+  و صفحه‌ی `/dashboard/notifications` و سکشن `?section=notifications` پنل مدیر رندر شدند.
 
 ---
 
