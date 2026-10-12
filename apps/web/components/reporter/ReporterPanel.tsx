@@ -49,7 +49,22 @@ const EMPTY_DRAFT: Draft = {
  */
 export function ReporterPanel() {
   const { user, hydrated } = useAuth();
-  const isReporter = user?.role === 'CITIZEN_REPORTER' || user?.role === 'ADMIN';
+  // The stored role can be stale right after an admin approves the request, so
+  // confirm it against the server before gating the panel.
+  const [liveRole, setLiveRole] = useState<string | null>(null);
+  const isReporter =
+    (liveRole ?? user?.role) === 'CITIZEN_REPORTER' ||
+    (liveRole ?? user?.role) === 'ADMIN';
+
+  useEffect(() => {
+    if (!hydrated) return;
+    api
+      .get<{ role: string }>('/auth/me')
+      .then((me) => setLiveRole(me.role))
+      .catch(() => {
+        /* fall back to the stored role */
+      });
+  }, [hydrated]);
 
   const [summary, setSummary] = useState<ReporterSummary | null>(null);
   const [items, setItems] = useState<NewsItem[]>([]);

@@ -129,13 +129,6 @@ export class NewsService {
     const created = await this.prisma.reporterRequest.create({
       data: { userId, message: message ?? null },
     });
-    await this.notifications.notifyAdmins({
-      title: 'درخواست شهروند خبرنگار جدید',
-      body: 'یک کاربر درخواست نقش شهروند خبرنگار ثبت کرد.',
-      link: '/admin?section=news',
-      type: NotificationType.INFO,
-      actorId: userId,
-    });
     return created;
   }
 

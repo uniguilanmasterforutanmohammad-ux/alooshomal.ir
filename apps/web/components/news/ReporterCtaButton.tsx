@@ -33,7 +33,7 @@ export function ReporterCtaButton({ variant = 'secondary', className }: Props) {
     }
     let active = true;
     api
-      .get<{ role: string }>('/news/reporter/me')
+      .get<{ role: string }>('/auth/me')
       .then((me) => active && setServerRole(me.role))
       .catch(() => {
         /* keep the stored role as a fallback */

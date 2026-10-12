@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { PulseSection } from '@/components/news/PulseSection';
+import { ReporterCtaButton } from '@/components/news/ReporterCtaButton';
 import {
   BadgeCheck,
   Link2,
@@ -97,6 +98,18 @@ export default function HomePage() {
                 <p className="mt-2 text-sm leading-7 text-muted">{feature.text}</p>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="container-page mt-8">
+          <div className="indeed-panel flex flex-wrap items-center justify-between gap-3 p-5">
+            <div>
+              <h2 className="text-base font-extrabold text-ink">شهروند خبرنگار شوید</h2>
+              <p className="mt-1 text-sm text-muted">
+                خبرهای شهر خود را ثبت کنید تا پس از تأیید مدیر در «نبض شهر» منتشر شود.
+              </p>
+            </div>
+            <ReporterCtaButton variant="primary" />
           </div>
         </section>
 

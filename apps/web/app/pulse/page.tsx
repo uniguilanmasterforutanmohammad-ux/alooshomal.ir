@@ -8,6 +8,7 @@ import { CalendarDays, ChevronLeft, ChevronRight, Newspaper, UserRound } from 'l
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { PulseFilters, type PulseFilterState } from '@/components/news/PulseFilters';
+import { ReporterCtaButton } from '@/components/news/ReporterCtaButton';
 import { api, type NewsCategory, type NewsListResponse } from '@/lib/api';
 
 function faDate(value: string | null) {
@@ -81,18 +82,21 @@ function PulseContent() {
 
   return (
     <main className="container-page py-6">
-      <div className="mb-5 flex items-center gap-3">
-        <span className="vintage-avatar flex size-11 items-center justify-center">
-          <Newspaper className="size-5" aria-hidden />
-        </span>
-        <div>
-          <h1 className="text-xl font-extrabold text-ink">نبض شهر</h1>
-          <p className="text-sm text-muted">
-            {meta
-              ? `${meta.total.toLocaleString('fa-IR')} خبر منتشرشده`
-              : 'در حال بارگذاری...'}
-          </p>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <span className="vintage-avatar flex size-11 items-center justify-center">
+            <Newspaper className="size-5" aria-hidden />
+          </span>
+          <div>
+            <h1 className="text-xl font-extrabold text-ink">نبض شهر</h1>
+            <p className="text-sm text-muted">
+              {meta
+                ? `${meta.total.toLocaleString('fa-IR')} خبر منتشرشده`
+                : 'در حال بارگذاری...'}
+            </p>
+          </div>
         </div>
+        <ReporterCtaButton variant="secondary" className="py-2 text-sm" />
       </div>
 
       <PulseFilters
