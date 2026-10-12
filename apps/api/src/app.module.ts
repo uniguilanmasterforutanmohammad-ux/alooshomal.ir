@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
 import { ActivityContextInterceptor } from './activity/activity-context.interceptor';
+import { PermissionsGuard } from './auth/permissions.guard';
 import { CommonModule } from './common/common.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
@@ -48,6 +49,7 @@ import { UsersModule } from './users/users.module';
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_INTERCEPTOR, useClass: ActivityContextInterceptor },
   ],
 })

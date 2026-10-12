@@ -20,7 +20,41 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.13.3**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.14.0**.
+
+## ۱۴۰۵/۰۷/۲۰ — ماتریس سطوح دسترسی بر اساس نقش — نسخه `v2.14.0`
+
+**هدف:** ایجاد لیست سطوح دسترسی به تفکیک موضوع و نقش؛ ادمین با تیک‌زدن تعیین کند هر
+نقش به چه امکاناتی دسترسی دارد و همان لحظه در بک‌اند اعمال شود.
+
+**تغییرات:**
+- `apps/api/src/auth/permissions.ts` (جدید): فهرست موضوع‌ها (`PERMISSION_SUBJECTS`)،
+  متادیتای گروه/برچسب/راهنما (`PERMISSION_META`)، نقش‌ها و برچسب‌ها، و ماتریس پیش‌فرض.
+- `apps/api/src/auth/permissions.service.ts` (جدید): خواندن/نوشتن ماتریس در جدول
+  `Setting` با کلید `perm.<subject>.<role>`، پیش‌فرض‌سازی هنگام بوت، و `can(role, subject)`
+  (نقش مدیر همیشه مجاز).
+- `apps/api/src/auth/permissions.decorator.ts` و `permissions.guard.ts` (جدید):
+  دکوراتور `@RequirePermission('SUBJECT')` و نگهبان سراسری که بعد از احراز هویت اجرا می‌شود.
+- `apps/api/src/common/common.module.ts`: ثبت گلوبال `PermissionsService` برای استفاده‌ی
+  همه‌ی ماژول‌ها؛ `auth.module.ts` و `app.module.ts` هم‌سو شدند.
+- `apps/api/src/admin/admin.controller.ts`: افزودن `GET /admin/permissions` و
+  `PATCH /admin/permissions`.
+- اعمال مجوز روی نقاط حساس: `biolinks.controller.ts` (ساخت/ویرایش/حذف)،
+  `business-cards.controller.ts` (ساخت/ویرایش/حذف)، `profile.controller.ts`
+  (درخواست تغییر نام)، و `news.controller.ts` (ثبت خبر و ویرایش خبر خود).
+- `apps/api/src/news/news.service.ts` و `news.controller.ts`: افزودن `DELETE /news/reporter/mine/:id`
+  برای حذف خبر خود توسط خبرنگار.
+- `apps/web/components/admin/AdminPermissionsMatrix.tsx` (جدید): جدول موضوع×نقش با
+  گروه‌بندی موضوعی و ذخیره؛ ستون مدیر همیشه تیک‌خورده و غیرفعال.
+- `apps/web/components/admin/AdminShell.tsx` و `apps/web/app/admin/page.tsx`: بخش تازه‌ی
+  «سطوح دسترسی» در پنل مدیر.
+
+**تأیید/تست:**
+- تست API با curl: خواندن ماتریس (۳ نقش، ۱۳ موضوع)؛ `PATCH` یک سلول و مشاهده‌ی مقدار
+  جدید؛ خاموش‌کردن `BIOLINK_CREATE` برای USER → ساخت بیولینک ۴۰۳، روشن‌کردن دوباره →
+  موفق؛ نقش مدیر همیشه مجاز.
+- تست UI با Playwright در `admin?section=permissions`: جدول با ۳۹ چک‌باکس (۱۳×۳)،
+  گروه‌های «محتوا»/«نبض شهر» و ستون مدیر غیرفعال رندر شد.
 
 ## ۱۴۰۵/۰۷/۲۰ — مدیریت نقش کاربران: حذف ارتقا به مدیر + تأییدیه + رفع قفل مدیر — نسخه `v2.13.3`
 

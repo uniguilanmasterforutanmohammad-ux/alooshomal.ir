@@ -5,13 +5,16 @@ import { PassportModule } from '@nestjs/passport';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { PermissionsGuard } from './permissions.guard';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
+import { CommonModule } from '../common/common.module';
 
 @Module({
   imports: [
     PassportModule,
+    CommonModule,
     NotificationsModule,
     SubscriptionsModule,
     JwtModule.registerAsync({
@@ -26,7 +29,7 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
+  providers: [AuthService, JwtStrategy, PermissionsGuard],
   exports: [AuthService],
 })
 export class AuthModule {}

@@ -16,6 +16,7 @@ import { AdminNotificationSettings } from '@/components/admin/AdminNotificationS
 import { NotificationsInbox } from '@/components/ui/NotificationsInbox';
 import { AdminNewsPanel } from '@/components/admin/AdminNewsPanel';
 import { AdminProfileRequests } from '@/components/admin/AdminProfileRequests';
+import { AdminPermissionsMatrix } from '@/components/admin/AdminPermissionsMatrix';
 import { AdminNewsSettings } from '@/components/admin/AdminNewsSettings';
 import { ActivityLogPanel } from '@/components/admin/ActivityLogPanel';
 import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
@@ -83,6 +84,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'users',
   'tickets',
   'news',
+  'permissions',
   'reports',
   'tools',
   'notifications',
@@ -312,6 +314,10 @@ function AdminContent() {
     news: {
       title: 'نبض شهر',
       sub: 'بررسی خبرهای شهروند خبرنگارها، درخواست‌ها و دسته‌بندی‌ها',
+    },
+    permissions: {
+      title: 'سطوح دسترسی',
+      sub: 'تعیین دسترسی هر نقش به امکانات پلتفرم',
     },
     reports: { title: 'گزارش‌ها', sub: 'گزارش‌های سیستم' },
     tools: { title: 'ابزار تست', sub: 'ایمپورت گروهی، حذف داده‌های تستی و قفل ساخت' },
@@ -625,6 +631,8 @@ function AdminContent() {
       {section === 'reports' ? <ActivityLogPanel /> : null}
 
       {section === 'news' ? <AdminNewsPanel /> : null}
+
+      {section === 'permissions' ? <AdminPermissionsMatrix /> : null}
 
       {section === 'notifications' ? <NotificationsInbox scope="admin" /> : null}
 

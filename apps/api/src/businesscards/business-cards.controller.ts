@@ -17,6 +17,7 @@ import type { Request } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { OptionalAuth } from '../common/decorators/optional-auth.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { RequirePermission } from '../auth/permissions.decorator';
 import { visitorKeyFrom } from '../common/visitor-key';
 import { BusinessCardsService } from './business-cards.service';
 import { CreateBusinessCardDto } from './dto/create-business-card.dto';
@@ -30,6 +31,7 @@ export class BusinessCardsController {
 
   @Post()
   @ApiBearerAuth()
+  @RequirePermission('BUSINESS_CARD_CREATE')
   @ApiOperation({ summary: 'ساخت کارت ویزیت جدید (وضعیت: در انتظار تأیید مدیر)' })
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateBusinessCardDto) {
     return this.businessCardsService.create(user.id, dto);
@@ -51,6 +53,7 @@ export class BusinessCardsController {
 
   @Patch(':id')
   @ApiBearerAuth()
+  @RequirePermission('BUSINESS_CARD_EDIT')
   @ApiOperation({ summary: 'ویرایش کارت ویزیت (بازگشت به صف تأیید)' })
   update(
     @CurrentUser() user: AuthUser,
@@ -62,6 +65,7 @@ export class BusinessCardsController {
 
   @Delete(':id')
   @ApiBearerAuth()
+  @RequirePermission('BUSINESS_CARD_EDIT')
   @ApiOperation({ summary: 'حذف کارت ویزیت' })
   remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.businessCardsService.remove(user.id, id);

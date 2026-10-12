@@ -15,6 +15,7 @@ import {
   Newspaper,
   FlaskConical,
   Settings,
+  ShieldCheck,
   TrendingUp,
   Users,
 } from 'lucide-react';
@@ -34,6 +35,7 @@ export type AdminSection =
   | 'reports'
   | 'tools'
   | 'news'
+  | 'permissions'
   | 'notifications'
   | 'settings';
 
@@ -52,6 +54,7 @@ const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboar
   { key: 'users', label: 'کاربران', icon: Users },
   { key: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
   { key: 'news', label: 'نبض شهر', icon: Newspaper },
+  { key: 'permissions', label: 'سطوح دسترسی', icon: ShieldCheck },
   { key: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
   { key: 'notifications', label: 'اعلانات', icon: Bell },
   { key: 'tools', label: 'ابزار تست', icon: FlaskConical },

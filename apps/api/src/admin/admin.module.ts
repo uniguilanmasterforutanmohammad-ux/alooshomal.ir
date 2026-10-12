@@ -9,7 +9,12 @@ import { AdminService } from './admin.service';
 import { BulkService } from './bulk.service';
 
 @Module({
-  imports: [SubscriptionsModule, BoostsModule, NotificationsModule, SettingsModule],
+  imports: [
+    SubscriptionsModule,
+    BoostsModule,
+    NotificationsModule,
+    SettingsModule,
+  ],
   controllers: [AdminController],
   providers: [AdminService, BulkService],
 })

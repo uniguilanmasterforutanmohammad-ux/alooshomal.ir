@@ -17,6 +17,7 @@ import type { Request } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { OptionalAuth } from '../common/decorators/optional-auth.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { RequirePermission } from '../auth/permissions.decorator';
 import { visitorKeyFrom } from '../common/visitor-key';
 import { BiolinksService } from './biolinks.service';
 import { CreateBiolinkDto } from './dto/create-biolink.dto';
@@ -30,6 +31,7 @@ export class BiolinksController {
 
   @Post()
   @ApiBearerAuth()
+  @RequirePermission('BIOLINK_CREATE')
   @ApiOperation({ summary: 'ساخت بیولینک جدید (وضعیت: در انتظار تأیید مدیر)' })
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateBiolinkDto) {
     return this.biolinksService.create(user.id, dto);
@@ -51,6 +53,7 @@ export class BiolinksController {
 
   @Patch(':id')
   @ApiBearerAuth()
+  @RequirePermission('BIOLINK_EDIT')
   @ApiOperation({ summary: 'ویرایش بیولینک (بازگشت به صف تأیید)' })
   update(
     @CurrentUser() user: AuthUser,
@@ -62,6 +65,7 @@ export class BiolinksController {
 
   @Delete(':id')
   @ApiBearerAuth()
+  @RequirePermission('BIOLINK_EDIT')
   @ApiOperation({ summary: 'حذف بیولینک' })
   remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.biolinksService.remove(user.id, id);

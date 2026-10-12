@@ -5,6 +5,7 @@ import { NewsStatus } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { RequirePermission } from '../auth/permissions.decorator';
 import { DecideProfileChangeDto, RequestProfileChangeDto } from './dto/profile.dto';
 import { ProfileService } from './profile.service';
 
@@ -21,6 +22,7 @@ export class ProfileController {
   }
 
   @Post('change-request')
+  @RequirePermission('PROFILE_CHANGE_REQUEST')
   @ApiOperation({ summary: 'ثبت درخواست تغییر پروفایل (نیازمند تأیید مدیر)' })
   request(@CurrentUser() user: AuthUser, @Body() dto: RequestProfileChangeDto) {
     return this.profile.requestChange(user.id, dto.fullName);

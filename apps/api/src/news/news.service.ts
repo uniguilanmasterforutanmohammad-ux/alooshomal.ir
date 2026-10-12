@@ -267,6 +267,26 @@ export class NewsService {
     return updated;
   }
 
+  /** Delete one of the reporter's own items. */
+  async removeMine(userId: string, id: string) {
+    const item = await this.prisma.newsItem.findUnique({ where: { id } });
+    if (!item) {
+      throw new NotFoundException('خبر یافت نشد');
+    }
+    if (item.authorId !== userId) {
+      throw new ForbiddenException('این خبر متعلق به شما نیست');
+    }
+    await this.prisma.newsItem.delete({ where: { id } });
+    await this.activity.log({
+      actor: { id: userId },
+      action: 'NEWS_DELETED',
+      summary: `حذف خبر «${item.title}»`,
+      entityType: 'NEWS',
+      entityId: id,
+    });
+    return { deleted: true };
+  }
+
   async summaryForReporter(userId: string) {
     const [total, pending, approved, rejected] = await this.prisma.$transaction([
       this.prisma.newsItem.count({ where: { authorId: userId } }),

@@ -16,6 +16,7 @@ import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorat
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { RequirePermission } from '../auth/permissions.decorator';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { ListNewsDto } from './dto/list-news.dto';
 import { UpdateNewsAdminDto } from './dto/update-news-admin.dto';
@@ -98,6 +99,7 @@ export class ReporterController {
   }
 
   @Post('mine')
+  @RequirePermission('NEWS_CREATE')
   @ApiOperation({
     summary: 'ثبت خبر جدید (بر اساس سطح دسترسی تنظیمات نبض شهر)',
   })
@@ -108,6 +110,7 @@ export class ReporterController {
   @UseGuards(RolesGuard)
   @Roles('CITIZEN_REPORTER', 'ADMIN')
   @Patch('mine/:id')
+  @RequirePermission('NEWS_EDIT_OWN')
   @ApiOperation({ summary: 'ویرایش خبر من (بازگشت به صف بررسی)' })
   update(
     @CurrentUser() user: AuthUser,
@@ -115,6 +118,15 @@ export class ReporterController {
     @Body() dto: CreateNewsDto,
   ) {
     return this.news.updateMine(user.id, id, dto);
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles('CITIZEN_REPORTER', 'ADMIN')
+  @Delete('mine/:id')
+  @RequirePermission('NEWS_EDIT_OWN')
+  @ApiOperation({ summary: 'حذف خبر من' })
+  removeMine(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.news.removeMine(user.id, id);
   }
 }
 

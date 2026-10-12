@@ -26,6 +26,13 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { CreatePlanDto } from '../subscriptions/dto/create-plan.dto';
 import { DecideSubscriptionDto } from '../subscriptions/dto/decide-subscription.dto';
 import { UpdatePlanDto } from '../subscriptions/dto/update-plan.dto';
+import { PermissionsService } from '../auth/permissions.service';
+import {
+  APP_ROLES,
+  PERMISSION_META,
+  PERMISSION_SUBJECTS,
+  ROLE_LABELS,
+} from '../auth/permissions';
 import { AdminService } from './admin.service';
 import { BulkKind, BulkService } from './bulk.service';
 import { ListBiolinksDto } from './dto/list-biolinks.dto';
@@ -50,6 +57,7 @@ export class AdminController {
     private readonly subscriptionsService: SubscriptionsService,
     private readonly boostsService: BoostsService,
     private readonly bulkService: BulkService,
+    private readonly permissions: PermissionsService,
   ) {}
 
   @Get('stats')
@@ -276,5 +284,41 @@ export class AdminController {
   @ApiOperation({ summary: 'حذف گروهی داده‌های تستی ایمپورت‌شده' })
   bulkDelete(@Query('kind') kind?: BulkKind | 'ALL') {
     return this.bulkService.deleteTestData(kind ?? 'ALL');
+  }
+
+  // ----- Role permission matrix -----
+
+  @Get('permissions')
+  @ApiOperation({ summary: 'ماتریس سطوح دسترسی نقش‌ها' })
+  async getPermissions() {
+    const matrix = await this.permissions.getMatrix();
+    return {
+      matrix,
+      roles: APP_ROLES.map((role) => ({ role, label: ROLE_LABELS[role] })),
+      subjects: PERMISSION_META,
+      subjectsOrder: PERMISSION_SUBJECTS,
+    };
+  }
+
+  @Patch('permissions')
+  @ApiOperation({ summary: 'به‌روزرسانی ماتریس سطوح دسترسی' })
+  async updatePermissions(
+    @Body() body: { matrix?: Record<string, Record<string, boolean>> },
+  ) {
+    const input = body?.matrix ?? {};
+    const clean: Partial<Record<(typeof APP_ROLES)[number], Record<string, boolean>>> = {};
+    for (const role of APP_ROLES) {
+      const roleInput = input[role];
+      if (!roleInput || typeof roleInput !== 'object') continue;
+      const cells: Record<string, boolean> = {};
+      for (const subject of PERMISSION_SUBJECTS) {
+        if (typeof roleInput[subject] === 'boolean') {
+          cells[subject] = roleInput[subject];
+        }
+      }
+      clean[role] = cells;
+    }
+    const matrix = await this.permissions.setMatrix(clean);
+    return { matrix };
   }
 }
