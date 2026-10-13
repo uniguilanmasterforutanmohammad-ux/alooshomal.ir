@@ -251,6 +251,13 @@ only one page at a time. The page size is configurable in admin *تنظیمات*
 See `docs/BACKUP-RESTORE.md` for the full guide to automatic and manual database
 snapshots and how to restore them.
 
+## Media storage
+
+Uploaded images (logos, avatars) are stored in an S3-compatible object store
+(MinIO / `pgsty/silo`). See `docs/STORAGE.md` for the folder/file layout, the
+graphical console address and credentials, and how to migrate the media volume
+to a new or dedicated media server.
+
 ## Technical notes
 
 - Input validation via `class-validator`; uniform responses `{ success, data }`.
