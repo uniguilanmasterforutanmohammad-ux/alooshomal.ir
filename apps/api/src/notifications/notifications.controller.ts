@@ -13,8 +13,10 @@ import type { Request, Response } from 'express';
 import { Subscription } from 'rxjs';
 
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { StreamTicketService } from '../auth/stream-ticket.service';
 import { NotificationsEventsService } from './notifications-events.service';
 import { NotificationsService } from './notifications.service';
 
@@ -65,6 +67,7 @@ export class NotificationsController {
   constructor(
     private readonly notifications: NotificationsService,
     private readonly events: NotificationsEventsService,
+    private readonly tickets: StreamTicketService,
   ) {}
 
   @Get('mine')
@@ -107,10 +110,22 @@ export class NotificationsController {
 
   @Get('mine/stream')
   @ApiOperation({ summary: 'جریان زنده اعلانات من (SSE)' })
-  stream(@CurrentUser() user: AuthUser, @Req() req: Request, @Res() res: Response) {
-    openSseStream(res, req, this.events.forUser(user.id), () =>
-      this.notifications.unreadCountForUser(user.id),
+  @Public()
+  async stream(@Query('ticket') ticket: string, @Req() req: Request, @Res() res: Response) {
+    const grant = ticket ? await this.tickets.consume(ticket) : null;
+    if (!grant || grant.admin) {
+      res.status(401).json({ message: 'تیکت جریان نامعتبر است' });
+      return;
+    }
+    openSseStream(res, req, this.events.forUser(grant.userId), () =>
+      this.notifications.unreadCountForUser(grant.userId),
     );
+  }
+
+  @Get('mine/stream-ticket')
+  @ApiOperation({ summary: 'صدور تیکت یک‌بارمصرف برای جریان اعلانات' })
+  streamTicket(@CurrentUser() user: AuthUser) {
+    return this.tickets.issue(user.id, false);
   }
 }
 
@@ -123,6 +138,7 @@ export class AdminNotificationsController {
   constructor(
     private readonly notifications: NotificationsService,
     private readonly events: NotificationsEventsService,
+    private readonly tickets: StreamTicketService,
   ) {}
 
   @Get()
@@ -161,10 +177,22 @@ export class AdminNotificationsController {
 
   @Get('stream')
   @ApiOperation({ summary: 'جریان زنده اعلانات مدیران (SSE)' })
-  stream(@Req() req: Request, @Res() res: Response) {
+  @Public()
+  async stream(@Query('ticket') ticket: string, @Req() req: Request, @Res() res: Response) {
+    const grant = ticket ? await this.tickets.consume(ticket) : null;
+    if (!grant || !grant.admin) {
+      res.status(401).json({ message: 'تیکت جریان نامعتبر است' });
+      return;
+    }
     openSseStream(res, req, this.events.forAdmins(), async () => {
       const result = await this.notifications.listForAdmin(1);
       return result.unread;
     });
+  }
+
+  @Get('stream-ticket')
+  @ApiOperation({ summary: 'صدور تیکت یک‌بارمصرف برای جریان اعلانات مدیر' })
+  streamTicket(@CurrentUser() admin: AuthUser) {
+    return this.tickets.issue(admin.id, true);
   }
 }

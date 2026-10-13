@@ -20,7 +20,38 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.29.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.30.0**.
+
+## ۱۴۰۵/۰۷/۲۲ — تیکت یک‌بارمصرف برای جریان SSE (حذف توکن از URL) — نسخه `v2.30.0`
+
+**هدف:** رفع افشای توکن دسترسی در URLِ اتصال زنده‌ی اعلان‌ها (`?token=` که در
+لاگ‌های وب‌سرور/پروکسی ثبت می‌شود) با جایگزینی آن به یک تیکت کوتاه‌عمر و یک‌بارمصرف.
+
+**تغییرات:**
+- `apps/api/src/auth/stream-ticket.service.ts` (جدید): صدور/مصرف تیکت تصادفی ۳۲ بایتی با
+  TTL ۳۰ ثانیه؛ مصرف اتمیک با Redis `GETDEL` و fallback حافظه‌ای؛ محدودیت حجم حافظه.
+- `apps/api/src/redis/redis.service.ts`: افزودن `getdel` اتمیک.
+- `apps/api/src/auth/strategies/jwt.strategy.ts`: حذف `?token=` از استخراج‌کننده‌ها
+  (فقط `Authorization: Bearer`).
+- `apps/api/src/notifications/notifications.controller.ts`: تیکت استریم در مسیرهای
+  احرازشده‌ی `mine/stream-ticket` و `admin/stream-ticket`؛ متدهای `stream` با `@Public()`
+  و مصرف تیکت (`ticket` کوئری) به‌جای `@CurrentUser`؛ رد تیکت کاربر روی استریم ادمین و
+  برعکس.
+- `apps/api/src/common/guards/roles.guard.ts`: احترام به `@Public()` تا مسیرهای تیکتی
+  گارد نقش را رد کنند.
+- `apps/api/src/common/common.module.ts`: ارائه‌ی `StreamTicketService` به‌صورت Global.
+- `apps/web/components/ui/NotificationBell.tsx`: گرفتن تیکت از API احرازشده و اتصال
+  `EventSource` با `?ticket=` به‌جای توکن.
+- `docs/SECURITY.md` و `BACKLOG.md` (به‌روزرسانی وضعیت به «انجام‌شده») و
+  `apps/web/lib/version.ts` (`v2.30.0`).
+
+**تأیید/تست:**
+- `tsc --noEmit` برای `apps/api` و `apps/web` بدون خطا.
+- curl: `?token=` قدیمی روی استریم → `401`؛ تیکت معتبر → `200` با فریم `data: {"unread":…}`؛
+  استفاده‌ی مجدد از همان تیکت → `401`؛ بدون تیکت → `401`؛ تیکت کاربر روی استریم ادمین →
+  `401`؛ تیکت ادمین روی استریم ادمین → `200`؛ صدور تیکت بدون احراز هویت → `401`.
+- Playwright: زنگ اعلان ابتدا `stream-ticket` را می‌گیرد و اتصال `/stream` با `ticket=`
+  و **بدون** `token=` در URL برقرار می‌شود.
 
 ## ۱۴۰۵/۰۷/۲۲ — runbook اعمال تغییرات امنیتی auth روی سرور — نسخه `v2.29.1`
 

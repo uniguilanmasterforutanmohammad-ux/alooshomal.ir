@@ -105,6 +105,21 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * Atomically reads and deletes a key (single-use tokens such as SSE tickets).
+   * Returns null when Redis is unavailable; callers then use their own store.
+   */
+  async getdel(key: string): Promise<string | null> {
+    if (!this.isReady || !this.client) {
+      return null;
+    }
+    try {
+      return await this.client.getdel(key);
+    } catch {
+      return null;
+    }
+  }
+
   /** Delete every key under `prefix` using a non-blocking SCAN. */
   async delByPrefix(prefix: string): Promise<void> {
     if (!this.isReady || !this.client) {

@@ -23,21 +23,20 @@
 
 ---
 
-## انتقال توکن SSE به کوکی (حذف `?token=` از URL) — وضعیت: در انتظار
+## انتقال توکن SSE به کوکی (حذف `?token=` از URL) — وضعیت: انجام‌شده
 
 - **تاریخ:** ۱۴۰۵/۰۷/۲۲
 - **زمینه/مشکل:** اتصال زنده‌ی اعلان‌ها (`EventSource`) نمی‌تواند هدر بفرستد، پس توکن
   دسترسی به‌صورت `?token=` در URL می‌رود؛ این مقدار در لاگ‌های وب‌سرور/پروکسی ثبت
   می‌شود و یک سطح افشای توکن است (هرچند توکن کوتاه‌عمر ۱۵ دقیقه‌ای است).
-- **راه‌حل پیشنهادی:** یا افزودن یک تیکت کوتاه‌عمر مخصوص SSE (`POST /notifications/ticket`
-  که یک رشته‌ی یک‌بارمصرف چند ثانیه‌ای برمی‌گرداند) و استفاده در URL، یا انتقال کامل
-  احراز هویت به کوکی HttpOnly و خواندن توکن دسترسی از کوکی در `JwtStrategy`
-  (`ExtractJwt.fromExtractors` با پارسر کوکی).
-- **دلیل تعویق:** نیازمند تغییر جریان فرانت و پشتیبانی کوکی cross-port در SSE است؛
-  برای بعد گذاشته شد.
-- **اثر/فوریت:** متوسط؛ کاهش سطح افشا در لاگ‌ها.
-- **مرجع:** `apps/web/components/ui/NotificationBell.tsx`،
-  `apps/api/src/auth/strategies/jwt.strategy.ts`.
+- **راه‌حل پیاده‌شده:** تیکت یک‌بارمصرف و ۳۰ ثانیه‌ای (`StreamTicketService`) که با
+  اندپوینت‌های احرازشده‌ی `/notifications/mine/stream-ticket` و
+  `/admin/notifications/stream-ticket` صادر می‌شود؛ `EventSource` با `?ticket=` وصل
+  می‌شود و تیکت در اولین استفاده در Redis (`GETDEL`) مصرف می‌شود. مسیر `?token=` از
+  `JwtStrategy` حذف شد.
+- **مرجع:** `History-Agent.md` (ورودی v2.30.0)،
+  `apps/api/src/auth/stream-ticket.service.ts`،
+  `apps/web/components/ui/NotificationBell.tsx`.
 
 ## ورود با گوگل (OAuth) — وضعیت: معوق
 

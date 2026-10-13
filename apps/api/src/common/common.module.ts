@@ -2,6 +2,7 @@ import { Global, Module } from '@nestjs/common';
 
 import { RedisModule } from '../redis/redis.module';
 import { PermissionsService } from '../auth/permissions.service';
+import { StreamTicketService } from '../auth/stream-ticket.service';
 import { FacetsCacheService } from './facets-cache.service';
 import { RateLimitService } from './rate-limit.service';
 
@@ -13,7 +14,7 @@ import { RateLimitService } from './rate-limit.service';
 @Global()
 @Module({
   imports: [RedisModule],
-  providers: [FacetsCacheService, PermissionsService, RateLimitService],
-  exports: [FacetsCacheService, PermissionsService, RateLimitService],
+  providers: [FacetsCacheService, PermissionsService, RateLimitService, StreamTicketService],
+  exports: [FacetsCacheService, PermissionsService, RateLimitService, StreamTicketService],
 })
 export class CommonModule {}

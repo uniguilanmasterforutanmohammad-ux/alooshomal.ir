@@ -35,6 +35,7 @@ export function NotificationBell({ scope = 'user' }: Props) {
 
   const listPath = scope === 'admin' ? '/admin/notifications' : '/notifications/mine';
   const streamPath = scope === 'admin' ? '/admin/notifications/stream' : '/notifications/mine/stream';
+  const ticketPath = `${streamPath}-ticket`;
   const allPath = scope === 'admin' ? '/admin?section=notifications' : '/dashboard/notifications';
 
   const load = useCallback(async () => {
@@ -53,29 +54,43 @@ export function NotificationBell({ scope = 'user' }: Props) {
   }, [load]);
 
   // Live badge: one idle SSE connection per open tab. EventSource cannot send
-  // headers, so the JWT rides along as `?token=`.
+  // headers, so we first mint a short-lived single-use ticket over the normal
+  // authenticated API and put *that* (not the JWT) in the stream URL.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const token = window.localStorage.getItem('alooshomal_token');
-    if (!token) return;
+    let source: EventSource | null = null;
+    let cancelled = false;
 
-    const source = new EventSource(
-      `${API_URL}${streamPath}?token=${encodeURIComponent(token)}`,
-    );
-    source.onmessage = (event) => {
+    async function connect() {
+      const token = window.localStorage.getItem('alooshomal_token');
+      if (!token) return;
+      let ticket: string;
       try {
-        const data = JSON.parse(event.data) as { unread?: number };
-        if (typeof data.unread === 'number') {
-          setFeed((prev) => ({ ...prev, unread: data.unread ?? prev.unread }));
-        }
+        const issued = await api.get<{ ticket: string }>(ticketPath);
+        ticket = issued.ticket;
       } catch {
-        /* ignore malformed frame */
+        return; // not signed in, or transient — the slow poll still covers us
       }
+      if (cancelled) return;
+      source = new EventSource(`${API_URL}${streamPath}?ticket=${encodeURIComponent(ticket)}`);
+      source.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data) as { unread?: number };
+          if (typeof data.unread === 'number') {
+            setFeed((prev) => ({ ...prev, unread: data.unread ?? prev.unread }));
+          }
+        } catch {
+          /* ignore malformed frame */
+        }
+      };
+    }
+
+    void connect();
+    return () => {
+      cancelled = true;
+      source?.close();
     };
-    // On error the browser retries by itself; a fresh token is picked up when
-    // the effect re-runs after re-login.
-    return () => source.close();
-  }, [streamPath]);
+  }, [streamPath, ticketPath]);
 
   // Refresh the list itself whenever the panel is opened.
   useEffect(() => {

@@ -25,11 +25,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private readonly sessions: SessionsService,
   ) {
     super({
-      // Bearer header for normal XHR, `?token=` for EventSource (SSE), which
-      // cannot attach custom headers.
+      // Bearer header only. EventSource cannot set headers, so the SSE stream
+      // authenticates with a short-lived single-use ticket instead of placing
+      // the access token in the URL (where it would land in access logs).
       jwtFromRequest: ExtractJwt.fromExtractors([
         ExtractJwt.fromAuthHeaderAsBearerToken(),
-        ExtractJwt.fromUrlQueryParameter('token'),
       ]),
       ignoreExpiration: false,
       secretOrKey: resolveJwtSecret(config),
