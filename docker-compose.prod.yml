@@ -99,7 +99,8 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET:-alooshomal}
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-https://alooshomal.ir/media}
       # Melipayamak OTP endpoint path (embeds the sender line + token). Set it
-      # on the server to enable real SMS; leave empty to keep the dev bypass.
+      # on the server to enable real SMS. If it stays empty in production the
+      # phone flow returns 503 instead of leaking the dev code (123456).
       MELIPAYAMAK_OTP_PATH: ${MELIPAYAMAK_OTP_PATH:-}
     ports:
       - "127.0.0.1:${API_PORT:-4000}:4000"

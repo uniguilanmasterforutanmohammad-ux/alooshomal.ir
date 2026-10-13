@@ -1,5 +1,10 @@
-import { createHash, randomInt } from 'node:crypto';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 
 import { RedisService } from '../redis/redis.service';
 import { SmsService } from './sms.service';
@@ -11,9 +16,11 @@ import { SmsService } from './sms.service';
  * fallback when Redis is off) for a few minutes and are never persisted in
  * Postgres. Only a hash of the code is stored, keyed by the phone number.
  *
- * Local dev never sends real SMS: when Melipayamak is not configured the
- * service mints a fixed `DEV_OTP_CODE`, logs it, and returns it in the API
- * response so the developer can complete the flow without a real phone.
+ * Local dev never sends real SMS: when Melipayamak is not configured *and* the
+ * app is not running in production, the service mints a fixed `DEV_OTP_CODE`,
+ * logs it, and returns it in the API response so the developer can complete the
+ * flow without a real phone. In production the same missing configuration is a
+ * hard error — the fixed code must never be handed out on a real deployment.
  */
 const OTP_TTL_SECONDS = 5 * 60;
 const OTP_RESEND_COOLDOWN_SECONDS = 60;
@@ -46,6 +53,12 @@ export class OtpService {
     string,
     { record: OtpRecord; expiresAt: number }
   >();
+
+  /**
+   * True only outside production. The dev bypass (fixed code, no SMS) is
+   * allowed exclusively here, so a production deploy can never leak `123456`.
+   */
+  private readonly isDev = process.env.NODE_ENV !== 'production';
 
   constructor(
     private readonly redis: RedisService,
@@ -150,12 +163,28 @@ export class OtpService {
     let sent = false;
     if (this.sms.enabled) {
       const remote = await this.sms.sendOtp(phone);
-      code = remote ?? String(randomInt(100000, 1000000));
-      sent = Boolean(remote);
-    } else {
+      if (!remote) {
+        // Configured but the gateway returned no code — never fall back to a
+        // hard-coded value.
+        throw new ServiceUnavailableException(
+          'ارسال پیامک در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
+        );
+      }
+      code = remote;
+      sent = true;
+    } else if (this.isDev) {
       // Dev bypass: fixed code, no network, printed to the API log.
       code = DEV_OTP_CODE;
       this.logger.log(`[dev] OTP for ${phone} is ${code} (SMS disabled)`);
+    } else {
+      // Production without a Melipayamak path: refuse instead of handing out
+      // the fixed dev code to real users.
+      this.logger.error(
+        `OTP request for ${phone} rejected: MELIPAYAMAK_OTP_PATH is not set in production`,
+      );
+      throw new ServiceUnavailableException(
+        'ارسال پیامک در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
+      );
     }
 
     await this.write(phone, { hash: this.hash(code), attempts: 0 });
