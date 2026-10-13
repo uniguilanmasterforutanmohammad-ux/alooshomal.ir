@@ -20,7 +20,42 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.28.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.29.0**.
+
+## ۱۴۰۵/۰۷/۲۲ — بازبینی امنیتی auth + محدودیت نرخ و سخت‌سازی — نسخه `v2.29.0`
+
+**هدف:** رفع حفره‌های شناسایی‌شده در سیستم احراز هویت: نبود محدودیت نرخ (brute-force
+رمز و سوءاستفاده‌ی پیامک)، نشت اطلاعات با زمان‌بندی پاسخ، و امکان تغییر رمز با یک نشست
+دزدیده‌شده.
+
+**تغییرات:**
+- `apps/api/src/common/rate-limit.service.ts` (جدید): محدودکننده‌ی نرخ پنجره‌ی ثابت روی
+  Redis با fallback حافظه‌ای + قواعد `RATE_LIMITS` (ورود ۱۰/۱۵د، OTP ۵/شماره و
+  ۲۰/IP، تأیید OTP ۱۰، ثبت‌نام ۵/ساعت). `common.module.ts` آن را Global ارائه می‌کند.
+- `apps/api/src/redis/redis.service.ts`: افزودن `incr` اتمیک با تنظیم TTL برای شمارنده‌ها.
+- `apps/api/src/auth/auth.service.ts`: اعمال rate-limit در `login`/`requestPhoneCode`/
+  `verifyPhoneCode`/`register`؛ و مقایسه‌ی bcrypt همیشه (با هش ساختگی
+  `DUMMY_BCRYPT_HASH`) تا زمان پاسخ، وجود ایمیل را لو ندهد؛ الزام `currentPassword`
+  هنگام تغییر رمز موجود.
+- `apps/api/src/auth/dto/set-password.dto.ts`: افزودن فیلد اختیاری `currentPassword`.
+- `apps/api/src/auth/auth.controller.ts`: پاس‌دادن IP به `requestPhoneCode` و
+  `currentPassword` به `setPassword`.
+- `apps/web/components/dashboard/ProfilePanel.tsx`: فیلد «رمز عبور فعلی» و اعتبارسنجی آن
+  هنگام تغییر رمز؛ ارسال `currentPassword`.
+- `docs/SECURITY.md` (جدید): خلاصه‌ی تصمیم‌های امنیتی (هش رمز/نمک، OTP، rate limit،
+  توکن‌ها، کوکی نشست و ابطال). ارجاع در `README.md`.
+- `docs/DEPLOY.md`: ثبت `JWT_EXPIRES_IN`.
+- `BACKLOG.md`: ثبت مورد معوق «انتقال توکن SSE به کوکی/تیکت».
+- `apps/web/lib/version.ts`: نسخه به `v2.29.0`.
+
+**تأیید/تست:**
+- `tsc --noEmit` برای `apps/api` و `apps/web` بدون خطا.
+- تست rate limit: ۱۰ تلاش ورود ناموفق سپس `429`؛ هفت درخواست OTP برای یک شماره →
+  پس از حد مجاز `429`.
+- تست زمان‌بندی: میانگین زمان ورود با ایمیل موجود (رمز غلط) و ایمیل ناموجود تقریباً
+  یکسان (≈۰٫۳۸s).
+- تست تغییر رمز: بدون `currentPassword` → `401`، با رمز فعلی غلط → `401`، با رمز صحیح
+  → `200` و ورود با رمز جدید موفق.
 
 ## ۱۴۰۵/۰۷/۲۲ — سخت‌سازی توکن‌های JWT — نسخه `v2.28.1`
 

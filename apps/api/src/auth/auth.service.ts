@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 
 import { NotificationsService } from '../notifications/notifications.service';
+import { RATE_LIMITS, RateLimitService } from '../common/rate-limit.service';
 import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SessionsService } from '../sessions/sessions.service';
@@ -21,6 +22,18 @@ import { VerifyPhoneDto } from './dto/verify-phone.dto';
 import { OtpService } from './otp.service';
 
 const SALT_ROUNDS = 12;
+
+/**
+ * A well-formed bcrypt hash of a random value, used to keep login timing
+ * constant when the account does not exist (or has no password). Without it,
+ * "unknown email" returns noticeably faster than "wrong password" and leaks
+ * which emails are registered. Computed once at startup so the cost stays
+ * realistic (a fresh random salt, SALT_ROUNDS work factor).
+ */
+const DUMMY_BCRYPT_HASH = bcrypt.hashSync(
+  `timing-${Math.random().toString(36)}`,
+  SALT_ROUNDS,
+);
 
 /** Client hints captured at login, used for the session list. */
 export interface SessionContext {
@@ -39,6 +52,7 @@ export class AuthService {
     private readonly settings: SettingsService,
     private readonly otp: OtpService,
     private readonly sessions: SessionsService,
+    private readonly rateLimit: RateLimitService,
   ) {}
 
   /** Ensures phone sign-in is allowed by the admin toggle. */
@@ -53,9 +67,12 @@ export class AuthService {
    * response is identical whether or not the number is already registered, so
    * it never leaks which phones have accounts.
    */
-  async requestPhoneCode(dto: RequestCodeDto) {
+  async requestPhoneCode(dto: RequestCodeDto, ip?: string | null) {
     await this.assertPhoneLoginEnabled();
     const phone = OtpService.normalizePhone(dto.phone);
+    // Guard against SMS-cost abuse and enumeration: cap per phone and per IP.
+    await this.rateLimit.hit(RATE_LIMITS.otpRequestPhone, phone);
+    if (ip) await this.rateLimit.hit(RATE_LIMITS.otpRequestIp, ip);
     const issued = await this.otp.issue(phone);
     // Tell the client whether this number is a returning user (login) or a new
     // one (sign-up), so a single form can drive both flows. This is only a UX
@@ -72,6 +89,7 @@ export class AuthService {
   async verifyPhoneCode(dto: VerifyPhoneDto, context: SessionContext = {}) {
     await this.assertPhoneLoginEnabled();
     const phone = OtpService.normalizePhone(dto.phone);
+    await this.rateLimit.hit(RATE_LIMITS.otpVerify, phone);
     const existing = await this.prisma.user.findUnique({ where: { phone } });
 
     // Check the new-user case *before* consuming the code: a first-time
@@ -162,6 +180,7 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto, context: SessionContext = {}) {
+    if (context.ip) await this.rateLimit.hit(RATE_LIMITS.register, context.ip);
     const email = dto.email.toLowerCase().trim();
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -198,19 +217,15 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, context: SessionContext = {}) {
+    if (context.ip) await this.rateLimit.hit(RATE_LIMITS.login, context.ip);
     const email = dto.email.toLowerCase().trim();
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (!user || !user.isActive) {
-      throw new UnauthorizedException('ایمیل یا رمز عبور اشتباه است');
-    }
-
-    // Phone-only accounts have no password yet — treat as invalid credentials
-    // rather than crashing bcrypt.compare.
-    if (!user.passwordHash) {
-      throw new UnauthorizedException('ایمیل یا رمز عبور اشتباه است');
-    }
-    const valid = await bcrypt.compare(dto.password, user.passwordHash);
-    if (!valid) {
+    // Always run a bcrypt comparison — against the real hash when the account
+    // exists, otherwise a dummy — so response time does not reveal whether the
+    // email is registered. Phone-only accounts (no hash) take the same path.
+    const hash = user?.passwordHash ?? DUMMY_BCRYPT_HASH;
+    const valid = await bcrypt.compare(dto.password, hash);
+    if (!user || !user.isActive || !user.passwordHash || !valid) {
       throw new UnauthorizedException('ایمیل یا رمز عبور اشتباه است');
     }
 
@@ -240,10 +255,24 @@ export class AuthService {
    * profile panel. The caller is already authenticated, so this only trusts
    * the JWT subject, never a client-supplied user id.
    */
-  async setPassword(userId: string, password: string): Promise<{ ok: true }> {
+  async setPassword(
+    userId: string,
+    password: string,
+    currentPassword?: string,
+  ): Promise<{ ok: true }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new UnauthorizedException('حساب کاربری معتبر نیست');
+    }
+    // If a password already exists, require the current one before replacing
+    // it — otherwise a stolen session could take over the account outright.
+    if (user.passwordHash) {
+      const ok =
+        Boolean(currentPassword) &&
+        (await bcrypt.compare(currentPassword as string, user.passwordHash));
+      if (!ok) {
+        throw new UnauthorizedException('رمز عبور فعلی صحیح نیست');
+      }
     }
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     await this.prisma.user.update({

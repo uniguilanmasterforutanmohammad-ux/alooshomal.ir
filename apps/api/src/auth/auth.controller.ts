@@ -96,8 +96,8 @@ export class AuthController {
   @Post('phone/request-code')
   @HttpCode(200)
   @ApiOperation({ summary: 'ارسال کد یکبار مصرف به موبایل' })
-  requestPhoneCode(@Body() dto: RequestCodeDto) {
-    return this.authService.requestPhoneCode(dto);
+  requestPhoneCode(@Body() dto: RequestCodeDto, @Req() req: Request) {
+    return this.authService.requestPhoneCode(dto, clientIp(req));
   }
 
   @Public()
@@ -121,7 +121,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'ثبت/تغییر رمز عبور کاربر جاری' })
   setPassword(@CurrentUser() user: AuthUser, @Body() dto: SetPasswordDto) {
-    return this.authService.setPassword(user.id, dto.password);
+    return this.authService.setPassword(user.id, dto.password, dto.currentPassword);
   }
 
   @Get('me')

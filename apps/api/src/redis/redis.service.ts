@@ -85,6 +85,26 @@ export class RedisService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * Atomically increments a counter and returns its new value, setting the TTL
+   * on first use. Returns null when Redis is unavailable or the call fails, so
+   * callers can fall back to an in-memory counter.
+   */
+  async incr(key: string, ttlSeconds: number): Promise<number | null> {
+    if (!this.isReady || !this.client) {
+      return null;
+    }
+    try {
+      const value = await this.client.incr(key);
+      if (value === 1) {
+        await this.client.expire(key, Math.max(1, Math.floor(ttlSeconds)));
+      }
+      return value;
+    } catch {
+      return null;
+    }
+  }
+
   /** Delete every key under `prefix` using a non-blocking SCAN. */
   async delByPrefix(prefix: string): Promise<void> {
     if (!this.isReady || !this.client) {

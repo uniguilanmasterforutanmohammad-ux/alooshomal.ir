@@ -277,6 +277,8 @@ to a new or dedicated media server.
 - JWT auth as a global guard; public routes are marked with `@Public()`.
 - Role-based access control for the admin panel (`ADMIN`).
 - Security headers via `helmet`; CORS restricted to the frontend origin.
+- Auth security details (password hashing, OTP, rate limits, tokens, sessions)
+  are documented in `docs/SECURITY.md`.
 - Frontend is RTL, Persian, Shabnam font, vintage retro design.
 - QR and images are generated efficiently to keep the public page fast.
 

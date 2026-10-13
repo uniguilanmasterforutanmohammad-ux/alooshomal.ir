@@ -53,6 +53,7 @@ export function ProfilePanel() {
   const [sending, setSending] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [savingPassword, setSavingPassword] = useState(false);
 
   const load = useCallback(async () => {
@@ -95,12 +96,20 @@ export function ProfilePanel() {
       toast.error('تکرار رمز عبور مطابقت ندارد.');
       return;
     }
+    if (profile?.hasPassword && !currentPassword) {
+      toast.error('برای تغییر رمز، رمز عبور فعلی را وارد کنید.');
+      return;
+    }
     setSavingPassword(true);
     try {
-      await api.post('/auth/set-password', { password });
+      await api.post('/auth/set-password', {
+        password,
+        ...(profile?.hasPassword ? { currentPassword } : {}),
+      });
       toast.success('رمز عبور ثبت شد. از این پس با ایمیل و رمز هم می‌توانید وارد شوید.');
       setPassword('');
       setPasswordConfirm('');
+      setCurrentPassword('');
       await load();
     } catch {
       /* api layer surfaces the error */
@@ -202,6 +211,20 @@ export function ProfilePanel() {
             ? 'برای ورود با ایمیل و رمز عبور، می‌توانید رمز تازه‌ای تعیین کنید.'
             : 'هنوز رمز عبوری ثبت نکرده‌اید و فقط با کد یکبار مصرف وارد می‌شوید. با ثبت رمز، ورود با ایمیل هم فعال می‌شود.'}
         </p>
+        {profile.hasPassword ? (
+          <label className="mt-4 block text-xs font-bold text-muted">
+            رمز عبور فعلی
+            <input
+              type="password"
+              dir="ltr"
+              className="indeed-input mt-1"
+              value={currentPassword}
+              onChange={(event) => setCurrentPassword(event.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+            />
+          </label>
+        ) : null}
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="text-xs font-bold text-muted">
             رمز عبور
