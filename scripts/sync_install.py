@@ -65,7 +65,7 @@ def tracked_files() -> list[str]:
     # Root-level files that the generator also emits.
     for extra in (".gitignore", ".env.example", ".dockerignore", ".editorconfig",
                   "package.json", "tsconfig.base.json", "README.md",
-                  "docker-compose.yml", "docker-compose.dev.yml"):
+                  "CHANGELOG.md", "docker-compose.yml", "docker-compose.dev.yml"):
         if os.path.isfile(extra):
             files.append(extra)
     return sorted(set(files))

@@ -279,6 +279,7 @@ to a new or dedicated media server.
 - Security headers via `helmet`; CORS restricted to the frontend origin.
 - Auth security details (password hashing, OTP, rate limits, tokens, sessions)
   are documented in `docs/SECURITY.md`.
+- Version-by-version, user-facing changes live in `CHANGELOG.md`.
 - Frontend is RTL, Persian, Shabnam font, vintage retro design.
 - QR and images are generated efficiently to keep the public page fast.
 
