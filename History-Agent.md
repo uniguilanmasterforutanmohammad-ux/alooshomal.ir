@@ -20,7 +20,49 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.23.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.24.0**.
+
+## ۱۴۰۵/۰۷/۲۱ — تغییر تأییدشده‌ی شماره موبایل و ایمیل در پروفایل — نسخه `v2.24.0`
+
+**هدف:** در `/dashboard/profile` امکان تغییر شماره موبایل و ایمیل اضافه شود؛ تغییر شماره
+با ارسال کد یکبار مصرف به **شماره‌ی جدید** و تغییر ایمیل با ارسال کد به **شماره موبایل
+فعلی** تأیید شود.
+
+**تغییرات:**
+- `apps/api/src/auth/otp.service.ts`: کدهای OTP حالا «هدف‌دار» (purposeful) شدند
+  (`login` / `phone-change` / `email-change`) با فضای کلید جدا. به این ترتیب کد ورودِ
+  صادرشده هرگز برای تغییر شماره/ایمیل قابل استفاده نیست. امضای `issue`/`verify` یک
+  آرگومان اختیاری `purpose` گرفت (پیش‌فرض `login`).
+- `apps/api/src/profile/profile.service.ts`: متدهای جدید `requestPhoneChange`/
+  `verifyPhoneChange` (نرمال‌سازی شماره، رد تکراری‌بودن، ارسال و تأیید OTP، ثبت
+  فعالیت) و `requestEmailChange`/`verifyEmailChange` (اعتبارسنجی یکتایی ایمیل، ارسال کد
+  به شماره‌ی فعلی، تأیید و ثبت). هر دو به توگل `authPhoneLoginEnabled` وابسته‌اند.
+- `apps/api/src/profile/dto/profile.dto.ts`: `RequestContactOtpDto` و
+  `VerifyContactChangeDto`.
+- `apps/api/src/profile/profile.controller.ts`: روت‌های
+  `POST /profile/phone/request-code`، `POST /profile/phone/verify`،
+  `POST /profile/email/request-code`، `POST /profile/email/verify`.
+- `apps/api/src/profile/profile.module.ts` و `apps/api/src/auth/auth.module.ts`:
+  واردکردن/صادرکردن `OtpService` و `SettingsService` برای استفاده در پروفایل.
+- `apps/web/components/dashboard/ContactChangePanel.tsx` (جدید): کارت دومرحله‌ای
+  «ارسال کد → تأیید» برای موبایل و ایمیل، با نمایش کد توسعه در لوکال.
+- `apps/web/components/dashboard/ProfilePanel.tsx`: افزودن دو کارت تغییر شماره و تغییر
+  ایمیل (ایمیل وقتی شماره ثبت نشده باشد غیرفعال است) و رفرش پروفایل پس از تغییر.
+- `apps/web/lib/version.ts`: نسخه به `v2.24.0` (MINOR — افزودن قابلیت).
+
+**تأیید/تست:**
+- `tsc --noEmit` روی هر دو اپ (`apps/api`, `apps/web`) بدون خطا؛ hot-reload کانتینرهای
+  dev مسیرهای جدید را ثبت کرد.
+- تست زنده‌ی API روی `localhost:3001`:
+  - تغییر شماره: `request-code` به شماره‌ی جدید → کد اشتباه رد شد → کد درست ثبت شد و
+    شماره عوض شد.
+  - تغییر ایمیل: `request-code` کد را به شماره‌ی فعلی فرستاد (`sentTo`)، کد اشتباه رد
+    شد، کد درست ایمیل را عوض کرد؛ ایمیل تکراری/همان ایمیل فعلی خطای مناسب داد.
+  - جداسازی purpose: کد صادرشده برای ورود قابل استفاده در تغییر شماره/ایمیل نیست.
+- تست UI با Playwright روی `localhost:3000`: هر دو کارت رندر شدند و جریان کامل
+  «ارسال کد → ورود کد → ثبت» برای موبایل و ایمیل تا نمایش مقدار جدید موفق بود.
+- داده‌های تستی (کاربران `0912111*`/`contact*`) و کلیدهای OTP پاک شدند؛
+  `sync_install.py --check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۷/۲۱ — مستندسازی جریان کار لوکال و پروداکشن (hot-reload و rebuild) — نسخه `v2.23.0` (بدون تغییر کد)
 

@@ -29,7 +29,14 @@ const OTP_MAX_ATTEMPTS = 5;
 /** Fixed code used when SMS delivery is disabled (local dev). */
 export const DEV_OTP_CODE = '123456';
 
-const KEY_PREFIX = 'otp:phone:';
+/**
+ * OTP purposes. Each flow gets its own key namespace so a code issued for one
+ * action (e.g. sign-in) can never be replayed to authorise another (e.g.
+ * changing the account phone/email).
+ */
+export type OtpPurpose = 'login' | 'phone-change' | 'email-change';
+
+const keyPrefix = (purpose: OtpPurpose) => `otp:${purpose}:phone:`;
 
 interface OtpRecord {
   hash: string;
@@ -93,8 +100,8 @@ export class OtpService {
     return createHash('sha256').update(code).digest('hex');
   }
 
-  private async read(phone: string): Promise<OtpRecord | null> {
-    const key = KEY_PREFIX + phone;
+  private async read(purpose: OtpPurpose, phone: string): Promise<OtpRecord | null> {
+    const key = keyPrefix(purpose) + phone;
     const raw = await this.redis.get(key);
     if (raw) {
       try {
@@ -112,8 +119,12 @@ export class OtpService {
     return entry.record;
   }
 
-  private async write(phone: string, record: OtpRecord): Promise<void> {
-    const key = KEY_PREFIX + phone;
+  private async write(
+    purpose: OtpPurpose,
+    phone: string,
+    record: OtpRecord,
+  ): Promise<void> {
+    const key = keyPrefix(purpose) + phone;
     const serialized = JSON.stringify(record);
     await this.redis.set(key, serialized, OTP_TTL_SECONDS);
     // Mirror to memory too: it is the only store when Redis is off, and a
@@ -124,23 +135,23 @@ export class OtpService {
     });
   }
 
-  private async clear(phone: string): Promise<void> {
-    const key = KEY_PREFIX + phone;
+  private async clear(purpose: OtpPurpose, phone: string): Promise<void> {
+    const key = keyPrefix(purpose) + phone;
     await this.redis.del(key);
     this.memory.delete(key);
   }
 
   /** True when a code was issued within the resend cooldown window. */
-  private async recentlyIssued(phone: string): Promise<boolean> {
-    const key = `${KEY_PREFIX}${phone}:issued`;
+  private async recentlyIssued(purpose: OtpPurpose, phone: string): Promise<boolean> {
+    const key = `${keyPrefix(purpose)}${phone}:issued`;
     const marker = await this.redis.get(key);
     if (marker) return true;
     const entry = this.memory.get(key);
     return Boolean(entry && entry.expiresAt > Date.now());
   }
 
-  private async markIssued(phone: string): Promise<void> {
-    const key = `${KEY_PREFIX}${phone}:issued`;
+  private async markIssued(purpose: OtpPurpose, phone: string): Promise<void> {
+    const key = `${keyPrefix(purpose)}${phone}:issued`;
     await this.redis.set(key, '1', OTP_RESEND_COOLDOWN_SECONDS);
     this.memory.set(key, {
       record: { hash: '1', attempts: 0 },
@@ -152,8 +163,8 @@ export class OtpService {
    * Sends (or, in dev, mints) a fresh code for `phone` and stores its hash.
    * Returns dev-only metadata so the UI can help the developer.
    */
-  async issue(phone: string): Promise<IssuedOtp> {
-    if (await this.recentlyIssued(phone)) {
+  async issue(phone: string, purpose: OtpPurpose = 'login'): Promise<IssuedOtp> {
+    if (await this.recentlyIssued(purpose, phone)) {
       throw new BadRequestException(
         'کد قبلی هنوز معتبر است؛ لطفاً کمی بعد دوباره تلاش کنید',
       );
@@ -187,8 +198,8 @@ export class OtpService {
       );
     }
 
-    await this.write(phone, { hash: this.hash(code), attempts: 0 });
-    await this.markIssued(phone);
+    await this.write(purpose, phone, { hash: this.hash(code), attempts: 0 });
+    await this.markIssued(purpose, phone);
 
     return {
       resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
@@ -201,22 +212,26 @@ export class OtpService {
    * Verifies `code` for `phone`. Throws on mismatch; clears the code on
    * success or when the attempt budget is exhausted.
    */
-  async verify(phone: string, code: string): Promise<void> {
-    const record = await this.read(phone);
+  async verify(
+    phone: string,
+    code: string,
+    purpose: OtpPurpose = 'login',
+  ): Promise<void> {
+    const record = await this.read(purpose, phone);
     if (!record) {
       throw new BadRequestException('کد منقضی شده است؛ دوباره درخواست کنید');
     }
     if (record.attempts >= OTP_MAX_ATTEMPTS) {
-      await this.clear(phone);
+      await this.clear(purpose, phone);
       throw new BadRequestException('تعداد تلاش‌ها بیش از حد مجاز است');
     }
     if (record.hash !== this.hash(code.trim())) {
-      await this.write(phone, {
+      await this.write(purpose, phone, {
         hash: record.hash,
         attempts: record.attempts + 1,
       });
       throw new BadRequestException('کد وارد‌شده صحیح نیست');
     }
-    await this.clear(phone);
+    await this.clear(purpose, phone);
   }
 }

@@ -15,6 +15,7 @@ import {
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
+import { ContactChangePanel } from './ContactChangePanel';
 
 interface ProfileChangeRequest {
   id: string;
@@ -177,6 +178,13 @@ export function ProfilePanel() {
           </div>
         )}
       </div>
+
+      <ContactChangePanel kind="phone" onChanged={load} />
+      <ContactChangePanel
+        kind="email"
+        disabled={!profile.phone}
+        onChanged={load}
+      />
 
       <div className="indeed-panel p-5">
         <h2 className="flex items-center gap-2 text-sm font-extrabold text-ink">

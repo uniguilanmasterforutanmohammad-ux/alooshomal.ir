@@ -1,11 +1,14 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { NewsStatus, NotificationType, Prisma } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
+import { OtpService } from '../auth/otp.service';
+import { SettingsService } from '../settings/settings.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -31,7 +34,18 @@ export class ProfileService {
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
+    private readonly otp: OtpService,
+    private readonly settings: SettingsService,
   ) {}
+
+  /** Contact changes rely on the same OTP delivery as phone sign-in. */
+  private async assertOtpAvailable(): Promise<void> {
+    if (!(await this.settings.getPhoneLoginEnabled())) {
+      throw new BadRequestException(
+        'امکان ارسال کد تأیید در حال حاضر غیرفعال است',
+      );
+    }
+  }
 
   /** Profile of the current user plus their latest pending change request. */
   async me(userId: string) {
@@ -104,6 +118,123 @@ export class ProfileService {
       where: { userId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  // ----- verified contact changes (phone / email) -----
+
+  /**
+   * Step 1 of a phone change: verify the new number can be used and send an OTP
+   * to it. The code is namespaced (`phone-change`) so a sign-in code cannot be
+   * replayed here. The current (old) number stays active until verification.
+   */
+  async requestPhoneChange(userId: string, rawPhone: string) {
+    await this.assertOtpAvailable();
+    const phone = OtpService.normalizePhone(rawPhone);
+    const me = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!me) {
+      throw new NotFoundException('کاربر یافت نشد');
+    }
+    if (me.phone === phone) {
+      throw new BadRequestException('این شماره همان شماره‌ی فعلی شماست');
+    }
+    const owner = await this.prisma.user.findUnique({ where: { phone } });
+    if (owner && owner.id !== userId) {
+      throw new ConflictException('این شماره قبلاً ثبت شده است');
+    }
+    const issued = await this.otp.issue(phone, 'phone-change');
+    return { phone, ...issued };
+  }
+
+  /**
+   * Step 2 of a phone change: check the OTP sent to the new number, then swap
+   * it in. A code to the *current* number is not required because the user is
+   * already authenticated and proving control of the new number is the point.
+   */
+  async verifyPhoneChange(userId: string, rawPhone: string, code: string) {
+    await this.assertOtpAvailable();
+    const phone = OtpService.normalizePhone(rawPhone);
+    const me = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!me) {
+      throw new NotFoundException('کاربر یافت نشد');
+    }
+    const owner = await this.prisma.user.findUnique({ where: { phone } });
+    if (owner && owner.id !== userId) {
+      throw new ConflictException('این شماره قبلاً ثبت شده است');
+    }
+    await this.otp.verify(phone, code, 'phone-change');
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { phone, phoneVerified: true },
+    });
+    await this.activity.log({
+      actor: { id: userId },
+      action: 'PROFILE_PHONE_CHANGED',
+      summary: `تغییر شماره موبایل به ${phone}`,
+      entityType: 'USER',
+      entityId: userId,
+    });
+    return this.me(userId);
+  }
+
+  /**
+   * Step 1 of an email change. SMS is the only verification channel, so the
+   * code is sent to the user's current phone (which proves control of the
+   * account). The new email is validated for uniqueness up-front.
+   */
+  async requestEmailChange(userId: string, rawEmail: string) {
+    await this.assertOtpAvailable();
+    const email = rawEmail.toLowerCase().trim();
+    const me = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!me) {
+      throw new NotFoundException('کاربر یافت نشد');
+    }
+    if (me.email === email) {
+      throw new BadRequestException('این ایمیل همان ایمیل فعلی شماست');
+    }
+    const owner = await this.prisma.user.findUnique({ where: { email } });
+    if (owner && owner.id !== userId) {
+      throw new ConflictException('این ایمیل قبلاً ثبت شده است');
+    }
+    if (!me.phone) {
+      throw new BadRequestException(
+        'برای تغییر ایمیل ابتدا باید شماره موبایل ثبت شده باشد',
+      );
+    }
+    const issued = await this.otp.issue(me.phone, 'email-change');
+    // The code goes to the current phone, so echo the masked target back.
+    return { email, sentTo: me.phone, ...issued };
+  }
+
+  /** Step 2 of an email change: check the OTP sent to the current phone. */
+  async verifyEmailChange(userId: string, rawEmail: string, code: string) {
+    await this.assertOtpAvailable();
+    const email = rawEmail.toLowerCase().trim();
+    const me = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!me) {
+      throw new NotFoundException('کاربر یافت نشد');
+    }
+    if (!me.phone) {
+      throw new BadRequestException(
+        'برای تغییر ایمیل ابتدا باید شماره موبایل ثبت شده باشد',
+      );
+    }
+    const owner = await this.prisma.user.findUnique({ where: { email } });
+    if (owner && owner.id !== userId) {
+      throw new ConflictException('این ایمیل قبلاً ثبت شده است');
+    }
+    await this.otp.verify(me.phone, code, 'email-change');
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { email },
+    });
+    await this.activity.log({
+      actor: { id: userId, email: me.email },
+      action: 'PROFILE_EMAIL_CHANGED',
+      summary: `تغییر ایمیل به ${email}`,
+      entityType: 'USER',
+      entityId: userId,
+    });
+    return this.me(userId);
   }
 
   // ----- admin -----

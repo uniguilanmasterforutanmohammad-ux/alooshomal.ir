@@ -6,7 +6,12 @@ import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorat
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { RequirePermission } from '../auth/permissions.decorator';
-import { DecideProfileChangeDto, RequestProfileChangeDto } from './dto/profile.dto';
+import {
+  DecideProfileChangeDto,
+  RequestContactOtpDto,
+  RequestProfileChangeDto,
+  VerifyContactChangeDto,
+} from './dto/profile.dto';
 import { ProfileService } from './profile.service';
 
 @ApiTags('profile')
@@ -32,6 +37,46 @@ export class ProfileController {
   @ApiOperation({ summary: 'آخرین درخواست تغییر پروفایل من' })
   latestMine(@CurrentUser() user: AuthUser) {
     return this.profile.latestMine(user.id);
+  }
+
+  // --- verified phone change ---
+
+  @Post('phone/request-code')
+  @ApiOperation({ summary: 'ارسال کد تأیید به شماره‌ی جدید برای تغییر موبایل' })
+  requestPhoneChange(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RequestContactOtpDto,
+  ) {
+    return this.profile.requestPhoneChange(user.id, dto.phone ?? '');
+  }
+
+  @Post('phone/verify')
+  @ApiOperation({ summary: 'تأیید کد و تغییر شماره موبایل' })
+  verifyPhoneChange(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: VerifyContactChangeDto,
+  ) {
+    return this.profile.verifyPhoneChange(user.id, dto.phone ?? '', dto.code);
+  }
+
+  // --- verified email change ---
+
+  @Post('email/request-code')
+  @ApiOperation({ summary: 'ارسال کد تأیید (به موبایل فعلی) برای تغییر ایمیل' })
+  requestEmailChange(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RequestContactOtpDto,
+  ) {
+    return this.profile.requestEmailChange(user.id, dto.email ?? '');
+  }
+
+  @Post('email/verify')
+  @ApiOperation({ summary: 'تأیید کد و تغییر ایمیل' })
+  verifyEmailChange(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: VerifyContactChangeDto,
+  ) {
+    return this.profile.verifyEmailChange(user.id, dto.email ?? '', dto.code);
   }
 }
 
