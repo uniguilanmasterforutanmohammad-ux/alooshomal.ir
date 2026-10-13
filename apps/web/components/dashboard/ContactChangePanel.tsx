@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { KeyRound, Mail, Phone, ShieldCheck } from 'lucide-react';
 
 import { api } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
 
 interface Issued {
@@ -19,7 +18,7 @@ const COPY = {
   phone: {
     icon: Phone,
     title: 'تغییر شماره موبایل',
-    hint: 'کد تأیید به شماره‌ی جدید ارسال می‌شود؛ پس از واردکردن کد، شماره عوض می‌شود.',
+    hint: 'کد تأیید به شماره‌ی جدید ارسال می‌شود؛ پس از واردکردن کد، درخواست برای تأیید مدیر ثبت می‌شود و تا آن زمان شماره‌ی فعلی باقی می‌ماند.',
     label: 'شماره موبایل جدید',
     placeholder: '09123456789',
     inputType: 'tel' as const,
@@ -30,7 +29,7 @@ const COPY = {
   email: {
     icon: Mail,
     title: 'تغییر ایمیل',
-    hint: 'برای تأیید، یک کد به شماره موبایل فعلی شما ارسال می‌شود.',
+    hint: 'برای تأیید، یک کد به شماره موبایل فعلی شما ارسال می‌شود؛ سپس تغییر برای تأیید مدیر ثبت می‌شود.',
     label: 'ایمیل جدید',
     placeholder: 'you@example.com',
     inputType: 'email' as const,
@@ -49,16 +48,18 @@ const COPY = {
 export function ContactChangePanel({
   kind,
   disabled,
+  pendingValue,
   onChanged,
 }: {
   kind: Kind;
   /** True when the account has no verified phone (email change needs one). */
   disabled?: boolean;
+  /** A value already verified and waiting for admin approval. */
+  pendingValue?: string;
   onChanged?: () => void | Promise<void>;
 }) {
   const copy = COPY[kind];
   const Icon = copy.icon;
-  const setUser = useAuth((state) => state.setUser);
   const [value, setValue] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'input' | 'code'>('input');
@@ -88,26 +89,13 @@ export function ContactChangePanel({
     setBusy(true);
     setError(null);
     try {
-      const updated = await api.post<{
-        id: string;
-        email: string | null;
-        phone: string | null;
-        fullName: string | null;
-        role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
-      }>(copy.verifyPath, {
+      await api.post(copy.verifyPath, {
         [copy.field]: value.trim(),
         code: code.trim(),
       });
-      // Keep the cached session user in sync so the header/profile show the
-      // new value immediately, without a re-login.
-      setUser({
-        id: updated.id,
-        email: updated.email,
-        phone: updated.phone,
-        fullName: updated.fullName,
-        role: updated.role,
-      });
-      toast.success(`${copy.title} با موفقیت انجام شد.`);
+      // The value is not applied yet: it waits for admin approval, so the
+      // cached session user must stay untouched (it would show a wrong value).
+      toast.success('کد تأیید شد؛ درخواست برای تأیید مدیر ثبت شد.');
       setValue('');
       setCode('');
       setStep('input');
@@ -128,7 +116,13 @@ export function ContactChangePanel({
       </h2>
       <p className="mt-1 text-xs leading-6 text-muted">{copy.hint}</p>
 
-      {disabled ? (
+      {pendingValue ? (
+        <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          درخواست تغییر به{' '}
+          <span dir="ltr" className="font-bold">{pendingValue}</span> تأیید کد شد و پس از
+          تأیید مدیر اعمال می‌شود.
+        </p>
+      ) : disabled ? (
         <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
           برای تغییر ایمیل ابتدا باید شماره موبایل ثبت و تأیید شده باشد.
         </p>

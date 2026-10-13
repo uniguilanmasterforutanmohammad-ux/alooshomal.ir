@@ -63,6 +63,8 @@ const ACTION_LABELS: Record<string, string> = {
   PROFILE_CHANGE_REQUESTED: 'درخواست تغییر نام',
   PROFILE_CHANGE_APPROVED: 'تأیید تغییر نام',
   PROFILE_CHANGE_REJECTED: 'رد تغییر نام',
+  PROFILE_PHONE_CHANGE_REQUESTED: 'درخواست تغییر شماره موبایل',
+  PROFILE_EMAIL_CHANGE_REQUESTED: 'درخواست تغییر ایمیل',
   PROFILE_PHONE_CHANGED: 'تغییر شماره موبایل',
   PROFILE_EMAIL_CHANGED: 'تغییر ایمیل',
   USER_PASSWORD_SET: 'ثبت/تغییر رمز عبور',

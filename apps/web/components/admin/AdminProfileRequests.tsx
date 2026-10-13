@@ -8,11 +8,24 @@ import { cn } from '@/lib/utils';
 
 interface ProfileRequest {
   id: string;
-  changes: { fullName?: string };
+  changes: { fullName?: string; phone?: string; email?: string };
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   reason: string | null;
   createdAt: string;
   user: { id: string; email: string; fullName: string | null; role: string };
+}
+
+/** Human labels for the whitelisted change keys. */
+const FIELD_LABEL: Record<'fullName' | 'phone' | 'email', string> = {
+  fullName: 'نام جدید',
+  phone: 'شماره موبایل جدید',
+  email: 'ایمیل جدید',
+};
+
+function changeRows(changes: ProfileRequest['changes']) {
+  return (['fullName', 'phone', 'email'] as const)
+    .filter((key) => changes[key])
+    .map((key) => ({ key, label: FIELD_LABEL[key], value: changes[key] as string }));
 }
 
 const STATUS_LABEL: Record<ProfileRequest['status'], string> = {
@@ -97,9 +110,14 @@ export function AdminProfileRequests() {
                 <p className="font-bold text-ink">
                   {item.user.fullName ?? item.user.email}
                 </p>
-                <p className="mt-1 text-xs text-muted">
-                  نام جدید: <span className="font-bold text-ink">{item.changes.fullName}</span>
-                </p>
+                {changeRows(item.changes).map((row) => (
+                  <p key={row.key} className="mt-1 text-xs text-muted">
+                    {row.label}:{' '}
+                    <span dir="ltr" className="font-bold text-ink">
+                      {row.value}
+                    </span>
+                  </p>
+                ))}
                 {item.reason ? (
                   <p className="mt-1 text-xs text-red-600">دلیل: {item.reason}</p>
                 ) : null}

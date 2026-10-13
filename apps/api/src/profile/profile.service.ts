@@ -13,8 +13,9 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 // Only these profile fields may be changed through a request. Everything else
-// (email, role, password, ...) is intentionally out of scope.
-const ALLOWED_FIELDS = ['fullName'] as const;
+// (role, password, ...) is intentionally out of scope. Phone/email changes are
+// OTP-verified before the request is filed, then need admin approval too.
+const ALLOWED_FIELDS = ['fullName', 'phone', 'email'] as const;
 type AllowedField = (typeof ALLOWED_FIELDS)[number];
 
 function pickAllowed(changes: Prisma.JsonObject): Partial<Record<AllowedField, string>> {
@@ -86,15 +87,7 @@ export class ProfileService {
     if ((user.fullName ?? '') === fullName.trim()) {
       throw new BadRequestException('نام جدید با نام فعلی یکسان است');
     }
-    const existing = await this.prisma.profileChangeRequest.findFirst({
-      where: { userId, status: NewsStatus.PENDING },
-    });
-    if (existing) {
-      throw new BadRequestException('یک درخواست تغییر نام در انتظار بررسی دارید');
-    }
-    const created = await this.prisma.profileChangeRequest.create({
-      data: { userId, changes: { fullName: fullName.trim() } },
-    });
+    const created = await this.fileChangeRequest(userId, { fullName: fullName.trim() });
     await this.notifications.notifyAdmins({
       title: 'درخواست تغییر پروفایل',
       body: `«${user.fullName ?? user.email}» درخواست تغییر نام به «${fullName.trim()}» دارد.`,
@@ -146,9 +139,11 @@ export class ProfileService {
   }
 
   /**
-   * Step 2 of a phone change: check the OTP sent to the new number, then swap
-   * it in. A code to the *current* number is not required because the user is
-   * already authenticated and proving control of the new number is the point.
+   * Step 2 of a phone change: check the OTP sent to the new number, then file a
+   * pending change request. The number is NOT swapped here — the account keeps
+   * its current phone until an admin approves the request. A code to the
+   * *current* number is not required because the user is already authenticated
+   * and proving control of the new number is the point.
    */
   async verifyPhoneChange(userId: string, rawPhone: string, code: string) {
     await this.assertOtpAvailable();
@@ -162,35 +157,23 @@ export class ProfileService {
       throw new ConflictException('این شماره قبلاً ثبت شده است');
     }
     await this.otp.verify(phone, code, 'phone-change');
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { phone, phoneVerified: true },
-    });
-    // Tell the user (and the admin team) that the account's phone changed.
-    await this.notifications.notify({
-      userId,
-      type: NotificationType.SUCCESS,
-      title: 'شماره موبایل تغییر کرد',
-      body: `شماره موبایل حساب شما به ${phone} تغییر یافت.`,
-      link: '/dashboard/profile',
-      actorId: userId,
-    });
+    const request = await this.fileChangeRequest(userId, { phone });
     await this.notifications.notifyAdmins({
       category: 'SECURITY',
-      type: NotificationType.WARNING,
-      title: 'تغییر شماره موبایل کاربر',
-      body: `${me.fullName ?? me.email ?? me.phone} شماره‌ی خود را به ${phone} تغییر داد.`,
-      link: '/admin?section=reports',
+      type: NotificationType.INFO,
+      title: 'درخواست تغییر شماره موبایل',
+      body: `${me.fullName ?? me.email ?? me.phone} درخواست تغییر شماره به ${phone} دارد (کد تأیید شده).`,
+      link: '/admin?section=users',
       actorId: userId,
     });
     await this.activity.log({
       actor: { id: userId },
-      action: 'PROFILE_PHONE_CHANGED',
-      summary: `تغییر شماره موبایل به ${phone}`,
+      action: 'PROFILE_PHONE_CHANGE_REQUESTED',
+      summary: `درخواست تغییر شماره موبایل به ${phone}`,
       entityType: 'USER',
       entityId: userId,
     });
-    return this.me(userId);
+    return { ...request, applied: false };
   }
 
   /**
@@ -240,37 +223,51 @@ export class ProfileService {
       throw new ConflictException('این ایمیل قبلاً ثبت شده است');
     }
     await this.otp.verify(me.phone, code, 'email-change');
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { email },
-    });
-    // Tell the user (and the admin team) that the account's email changed. The
-    // body deliberately includes the *old* address so an unauthorised change is
-    // obvious and reportable.
-    await this.notifications.notify({
-      userId,
-      type: NotificationType.SUCCESS,
-      title: 'ایمیل تغییر کرد',
-      body: `ایمیل حساب شما به ${email} تغییر یافت (ایمیل قبلی: ${me.email ?? '—'}).`,
-      link: '/dashboard/profile',
-      actorId: userId,
-    });
+    const request = await this.fileChangeRequest(userId, { email });
     await this.notifications.notifyAdmins({
       category: 'SECURITY',
-      type: NotificationType.WARNING,
-      title: 'تغییر ایمیل کاربر',
-      body: `${me.fullName ?? me.phone ?? 'کاربر'} ایمیل خود را از ${me.email ?? '—'} به ${email} تغییر داد.`,
-      link: '/admin?section=reports',
+      type: NotificationType.INFO,
+      title: 'درخواست تغییر ایمیل',
+      body: `${me.fullName ?? me.phone ?? 'کاربر'} درخواست تغییر ایمیل از ${me.email ?? '—'} به ${email} دارد (کد تأیید شده).`,
+      link: '/admin?section=users',
       actorId: userId,
     });
     await this.activity.log({
       actor: { id: userId, email: me.email },
-      action: 'PROFILE_EMAIL_CHANGED',
-      summary: `تغییر ایمیل به ${email}`,
+      action: 'PROFILE_EMAIL_CHANGE_REQUESTED',
+      summary: `درخواست تغییر ایمیل به ${email}`,
       entityType: 'USER',
       entityId: userId,
     });
-    return this.me(userId);
+    return { ...request, applied: false };
+  }
+
+  /**
+   * Files the single PENDING change request for a user. When one already exists
+   * its changes are merged with the new ones (a user may, for example, verify a
+   * phone and an email while the admin has not reviewed the first request yet),
+   * so the queue never contains more than one open request per user.
+   */
+  private async fileChangeRequest(
+    userId: string,
+    changes: Partial<Record<AllowedField, string>>,
+  ) {
+    const existing = await this.prisma.profileChangeRequest.findFirst({
+      where: { userId, status: NewsStatus.PENDING },
+    });
+    if (existing) {
+      const merged = {
+        ...(existing.changes as Prisma.JsonObject),
+        ...changes,
+      } as Prisma.InputJsonValue;
+      return this.prisma.profileChangeRequest.update({
+        where: { id: existing.id },
+        data: { changes: merged },
+      });
+    }
+    return this.prisma.profileChangeRequest.create({
+      data: { userId, changes },
+    });
   }
 
   // ----- admin -----
@@ -299,21 +296,60 @@ export class ProfileService {
     const approved = decision === NewsStatus.APPROVED;
     const picked = pickAllowed(request.changes as Prisma.JsonObject);
 
+    // Re-check uniqueness at approval time: another account may have claimed the
+    // new phone/email while this request was pending.
+    if (approved) {
+      if (picked.phone) {
+        const owner = await this.prisma.user.findUnique({
+          where: { phone: picked.phone },
+        });
+        if (owner && owner.id !== request.userId) {
+          throw new ConflictException(
+            'این شماره از زمان ثبت درخواست توسط کاربر دیگری ثبت شده است',
+          );
+        }
+      }
+      if (picked.email) {
+        const owner = await this.prisma.user.findUnique({
+          where: { email: picked.email },
+        });
+        if (owner && owner.id !== request.userId) {
+          throw new ConflictException(
+            'این ایمیل از زمان ثبت درخواست توسط کاربر دیگری ثبت شده است',
+          );
+        }
+      }
+    }
+
+    // A verified phone change also marks the new number as phone-verified.
+    const appliedData: Prisma.UserUpdateInput = {
+      ...picked,
+      ...(approved && picked.phone ? { phoneVerified: true } : {}),
+    };
+
     await this.prisma.$transaction([
       this.prisma.profileChangeRequest.update({
         where: { id },
         data: { status: decision, reason: reason ?? null, decidedAt: new Date() },
       }),
       ...(approved && Object.keys(picked).length > 0
-        ? [this.prisma.user.update({ where: { id: request.userId }, data: picked })]
+        ? [this.prisma.user.update({ where: { id: request.userId }, data: appliedData })]
         : []),
     ]);
+
+    const changedLabels = [
+      picked.fullName ? 'نام' : null,
+      picked.phone ? 'شماره موبایل' : null,
+      picked.email ? 'ایمیل' : null,
+    ].filter(Boolean) as string[];
 
     await this.notifications.notify({
       userId: request.userId,
       title: approved ? 'تغییر پروفایل تأیید شد' : 'درخواست تغییر پروفایل رد شد',
       body: approved
-        ? 'تغییرات پروفایل شما اعمال شد.'
+        ? changedLabels.length
+          ? `تغییر ${changedLabels.join(' و ')} شما تأیید و اعمال شد.`
+          : 'تغییرات پروفایل شما اعمال شد.'
         : reason
           ? `درخواست شما رد شد: ${reason}`
           : 'درخواست تغییر پروفایل شما رد شد.',
@@ -321,10 +357,20 @@ export class ProfileService {
       link: '/dashboard/profile',
       actorId: adminId,
     });
+    if (approved) {
+      await this.notifications.notifyAdmins({
+        category: 'SECURITY',
+        type: NotificationType.SUCCESS,
+        title: 'تغییر تماس کاربر تأیید شد',
+        body: `تغییر ${changedLabels.join(' و ') || 'پروفایل'} برای «${request.user.fullName ?? request.user.email}» اعمال شد.`,
+        link: '/admin?section=reports',
+        actorId: adminId,
+      });
+    }
     await this.activity.log({
       actor: { id: adminId },
       action: approved ? 'PROFILE_CHANGE_APPROVED' : 'PROFILE_CHANGE_REJECTED',
-      summary: `${approved ? 'تأیید' : 'رد'} تغییر پروفایل «${request.user.fullName ?? request.user.email}»`,
+      summary: `${approved ? 'تأیید' : 'رد'} تغییر ${changedLabels.join(' و ') || 'پروفایل'} «${request.user.fullName ?? request.user.email}»`,
       entityType: 'USER',
       entityId: request.userId,
     });

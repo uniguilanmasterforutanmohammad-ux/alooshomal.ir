@@ -19,7 +19,7 @@ import { ContactChangePanel } from './ContactChangePanel';
 
 interface ProfileChangeRequest {
   id: string;
-  changes: { fullName?: string };
+  changes: { fullName?: string; phone?: string; email?: string };
   status: 'PENDING' | 'APPROVED' | 'REJECTED';
   reason: string | null;
   createdAt: string;
@@ -153,7 +153,7 @@ export function ProfilePanel() {
           نام جدید پس از تأیید مدیر اعمال می‌شود. تا آن زمان نام فعلی نمایش داده می‌شود.
         </p>
 
-        {pending ? (
+        {pending?.changes.fullName ? (
           <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
             درخواست تغییر نام به «{pending.changes.fullName}» در انتظار تأیید مدیر است.
           </div>
@@ -179,10 +179,15 @@ export function ProfilePanel() {
         )}
       </div>
 
-      <ContactChangePanel kind="phone" onChanged={load} />
+      <ContactChangePanel
+        kind="phone"
+        pendingValue={pending?.changes.phone}
+        onChanged={load}
+      />
       <ContactChangePanel
         kind="email"
         disabled={!profile.phone}
+        pendingValue={pending?.changes.email}
         onChanged={load}
       />
 
