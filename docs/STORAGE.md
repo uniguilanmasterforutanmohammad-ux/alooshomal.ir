@@ -244,6 +244,7 @@ MINIO_PUBLIC_URL=https://media.alooshomal.ir
 | `MINIO_PUBLIC_URL` | `http://localhost:9000` (لوکال) / `https://alooshomal.ir/media` (پروداکشن) | مبنای URL عمومی تصاویر |
 | `MINIO_IMAGE` | ایمیج آینه‌شده در GHCR (پروداکشن) / `pgsty/silo:…` (لوکال) | ایمیج سرویس `minio` |
 | `MINIO_ENABLED` | `true` | اگر `false` شود، ذخیره‌سازی غیرفعال می‌شود |
+| `MINIO_DATA_DIR` | `/var/lib/docker/volumes/alooshomal_minio_data/_data` | مسیر فیزیکی باکت روی هاست؛ فقط برای نمایش در پنل «فضای سرور» استفاده می‌شود |
 
 پورت‌های کنسول و API فقط در حالت **توسعه** به هاست publish می‌شوند
 (`MINIO_PORT`/`MINIO_CONSOLE_PORT` در `docker-compose.yml`).

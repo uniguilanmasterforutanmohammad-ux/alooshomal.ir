@@ -1,12 +1,45 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Client as MinioClient } from 'minio';
+import { BucketItem, Client as MinioClient } from 'minio';
+
+import { UPLOAD_CATEGORIES } from './uploads.constants';
 
 export interface StoredObject {
   /** public URL the browser can load the object from */
   url: string;
   /** object key inside the bucket (path within the storage root) */
   key: string;
+}
+
+/** A per-folder slice of the bucket, used by the admin storage panel. */
+export interface StorageFolderUsage {
+  /** top-level folder inside the bucket, e.g. `logos` */
+  folder: string;
+  /** Persian label when the folder maps to a known upload category */
+  label: string;
+  /** number of objects stored under this folder */
+  count: number;
+  /** total bytes stored under this folder */
+  bytes: number;
+}
+
+export interface StorageUsage {
+  /** whether the object-storage backend is enabled */
+  enabled: boolean;
+  /** bucket name */
+  bucket: string;
+  /** S3 endpoint host:port the API talks to */
+  endpoint: string;
+  /** browser-facing base URL used to build object URLs */
+  publicBaseUrl: string;
+  /** physical host path of the bucket data (best-effort, from config) */
+  dataDir: string;
+  /** number of stored objects */
+  objectCount: number;
+  /** total bytes stored in the bucket */
+  totalBytes: number;
+  /** usage grouped by top-level folder, largest first */
+  folders: StorageFolderUsage[];
 }
 
 /**
@@ -28,6 +61,8 @@ export class StorageService implements OnModuleInit {
   private readonly client: MinioClient;
   private readonly bucket: string;
   private readonly publicBase: string;
+  private readonly endpoint: string;
+  private readonly dataDir: string;
   private readonly enabled: boolean;
   private ready = false;
 
@@ -37,6 +72,15 @@ export class StorageService implements OnModuleInit {
     const useSSL = this.config.get<string>('MINIO_USE_SSL', 'false') === 'true';
     this.bucket = this.config.get<string>('MINIO_BUCKET', 'alooshomal');
     this.enabled = this.config.get<string>('MINIO_ENABLED', 'true') !== 'false';
+    this.endpoint = `${useSSL ? 'https' : 'http'}://${endPoint}:${port}`;
+    // Physical path of the bucket on the host. The MinIO service mounts the
+    // `alooshomal_minio_data` named volume at /data, so inside the API container
+    // this only resolves when that volume is also mounted — otherwise it is a
+    // hint for the operator and the per-folder byte totals below stay accurate.
+    this.dataDir = this.config.get<string>(
+      'MINIO_DATA_DIR',
+      `/var/lib/docker/volumes/alooshomal_minio_data/_data`,
+    );
 
     this.client = new MinioClient({
       endPoint,
@@ -142,5 +186,69 @@ export class StorageService implements OnModuleInit {
     if (!url) return null;
     const prefix = `${this.publicBase}/${this.bucket}/`;
     return url.startsWith(prefix) ? url.slice(prefix.length) : null;
+  }
+
+  /**
+   * Walk the whole bucket and aggregate stored bytes by top-level folder.
+   *
+   * Object storage has no cheap "disk usage" call, so this lists every object
+   * (recursively) and sums the sizes. The bucket holds only processed WebP
+   * images, so the walk stays small even for large sites; the result feeds the
+   * admin storage panel.
+   */
+  async usage(): Promise<StorageUsage> {
+    const base: StorageUsage = {
+      enabled: this.enabled,
+      bucket: this.bucket,
+      endpoint: this.endpoint,
+      publicBaseUrl: this.publicBase,
+      dataDir: this.dataDir,
+      objectCount: 0,
+      totalBytes: 0,
+      folders: [],
+    };
+
+    if (!this.enabled || !this.ready) {
+      return base;
+    }
+
+    // Folder name → Persian label, so known categories show a friendly name.
+    const labels = new Map<string, string>();
+    for (const category of Object.values(UPLOAD_CATEGORIES)) {
+      labels.set(category.folder, category.label);
+    }
+
+    const byFolder = new Map<string, StorageFolderUsage>();
+    let objectCount = 0;
+    let totalBytes = 0;
+
+    await new Promise<void>((resolve, reject) => {
+      const stream = this.client.listObjectsV2(this.bucket, '', true);
+      stream.on('data', (item: BucketItem) => {
+        const key = item.name;
+        if (!key || typeof item.size !== 'number') return;
+        const folder = key.includes('/') ? key.slice(0, key.indexOf('/')) : '(root)';
+        const slice = byFolder.get(folder) ?? {
+          folder,
+          label: labels.get(folder) ?? folder,
+          count: 0,
+          bytes: 0,
+        };
+        slice.count += 1;
+        slice.bytes += item.size;
+        byFolder.set(folder, slice);
+        objectCount += 1;
+        totalBytes += item.size;
+      });
+      stream.on('error', reject);
+      stream.on('end', resolve);
+    });
+
+    return {
+      ...base,
+      objectCount,
+      totalBytes,
+      folders: [...byFolder.values()].sort((a, b) => b.bytes - a.bytes),
+    };
   }
 }

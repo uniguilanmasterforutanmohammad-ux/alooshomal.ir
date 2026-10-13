@@ -66,6 +66,14 @@ export class AdminController {
     return this.adminService.stats();
   }
 
+  @Get('storage')
+  @ApiOperation({
+    summary: 'وضعیت ذخیره‌سازی رسانه (حجم آپلودها) و فضای دیسک سرور',
+  })
+  storage() {
+    return this.adminService.storageOverview();
+  }
+
   @Get('overview')
   @ApiOperation({ summary: 'نمای کلی پلتفرم برای داشبورد مدیر' })
   async overview() {

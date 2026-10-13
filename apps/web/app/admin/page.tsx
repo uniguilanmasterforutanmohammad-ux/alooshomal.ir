@@ -18,6 +18,7 @@ import { AdminNewsPanel } from '@/components/admin/AdminNewsPanel';
 import { AdminProfileRequests } from '@/components/admin/AdminProfileRequests';
 import { AdminPermissionsMatrix } from '@/components/admin/AdminPermissionsMatrix';
 import { AdminNewsSettings } from '@/components/admin/AdminNewsSettings';
+import { AdminStoragePanel } from '@/components/admin/AdminStoragePanel';
 import { ActivityLogPanel } from '@/components/admin/ActivityLogPanel';
 import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
 import { BiolinkLiveEditor } from '@/components/admin/BiolinkLiveEditor';
@@ -85,6 +86,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'tickets',
   'news',
   'permissions',
+  'storage',
   'reports',
   'tools',
   'notifications',
@@ -318,6 +320,10 @@ function AdminContent() {
     permissions: {
       title: 'سطوح دسترسی',
       sub: 'تعیین دسترسی هر نقش به امکانات پلتفرم',
+    },
+    storage: {
+      title: 'فضای سرور',
+      sub: 'حجم آپلودهای رسانه، ریشه‌ی باکت و فضای هارد دیسک سرور',
     },
     reports: { title: 'گزارش‌ها', sub: 'گزارش‌های سیستم' },
     tools: { title: 'ابزار تست', sub: 'ایمپورت گروهی، حذف داده‌های تستی و قفل ساخت' },
@@ -633,6 +639,8 @@ function AdminContent() {
       {section === 'news' ? <AdminNewsPanel /> : null}
 
       {section === 'permissions' ? <AdminPermissionsMatrix /> : null}
+
+      {section === 'storage' ? <AdminStoragePanel /> : null}
 
       {section === 'notifications' ? <NotificationsInbox scope="admin" /> : null}
 

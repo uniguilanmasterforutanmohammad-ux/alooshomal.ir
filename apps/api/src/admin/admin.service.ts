@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { statfs } from 'node:fs/promises';
 import {
   BiolinkStatus,
   ModerationDecision,
@@ -18,6 +19,7 @@ import { FacetsCacheService } from '../common/facets-cache.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
+import { StorageService } from '../uploads/storage.service';
 import { ModerateBiolinkDto } from './dto/moderate-biolink.dto';
 
 @Injectable()
@@ -28,6 +30,7 @@ export class AdminService {
     private readonly settings: SettingsService,
     private readonly activity: ActivityService,
     private readonly facetsCache: FacetsCacheService,
+    private readonly storage: StorageService,
   ) {}
 
   async listBiolinks(pagination: PaginationDto, status?: BiolinkStatus) {
@@ -336,6 +339,49 @@ export class AdminService {
       totalTickets,
       recentUsers,
     };
+  }
+
+  /**
+   * Storage + server disk snapshot for the admin storage panel.
+   *
+   * `storage` comes from walking the object-storage bucket (accurate byte
+   * totals per upload folder). `disk` reports the filesystem the API container
+   * lives on — inside Docker this is the host disk (overlay), so it is a good
+   * proxy for "server total / free space".
+   */
+  async storageOverview() {
+    const [storage, disk] = await Promise.all([
+      this.storage.usage(),
+      this.diskStats(),
+    ]);
+    return { storage, disk };
+  }
+
+  private async diskStats(): Promise<{
+    path: string;
+    totalBytes: number;
+    freeBytes: number;
+    usedBytes: number;
+  } | null> {
+    // `/` is the container root; the overlay fs reports the underlying host
+    // disk's capacity, which is what an operator wants to see.
+    const candidates = ['/'];
+    for (const path of candidates) {
+      try {
+        const stats = await statfs(path);
+        const totalBytes = Number(stats.blocks) * Number(stats.bsize);
+        const freeBytes = Number(stats.bavail) * Number(stats.bsize);
+        return {
+          path,
+          totalBytes,
+          freeBytes,
+          usedBytes: Math.max(0, totalBytes - freeBytes),
+        };
+      } catch {
+        // try the next candidate
+      }
+    }
+    return null;
   }
 
   async recentUsers(limit = 6) {
