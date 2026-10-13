@@ -17,6 +17,7 @@ import type { Request } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { OptionalAuth } from '../common/decorators/optional-auth.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { PaginationDto } from '../common/dto/pagination.dto';
 import { RequirePermission } from '../auth/permissions.decorator';
 import { visitorKeyFrom } from '../common/visitor-key';
 import { BiolinksService } from './biolinks.service';
@@ -39,9 +40,9 @@ export class BiolinksController {
 
   @Get('mine')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'بیولینک‌های من' })
-  mine(@CurrentUser() user: AuthUser) {
-    return this.biolinksService.findMyBiolinks(user.id);
+  @ApiOperation({ summary: 'بیولینک‌های من (صفحه‌بندی‌شده)' })
+  mine(@CurrentUser() user: AuthUser, @Query() query: PaginationDto) {
+    return this.biolinksService.findMyBiolinks(user.id, query.page, query.limit);
   }
 
   @Get('id/:id')
@@ -113,9 +114,9 @@ export class BiolinksController {
 
   @Get('saved/mine')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'بیولینک‌های ذخیره‌شده من' })
-  savedMine(@CurrentUser() user: AuthUser) {
-    return this.biolinksService.findMySaved(user.id);
+  @ApiOperation({ summary: 'بیولینک‌های ذخیره‌شده من (صفحه‌بندی‌شده)' })
+  savedMine(@CurrentUser() user: AuthUser, @Query() query: PaginationDto) {
+    return this.biolinksService.findMySaved(user.id, query.page, query.limit);
   }
 
   @Post('public/:slug/save')

@@ -7,7 +7,7 @@ import { BadgeCheck, IdCard, Plus, Trash2 } from 'lucide-react';
 
 import { BiolinkStatusBadge } from '@/components/biolink/BiolinkStatusBadge';
 import { BusinessCardStatusBadge } from '@/components/businesscard/BusinessCardStatusBadge';
-import { api, type Biolink, type BusinessCard } from '@/lib/api';
+import { api, type Biolink, type BusinessCard, type Paged } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
 /**
@@ -27,11 +27,11 @@ export default function MyCardsPage() {
     setLoading(true);
     try {
       const [links, cards] = await Promise.all([
-        api.get<Biolink[]>('/biolinks/mine'),
-        api.get<BusinessCard[]>('/business-cards/mine'),
+        api.get<Paged<Biolink>>('/biolinks/mine'),
+        api.get<Paged<BusinessCard>>('/business-cards/mine'),
       ]);
-      setBiolinks(links);
-      setBusinessCards(cards);
+      setBiolinks(links.items);
+      setBusinessCards(cards.items);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری');
     } finally {

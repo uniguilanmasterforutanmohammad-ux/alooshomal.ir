@@ -15,7 +15,7 @@ import {
 
 import { BiolinkStatusBadge } from '@/components/biolink/BiolinkStatusBadge';
 import { BusinessCardStatusBadge } from '@/components/businesscard/BusinessCardStatusBadge';
-import { api, type Biolink, type BusinessCard } from '@/lib/api';
+import { api, type Biolink, type BusinessCard, type Paged } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
 interface TicketSummary {
@@ -75,12 +75,12 @@ export default function DashboardPage() {
   const load = useCallback(async () => {
     try {
       const [mine, cards, ticketSummary] = await Promise.all([
-        api.get<Biolink[]>('/biolinks/mine'),
-        api.get<BusinessCard[]>('/business-cards/mine'),
+        api.get<Paged<Biolink>>('/biolinks/mine'),
+        api.get<Paged<BusinessCard>>('/business-cards/mine'),
         api.get<TicketSummary>('/tickets/mine/summary'),
       ]);
-      setBiolinks(mine);
-      setBusinessCards(cards);
+      setBiolinks(mine.items);
+      setBusinessCards(cards.items);
       setSummary(ticketSummary);
     } catch {
       setBiolinks([]);

@@ -20,7 +20,46 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.15.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.16.0**.
+
+## ۱۴۰۵/۰۷/۲۱ — صفحه‌بندی فهرست‌های کاربر + کنترل ادمین بر تعداد نمایش — نسخه `v2.16.0`
+
+**هدف:** در `/dashboard/biolinks`، `/dashboard/business-cards`، `/dashboard/saved` و
+`/dashboard/boost` فهرست کارت‌ها صفحه‌بندی شود (سرور-ساید) و ادمین بتواند تعداد
+نمایش در هر صفحه را از پنل مدیریت کنترل کند.
+
+**تغییرات:**
+- `apps/api/src/settings/settings.service.ts` و `settings.controller.ts`: کلید جدید
+  `myListPageSize` (پیش‌فرض ۱۲) + getter/setter، ثبت در `ensureDefaults`، پذیرش در
+  DTO ادمین و خروجی در `GET /settings/public` و `GET /admin/settings`.
+- `apps/api/src/biolinks/biolinks.service.ts` و `business-cards.service.ts`:
+  `findMyBiolinks`/`findMyBusinessCards`/`findMySaved` اکنون صفحه‌بندی‌شده و
+  `{ items, meta }` برمی‌گردانند (`skip/take` + `count`)، با اندازهٔ صفحه از
+  `getMyListPageSize`.
+- `apps/api/src/boosts/boosts.service.ts` + `boosts.module.ts`: `overview` صفحه‌بندی‌شده
+  (هر نوع جداگانه) + `meta`؛ تزریق `SettingsModule`/`SettingsService`.
+- کنترلرهای مربوطه: افزودن `@Query() PaginationDto` و پاس‌دادن `page`/`limit`.
+- `apps/web/lib/api.ts`: افزودن تایپ `Paged<T>` و `meta` در `BoostOverview`.
+- `apps/web/app/dashboard/{biolinks,business-cards,saved,boost}/page.tsx`: مصرف پاسخ
+  صفحه‌بندی‌شده و افزودن کامپوننت `Pagination` (در «ذخیره‌شده» و «افزایش بازدید»
+  هر بخش/هر نوع جداگانه).
+- `apps/web/app/dashboard/page.tsx` و `cards/page.tsx`: به‌روزرسانی مصرف‌کننده‌های
+  `mine` برای ساختار جدید `{ items, meta }`.
+- `apps/web/components/admin/AdminDirectorySettings.tsx`: فیلد «تعداد هر صفحه
+  کارت‌های من» و ذخیره‌ی `myListPageSize`.
+
+**تأیید/تست:**
+- `apps/web`: `tsc --noEmit` بدون خطا؛ `apps/api`: `tsc -p tsconfig.build.json`
+  فقط خطاهای از قبل موجود (نبود `exceljs`/`ioredis` محلی) را نشان می‌دهد و
+  تغییرات این تسک خطا ندارند.
+- تست API با `curl` روی سرور محلی: با ساخت ۲۶ بیولینک، `/biolinks/mine` سه صفحه
+  `12/12/2` برگرداند و `meta` درست بود؛ پس از `PATCH /admin/settings` با
+  `myListPageSize=5` همان درخواست `limit=5` و ۶ صفحه شد (کنترل ادمین زنده).
+  `/boosts/overview` و `/saved/mine` هم `meta` صحیح دادند.
+- تست UI با Playwright: `/dashboard/biolinks` با ۱۲ کارت و کنترل صفحه‌بندی رندر شد و
+  دکمهٔ «بعدی» صفحه را عوض کرد؛ `/dashboard/boost` هم صفحه‌بندی داشت؛
+  `/dashboard/business-cards` و `/dashboard/saved` بدون خطا بارگذاری شدند؛ و در
+  تب «تنظیمات» پنل ادمین برچسب «تعداد هر صفحه کارت‌های من» نمایش داده شد.
 
 ## ۱۴۰۵/۰۷/۲۱ — ساخت کارت به‌صورت «تم‌اول» با ویرایش مستقیم روی پیش‌نمایش — نسخه `v2.15.0`
 

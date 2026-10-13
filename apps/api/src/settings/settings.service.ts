@@ -6,6 +6,9 @@ export const DIRECTORY_PAGE_SIZE_KEY = 'directoryPageSize';
 export const DEFAULT_DIRECTORY_PAGE_SIZE = 10;
 export const ADMIN_LIST_PAGE_SIZE_KEY = 'adminListPageSize';
 export const DEFAULT_ADMIN_LIST_PAGE_SIZE = 10;
+/** Page size for the user's own lists (my biolinks / cards / saved / boost). */
+export const MY_LIST_PAGE_SIZE_KEY = 'myListPageSize';
+export const DEFAULT_MY_LIST_PAGE_SIZE = 12;
 
 /** How many months of system activity logs to keep (older rows are pruned). */
 export const ACTIVITY_RETENTION_MONTHS_KEY = 'activityRetentionMonths';
@@ -101,6 +104,14 @@ export class SettingsService implements OnModuleInit {
         create: {
           key: ADMIN_LIST_PAGE_SIZE_KEY,
           value: String(DEFAULT_ADMIN_LIST_PAGE_SIZE),
+        },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: MY_LIST_PAGE_SIZE_KEY },
+        update: {},
+        create: {
+          key: MY_LIST_PAGE_SIZE_KEY,
+          value: String(DEFAULT_MY_LIST_PAGE_SIZE),
         },
       }),
       this.prisma.setting.upsert({
@@ -231,6 +242,27 @@ export class SettingsService implements OnModuleInit {
       where: { key: ADMIN_LIST_PAGE_SIZE_KEY },
       update: { value: String(clamped) },
       create: { key: ADMIN_LIST_PAGE_SIZE_KEY, value: String(clamped) },
+    });
+    return clamped;
+  }
+
+  /** Page size for the signed-in user's own card lists. */
+  async getMyListPageSize(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: MY_LIST_PAGE_SIZE_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed > 0 && parsed <= 100
+      ? Math.floor(parsed)
+      : DEFAULT_MY_LIST_PAGE_SIZE;
+  }
+
+  async setMyListPageSize(value: number): Promise<number> {
+    const clamped = Math.min(100, Math.max(1, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: MY_LIST_PAGE_SIZE_KEY },
+      update: { value: String(clamped) },
+      create: { key: MY_LIST_PAGE_SIZE_KEY, value: String(clamped) },
     });
     return clamped;
   }

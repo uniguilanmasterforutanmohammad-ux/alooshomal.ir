@@ -8,6 +8,7 @@ import { api } from '@/lib/api';
 interface SettingsPayload {
   directoryPageSize: number;
   adminListPageSize: number;
+  myListPageSize: number;
 }
 
 /**
@@ -18,6 +19,7 @@ interface SettingsPayload {
 export function AdminDirectorySettings() {
   const [value, setValue] = useState('');
   const [adminValue, setAdminValue] = useState('');
+  const [myValue, setMyValue] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +32,7 @@ export function AdminDirectorySettings() {
       const result = await api.get<SettingsPayload>('/admin/settings');
       setValue(String(result.directoryPageSize));
       setAdminValue(String(result.adminListPageSize));
+      setMyValue(String(result.myListPageSize));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری تنظیمات');
     } finally {
@@ -53,6 +56,11 @@ export function AdminDirectorySettings() {
       setError('عدد باید بین ۱ تا ۱۰۰ باشد');
       return;
     }
+    const parsedMy = Number(myValue);
+    if (!Number.isInteger(parsedMy) || parsedMy < 1 || parsedMy > 100) {
+      setError('عدد باید بین ۱ تا ۱۰۰ باشد');
+      return;
+    }
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -60,9 +68,11 @@ export function AdminDirectorySettings() {
       const result = await api.patch<SettingsPayload>('/admin/settings', {
         directoryPageSize: parsed,
         adminListPageSize: parsedAdmin,
+        myListPageSize: parsedMy,
       });
       setValue(String(result.directoryPageSize));
       setAdminValue(String(result.adminListPageSize));
+      setMyValue(String(result.myListPageSize));
       setMessage('تنظیمات ذخیره شد.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره تنظیمات ناموفق بود');
@@ -78,8 +88,9 @@ export function AdminDirectorySettings() {
         <h3 className="text-sm font-extrabold text-ink">نمایش دایرکتوری</h3>
       </div>
       <p className="mt-1 text-xs text-muted">
-        تعداد کارت‌ها و بیولینک‌های نمایش‌داده‌شده در هر صفحه از دایرکتوری‌ها و فهرست‌های
-        پنل مدیریت. فقط همین تعداد از سرور خوانده می‌شود تا صفحات سریع بمانند.
+        تعداد کارت‌ها و بیولینک‌های نمایش‌داده‌شده در هر صفحه از دایرکتوری‌های عمومی،
+        فهرست‌های پنل مدیریت و فهرست‌های «کارت‌های من / ذخیره‌شده‌ها / افزایش بازدید».
+        فقط همین تعداد از سرور خوانده می‌شود تا صفحات سریع بمانند.
       </p>
 
       {loading ? (
@@ -107,6 +118,18 @@ export function AdminDirectorySettings() {
               dir="ltr"
               value={adminValue}
               onChange={(event) => setAdminValue(event.target.value)}
+              className="w-32 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-brand"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-bold text-muted">
+            تعداد هر صفحه «کارت‌های من»
+            <input
+              type="number"
+              min={1}
+              max={100}
+              dir="ltr"
+              value={myValue}
+              onChange={(event) => setMyValue(event.target.value)}
               className="w-32 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-brand"
             />
           </label>

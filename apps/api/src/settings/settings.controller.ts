@@ -30,6 +30,13 @@ class UpdateSettingsDto {
   adminListPageSize?: number;
 
   @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  myListPageSize?: number;
+
+  @IsOptional()
   adminNotifications?: Partial<Record<AdminNotifyCategory, boolean>>;
 
   @IsOptional()
@@ -65,6 +72,7 @@ export class SettingsController {
     const locks = await this.settingsService.getCreationLocks();
     return {
       directoryPageSize: await this.settingsService.getDirectoryPageSize(),
+      myListPageSize: await this.settingsService.getMyListPageSize(),
       ...locks,
     };
   }
@@ -87,6 +95,7 @@ export class AdminSettingsController {
       ...all,
       directoryPageSize: await this.settingsService.getDirectoryPageSize(),
       adminListPageSize: await this.settingsService.getAdminListPageSize(),
+      myListPageSize: await this.settingsService.getMyListPageSize(),
       adminNotifications: await this.settingsService.getAdminNotifyPrefs(),
       newsHeadlineCount: await this.settingsService.getNewsHeadlineCount(),
       newsAccessLevel: await this.settingsService.getNewsAccessLevel(),
@@ -100,6 +109,7 @@ export class AdminSettingsController {
     const result: {
       directoryPageSize?: number;
       adminListPageSize?: number;
+      myListPageSize?: number;
       adminNotifications?: Record<AdminNotifyCategory, boolean>;
       allowBiolinkCreation?: boolean;
       allowBusinessCardCreation?: boolean;
@@ -114,6 +124,11 @@ export class AdminSettingsController {
     if (dto.adminListPageSize !== undefined) {
       result.adminListPageSize = await this.settingsService.setAdminListPageSize(
         dto.adminListPageSize,
+      );
+    }
+    if (dto.myListPageSize !== undefined) {
+      result.myListPageSize = await this.settingsService.setMyListPageSize(
+        dto.myListPageSize,
       );
     }
     if (dto.adminNotifications !== undefined) {

@@ -18,6 +18,7 @@ import { FacetsCacheService } from '../common/facets-cache.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BiolinksService } from '../biolinks/biolinks.service';
 import { BusinessCardsService } from '../businesscards/business-cards.service';
+import { SettingsService } from '../settings/settings.service';
 import { CreateBoostDto } from './dto/create-boost.dto';
 import { DecideBoostDto } from './dto/decide-boost.dto';
 
@@ -33,11 +34,19 @@ export class BoostsService {
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
     private readonly facetsCache: FacetsCacheService,
+    private readonly settings: SettingsService,
   ) {}
 
-  /** Overview for the user's "افزایش بازدید" (increase visits) dashboard page. */
-  async overview(userId: string) {
-    const [biolinks, businessCards, requests] = await Promise.all([
+  /**
+   * Overview for the user's "افزایش بازدید" (increase visits) dashboard page.
+   * Each kind is paginated with the admin-controlled `myListPageSize` setting.
+   */
+  async overview(userId: string, page = 1, limitOverride?: number) {
+    const limit = limitOverride ?? (await this.settings.getMyListPageSize());
+    const currentPage = Math.max(1, page);
+    const skip = (currentPage - 1) * limit;
+
+    const [biolinks, biolinkTotal, businessCards, cardTotal] = await Promise.all([
       this.prisma.biolink.findMany({
         where: { userId },
         select: {
@@ -50,7 +59,10 @@ export class BoostsService {
           _count: { select: { scanEvents: true, likes: true } },
         },
         orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
       }),
+      this.prisma.biolink.count({ where: { userId } }),
       this.prisma.businessCard.findMany({
         where: { userId },
         select: {
@@ -63,13 +75,23 @@ export class BoostsService {
           _count: { select: { scans: true, likes: true } },
         },
         orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
       }),
-      this.prisma.boostRequest.findMany({
-        where: { userId },
-        orderBy: { requestedAt: 'desc' },
-        take: 50,
-      }),
+      this.prisma.businessCard.count({ where: { userId } }),
     ]);
+
+    const pageTargetIds = [
+      ...biolinks.map((item) => item.id),
+      ...businessCards.map((item) => item.id),
+    ];
+    const requests = await this.prisma.boostRequest.findMany({
+      where: {
+        userId,
+        ...(pageTargetIds.length ? { targetId: { in: pageTargetIds } } : {}),
+      },
+      orderBy: { requestedAt: 'desc' },
+    });
 
     const [biolinkRanks, cardRanks] = await Promise.all([
       Promise.all(biolinks.map((item) => this.biolinks.directoryRank(item.id))),
@@ -106,6 +128,16 @@ export class BoostsService {
         lastBoostedAt: approvedByTarget.get(`BUSINESS_CARD:${item.id}`) ?? null,
       })),
       requests,
+      meta: {
+        page: currentPage,
+        limit,
+        biolinkTotal,
+        biolinkTotalPages: Math.max(1, Math.ceil(biolinkTotal / limit)),
+        cardTotal,
+        cardTotalPages: Math.max(1, Math.ceil(cardTotal / limit)),
+        hasNext: currentPage * limit < Math.max(biolinkTotal, cardTotal),
+        hasPrev: currentPage > 1,
+      },
     };
   }
 

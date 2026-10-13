@@ -7,27 +7,32 @@ import { Plus, Trash2 } from 'lucide-react';
 
 import { BiolinkStatusBadge } from '@/components/biolink/BiolinkStatusBadge';
 import { CardStatsBar } from '@/components/dashboard/CardStatsBar';
-import { api, type Biolink } from '@/lib/api';
+import { Pagination } from '@/components/ui/Pagination';
+import { api, type Biolink, type Paged } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
 export default function MyBiolinksPage() {
   const router = useRouter();
   const { token, hydrated } = useAuth();
   const [biolinks, setBiolinks] = useState<Biolink[]>([]);
+  const [meta, setMeta] = useState<Paged<Biolink>['meta'] | null>(null);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
-      const data = await api.get<Biolink[]>('/biolinks/mine');
-      setBiolinks(data);
+      const data = await api.get<Paged<Biolink>>(`/biolinks/mine?page=${page}`);
+      setBiolinks(data.items);
+      setMeta(data.meta);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     if (!hydrated) {
@@ -87,6 +92,7 @@ export default function MyBiolinksPage() {
           </Link>
         </div>
       ) : (
+        <>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {biolinks.map((biolink) => (
             <div key={biolink.id} className="indeed-panel p-5">
@@ -143,6 +149,8 @@ export default function MyBiolinksPage() {
             </div>
           ))}
         </div>
+        {meta ? <Pagination meta={meta} onPage={setPage} /> : null}
+        </>
       )}
     </div>
   );

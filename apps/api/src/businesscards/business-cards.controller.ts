@@ -17,6 +17,7 @@ import type { Request } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { OptionalAuth } from '../common/decorators/optional-auth.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { PaginationDto } from '../common/dto/pagination.dto';
 import { RequirePermission } from '../auth/permissions.decorator';
 import { visitorKeyFrom } from '../common/visitor-key';
 import { BusinessCardsService } from './business-cards.service';
@@ -39,9 +40,9 @@ export class BusinessCardsController {
 
   @Get('mine')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'کارت ویزیت‌های من' })
-  mine(@CurrentUser() user: AuthUser) {
-    return this.businessCardsService.findMyBusinessCards(user.id);
+  @ApiOperation({ summary: 'کارت ویزیت‌های من (صفحه‌بندی‌شده)' })
+  mine(@CurrentUser() user: AuthUser, @Query() query: PaginationDto) {
+    return this.businessCardsService.findMyBusinessCards(user.id, query.page, query.limit);
   }
 
   @Get('id/:id')
@@ -113,9 +114,9 @@ export class BusinessCardsController {
 
   @Get('saved/mine')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'کارت‌های ویزیت ذخیره‌شده من' })
-  savedMine(@CurrentUser() user: AuthUser) {
-    return this.businessCardsService.findMySaved(user.id);
+  @ApiOperation({ summary: 'کارت‌های ویزیت ذخیره‌شده من (صفحه‌بندی‌شده)' })
+  savedMine(@CurrentUser() user: AuthUser, @Query() query: PaginationDto) {
+    return this.businessCardsService.findMySaved(user.id, query.page, query.limit);
   }
 
   @Post('public/:slug/save')

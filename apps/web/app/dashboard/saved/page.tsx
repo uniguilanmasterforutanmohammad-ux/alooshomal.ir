@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { BadgeCheck, Bookmark, IdCard } from 'lucide-react';
 
 import { SaveButton } from '@/components/ui/SaveButton';
-import { api, type SavedItem } from '@/lib/api';
+import { Pagination } from '@/components/ui/Pagination';
+import { api, type Paged, type SavedItem } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
 interface SavedPayload {
@@ -18,22 +19,29 @@ export default function SavedPage() {
   const router = useRouter();
   const { token, hydrated } = useAuth();
   const [data, setData] = useState<SavedPayload>({ biolinks: [], businessCards: [] });
+  const [biolinkMeta, setBiolinkMeta] = useState<Paged<SavedItem>['meta'] | null>(null);
+  const [cardMeta, setCardMeta] = useState<Paged<SavedItem>['meta'] | null>(null);
+  const [biolinkPage, setBiolinkPage] = useState(1);
+  const [cardPage, setCardPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       const [biolinks, businessCards] = await Promise.all([
-        api.get<SavedItem[]>('/biolinks/saved/mine'),
-        api.get<SavedItem[]>('/business-cards/saved/mine'),
+        api.get<Paged<SavedItem>>(`/biolinks/saved/mine?page=${biolinkPage}`),
+        api.get<Paged<SavedItem>>(`/business-cards/saved/mine?page=${cardPage}`),
       ]);
-      setData({ biolinks, businessCards });
+      setData({ biolinks: biolinks.items, businessCards: businessCards.items });
+      setBiolinkMeta(biolinks.meta);
+      setCardMeta(businessCards.meta);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [biolinkPage, cardPage]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -44,7 +52,9 @@ export default function SavedPage() {
     void load();
   }, [hydrated, token, router, load]);
 
-  const total = data.biolinks.length + data.businessCards.length;
+  const total =
+    (biolinkMeta?.total ?? data.biolinks.length) +
+    (cardMeta?.total ?? data.businessCards.length);
 
   return (
     <div className="flex flex-col gap-5">
@@ -109,6 +119,9 @@ export default function SavedPage() {
                 بیولینکی ذخیره نشده است.
               </p>
             )}
+            {biolinkMeta ? (
+              <Pagination meta={biolinkMeta} onPage={setBiolinkPage} />
+            ) : null}
           </section>
 
           <section className="flex flex-col gap-3">
@@ -140,6 +153,7 @@ export default function SavedPage() {
                 کارت ویزیتی ذخیره نشده است.
               </p>
             )}
+            {cardMeta ? <Pagination meta={cardMeta} onPage={setCardPage} /> : null}
           </section>
         </>
       )}

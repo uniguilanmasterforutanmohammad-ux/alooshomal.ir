@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { BoostBadge } from '@/components/ui/BoostBadge';
+import { Pagination } from '@/components/ui/Pagination';
 import {
   api,
   type BoostOverview,
@@ -123,21 +124,23 @@ export default function BoostPage() {
   const router = useRouter();
   const { token, hydrated } = useAuth();
   const [data, setData] = useState<BoostOverview | null>(null);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoading(true);
     try {
-      const overview = await api.get<BoostOverview>('/boosts/overview');
+      const overview = await api.get<BoostOverview>(`/boosts/overview?page=${page}`);
       setData(overview);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -172,7 +175,9 @@ export default function BoostPage() {
   }
 
   const requests = data?.requests ?? [];
-  const total = (data?.biolinks.length ?? 0) + (data?.businessCards.length ?? 0);
+  const total =
+    (data?.meta?.biolinkTotal ?? data?.biolinks.length ?? 0) +
+    (data?.meta?.cardTotal ?? data?.businessCards.length ?? 0);
 
   return (
     <div className="flex flex-col gap-5">
@@ -245,6 +250,23 @@ export default function BoostPage() {
               </p>
             )}
           </section>
+
+          {data?.meta ? (
+            <Pagination
+              meta={{
+                page: data.meta.page,
+                limit: data.meta.limit,
+                total: Math.max(data.meta.biolinkTotal, data.meta.cardTotal),
+                totalPages: Math.max(
+                  data.meta.biolinkTotalPages,
+                  data.meta.cardTotalPages,
+                ),
+                hasNext: data.meta.hasNext,
+                hasPrev: data.meta.hasPrev,
+              }}
+              onPage={setPage}
+            />
+          ) : null}
         </>
       )}
     </div>

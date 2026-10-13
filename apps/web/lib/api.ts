@@ -370,6 +370,29 @@ export interface BoostOverview {
   biolinks: BoostTargetItem[];
   businessCards: BoostTargetItem[];
   requests: BoostRequest[];
+  meta?: {
+    page: number;
+    limit: number;
+    biolinkTotal: number;
+    biolinkTotalPages: number;
+    cardTotal: number;
+    cardTotalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+/** Server-side pagination envelope returned by the user's own lists. */
+export interface Paged<T> {
+  items: T[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
 }
 
 export type NotificationType = 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';

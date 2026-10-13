@@ -126,16 +126,28 @@ export class BusinessCardsService {
     return businessCard;
   }
 
-  async findMyBusinessCards(userId: string) {
-    const businessCards = await this.prisma.businessCard.findMany({
-      where: { userId },
-      include: {
-        city: true,
-        business: true,
-        _count: { select: { likes: true, saves: true, scans: true } },
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
+  /**
+   * The signed-in user's business cards, paginated with the admin-controlled
+   * `myListPageSize` setting; `page` is 1-based.
+   */
+  async findMyBusinessCards(userId: string, page = 1, limitOverride?: number) {
+    const limit = limitOverride ?? (await this.settings.getMyListPageSize());
+    const currentPage = Math.max(1, page);
+
+    const [businessCards, total] = await Promise.all([
+      this.prisma.businessCard.findMany({
+        where: { userId },
+        include: {
+          city: true,
+          business: true,
+          _count: { select: { likes: true, saves: true, scans: true } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        skip: (currentPage - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.businessCard.count({ where: { userId } }),
+    ]);
 
     const [requests, ranks] = await Promise.all([
       this.prisma.boostRequest.findMany({
@@ -155,14 +167,29 @@ export class BusinessCardsService {
       }
     }
 
-    return businessCards.map((item, index) => ({
-      ...item,
-      likeCount: item._count.likes,
-      saveCount: item._count.saves,
-      views: item._count.scans,
-      boostStatus: requestByTarget.get(item.id) ?? null,
-      rank: ranks[index],
-    }));
+    return {
+      items: businessCards.map((item, index) => ({
+        ...item,
+        likeCount: item._count.likes,
+        saveCount: item._count.saves,
+        views: item._count.scans,
+        boostStatus: requestByTarget.get(item.id) ?? null,
+        rank: ranks[index],
+      })),
+      meta: this.paginationMeta(currentPage, limit, total),
+    };
+  }
+
+  /** Shared pagination envelope for the user's own lists. */
+  private paginationMeta(page: number, limit: number, total: number) {
+    return {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+      hasNext: page * limit < total,
+      hasPrev: page > 1,
+    };
   }
 
   async findMineById(userId: string, id: string) {
@@ -530,39 +557,52 @@ export class BusinessCardsService {
     return { saved: !existing };
   }
 
-  /** All published business cards a user has saved, newest save first. */
-  async findMySaved(userId: string) {
-    const saves = await this.prisma.businessCardSave.findMany({
-      where: { userId },
-      include: {
-        businessCard: {
-          select: {
-            id: true,
-            slug: true,
-            fullName: true,
-            jobTitle: true,
-            company: true,
-            avatarUrl: true,
-            primaryColor: true,
-            template: true,
-            _count: { select: { likes: true } },
+  /**
+   * Published business cards a user has saved, newest save first, paginated
+   * with the admin-controlled `myListPageSize` setting.
+   */
+  async findMySaved(userId: string, page = 1, limitOverride?: number) {
+    const limit = limitOverride ?? (await this.settings.getMyListPageSize());
+    const currentPage = Math.max(1, page);
+    const [saves, total] = await Promise.all([
+      this.prisma.businessCardSave.findMany({
+        where: { userId },
+        include: {
+          businessCard: {
+            select: {
+              id: true,
+              slug: true,
+              fullName: true,
+              jobTitle: true,
+              company: true,
+              avatarUrl: true,
+              primaryColor: true,
+              template: true,
+              _count: { select: { likes: true } },
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    return saves.map((save) => ({
-      id: save.businessCard.id,
-      slug: save.businessCard.slug,
-      fullName: save.businessCard.fullName,
-      jobTitle: save.businessCard.jobTitle,
-      company: save.businessCard.company,
-      avatarUrl: save.businessCard.avatarUrl,
-      primaryColor: save.businessCard.primaryColor,
-      template: save.businessCard.template,
-      likeCount: save.businessCard._count.likes,
-      savedAt: save.createdAt,
-    }));
+        orderBy: { createdAt: 'desc' },
+        skip: (currentPage - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.businessCardSave.count({ where: { userId } }),
+    ]);
+    return {
+      items: saves.map((save) => ({
+        id: save.businessCard.id,
+        slug: save.businessCard.slug,
+        fullName: save.businessCard.fullName,
+        jobTitle: save.businessCard.jobTitle,
+        company: save.businessCard.company,
+        avatarUrl: save.businessCard.avatarUrl,
+        primaryColor: save.businessCard.primaryColor,
+        template: save.businessCard.template,
+        likeCount: save.businessCard._count.likes,
+        savedAt: save.createdAt,
+      })),
+      meta: this.paginationMeta(currentPage, limit, total),
+    };
   }
 
   /**

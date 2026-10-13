@@ -130,16 +130,28 @@ export class BiolinksService {
     return biolink;
   }
 
-  async findMyBiolinks(userId: string) {
-    const biolinks = await this.prisma.biolink.findMany({
-      where: { userId },
-      include: {
-        city: true,
-        business: true,
-        _count: { select: { likes: true, saves: true, scanEvents: true } },
-      },
-      orderBy: { updatedAt: 'desc' },
-    });
+  /**
+   * The signed-in user's biolinks, paginated. The page size is the admin
+   * controlled `myListPageSize` setting; `page` is 1-based.
+   */
+  async findMyBiolinks(userId: string, page = 1, limitOverride?: number) {
+    const limit = limitOverride ?? (await this.settings.getMyListPageSize());
+    const currentPage = Math.max(1, page);
+
+    const [biolinks, total] = await Promise.all([
+      this.prisma.biolink.findMany({
+        where: { userId },
+        include: {
+          city: true,
+          business: true,
+          _count: { select: { likes: true, saves: true, scanEvents: true } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        skip: (currentPage - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.biolink.count({ where: { userId } }),
+    ]);
 
     // latest boost request per item so the card can show its request state
     const [requests, ranks] = await Promise.all([
@@ -160,14 +172,29 @@ export class BiolinksService {
       }
     }
 
-    return biolinks.map((item, index) => ({
-      ...item,
-      likeCount: item._count.likes,
-      saveCount: item._count.saves,
-      views: item._count.scanEvents,
-      boostStatus: requestByTarget.get(item.id) ?? null,
-      rank: ranks[index],
-    }));
+    return {
+      items: biolinks.map((item, index) => ({
+        ...item,
+        likeCount: item._count.likes,
+        saveCount: item._count.saves,
+        views: item._count.scanEvents,
+        boostStatus: requestByTarget.get(item.id) ?? null,
+        rank: ranks[index],
+      })),
+      meta: this.paginationMeta(currentPage, limit, total),
+    };
+  }
+
+  /** Shared pagination envelope for the user's own lists. */
+  private paginationMeta(page: number, limit: number, total: number) {
+    return {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+      hasNext: page * limit < total,
+      hasPrev: page > 1,
+    };
   }
 
   async findMineById(userId: string, id: string) {
@@ -527,44 +554,54 @@ export class BiolinksService {
     return { saved: !existing };
   }
 
-  /** All published biolinks a user has saved, newest save first. */
-  async findMySaved(userId: string) {
-    const saves = await this.prisma.biolinkSave.findMany({
-      where: { userId },
-      include: {
-        biolink: {
-          select: {
-            id: true,
-            slug: true,
-            fullName: true,
-            jobTitle: true,
-            company: true,
-            avatarUrl: true,
-            primaryColor: true,
-            template: true,
-            _count: { select: { likes: true } },
+  /**
+   * Published biolinks a user has saved, newest save first, paginated with the
+   * admin-controlled `myListPageSize` setting.
+   */
+  async findMySaved(userId: string, page = 1, limitOverride?: number) {
+    const limit = limitOverride ?? (await this.settings.getMyListPageSize());
+    const currentPage = Math.max(1, page);
+    const [saves, total] = await Promise.all([
+      this.prisma.biolinkSave.findMany({
+        where: { userId },
+        include: {
+          biolink: {
+            select: {
+              id: true,
+              slug: true,
+              fullName: true,
+              jobTitle: true,
+              company: true,
+              avatarUrl: true,
+              primaryColor: true,
+              template: true,
+              _count: { select: { likes: true } },
+            },
           },
         },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-    return saves
-      .filter(
-        (save) =>
-          save.biolink,
-      )
-      .map((save) => ({
-        id: save.biolink.id,
-        slug: save.biolink.slug,
-        fullName: save.biolink.fullName,
-        jobTitle: save.biolink.jobTitle,
-        company: save.biolink.company,
-        avatarUrl: save.biolink.avatarUrl,
-        primaryColor: save.biolink.primaryColor,
-        template: save.biolink.template,
-        likeCount: save.biolink._count.likes,
-        savedAt: save.createdAt,
-      }));
+        orderBy: { createdAt: 'desc' },
+        skip: (currentPage - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.biolinkSave.count({ where: { userId } }),
+    ]);
+    return {
+      items: saves
+        .filter((save) => save.biolink)
+        .map((save) => ({
+          id: save.biolink.id,
+          slug: save.biolink.slug,
+          fullName: save.biolink.fullName,
+          jobTitle: save.biolink.jobTitle,
+          company: save.biolink.company,
+          avatarUrl: save.biolink.avatarUrl,
+          primaryColor: save.biolink.primaryColor,
+          template: save.biolink.template,
+          likeCount: save.biolink._count.likes,
+          savedAt: save.createdAt,
+        })),
+      meta: this.paginationMeta(currentPage, limit, total),
+    };
   }
 
   /**
