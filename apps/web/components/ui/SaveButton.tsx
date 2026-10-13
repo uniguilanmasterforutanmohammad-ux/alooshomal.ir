@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Bookmark } from 'lucide-react';
 
 import { api } from '@/lib/api';
@@ -30,6 +30,7 @@ export function SaveButton({
   onToggled,
 }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const { token, hydrated } = useAuth();
   const [saved, setSaved] = useState(initialSaved);
   const [busy, setBusy] = useState(false);
@@ -38,7 +39,7 @@ export function SaveButton({
     event.stopPropagation();
     event.preventDefault();
     if (hydrated && !token) {
-      router.push('/login');
+      router.push(`/login?next=${encodeURIComponent(pathname)}`);
       return;
     }
     if (busy) return;

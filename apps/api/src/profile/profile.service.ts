@@ -47,6 +47,7 @@ export class ProfileService {
           isActive: true,
           createdAt: true,
           plan: true,
+          passwordHash: true,
         },
       }),
       this.prisma.profileChangeRequest.findFirst({
@@ -57,7 +58,9 @@ export class ProfileService {
     if (!user) {
       throw new NotFoundException('کاربر یافت نشد');
     }
-    return { ...user, pendingChange: pending };
+    // Never leak the hash itself — only whether a password has been set.
+    const { passwordHash, ...rest } = user;
+    return { ...rest, hasPassword: Boolean(passwordHash), pendingChange: pending };
   }
 
   /** Submit a name change for admin approval (one pending request at a time). */

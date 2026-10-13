@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class VerifyPhoneDto {
   @ApiProperty({ example: '09123456789' })
@@ -19,4 +19,11 @@ export class VerifyPhoneDto {
   @IsString()
   @MaxLength(120)
   fullName?: string;
+
+  /** Only required the first time a phone signs up (account not found). */
+  @ApiProperty({ required: false, example: 'sara@example.com' })
+  @IsOptional()
+  @IsEmail({}, { message: 'ایمیل معتبر نیست' })
+  @MaxLength(160)
+  email?: string;
 }

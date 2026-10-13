@@ -58,7 +58,7 @@ export default function HomePage() {
             </p>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link
-                href="/register"
+                href="/login"
                 className="indeed-btn bg-white text-brand hover:bg-white/90"
               >
                 <UserPlus className="size-4" aria-hidden />

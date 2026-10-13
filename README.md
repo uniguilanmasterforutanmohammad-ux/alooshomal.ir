@@ -23,7 +23,7 @@ contact actions, and save a standard `vCard` to their device.
 │   ├── api/                 # NestJS backend
 │   │   ├── prisma/          # schema + seed
 │   │   └── src/
-│   │       ├── auth/        # JWT, register, login
+│   │       ├── auth/        # JWT, phone OTP + email/password, set-password
 │   │       ├── users/
 │   │       ├── biolinks/       # biolink CRUD + vCard + QR + scan
 │   │       ├── businesscards/  # business-card CRUD + vCard + QR + scan

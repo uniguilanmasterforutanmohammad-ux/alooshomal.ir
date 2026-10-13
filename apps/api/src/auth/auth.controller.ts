@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RequestCodeDto } from './dto/request-code.dto';
+import { SetPasswordDto } from './dto/set-password.dto';
 import { VerifyPhoneDto } from './dto/verify-phone.dto';
 
 @ApiTags('auth')
@@ -43,6 +44,14 @@ export class AuthController {
   @ApiOperation({ summary: 'تأیید کد موبایل و ورود/ثبت‌نام' })
   verifyPhone(@Body() dto: VerifyPhoneDto) {
     return this.authService.verifyPhoneCode(dto);
+  }
+
+  @Post('set-password')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'ثبت/تغییر رمز عبور کاربر جاری' })
+  setPassword(@CurrentUser() user: AuthUser, @Body() dto: SetPasswordDto) {
+    return this.authService.setPassword(user.id, dto.password);
   }
 
   @Get('me')

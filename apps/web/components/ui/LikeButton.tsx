@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Heart } from 'lucide-react';
 
 import { api } from '@/lib/api';
@@ -25,6 +25,7 @@ export function LikeButton({
   size = 'sm',
 }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const { token, hydrated } = useAuth();
   const [count, setCount] = useState(initialCount);
   const [liked, setLiked] = useState(initialLiked);
@@ -58,7 +59,7 @@ export function LikeButton({
     event.preventDefault();
     // liking requires a signed-in user; send anonymous visitors to login
     if (hydrated && !token) {
-      router.push('/login');
+      router.push(`/login?next=${encodeURIComponent(pathname)}`);
       return;
     }
     if (busy) return;

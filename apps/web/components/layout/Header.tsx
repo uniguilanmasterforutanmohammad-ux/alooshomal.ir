@@ -42,7 +42,7 @@ export function Header() {
             <BadgeCheck className="size-4" aria-hidden />
             کارت‌های ویزیت من
           </Link>
-          <Link href="/register" className="indeed-btn indeed-btn-primary">
+          <Link href="/login" className="indeed-btn indeed-btn-primary">
             <ShieldCheck className="size-4" aria-hidden />
             شروع کنید
           </Link>

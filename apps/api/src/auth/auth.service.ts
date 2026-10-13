@@ -49,7 +49,11 @@ export class AuthService {
     await this.assertPhoneLoginEnabled();
     const phone = OtpService.normalizePhone(dto.phone);
     const issued = await this.otp.issue(phone);
-    return { phone, ...issued };
+    // Tell the client whether this number is a returning user (login) or a new
+    // one (sign-up), so a single form can drive both flows. This is only a UX
+    // hint — no secret is revealed beyond "an account exists for this phone".
+    const existing = await this.prisma.user.findUnique({ where: { phone } });
+    return { phone, ...issued, registered: Boolean(existing) };
   }
 
   /**
@@ -63,14 +67,34 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({ where: { phone } });
 
     // Check the new-user case *before* consuming the code: a first-time
-    // sign-up that still needs a name must not burn the OTP, otherwise the
-    // second call (with the name) would fail with «کد منقضی شده».
-    if (!existing && !dto.fullName?.trim()) {
-      // Signals the client to reveal the «نام و نام خانوادگی» step.
-      throw new BadRequestException({
-        code: 'FULLNAME_REQUIRED',
-        message: 'برای ساخت حساب، نام و نام خانوادگی را وارد کنید',
+    // sign-up that still needs its profile fields must not burn the OTP,
+    // otherwise the second call (with the fields) would fail with «کد منقضی».
+    if (!existing) {
+      if (!dto.fullName?.trim()) {
+        // Signals the client to reveal the sign-up fields (name + email).
+        throw new BadRequestException({
+          code: 'FULLNAME_REQUIRED',
+          message: 'برای ساخت حساب، نام و نام خانوادگی را وارد کنید',
+        });
+      }
+      if (!dto.email?.trim()) {
+        // Same sign-up step also collects the email.
+        throw new BadRequestException({
+          code: 'EMAIL_REQUIRED',
+          message: 'برای ساخت حساب، ایمیل را وارد کنید',
+        });
+      }
+      // Check the email *before* consuming the code, so a conflict lets the
+      // user correct the address without requesting a new OTP.
+      const emailOwner = await this.prisma.user.findUnique({
+        where: { email: dto.email.toLowerCase().trim() },
       });
+      if (emailOwner) {
+        throw new ConflictException({
+          code: 'EMAIL_TAKEN',
+          message: 'این ایمیل قبلاً ثبت شده است',
+        });
+      }
     }
 
     await this.otp.verify(phone, dto.code);
@@ -99,9 +123,10 @@ export class AuthService {
     }
 
     const fullName = dto.fullName!.trim();
+    const email = dto.email!.toLowerCase().trim();
 
     const user = await this.prisma.user.create({
-      data: { phone, phoneVerified: true, fullName },
+      data: { phone, phoneVerified: true, fullName, email },
       select: {
         id: true,
         email: true,
@@ -196,6 +221,32 @@ export class AuthService {
       fullName: user.fullName,
       role: user.role,
     });
+  }
+
+  /**
+   * Sets (or replaces) the current user's password. Used right after a phone
+   * sign-up — where the account starts without one — and later from the
+   * profile panel. The caller is already authenticated, so this only trusts
+   * the JWT subject, never a client-supplied user id.
+   */
+  async setPassword(userId: string, password: string): Promise<{ ok: true }> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('حساب کاربری معتبر نیست');
+    }
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    await this.activity.log({
+      actor: { id: user.id, email: user.email, role: user.role },
+      action: 'USER_PASSWORD_SET',
+      summary: `ثبت/تغییر رمز عبور: ${user.fullName ?? user.email ?? user.phone}`,
+      entityType: 'USER',
+      entityId: user.id,
+    });
+    return { ok: true };
   }
 
   private buildAuthResponse(user: {

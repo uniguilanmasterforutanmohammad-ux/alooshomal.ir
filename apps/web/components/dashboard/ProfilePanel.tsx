@@ -1,7 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { BadgeCheck, IdCard, Mail, Phone, Send, ShieldCheck, UserRound } from 'lucide-react';
+import {
+  BadgeCheck,
+  IdCard,
+  KeyRound,
+  Mail,
+  Phone,
+  Send,
+  ShieldCheck,
+  UserRound,
+} from 'lucide-react';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -23,6 +32,7 @@ interface ProfilePayload {
   role: string;
   isActive: boolean;
   createdAt: string;
+  hasPassword: boolean;
   pendingChange: ProfileChangeRequest | null;
 }
 
@@ -39,6 +49,9 @@ export function ProfilePanel() {
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState('');
   const [sending, setSending] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -68,6 +81,29 @@ export function ProfilePanel() {
       /* api layer surfaces the error */
     } finally {
       setSending(false);
+    }
+  }
+
+  async function savePassword() {
+    if (password.length < 8) {
+      toast.error('رمز عبور باید حداقل ۸ کاراکتر باشد.');
+      return;
+    }
+    if (password !== passwordConfirm) {
+      toast.error('تکرار رمز عبور مطابقت ندارد.');
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await api.post('/auth/set-password', { password });
+      toast.success('رمز عبور ثبت شد. از این پس با ایمیل و رمز هم می‌توانید وارد شوید.');
+      setPassword('');
+      setPasswordConfirm('');
+      await load();
+    } catch {
+      /* api layer surfaces the error */
+    } finally {
+      setSavingPassword(false);
     }
   }
 
@@ -140,6 +176,50 @@ export function ProfilePanel() {
             </button>
           </div>
         )}
+      </div>
+
+      <div className="indeed-panel p-5">
+        <h2 className="flex items-center gap-2 text-sm font-extrabold text-ink">
+          <KeyRound className="size-4 text-brand" aria-hidden />
+          {profile.hasPassword ? 'تغییر رمز عبور' : 'ثبت رمز عبور'}
+        </h2>
+        <p className="mt-1 text-xs leading-6 text-muted">
+          {profile.hasPassword
+            ? 'برای ورود با ایمیل و رمز عبور، می‌توانید رمز تازه‌ای تعیین کنید.'
+            : 'هنوز رمز عبوری ثبت نکرده‌اید و فقط با کد یکبار مصرف وارد می‌شوید. با ثبت رمز، ورود با ایمیل هم فعال می‌شود.'}
+        </p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="text-xs font-bold text-muted">
+            رمز عبور
+            <input
+              type="password"
+              dir="ltr"
+              className="indeed-input mt-1"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="••••••••"
+            />
+          </label>
+          <label className="text-xs font-bold text-muted">
+            تکرار رمز عبور
+            <input
+              type="password"
+              dir="ltr"
+              className="indeed-input mt-1"
+              value={passwordConfirm}
+              onChange={(event) => setPasswordConfirm(event.target.value)}
+              placeholder="••••••••"
+            />
+          </label>
+        </div>
+        <button
+          onClick={savePassword}
+          disabled={savingPassword}
+          className="indeed-btn indeed-btn-primary mt-4"
+        >
+          <KeyRound className="size-4" aria-hidden />
+          {savingPassword ? 'در حال ثبت...' : profile.hasPassword ? 'تغییر رمز' : 'ثبت رمز عبور'}
+        </button>
       </div>
 
       <p className="text-xs text-muted">
