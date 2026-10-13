@@ -20,7 +20,40 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.17.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.18.0**.
+
+## ۱۴۰۵/۰۷/۲۱ — رفع شکست دیپلوی با آینه‌کردن ایمیج آبجکت‌استوریج در GHCR — نسخه `v2.18.0`
+
+**هدف:** رفع خطای `pull access denied for minio/minio` در مرحلهٔ `docker compose
+pull` روی سرور. MinIO توزیع رسمی خود را متوقف کرده است: ریپوی `minio/minio` از
+Docker Hub حذف شده، `dl.min.io` کد `410 Gone` برمی‌گرداند و مخزن GitHub آرشیو شده
+است. چون سرور به Docker Hub/Quay دسترسی ندارد ولی GHCR را می‌کشد، ایمیج
+آبجکت‌استوریج به GHCR آینه و از همان‌جا مصرف می‌شود.
+
+**تغییرات:**
+- `.github/workflows/deploy.yml`: افزودن جاب `mirror-minio` که با
+  `docker buildx imagetools create` ایمیج `pgsty/silo` (فورک نگه‌داشته‌شدهٔ MinIO
+  و جایگزین قطره‌ای: همان S3 API، همان متغیرهای `MINIO_*` و همان هلث‌چک
+  `mc ready local`) را با تگ غیرقابل‌تغییر به
+  `ghcr.io/<repo>-minio` کپی می‌کند؛ به‌همراه تلاش best-effort برای عمومی‌کردن
+  پکیج. `deploy` اکنون `needs: [build-and-push, mirror-minio]` است. تگ مبدأ از
+  طریق `MINIO_SOURCE`/`MINIO_TAG` قابل‌تغییر است و روی `latest` قفل نشده.
+- `docker-compose.prod.yml`: ایمیج سرویس `minio` به ایمیج آینه‌شدهٔ GHCR
+  (`${MINIO_IMAGE:-ghcr.io/...-minio:RELEASE.2026-09-16T00-00-00Z}`) تغییر کرد.
+- `docker-compose.yml`: همان سرویس در حالت dev به
+  `${MINIO_IMAGE:-pgsty/silo:RELEASE.2026-09-16T00-00-00Z}` تغییر کرد.
+- `.env.example`: توضیح وضعیت توزیع MinIO و متغیر اختیاری `MINIO_IMAGE`.
+- `docs/DEPLOY.md`: بخش «ایمیج آبجکت‌استوریج از GHCR می‌آید» با علت، راه‌حل و
+  روش تغییر نسخه.
+
+**تأیید/تست:**
+- `python3 -c "import yaml; ..."` روی `deploy.yml` → سه جاب `build-and-push`,
+  `mirror-minio`, `deploy` و `deploy.needs` درست تجزیه شد.
+- `docker compose config` روی هر دو فایل → ایمیج نهایی `pgsty/silo:RELEASE.…`
+  (dev) و `ghcr.io/…-minio:RELEASE.…` (prod) بدون خطا رزولو شد.
+- `docker compose up -d minio` → کانتینر `alooshomal-minio` با ایمیج جدید بالا
+  آمد و هلث‌چک `mc ready local` وضعیت **healthy** داد؛ `minio server` و S3 API
+  (`/minio/health/live` → 200) پاسخ دادند.
 
 ## ۱۴۰۵/۰۷/۲۱ — آپلود لوگو/آواتار با MinIO + sharp و ذخیره‌سازی فولدری — نسخه `v2.17.0`
 

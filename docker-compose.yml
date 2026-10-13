@@ -35,7 +35,11 @@ services:
       - alooshomal
 
   minio:
-    image: minio/minio:latest
+    # MinIO withdrew its official images in 2025, so the stack uses the
+    # maintained community fork `pgsty/silo`. In production this is mirrored to
+    # GHCR (see .github/workflows/deploy.yml); locally the upstream tag is
+    # pulled directly. Both are drop-in replacements for minio/minio.
+    image: ${MINIO_IMAGE:-pgsty/silo:RELEASE.2026-09-16T00-00-00Z}
     container_name: alooshomal-minio
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]

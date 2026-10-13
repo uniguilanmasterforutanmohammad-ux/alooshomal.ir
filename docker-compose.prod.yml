@@ -44,7 +44,12 @@ services:
       - alooshomal
 
   minio:
-    image: minio/minio:latest
+    # MinIO withdrew its official images in 2025 (Docker Hub repo deleted,
+    # dl.min.io returns 410, GitHub repo archived). We mirror the maintained
+    # community fork `pgsty/silo` into GHCR (see .github/workflows/deploy.yml);
+    # it is a drop-in replacement — same S3 API, same MINIO_* env vars, same
+    # `mc ready local` healthcheck.
+    image: ${MINIO_IMAGE:-ghcr.io/uniguilanmasterforutanmohammad-ux/alooshomal.ir-minio:RELEASE.2026-09-16T00-00-00Z}
     container_name: alooshomal-minio
     restart: unless-stopped
     command: ["server", "/data", "--console-address", ":9001"]

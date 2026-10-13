@@ -78,6 +78,8 @@ NEXT_PUBLIC_APP_URL=https://alooshomal.ir
 # Object storage (MinIO) — uploaded logos/avatars
 MINIO_ROOT_USER=alooshomal
 MINIO_ROOT_PASSWORD=<یک-رمز-قوی-دیگر>
+# اختیاری؛ پیش‌فرض همان ایمیج آینه‌شده در GHCR است (پایین را ببینید)
+# MINIO_IMAGE=ghcr.io/uniguilanmasterforutanmohammad-ux/alooshomal.ir-minio:RELEASE.2026-09-16T00-00-00Z
 MINIO_ENDPOINT=minio
 MINIO_PORT=9000
 MINIO_USE_SSL=false
@@ -100,6 +102,28 @@ EOF
 کانفیگ داخل `deploy/nginx/conf.d/` است و در کانتینر به `/etc/nginx/conf.d` mount می‌شود؛
 ورک‌فلوی deploy این پوشه را همراه کامپوز روی سرور به‌روز می‌کند. Nginx روی پورت `HTTP_PORT`
 (پیش‌فرض `80`) سرور گوش می‌دهد و `web`/`api` فقط به `127.0.0.1` بایند شده‌اند.
+
+### نکته‌ی مهم: ایمیج آبجکت‌استوریج از GHCR می‌آید
+
+در ۲۰۲۵ مایکروسرویس MinIO توزیع رسمی خود را متوقف کرد: ریپوی `minio/minio` از
+Docker Hub حذف شد، `dl.min.io` کد `410 Gone` برمی‌گرداند و مخزن GitHub آرشیو
+شده است. بنابراین `docker compose pull` قبلاً با خطای
+`pull access denied for minio/minio` شکست می‌خورد.
+
+راه‌حل: استک روی فورک نگه‌داشته‌شده‌ی `pgsty/silo` اجرا می‌شود که جایگزین
+قطره‌ای MinIO است (همان S3 API، همان متغیرهای محیطی `MINIO_*` و همان هلث‌چک
+`mc ready local`). جاب `mirror-minio` در `deploy.yml` این ایمیج را با تگ
+غیرقابل‌تغییر `RELEASE.*` به GHCR کپی می‌کند:
+
+```
+ghcr.io/uniguilanmasterforutanmohammad-ux/alooshomal.ir-minio:RELEASE.2026-09-16T00-00-00Z
+```
+
+سپس سرویس `minio` در `docker-compose.prod.yml` همین ایمیج را از GHCR می‌کشد؛
+نیازی به `docker login` روی سرور نیست چون پکیج عمومی است (در غیر این صورت
+`GHCR_PAT` با دسترسی `read:packages` را ست کنید). برای تغییر نسخه کافی است
+`MINIO_TAG`/`MINIO_SOURCE` در ورک‌فلو و (در صورت نیاز) `MINIO_IMAGE` در `.env`
+سرور را به‌روز کنید؛ حتماً تگ `RELEASE.*` بدهید و از `latest` پرهیز کنید.
 
 ```bash
 # وضعیت کانتینر nginx
