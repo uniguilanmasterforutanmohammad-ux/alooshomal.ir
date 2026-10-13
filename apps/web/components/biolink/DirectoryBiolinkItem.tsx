@@ -49,6 +49,7 @@ export function DirectoryBiolinkItem({ biolink, selected, onSelect }: Props) {
               width={48}
               height={48}
               className="size-12 object-cover"
+              unoptimized
             />
           ) : (
             initials

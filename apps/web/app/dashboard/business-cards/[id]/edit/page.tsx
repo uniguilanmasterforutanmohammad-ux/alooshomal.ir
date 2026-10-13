@@ -68,6 +68,8 @@ export default function EditBiolinkPage() {
               template: businessCard.template ?? 'glassmorphism',
               cityId: businessCard.cityId ?? '',
               businessId: businessCard.businessId ?? '',
+              avatarUrl: businessCard.avatarUrl ?? '',
+              logoUrl: businessCard.logoUrl ?? '',
             }}
             onSubmit={handleSubmit}
             submitting={submitting}

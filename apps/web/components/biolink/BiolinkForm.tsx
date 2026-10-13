@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import { Input } from '@/components/ui/Input';
+import { ImageUpload } from '@/components/ui/ImageUpload';
 import { ThemePicker } from '@/components/ui/ThemePicker';
 import { LiveBiolinkPreview } from '@/components/biolink/LiveBiolinkPreview';
 import { api, type TaxonomyItem } from '@/lib/api';
@@ -26,6 +27,8 @@ export interface BiolinkFormValues {
   template: string;
   cityId: string;
   businessId: string;
+  avatarUrl: string;
+  logoUrl: string;
 }
 
 const emptyValues: BiolinkFormValues = {
@@ -46,6 +49,8 @@ const emptyValues: BiolinkFormValues = {
   template: DEFAULT_THEME_KEY,
   cityId: '',
   businessId: '',
+  avatarUrl: '',
+  logoUrl: '',
 };
 
 interface Props {
@@ -172,6 +177,22 @@ export function BiolinkForm({ initial, submitting, onSubmit, submitLabel, inline
                 className="h-10 w-16 cursor-pointer rounded-lg border border-[var(--indeed-border)]"
               />
             </label>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <ImageUpload
+                label="تصویر پروفایل"
+                kind="avatar"
+                round
+                value={values.avatarUrl}
+                onChange={(url) => setField('avatarUrl', url)}
+              />
+              <ImageUpload
+                label="لوگو"
+                kind="logo"
+                value={values.logoUrl}
+                onChange={(url) => setField('logoUrl', url)}
+              />
+            </div>
           </div>
 
           <button
@@ -386,6 +407,22 @@ export function BiolinkForm({ initial, submitting, onSubmit, submitLabel, inline
               className="h-10 w-16 cursor-pointer rounded-lg border border-[var(--indeed-border)]"
             />
           </label>
+
+          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <ImageUpload
+              label="تصویر پروفایل"
+              kind="avatar"
+              round
+              value={values.avatarUrl}
+              onChange={(url) => setField('avatarUrl', url)}
+            />
+            <ImageUpload
+              label="لوگو"
+              kind="logo"
+              value={values.logoUrl}
+              onChange={(url) => setField('logoUrl', url)}
+            />
+          </div>
         </div>
 
         <button

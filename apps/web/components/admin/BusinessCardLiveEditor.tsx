@@ -35,6 +35,8 @@ const toFormValues = (businessCard: AdminBusinessCardFull): BusinessCardFormValu
   template: businessCard.template ?? 'glassmorphism',
   cityId: businessCard.cityId ?? '',
   businessId: businessCard.businessId ?? '',
+  avatarUrl: businessCard.avatarUrl ?? '',
+  logoUrl: businessCard.logoUrl ?? '',
 });
 
 export function BusinessCardLiveEditor({ businessCardId, onClose, onModerated }: Props) {

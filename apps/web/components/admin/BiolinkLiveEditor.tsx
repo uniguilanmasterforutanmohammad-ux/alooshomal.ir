@@ -35,6 +35,8 @@ const toFormValues = (biolink: AdminBiolinkFull): BiolinkFormValues => ({
   template: biolink.template ?? 'vintage',
   cityId: biolink.cityId ?? '',
   businessId: biolink.businessId ?? '',
+  avatarUrl: biolink.avatarUrl ?? '',
+  logoUrl: biolink.logoUrl ?? '',
 });
 
 export function BiolinkLiveEditor({ biolinkId, onClose, onModerated }: Props) {

@@ -34,6 +34,27 @@ services:
     networks:
       - alooshomal
 
+  minio:
+    image: minio/minio:latest
+    container_name: alooshomal-minio
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-alooshomal}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change_me_in_production}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - alooshomal
+
   api:
     build:
       context: ./apps/api
@@ -45,6 +66,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      minio:
+        condition: service_started
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       DATABASE_URL: ${DATABASE_URL:-postgresql://alooshomal:change_me_in_production@db:5432/alooshomal?schema=public}
@@ -59,6 +82,13 @@ services:
       BACKUP_DIR: ${BACKUP_DIR:-/usr/src/app/backups}
       BACKUP_KEEP: ${BACKUP_KEEP:-20}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio}
+      MINIO_PORT: ${MINIO_PORT:-9000}
+      MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-alooshomal}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change_me_in_production}
+      MINIO_BUCKET: ${MINIO_BUCKET:-alooshomal}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
     ports:
       - "${API_PORT:-4000}:4000"
     volumes:
@@ -93,6 +123,8 @@ volumes:
     name: alooshomal_db_data
   api_backups:
     name: alooshomal_api_backups
+  minio_data:
+    name: alooshomal_minio_data
 
 networks:
   alooshomal:

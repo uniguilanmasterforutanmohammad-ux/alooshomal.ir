@@ -68,6 +68,8 @@ export default function EditBiolinkPage() {
               template: biolink.template ?? 'vintage',
               cityId: biolink.cityId ?? '',
               businessId: biolink.businessId ?? '',
+              avatarUrl: biolink.avatarUrl ?? '',
+              logoUrl: biolink.logoUrl ?? '',
             }}
             onSubmit={handleSubmit}
             submitting={submitting}

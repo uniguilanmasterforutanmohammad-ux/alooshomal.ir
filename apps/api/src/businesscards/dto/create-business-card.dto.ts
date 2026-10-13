@@ -56,12 +56,12 @@ export class CreateBusinessCardDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUrl({ require_protocol: true })
+  @IsUrl({ require_protocol: true, require_tld: false })
   avatarUrl?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsUrl({ require_protocol: true })
+  @IsUrl({ require_protocol: true, require_tld: false })
   logoUrl?: string;
 
   @ApiPropertyOptional()

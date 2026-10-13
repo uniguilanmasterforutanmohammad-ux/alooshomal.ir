@@ -24,6 +24,7 @@ export interface ThemedBusinessCardData {
   website?: string | null;
   address?: string | null;
   avatarUrl?: string | null;
+  logoUrl?: string | null;
   cityId?: string | null;
   businessId?: string | null;
   linkedin?: string | null;
@@ -132,6 +133,7 @@ export function ThemedBusinessCard({
                   alt={data.fullName}
                   width={72}
                   height={72}
+                  unoptimized
                   className="size-[72px] object-cover"
                 />
               ) : (
@@ -139,9 +141,21 @@ export function ThemedBusinessCard({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="bc-name bc-fa truncate text-[clamp(24px,6vw,32px)] leading-tight font-extrabold">
-                {data.fullName || 'نام و نام خانوادگی'}
-              </h1>
+              <div className="flex items-center gap-2">
+                {data.logoUrl ? (
+                  <Image
+                    src={data.logoUrl}
+                    alt={data.company || data.fullName}
+                    width={40}
+                    height={40}
+                    unoptimized
+                    className="size-8 shrink-0 object-contain"
+                  />
+                ) : null}
+                <h1 className="bc-name bc-fa truncate text-[clamp(24px,6vw,32px)] leading-tight font-extrabold">
+                  {data.fullName || 'نام و نام خانوادگی'}
+                </h1>
+              </div>
               {data.jobTitle ? (
                 <p className="bc-role bc-fa mt-1.5 text-sm font-semibold">
                   {data.jobTitle}
@@ -288,6 +302,7 @@ function EditableBusinessCard({
                   alt={data.fullName}
                   width={72}
                   height={72}
+                  unoptimized
                   className="size-[72px] object-cover"
                 />
               ) : (
@@ -295,13 +310,25 @@ function EditableBusinessCard({
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <InlineEdit
-                value={data.fullName}
-                onChange={set('fullName')}
-                placeholder="نام و نام خانوادگی"
-                ariaLabel="نام و نام خانوادگی"
-                className="bc-name bc-fa block text-[clamp(24px,6vw,32px)] leading-tight font-extrabold"
-              />
+              <div className="flex items-center gap-2">
+                {data.logoUrl ? (
+                  <Image
+                    src={data.logoUrl}
+                    alt={data.company || data.fullName}
+                    width={40}
+                    height={40}
+                    unoptimized
+                    className="size-8 shrink-0 object-contain"
+                  />
+                ) : null}
+                <InlineEdit
+                  value={data.fullName}
+                  onChange={set('fullName')}
+                  placeholder="نام و نام خانوادگی"
+                  ariaLabel="نام و نام خانوادگی"
+                  className="bc-name bc-fa block text-[clamp(24px,6vw,32px)] leading-tight font-extrabold"
+                />
+              </div>
               <InlineEdit
                 value={data.jobTitle ?? ''}
                 onChange={set('jobTitle')}

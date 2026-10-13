@@ -47,6 +47,23 @@ location /api/ {
     proxy_read_timeout 60s;
 }
 
+# ---- Media (MinIO object storage) -------------------------------------------
+# Object storage is proxied under /media/ so uploaded images are served from the
+# same origin as the site (no extra DNS / CORS) and stay portable: moving media
+# to a dedicated host later is just a DNS / upstream change.
+location /media/ {
+    set $minio_upstream minio:9000;
+    rewrite ^/media/(.*)$ /$1 break;
+    proxy_pass http://$minio_upstream;
+    proxy_http_version 1.1;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Real-IP         $remote_addr;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $alooshomal_proto;
+    add_header Cache-Control "public, max-age=31536000, immutable" always;
+    access_log off;
+}
+
 # ---- Immutable Next.js build assets -----------------------------------------
 location /_next/static/ {
     set $web_upstream web:3000;

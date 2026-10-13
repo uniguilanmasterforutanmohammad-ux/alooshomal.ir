@@ -106,6 +106,15 @@ export const api = {
     request<T>(path, { method: 'POST', body }),
 };
 
+export interface UploadResult {
+  url: string;
+  key: string;
+  width: number;
+  height: number;
+  size: number;
+  contentType: string;
+}
+
 export interface Biolink {
   id: string;
   slug: string;

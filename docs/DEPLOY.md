@@ -74,6 +74,16 @@ WEB_PORT=3000
 HTTP_PORT=80
 NEXT_PUBLIC_API_URL=https://alooshomal.ir/api
 NEXT_PUBLIC_APP_URL=https://alooshomal.ir
+
+# Object storage (MinIO) — uploaded logos/avatars
+MINIO_ROOT_USER=alooshomal
+MINIO_ROOT_PASSWORD=<یک-رمز-قوی-دیگر>
+MINIO_ENDPOINT=minio
+MINIO_PORT=9000
+MINIO_USE_SSL=false
+MINIO_BUCKET=alooshomal
+# آدرس عمومی تصاویر (از دید مرورگر) — از طریق nginx زیر /media/ سرو می‌شود
+MINIO_PUBLIC_URL=https://alooshomal.ir/media
 EOF
 ```
 
@@ -84,6 +94,7 @@ EOF
 
 - `https://alooshomal.ir/api/proxy/*` → `web:3000` (روت‌هندلرهای خود Next.js)
 - بقیه‌ی `https://alooshomal.ir/api/*` → `api:4000` (NestJS API)
+- `https://alooshomal.ir/media/*` → `minio:9000` (تصاویر آپلودی؛ لوگو، آواتار)
 - بقیه‌ی مسیرها → `web:3000`
 
 کانفیگ داخل `deploy/nginx/conf.d/` است و در کانتینر به `/etc/nginx/conf.d` mount می‌شود؛

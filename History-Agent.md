@@ -20,7 +20,64 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.16.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.17.0**.
+
+## ۱۴۰۵/۰۷/۲۱ — آپلود لوگو/آواتار با MinIO + sharp و ذخیره‌سازی فولدری — نسخه `v2.17.0`
+
+**هدف:** افزودن قابلیت آپلود تصویر (لوگو و تصویر پروفایل) به فرم‌های کارت ویزیت و
+بیولینک. تصویر سمت سرور با `sharp` به WebP تبدیل و تغییر اندازه می‌شود و در
+آبجکت‌استوریج MinIO با ساختار فولدریِ مرتب و دسته‌بندی‌شده ذخیره می‌گردد تا انتقال
+آیندهٔ رسانه‌ها به یک سرور جدا بدون تغییر کد ممکن باشد.
+
+**تغییرات:**
+- `apps/api/package.json`: افزودن `minio` و `sharp`.
+- `apps/api/src/uploads/uploads.constants.ts` (جدید): دسته‌بندی‌های آپلود
+  (`logo`/`avatar`) با فولدر اختصاصی (`logos/`, `avatars/`)، سقف ابعاد و MIME مجاز؛
+  افزودن دستهٔ جدید فقط با یک ورودی تازه انجام می‌شود.
+- `apps/api/src/uploads/storage.service.ts` (جدید): پوشش نازک روی MinIO با کلید
+  `<folder>/<ownerId>/<uuid>.webp`، ساخت خودکار باکت + سیاست public-read، ساخت URL
+  عمومی از `MINIO_PUBLIC_URL` و استخراج کلید از URL برای حذف/جایگزینی.
+- `apps/api/src/uploads/image.service.ts` (جدید): اعتبارسنجی فرمت واقعی با `sharp`،
+  تغییر اندازه (لوگو داخل ۵۱۲×۵۱۲، آواتار کاور مربع ۴۰۰×۴۰۰)، حذف متادیتا و خروجی WebP.
+- `apps/api/src/uploads/uploads.service.ts` و `uploads.controller.ts` و
+  `uploads.module.ts` (جدید): سرویس و اندپوینت‌های احرازشدهٔ `POST /api/uploads/logo`
+  و `/api/uploads/avatar` با محدودیت ۲ مگابایت؛ ثبت `UploadsModule` در `app.module.ts`.
+- `apps/api/src/biolinks/dto/create-biolink.dto.ts` و
+  `apps/api/src/businesscards/dto/create-business-card.dto.ts`: `avatarUrl`/`logoUrl`
+  با `require_tld: false` تا URL محلی MinIO در dev پذیرفته شود.
+- `apps/web/components/ui/ImageUpload.tsx` (جدید): آپلودر قابل‌استفادهٔ مجدد (انتخاب/
+  پیش‌نمایش/حذف/وضعیت بارگذاری) با پارامتر `kind` برای انتخاب فولدر مقصد.
+- `apps/web/components/biolink/BiolinkForm.tsx` و
+  `apps/web/components/businesscard/BusinessCardForm.tsx`: افزودن `avatarUrl`/`logoUrl`
+  به مقادیر فرم و رندر آپلودر در هر دو حالت ویرایش درون‌خطی و فرم کلاسیک.
+- `apps/web/components/biolink/ThemedBiolink.tsx` و
+  `apps/web/components/businesscard/ThemedBusinessCard.tsx`: رندر لوگو روی کارت
+  (بیولینک بالای آواتار، کارت ویزیت کنار نام) و افزودن `logoUrl` به تایپ داده.
+- `apps/web/app/dashboard/biolinks/[id]/edit/page.tsx` و
+  `apps/web/app/dashboard/business-cards/[id]/edit/page.tsx` و
+  `apps/web/components/admin/{Biolink,BusinessCard}LiveEditor.tsx`: عبور `avatarUrl`/
+  `logoUrl` از رکورد موجود به فرم ویرایش.
+- `apps/web/components/{biolink,businesscard}/Directory*Item.tsx` و `Directory*Detail.tsx`
+  و `apps/web/lib/api.ts`: افزودن `unoptimized` به `<Image>`ها (هاست محلی MinIO) و
+  تایپ `UploadResult`.
+- `docker-compose.yml` و `docker-compose.prod.yml`: سرویس `minio` + volume نام‌دار
+  `alooshomal_minio_data` + متغیرهای `MINIO_*` برای API و `depends_on`.
+- `deploy/nginx/conf.d/alooshomal-locations.inc`: پروکسی `location /media/` به
+  `minio:9000` تا تصاویر هم‌مبدأ سرو شوند و انتقال به سرور رسانهٔ جدا ساده بماند.
+- `.env.example` و `docs/DEPLOY.md`: مستندسازی متغیرهای MinIO و مسیر `/media/`.
+
+**تأیید/تست:**
+- `apps/web`: `tsc --noEmit` بدون خطا؛ `apps/api`: `tsc --noEmit -p tsconfig.json`
+  بدون خطا.
+- تست API با `curl`: `POST /api/uploads/logo` و `/avatar` کد ۲۰۱ و URL
+  `http://localhost:9000/alooshomal/logos|avatars/<userId>/<uuid>.webp` برگرداندند؛
+  خروجی WebP با ابعاد درست (لوگو ۵۱۲×۳۴۱، آواتار ۴۰۰×۴۰۰)، دریافت عمومی ۲۰۰ و
+  فرمت نامعتبر رد شد؛ ذخیرهٔ URL در `logoUrl` کارت با `PATCH` موفق بود.
+- تست UI با Playwright روی `/dashboard/biolinks/new` و `/dashboard/business-cards/new`:
+  هر فرم دو دکمهٔ آپلود و دو `input[type=file]` داشت، هر دو آپلود ۲۰۱ شدند و
+  پیش‌نمایش لوگو (`object-contain`) و آواتار (`object-cover`) روی کارت رندر شد و
+  هیچ خطای ۴۰۰ از بهینه‌ساز `next/image` ثبت نشد.
+- `python3 scripts/sync_install.py` و `--check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۷/۲۱ — صفحه‌بندی فهرست‌های کاربر + کنترل ادمین بر تعداد نمایش — نسخه `v2.16.0`
 

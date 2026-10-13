@@ -50,6 +50,7 @@ export function DirectoryBusinessCardItem({ businessCard, selected, onSelect }: 
               width={48}
               height={48}
               className="size-12 object-cover"
+              unoptimized
             />
           ) : (
             initials

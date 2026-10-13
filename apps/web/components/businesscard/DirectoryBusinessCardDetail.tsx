@@ -129,6 +129,7 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
                 width={64}
                 height={64}
                 className="size-16 object-cover"
+                unoptimized
               />
             ) : (
               initials

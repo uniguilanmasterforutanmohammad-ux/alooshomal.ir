@@ -23,6 +23,7 @@ import { SettingsModule } from './settings/settings.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TaxonomyModule } from './taxonomy/taxonomy.module';
 import { TicketsModule } from './tickets/tickets.module';
+import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -45,6 +46,7 @@ import { UsersModule } from './users/users.module';
     AdminModule,
     TaxonomyModule,
     TicketsModule,
+    UploadsModule,
     HealthModule,
   ],
   providers: [

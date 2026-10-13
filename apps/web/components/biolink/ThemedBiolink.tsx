@@ -25,6 +25,7 @@ export interface ThemedBiolinkData {
   website?: string | null;
   address?: string | null;
   avatarUrl?: string | null;
+  logoUrl?: string | null;
   cityId?: string | null;
   businessId?: string | null;
   linkedin?: string | null;
@@ -111,6 +112,16 @@ export function ThemedBiolink({
       }
     >
       <div className="theme-body overflow-hidden px-8 pt-8 pb-8 text-center sm:pt-10 sm:pb-8">
+        {data.logoUrl ? (
+          <Image
+            src={data.logoUrl}
+            alt={data.company || data.fullName}
+            width={72}
+            height={72}
+            unoptimized
+            className="mx-auto mb-4 size-14 object-contain"
+          />
+        ) : null}
         <div className="theme-avatar mx-auto mb-6 flex size-24 items-center justify-center overflow-hidden rounded-full text-3xl font-bold">
           {data.avatarUrl ? (
             <Image
@@ -119,6 +130,7 @@ export function ThemedBiolink({
               width={96}
               height={96}
               className="size-24 object-cover"
+              unoptimized
             />
           ) : (
             initials
@@ -243,6 +255,16 @@ function EditableBiolink({
       }
     >
       <div className="theme-body overflow-hidden px-8 pt-8 pb-8 text-center sm:pt-10 sm:pb-8">
+        {data.logoUrl ? (
+          <Image
+            src={data.logoUrl}
+            alt={data.company || data.fullName}
+            width={72}
+            height={72}
+            unoptimized
+            className="mx-auto mb-4 size-14 object-contain"
+          />
+        ) : null}
         <div className="theme-avatar mx-auto mb-6 flex size-24 items-center justify-center overflow-hidden rounded-full text-3xl font-bold">
           {data.avatarUrl ? (
             <Image
@@ -251,6 +273,7 @@ function EditableBiolink({
               width={96}
               height={96}
               className="size-24 object-cover"
+              unoptimized
             />
           ) : (
             (data.fullName || '?').trim().slice(0, 2).toUpperCase()
