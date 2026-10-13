@@ -77,6 +77,9 @@ export class BiolinksService {
   }
 
   async create(userId: string, dto: CreateBiolinkDto) {
+    // `draft` is a transport-only flag: it decides the initial status and
+    // whether the moderators get pinged, and must never reach Prisma.
+    const { draft, ...fields } = dto;
     // Global kill-switch: the admin can pause creation while load-testing.
     const locks = await this.settings.getCreationLocks();
     if (!locks.allowBiolinkCreation) {
@@ -103,26 +106,32 @@ export class BiolinksService {
     const slug = await this.generateSlug(dto.fullName);
     const biolink = await this.prisma.biolink.create({
       data: {
-        ...dto,
+        ...fields,
         slug,
         userId,
-        status: BiolinkStatus.PENDING,
+        status: draft ? BiolinkStatus.DRAFT : BiolinkStatus.PENDING,
         isPublished: false,
       },
     });
 
-    await this.notifications.notifyAdmins({
-      category: 'BIOLINK',
-      title: 'بیولینک جدید در انتظار تأیید',
-      body: `بیولینک «${biolink.fullName}» برای بررسی ثبت شد.`,
-      type: NotificationType.INFO,
-      link: '/admin?section=biolinks',
-      actorId: userId,
-    });
+    // Drafts stay private: no moderation notification until the user sends
+    // them for approval.
+    if (!draft) {
+      await this.notifications.notifyAdmins({
+        category: 'BIOLINK',
+        title: 'بیولینک جدید در انتظار تأیید',
+        body: `بیولینک «${biolink.fullName}» برای بررسی ثبت شد.`,
+        type: NotificationType.INFO,
+        link: '/admin?section=biolinks',
+        actorId: userId,
+      });
+    }
 
     await this.activity.log({
-      action: 'BIOLINK_CREATED',
-      summary: `ساخت بیولینک «${biolink.fullName}»`,
+      action: draft ? 'BIOLINK_DRAFTED' : 'BIOLINK_CREATED',
+      summary: draft
+        ? `ذخیره پیش‌نویس بیولینک «${biolink.fullName}»`
+        : `ساخت بیولینک «${biolink.fullName}»`,
       entityType: 'BIOLINK',
       entityId: biolink.id,
     });
@@ -212,7 +221,8 @@ export class BiolinksService {
   }
 
   async update(userId: string, id: string, dto: UpdateBiolinkDto) {
-    await this.findMineById(userId, id);
+    const existing = await this.findMineById(userId, id);
+    const { draft, ...fields } = dto;
     if (dto.cityId) {
       const city = await this.prisma.city.findUnique({ where: { id: dto.cityId } });
       if (!city || !city.isActive) {
@@ -227,32 +237,42 @@ export class BiolinksService {
         throw new BadRequestException('کسب‌وکار انتخاب‌شده معتبر نیست');
       }
     }
-    // any edit re-enters the moderation queue (per PRD)
+    // Saving a draft keeps the item private and does not re-enter moderation.
+    // Any other edit re-enters the moderation queue (per PRD).
+    const staysDraft = draft === true && existing.status === BiolinkStatus.DRAFT;
     const biolink = await this.prisma.biolink.update({
       where: { id },
       data: {
-        ...dto,
-        status: BiolinkStatus.PENDING,
-        isPublished: false,
-        rejectionReason: null,
-        approvedAt: null,
-        rejectedAt: null,
-        publishedAt: null,
+        ...fields,
+        ...(staysDraft
+          ? { status: BiolinkStatus.DRAFT, isPublished: false }
+          : {
+              status: BiolinkStatus.PENDING,
+              isPublished: false,
+              rejectionReason: null,
+              approvedAt: null,
+              rejectedAt: null,
+              publishedAt: null,
+            }),
       },
     });
 
-    await this.notifications.notifyAdmins({
-      category: 'BIOLINK',
-      title: 'ویرایش بیولینک در انتظار تأیید',
-      body: `بیولینک «${biolink.fullName}» ویرایش شد و نیازمند بررسی مجدد است.`,
-      type: NotificationType.WARNING,
-      link: '/admin?section=biolinks',
-      actorId: userId,
-    });
+    if (!staysDraft) {
+      await this.notifications.notifyAdmins({
+        category: 'BIOLINK',
+        title: 'ویرایش بیولینک در انتظار تأیید',
+        body: `بیولینک «${biolink.fullName}» ویرایش شد و نیازمند بررسی مجدد است.`,
+        type: NotificationType.WARNING,
+        link: '/admin?section=biolinks',
+        actorId: userId,
+      });
+    }
 
     await this.activity.log({
-      action: 'BIOLINK_UPDATED',
-      summary: `ویرایش بیولینک «${biolink.fullName}»`,
+      action: staysDraft ? 'BIOLINK_DRAFTED' : 'BIOLINK_UPDATED',
+      summary: staysDraft
+        ? `ذخیره پیش‌نویس بیولینک «${biolink.fullName}»`
+        : `ویرایش بیولینک «${biolink.fullName}»`,
       entityType: 'BIOLINK',
       entityId: biolink.id,
     });

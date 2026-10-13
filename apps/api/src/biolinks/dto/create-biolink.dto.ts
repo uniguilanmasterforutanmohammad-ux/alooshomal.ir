@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsEmail,
   IsHexColor,
   IsOptional,
@@ -108,4 +109,12 @@ export class CreateBiolinkDto {
   @IsOptional()
   @IsString()
   businessId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'ذخیره به‌عنوان پیش‌نویس (بدون ارسال برای تأیید مدیر و بدون اطلاع‌رسانی)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  draft?: boolean;
 }

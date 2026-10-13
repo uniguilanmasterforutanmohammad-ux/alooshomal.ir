@@ -72,6 +72,9 @@ export class BusinessCardsService {
   }
 
   async create(userId: string, dto: CreateBusinessCardDto) {
+    // `draft` is a transport-only flag: it decides the initial status and
+    // whether the moderators get pinged, and must never reach Prisma.
+    const { draft, ...fields } = dto;
     // Global kill-switch: the admin can pause creation while load-testing.
     const locks = await this.settings.getCreationLocks();
     if (!locks.allowBusinessCardCreation) {
@@ -98,26 +101,32 @@ export class BusinessCardsService {
     const slug = await this.generateSlug(dto.fullName);
     const businessCard = await this.prisma.businessCard.create({
       data: {
-        ...dto,
+        ...fields,
         slug,
         userId,
-        status: BiolinkStatus.PENDING,
+        status: draft ? BiolinkStatus.DRAFT : BiolinkStatus.PENDING,
         isPublished: false,
       },
     });
 
-    await this.notifications.notifyAdmins({
-      category: 'BUSINESS_CARD',
-      title: 'کارت ویزیت جدید در انتظار تأیید',
-      body: `کارت ویزیت «${businessCard.fullName}» برای بررسی ثبت شد.`,
-      type: NotificationType.INFO,
-      link: '/admin?section=business-cards',
-      actorId: userId,
-    });
+    // Drafts stay private: no moderation notification until the user sends
+    // them for approval.
+    if (!draft) {
+      await this.notifications.notifyAdmins({
+        category: 'BUSINESS_CARD',
+        title: 'کارت ویزیت جدید در انتظار تأیید',
+        body: `کارت ویزیت «${businessCard.fullName}» برای بررسی ثبت شد.`,
+        type: NotificationType.INFO,
+        link: '/admin?section=business-cards',
+        actorId: userId,
+      });
+    }
 
     await this.activity.log({
-      action: 'CARD_CREATED',
-      summary: `ساخت کارت ویزیت «${businessCard.fullName}»`,
+      action: draft ? 'CARD_DRAFTED' : 'CARD_CREATED',
+      summary: draft
+        ? `ذخیره پیش‌نویس کارت ویزیت «${businessCard.fullName}»`
+        : `ساخت کارت ویزیت «${businessCard.fullName}»`,
       entityType: 'BUSINESS_CARD',
       entityId: businessCard.id,
     });
@@ -207,7 +216,8 @@ export class BusinessCardsService {
   }
 
   async update(userId: string, id: string, dto: UpdateBusinessCardDto) {
-    await this.findMineById(userId, id);
+    const existing = await this.findMineById(userId, id);
+    const { draft, ...fields } = dto;
     if (dto.cityId) {
       const city = await this.prisma.city.findUnique({ where: { id: dto.cityId } });
       if (!city || !city.isActive) {
@@ -222,32 +232,42 @@ export class BusinessCardsService {
         throw new BadRequestException('کسب‌وکار انتخاب‌شده معتبر نیست');
       }
     }
-    // any edit re-enters the moderation queue (per PRD)
+    // Saving a draft keeps the item private and does not re-enter moderation.
+    // Any other edit re-enters the moderation queue (per PRD).
+    const staysDraft = draft === true && existing.status === BiolinkStatus.DRAFT;
     const businessCard = await this.prisma.businessCard.update({
       where: { id },
       data: {
-        ...dto,
-        status: BiolinkStatus.PENDING,
-        isPublished: false,
-        rejectionReason: null,
-        approvedAt: null,
-        rejectedAt: null,
-        publishedAt: null,
+        ...fields,
+        ...(staysDraft
+          ? { status: BiolinkStatus.DRAFT, isPublished: false }
+          : {
+              status: BiolinkStatus.PENDING,
+              isPublished: false,
+              rejectionReason: null,
+              approvedAt: null,
+              rejectedAt: null,
+              publishedAt: null,
+            }),
       },
     });
 
-    await this.notifications.notifyAdmins({
-      category: 'BUSINESS_CARD',
-      title: 'ویرایش کارت ویزیت در انتظار تأیید',
-      body: `کارت ویزیت «${businessCard.fullName}» ویرایش شد و نیازمند بررسی مجدد است.`,
-      type: NotificationType.WARNING,
-      link: '/admin?section=business-cards',
-      actorId: userId,
-    });
+    if (!staysDraft) {
+      await this.notifications.notifyAdmins({
+        category: 'BUSINESS_CARD',
+        title: 'ویرایش کارت ویزیت در انتظار تأیید',
+        body: `کارت ویزیت «${businessCard.fullName}» ویرایش شد و نیازمند بررسی مجدد است.`,
+        type: NotificationType.WARNING,
+        link: '/admin?section=business-cards',
+        actorId: userId,
+      });
+    }
 
     await this.activity.log({
-      action: 'CARD_UPDATED',
-      summary: `ویرایش کارت ویزیت «${businessCard.fullName}»`,
+      action: staysDraft ? 'CARD_DRAFTED' : 'CARD_UPDATED',
+      summary: staysDraft
+        ? `ذخیره پیش‌نویس کارت ویزیت «${businessCard.fullName}»`
+        : `ویرایش کارت ویزیت «${businessCard.fullName}»`,
       entityType: 'BUSINESS_CARD',
       entityId: businessCard.id,
     });

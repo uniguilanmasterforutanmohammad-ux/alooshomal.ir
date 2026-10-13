@@ -13,7 +13,10 @@ export default function NewBiolinkPage() {
   const [error, setError] = useState<string | null>(null);
   const [quota, setQuota] = useState(false);
 
-  async function handleSubmit(values: BiolinkFormValues) {
+  async function handleSubmit(
+    values: BiolinkFormValues,
+    options?: { draft?: boolean },
+  ) {
     setSubmitting(true);
     setError(null);
     setQuota(false);
@@ -21,8 +24,11 @@ export default function NewBiolinkPage() {
       const payload = Object.fromEntries(
         Object.entries(values).filter(([, value]) => value !== ''),
       );
+      if (options?.draft) {
+        (payload as Record<string, unknown>).draft = true;
+      }
       await api.post<Biolink>('/biolinks', payload);
-      router.push('/dashboard');
+      router.push(options?.draft ? '/dashboard/biolinks' : '/dashboard');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'ذخیره بیولینک ناموفق بود';
       setError(message);
@@ -50,7 +56,12 @@ export default function NewBiolinkPage() {
       ) : null}
 
       <div className="mt-6">
-        <BiolinkForm onSubmit={handleSubmit} submitting={submitting} inline />
+        <BiolinkForm
+          onSubmit={handleSubmit}
+          submitting={submitting}
+          inline
+          showDraftButton
+        />
       </div>
     </div>
   );

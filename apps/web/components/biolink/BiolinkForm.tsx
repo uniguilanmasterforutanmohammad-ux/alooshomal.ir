@@ -56,13 +56,22 @@ const emptyValues: BiolinkFormValues = {
 interface Props {
   initial?: Partial<BiolinkFormValues>;
   submitting?: boolean;
-  onSubmit: (values: BiolinkFormValues) => void;
+  onSubmit: (values: BiolinkFormValues, options?: { draft?: boolean }) => void;
   submitLabel?: string;
   /** theme-first builder: pick a theme, then edit fields on the preview */
   inline?: boolean;
+  /** show the secondary "save as draft" action in the builder */
+  showDraftButton?: boolean;
 }
 
-export function BiolinkForm({ initial, submitting, onSubmit, submitLabel, inline }: Props) {
+export function BiolinkForm({
+  initial,
+  submitting,
+  onSubmit,
+  submitLabel,
+  inline,
+  showDraftButton,
+}: Props) {
   const [values, setValues] = useState<BiolinkFormValues>({
     ...emptyValues,
     ...initial,
@@ -168,16 +177,6 @@ export function BiolinkForm({ initial, submitting, onSubmit, submitLabel, inline
               ))}
             </div>
 
-            <label className="mt-4 flex items-center gap-3">
-              <span className="text-sm font-bold text-ink">رنگ اصلی (تم وینتیج)</span>
-              <input
-                type="color"
-                value={values.primaryColor}
-                onChange={(event) => setField('primaryColor', event.target.value)}
-                className="h-10 w-16 cursor-pointer rounded-lg border border-[var(--indeed-border)]"
-              />
-            </label>
-
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <ImageUpload
                 label="تصویر پروفایل"
@@ -203,8 +202,20 @@ export function BiolinkForm({ initial, submitting, onSubmit, submitLabel, inline
           >
             {submitting ? 'در حال ذخیره...' : (submitLabel ?? 'ذخیره و ارسال برای تأیید')}
           </button>
+          {showDraftButton ? (
+            <button
+              type="button"
+              disabled={submitting || !values.fullName.trim()}
+              onClick={() => onSubmit(values, { draft: true })}
+              className="indeed-btn indeed-btn-secondary w-full disabled:opacity-60"
+            >
+              ذخیره به‌عنوان پیش‌نویس
+            </button>
+          ) : null}
           <p className="text-center text-xs text-muted">
-            پس از ذخیره، بیولینک در وضعیت «در انتظار تأیید مدیر» قرار می‌گیرد.
+            {showDraftButton
+              ? 'پیش‌نویس تا زمانی که آن را برای تأیید ارسال نکنید برای دیگران قابل‌مشاهده نیست.'
+              : 'پس از ذخیره، بیولینک در وضعیت «در انتظار تأیید مدیر» قرار می‌گیرد.'}
           </p>
         </div>
       </div>

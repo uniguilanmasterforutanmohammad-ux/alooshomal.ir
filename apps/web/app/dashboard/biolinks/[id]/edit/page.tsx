@@ -20,15 +20,21 @@ export default function EditBiolinkPage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'خطا'));
   }, [params.id]);
 
-  async function handleSubmit(values: BiolinkFormValues) {
+  async function handleSubmit(
+    values: BiolinkFormValues,
+    options?: { draft?: boolean },
+  ) {
     setSubmitting(true);
     setError(null);
     try {
       const payload = Object.fromEntries(
         Object.entries(values).filter(([, value]) => value !== ''),
       );
+      if (options?.draft) {
+        (payload as Record<string, unknown>).draft = true;
+      }
       await api.patch<Biolink>(`/biolinks/${params.id}`, payload);
-      router.push('/dashboard');
+      router.push(options?.draft ? '/dashboard/biolinks' : '/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره بیولینک ناموفق بود');
     } finally {
@@ -40,7 +46,8 @@ export default function EditBiolinkPage() {
     <div>
       <h1 className="text-2xl font-extrabold text-ink">ویرایش بیولینک</h1>
       <p className="text-sm text-muted">
-        با هر ویرایش، بیولینک دوباره برای تأیید مدیر ارسال می‌شود.
+        تغییرات را مستقیم روی پیش‌نمایش اعمال کنید؛ با «ذخیره تغییرات» برای تأیید
+        مدیر ارسال می‌شود و با «ذخیره به‌عنوان پیش‌نویس» خصوصی می‌ماند.
       </p>
 
       {error ? (
@@ -74,6 +81,8 @@ export default function EditBiolinkPage() {
             onSubmit={handleSubmit}
             submitting={submitting}
             submitLabel="ذخیره تغییرات"
+            inline
+            showDraftButton
           />
         </div>
       ) : (

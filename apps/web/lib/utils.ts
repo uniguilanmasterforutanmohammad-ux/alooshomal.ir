@@ -6,6 +6,7 @@ export function cn(...inputs: ClassValue[]): string {
 }
 
 export const biolinkStatusLabels: Record<string, string> = {
+  DRAFT: 'پیش‌نویس',
   PENDING: 'در انتظار تأیید مدیر',
   APPROVED: 'تأییدشده',
   REJECTED: 'ردشده',
@@ -13,6 +14,7 @@ export const biolinkStatusLabels: Record<string, string> = {
 };
 
 export const biolinkStatusStyles: Record<string, string> = {
+  DRAFT: 'bg-slate-100 text-slate-700 border-slate-300',
   PENDING: 'bg-amber-50 text-amber-700 border-amber-200',
   APPROVED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   REJECTED: 'bg-red-50 text-red-700 border-red-200',

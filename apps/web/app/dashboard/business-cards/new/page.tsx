@@ -13,7 +13,10 @@ export default function NewBusinessCardPage() {
   const [error, setError] = useState<string | null>(null);
   const [quota, setQuota] = useState(false);
 
-  async function handleSubmit(values: BusinessCardFormValues) {
+  async function handleSubmit(
+    values: BusinessCardFormValues,
+    options?: { draft?: boolean },
+  ) {
     setSubmitting(true);
     setError(null);
     setQuota(false);
@@ -21,8 +24,11 @@ export default function NewBusinessCardPage() {
       const payload = Object.fromEntries(
         Object.entries(values).filter(([, value]) => value !== ''),
       );
+      if (options?.draft) {
+        (payload as Record<string, unknown>).draft = true;
+      }
       await api.post<BusinessCard>('/business-cards', payload);
-      router.push('/dashboard');
+      router.push(options?.draft ? '/dashboard/business-cards' : '/dashboard');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'ذخیره کارت ویزیت ناموفق بود';
       setError(message);
@@ -50,7 +56,12 @@ export default function NewBusinessCardPage() {
       ) : null}
 
       <div className="mt-6">
-        <BusinessCardForm onSubmit={handleSubmit} submitting={submitting} inline />
+        <BusinessCardForm
+          onSubmit={handleSubmit}
+          submitting={submitting}
+          inline
+          showDraftButton
+        />
       </div>
     </div>
   );

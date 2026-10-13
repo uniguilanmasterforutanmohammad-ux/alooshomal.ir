@@ -396,6 +396,9 @@ header.bg-white {
   --biolink-page-muted: var(--vintage-ink-soft);
   --biolink-panel-bg: #ffffff;
   --biolink-panel-border: var(--vintage-border);
+  /* Round the theme background so its corners line up with the rounded card
+     border instead of showing sharp corners behind it. */
+  border-radius: var(--biolink-radius);
   background: var(--biolink-bg);
   color: var(--biolink-text);
   font-family: var(--biolink-font);
@@ -404,6 +407,7 @@ header.bg-white {
 /* full-page wrapper: paints the viewport with the theme background */
 .biolink-theme-page {
   min-height: 100vh;
+  border-radius: 0;
   background: var(--biolink-page-bg);
   color: var(--biolink-page-text);
 }
@@ -984,6 +988,9 @@ header.bg-white {
   --bc-btn-text: #ffffff;
   --bc-btn-border: #111111;
   --bc-page-bg: #f4f4f4;
+  /* Round the theme background so its corners line up with the rounded card
+     border instead of showing sharp corners behind it. */
+  border-radius: var(--bc-radius);
   background: var(--bc-surface);
   color: var(--bc-text);
   font-family: var(--bc-font);
@@ -991,6 +998,7 @@ header.bg-white {
 
 .bcard-theme-page {
   min-height: 100vh;
+  border-radius: 0;
   background: var(--bc-page-bg);
   color: var(--bc-text);
 }

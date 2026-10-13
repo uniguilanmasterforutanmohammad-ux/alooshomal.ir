@@ -21,6 +21,7 @@ enum BiolinkStatus {
   APPROVED
   REJECTED
   UNPUBLISHED
+  DRAFT
 }
 
 enum ModerationDecision {

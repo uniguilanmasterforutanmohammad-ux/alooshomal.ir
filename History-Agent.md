@@ -20,7 +20,48 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.18.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.19.0**.
+
+## ۱۴۰۵/۰۷/۲۱ — ویرایش درون‌خطی، پیش‌نویس، و اصلاح ظاهر بیلدر — نسخه `v2.19.0`
+
+**هدف:** سه اصلاح در بیلدر کارت ویزیت/بیولینک: (۱) صفحهٔ ویرایش هم مثل صفحهٔ ساخت
+با ویرایش مستقیم روی پیش‌نمایش کار کند، (۲) پس‌زمینهٔ تم گوشه‌هایش هم‌تراز گوشهٔ
+گرد border شود، (۳) امکان ذخیرهٔ کارت به‌عنوان «پیش‌نویس» و بازگشت/انتشار بعدی.
+
+**تغییرات:**
+- `apps/web/app/dashboard/biolinks/[id]/edit/page.tsx` و
+  `apps/web/app/dashboard/business-cards/[id]/edit/page.tsx`: پاس‌دادن `inline` و
+  `showDraftButton` به فرم، هندل‌کردن گزینهٔ پیش‌نویس و متن راهنمای تازه.
+- `apps/web/components/biolink/BiolinkForm.tsx` و
+  `apps/web/components/businesscard/BusinessCardForm.tsx`: امضای `onSubmit` به
+  `(values, options?)` تغییر کرد؛ حذف «رنگ اصلی (تم وینتیج)» و انتخاب رنگ؛ افزودن
+  دکمهٔ «ذخیره به‌عنوان پیش‌نویس».
+- `apps/web/app/dashboard/biolinks/new/page.tsx` و
+  `.../business-cards/new/page.tsx`: ارسال `draft: true` و بازگشت به لیست خودم.
+- `apps/web/app/globals.css`: افزودن `border-radius: var(--biolink-radius)` /
+  `var(--bc-radius)` به رپر تم و `border-radius: 0` به صفحهٔ تمام‌صفحه تا گوشهٔ
+  پس‌زمینه با border گرد هم‌تراز شود.
+- `apps/web/lib/utils.ts`: برچسب و استایل وضعیت `DRAFT` («پیش‌نویس»).
+- `apps/api/prisma/schema.prisma`: افزودن `DRAFT` به `enum BiolinkStatus`.
+- `apps/api/src/biolinks/dto/create-biolink.dto.ts` و
+  `.../businesscards/dto/create-business-card.dto.ts`: فیلد اختیاری `draft`.
+- `apps/api/src/biolinks/biolinks.service.ts` و
+  `apps/api/src/businesscards/business-cards.service.ts`: در `create`/`update`
+  فلگ `draft` از دیتای Prisma جدا می‌شود؛ پیش‌نویس وضعیت `DRAFT` می‌گیرد، منتشر
+  نمی‌شود و اعلان مدیر نمی‌فرستد؛ ویرایشِ یک پیش‌نویس با `draft:true` آن را پیش‌نویس
+  نگه می‌دارد و ذخیرهٔ معمولی آن را به `PENDING` می‌برد.
+
+**تأیید/تست:**
+- `tsc --noEmit` روی `apps/api` و `apps/web` بدون خطا.
+- سرور توسعهٔ Next روی پورت ۳۰۰۰ (هم‌راستا با CORS) بالا آمد؛ صفحهٔ ویرایش هر دو
+  نوع کارت، پیش‌نمایش ویرایش‌پذیر («روی هر فیلد کلیک کنید...») و دکمهٔ
+  «ذخیره به‌عنوان پیش‌نویس» را نشان داد.
+- `grep "رنگ اصلی"` روی هر دو صفحهٔ `new` → صفر مورد (انتخاب رنگ حذف شد).
+- اندازه‌گیری computed style: `border-radius` رپر کارت و بیولینک با کارت درونی
+  برابر شد (۲۴px و ۱۴px) به‌جای ۰px.
+- end-to-end API: آیتم با `draft:true` وضعیت `DRAFT`/`isPublished=false` گرفت؛
+  ویرایش با `draft:true` همان `DRAFT` ماند؛ ذخیرهٔ بدون فلگ به `PENDING` رفت
+  (تأیید با `psql` روی جدول `biolinks`).
 
 ## ۱۴۰۵/۰۷/۲۱ — پهن‌ترکردن ستون جزئیات در حالت تبلت دایرکتوری — نسخه `v2.18.2`
 
