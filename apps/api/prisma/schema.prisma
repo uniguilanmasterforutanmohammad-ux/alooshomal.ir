@@ -124,8 +124,13 @@ model ReporterRequest {
 
 model User {
   id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
+  // Accounts created through phone + OTP have no email/password yet; they can
+  // add them later. Both stay unique but nullable (Postgres allows many NULLs).
+  email        String?  @unique
+  passwordHash String?
+  // Phone sign-in identity, normalised to `09xxxxxxxxx`.
+  phone        String?  @unique
+  phoneVerified Boolean @default(false)
   fullName     String?
   role         Role     @default(USER)
   isActive     Boolean  @default(true)
@@ -156,6 +161,7 @@ model User {
   profileChangeRequests ProfileChangeRequest[]
 
   @@index([email])
+  @@index([phone])
   @@index([planId])
   @@map("users")
 }

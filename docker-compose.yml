@@ -93,6 +93,9 @@ services:
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change_me_in_production}
       MINIO_BUCKET: ${MINIO_BUCKET:-alooshomal}
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
+      # Melipayamak OTP endpoint path (embeds the sender line + token). When
+      # empty the API skips real SMS and uses the dev OTP bypass.
+      MELIPAYAMAK_OTP_PATH: ${MELIPAYAMAK_OTP_PATH:-}
     ports:
       - "${API_PORT:-4000}:4000"
     volumes:

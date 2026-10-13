@@ -28,10 +28,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
         ? payload
         : (payload as { message?: string | string[] }).message ?? 'خطای نامشخص';
 
+    // Optional machine-readable code (e.g. FULLNAME_REQUIRED) for clients that
+    // must branch on the failure reason rather than the message text.
+    const code =
+      typeof payload === 'object' && payload !== null && 'code' in payload
+        ? (payload as { code?: string }).code
+        : undefined;
+
     response.status(status).json({
       success: false,
       statusCode: status,
       message,
+      ...(code ? { code } : {}),
       timestamp: new Date().toISOString(),
     });
   }

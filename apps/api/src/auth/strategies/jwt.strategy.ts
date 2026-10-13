@@ -8,7 +8,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 export interface JwtPayload {
   sub: string;
-  email: string;
+  email: string | null;
+  phone?: string | null;
   role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
 }
 
@@ -33,11 +34,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload): Promise<AuthUser> {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, email: true, role: true, isActive: true },
+      select: { id: true, email: true, phone: true, role: true, isActive: true },
     });
     if (!user || !user.isActive) {
       throw new UnauthorizedException('حساب کاربری معتبر نیست');
     }
-    return { id: user.id, email: user.email, role: user.role };
+    return { id: user.id, email: user.email, phone: user.phone, role: user.role };
   }
 }

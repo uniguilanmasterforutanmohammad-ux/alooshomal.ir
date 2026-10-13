@@ -41,6 +41,7 @@ export class ProfileService {
         select: {
           id: true,
           email: true,
+          phone: true,
           fullName: true,
           role: true,
           isActive: true,

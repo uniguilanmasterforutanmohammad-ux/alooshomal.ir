@@ -1,5 +1,7 @@
 import {
+  BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -9,9 +11,13 @@ import * as bcrypt from 'bcrypt';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SettingsService } from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { RequestCodeDto } from './dto/request-code.dto';
+import { VerifyPhoneDto } from './dto/verify-phone.dto';
+import { OtpService } from './otp.service';
 
 const SALT_ROUNDS = 12;
 
@@ -23,7 +29,104 @@ export class AuthService {
     private readonly notifications: NotificationsService,
     private readonly subscriptions: SubscriptionsService,
     private readonly activity: ActivityService,
+    private readonly settings: SettingsService,
+    private readonly otp: OtpService,
   ) {}
+
+  /** Ensures phone sign-in is allowed by the admin toggle. */
+  private async assertPhoneLoginEnabled(): Promise<void> {
+    if (!(await this.settings.getPhoneLoginEnabled())) {
+      throw new ForbiddenException('ورود با موبایل در حال حاضر غیرفعال است');
+    }
+  }
+
+  /**
+   * Step 1 of the phone flow: normalise the number and send an OTP. The
+   * response is identical whether or not the number is already registered, so
+   * it never leaks which phones have accounts.
+   */
+  async requestPhoneCode(dto: RequestCodeDto) {
+    await this.assertPhoneLoginEnabled();
+    const phone = OtpService.normalizePhone(dto.phone);
+    const issued = await this.otp.issue(phone);
+    return { phone, ...issued };
+  }
+
+  /**
+   * Step 2 of the phone flow: verify the code and either sign the existing
+   * user in or create a new account. New accounts must supply a full name —
+   * that is what makes the same form serve both login and sign-up.
+   */
+  async verifyPhoneCode(dto: VerifyPhoneDto) {
+    await this.assertPhoneLoginEnabled();
+    const phone = OtpService.normalizePhone(dto.phone);
+    const existing = await this.prisma.user.findUnique({ where: { phone } });
+
+    // Check the new-user case *before* consuming the code: a first-time
+    // sign-up that still needs a name must not burn the OTP, otherwise the
+    // second call (with the name) would fail with «کد منقضی شده».
+    if (!existing && !dto.fullName?.trim()) {
+      // Signals the client to reveal the «نام و نام خانوادگی» step.
+      throw new BadRequestException({
+        code: 'FULLNAME_REQUIRED',
+        message: 'برای ساخت حساب، نام و نام خانوادگی را وارد کنید',
+      });
+    }
+
+    await this.otp.verify(phone, dto.code);
+
+    if (existing) {
+      if (!existing.isActive) {
+        throw new UnauthorizedException('حساب کاربری غیرفعال است');
+      }
+      if (!existing.phoneVerified) {
+        await this.prisma.user.update({
+          where: { id: existing.id },
+          data: { phoneVerified: true },
+        });
+      }
+      await this.activity.log({
+        actor: { id: existing.id, email: existing.email, role: existing.role },
+        action: 'USER_LOGIN',
+        summary: `ورود با موبایل: ${existing.fullName ?? existing.email ?? phone}`,
+        entityType: 'USER',
+        entityId: existing.id,
+      });
+      return {
+        ...this.buildAuthResponse(existing),
+        isNewUser: false,
+      };
+    }
+
+    const fullName = dto.fullName!.trim();
+
+    const user = await this.prisma.user.create({
+      data: { phone, phoneVerified: true, fullName },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        fullName: true,
+        role: true,
+      },
+    });
+    await this.subscriptions.assignDefaultPlan(user.id);
+    await this.notifications.notifyAdmins({
+      category: 'NEW_USER',
+      title: 'کاربر جدید ثبت‌نام کرد',
+      body: `${user.fullName ?? phone} با موبایل به پلتفرم پیوست.`,
+      link: '/admin?section=users',
+      actorId: user.id,
+    });
+    await this.activity.log({
+      actor: { id: user.id, email: user.email, role: user.role },
+      action: 'USER_REGISTERED',
+      summary: `ثبت‌نام با موبایل: ${user.fullName ?? phone}`,
+      entityType: 'USER',
+      entityId: user.id,
+    });
+    return { ...this.buildAuthResponse(user), isNewUser: true };
+  }
 
   async register(dto: RegisterDto) {
     const email = dto.email.toLowerCase().trim();
@@ -68,6 +171,11 @@ export class AuthService {
       throw new UnauthorizedException('ایمیل یا رمز عبور اشتباه است');
     }
 
+    // Phone-only accounts have no password yet — treat as invalid credentials
+    // rather than crashing bcrypt.compare.
+    if (!user.passwordHash) {
+      throw new UnauthorizedException('ایمیل یا رمز عبور اشتباه است');
+    }
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) {
       throw new UnauthorizedException('ایمیل یا رمز عبور اشتباه است');
@@ -84,6 +192,7 @@ export class AuthService {
     return this.buildAuthResponse({
       id: user.id,
       email: user.email,
+      phone: user.phone,
       fullName: user.fullName,
       role: user.role,
     });
@@ -91,13 +200,15 @@ export class AuthService {
 
   private buildAuthResponse(user: {
     id: string;
-    email: string;
+    email: string | null;
+    phone?: string | null;
     fullName?: string | null;
     role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
   }) {
     const accessToken = this.jwt.sign({
       sub: user.id,
       email: user.email,
+      phone: user.phone ?? null,
       role: user.role,
     });
     return {
@@ -105,6 +216,7 @@ export class AuthService {
       user: {
         id: user.id,
         email: user.email,
+        phone: user.phone ?? null,
         fullName: user.fullName ?? null,
         role: user.role,
       },

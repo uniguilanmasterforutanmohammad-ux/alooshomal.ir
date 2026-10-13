@@ -50,6 +50,14 @@ export interface CreationLocks {
   allowBusinessCardCreation: boolean;
 }
 
+// ---------------------------------------------------------------------------
+//  Authentication settings
+// ---------------------------------------------------------------------------
+
+/** Admin toggle: allow sign-in/sign-up with phone + OTP. */
+export const PHONE_LOGIN_ENABLED_KEY = 'authPhoneLoginEnabled';
+export const DEFAULT_PHONE_LOGIN_ENABLED = true;
+
 /**
  * Categories of admin-facing notifications. Each one can be muted from the
  * admin settings panel: a muted category is skipped at creation time, so no
@@ -146,6 +154,14 @@ export class SettingsService implements OnModuleInit {
         create: {
           key: NEWS_ACCESS_LEVEL_KEY,
           value: DEFAULT_NEWS_ACCESS_LEVEL,
+        },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: PHONE_LOGIN_ENABLED_KEY },
+        update: {},
+        create: {
+          key: PHONE_LOGIN_ENABLED_KEY,
+          value: DEFAULT_PHONE_LOGIN_ENABLED ? 'true' : 'false',
         },
       }),
       ...ADMIN_NOTIFY_CATEGORIES.map((category) =>
@@ -373,6 +389,25 @@ export class SettingsService implements OnModuleInit {
       create: { key: NEWS_ACCESS_LEVEL_KEY, value: clean },
     });
     return clean;
+  }
+
+  // ---- authentication settings ----
+
+  /** Whether phone + OTP sign-in/sign-up is enabled (default ON). */
+  async getPhoneLoginEnabled(): Promise<boolean> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: PHONE_LOGIN_ENABLED_KEY },
+    });
+    return setting ? setting.value !== 'false' : DEFAULT_PHONE_LOGIN_ENABLED;
+  }
+
+  async setPhoneLoginEnabled(value: boolean): Promise<boolean> {
+    await this.prisma.setting.upsert({
+      where: { key: PHONE_LOGIN_ENABLED_KEY },
+      update: { value: value ? 'true' : 'false' },
+      create: { key: PHONE_LOGIN_ENABLED_KEY, value: value ? 'true' : 'false' },
+    });
+    return value;
   }
 
   async all(): Promise<Record<string, string>> {

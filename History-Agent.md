@@ -20,7 +20,66 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.21.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.22.0**.
+
+## ۱۴۰۵/۰۷/۲۱ — ورود و ثبت‌نام با موبایل و کد یکبار مصرف (OTP) — نسخه `v2.22.0`
+
+**هدف:** افزودن روش ورود/ثبت‌نام با موبایل و کد یکبار مصرف در کنار روش فعلی
+(ایمیل و رمز عبور که دست‌نخورده ماند). یک فرم واحد هم برای ورود و هم برای ثبت‌نام:
+اگر شماره قبلاً ثبت شده باشد فقط وارد می‌شود، و اگر شماره جدید باشد در همان لحظه نام و
+نام خانوادگی گرفته و حساب ساخته می‌شود. روش ورود با موبایل از پنل مدیر قابل فعال/غیرفعال
+شدن است، و در محیط لوکال هیچ پیامکی ارسال نمی‌شود تا تست بدون گوشی واقعی ممکن باشد.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: `User.email` و `User.passwordHash` nullable شدند
+  (حساب‌های موبایلی هنوز ایمیل/رمز ندارند) و فیلدهای `phone` (یکتا) و
+  `phoneVerified` اضافه شدند.
+- `apps/api/src/auth/otp.service.ts` (جدید): صدور/تأیید کد یکبار مصرف با ذخیره‌ی
+  هش‌شده در Redis (TTL ۵ دقیقه، سقف ۵ تلاش، cooldown ۶۰ ثانیه‌ای)، نرمال‌سازی شماره‌ی
+  ایرانی (پشتیبانی از ارقام فارسی/عربی و پیش‌شماره‌های `+98`/`0098`)، و bypass توسعه
+  با کد ثابت `123456`.
+- `apps/api/src/auth/sms.service.ts` (جدید): ارسال از طریق اندپوینت OTP ملی‌پیامک
+  (`console.melipayamak.com`)، خواندن مسیر از `MELIPAYAMAK_OTP_PATH`. چون ملی‌پیامک
+  خودش کد را می‌سازد و برمی‌گرداند، کد برگشتی برای تأیید محلی ذخیره می‌شود.
+- `apps/api/src/auth/auth.service.ts`: افزودن `requestPhoneCode` و `verifyPhoneCode`
+  (ورود یا ثبت‌نام با یک مسیر)، تضمین غیرفعال‌بودن مسیر وقتی توگل مدیر خاموش است،
+  افزودن `phone` به پاسخ احراز هویت، و جلوگیری از خطای bcrypt برای حساب‌های بدون رمز.
+- `apps/api/src/auth/auth.controller.ts`: روت‌های `POST /auth/phone/request-code` و
+  `POST /auth/phone/verify`.
+- `apps/api/src/auth/dto/{request-code,verify-phone}.dto.ts` (جدید) و به‌روزرسانی
+  `auth.module.ts` (واردکردن `SettingsModule` و سرویس‌های `OtpService`/`SmsService`).
+- `apps/api/src/settings/settings.service.ts` + `settings.controller.ts`: کلید جدید
+  `authPhoneLoginEnabled` (پیش‌فرض روشن) در تنظیمات عمومی/مدیر.
+- `apps/api/src/common/filters/http-exception.filter.ts`: عبور دادن کد ماشین‌خوان
+  (`code`) در پاسخ خطا تا کلاینت بتواند حالت «نیاز به نام» را تشخیص دهد.
+- `apps/api/src/common/decorators/current-user.decorator.ts` و
+  `apps/api/src/auth/strategies/jwt.strategy.ts` و `apps/api/src/profile/profile.service.ts`:
+  پذیرش `email` nullable و افزودن `phone`.
+- `apps/web/components/auth/PhoneAuthForm.tsx` (جدید): فرم دو مرحله‌ای موبایل→کد با
+  مرحله‌ی نام برای کاربر جدید و نمایش کد توسعه.
+- `apps/web/app/(auth)/login/page.tsx` و `register/page.tsx`: تب‌های «ایمیل و رمز عبور»
+  و «موبایل و کد».
+- `apps/web/components/admin/AdminAuthSettings.tsx` (جدید): کارت تنظیمات برای فعال/غیرفعال
+  کردن ورود با موبایل، وصل‌شده در `apps/web/app/admin/page.tsx` بخش «تنظیمات».
+- `apps/web/lib/api.ts` و `lib/auth.ts`: `email` nullable + `phone` + `ApiError.code`.
+- `apps/web/components/dashboard/ProfilePanel.tsx`: نمایش موبایل و fallback برای ایمیل خالی.
+- `docker-compose.yml`، `docker-compose.prod.yml`، `.env.example`، `docs/DEPLOY.md`:
+  مستندسازی و پاس‌دادن `MELIPAYAMAK_OTP_PATH`.
+
+**تأیید/تست:**
+- `tsc --noEmit` برای هر دو اپ (`apps/api`, `apps/web`) بدون خطا.
+- ایمیج‌های `api`/`web` بازساخته و کانتینرها بازسازی شدند؛ `prisma db push` اسکیما را
+  روی دیتابیس اعمال کرد (ستون‌های `phone`/`phoneVerified` و nullable شدن `email`/`passwordHash`).
+- تست زنده‌ی API روی `localhost:3001/api`:
+  - ثبت‌نام کاربر جدید با موبایل: `request-code` → `verify` بدون نام → خطای
+    `FULLNAME_REQUIRED` → `verify` با نام → توکن صادر شد (`isNewUser: true`).
+  - ورود کاربر موجود با همان شماره → توکن صادر شد (`isNewUser: false`).
+  - کد اشتباه → خطای «کد وارد‌شده صحیح نیست»؛ درخواست مجدد داخل cooldown → خطای cooldown؛
+    شماره‌ی نامعتبر → خطای اعتبارسنجی.
+  - ورود ایمیل+رمز ادمین همچنان کار می‌کند.
+  - توگل مدیر: با `phoneLoginEnabled=false` اندپوینت‌های موبایل خطای 403 می‌دهند.
+- تست UI با Playwright روی `localhost:3000`: تب موبایل، نمایش کد توسعه، مرحله‌ی نام و
+  رسیدن به `/dashboard` تأیید شد؛ کارت تنظیمات مدیر در `?section=settings` رندر شد.
 
 ## ۱۴۰۵/۰۷/۲۱ — پنل «فضای سرور» در داشبورد مدیریت (حجم آپلودها + دیسک) — نسخه `v2.21.0`
 

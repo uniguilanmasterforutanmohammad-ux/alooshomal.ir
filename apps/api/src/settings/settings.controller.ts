@@ -56,6 +56,10 @@ class UpdateSettingsDto {
 
   @IsOptional()
   newsAccessLevel?: NewsAccessLevel;
+
+  @IsOptional()
+  @IsBoolean()
+  phoneLoginEnabled?: boolean;
 }
 const ADMIN_NOTIFY_CATEGORY_SET = new Set<string>(ADMIN_NOTIFY_CATEGORIES);
 const NEWS_ACCESS_LEVEL_SET = new Set<string>(NEWS_ACCESS_LEVELS);
@@ -73,6 +77,7 @@ export class SettingsController {
     return {
       directoryPageSize: await this.settingsService.getDirectoryPageSize(),
       myListPageSize: await this.settingsService.getMyListPageSize(),
+      phoneLoginEnabled: await this.settingsService.getPhoneLoginEnabled(),
       ...locks,
     };
   }
@@ -99,6 +104,7 @@ export class AdminSettingsController {
       adminNotifications: await this.settingsService.getAdminNotifyPrefs(),
       newsHeadlineCount: await this.settingsService.getNewsHeadlineCount(),
       newsAccessLevel: await this.settingsService.getNewsAccessLevel(),
+      phoneLoginEnabled: await this.settingsService.getPhoneLoginEnabled(),
       ...locks,
     };
   }
@@ -115,6 +121,7 @@ export class AdminSettingsController {
       allowBusinessCardCreation?: boolean;
       newsHeadlineCount?: number;
       newsAccessLevel?: NewsAccessLevel;
+      phoneLoginEnabled?: boolean;
     } = {};
     if (dto.directoryPageSize !== undefined) {
       result.directoryPageSize = await this.settingsService.setDirectoryPageSize(
@@ -163,6 +170,11 @@ export class AdminSettingsController {
     ) {
       result.newsAccessLevel = await this.settingsService.setNewsAccessLevel(
         dto.newsAccessLevel,
+      );
+    }
+    if (dto.phoneLoginEnabled !== undefined) {
+      result.phoneLoginEnabled = await this.settingsService.setPhoneLoginEnabled(
+        dto.phoneLoginEnabled,
       );
     }
     return result;

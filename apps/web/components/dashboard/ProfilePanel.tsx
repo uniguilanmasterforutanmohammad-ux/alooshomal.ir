@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { BadgeCheck, IdCard, Mail, Send, ShieldCheck, UserRound } from 'lucide-react';
+import { BadgeCheck, IdCard, Mail, Phone, Send, ShieldCheck, UserRound } from 'lucide-react';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -17,7 +17,8 @@ interface ProfileChangeRequest {
 
 interface ProfilePayload {
   id: string;
-  email: string;
+  email: string | null;
+  phone: string | null;
   fullName: string | null;
   role: string;
   isActive: boolean;
@@ -90,7 +91,8 @@ export function ProfilePanel() {
 
       <div className="indeed-panel grid gap-4 p-5 sm:grid-cols-2">
         <InfoRow icon={UserRound} label="نام" value={profile.fullName ?? '—'} />
-        <InfoRow icon={Mail} label="ایمیل" value={profile.email} ltr />
+        <InfoRow icon={Mail} label="ایمیل" value={profile.email ?? '—'} ltr />
+        <InfoRow icon={Phone} label="موبایل" value={profile.phone ?? '—'} ltr />
         <InfoRow
           icon={ShieldCheck}
           label="نقش"
@@ -141,7 +143,10 @@ export function ProfilePanel() {
       </div>
 
       <p className="text-xs text-muted">
-        نام کاربری ورود: <span dir="ltr" className="font-bold">{user?.email}</span>
+        نام کاربری ورود:{' '}
+        <span dir="ltr" className="font-bold">
+          {user?.email ?? user?.phone ?? '—'}
+        </span>
       </p>
     </div>
   );

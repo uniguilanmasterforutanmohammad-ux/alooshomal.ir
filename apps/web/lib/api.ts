@@ -35,6 +35,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly code?: string,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -69,7 +70,7 @@ async function request<T>(
 
   const payload = (await response.json().catch(() => null)) as
     | ApiEnvelope<T>
-    | { message?: string }
+    | { message?: string; code?: string }
     | null;
 
   if (!response.ok) {
@@ -79,7 +80,11 @@ async function request<T>(
           ? payload.message.join('، ')
           : String(payload.message)
         : 'خطا در ارتباط با سرور';
-    const error = new ApiError(message, response.status);
+    const code =
+      payload && 'code' in payload && typeof payload.code === 'string'
+        ? payload.code
+        : undefined;
+    const error = new ApiError(message, response.status, code);
     // Surface every failed request as a dismissible bubble (10s) so no error
     // passes silently — the page-level banner remains for inline context.
     if (typeof window !== 'undefined') {
@@ -163,10 +168,12 @@ export interface AuthResponse {
   accessToken: string;
   user: {
     id: string;
-    email: string;
+    email: string | null;
+    phone?: string | null;
     fullName: string | null;
     role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
   };
+  isNewUser?: boolean;
 }
 
 export interface TaxonomyItem {
