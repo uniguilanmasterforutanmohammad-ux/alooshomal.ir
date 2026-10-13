@@ -6,6 +6,49 @@ const API_URL =
 const VISITOR_STORAGE_KEY = 'alooshomal_visitor';
 
 /**
+ * Single-flight refresh promise. When several requests fail with 401 at the
+ * same moment they all await the same token exchange instead of racing and
+ * burning the (rotating) refresh token.
+ */
+let refreshInFlight: Promise<boolean> | null = null;
+
+interface RefreshResult {
+  accessToken: string;
+  refreshToken: string;
+}
+
+async function refreshSession(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
+  if (refreshInFlight) return refreshInFlight;
+  const refreshToken = window.localStorage.getItem('alooshomal_refresh');
+  if (!refreshToken) return false;
+
+  refreshInFlight = (async () => {
+    try {
+      const response = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+        cache: 'no-store',
+      });
+      if (!response.ok) return false;
+      const payload = (await response.json()) as { data?: RefreshResult };
+      if (!payload?.data?.accessToken) return false;
+      window.localStorage.setItem('alooshomal_token', payload.data.accessToken);
+      if (payload.data.refreshToken) {
+        window.localStorage.setItem('alooshomal_refresh', payload.data.refreshToken);
+      }
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
+/**
  * A random per-browser id used to attribute likes without requiring login.
  * Persisted in localStorage so a visitor can only like an item once.
  */
@@ -46,6 +89,21 @@ async function request<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
+  const response = await send<T>(path, options, 0);
+  return parse<T>(response);
+}
+
+/**
+ * Performs the request, transparently refreshing an expired access token once.
+ * A 401 with a stored refresh token triggers a silent rotation and one retry;
+ * a second 401 (or no refresh token) is surfaced to the caller so it can send
+ * the user back to the login page.
+ */
+async function send<T>(
+  path: string,
+  options: RequestInit,
+  attempt: number,
+): Promise<Response> {
   const token =
     typeof window !== 'undefined'
       ? window.localStorage.getItem('alooshomal_token')
@@ -67,6 +125,29 @@ async function request<T>(
     },
     cache: 'no-store',
   });
+
+  const isAuthEndpoint =
+    path.startsWith('/auth/login') ||
+    path.startsWith('/auth/refresh') ||
+    path.startsWith('/auth/phone/') ||
+    path.startsWith('/auth/register');
+
+  if (response.status === 401 && attempt === 0 && !isAuthEndpoint) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      return send<T>(path, options, 1);
+    }
+    // Refresh failed: clear the dead session so the UI can redirect to login.
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('alooshomal_token');
+      window.localStorage.removeItem('alooshomal_refresh');
+      window.dispatchEvent(new Event('alooshomal:session-expired'));
+    }
+  }
+  return response;
+}
+
+async function parse<T>(response: Response): Promise<T> {
 
   const payload = (await response.json().catch(() => null)) as
     | ApiEnvelope<T>
@@ -166,6 +247,8 @@ export interface OwnerRank {
 
 export interface AuthResponse {
   accessToken: string;
+  refreshToken?: string;
+  sessionId?: string;
   user: {
     id: string;
     email: string | null;

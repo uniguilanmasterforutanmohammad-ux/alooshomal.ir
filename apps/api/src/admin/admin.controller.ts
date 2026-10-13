@@ -126,6 +126,18 @@ export class AdminController {
     return this.adminService.deleteUser(admin.id, id);
   }
 
+  @Get('users/:id/sessions')
+  @ApiOperation({ summary: 'نشست‌های فعال یک کاربر' })
+  userSessions(@Param('id') id: string) {
+    return this.adminService.listUserSessions(id);
+  }
+
+  @Delete('users/:id/sessions')
+  @ApiOperation({ summary: 'خروج اجباری کاربر از همه‌ی دستگاه‌ها' })
+  revokeUserSessions(@CurrentUser() admin: AuthUser, @Param('id') id: string) {
+    return this.adminService.revokeUserSessions(admin.id, id);
+  }
+
   @Get('reports')
   @ApiOperation({ summary: 'گزارش‌های سیستم' })
   reports(@Query('limit') limit?: string) {

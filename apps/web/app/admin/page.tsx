@@ -39,6 +39,7 @@ import {
 } from '@/components/admin/AdminTables';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { toast } from '@/lib/toast';
 import {
   Pagination,
   type PaginationMeta,
@@ -298,6 +299,20 @@ function AdminContent() {
       await loadOverview();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حذف کاربر ناموفق بود');
+    }
+  }
+
+  async function forceLogoutUser(id: string) {
+    if (
+      !window.confirm('همه‌ی نشست‌های فعال این کاربر بسته شود؟ او باید دوباره وارد شود.')
+    ) {
+      return;
+    }
+    try {
+      const result = await api.delete<{ revoked: number }>(`/admin/users/${id}/sessions`);
+      toast.success(`از ${result.revoked} نشست خارج شد.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'خروج اجباری ناموفق بود');
     }
   }
 
@@ -603,6 +618,7 @@ function AdminContent() {
             onDelete={deleteUser}
             onComment={setUserComment}
             onRole={setUserRole}
+            onSessions={forceLogoutUser}
           />
           {usersMeta ? (
             <Pagination meta={usersMeta} onPage={setUsersPage} />

@@ -20,7 +20,47 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.26.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.27.0**.
+
+## ۱۴۰۵/۰۷/۲۲ — مدیریت نشست‌ها (کاربر و ادمین) — نسخه `v2.27.0`
+
+**هدف:** هر ورود یک «نشست» سرورمحور با قابلیت مشاهده و ابطال باشد؛ کاربر بتواند از یک
+دستگاه یا همه‌ی دستگاه‌ها خارج شود و مدیر هم بتواند نشست‌های یک کاربر را ببیند و
+به‌اجبار ببندد.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل `Session` (userId، refreshHash یکتا، userAgent،
+  ip، lastUsedAt، expiresAt، revokedAt) + ایندکس‌ها و رابطه‌ی روی `User`.
+- `apps/api/src/sessions/sessions.service.ts` (جدید): ساخت/چرخش/ابطال نشست، بررسی
+  نشست فعال (revoked/absolute/idle)، heartbeat، پاک‌سازی رکوردهای کهنه و فهرست نشست‌ها
+  با محاسبه‌ی وضعیت فعال و زمان انقضای idle.
+- `apps/api/src/sessions/sessions.controller.ts` (جدید): `GET /sessions`،
+  `DELETE /sessions/:id` و `DELETE /sessions` (خروج از سایر دستگاه‌ها).
+- `apps/api/src/sessions/request-context.ts` (جدید): استخراج IP (با احترام به
+  `x-forwarded-for`) و User-Agent برای ثبت روی نشست.
+- `apps/api/src/sessions/sessions.module.ts` (جدید): ماژول Global نشست‌ها.
+- `apps/api/src/auth/*`: توکن دسترسی اکنون `sid` دارد؛ `buildAuthResponse` یک نشست
+  می‌سازد و `accessToken`/`refreshToken`/`sessionId` برمی‌گرداند؛ افزودن `refresh`
+  (چرخش رفرش توکن)، `logout`، اندپوینت‌های `POST /auth/refresh` و `POST /auth/logout`
+  و DTO مربوطه. `register`/`login`/`verifyPhone` با context دستگاه فراخوانی می‌شوند.
+- `apps/api/src/auth/strategies/jwt.strategy.ts`: هر درخواست، وجود و اعتبار نشست را
+  بررسی می‌کند (توکن بدون `sid` رد می‌شود) و heartbeat می‌زند؛ `sessionId` به کاربر
+  جاری اضافه شد.
+- `apps/api/src/admin/*`: `GET /admin/users/:id/sessions` و
+  `DELETE /admin/users/:id/sessions` (خروج اجباری + اعلان). غیرفعال‌سازی حساب هم
+  همه‌ی نشست‌های کاربر را باطل می‌کند.
+- وب: `SessionsPanel.tsx` (جدید) در پروفایل؛ دکمه‌ی خروج اجباری در جدول کاربران ادمین؛
+  ذخیره‌ی `refreshToken` و تمدید خودکار نشست در `lib/api.ts`/`lib/auth.ts`؛ فراخوانی
+  `POST /auth/logout` هنگام خروج.
+- `apps/web/lib/version.ts`: نسخه به `v2.27.0`.
+
+**تأیید/تست:**
+- `tsc --noEmit` برای `apps/api` و `apps/web` بدون خطا.
+- تست curl: ورود دوم از دستگاه دیگر → دو نشست؛ ابطال نشست دوم → توکن آن `401`؛
+  «خروج از سایر دستگاه‌ها» → نشست فعلی سالم ماند؛ چرخش رفرش توکن و رد شدن توکن قبلی؛
+  خروج ادمین → توکن کاربر `401`.
+- تست UI با Playwright: نمایش «نشست‌های فعال» و دکمه‌های خروج در `/dashboard/profile`
+  و دکمه‌ی خروج اجباری در `/admin?section=users`.
 
 ## ۱۴۰۵/۰۷/۲۲ — حذف بازخوانی کد OTP از حافظه هنگام سلامت Redis — نسخه `v2.26.1`
 

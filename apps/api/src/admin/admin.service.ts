@@ -18,6 +18,7 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SessionsService } from '../sessions/sessions.service';
 import { SettingsService } from '../settings/settings.service';
 import { StorageService } from '../uploads/storage.service';
 import { ModerateBiolinkDto } from './dto/moderate-biolink.dto';
@@ -31,6 +32,7 @@ export class AdminService {
     private readonly activity: ActivityService,
     private readonly facetsCache: FacetsCacheService,
     private readonly storage: StorageService,
+    private readonly sessions: SessionsService,
   ) {}
 
   async listBiolinks(pagination: PaginationDto, status?: BiolinkStatus) {
@@ -487,6 +489,9 @@ export class AdminService {
     });
 
     if (!isActive) {
+      // Deactivating an account must also kill its live sessions, otherwise an
+      // existing token keeps working until it expires.
+      await this.sessions.revokeAll(userId);
       await this.notifyUser(
         userId,
         'حساب کاربری شما غیرفعال شد',
@@ -514,6 +519,44 @@ export class AdminService {
     });
 
     return updated;
+  }
+
+  /** Session list of one user, for the admin «نشست‌ها» drawer. */
+  async listUserSessions(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, fullName: true },
+    });
+    if (!user) {
+      throw new NotFoundException('کاربر یافت نشد');
+    }
+    await this.sessions.pruneStale(userId);
+    return { user, sessions: await this.sessions.listForAdmin(userId) };
+  }
+
+  /** Force-logout every device of a user. */
+  async revokeUserSessions(adminId: string, userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('کاربر یافت نشد');
+    }
+    const count = await this.sessions.revokeAll(userId);
+    await this.notifyUser(
+      userId,
+      'خروج از همه‌ی دستگاه‌ها',
+      'مدیر همه‌ی نشست‌های فعال شما را بست. لطفاً دوباره وارد شوید.',
+      NotificationType.WARNING,
+      null,
+      adminId,
+    );
+    await this.activity.log({
+      actor: { id: adminId },
+      action: 'USER_SESSIONS_REVOKED',
+      summary: `خروج اجباری از ${count} نشست کاربر «${user.fullName ?? user.email}»`,
+      entityType: 'USER',
+      entityId: userId,
+    });
+    return { ok: true, revoked: count };
   }
 
   /** Store an internal admin comment about a user. */

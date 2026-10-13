@@ -99,7 +99,7 @@ export function AuthForm({
         if (email.trim()) payload.email = email.trim();
       }
       const data = await api.post<AuthResponse>('/auth/phone/verify', payload);
-      setSession(data.accessToken, data.user);
+      setSession(data.accessToken, data.refreshToken ?? null, data.user);
       if (data.isNewUser) {
         // New account: offer to set a password before continuing.
         setStep('password');

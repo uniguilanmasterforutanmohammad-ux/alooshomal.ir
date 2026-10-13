@@ -5,6 +5,8 @@ export interface AuthUser {
   email: string | null;
   phone?: string | null;
   role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
+  /** Id of the session this request was authenticated with (when known). */
+  sessionId?: string;
 }
 
 export const CurrentUser = createParamDecorator(

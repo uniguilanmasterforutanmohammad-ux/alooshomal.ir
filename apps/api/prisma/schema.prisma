@@ -159,11 +159,40 @@ model User {
   notifications     Notification[]    @relation("UserNotifications")
   actingNotifications Notification[]  @relation("NotificationActors")
   profileChangeRequests ProfileChangeRequest[]
+  sessions          Session[]
 
   @@index([email])
   @@index([phone])
   @@index([planId])
   @@map("users")
+}
+
+// A signed-in device/session. Login (password or OTP) creates one row; the JWT
+// carries its id (`sid`) so every request can be tied back to a revocable
+// session. Deleting the row (logout, admin force-logout, idle expiry) makes the
+// token unusable even though its signature is still valid — the strategy checks
+// that the session exists and is not expired on each request.
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  // SHA-256 of the refresh token (never the raw value), or null for token-only
+  // sessions that never performed a refresh.
+  refreshHash  String?  @unique
+  // Free-form, best-effort client hints captured at login.
+  userAgent    String?
+  ip           String?
+  createdAt    DateTime @default(now())
+  // Bumped on every refresh — the idle clock for cookie/session expiry.
+  lastUsedAt   DateTime @default(now())
+  // Absolute expiry of the session (independent of activity).
+  expiresAt    DateTime
+  revokedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
 }
 
 // A user asks an admin to change profile fields (name, ...). The change is

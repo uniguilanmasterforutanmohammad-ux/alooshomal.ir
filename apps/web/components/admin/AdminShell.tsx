@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
+import { api } from '@/lib/api';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { cn } from '@/lib/utils';
 
@@ -70,6 +71,8 @@ export function AdminShell({ section, onSection, children }: Props) {
   const [open, setOpen] = useState(false);
 
   function logout() {
+    // Best-effort server-side revoke; never block the UI on it.
+    void api.post('/auth/logout').catch(() => undefined);
     clear();
     router.push('/login');
   }

@@ -16,6 +16,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
 import { ContactChangePanel } from './ContactChangePanel';
+import { SessionsPanel } from './SessionsPanel';
 
 interface ProfileChangeRequest {
   id: string;
@@ -234,6 +235,8 @@ export function ProfilePanel() {
           {savingPassword ? 'در حال ثبت...' : profile.hasPassword ? 'تغییر رمز' : 'ثبت رمز عبور'}
         </button>
       </div>
+
+      <SessionsPanel />
 
       <p className="text-xs text-muted">
         نام کاربری ورود:{' '}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Ban, CheckCircle2, MessageSquare, Trash2 } from 'lucide-react';
+import { Ban, CheckCircle2, LogOut, MessageSquare, Trash2 } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -83,6 +83,7 @@ export function UsersTable({
   onDelete,
   onComment,
   onRole,
+  onSessions,
   title = 'لیست کاربران اخیر',
 }: {
   users: AdminUser[];
@@ -91,11 +92,15 @@ export function UsersTable({
   onDelete?: (id: string) => void;
   onComment?: (id: string, comment: string) => void;
   onRole?: (id: string, role: AdminUser['role']) => void;
+  /** Force-logout every device of a user. */
+  onSessions?: (id: string) => void;
   title?: string;
 }) {
   const [commentFor, setCommentFor] = useState<AdminUser | null>(null);
   const [commentDraft, setCommentDraft] = useState('');
-  const manageable = Boolean(onToggleActive || onDelete || onComment || onRole);
+  const manageable = Boolean(
+    onToggleActive || onDelete || onComment || onRole || onSessions,
+  );
 
   function askDeactivate(user: AdminUser) {
     const reason = window.prompt('علت غیرفعال‌سازی حساب کاربری را وارد کنید:');
@@ -230,6 +235,16 @@ export function UsersTable({
                           className="flex size-7 items-center justify-center rounded-md border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
                         >
                           <Trash2 className="size-3.5" aria-hidden />
+                        </button>
+                      ) : null}
+                      {onSessions ? (
+                        <button
+                          type="button"
+                          onClick={() => onSessions(user.id)}
+                          title="خروج از همه‌ی دستگاه‌ها"
+                          className="flex size-7 items-center justify-center rounded-md border border-sky-200 bg-sky-50 text-sky-600 hover:bg-sky-100"
+                        >
+                          <LogOut className="size-3.5" aria-hidden />
                         </button>
                       ) : null}
                     </div>

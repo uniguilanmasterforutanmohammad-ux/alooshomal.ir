@@ -11,6 +11,7 @@ import * as bcrypt from 'bcrypt';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SessionsService } from '../sessions/sessions.service';
 import { SettingsService } from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { LoginDto } from './dto/login.dto';
@@ -20,6 +21,12 @@ import { VerifyPhoneDto } from './dto/verify-phone.dto';
 import { OtpService } from './otp.service';
 
 const SALT_ROUNDS = 12;
+
+/** Client hints captured at login, used for the session list. */
+export interface SessionContext {
+  userAgent?: string | null;
+  ip?: string | null;
+}
 
 @Injectable()
 export class AuthService {
@@ -31,6 +38,7 @@ export class AuthService {
     private readonly activity: ActivityService,
     private readonly settings: SettingsService,
     private readonly otp: OtpService,
+    private readonly sessions: SessionsService,
   ) {}
 
   /** Ensures phone sign-in is allowed by the admin toggle. */
@@ -61,7 +69,7 @@ export class AuthService {
    * user in or create a new account. New accounts must supply a full name —
    * that is what makes the same form serve both login and sign-up.
    */
-  async verifyPhoneCode(dto: VerifyPhoneDto) {
+  async verifyPhoneCode(dto: VerifyPhoneDto, context: SessionContext = {}) {
     await this.assertPhoneLoginEnabled();
     const phone = OtpService.normalizePhone(dto.phone);
     const existing = await this.prisma.user.findUnique({ where: { phone } });
@@ -117,7 +125,7 @@ export class AuthService {
         entityId: existing.id,
       });
       return {
-        ...this.buildAuthResponse(existing),
+        ...(await this.buildAuthResponse(existing, context)),
         isNewUser: false,
       };
     }
@@ -150,10 +158,10 @@ export class AuthService {
       entityType: 'USER',
       entityId: user.id,
     });
-    return { ...this.buildAuthResponse(user), isNewUser: true };
+    return { ...(await this.buildAuthResponse(user, context)), isNewUser: true };
   }
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto, context: SessionContext = {}) {
     const email = dto.email.toLowerCase().trim();
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
@@ -186,10 +194,10 @@ export class AuthService {
       entityId: user.id,
     });
 
-    return this.buildAuthResponse(user);
+    return this.buildAuthResponse(user, context);
   }
 
-  async login(dto: LoginDto) {
+  async login(dto: LoginDto, context: SessionContext = {}) {
     const email = dto.email.toLowerCase().trim();
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || !user.isActive) {
@@ -214,13 +222,16 @@ export class AuthService {
       entityId: user.id,
     });
 
-    return this.buildAuthResponse({
-      id: user.id,
-      email: user.email,
-      phone: user.phone,
-      fullName: user.fullName,
-      role: user.role,
-    });
+    return this.buildAuthResponse(
+      {
+        id: user.id,
+        email: user.email,
+        phone: user.phone,
+        fullName: user.fullName,
+        role: user.role,
+      },
+      context,
+    );
   }
 
   /**
@@ -249,21 +260,32 @@ export class AuthService {
     return { ok: true };
   }
 
-  private buildAuthResponse(user: {
-    id: string;
-    email: string | null;
-    phone?: string | null;
-    fullName?: string | null;
-    role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
-  }) {
+  private async buildAuthResponse(
+    user: {
+      id: string;
+      email: string | null;
+      phone?: string | null;
+      fullName?: string | null;
+      role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
+    },
+    context: SessionContext = {},
+  ) {
+    const session = await this.sessions.create({
+      userId: user.id,
+      userAgent: context.userAgent,
+      ip: context.ip,
+    });
     const accessToken = this.jwt.sign({
       sub: user.id,
+      sid: session.id,
       email: user.email,
       phone: user.phone ?? null,
       role: user.role,
     });
     return {
       accessToken,
+      refreshToken: session.refreshToken,
+      sessionId: session.id,
       user: {
         id: user.id,
         email: user.email,
@@ -273,4 +295,50 @@ export class AuthService {
       },
     };
   }
+
+  /**
+   * Exchanges a valid refresh token for a fresh access token, rotating the
+   * refresh token in the process. The user must still be active.
+   */
+  async refresh(rawRefreshToken: string, context: SessionContext = {}) {
+    const rotated = await this.sessions.rotateRefresh(rawRefreshToken);
+    if (!rotated) {
+      throw new UnauthorizedException('نشست منقضی شده است؛ دوباره وارد شوید');
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: rotated.userId },
+      select: { id: true, email: true, phone: true, fullName: true, role: true, isActive: true },
+    });
+    if (!user || !user.isActive) {
+      await this.sessions.revoke(rotated.sessionId, rotated.userId);
+      throw new UnauthorizedException('حساب کاربری معتبر نیست');
+    }
+    const accessToken = this.jwt.sign({
+      sub: user.id,
+      sid: rotated.sessionId,
+      email: user.email,
+      phone: user.phone ?? null,
+      role: user.role,
+    });
+    return {
+      accessToken,
+      refreshToken: rotated.refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        phone: user.phone,
+        fullName: user.fullName,
+        role: user.role,
+      },
+    };
+  }
+
+  /** Logout of the current device (revokes just this session). */
+  async logout(userId: string, sessionId?: string): Promise<{ ok: true }> {
+    if (sessionId) {
+      await this.sessions.revoke(sessionId, userId);
+    }
+    return { ok: true };
+  }
+
 }

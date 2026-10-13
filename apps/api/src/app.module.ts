@@ -19,6 +19,7 @@ import { NewsModule } from './news/news.module';
 import { ProfileModule } from './profile/profile.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
+import { SessionsModule } from './sessions/sessions.module';
 import { SettingsModule } from './settings/settings.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TaxonomyModule } from './taxonomy/taxonomy.module';
@@ -31,6 +32,7 @@ import { UsersModule } from './users/users.module';
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env'] }),
     PrismaModule,
     RedisModule,
+    SessionsModule,
     CommonModule,
     ActivityModule,
     AuthModule,
