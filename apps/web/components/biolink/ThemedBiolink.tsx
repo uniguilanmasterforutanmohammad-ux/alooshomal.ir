@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 
 import { themeClassName } from '@/lib/themes';
+import { InlineEdit } from '@/components/ui/InlineEdit';
+import type { TaxonomyItem } from '@/lib/api';
 
 export interface ThemedBiolinkData {
   fullName: string;
@@ -23,6 +25,8 @@ export interface ThemedBiolinkData {
   website?: string | null;
   address?: string | null;
   avatarUrl?: string | null;
+  cityId?: string | null;
+  businessId?: string | null;
   linkedin?: string | null;
   instagram?: string | null;
   telegram?: string | null;
@@ -38,6 +42,11 @@ interface Props {
   businessName?: string;
   interactive?: boolean;
   compact?: boolean;
+  /** when true every field becomes editable directly on the card */
+  editable?: boolean;
+  onFieldChange?: (key: string, value: string) => void;
+  cityOptions?: TaxonomyItem[];
+  businessOptions?: TaxonomyItem[];
 }
 
 function socialHref(value: string): string {
@@ -58,8 +67,25 @@ export function ThemedBiolink({
   businessName,
   interactive,
   compact,
+  editable,
+  onFieldChange,
+  cityOptions,
+  businessOptions,
 }: Props) {
   const initials = (data.fullName || '?').trim().slice(0, 2).toUpperCase();
+
+  if (editable) {
+    return (
+      <EditableBiolink
+        themeKey={themeKey}
+        data={data}
+        compact={compact}
+        onFieldChange={onFieldChange}
+        cityOptions={cityOptions}
+        businessOptions={businessOptions}
+      />
+    );
+  }
 
   const links: Array<{ key: string; value: string | null | undefined; href: string; Icon: typeof Linkedin; label: string }> = [
     { key: 'phone', value: data.phone, href: `tel:${data.phone ?? ''}`, Icon: Phone, label: 'PHONE' },
@@ -158,6 +184,169 @@ export function ThemedBiolink({
             })}
           </nav>
         ) : null}
+
+        <p className="theme-footer theme-muted mt-6 text-[11px] tracking-[0.12em] uppercase">
+          Find me around the web
+        </p>
+      </div>
+    </div>
+  );
+}
+
+interface EditableProps {
+  themeKey: string;
+  data: ThemedBiolinkData;
+  compact?: boolean;
+  onFieldChange?: (key: string, value: string) => void;
+  cityOptions?: TaxonomyItem[];
+  businessOptions?: TaxonomyItem[];
+}
+
+const EDITABLE_LINKS: Array<{
+  key: string;
+  label: string;
+  Icon: typeof Linkedin;
+  placeholder: string;
+}> = [
+  { key: 'phone', label: 'PHONE', Icon: Phone, placeholder: 'تلفن' },
+  { key: 'whatsapp', label: 'WHATSAPP', Icon: MessageCircle, placeholder: 'واتساپ' },
+  { key: 'email', label: 'EMAIL', Icon: Mail, placeholder: 'ایمیل' },
+  { key: 'website', label: 'WEBSITE', Icon: Globe, placeholder: 'وب‌سایت' },
+  { key: 'instagram', label: 'INSTAGRAM', Icon: Instagram, placeholder: 'اینستاگرام' },
+  { key: 'linkedin', label: 'LINKEDIN', Icon: Linkedin, placeholder: 'لینکدین' },
+  { key: 'telegram', label: 'TELEGRAM', Icon: Send, placeholder: 'تلگرام' },
+  { key: 'twitter', label: 'TWITTER / X', Icon: Twitter, placeholder: 'ایکس (توییتر)' },
+];
+
+/**
+ * Editable variant of {@link ThemedBiolink}: renders the very same theme but
+ * every value is an inline field and every link row shows all eight contact
+ * inputs, so the user fills the card by typing straight onto the preview.
+ */
+function EditableBiolink({
+  themeKey,
+  data,
+  compact,
+  onFieldChange,
+  cityOptions,
+  businessOptions,
+}: EditableProps) {
+  const set = (key: string) => (value: string) => onFieldChange?.(key, value);
+
+  return (
+    <div
+      className={`${themeClassName(themeKey)} ${compact ? 'text-sm' : ''}`}
+      style={
+        themeKey === 'vintage' && data.primaryColor
+          ? ({ ['--biolink-accent' as string]: data.primaryColor } as React.CSSProperties)
+          : undefined
+      }
+    >
+      <div className="theme-body overflow-hidden px-8 pt-8 pb-8 text-center sm:pt-10 sm:pb-8">
+        <div className="theme-avatar mx-auto mb-6 flex size-24 items-center justify-center overflow-hidden rounded-full text-3xl font-bold">
+          {data.avatarUrl ? (
+            <Image
+              src={data.avatarUrl}
+              alt={data.fullName}
+              width={96}
+              height={96}
+              className="size-24 object-cover"
+            />
+          ) : (
+            (data.fullName || '?').trim().slice(0, 2).toUpperCase()
+          )}
+        </div>
+
+        <InlineEdit
+          value={data.company ?? ''}
+          onChange={set('company')}
+          placeholder="نام کسب و کار"
+          ariaLabel="نام کسب و کار"
+          className="theme-title theme-fa mx-auto block text-[clamp(27px,7vw,34px)] leading-tight font-extrabold"
+        />
+
+        <InlineEdit
+          value={data.fullName}
+          onChange={set('fullName')}
+          placeholder="نام و نام خانوادگی"
+          ariaLabel="نام و نام خانوادگی"
+          className="theme-muted theme-fa mt-2 block text-base font-semibold"
+        />
+
+        <InlineEdit
+          value={data.jobTitle ?? ''}
+          onChange={set('jobTitle')}
+          placeholder="عنوان شغلی"
+          ariaLabel="عنوان شغلی"
+          className="theme-muted theme-fa mt-1 flex items-center justify-center gap-1.5 text-sm"
+        />
+
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+          <select
+            className="theme-chip theme-fa rounded-full px-[18px] py-2 font-bold"
+            value={data.cityId ?? ''}
+            onChange={(event) => onFieldChange?.('cityId', event.target.value)}
+            aria-label="شهر"
+          >
+            <option value="">شهر...</option>
+            {(cityOptions ?? []).map((city) => (
+              <option key={city.id} value={city.id}>
+                {city.name}
+              </option>
+            ))}
+          </select>
+          <select
+            className="theme-chip theme-fa rounded-full px-[18px] py-2 font-bold"
+            value={data.businessId ?? ''}
+            onChange={(event) => onFieldChange?.('businessId', event.target.value)}
+            aria-label="کسب و کار"
+          >
+            <option value="">کسب و کار...</option>
+            {(businessOptions ?? []).map((business) => (
+              <option key={business.id} value={business.id}>
+                {business.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <InlineEdit
+          value={data.bio ?? ''}
+          onChange={set('bio')}
+          placeholder="درباره من"
+          ariaLabel="درباره من"
+          multiline
+          className="theme-muted theme-fa mt-4 block text-sm leading-7 whitespace-pre-line"
+        />
+
+        <nav className="theme-links mt-7 text-left" aria-label="راه‌های ارتباطی">
+          {EDITABLE_LINKS.map((link) => (
+            <div key={link.key} className="theme-link flex items-center justify-between gap-3">
+              <span className="flex min-w-0 flex-1 items-center gap-3">
+                <link.Icon className="size-5 shrink-0" aria-hidden />
+                <InlineEdit
+                  value={(data[link.key as keyof ThemedBiolinkData] as string | null) ?? ''}
+                  onChange={set(link.key)}
+                  placeholder={link.placeholder}
+                  ariaLabel={link.label}
+                  dir="ltr"
+                  className="theme-link-label min-w-0 flex-1 font-semibold"
+                />
+              </span>
+              <span aria-hidden className="theme-link-arrow text-lg">
+                →
+              </span>
+            </div>
+          ))}
+        </nav>
+
+        <InlineEdit
+          value={data.address ?? ''}
+          onChange={set('address')}
+          placeholder="آدرس"
+          ariaLabel="آدرس"
+          className="theme-muted theme-fa mt-4 block text-xs"
+        />
 
         <p className="theme-footer theme-muted mt-6 text-[11px] tracking-[0.12em] uppercase">
           Find me around the web

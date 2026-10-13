@@ -50,7 +50,7 @@ export default function NewBiolinkPage() {
       ) : null}
 
       <div className="mt-6">
-        <BiolinkForm onSubmit={handleSubmit} submitting={submitting} />
+        <BiolinkForm onSubmit={handleSubmit} submitting={submitting} inline />
       </div>
     </div>
   );

@@ -287,6 +287,42 @@ select {
   box-shadow: 0 10px 26px rgba(92, 53, 29, 0.1);
 }
 
+/* ---- inline (contentEditable) fields used on the live preview ---- */
+.inline-edit {
+  cursor: text;
+  outline: none;
+  border-radius: 6px;
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+.inline-edit:hover {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--biolink-accent, var(--vintage-accent)) 35%, transparent);
+}
+.inline-edit:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--biolink-accent, var(--vintage-accent)) 55%, transparent);
+}
+.inline-edit:empty::before {
+  content: attr(data-placeholder);
+  opacity: 0.45;
+  pointer-events: none;
+}
+/* compact selects rendered inside the card theme (city / business) */
+.bc-select,
+.theme-chip {
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  appearance: none;
+}
+.bc-select {
+  background: transparent;
+  color: inherit;
+  padding: 0 2px;
+}
+.bc-select:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--bc-accent) 55%, transparent);
+  border-radius: 6px;
+}
+
 /* header bar keeps a warmer paper tone */
 header.bg-white {
   background: #fbf3e9;

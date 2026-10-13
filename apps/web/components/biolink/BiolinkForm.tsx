@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import { Input } from '@/components/ui/Input';
+import { ThemePicker } from '@/components/ui/ThemePicker';
 import { LiveBiolinkPreview } from '@/components/biolink/LiveBiolinkPreview';
 import { api, type TaxonomyItem } from '@/lib/api';
 import { BIOLINK_THEMES, DEFAULT_THEME_KEY } from '@/lib/themes';
@@ -52,15 +53,18 @@ interface Props {
   submitting?: boolean;
   onSubmit: (values: BiolinkFormValues) => void;
   submitLabel?: string;
+  /** theme-first builder: pick a theme, then edit fields on the preview */
+  inline?: boolean;
 }
 
-export function BiolinkForm({ initial, submitting, onSubmit, submitLabel }: Props) {
+export function BiolinkForm({ initial, submitting, onSubmit, submitLabel, inline }: Props) {
   const [values, setValues] = useState<BiolinkFormValues>({
     ...emptyValues,
     ...initial,
   });
   const [cities, setCities] = useState<TaxonomyItem[]>([]);
   const [businesses, setBusinesses] = useState<TaxonomyItem[]>([]);
+  const [themeConfirmed, setThemeConfirmed] = useState(Boolean(initial?.template));
 
   useEffect(() => {
     api
@@ -77,6 +81,10 @@ export function BiolinkForm({ initial, submitting, onSubmit, submitLabel }: Prop
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
+  function updateField(key: string, value: string) {
+    setValues((prev) => ({ ...prev, [key]: value }));
+  }
+
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     onSubmit(values);
@@ -84,6 +92,103 @@ export function BiolinkForm({ initial, submitting, onSubmit, submitLabel }: Prop
 
   const cityName = cities.find((c) => c.id === values.cityId)?.name;
   const businessName = businesses.find((b) => b.id === values.businessId)?.name;
+
+  if (inline && !themeConfirmed) {
+    return (
+      <ThemePicker
+        themes={BIOLINK_THEMES}
+        selected={values.template}
+        onSelect={(key) => {
+          setField('template', key);
+          setThemeConfirmed(true);
+        }}
+        hint="تم را انتخاب کنید تا کارت با همان تم باز شود و بتوانید همه‌ی فیلدها را مستقیم روی پیش‌نمایش پر کنید."
+      />
+    );
+  }
+
+  if (inline) {
+    return (
+      <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
+        <aside className="order-1">
+          <div className="lg:sticky lg:top-20">
+            <div className="indeed-panel p-4">
+              <p className="mb-3 text-center text-xs font-bold text-muted">
+                روی هر فیلد کلیک کنید و مستقیم تایپ کنید
+              </p>
+              <LiveBiolinkPreview
+                values={values}
+                cityName={cityName}
+                businessName={businessName}
+                editable
+                onFieldChange={updateField}
+                cityOptions={cities}
+                businessOptions={businesses}
+              />
+            </div>
+          </div>
+        </aside>
+
+        <div className="order-2 flex flex-col gap-4">
+          <div className="indeed-panel p-6">
+            <h2 className="text-lg font-extrabold text-ink">ظاهر بیولینک</h2>
+            <p className="mt-1 text-xs text-muted">
+              با انتخاب هر تم، پیش‌نمایش زندهٔ کنار فرم بلافاصله تغییر می‌کند.
+            </p>
+
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
+              {BIOLINK_THEMES.map((theme) => (
+                <button
+                  key={theme.key}
+                  type="button"
+                  onClick={() => setField('template', theme.key)}
+                  title={theme.name}
+                  aria-pressed={values.template === theme.key}
+                  className={
+                    values.template === theme.key
+                      ? 'rounded-lg border-2 border-brand p-1.5'
+                      : 'rounded-lg border-2 border-transparent p-1.5 hover:border-[var(--vintage-border)]'
+                  }
+                >
+                  <span
+                    className="block h-8 w-full rounded-md border border-[var(--vintage-border)]"
+                    style={{
+                      background: `linear-gradient(135deg, ${theme.swatch[0]} 0 34%, ${theme.swatch[1]} 34% 67%, ${theme.swatch[2]} 67% 100%)`,
+                    }}
+                  />
+                  <span className="mt-1 block truncate text-[10px] text-muted">
+                    {theme.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <label className="mt-4 flex items-center gap-3">
+              <span className="text-sm font-bold text-ink">رنگ اصلی (تم وینتیج)</span>
+              <input
+                type="color"
+                value={values.primaryColor}
+                onChange={(event) => setField('primaryColor', event.target.value)}
+                className="h-10 w-16 cursor-pointer rounded-lg border border-[var(--indeed-border)]"
+              />
+            </label>
+          </div>
+
+          <button
+            type="button"
+            disabled={submitting || !values.fullName.trim()}
+            onClick={() => onSubmit(values)}
+            className="indeed-btn indeed-btn-primary w-full disabled:opacity-60"
+          >
+            {submitting ? 'در حال ذخیره...' : (submitLabel ?? 'ذخیره و ارسال برای تأیید')}
+          </button>
+          <p className="text-center text-xs text-muted">
+            پس از ذخیره، بیولینک در وضعیت «در انتظار تأیید مدیر» قرار می‌گیرد.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[420px_1fr]">

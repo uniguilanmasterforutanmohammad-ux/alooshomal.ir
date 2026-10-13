@@ -20,7 +20,42 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.14.5**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.15.0**.
+
+## ۱۴۰۵/۰۷/۲۱ — ساخت کارت به‌صورت «تم‌اول» با ویرایش مستقیم روی پیش‌نمایش — نسخه `v2.15.0`
+
+**هدف:** در `/dashboard/biolinks/new` و `/dashboard/business-cards/new` سناریوی ساخت
+عوض شود: کاربر ابتدا یک تم انتخاب می‌کند، سپس کارت با همان تم و همهٔ فیلدها باز
+می‌شود و کاربر هر فیلد را مستقیم روی خودِ پیش‌نمایش تایپ می‌کند.
+
+**تغییرات:**
+- `apps/web/components/ui/ThemePicker.tsx` (جدید): انتخابگر تم با کارت‌های گرادیانی و
+  علامت انتخاب؛ اولین گام ساخت.
+- `apps/web/components/ui/InlineEdit.tsx` (جدید): فیلد متنی درون‌خطی
+  (`contentEditable`) با `data-placeholder`؛ مقدار هنگام blur ثبت می‌شود تا مکان‌نما
+  نپرد.
+- `apps/web/components/biolink/ThemedBiolink.tsx` و
+  `apps/web/components/businesscard/ThemedBusinessCard.tsx`: حالت `editable` اضافه شد
+  که همان تم را با فیلدهای درون‌خطی (نام، عنوان، شرکت، درباره، آدرس، شهر/کسب‌وکار به
+  صورت select و همهٔ راه‌های ارتباطی/شبکه‌های اجتماعی) رندر می‌کند.
+- `apps/web/components/biolink/BiolinkForm.tsx` و
+  `apps/web/components/businesscard/BusinessCardForm.tsx`: پروپ `inline`؛ نمایش
+  انتخابگر تم به‌عنوان گام اول، سپس ویرایشگر روی پیش‌نمایش + پنل تم + دکمهٔ ذخیره
+  (غیرفعال تا نام خالی نباشد).
+- `apps/web/components/biolink/LiveBiolinkPreview.tsx` و
+  `apps/web/components/businesscard/LiveBusinessCardPreview.tsx`: عبور پروپ‌های
+  `editable`/`onFieldChange`/`cityOptions`/`businessOptions`.
+- `apps/web/app/dashboard/biolinks/new/page.tsx` و
+  `apps/web/app/dashboard/business-cards/new/page.tsx`: فعال‌کردن `inline`.
+- `apps/web/app/globals.css`: استایل `.inline-edit` (hover/focus/placeholder) و
+  `.bc-select` برای selectهای درون کارت.
+
+**تأیید/تست:**
+- `apps/web`: `tsc --noEmit` بدون خطا.
+- تست UI با Playwright (کروم) روی سرور dev محلی: در هر دو صفحه ابتدا انتخابگر تم
+  نمایش داده می‌شود (`tiles=14/15`)؛ پس از انتخاب تم، ویرایشگر با `13` فیلد
+  درون‌خطی و `2` select باز می‌شود؛ تایپ مستقیم روی پیش‌نمایش مقدار را ثبت می‌کند و
+  دکمهٔ ذخیره پس از پرکردن نام فعال می‌شود.
 
 ## ۱۴۰۵/۰۷/۲۰ — دایرکتوری موبایل/تبلت: اسکرول‌بار نازک سمت راست + حذف هدر تکراری شیت — نسخه `v2.14.5`
 

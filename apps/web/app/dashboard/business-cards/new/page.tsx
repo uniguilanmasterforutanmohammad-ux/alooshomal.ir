@@ -50,7 +50,7 @@ export default function NewBusinessCardPage() {
       ) : null}
 
       <div className="mt-6">
-        <BusinessCardForm onSubmit={handleSubmit} submitting={submitting} />
+        <BusinessCardForm onSubmit={handleSubmit} submitting={submitting} inline />
       </div>
     </div>
   );
