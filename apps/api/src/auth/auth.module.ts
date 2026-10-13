@@ -5,6 +5,7 @@ import { PassportModule } from '@nestjs/passport';
 
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { jwtSignOptions, resolveJwtSecret } from './jwt.config';
 import { OtpService } from './otp.service';
 import { PermissionsGuard } from './permissions.guard';
 import { SmsService } from './sms.service';
@@ -25,10 +26,8 @@ import { CommonModule } from '../common/common.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET', 'dev_secret'),
-        signOptions: {
-          expiresIn: config.get<string>('JWT_EXPIRES_IN', '7d') as never,
-        },
+        secret: resolveJwtSecret(config),
+        signOptions: jwtSignOptions(config),
       }),
     }),
   ],

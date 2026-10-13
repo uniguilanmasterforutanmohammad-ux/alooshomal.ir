@@ -20,7 +20,32 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.28.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.28.1**.
+
+## ۱۴۰۵/۰۷/۲۲ — سخت‌سازی توکن‌های JWT — نسخه `v2.28.1`
+
+**هدف:** سیاست توکن‌ها استاندارد و ایمن شود: توکن دسترسی کوتاه‌عمر، کلیم‌های
+`iss`/`aud` و الگوریتم ثابت، و اجبار secret قوی در پروداکشن.
+
+**تغییرات:**
+- `apps/api/src/auth/jwt.config.ts` (جدید): منبع یکتای سیاست JWT — `resolveJwtSecret`
+  (در پروداکشن بدون secret قوی خطا می‌دهد و بالا نمی‌آید؛ در توسعه fallback هشداردار)،
+  `jwtSignOptions` با `issuer`/`audience` و TTL پیش‌فرض `15m`، و ثابت‌های
+  `JWT_ISSUER`/`JWT_AUDIENCE`.
+- `apps/api/src/auth/auth.module.ts`: استفاده از `resolveJwtSecret`/`jwtSignOptions`.
+- `apps/api/src/auth/strategies/jwt.strategy.ts`: اعتبارسنجی اجباری `issuer`/`audience`
+  و محدودکردن الگوریتم به `HS256`.
+- `docker-compose.yml`، `docker-compose.prod.yml`، `.env.example`، `apps/api/.env.example`،
+  `.env`: `JWT_EXPIRES_IN` از `7d` به `15m` (توکن دسترسی کوتاه‌عمر؛ طول عمر نشست را
+  رفرش‌توکن/کوکی تأمین می‌کند).
+- `docs/DEPLOY.md`: مستندسازی `JWT_EXPIRES_IN` و تفاوت آن با عمر نشست.
+- `apps/web/lib/version.ts`: نسخه به `v2.28.1`.
+
+**تأیید/تست:**
+- `tsc --noEmit` برای `apps/api` بدون خطا.
+- بررسی دیکد توکن: کلیم‌های `iss=alooshomal-api`، `aud=alooshomal-web`، `sid` و TTL
+  دقیقاً ۱۵ دقیقه.
+- تست منفی: توکن امضاشده با secret صحیح اما `aud` یا `iss` اشتباه → `401`.
 
 ## ۱۴۰۵/۰۷/۲۲ — کوکی امن نشست + انقضای بی‌فعالیتی ۷ روزه — نسخه `v2.28.0`
 

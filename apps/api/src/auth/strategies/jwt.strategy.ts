@@ -6,6 +6,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { AuthUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SessionsService } from '../../sessions/sessions.service';
+import { JWT_AUDIENCE, JWT_ISSUER, resolveJwtSecret } from '../jwt.config';
 
 export interface JwtPayload {
   sub: string;
@@ -31,7 +32,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         ExtractJwt.fromUrlQueryParameter('token'),
       ]),
       ignoreExpiration: false,
-      secretOrKey: config.get<string>('JWT_SECRET', 'dev_secret'),
+      secretOrKey: resolveJwtSecret(config),
+      // Verify the claims we set at signing time — a token minted elsewhere (or
+      // for another service) is rejected even if it is signed with the secret.
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+      algorithms: ['HS256'],
     });
   }
 

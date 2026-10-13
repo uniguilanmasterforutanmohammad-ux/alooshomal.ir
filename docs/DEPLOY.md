@@ -65,6 +65,9 @@ DATABASE_URL=postgresql://alooshomal:<یک-رمز-قوی>@db:5432/alooshomal?sch
 NODE_ENV=production
 API_PORT=4000
 JWT_SECRET=<یک-رشته-تصادفی-بلند>
+# عمر توکن دسترسی؛ کوتاه نگه دارید (پیش‌فرض 15m). تمدید نشست با رفرش‌توکن
+# انجام می‌شود که در کوکی HttpOnly است و تا ۷ روز بی‌فعالیتی معتبر می‌ماند.
+JWT_EXPIRES_IN=15m
 CORS_ORIGIN=https://alooshomal.ir
 ADMIN_EMAIL=admin@alooshomal.ir
 ADMIN_PASSWORD=<رمز-ادمین>
