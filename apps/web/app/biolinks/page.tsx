@@ -115,7 +115,7 @@ function DirectoryContent() {
           From tablet up it is split (like desktop) but with a narrower detail
           column so the list keeps enough room; phones show the list only and
           open the detail in a bottom sheet. */}
-      <div className="directory-grid mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(300px,38%)] lg:grid-cols-[1fr_420px]">
+      <div className="directory-grid mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(320px,44%)] lg:grid-cols-[1fr_420px]">
         <section className="order-2 flex min-h-0 flex-col md:order-1">
           <div className="directory-list min-h-0 flex-1">
             {loading ? (
