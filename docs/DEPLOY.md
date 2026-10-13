@@ -244,6 +244,64 @@ API هنگام استارت به‌صورت خودکار `prisma db push` را �
 
 ---
 
+## ۳.۵) اعمال تغییرات امنیتی auth روی سرور (یک‌بار)
+
+نسخه‌های `v2.27.0` تا `v2.29.0` سیاست نشست/توکن/کوکی را تغییر داده‌اند. بعد از اینکه
+CI ایمیج‌های جدید را ساخت و روی سرور بالا آمد، این دو کار را یک‌بار انجام دهید:
+
+**۱) کوتاه‌کردن عمر توکن دسترسی در `.env` سرور:**
+
+```bash
+cd /var/www/alooshomal.ir
+
+# اگر مقدار فعلی 7d است، به 15m تغییر دهید
+grep -n '^JWT_EXPIRES_IN=' .env || echo 'JWT_EXPIRES_IN=15m' >> .env
+sed -i 's/^JWT_EXPIRES_IN=.*/JWT_EXPIRES_IN=15m/' .env
+grep -n '^JWT_EXPIRES_IN=' .env
+```
+
+اگر `JWT_SECRET` روی سرور کوتاه یا پیش‌فرض است، آن را هم با یک مقدار تصادفی قوی
+جایگزین کنید (با تغییر آن، همه‌ی کاربران یک‌بار باید دوباره وارد شوند):
+
+```bash
+# ساخت یک secret تصادفی جدید (۶۴ کاراکتر هگز)
+openssl rand -hex 32
+# سپس مقدار را در .env جایگزین کنید:
+sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$(openssl rand -hex 32)|" .env
+```
+
+**۲) بالا آوردن مجدد فقط سرویس API:**
+
+```bash
+cd /var/www/alooshomal.ir
+docker compose -f docker-compose.prod.yml up -d api
+docker compose -f docker-compose.prod.yml exec -T api sh -c 'printenv | grep -E "^JWT_"'
+```
+
+خروجی باید `JWT_EXPIRES_IN=15m` را نشان دهد.
+
+**۳) بررسی سلامت و جریان ورود:**
+
+```bash
+curl -s -o /dev/null -w 'health:%{http_code}\n' https://alooshomal.ir/api/health
+
+# رفرش‌توکن باید در کوکی HttpOnly برگردد (در هدر Set-Cookie)
+curl -s -D - -o /dev/null -X POST https://alooshomal.ir/api/auth/login \
+  -H 'content-type: application/json' \
+  -d '{"email":"<ایمیل-تست>","password":"<رمز-تست>"}' \
+  | grep -i 'set-cookie'
+```
+
+باید خطی مثل
+`Set-Cookie: alooshomal_rt=…; Max-Age=604800; Path=/api/auth; HttpOnly; SameSite=Lax`
+ببینید. وجود `Secure` هم در پروداکشن (HTTPS) طبیعی و درست است.
+
+> **توجه:** با فعال‌شدن `sid` در توکن‌ها، همه‌ی توکن‌های صادرشده‌ی قبلی (بدون نشست)
+> باطل می‌شوند؛ کاربران یک‌بار دوباره وارد می‌شوند. جداول جدید (`sessions`) هنگام
+> استارت کانتینر با `prisma db push` خودکار ساخته می‌شوند.
+
+---
+
 ## ۴) تست
 
 ```bash
