@@ -20,7 +20,38 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.27.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.28.0**.
+
+## ۱۴۰۵/۰۷/۲۲ — کوکی امن نشست + انقضای بی‌فعالیتی ۷ روزه — نسخه `v2.28.0`
+
+**هدف:** رفرش توکن دیگر در `localStorage` (قابل خواندن با XSS) نگه‌داری نشود و در کوکی
+`HttpOnly` قرار بگیرد؛ همچنین نشست با ۷ روز بی‌فعالیتی خودکار بسته شود و تمدید آن با
+چرخش توکن انجام گردد.
+
+**تغییرات:**
+- `apps/api/src/auth/refresh-cookie.ts` (جدید): سیاست کوکی — `HttpOnly`، `Secure` در
+  پروداکشن، `SameSite=Lax`، `Path=/api/auth`، `Max-Age=7d` (پنجره‌ی idle) و پارسر
+  سبک Cookie بدون وابستگی جدید.
+- `apps/api/src/auth/auth.controller.ts`: تنظیم کوکی روی `register`/`login`/`phone/verify`
+  و `refresh`؛ حذف `refreshToken` از بدنه‌ی پاسخ (`withRefreshCookie`)؛ پذیرش توکن از
+  کوکی (با fallback بدنه برای کلاینت‌های غیرمرورگری) و پاک‌کردن کوکی در `logout`.
+- `apps/api/src/auth/dto/refresh.dto.ts`: `refreshToken` اختیاری شد تا مرورگر فقط با
+  کوکی رفرش کند.
+- `apps/web/lib/api.ts`: حذف رفرش توکن از `localStorage`؛ رفرش با `credentials:'include'`
+  و بدون توکن در بدنه؛ علامت‌گذاری نشست منقضی با رویداد سراسری.
+- `apps/web/lib/auth.ts` و `AuthForm`/`login page`: حذف نگه‌داری `refreshToken` در state.
+- `apps/web/components/ui/SessionWatcher.tsx` (جدید) + `app/layout.tsx`: شنونده‌ی
+  رویداد انقضا و هدایت به `/login?next=...`.
+- `apps/web/lib/version.ts`: نسخه به `v2.28.0`.
+
+**تأیید/تست:**
+- `tsc --noEmit` برای `apps/api` و `apps/web` بدون خطا.
+- curl: هدر `Set-Cookie: alooshomal_rt=…; Max-Age=604800; Path=/api/auth; HttpOnly;
+  SameSite=Lax` تأیید شد؛ `refreshToken` در بدنه نیست؛ رفرش فقط با کوکی موفق و توکن
+  چرخش می‌کند؛ `logout` کوکی را پاک می‌کند.
+- Playwright: کوکی در مرورگر ذخیره می‌شود؛ با توکن دسترسی نامعتبر، پروفایل به‌صورت
+  خودکار (بدون خطا) تمدید و بارگذاری شد؛ پس از خروج اجباری ادمین، مرورگر به
+  `/login?next=/dashboard/profile` هدایت شد.
 
 ## ۱۴۰۵/۰۷/۲۲ — مدیریت نشست‌ها (کاربر و ادمین) — نسخه `v2.27.0`
 

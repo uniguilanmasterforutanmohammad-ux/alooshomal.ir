@@ -284,6 +284,8 @@ export class AuthService {
     });
     return {
       accessToken,
+      // NOTE: the refresh token is delivered via the HttpOnly cookie set by the
+      // controller, never in the JSON body — JS must not be able to read it.
       refreshToken: session.refreshToken,
       sessionId: session.id,
       user: {

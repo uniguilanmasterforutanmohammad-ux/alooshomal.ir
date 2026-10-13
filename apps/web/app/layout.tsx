@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { ToastViewport } from '@/components/ui/ToastViewport';
 import { MobileNav } from '@/components/layout/MobileNav';
+import { SessionWatcher } from '@/components/ui/SessionWatcher';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -27,6 +28,7 @@ export default function RootLayout({
       <body>
         <OfflineBanner />
         {children}
+        <SessionWatcher />
         <MobileNav />
         <ToastViewport />
       </body>

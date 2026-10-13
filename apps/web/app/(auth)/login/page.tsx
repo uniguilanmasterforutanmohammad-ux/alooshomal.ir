@@ -39,7 +39,7 @@ function AuthPageContent() {
     setError(null);
     try {
       const data = await api.post<AuthResponse>('/auth/login', { email, password });
-      setSession(data.accessToken, data.refreshToken ?? null, data.user);
+      setSession(data.accessToken, data.user);
       router.replace(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ورود ناموفق بود');

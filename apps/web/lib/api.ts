@@ -20,24 +20,22 @@ interface RefreshResult {
 async function refreshSession(): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   if (refreshInFlight) return refreshInFlight;
-  const refreshToken = window.localStorage.getItem('alooshomal_refresh');
-  if (!refreshToken) return false;
 
   refreshInFlight = (async () => {
     try {
+      // The refresh token lives in an HttpOnly cookie, so the request only has
+      // to ask for a rotation — no token is read or sent by JS.
       const response = await fetch(`${API_URL}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
+        body: JSON.stringify({}),
+        credentials: 'include',
         cache: 'no-store',
       });
       if (!response.ok) return false;
       const payload = (await response.json()) as { data?: RefreshResult };
       if (!payload?.data?.accessToken) return false;
       window.localStorage.setItem('alooshomal_token', payload.data.accessToken);
-      if (payload.data.refreshToken) {
-        window.localStorage.setItem('alooshomal_refresh', payload.data.refreshToken);
-      }
       return true;
     } catch {
       return false;
@@ -123,6 +121,8 @@ async function send<T>(
       ...(visitorId ? { 'x-visitor-id': visitorId } : {}),
       ...(options.headers ?? {}),
     },
+    // Required so the HttpOnly refresh cookie is sent to the API origin.
+    credentials: 'include',
     cache: 'no-store',
   });
 
@@ -140,7 +140,6 @@ async function send<T>(
     // Refresh failed: clear the dead session so the UI can redirect to login.
     if (typeof window !== 'undefined') {
       window.localStorage.removeItem('alooshomal_token');
-      window.localStorage.removeItem('alooshomal_refresh');
       window.dispatchEvent(new Event('alooshomal:session-expired'));
     }
   }

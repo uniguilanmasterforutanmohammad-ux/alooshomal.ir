@@ -13,12 +13,11 @@ export interface AuthUser {
 
 interface AuthState {
   token: string | null;
-  refreshToken: string | null;
   user: AuthUser | null;
   hydrated: boolean;
-  setSession: (token: string, refreshToken: string | null, user: AuthUser) => void;
-  /** Swap in a freshly rotated token pair (silent refresh). */
-  setTokens: (token: string, refreshToken: string | null) => void;
+  setSession: (token: string, user: AuthUser) => void;
+  /** Swap in a freshly refreshed access token (silent refresh). */
+  setToken: (token: string) => void;
   /** Patch the cached user (e.g. after a verified phone/email change). */
   setUser: (user: AuthUser) => void;
   clear: () => void;
@@ -29,34 +28,26 @@ export const useAuth = create<AuthState>()(
   persist(
     (set) => ({
       token: null,
-      refreshToken: null,
       user: null,
       hydrated: false,
-      setSession: (token, refreshToken, user) => {
+      setSession: (token, user) => {
         if (typeof window !== 'undefined') {
           window.localStorage.setItem('alooshomal_token', token);
-          if (refreshToken) {
-            window.localStorage.setItem('alooshomal_refresh', refreshToken);
-          }
         }
-        set({ token, refreshToken, user });
+        set({ token, user });
       },
-      setTokens: (token, refreshToken) => {
+      setToken: (token) => {
         if (typeof window !== 'undefined') {
           window.localStorage.setItem('alooshomal_token', token);
-          if (refreshToken) {
-            window.localStorage.setItem('alooshomal_refresh', refreshToken);
-          }
         }
-        set({ token, refreshToken });
+        set({ token });
       },
       setUser: (user) => set({ user }),
       clear: () => {
         if (typeof window !== 'undefined') {
           window.localStorage.removeItem('alooshomal_token');
-          window.localStorage.removeItem('alooshomal_refresh');
         }
-        set({ token: null, refreshToken: null, user: null });
+        set({ token: null, user: null });
       },
       setHydrated: () => set({ hydrated: true }),
     }),
