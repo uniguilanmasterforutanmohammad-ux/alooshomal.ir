@@ -121,7 +121,7 @@ export default function HomePage() {
                 <span className="text-3xl font-extrabold text-brand-light">۱</span>
                 <p className="mt-2 font-bold">ثبت‌نام کنید</p>
                 <p className="text-sm text-muted">
-                  با ایمیل و رمز عبور حساب بسازید و وارد شوید.
+                  با شماره موبایل حساب بسازید؛ در همان صفحه می‌توانید رمز عبور هم بگذارید.
                 </p>
               </li>
               <li>
