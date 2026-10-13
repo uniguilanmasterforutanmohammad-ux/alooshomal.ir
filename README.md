@@ -55,8 +55,21 @@ Then:
 ### Development mode (hot reload)
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up
+npm run dev
+# = docker compose -f docker-compose.yml -f docker-compose.dev.yml up
 ```
+
+In dev mode both apps bind-mount their source and run with watch/HMR
+(`nest start --watch` / `next dev`), so **you do not rebuild containers after each
+change** — saving a file is enough. Rebuild is only needed when `package.json`,
+the `Dockerfile` or a build-time variable such as `NEXT_PUBLIC_*` changes.
+
+> A container started with **only** `docker-compose.yml` has no bind-mount, so code
+> edits never show up until the image is rebuilt. Always use the dev overlay
+> locally, and never on production.
+
+See `docs/DEVELOPMENT.md` for the full local-vs-production guide, the exact
+rebuild triggers, and common local issues.
 
 ### Migrations and seed data
 

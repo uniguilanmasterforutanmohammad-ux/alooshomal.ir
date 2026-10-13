@@ -250,3 +250,23 @@ git push origin main
 ```
 
 سپس در تب **Actions** مخزن مراحل بیلد دو ایمیج، پوش به GHCR و استقرار روی سرور را ببینید.
+
+---
+
+## ۵) تفاوت با محیط لوکال
+
+این سند مربوط به **پروداکشن** است: روی سرور همیشه فقط `docker-compose.prod.yml` و
+ایمج‌های ساخته‌شده در CI اجرا می‌شوند و هیچ build یا bind-mount سورسی وجود ندارد.
+
+برای اجرای **لوکال** (با hot-reload و بدون نیاز به rebuild بعد از هر تغییر) و برای
+دیدن جدول «چه زمانی rebuild لازم است»، راهنمای جداگانه را ببینید:
+`docs/DEVELOPMENT.md`.
+
+خلاصه:
+
+| موضوع | لوکال | پروداکشن (این سند) |
+| --- | --- | --- |
+| فایل compose | `docker-compose.yml` + `docker-compose.dev.yml` | `docker-compose.prod.yml` |
+| اجرا | `nest start --watch` / `next dev` | `node dist/main.js` / Next standalone |
+| اعمال تغییر | hot-reload خودکار | push به `main` → build در CI → deploy |
+| دستور | `npm run dev` | `docker compose -f docker-compose.prod.yml pull && ... up -d` |
