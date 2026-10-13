@@ -60,6 +60,12 @@ const ACTION_LABELS: Record<string, string> = {
   BOOST_REQUESTED: 'درخواست پله',
   BOOST_APPROVED: 'تأیید پله',
   BOOST_REJECTED: 'رد پله',
+  PROFILE_CHANGE_REQUESTED: 'درخواست تغییر نام',
+  PROFILE_CHANGE_APPROVED: 'تأیید تغییر نام',
+  PROFILE_CHANGE_REJECTED: 'رد تغییر نام',
+  PROFILE_PHONE_CHANGED: 'تغییر شماره موبایل',
+  PROFILE_EMAIL_CHANGED: 'تغییر ایمیل',
+  USER_PASSWORD_SET: 'ثبت/تغییر رمز عبور',
 };
 
 const PAGE_SIZE = 20;

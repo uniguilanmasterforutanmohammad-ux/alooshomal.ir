@@ -16,6 +16,8 @@ interface AuthState {
   user: AuthUser | null;
   hydrated: boolean;
   setSession: (token: string, user: AuthUser) => void;
+  /** Patch the cached user (e.g. after a verified phone/email change). */
+  setUser: (user: AuthUser) => void;
   clear: () => void;
   setHydrated: () => void;
 }
@@ -32,6 +34,7 @@ export const useAuth = create<AuthState>()(
         }
         set({ token, user });
       },
+      setUser: (user) => set({ user }),
       clear: () => {
         if (typeof window !== 'undefined') {
           window.localStorage.removeItem('alooshomal_token');

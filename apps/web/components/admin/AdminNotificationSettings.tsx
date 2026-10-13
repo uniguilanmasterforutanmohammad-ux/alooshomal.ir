@@ -11,7 +11,8 @@ type Category =
   | 'BUSINESS_CARD'
   | 'SUBSCRIPTION'
   | 'BOOST'
-  | 'TICKET';
+  | 'TICKET'
+  | 'SECURITY';
 
 const LABELS: Record<Category, { title: string; hint: string }> = {
   NEW_USER: { title: 'ثبت‌نام کاربر جدید', hint: 'وقتی کاربر تازه‌ای عضو می‌شود' },
@@ -23,6 +24,10 @@ const LABELS: Record<Category, { title: string; hint: string }> = {
   SUBSCRIPTION: { title: 'اشتراک‌ها', hint: 'درخواست اشتراک جدید' },
   BOOST: { title: 'افزایش بازدید', hint: 'درخواست پله جدید' },
   TICKET: { title: 'تیکت‌ها', hint: 'تیکت جدید یا پاسخ کاربر' },
+  SECURITY: {
+    title: 'رویدادهای امنیتی',
+    hint: 'تغییر شماره موبایل یا ایمیل حساب کاربران',
+  },
 };
 
 const ORDER: Category[] = [
@@ -32,6 +37,7 @@ const ORDER: Category[] = [
   'SUBSCRIPTION',
   'BOOST',
   'TICKET',
+  'SECURITY',
 ];
 
 interface SettingsPayload {

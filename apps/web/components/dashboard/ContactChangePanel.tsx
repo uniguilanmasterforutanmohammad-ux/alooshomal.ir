@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { KeyRound, Mail, Phone, ShieldCheck } from 'lucide-react';
 
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
 
 interface Issued {
@@ -57,6 +58,7 @@ export function ContactChangePanel({
 }) {
   const copy = COPY[kind];
   const Icon = copy.icon;
+  const setUser = useAuth((state) => state.setUser);
   const [value, setValue] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'input' | 'code'>('input');
@@ -86,9 +88,24 @@ export function ContactChangePanel({
     setBusy(true);
     setError(null);
     try {
-      await api.post(copy.verifyPath, {
+      const updated = await api.post<{
+        id: string;
+        email: string | null;
+        phone: string | null;
+        fullName: string | null;
+        role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
+      }>(copy.verifyPath, {
         [copy.field]: value.trim(),
         code: code.trim(),
+      });
+      // Keep the cached session user in sync so the header/profile show the
+      // new value immediately, without a re-login.
+      setUser({
+        id: updated.id,
+        email: updated.email,
+        phone: updated.phone,
+        fullName: updated.fullName,
+        role: updated.role,
       });
       toast.success(`${copy.title} با موفقیت انجام شد.`);
       setValue('');

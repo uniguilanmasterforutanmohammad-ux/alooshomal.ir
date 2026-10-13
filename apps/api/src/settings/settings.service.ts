@@ -71,6 +71,7 @@ export const ADMIN_NOTIFY_CATEGORIES = [
   'SUBSCRIPTION',
   'BOOST',
   'TICKET',
+  'SECURITY',
 ] as const;
 export type AdminNotifyCategory = (typeof ADMIN_NOTIFY_CATEGORIES)[number];
 

@@ -166,6 +166,23 @@ export class ProfileService {
       where: { id: userId },
       data: { phone, phoneVerified: true },
     });
+    // Tell the user (and the admin team) that the account's phone changed.
+    await this.notifications.notify({
+      userId,
+      type: NotificationType.SUCCESS,
+      title: 'شماره موبایل تغییر کرد',
+      body: `شماره موبایل حساب شما به ${phone} تغییر یافت.`,
+      link: '/dashboard/profile',
+      actorId: userId,
+    });
+    await this.notifications.notifyAdmins({
+      category: 'SECURITY',
+      type: NotificationType.WARNING,
+      title: 'تغییر شماره موبایل کاربر',
+      body: `${me.fullName ?? me.email ?? me.phone} شماره‌ی خود را به ${phone} تغییر داد.`,
+      link: '/admin?section=reports',
+      actorId: userId,
+    });
     await this.activity.log({
       actor: { id: userId },
       action: 'PROFILE_PHONE_CHANGED',
@@ -226,6 +243,25 @@ export class ProfileService {
     await this.prisma.user.update({
       where: { id: userId },
       data: { email },
+    });
+    // Tell the user (and the admin team) that the account's email changed. The
+    // body deliberately includes the *old* address so an unauthorised change is
+    // obvious and reportable.
+    await this.notifications.notify({
+      userId,
+      type: NotificationType.SUCCESS,
+      title: 'ایمیل تغییر کرد',
+      body: `ایمیل حساب شما به ${email} تغییر یافت (ایمیل قبلی: ${me.email ?? '—'}).`,
+      link: '/dashboard/profile',
+      actorId: userId,
+    });
+    await this.notifications.notifyAdmins({
+      category: 'SECURITY',
+      type: NotificationType.WARNING,
+      title: 'تغییر ایمیل کاربر',
+      body: `${me.fullName ?? me.phone ?? 'کاربر'} ایمیل خود را از ${me.email ?? '—'} به ${email} تغییر داد.`,
+      link: '/admin?section=reports',
+      actorId: userId,
     });
     await this.activity.log({
       actor: { id: userId, email: me.email },
