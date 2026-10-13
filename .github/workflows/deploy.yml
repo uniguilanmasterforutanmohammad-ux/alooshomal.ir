@@ -164,5 +164,16 @@ jobs:
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
+            # nginx reads its config once at start; the compose file is
+            # bind-mounted (deploy/nginx), so a scp of new locations does NOT
+            # make the running container pick them up ("up -d" sees no change
+            # and leaves it running). Reload every deploy so config edits such
+            # as /media/ actually take effect.
+            if docker compose -f docker-compose.prod.yml ps --status running --services | grep -q '^nginx$'; then
+              docker compose -f docker-compose.prod.yml exec -T nginx nginx -t
+              docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload
+              echo "nginx config reloaded"
+            fi
+
             # Drop dangling images from previous builds.
             docker image prune -f
