@@ -13,8 +13,14 @@ import { SmsService } from './sms.service';
  * Issues and verifies the one-time codes used by the phone sign-in flow.
  *
  * Storage is deliberately light: codes live in Redis (with an in-memory
- * fallback when Redis is off) for a few minutes and are never persisted in
- * Postgres. Only a hash of the code is stored, keyed by the phone number.
+ * fallback used *only* while Redis is unreachable) for a few minutes and are
+ * never persisted in Postgres. Only a hash of the code is stored, keyed by the
+ * phone number.
+ *
+ * Redis is the source of truth whenever it is connected: the in-memory mirror
+ * is consulted only during an outage, never as a stale shadow of a live Redis.
+ * Without that rule, flushing Redis (or an operator deleting a key) would not
+ * take effect and an already-consumed code could still be replayed.
  *
  * Local dev never sends real SMS: when Melipayamak is not configured *and* the
  * app is not running in production, the service mints a fixed `DEV_OTP_CODE`,
@@ -55,11 +61,15 @@ export interface IssuedOtp {
 @Injectable()
 export class OtpService {
   private readonly logger = new Logger(OtpService.name);
-  /** Fallback store used when Redis is unavailable. */
+  /**
+   * Fallback store, used only while Redis is unavailable (see the class doc).
+   * Bounded so a long-running process cannot grow it without limit.
+   */
   private readonly memory = new Map<
     string,
     { record: OtpRecord; expiresAt: number }
   >();
+  private static readonly MEMORY_MAX_ENTRIES = 5000;
 
   /**
    * True only outside production. The dev bypass (fixed code, no SMS) is
@@ -110,6 +120,10 @@ export class OtpService {
         return null;
       }
     }
+    // While Redis is reachable it is authoritative: a cache miss means the code
+    // is genuinely absent (expired, consumed or flushed), so the in-memory
+    // mirror must not resurrect it.
+    if (this.redis.isReady) return null;
     const entry = this.memory.get(key);
     if (!entry) return null;
     if (entry.expiresAt < Date.now()) {
@@ -117,6 +131,19 @@ export class OtpService {
       return null;
     }
     return entry.record;
+  }
+
+  /** Drops expired entries (and, if still needed, the oldest ones). */
+  private pruneMemory(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.memory) {
+      if (entry.expiresAt < now) this.memory.delete(key);
+    }
+    while (this.memory.size > OtpService.MEMORY_MAX_ENTRIES) {
+      const oldest = this.memory.keys().next().value;
+      if (oldest === undefined) break;
+      this.memory.delete(oldest);
+    }
   }
 
   private async write(
@@ -127,8 +154,9 @@ export class OtpService {
     const key = keyPrefix(purpose) + phone;
     const serialized = JSON.stringify(record);
     await this.redis.set(key, serialized, OTP_TTL_SECONDS);
-    // Mirror to memory too: it is the only store when Redis is off, and a
-    // harmless duplicate when Redis is on (kept in sync below on delete).
+    // Mirror to memory so an outage that starts right after issuing still has a
+    // usable code. Reads ignore this mirror while Redis is reachable.
+    this.pruneMemory();
     this.memory.set(key, {
       record,
       expiresAt: Date.now() + OTP_TTL_SECONDS * 1000,
@@ -146,6 +174,8 @@ export class OtpService {
     const key = `${keyPrefix(purpose)}${phone}:issued`;
     const marker = await this.redis.get(key);
     if (marker) return true;
+    // Same rule as `read`: the memory fallback is only trusted during an outage.
+    if (this.redis.isReady) return false;
     const entry = this.memory.get(key);
     return Boolean(entry && entry.expiresAt > Date.now());
   }
