@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Users } from 'lucide-react';
 
@@ -13,7 +13,12 @@ import {
   DirectoryFilters,
   type DirectoryFilterState,
 } from '@/components/biolink/DirectoryFilters';
-import { api, type DirectoryResponse } from '@/lib/api';
+import { type DirectoryBiolink } from '@/lib/api';
+import {
+  useDirectoryDisplayMode,
+  useDirectoryResults,
+  useInfiniteScroll,
+} from '@/lib/directory';
 
 function DirectoryContent() {
   const router = useRouter();
@@ -31,14 +36,6 @@ function DirectoryContent() {
     searchParams.get('biolink'),
   );
 
-  const [data, setData] = useState<DirectoryResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    setPage(1);
-  }, [filters.q, filters.cityId, filters.businessId, filters.sort]);
-
   const queryString = useMemo(() => {
     const params = new URLSearchParams();
     if (filters.q) params.set('q', filters.q);
@@ -49,22 +46,27 @@ function DirectoryContent() {
     return params.toString();
   }, [filters.q, filters.cityId, filters.businessId, filters.sort, page]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await api.get<DirectoryResponse>(`/biolinks/public?${queryString}`);
-      setData(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'خطا در بارگذاری بیولینک‌ها');
-    } finally {
-      setLoading(false);
-    }
-  }, [queryString]);
+  const displayMode = useDirectoryDisplayMode();
+  const { items, meta, filters: facets, loading, error } =
+    useDirectoryResults<DirectoryBiolink>(
+      '/biolinks/public',
+      queryString,
+      page,
+      displayMode,
+    );
 
+  const sentinelRef = useInfiniteScroll(
+    displayMode === 'INFINITE',
+    loading,
+    () => {
+      if (meta?.hasNext) setPage((current) => current + 1);
+    },
+  );
+
+  // A new search/filter always restarts the list from the first page.
   useEffect(() => {
-    void load();
-  }, [load]);
+    setPage(1);
+  }, [filters.q, filters.cityId, filters.businessId, filters.sort, displayMode]);
 
   // keep the browser URL in sync (shareable results + selected biolink)
   useEffect(() => {
@@ -79,9 +81,6 @@ function DirectoryContent() {
     setFilters({ q: '', cityId: '', businessId: '', sort: 'recent' });
     setPage(1);
   }
-
-  const meta = data?.meta;
-  const items = data?.items ?? [];
 
   return (
     <main className="container-page py-6 directory-shell">
@@ -100,8 +99,8 @@ function DirectoryContent() {
       <div className="shrink-0">
         <DirectoryFilters
           value={filters}
-          cities={data?.filters.cities ?? []}
-          businesses={data?.filters.businesses ?? []}
+          cities={facets.cities}
+          businesses={facets.businesses}
           onChange={setFilters}
           onReset={reset}
         />
@@ -118,23 +117,38 @@ function DirectoryContent() {
       <div className="directory-grid mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(320px,44%)] lg:grid-cols-[1fr_420px]">
         <section className="order-2 flex min-h-0 flex-col md:order-1">
           <div className="directory-list min-h-0 flex-1">
-            {loading ? (
+            {loading && items.length === 0 ? (
               <div className="space-y-3">
                 {Array.from({ length: 5 }).map((_, index) => (
                   <div key={index} className="indeed-panel h-20 animate-pulse bg-soft" />
                 ))}
               </div>
             ) : items.length > 0 ? (
-              <div className="space-y-3">
-                {items.map((biolink) => (
-                  <DirectoryBiolinkItem
-                    key={biolink.id}
-                    biolink={biolink}
-                    selected={biolink.slug === selectedSlug}
-                    onSelect={() => setSelectedSlug(biolink.slug)}
-                  />
-                ))}
-              </div>
+              <>
+                <div className="space-y-3">
+                  {items.map((biolink) => (
+                    <DirectoryBiolinkItem
+                      key={biolink.id}
+                      biolink={biolink}
+                      selected={biolink.slug === selectedSlug}
+                      onSelect={() => setSelectedSlug(biolink.slug)}
+                    />
+                  ))}
+                </div>
+                {displayMode === 'INFINITE' ? (
+                  <div ref={sentinelRef} className="h-2" aria-hidden />
+                ) : null}
+                {displayMode === 'INFINITE' && loading ? (
+                  <div className="py-3 text-center text-xs text-muted">
+                    در حال بارگذاری موارد بیشتر...
+                  </div>
+                ) : null}
+                {displayMode === 'INFINITE' && !loading && meta && !meta.hasNext ? (
+                  <div className="py-3 text-center text-xs text-muted">
+                    همه نتایج نمایش داده شد.
+                  </div>
+                ) : null}
+              </>
             ) : (
               <div className="indeed-panel p-10 text-center">
                 <p className="text-lg font-bold text-ink">بیولینکی پیدا نشد</p>
@@ -148,7 +162,7 @@ function DirectoryContent() {
             )}
           </div>
 
-          {meta && meta.totalPages > 1 ? (
+          {displayMode === 'PAGINATION' && meta && meta.totalPages > 1 ? (
             <div className="mt-4 flex shrink-0 items-center justify-center gap-3 pt-2">
               <button
                 onClick={() => setPage((current) => Math.max(1, current - 1))}

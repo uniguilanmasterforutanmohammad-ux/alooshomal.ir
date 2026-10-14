@@ -4,6 +4,15 @@ import { PrismaService } from '../prisma/prisma.service';
 
 export const DIRECTORY_PAGE_SIZE_KEY = 'directoryPageSize';
 export const DEFAULT_DIRECTORY_PAGE_SIZE = 10;
+/**
+ * How the public directories display their results:
+ *   - `PAGINATION` — classic prev/next pagination
+ *   - `INFINITE`   — load more results as the visitor scrolls
+ */
+export const DIRECTORY_DISPLAY_MODE_KEY = 'directoryDisplayMode';
+export const DIRECTORY_DISPLAY_MODES = ['PAGINATION', 'INFINITE'] as const;
+export type DirectoryDisplayMode = (typeof DIRECTORY_DISPLAY_MODES)[number];
+export const DEFAULT_DIRECTORY_DISPLAY_MODE: DirectoryDisplayMode = 'PAGINATION';
 export const ADMIN_LIST_PAGE_SIZE_KEY = 'adminListPageSize';
 export const DEFAULT_ADMIN_LIST_PAGE_SIZE = 10;
 /** Page size for the user's own lists (my biolinks / cards / saved / boost). */
@@ -113,6 +122,14 @@ export class SettingsService implements OnModuleInit {
         create: {
           key: ADMIN_LIST_PAGE_SIZE_KEY,
           value: String(DEFAULT_ADMIN_LIST_PAGE_SIZE),
+        },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: DIRECTORY_DISPLAY_MODE_KEY },
+        update: {},
+        create: {
+          key: DIRECTORY_DISPLAY_MODE_KEY,
+          value: DEFAULT_DIRECTORY_DISPLAY_MODE,
         },
       }),
       this.prisma.setting.upsert({
@@ -241,6 +258,31 @@ export class SettingsService implements OnModuleInit {
       create: { key: DIRECTORY_PAGE_SIZE_KEY, value: String(clamped) },
     });
     return clamped;
+  }
+
+  /** How the public directories display their results (pagination vs. infinite). */
+  async getDirectoryDisplayMode(): Promise<DirectoryDisplayMode> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: DIRECTORY_DISPLAY_MODE_KEY },
+    });
+    return setting &&
+      (DIRECTORY_DISPLAY_MODES as readonly string[]).includes(setting.value)
+      ? (setting.value as DirectoryDisplayMode)
+      : DEFAULT_DIRECTORY_DISPLAY_MODE;
+  }
+
+  async setDirectoryDisplayMode(
+    value: DirectoryDisplayMode,
+  ): Promise<DirectoryDisplayMode> {
+    const clean = (DIRECTORY_DISPLAY_MODES as readonly string[]).includes(value)
+      ? value
+      : DEFAULT_DIRECTORY_DISPLAY_MODE;
+    await this.prisma.setting.upsert({
+      where: { key: DIRECTORY_DISPLAY_MODE_KEY },
+      update: { value: clean },
+      create: { key: DIRECTORY_DISPLAY_MODE_KEY, value: clean },
+    });
+    return clean;
   }
 
   async getAdminListPageSize(): Promise<number> {

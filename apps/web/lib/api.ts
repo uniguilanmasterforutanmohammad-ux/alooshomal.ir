@@ -577,5 +577,6 @@ export interface ReporterSummary {
 
 export interface AdminSettingsPayload {
   directoryPageSize: number;
+  directoryDisplayMode: 'PAGINATION' | 'INFINITE';
   adminListPageSize: number;
 }

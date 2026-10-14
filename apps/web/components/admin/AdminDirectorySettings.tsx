@@ -1,12 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { LayoutGrid, Save } from 'lucide-react';
+import { LayoutGrid, List, Save } from 'lucide-react';
 
 import { api } from '@/lib/api';
 
+type DisplayMode = 'PAGINATION' | 'INFINITE';
+
 interface SettingsPayload {
   directoryPageSize: number;
+  directoryDisplayMode: DisplayMode;
   adminListPageSize: number;
   myListPageSize: number;
 }
@@ -18,6 +21,7 @@ interface SettingsPayload {
  */
 export function AdminDirectorySettings() {
   const [value, setValue] = useState('');
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('PAGINATION');
   const [adminValue, setAdminValue] = useState('');
   const [myValue, setMyValue] = useState('');
   const [loading, setLoading] = useState(true);
@@ -31,6 +35,9 @@ export function AdminDirectorySettings() {
     try {
       const result = await api.get<SettingsPayload>('/admin/settings');
       setValue(String(result.directoryPageSize));
+      setDisplayMode(
+        result.directoryDisplayMode === 'INFINITE' ? 'INFINITE' : 'PAGINATION',
+      );
       setAdminValue(String(result.adminListPageSize));
       setMyValue(String(result.myListPageSize));
     } catch (err) {
@@ -67,10 +74,14 @@ export function AdminDirectorySettings() {
     try {
       const result = await api.patch<SettingsPayload>('/admin/settings', {
         directoryPageSize: parsed,
+        directoryDisplayMode: displayMode,
         adminListPageSize: parsedAdmin,
         myListPageSize: parsedMy,
       });
       setValue(String(result.directoryPageSize));
+      setDisplayMode(
+        result.directoryDisplayMode === 'INFINITE' ? 'INFINITE' : 'PAGINATION',
+      );
       setAdminValue(String(result.adminListPageSize));
       setMyValue(String(result.myListPageSize));
       setMessage('تنظیمات ذخیره شد.');
@@ -92,6 +103,39 @@ export function AdminDirectorySettings() {
         فهرست‌های پنل مدیریت و فهرست‌های «کارت‌های من / ذخیره‌شده‌ها / افزایش بازدید».
         فقط همین تعداد از سرور خوانده می‌شود تا صفحات سریع بمانند.
       </p>
+
+      <div className="mt-4">
+        <p className="flex items-center gap-1 text-xs font-bold text-muted">
+          <List className="size-4" aria-hidden />
+          حالت نمایش دایرکتوری‌های عمومی
+        </p>
+        <div className="mt-2 inline-flex overflow-hidden rounded-lg border border-[var(--vintage-border)]">
+          {(
+            [
+              ['PAGINATION', 'صفحه‌بندی (قبلی/بعدی)'],
+              ['INFINITE', 'اسکرول بی‌نهایت (لود با اسکرول)'],
+            ] as const
+          ).map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setDisplayMode(mode)}
+              aria-pressed={displayMode === mode}
+              className={`px-4 py-2 text-xs font-bold transition ${
+                displayMode === mode
+                  ? 'bg-brand text-white'
+                  : 'bg-white text-ink hover:bg-soft'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted">
+          در حالت اسکرول بی‌نهایت، نتایج هنگام رسیدن به انتهای فهرست به‌صورت خودکار
+          بارگذاری می‌شوند؛ در حالت صفحه‌بندی، دکمه‌های قبلی/بعدی نمایش داده می‌شوند.
+        </p>
+      </div>
 
       {loading ? (
         <p className="mt-4 text-sm text-muted">در حال بارگذاری...</p>

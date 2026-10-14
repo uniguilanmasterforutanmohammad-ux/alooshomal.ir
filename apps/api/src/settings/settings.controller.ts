@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 import { Public } from '../common/decorators/public.decorator';
@@ -9,6 +9,8 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import {
   ADMIN_NOTIFY_CATEGORIES,
   AdminNotifyCategory,
+  DIRECTORY_DISPLAY_MODES,
+  DirectoryDisplayMode,
   NEWS_ACCESS_LEVELS,
   NewsAccessLevel,
   SettingsService,
@@ -28,6 +30,10 @@ class UpdateSettingsDto {
   @Min(1)
   @Max(100)
   adminListPageSize?: number;
+
+  @IsOptional()
+  @IsIn(DIRECTORY_DISPLAY_MODES as unknown as string[])
+  directoryDisplayMode?: DirectoryDisplayMode;
 
   @IsOptional()
   @Type(() => Number)
@@ -76,6 +82,7 @@ export class SettingsController {
     const locks = await this.settingsService.getCreationLocks();
     return {
       directoryPageSize: await this.settingsService.getDirectoryPageSize(),
+      directoryDisplayMode: await this.settingsService.getDirectoryDisplayMode(),
       myListPageSize: await this.settingsService.getMyListPageSize(),
       phoneLoginEnabled: await this.settingsService.getPhoneLoginEnabled(),
       ...locks,
@@ -99,6 +106,7 @@ export class AdminSettingsController {
     return {
       ...all,
       directoryPageSize: await this.settingsService.getDirectoryPageSize(),
+      directoryDisplayMode: await this.settingsService.getDirectoryDisplayMode(),
       adminListPageSize: await this.settingsService.getAdminListPageSize(),
       myListPageSize: await this.settingsService.getMyListPageSize(),
       adminNotifications: await this.settingsService.getAdminNotifyPrefs(),
@@ -114,6 +122,7 @@ export class AdminSettingsController {
   async update(@Body() dto: UpdateSettingsDto) {
     const result: {
       directoryPageSize?: number;
+      directoryDisplayMode?: DirectoryDisplayMode;
       adminListPageSize?: number;
       myListPageSize?: number;
       adminNotifications?: Record<AdminNotifyCategory, boolean>;
@@ -132,6 +141,12 @@ export class AdminSettingsController {
       result.adminListPageSize = await this.settingsService.setAdminListPageSize(
         dto.adminListPageSize,
       );
+    }
+    if (dto.directoryDisplayMode !== undefined) {
+      result.directoryDisplayMode =
+        await this.settingsService.setDirectoryDisplayMode(
+          dto.directoryDisplayMode,
+        );
     }
     if (dto.myListPageSize !== undefined) {
       result.myListPageSize = await this.settingsService.setMyListPageSize(

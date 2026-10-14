@@ -42,9 +42,11 @@ export function DirectoryBusinessCardFilters({
 
   return (
     <div className="space-y-3">
-      {/* Indeed-style search bar */}
+      {/* Indeed-style search bar. On mobile the search field takes its own row
+          and the city / business selects + submit button share a single row so
+          the whole control stays compact. From `md` up everything is one row. */}
       <form
-        className="flex flex-col gap-2 overflow-hidden rounded-lg border border-[var(--indeed-border)] bg-white shadow-sm md:flex-row md:gap-0"
+        className="flex flex-col gap-0 overflow-hidden rounded-lg border border-[var(--indeed-border)] bg-white shadow-sm md:flex-row"
         onSubmit={submit}
       >
         <div className="relative flex items-center border-b border-[var(--indeed-border)] md:flex-[2] md:border-b-0 md:border-e">
@@ -60,50 +62,52 @@ export function DirectoryBusinessCardFilters({
           />
         </div>
 
-        <div className="relative flex items-center border-b border-[var(--indeed-border)] md:flex-1 md:border-b-0 md:border-e">
-          <MapPin
-            className="pointer-events-none absolute end-3 size-4 text-muted"
-            aria-hidden
-          />
-          <select
-            className="h-12 w-full appearance-none bg-transparent px-4 pe-10 text-sm outline-none"
-            value={draft.cityId}
-            onChange={(event) => setDraft({ ...draft, cityId: event.target.value })}
-          >
-            <option value="">بر اساس شهر</option>
-            {cities.map((city) => (
-              <option key={city.id} value={city.id}>
-                {city.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <div className="flex items-stretch md:contents">
+          <div className="relative flex flex-1 items-center border-e border-[var(--indeed-border)] md:flex-1 md:border-e">
+            <MapPin
+              className="pointer-events-none absolute end-2 size-4 text-muted md:end-3"
+              aria-hidden
+            />
+            <select
+              className="h-12 w-full appearance-none bg-transparent px-2 pe-7 text-xs outline-none md:px-4 md:pe-10 md:text-sm"
+              value={draft.cityId}
+              onChange={(event) => setDraft({ ...draft, cityId: event.target.value })}
+            >
+              <option value="">شهر</option>
+              {cities.map((city) => (
+                <option key={city.id} value={city.id}>
+                  {city.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div className="relative flex items-center border-b border-[var(--indeed-border)] md:flex-1 md:border-b-0 md:border-e">
-          <Building2
-            className="pointer-events-none absolute end-3 size-4 text-muted"
-            aria-hidden
-          />
-          <select
-            className="h-12 w-full appearance-none bg-transparent px-4 pe-10 text-sm outline-none"
-            value={draft.businessId}
-            onChange={(event) => setDraft({ ...draft, businessId: event.target.value })}
-          >
-            <option value="">بر اساس نوع کسب و کار</option>
-            {businesses.map((business) => (
-              <option key={business.id} value={business.id}>
-                {business.name}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div className="relative flex flex-1 items-center border-e border-[var(--indeed-border)] md:flex-1 md:border-e">
+            <Building2
+              className="pointer-events-none absolute end-2 size-4 text-muted md:end-3"
+              aria-hidden
+            />
+            <select
+              className="h-12 w-full appearance-none bg-transparent px-2 pe-7 text-xs outline-none md:px-4 md:pe-10 md:text-sm"
+              value={draft.businessId}
+              onChange={(event) => setDraft({ ...draft, businessId: event.target.value })}
+            >
+              <option value="">نوع کسب‌وکار</option>
+              {businesses.map((business) => (
+                <option key={business.id} value={business.id}>
+                  {business.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <button
-          type="submit"
-          className="h-12 shrink-0 bg-brand px-8 text-sm font-bold text-white transition hover:bg-brand-hover"
-        >
-          جستجو
-        </button>
+          <button
+            type="submit"
+            className="h-12 flex-1 shrink-0 bg-brand px-3 text-xs font-bold text-white transition hover:bg-brand-hover md:flex-none md:px-8 md:text-sm"
+          >
+            جستجو
+          </button>
+        </div>
       </form>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

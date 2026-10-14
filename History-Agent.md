@@ -20,7 +20,43 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.30.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.31.0**.
+
+## ۱۴۰۵/۰۷/۲۲ — اصلاح چیدمان موبایل دایرکتوری + حالت اسکرول بی‌نهایت — نسخه `v2.31.0`
+
+**هدف:** اصلاح نمایش موبایل در دایرکتوری‌های `biolinks` و `business-cards`
+(هم‌ردیفه‌شدن سه فیلد جستجو، حذف پیشوند تکراری از نوارها) و افزودن حالت نمایش
+«اسکرول بی‌نهایت» به‌عنوان گزینه‌ی قابل انتخاب مدیر در کنار صفحه‌بندی.
+
+**تغییرات:**
+- `apps/api/src/settings/settings.service.ts`: افزودن کلید `directoryDisplayMode`
+  (`PAGINATION`/`INFINITE`)، مقدار پیش‌فرض `PAGINATION`، seed در `ensureDefaults` و
+  متدهای `get/setDirectoryDisplayMode`.
+- `apps/api/src/settings/settings.controller.ts`: افزودن `directoryDisplayMode` به
+  DTO، خروجی‌های `settings/public` و `admin/settings` و مسیر `PATCH`.
+- `apps/web/lib/directory.ts` (جدید): هوک‌های `useDirectoryDisplayMode`،
+  `useDirectoryResults` (ادغام/جایگزینی صفحات) و `useInfiniteScroll` (IntersectionObserver).
+- `apps/web/lib/api.ts`: افزودن `directoryDisplayMode` به `AdminSettingsPayload`.
+- `apps/web/components/biolink/DirectoryFilters.tsx` و
+  `apps/web/components/businesscard/DirectoryBusinessCardFilters.tsx`: در موبایل
+  فیلد جستجو یک سطر و «شهر/نوع کسب‌وکار/جستجو» در یک سطر کنار هم؛ متن نوارها به
+  «شهر» و «نوع کسب‌وکار» کوتاه شد (پیشوند «بر اساس» حذف شد).
+- `apps/web/app/biolinks/page.tsx` و `apps/web/app/business-cards/page.tsx`:
+  استفاده از هوک‌های مشترک، سنتینل اسکرول و مخفی‌کردن صفحه‌بندی در حالت بی‌نهایت.
+- `apps/web/components/admin/AdminDirectorySettings.tsx`: کلید انتخاب حالت نمایش
+  («صفحه‌بندی» / «اسکرول بی‌نهایت») و ذخیره در `PATCH /admin/settings`.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v2.31.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web npx tsc --noEmit` → بدون خطا (`WEB_EXIT=0`).
+- `docker exec alooshomal-api npx tsc --noEmit` → بدون خطا (`API_EXIT=0`).
+- `curl http://localhost:3001/api/settings/public` → شامل `directoryDisplayMode`.
+- اسکرین‌شات Playwright موبایل (۳۹۰px): سطر جستجو=`input` تمام‌عرض، و `شهر`/`نوع
+  کسب‌وکار`/`جستجو` در `y=142` کنار هم (یک سطر) و صفحه‌بندی مخفی.
+- تست اسکرول بی‌نهایت (با ست‌کردن موقت `INFINITE` در DB): اسکرول تا انتها تعداد
+  موارد را از ۱۰ به ۹۰ رساند و درخواست‌های `page=2..9` با ۲۰۰ ثبت شد؛ سپس مقدار
+  DB به `PAGINATION` برگردانده شد.
+- `python3 scripts/sync_install.py` و `--check` → صفر تغییر معلق.
 
 ## ۱۴۰۵/۰۷/۲۲ — افزودن CHANGELOG خلاصه‌ی نسخه‌ها — نسخه `v2.30.1`
 
