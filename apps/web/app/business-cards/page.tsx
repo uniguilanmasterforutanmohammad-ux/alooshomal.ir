@@ -31,7 +31,6 @@ function DirectoryContent() {
     sort: (searchParams.get('sort') as 'recent' | 'liked') ?? 'recent',
   };
   const [filters, setFilters] = useState<DirectoryFilterState>(initial);
-  const [page, setPage] = useState(Number(searchParams.get('page') ?? 1));
   const [selectedSlug, setSelectedSlug] = useState<string | null>(
     searchParams.get('card'),
   );
@@ -42,40 +41,41 @@ function DirectoryContent() {
     if (filters.cityId) params.set('cityId', filters.cityId);
     if (filters.businessId) params.set('businessId', filters.businessId);
     if (filters.sort !== 'recent') params.set('sort', filters.sort);
-    if (page > 1) params.set('page', String(page));
     return params.toString();
-  }, [filters.q, filters.cityId, filters.businessId, filters.sort, page]);
+  }, [filters.q, filters.cityId, filters.businessId, filters.sort]);
 
   const displayMode = useDirectoryDisplayMode();
-  const { items, meta, filters: facets, loading, error } =
-    useDirectoryResults<DirectoryBusinessCard>(
-      '/business-cards/public',
-      queryString,
-      page,
-      displayMode,
-    );
+  const {
+    items,
+    meta,
+    filters: facets,
+    loading,
+    error,
+    page,
+    setPage,
+    loadMore,
+  } = useDirectoryResults<DirectoryBusinessCard>({
+    path: '/business-cards/public',
+    query: queryString,
+    mode: displayMode,
+    initialPage: Number(searchParams.get('page') ?? 1) || 1,
+  });
 
   const sentinelRef = useInfiniteScroll(
     displayMode === 'INFINITE',
     loading,
-    () => {
-      if (meta?.hasNext) setPage((current) => current + 1);
-    },
+    loadMore,
   );
-
-  // A new search/filter always restarts the list from the first page.
-  useEffect(() => {
-    setPage(1);
-  }, [filters.q, filters.cityId, filters.businessId, filters.sort, displayMode]);
 
   // keep the browser URL in sync (shareable results + selected card)
   useEffect(() => {
     const params = new URLSearchParams(queryString);
     params.delete('limit');
+    if (page > 1) params.set('page', String(page));
     if (selectedSlug) params.set('card', selectedSlug);
     const next = params.toString();
     router.replace(next ? `/business-cards?${next}` : '/business-cards', { scroll: false });
-  }, [queryString, selectedSlug, router]);
+  }, [queryString, page, selectedSlug, router]);
 
   function reset() {
     setFilters({ q: '', cityId: '', businessId: '', sort: 'recent' });
