@@ -177,6 +177,24 @@ export class BusinessCardsService {
   }
 
   /**
+   * The signed-in user's most recent unfinished draft card, with the same
+   * shape as `findMineById` so the builder can prefill every field. Returns
+   * `null` when there is none. The "new card" page reopens it so a user can
+   * finish a half-filled card.
+   */
+  async findLatestDraft(userId: string) {
+    return this.prisma.businessCard.findFirst({
+      where: { userId, status: BiolinkStatus.DRAFT },
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        city: true,
+        business: true,
+        linkedBiolinks: { select: { id: true, slug: true, fullName: true } },
+      },
+    });
+  }
+
+  /**
    * The signed-in user's business cards, paginated with the admin-controlled
    * `myListPageSize` setting; `page` is 1-based.
    */

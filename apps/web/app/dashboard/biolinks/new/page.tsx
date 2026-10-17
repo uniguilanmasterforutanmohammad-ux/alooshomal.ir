@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { BiolinkForm, type BiolinkFormValues } from '@/components/biolink/BiolinkForm';
@@ -9,9 +9,21 @@ import { api, type Biolink } from '@/lib/api';
 
 export default function NewBiolinkPage() {
   const router = useRouter();
+  const [draft, setDraft] = useState<Biolink | null>(null);
+  const [ready, setReady] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quota, setQuota] = useState(false);
+
+  // Reopen the user's most recent unfinished draft (if any) so a saved
+  // half-filled builder is not lost when they come back to this page.
+  useEffect(() => {
+    api
+      .get<Biolink | null>('/biolinks/mine/draft')
+      .then(setDraft)
+      .catch(() => setDraft(null))
+      .finally(() => setReady(true));
+  }, []);
 
   async function handleSubmit(
     values: BiolinkFormValues,
@@ -24,10 +36,17 @@ export default function NewBiolinkPage() {
       const payload = Object.fromEntries(
         Object.entries(values).filter(([, value]) => value !== ''),
       );
+      // Always send the link explicitly so an empty value clears it.
+      (payload as Record<string, unknown>).businessCardId = values.businessCardId;
       if (options?.draft) {
         (payload as Record<string, unknown>).draft = true;
       }
-      await api.post<Biolink>('/biolinks', payload);
+      // Continue the existing draft (update) instead of creating a second one.
+      if (draft) {
+        await api.patch<Biolink>(`/biolinks/${draft.id}`, payload);
+      } else {
+        await api.post<Biolink>('/biolinks', payload);
+      }
       router.push(options?.draft ? '/dashboard/biolinks' : '/dashboard');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'ذخیره بیولینک ناموفق بود';
@@ -38,10 +57,36 @@ export default function NewBiolinkPage() {
     }
   }
 
+  async function discardDraft() {
+    if (!draft) return;
+    if (!window.confirm('پیش‌نویس فعلی حذف شود و از ابتدا شروع کنید؟')) return;
+    try {
+      await api.delete(`/biolinks/${draft.id}`);
+      setDraft(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'حذف پیش‌نویس ناموفق بود');
+    }
+  }
+
   return (
     <div>
-      <h1 className="text-2xl font-extrabold text-ink">ساخت بیولینک جدید</h1>
-      <p className="text-sm text-muted">اطلاعات حرفه‌ای خود را وارد کنید.</p>
+      <h1 className="text-2xl font-extrabold text-ink">
+        {draft ? 'ادامه‌ی تکمیل بیولینک' : 'ساخت بیولینک جدید'}
+      </h1>
+      <p className="text-sm text-muted">
+        {draft
+          ? 'پیش‌نویس ذخیره‌شده‌ی شما بارگذاری شد؛ آن را تکمیل و برای تأیید ارسال کنید.'
+          : 'اطلاعات حرفه‌ای خود را وارد کنید.'}
+      </p>
+      {draft ? (
+        <button
+          type="button"
+          onClick={discardDraft}
+          className="mt-2 text-xs font-bold text-red-600 underline hover:text-red-700"
+        >
+          حذف پیش‌نویس و شروع از ابتدا
+        </button>
+      ) : null}
 
       {error ? (
         <Alert
@@ -56,12 +101,44 @@ export default function NewBiolinkPage() {
       ) : null}
 
       <div className="mt-6">
-        <BiolinkForm
-          onSubmit={handleSubmit}
-          submitting={submitting}
-          inline
-          showDraftButton
-        />
+        {!ready ? (
+          <p className="text-muted">در حال بارگذاری...</p>
+        ) : (
+          <BiolinkForm
+            key={draft?.id ?? 'new'}
+            initial={
+              draft
+                ? {
+                    fullName: draft.fullName,
+                    jobTitle: draft.jobTitle ?? '',
+                    company: draft.company ?? '',
+                    bio: draft.bio ?? '',
+                    phone: draft.phone ?? '',
+                    email: draft.email ?? '',
+                    website: draft.website ?? '',
+                    address: draft.address ?? '',
+                    linkedin: draft.linkedin ?? '',
+                    instagram: draft.instagram ?? '',
+                    telegram: draft.telegram ?? '',
+                    twitter: draft.twitter ?? '',
+                    whatsapp: draft.whatsapp ?? '',
+                    primaryColor: draft.primaryColor,
+                    template: draft.template ?? undefined,
+                    cityId: draft.cityId ?? '',
+                    businessId: draft.businessId ?? '',
+                    businessCardId: draft.businessCard?.id ?? '',
+                    avatarUrl: draft.avatarUrl ?? '',
+                    logoUrl: draft.logoUrl ?? '',
+                  }
+                : undefined
+            }
+            onSubmit={handleSubmit}
+            submitting={submitting}
+            inline
+            showDraftButton
+            linkCurrentId={draft?.id}
+          />
+        )}
       </div>
     </div>
   );

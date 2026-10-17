@@ -45,6 +45,15 @@ export class BusinessCardsController {
     return this.businessCardsService.findMyBusinessCards(user.id, query.page, query.limit);
   }
 
+  @Get('mine/draft')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'آخرین پیش‌نویس کارت ویزیت کاربر برای ادامه‌ی تکمیل (یا null)',
+  })
+  latestDraft(@CurrentUser() user: AuthUser) {
+    return this.businessCardsService.findLatestDraft(user.id);
+  }
+
   @Get('id/:id')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'جزئیات کارت ویزیت من' })

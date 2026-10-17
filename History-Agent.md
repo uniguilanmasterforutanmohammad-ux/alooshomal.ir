@@ -20,7 +20,41 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.54.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.55.0**.
+
+## ۱۴۰۵/۰۷/۲۵ — بازگشت به پیش‌نویس بیولینک/کارت در صفحه‌ی «جدید» — نسخه `v2.55.0`
+
+**هدف:** وقتی کاربر در صفحه‌ی ساخت بیولینک (`/dashboard/biolinks/new`) روی
+«ذخیره به‌عنوان پیش‌نویس» می‌زد، پیش‌نویس در دیتابیس ذخیره می‌شد ولی صفحه‌ی «جدید»
+هیچ‌وقت آن را بازنمی‌کرد؛ با مراجعه‌ی مجدد، فرم خالی بود و کاربر نمی‌توانست کار
+ناقص خود را تکمیل کند. همین مشکل برای کارت ویزیت هم وجود داشت.
+
+**تغییرات:**
+- `apps/api/src/biolinks/biolinks.service.ts` و
+  `apps/api/src/businesscards/business-cards.service.ts`: متد `findLatestDraft`
+  که آخرین پیش‌نویس (`status = DRAFT`) کاربر را با همان شکل `findMineById`
+  (شامل `city`/`business`/لینک متقابل) و بدون خطا در صورت نبود پیش‌نویس برمی‌گرداند.
+- `apps/api/src/biolinks/biolinks.controller.ts` و
+  `apps/api/src/businesscards/business-cards.controller.ts`: اندپوینت جدید
+  `GET /biolinks/mine/draft` و `GET /business-cards/mine/draft` (احراز‌شده).
+- `apps/web/app/dashboard/biolinks/new/page.tsx` و
+  `apps/web/app/dashboard/business-cards/new/page.tsx`: هنگام بارگذاری، پیش‌نویس
+  خوانده و فرم با مقادیر آن پیش‌پر می‌شود؛ ارسال بعدی به‌جای ساخت رکورد جدید،
+  همان پیش‌نویس را به‌روزرسانی می‌کند (پس رکورد تکراری ساخته نمی‌شود). دکمه‌ی
+  «حذف پیش‌نویس و شروع از ابتدا» هم اضافه شد.
+- `apps/web/lib/api.ts`: افزودن `'DRAFT'` به اتحاد `status` انواع `Biolink` و
+  `BusinessCard`.
+
+**تأیید/تست:**
+- `tsc --noEmit` برای هر دو اپ بدون خطا.
+- تست زنده‌ی API: `GET /biolinks/mine/draft` با نبود پیش‌نویس `null` و پس از ساخت
+  پیش‌نویس، همان را با تمام فیلدها برگرداند؛ پس از ارسال نهایی، وضعیت به
+  `PENDING` رفت و `total` ردیف‌های کاربر افزایش نیافت (به‌روزرسانی شد، نه ساخت جدید).
+- تست UI با Playwright: در `/dashboard/biolinks/new` عنوان «ادامه‌ی تکمیل بیولینک»
+  و فیلدهای پیش‌نویس (`fullName`، `jobTitle`) در فرم پیش‌پر بودند.
+- داده‌ی تستی از دیتابیس پاک شد.
+- `python3 scripts/sync_install.py && python3 scripts/sync_install.py --check`
+  → `patched: 0 / added: 0`.
 
 ## ۱۴۰۵/۰۷/۲۵ — راهنمای بررسی خزش خزنده‌ها + خروجی PDF — نسخه `v2.54.0`
 

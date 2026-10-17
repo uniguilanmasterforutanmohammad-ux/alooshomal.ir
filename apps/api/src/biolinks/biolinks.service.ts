@@ -178,6 +178,24 @@ export class BiolinksService {
   }
 
   /**
+   * The signed-in user's most recent unfinished draft, with the same shape as
+   * `findMineById` (so the builder can prefill every field). Returns `null`
+   * instead of throwing when there is no draft. The "new biolink" page uses
+   * this to reopen a half-filled builder instead of starting blank.
+   */
+  async findLatestDraft(userId: string) {
+    return this.prisma.biolink.findFirst({
+      where: { userId, status: BiolinkStatus.DRAFT },
+      orderBy: { updatedAt: 'desc' },
+      include: {
+        city: true,
+        business: true,
+        businessCard: { select: { id: true, slug: true, fullName: true } },
+      },
+    });
+  }
+
+  /**
    * The signed-in user's biolinks, paginated. The page size is the admin
    * controlled `myListPageSize` setting; `page` is 1-based.
    */

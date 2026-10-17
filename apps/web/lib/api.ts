@@ -221,7 +221,7 @@ export interface Biolink {
   primaryColor: string;
   template: string;
   isPublished: boolean;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNPUBLISHED';
+  status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNPUBLISHED';
   rejectionReason: string | null;
   publishedAt?: string | null;
   cityId?: string | null;
@@ -340,7 +340,7 @@ export interface BusinessCard {
   primaryColor: string;
   template: string;
   isPublished: boolean;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNPUBLISHED';
+  status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNPUBLISHED';
   rejectionReason: string | null;
   publishedAt?: string | null;
  cityId?: string | null;

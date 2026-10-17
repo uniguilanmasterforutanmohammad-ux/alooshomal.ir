@@ -45,6 +45,15 @@ export class BiolinksController {
     return this.biolinksService.findMyBiolinks(user.id, query.page, query.limit);
   }
 
+  @Get('mine/draft')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'آخرین پیش‌نویس بیولینک کاربر برای ادامه‌ی تکمیل (یا null)',
+  })
+  latestDraft(@CurrentUser() user: AuthUser) {
+    return this.biolinksService.findLatestDraft(user.id);
+  }
+
   @Get('id/:id')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'جزئیات بیولینک من' })
