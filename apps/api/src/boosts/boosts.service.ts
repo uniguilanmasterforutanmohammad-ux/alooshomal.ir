@@ -44,14 +44,31 @@ export class BoostsService {
    * Overview for the user's "افزایش بازدید" (increase visits) dashboard page.
    * Each kind is paginated with the admin-controlled `myListPageSize` setting.
    */
-  async overview(userId: string, page = 1, limitOverride?: number) {
+  async overview(
+    userId: string,
+    page = 1,
+    limitOverride?: number,
+    q?: string,
+  ) {
     const limit = limitOverride ?? (await this.settings.getMyListPageSize());
     const currentPage = Math.max(1, page);
     const skip = (currentPage - 1) * limit;
 
+    const search = q?.trim();
+    const searchWhere = search
+      ? {
+          OR: [
+            { fullName: { contains: search, mode: 'insensitive' as const } },
+            { jobTitle: { contains: search, mode: 'insensitive' as const } },
+            { company: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+    const where = { userId, ...searchWhere };
+
     const [biolinks, biolinkTotal, businessCards, cardTotal] = await Promise.all([
       this.prisma.biolink.findMany({
-        where: { userId },
+        where,
         select: {
           id: true,
           slug: true,
@@ -65,9 +82,9 @@ export class BoostsService {
         skip,
         take: limit,
       }),
-      this.prisma.biolink.count({ where: { userId } }),
+      this.prisma.biolink.count({ where }),
       this.prisma.businessCard.findMany({
-        where: { userId },
+        where,
         select: {
           id: true,
           slug: true,
@@ -81,7 +98,7 @@ export class BoostsService {
         skip,
         take: limit,
       }),
-      this.prisma.businessCard.count({ where: { userId } }),
+      this.prisma.businessCard.count({ where }),
     ]);
 
     const pageTargetIds = [

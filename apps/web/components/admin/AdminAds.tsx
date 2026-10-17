@@ -5,8 +5,9 @@ import { Check, Megaphone, Save, X } from 'lucide-react';
 
 import { api, type AdRequest } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { AdminBoosts } from './AdminBoosts';
 
-type Tab = 'pending' | 'settings';
+type Tab = 'home' | 'directory' | 'settings';
 
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
   { value: 'PENDING', label: 'در انتظار تأیید' },
@@ -32,12 +33,12 @@ interface SettingsPayload {
 }
 
 /**
- * Admin «تبلیغات» panel: a pending-approvals tab (approve/reject a user's ad
- * request) and a settings tab controlling how long each ad runs and how many
- * ads rotate through the home-page box per day.
+ * Admin «تبلیغات» panel with three tabs: home-page ad approvals, directory ads
+ * («پله» — requests to lift an item to the top of its directory slice) and the
+ * settings controlling how long each home ad runs and how many rotate per day.
  */
 export function AdminAds() {
-  const [tab, setTab] = useState<Tab>('pending');
+  const [tab, setTab] = useState<Tab>('home');
   const [status, setStatus] = useState('PENDING');
   const [requests, setRequests] = useState<AdRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,7 +58,7 @@ export function AdminAds() {
   }, [status]);
 
   useEffect(() => {
-    if (tab !== 'pending') return;
+    if (tab !== 'home') return;
     void load();
   }, [tab, load]);
 
@@ -78,7 +79,8 @@ export function AdminAds() {
       <div className="flex flex-wrap gap-2">
         {(
           [
-            ['pending', 'در انتظار تأیید'],
+            ['home', 'تبلیغ در صفحه اصلی'],
+            ['directory', 'تبلیغ در دایرکتوری'],
             ['settings', 'تنظیمات'],
           ] as const
         ).map(([key, label]) => (
@@ -97,9 +99,11 @@ export function AdminAds() {
         ))}
       </div>
 
+      {tab === 'directory' ? <AdminBoosts /> : null}
+
       {tab === 'settings' ? <AdminAdSettings /> : null}
 
-      {tab === 'pending' ? (
+      {tab === 'home' ? (
         <div className="flex flex-col gap-3">
           {error ? (
             <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>

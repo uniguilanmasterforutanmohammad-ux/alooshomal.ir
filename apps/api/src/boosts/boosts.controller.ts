@@ -2,8 +2,8 @@ import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
-import { PaginationDto } from '../common/dto/pagination.dto';
 import { BoostsService } from './boosts.service';
+import { BoostOverviewQueryDto } from './dto/boost-overview-query.dto';
 import { CreateBoostDto } from './dto/create-boost.dto';
 
 @ApiTags('boosts')
@@ -14,8 +14,11 @@ export class BoostsController {
 
   @Get('overview')
   @ApiOperation({ summary: 'نمای کلی افزایش بازدید: لیست کارت‌ها/بیولینک‌ها و درخواست‌ها' })
-  overview(@CurrentUser() user: AuthUser, @Query() query: PaginationDto) {
-    return this.boostsService.overview(user.id, query.page, query.limit);
+  overview(
+    @CurrentUser() user: AuthUser,
+    @Query() query: BoostOverviewQueryDto,
+  ) {
+    return this.boostsService.overview(user.id, query.page, query.limit, query.q);
   }
 
   @Post('request')

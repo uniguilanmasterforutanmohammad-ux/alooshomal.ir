@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { AdsService } from './ads.service';
 import { CreateAdDto } from './dto/create-ad.dto';
+import { AdsOverviewQueryDto } from './dto/ads-overview-query.dto';
 
 @ApiTags('ads')
 @Controller('ads')
@@ -20,9 +21,12 @@ export class AdsController {
 
   @Get('overview')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'نمای کلی تبلیغات: موارد قابل تبلیغ و درخواست‌های من' })
-  overview(@CurrentUser() user: AuthUser) {
-    return this.adsService.overview(user.id);
+  @ApiOperation({ summary: 'نمای کلی تبلیغات: موارد قابل تبلیغ (با جستجو/صفحه‌بندی) و درخواست‌های من' })
+  overview(
+    @CurrentUser() user: AuthUser,
+    @Query() query: AdsOverviewQueryDto,
+  ) {
+    return this.adsService.overview(user.id, query.page, query.q);
   }
 
   @Post('request')

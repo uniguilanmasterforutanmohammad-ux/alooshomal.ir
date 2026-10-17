@@ -69,45 +69,74 @@ export class AdsService {
 
   /**
    * The user's own ads: the published items eligible to advertise plus their
-   * existing requests. Kept tiny so the dashboard page renders instantly.
+   * existing requests. The card/biolink pick lists are paginated and searchable
+   * so the page stays light and stays usable with hundreds of items.
    */
-  async overview(userId: string) {
-    const [businessCards, biolinks, requests, durationDays, dailySlots] =
-      await Promise.all([
-        this.prisma.businessCard.findMany({
-          where: { userId },
-          select: {
-            id: true,
-            slug: true,
-            fullName: true,
-            jobTitle: true,
-            company: true,
-            isPublished: true,
-            status: true,
-          },
-          orderBy: { updatedAt: 'desc' },
-        }),
-        this.prisma.biolink.findMany({
-          where: { userId },
-          select: {
-            id: true,
-            slug: true,
-            fullName: true,
-            jobTitle: true,
-            company: true,
-            isPublished: true,
-            status: true,
-          },
-          orderBy: { updatedAt: 'desc' },
-        }),
-        this.prisma.adRequest.findMany({
-          where: { userId },
-          orderBy: { requestedAt: 'desc' },
-          take: 50,
-        }),
-        this.settings.getAdDurationDays(),
-        this.settings.getAdDailySlots(),
-      ]);
+  async overview(userId: string, page = 1, q?: string) {
+    const limit = await this.settings.getMyListPageSize();
+    const currentPage = Math.max(1, page);
+    const skip = (currentPage - 1) * limit;
+    const search = q?.trim();
+
+    const searchWhere = search
+      ? {
+          OR: [
+            { fullName: { contains: search, mode: 'insensitive' as const } },
+            { jobTitle: { contains: search, mode: 'insensitive' as const } },
+            { company: { contains: search, mode: 'insensitive' as const } },
+          ],
+        }
+      : {};
+
+    const [
+      businessCards,
+      cardTotal,
+      biolinks,
+      biolinkTotal,
+      requests,
+      durationDays,
+      dailySlots,
+    ] = await Promise.all([
+      this.prisma.businessCard.findMany({
+        where: { userId, ...searchWhere },
+        select: {
+          id: true,
+          slug: true,
+          fullName: true,
+          jobTitle: true,
+          company: true,
+          isPublished: true,
+          status: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.businessCard.count({ where: { userId, ...searchWhere } }),
+      this.prisma.biolink.findMany({
+        where: { userId, ...searchWhere },
+        select: {
+          id: true,
+          slug: true,
+          fullName: true,
+          jobTitle: true,
+          company: true,
+          isPublished: true,
+          status: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.biolink.count({ where: { userId, ...searchWhere } }),
+      this.prisma.adRequest.findMany({
+        where: { userId },
+        orderBy: { requestedAt: 'desc' },
+        take: 50,
+      }),
+      this.settings.getAdDurationDays(),
+      this.settings.getAdDailySlots(),
+    ]);
 
     const labels = await this.targetLabels(requests);
     const now = new Date();
@@ -127,6 +156,16 @@ export class AdsService {
         displayState: displayStateOf(request, now),
       })),
       settings: { durationDays, dailySlots },
+      meta: {
+        page: currentPage,
+        limit,
+        biolinkTotal,
+        cardTotal,
+        biolinkTotalPages: Math.max(1, Math.ceil(biolinkTotal / limit)),
+        cardTotalPages: Math.max(1, Math.ceil(cardTotal / limit)),
+        hasNext: currentPage * limit < Math.max(biolinkTotal, cardTotal),
+        hasPrev: currentPage > 1,
+      },
     };
   }
 

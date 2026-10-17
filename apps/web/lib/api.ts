@@ -536,6 +536,16 @@ export interface AdsOverview {
   biolinks: AdTargetItem[];
   requests: AdRequest[];
   settings: { durationDays: number; dailySlots: number };
+  meta?: {
+    page: number;
+    limit: number;
+    biolinkTotal: number;
+    cardTotal: number;
+    biolinkTotalPages: number;
+    cardTotalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
 }
 
 /** One currently-running home-page ad (already resolved to a public page). */
