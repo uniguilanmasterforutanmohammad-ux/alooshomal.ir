@@ -9,6 +9,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 
 import { AdminModule } from './admin/admin.module';
 import { ActivityModule } from './activity/activity.module';
+import { AdsModule } from './ads/ads.module';
 import { AuthModule } from './auth/auth.module';
 import { BiolinksModule } from './biolinks/biolinks.module';
 import { BoostsModule } from './boosts/boosts.module';
@@ -41,6 +42,7 @@ import { UsersModule } from './users/users.module';
     BusinessCardsModule,
     SubscriptionsModule,
     BoostsModule,
+    AdsModule,
     SettingsModule,
     NotificationsModule,
     NewsModule,

@@ -4,6 +4,7 @@ import { Footer } from '@/components/layout/Footer';
 import { PulseSection } from '@/components/news/PulseSection';
 import { ReporterCtaButton } from '@/components/news/ReporterCtaButton';
 import { HomeSearchBox } from '@/components/home/HomeSearchBox';
+import { HomeAdBox } from '@/components/home/HomeAdBox';
 import {
   BadgeCheck,
   Link2,
@@ -114,6 +115,8 @@ export default function HomePage() {
             <ReporterCtaButton variant="primary" />
           </div>
         </section>
+
+        <HomeAdBox />
 
         <section className="container-page mt-16">
           <div className="indeed-panel p-8">

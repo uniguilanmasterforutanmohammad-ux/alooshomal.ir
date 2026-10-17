@@ -8,7 +8,7 @@ import {
 import { BiolinkStatus, NotificationType, Prisma } from '@prisma/client';
 import * as QRCode from 'qrcode';
 
-import { businessCardOrderBy } from '../common/directory-sort';
+import { boostScopeMatches, businessCardOrderBy } from '../common/directory-sort';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { planLimitsFrom } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -567,25 +567,69 @@ export class BusinessCardsService {
         : {}),
     };
 
+    const select = {
+      id: true,
+      slug: true,
+      fullName: true,
+      jobTitle: true,
+      company: true,
+      bio: true,
+      avatarUrl: true,
+      logoUrl: true,
+      primaryColor: true,
+      template: true,
+      publishedAt: true,
+      pinnedAt: true,
+      boostedUntil: true,
+      _count: { select: { likes: true } },
+    } satisfies Prisma.BusinessCardSelect;
+
+    const pageSize = limit;
+    const skip = (page - 1) * pageSize;
+
+    // A boost only lifts an item when the visitor narrowed the list down to the
+    // item's own city *and* business — see `boostScopeMatches`.
+    if (boostScopeMatches(cityId, businessId)) {
+      const now = new Date();
+      const boostedWhere: Prisma.BusinessCardWhereInput = {
+        ...where,
+        boostedUntil: { gt: now },
+      };
+      const [boostedRows, total, boostedTotal] = await Promise.all([
+        this.prisma.businessCard.findMany({
+          where: boostedWhere,
+          select,
+          orderBy: [{ boostedUntil: 'desc' }, { id: 'desc' }],
+          take: pageSize + skip,
+        }),
+        this.prisma.businessCard.count({ where }),
+        this.prisma.businessCard.count({ where: boostedWhere }),
+      ]);
+
+      const fromBoosted = boostedRows.slice(skip, skip + pageSize);
+      const need = pageSize - fromBoosted.length;
+      const regularSkip = Math.max(0, skip - boostedTotal);
+      const regularRows = need
+        ? await this.prisma.businessCard.findMany({
+            where: { ...where, NOT: { boostedUntil: { gt: now } } },
+            select,
+            orderBy: businessCardOrderBy(sort),
+            skip: regularSkip,
+            take: need,
+          })
+        : [];
+
+      const items = [...fromBoosted, ...regularRows].map(({ _count, ...item }) => ({
+        ...item,
+        likeCount: _count.likes,
+      }));
+      return { items, total };
+    }
+
     const [rows, total] = await Promise.all([
       this.prisma.businessCard.findMany({
         where,
-        select: {
-          id: true,
-          slug: true,
-          fullName: true,
-          jobTitle: true,
-          company: true,
-          bio: true,
-          avatarUrl: true,
-          logoUrl: true,
-          primaryColor: true,
-          template: true,
-          publishedAt: true,
-          pinnedAt: true,
-          boostedUntil: true,
-          _count: { select: { likes: true } },
-        },
+        select,
         orderBy: businessCardOrderBy(sort),
         skip: (page - 1) * limit,
         take: limit,
@@ -593,8 +637,10 @@ export class BusinessCardsService {
       this.prisma.businessCard.count({ where }),
     ]);
 
+    // Outside the city+business slice a boost must not advertise itself.
     const items = rows.map(({ _count, ...item }) => ({
       ...item,
+      boostedUntil: null,
       likeCount: _count.likes,
     }));
     return { items, total };

@@ -32,3 +32,14 @@ export function businessCardOrderBy(
       return [{ pinnedAt: 'desc' }, { id: 'desc' }];
   }
 }
+
+/**
+ * Where an approved boost («پله») is allowed to lift an item. A boost only
+ * promotes its item to the top of the directory when the visitor has narrowed
+ * the list down to *both* the city and the business category the item belongs
+ * to — exactly the slice the advertiser paid for. Anything broader (no filter
+ * or a single filter) keeps the plain chronological order.
+ */
+export function boostScopeMatches(cityId?: string, businessId?: string): boolean {
+  return Boolean(cityId && businessId);
+}

@@ -22,6 +22,8 @@ import { UpdateBiolinkDto } from '../biolinks/dto/update-biolink.dto';
 import { UpdateBusinessCardDto } from '../businesscards/dto/update-business-card.dto';
 import { BoostsService } from '../boosts/boosts.service';
 import { DecideBoostDto } from '../boosts/dto/decide-boost.dto';
+import { AdsService } from '../ads/ads.service';
+import { DecideAdDto } from '../ads/dto/decide-ad.dto';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { CreatePlanDto } from '../subscriptions/dto/create-plan.dto';
 import { DecideSubscriptionDto } from '../subscriptions/dto/decide-subscription.dto';
@@ -56,6 +58,7 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly subscriptionsService: SubscriptionsService,
     private readonly boostsService: BoostsService,
+    private readonly adsService: AdsService,
     private readonly bulkService: BulkService,
     private readonly permissions: PermissionsService,
   ) {}
@@ -270,6 +273,24 @@ export class AdminController {
     @Body() dto: DecideBoostDto,
   ) {
     return this.boostsService.decide(admin.id, id, dto);
+  }
+
+  // ----- Ads (تبلیغات) -----
+
+  @Get('ads')
+  @ApiOperation({ summary: 'درخواست‌های تبلیغ صفحه اصلی' })
+  ads(@Query('status') status?: BoostStatus) {
+    return this.adsService.listRequests(status);
+  }
+
+  @Patch('ads/:id')
+  @ApiOperation({ summary: 'تأیید یا رد درخواست تبلیغ' })
+  decideAd(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: DecideAdDto,
+  ) {
+    return this.adsService.decide(admin.id, id, dto);
   }
 
   // ----- Bulk import / delete (load-testing) -----

@@ -38,7 +38,11 @@ export function DirectoryBiolinkItem({ biolink, selected, onSelect }: Props) {
       )}
     >
       {boosted ? (
-        <BoostBadge className="absolute end-3 top-3" />
+        <BoostBadge
+          className="absolute end-3 top-3"
+          label="تبلیغات"
+          title="این بیولینک تبلیغ است و در همین دسته‌بندی شهر و کسب‌وکار در صدر لیست نمایش داده می‌شود"
+        />
       ) : null}
       <div className="flex items-start gap-3">
         <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-light text-lg font-extrabold text-brand">

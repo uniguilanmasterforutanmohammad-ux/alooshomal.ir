@@ -24,6 +24,26 @@ export const ACTIVITY_RETENTION_MONTHS_KEY = 'activityRetentionMonths';
 export const DEFAULT_ACTIVITY_RETENTION_MONTHS = 6;
 
 // ---------------------------------------------------------------------------
+//  «تبلیغات» (home-page advertising) + boost («پله») duration
+// ---------------------------------------------------------------------------
+
+/** How many days an approved ad keeps showing in the home-page ad box. */
+export const AD_DURATION_DAYS_KEY = 'adDurationDays';
+export const DEFAULT_AD_DURATION_DAYS = 30;
+
+/**
+ * How many ads the home-page ad box shows per day. Approved ads are rotated
+ * deterministically each day so every advertiser gets a fair share instead of
+ * the newest ad hogging the single slot forever.
+ */
+export const AD_DAILY_SLOTS_KEY = 'adDailySlots';
+export const DEFAULT_AD_DAILY_SLOTS = 1;
+
+/** How many days an approved boost («پله») keeps an item pinned at the top. */
+export const BOOST_DURATION_DAYS_KEY = 'boostDurationDays';
+export const DEFAULT_BOOST_DURATION_DAYS = 7;
+
+// ---------------------------------------------------------------------------
 //  «نبض شهر» news settings
 // ---------------------------------------------------------------------------
 
@@ -79,6 +99,7 @@ export const ADMIN_NOTIFY_CATEGORIES = [
   'BUSINESS_CARD',
   'SUBSCRIPTION',
   'BOOST',
+  'AD',
   'TICKET',
   'SECURITY',
 ] as const;
@@ -180,6 +201,30 @@ export class SettingsService implements OnModuleInit {
         create: {
           key: PHONE_LOGIN_ENABLED_KEY,
           value: DEFAULT_PHONE_LOGIN_ENABLED ? 'true' : 'false',
+        },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: AD_DURATION_DAYS_KEY },
+        update: {},
+        create: {
+          key: AD_DURATION_DAYS_KEY,
+          value: String(DEFAULT_AD_DURATION_DAYS),
+        },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: AD_DAILY_SLOTS_KEY },
+        update: {},
+        create: {
+          key: AD_DAILY_SLOTS_KEY,
+          value: String(DEFAULT_AD_DAILY_SLOTS),
+        },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: BOOST_DURATION_DAYS_KEY },
+        update: {},
+        create: {
+          key: BOOST_DURATION_DAYS_KEY,
+          value: String(DEFAULT_BOOST_DURATION_DAYS),
         },
       }),
       ...ADMIN_NOTIFY_CATEGORIES.map((category) =>
@@ -456,5 +501,70 @@ export class SettingsService implements OnModuleInit {
   async all(): Promise<Record<string, string>> {
     const rows = await this.prisma.setting.findMany();
     return Object.fromEntries(rows.map((row) => [row.key, row.value]));
+  }
+
+  // ---- «تبلیغات» + boost duration ----
+
+  /** How many days an approved home-page ad keeps running. */
+  async getAdDurationDays(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: AD_DURATION_DAYS_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 1 && parsed <= 365
+      ? Math.floor(parsed)
+      : DEFAULT_AD_DURATION_DAYS;
+  }
+
+  async setAdDurationDays(value: number): Promise<number> {
+    const clamped = Math.min(365, Math.max(1, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: AD_DURATION_DAYS_KEY },
+      update: { value: String(clamped) },
+      create: { key: AD_DURATION_DAYS_KEY, value: String(clamped) },
+    });
+    return clamped;
+  }
+
+  /** How many ads the home-page ad box rotates through each day. */
+  async getAdDailySlots(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: AD_DAILY_SLOTS_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 1 && parsed <= 20
+      ? Math.floor(parsed)
+      : DEFAULT_AD_DAILY_SLOTS;
+  }
+
+  async setAdDailySlots(value: number): Promise<number> {
+    const clamped = Math.min(20, Math.max(1, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: AD_DAILY_SLOTS_KEY },
+      update: { value: String(clamped) },
+      create: { key: AD_DAILY_SLOTS_KEY, value: String(clamped) },
+    });
+    return clamped;
+  }
+
+  /** How many days an approved boost («پله») keeps an item at the top. */
+  async getBoostDurationDays(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: BOOST_DURATION_DAYS_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 1 && parsed <= 365
+      ? Math.floor(parsed)
+      : DEFAULT_BOOST_DURATION_DAYS;
+  }
+
+  async setBoostDurationDays(value: number): Promise<number> {
+    const clamped = Math.min(365, Math.max(1, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: BOOST_DURATION_DAYS_KEY },
+      update: { value: String(clamped) },
+      create: { key: BOOST_DURATION_DAYS_KEY, value: String(clamped) },
+    });
+    return clamped;
   }
 }

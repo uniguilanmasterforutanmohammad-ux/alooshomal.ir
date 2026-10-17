@@ -8,7 +8,7 @@ import {
 import { BiolinkStatus, NotificationType, Prisma } from '@prisma/client';
 import * as QRCode from 'qrcode';
 
-import { biolinkOrderBy } from '../common/directory-sort';
+import { biolinkOrderBy, boostScopeMatches } from '../common/directory-sort';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { planLimitsFrom } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -550,25 +550,72 @@ export class BiolinksService {
         : {}),
     };
 
+    const select = {
+      id: true,
+      slug: true,
+      fullName: true,
+      jobTitle: true,
+      company: true,
+      bio: true,
+      avatarUrl: true,
+      logoUrl: true,
+      primaryColor: true,
+      template: true,
+      publishedAt: true,
+      pinnedAt: true,
+      boostedUntil: true,
+      _count: { select: { likes: true } },
+    } satisfies Prisma.BiolinkSelect;
+
+    const pageSize = limit;
+    const skip = (page - 1) * pageSize;
+
+    // A boost only lifts an item when the visitor narrowed the list down to the
+    // item's own city *and* business — see `boostScopeMatches`. That keeps the
+    // promotion inside the exact slice of the directory the advertiser paid for.
+    if (boostScopeMatches(cityId, businessId)) {
+      const now = new Date();
+      const boostedWhere: Prisma.BiolinkWhereInput = {
+        ...where,
+        boostedUntil: { gt: now },
+      };
+      const [boostedRows, total, boostedTotal] = await Promise.all([
+        this.prisma.biolink.findMany({
+          where: boostedWhere,
+          select,
+          orderBy: [{ boostedUntil: 'desc' }, { id: 'desc' }],
+          take: pageSize + skip,
+        }),
+        this.prisma.biolink.count({ where }),
+        this.prisma.biolink.count({ where: boostedWhere }),
+      ]);
+
+      // Boosted rows always come first, so the page slice may straddle the
+      // boosted/regular boundary. Fetch the regular rows for the remainder.
+      const fromBoosted = boostedRows.slice(skip, skip + pageSize);
+      const need = pageSize - fromBoosted.length;
+      const regularSkip = Math.max(0, skip - boostedTotal);
+      const regularRows = need
+        ? await this.prisma.biolink.findMany({
+            where: { ...where, NOT: { boostedUntil: { gt: now } } },
+            select,
+            orderBy: biolinkOrderBy(sort),
+            skip: regularSkip,
+            take: need,
+          })
+        : [];
+
+      const items = [...fromBoosted, ...regularRows].map(({ _count, ...item }) => ({
+        ...item,
+        likeCount: _count.likes,
+      }));
+      return { items, total };
+    }
+
     const [rows, total] = await Promise.all([
       this.prisma.biolink.findMany({
         where,
-        select: {
-          id: true,
-          slug: true,
-          fullName: true,
-          jobTitle: true,
-          company: true,
-          bio: true,
-          avatarUrl: true,
-          logoUrl: true,
-          primaryColor: true,
-          template: true,
-          publishedAt: true,
-          pinnedAt: true,
-          boostedUntil: true,
-          _count: { select: { likes: true } },
-        },
+        select,
         orderBy: biolinkOrderBy(sort),
         skip: (page - 1) * limit,
         take: limit,
@@ -576,8 +623,11 @@ export class BiolinksService {
       this.prisma.biolink.count({ where }),
     ]);
 
+    // Outside the city+business slice a boost must not advertise itself, so the
+    // public row drops `boostedUntil` and the client shows no tag.
     const items = rows.map(({ _count, ...item }) => ({
       ...item,
+      boostedUntil: null,
       likeCount: _count.likes,
     }));
     return { items, total };

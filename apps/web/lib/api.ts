@@ -494,6 +494,58 @@ export interface BoostOverview {
   };
 }
 
+export type AdTargetKind = 'BIOLINK' | 'BUSINESS_CARD';
+
+export interface AdTargetItem {
+  id: string;
+  slug: string;
+  fullName: string;
+  jobTitle: string | null;
+  company: string | null;
+  isPublished: boolean;
+  approved: boolean;
+}
+
+export interface AdRequest {
+  id: string;
+  userId: string;
+  kind: AdTargetKind;
+  targetId: string;
+  status: BoostStatus;
+  requestedAt: string;
+  decidedAt: string | null;
+  startedAt: string | null;
+  endsAt: string | null;
+  note: string | null;
+  adminNote: string | null;
+  target?: { id: string; fullName: string; slug: string } | null;
+  user?: { id: string; email: string; fullName: string | null };
+}
+
+export interface AdsOverview {
+  businessCards: AdTargetItem[];
+  biolinks: AdTargetItem[];
+  requests: AdRequest[];
+  settings: { durationDays: number; dailySlots: number };
+}
+
+/** One currently-running home-page ad (already resolved to a public page). */
+export interface ActiveAd {
+  id: string;
+  kind: AdTargetKind;
+  href: string;
+  slug: string;
+  fullName: string;
+  jobTitle: string | null;
+  company: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+  logoUrl: string | null;
+  primaryColor: string;
+  city: { id: string; name: string } | null;
+  business: { id: string; name: string } | null;
+}
+
 /** Server-side pagination envelope returned by the user's own lists. */
 export interface Paged<T> {
   items: T[];

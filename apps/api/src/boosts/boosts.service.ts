@@ -22,7 +22,10 @@ import { SettingsService } from '../settings/settings.service';
 import { CreateBoostDto } from './dto/create-boost.dto';
 import { DecideBoostDto } from './dto/decide-boost.dto';
 
-/** How long an approved boost keeps an item pinned near the top of its directory. */
+/**
+ * Fallback boost duration when the admin setting cannot be read (the effective
+ * value lives in `Setting.boostDurationDays`).
+ */
 export const BOOST_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 @Injectable()
@@ -236,7 +239,8 @@ export class BoostsService {
 
   /**
    * Admin decision. Approving pins the item to the top of its directory by
-   * setting `boostedUntil`; the value is always "now + BOOST_DURATION_MS".
+   * setting `boostedUntil` ("now + boostDurationDays"), so it rises to the top
+   * only inside whatever city/business filter the visitor has applied.
    */
   async decide(adminId: string, requestId: string, dto: DecideBoostDto) {
     const request = await this.prisma.boostRequest.findUnique({
@@ -251,6 +255,8 @@ export class BoostsService {
 
     const now = new Date();
     const approved = dto.status === BoostStatus.APPROVED;
+    const durationMs =
+      (await this.settings.getBoostDurationDays()) * 24 * 60 * 60 * 1000;
 
     const updated = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.boostRequest.update({
@@ -264,18 +270,20 @@ export class BoostsService {
       });
 
       if (approved) {
-        const boostedUntil = new Date(now.getTime() + BOOST_DURATION_MS);
+        const boostedUntil = new Date(now.getTime() + durationMs);
+        // The boost only lifts the item to the top of its own city + business
+        // slice of the directory (handled by the directory services), so it
+        // never leaks into unrelated filters. `pinnedAt` is intentionally left
+        // untouched here.
         if (request.kind === BoostTargetKind.BIOLINK) {
           await tx.biolink.update({
             where: { id: request.targetId },
-            // resetting `pinnedAt` pushes the item back to the top of the
-            // directory by "newness" — exactly like a freshly created item.
-            data: { boostedUntil, pinnedAt: now },
+            data: { boostedUntil },
           });
         } else {
           await tx.businessCard.update({
             where: { id: request.targetId },
-            data: { boostedUntil, pinnedAt: now },
+            data: { boostedUntil },
           });
         }
       }

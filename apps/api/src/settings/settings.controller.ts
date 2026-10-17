@@ -66,6 +66,27 @@ class UpdateSettingsDto {
   @IsOptional()
   @IsBoolean()
   phoneLoginEnabled?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  adDurationDays?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  adDailySlots?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(365)
+  boostDurationDays?: number;
 }
 const ADMIN_NOTIFY_CATEGORY_SET = new Set<string>(ADMIN_NOTIFY_CATEGORIES);
 const NEWS_ACCESS_LEVEL_SET = new Set<string>(NEWS_ACCESS_LEVELS);
@@ -113,6 +134,9 @@ export class AdminSettingsController {
       newsHeadlineCount: await this.settingsService.getNewsHeadlineCount(),
       newsAccessLevel: await this.settingsService.getNewsAccessLevel(),
       phoneLoginEnabled: await this.settingsService.getPhoneLoginEnabled(),
+      adDurationDays: await this.settingsService.getAdDurationDays(),
+      adDailySlots: await this.settingsService.getAdDailySlots(),
+      boostDurationDays: await this.settingsService.getBoostDurationDays(),
       ...locks,
     };
   }
@@ -131,6 +155,9 @@ export class AdminSettingsController {
       newsHeadlineCount?: number;
       newsAccessLevel?: NewsAccessLevel;
       phoneLoginEnabled?: boolean;
+      adDurationDays?: number;
+      adDailySlots?: number;
+      boostDurationDays?: number;
     } = {};
     if (dto.directoryPageSize !== undefined) {
       result.directoryPageSize = await this.settingsService.setDirectoryPageSize(
@@ -190,6 +217,21 @@ export class AdminSettingsController {
     if (dto.phoneLoginEnabled !== undefined) {
       result.phoneLoginEnabled = await this.settingsService.setPhoneLoginEnabled(
         dto.phoneLoginEnabled,
+      );
+    }
+    if (dto.adDurationDays !== undefined) {
+      result.adDurationDays = await this.settingsService.setAdDurationDays(
+        dto.adDurationDays,
+      );
+    }
+    if (dto.adDailySlots !== undefined) {
+      result.adDailySlots = await this.settingsService.setAdDailySlots(
+        dto.adDailySlots,
+      );
+    }
+    if (dto.boostDurationDays !== undefined) {
+      result.boostDurationDays = await this.settingsService.setBoostDurationDays(
+        dto.boostDurationDays,
       );
     }
     return result;

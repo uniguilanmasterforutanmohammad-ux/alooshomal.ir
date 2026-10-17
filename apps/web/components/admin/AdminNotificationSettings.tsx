@@ -11,6 +11,7 @@ type Category =
   | 'BUSINESS_CARD'
   | 'SUBSCRIPTION'
   | 'BOOST'
+  | 'AD'
   | 'TICKET'
   | 'SECURITY';
 
@@ -23,6 +24,7 @@ const LABELS: Record<Category, { title: string; hint: string }> = {
   },
   SUBSCRIPTION: { title: 'اشتراک‌ها', hint: 'درخواست اشتراک جدید' },
   BOOST: { title: 'افزایش بازدید', hint: 'درخواست پله جدید' },
+  AD: { title: 'تبلیغات', hint: 'درخواست تبلیغ صفحه اصلی' },
   TICKET: { title: 'تیکت‌ها', hint: 'تیکت جدید یا پاسخ کاربر' },
   SECURITY: {
     title: 'رویدادهای امنیتی',
@@ -36,6 +38,7 @@ const ORDER: Category[] = [
   'BUSINESS_CARD',
   'SUBSCRIPTION',
   'BOOST',
+  'AD',
   'TICKET',
   'SECURITY',
 ];

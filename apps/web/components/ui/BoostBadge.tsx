@@ -7,6 +7,10 @@ import { cn } from '@/lib/utils';
 interface Props {
   /** show the longer "پله" label next to the icon */
   withLabel?: boolean;
+  /** override the badge text (defaults to «پله») */
+  label?: string;
+  /** tooltip override */
+  title?: string;
   className?: string;
 }
 
@@ -15,10 +19,15 @@ interface Props {
  * It uses a warm gold→orange gradient so other users notice it and are nudged
  * to boost their own cards.
  */
-export function BoostBadge({ withLabel = true, className }: Props) {
+export function BoostBadge({
+  withLabel = true,
+  label = 'پله',
+  title = 'این کارت با فیچر پله به صدر لیست آورده شده است',
+  className,
+}: Props) {
   return (
     <span
-      title="این کارت با فیچر پله به صدر لیست آورده شده است"
+      title={title}
       className={cn(
         'relative inline-flex items-center gap-1 overflow-hidden rounded-full px-2.5 py-1 text-[10px] font-extrabold text-white',
         className,
@@ -30,7 +39,7 @@ export function BoostBadge({ withLabel = true, className }: Props) {
       }}
     >
       <Crown className="size-3 drop-shadow" aria-hidden />
-      {withLabel ? <span>پله</span> : null}
+      {withLabel ? <span>{label}</span> : null}
       <Sparkles className="size-3 opacity-90" aria-hidden />
     </span>
   );

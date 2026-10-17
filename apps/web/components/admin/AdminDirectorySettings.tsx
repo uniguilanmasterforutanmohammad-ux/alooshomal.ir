@@ -12,6 +12,7 @@ interface SettingsPayload {
   directoryDisplayMode: DisplayMode;
   adminListPageSize: number;
   myListPageSize: number;
+  boostDurationDays: number;
 }
 
 /**
@@ -24,6 +25,7 @@ export function AdminDirectorySettings() {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('PAGINATION');
   const [adminValue, setAdminValue] = useState('');
   const [myValue, setMyValue] = useState('');
+  const [boostDays, setBoostDays] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -40,6 +42,7 @@ export function AdminDirectorySettings() {
       );
       setAdminValue(String(result.adminListPageSize));
       setMyValue(String(result.myListPageSize));
+      setBoostDays(String(result.boostDurationDays));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری تنظیمات');
     } finally {
@@ -68,6 +71,11 @@ export function AdminDirectorySettings() {
       setError('عدد باید بین ۱ تا ۱۰۰ باشد');
       return;
     }
+    const parsedBoost = Number(boostDays);
+    if (!Number.isInteger(parsedBoost) || parsedBoost < 1 || parsedBoost > 365) {
+      setError('مدت پله باید بین ۱ تا ۳۶۵ روز باشد');
+      return;
+    }
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -77,6 +85,7 @@ export function AdminDirectorySettings() {
         directoryDisplayMode: displayMode,
         adminListPageSize: parsedAdmin,
         myListPageSize: parsedMy,
+        boostDurationDays: parsedBoost,
       });
       setValue(String(result.directoryPageSize));
       setDisplayMode(
@@ -84,6 +93,7 @@ export function AdminDirectorySettings() {
       );
       setAdminValue(String(result.adminListPageSize));
       setMyValue(String(result.myListPageSize));
+      setBoostDays(String(result.boostDurationDays));
       setMessage('تنظیمات ذخیره شد.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره تنظیمات ناموفق بود');
@@ -174,6 +184,18 @@ export function AdminDirectorySettings() {
               dir="ltr"
               value={myValue}
               onChange={(event) => setMyValue(event.target.value)}
+              className="w-32 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-brand"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-bold text-muted">
+            مدت هر پله (روز)
+            <input
+              type="number"
+              min={1}
+              max={365}
+              dir="ltr"
+              value={boostDays}
+              onChange={(event) => setBoostDays(event.target.value)}
               className="w-32 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-brand"
             />
           </label>

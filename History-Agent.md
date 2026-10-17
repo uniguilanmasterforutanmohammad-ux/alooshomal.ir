@@ -20,7 +20,62 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.34.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.35.0**.
+
+## ۱۴۰۵/۰۷/۲۵ — بخش تبلیغات (کادر صفحه اصلی + بنل کاربر و مدیر) و تبلیغ دسته‌محور «پله» — نسخه `v2.35.0`
+
+**هدف:** افزودن بخش «تبلیغات»: کاربر یک کارت ویزیت/بیولینک خود را برای تبلیغ در
+صفحه اصلی انتخاب و ارسال می‌کند، مدیر تأیید می‌کند و تبلیغ برای مدت تعیین‌شده در کادر
+صفحه اصلی نمایش داده می‌شود؛ همچنین «پله» حالا تبلیغی دسته‌محور است (فقط در همان
+شهر+کسب‌وکار و هنگام فیلتر بازدیدکننده) و با تگ «تبلیغات» مشخص می‌شود.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل `AdRequest` و enum `AdTargetKind` (اتصال
+  `adRequests`/`adDecisions` به مدل `User`).
+- `apps/api/src/settings/settings.service.ts`: کلیدهای تنظیم `adDurationDays`
+  (پیش‌فرض ۳۰)، `adDailySlots` (پیش‌فرض ۱) و `boostDurationDays` (پیش‌فرض ۷)
+  به‌همراه گتر/سترها؛ افزودن دسته‌ی اعلان مدیر `AD`.
+- `apps/api/src/settings/settings.controller.ts`: افزودن سه فیلد تنظیمات تبلیغات/پله
+  به DTO و پاسخ admin settings.
+- `apps/api/src/ads/`: ماژول جدید تبلیغات (سرویس، کنترلر، DTOها). درخواست کاربر،
+  تأیید/رد مدیر، محاسبه‌ی تبلیغ فعال با چرخش روزانه بر اساس `adDailySlots`، و
+  اعتبارسنجی مالکیت/انتشار مورد انتخابی.
+- `apps/api/src/admin/admin.controller.ts` و `admin.module.ts`: اندپوینت‌های
+  `GET /admin/ads` و `PATCH /admin/ads/:id`.
+- `apps/api/src/boosts/boosts.service.ts`: مدت پله از تنظیم `boostDurationDays`
+  خوانده می‌شود و دیگر `pinnedAt` سراسری را تغییر نمی‌دهد (تبلیغ فقط دسته‌محور).
+- `apps/api/src/common/directory-sort.ts`: هلپر `boostScopeMatches(cityId, businessId)`.
+- `apps/api/src/biolinks/biolinks.service.ts` و
+  `apps/api/src/businesscards/business-cards.service.ts`: در دایرکتوری عمومی، وقتی
+  هم شهر و هم کسب‌وکار فیلتر شده باشد موارد دارای پله‌ی فعال به ابتدای لیست (با
+  صفحه‌بندی صحیح) می‌آیند؛ در غیر این صورت `boostedUntil` صفر می‌شود تا تگ تبلیغ
+  جایی که نباید نمایش داده نشود.
+- `apps/web/lib/api.ts`: تایپ‌های `AdRequest`/`AdsOverview`/`ActiveAd`/`AdTargetKind`.
+- `apps/web/app/dashboard/ads/page.tsx`: صفحه‌ی تبلیغات کاربر (انتخاب کارت/بیولینک،
+  ثبت درخواست، وضعیت و تاریخچه)؛ آیتم منو در `apps/web/components/dashboard/UserShell.tsx`.
+- `apps/web/components/home/HomeAdBox.tsx` و `apps/web/app/page.tsx`: کادر تبلیغ
+  صفحه اصلی (SSR با `revalidate`).
+- `apps/web/components/admin/AdminAds.tsx`: پنل مدیر تبلیغات با تب‌های «در انتظار
+  تأیید» و «تنظیمات»؛ ثبت در `AdminShell`, `apps/web/app/admin/page.tsx` و برچسب
+  دسته‌ی اعلان `AD` در `AdminNotificationSettings.tsx`.
+- `apps/web/components/ui/BoostBadge.tsx`, `DirectoryBiolinkItem.tsx`,
+  `DirectoryBusinessCardItem.tsx`: برچسب «تبلیغات» برای آیتم‌های تبلیغی.
+- `apps/web/components/admin/AdminDirectorySettings.tsx`: تنظیم «مدت هر پله (روز)».
+- `apps/web/lib/version.ts`: نسخه به `v2.35.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx prisma db push` و `prisma generate` → اسکیمای جدید
+  اعمال شد؛ `npx tsc --noEmit` روی API و Web → بدون خطا.
+- API: ثبت درخواست تبلیغ → در صف `GET /admin/ads?status=PENDING` دیده شد؛ تأیید مدیر
+  → `endsAt = now + 30d`؛ سپس `GET /ads/public/active` همان تبلیغ را با
+  `href=/business-cards/9074939` برگرداند.
+- پله‌ی دسته‌محور: تأیید پله برای کارت «محمد فروتن» (اصفهان + ساختمان و عمران) →
+  دایرکتوری با فیلتر همان شهر+کسب‌وکار فقط همان کارت را با `boostedUntil` و تگ
+  «تبلیغات» نشان داد؛ دایرکتوری بدون فیلتر هیچ تگی نداشت.
+- Playwright دسکتاپ: کادر `#ads` صفحه اصلی تبلیغ را با لینک درست نشان داد؛ فوتر/هدر
+  سالم؛ پنل `/dashboard/ads` و `/admin?section=ads` بدون خطای صفحه‌ی JS و با تب‌های
+  «در انتظار تأیید» و «تنظیمات» بارگذاری شدند؛ حذف کلیدهای تنظیم + ری‌استارت API →
+  مقادیر پیش‌فرض (۳۰/۱/۷) دوباره ساخته شدند.
 
 ## ۱۴۰۵/۰۷/۲۵ — هدر و فوتر عمومی جدید — نسخه `v2.34.0`
 

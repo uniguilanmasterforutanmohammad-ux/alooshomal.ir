@@ -11,6 +11,7 @@ import {
   LifeBuoy,
   LayoutDashboard,
   LogOut,
+  Megaphone,
   Menu,
   Bell,
   Newspaper,
@@ -32,6 +33,7 @@ export type AdminSection =
   | 'business-cards'
   | 'subscriptions'
   | 'boosts'
+  | 'ads'
   | 'users'
   | 'tickets'
   | 'reports'
@@ -54,6 +56,7 @@ const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboar
   { key: 'business-cards', label: 'کارت‌های ویزیت', icon: IdCard },
   { key: 'subscriptions', label: 'اشتراک‌ها', icon: Crown },
   { key: 'boosts', label: 'افزایش بازدید', icon: TrendingUp },
+  { key: 'ads', label: 'تبلیغات', icon: Megaphone },
   { key: 'users', label: 'کاربران', icon: Users },
   { key: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
   { key: 'news', label: 'نبض شهر', icon: Newspaper },

@@ -74,6 +74,14 @@ enum SaveTargetKind {
   BUSINESS_CARD
 }
 
+/// Home-page advertising. A user picks one of their own published business
+/// cards (or biolinks) and asks the admin to feature it in the «تبلیغات» box
+/// on the home page. Uses the same three-state flow as boosts/subscriptions.
+enum AdTargetKind {
+  BUSINESS_CARD
+  BIOLINK
+}
+
 enum NotificationType {
   INFO
   SUCCESS
@@ -154,6 +162,8 @@ model User {
   subscriptionDecisions UserSubscription[] @relation("SubscriptionDecisions")
   boostRequests     BoostRequest[]      @relation("UserBoostRequests")
   boostDecisions    BoostRequest[]      @relation("BoostDecisions")
+  adRequests        AdRequest[]         @relation("UserAdRequests")
+  adDecisions       AdRequest[]         @relation("AdDecisions")
   biolinkSaves      BiolinkSave[]
   businessCardSaves BusinessCardSave[]
   notifications     Notification[]    @relation("UserNotifications")
@@ -682,6 +692,34 @@ model BoostRequest {
   @@index([kind, targetId])
   @@index([status])
   @@map("boost_requests")
+}
+
+// ---------------------------------------------------------------------------
+// Advertising — a user asks the admin to feature one of their own business
+// cards (or biolinks) in the «تبلیغات» slot on the home page. On approval the
+// ad keeps running until the admin-defined duration (`adDurationDays`) elapses.
+// ---------------------------------------------------------------------------
+model AdRequest {
+  id          String        @id @default(cuid())
+  userId      String
+  kind        AdTargetKind
+  targetId    String
+  status      BoostStatus   @default(PENDING)
+  requestedAt DateTime      @default(now())
+  decidedAt   DateTime?
+  decidedById String?
+  startedAt   DateTime?
+  endsAt      DateTime?
+  note        String?
+  adminNote   String?
+
+  user      User  @relation("UserAdRequests", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User? @relation("AdDecisions", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([endsAt])
+  @@map("ad_requests")
 }
 
 // ---------------------------------------------------------------------------
