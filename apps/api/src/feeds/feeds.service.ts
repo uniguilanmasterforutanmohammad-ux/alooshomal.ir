@@ -154,7 +154,8 @@ export class FeedsService implements OnModuleInit {
       this.prisma.feedPost.findMany({
         where,
         include: feedPostInclude,
-        orderBy: { publishedAt: 'desc' },
+        // boosted («پله») posts float to the top until `boostedUntil` lapses
+        orderBy: [{ boostedUntil: { sort: 'desc', nulls: 'last' } }, { pinnedAt: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -322,6 +323,44 @@ export class FeedsService implements OnModuleInit {
         hasNext: currentPage * limit < total,
         hasPrev: currentPage > 1,
       },
+    };
+  }
+
+  /**
+   * 1-based rank of a feed post inside the published feed directory, plus the
+   * page it lands on with the current page size — mirrors the biolink/card
+   * «افزایش بازدید» panel so a boosted post can show 55 / page 3.
+   */
+  async directoryRank(postId: string) {
+    const post = await this.prisma.feedPost.findUnique({
+      where: { id: postId },
+      select: { id: true, pinnedAt: true, status: true, isPublished: true },
+    });
+    if (!post || post.status !== NewsStatus.APPROVED || !post.isPublished) {
+      return { rank: null, page: null, total: null, pageSize: null };
+    }
+    const [total, pageSize, ahead] = await Promise.all([
+      this.prisma.feedPost.count({
+        where: { status: NewsStatus.APPROVED, isPublished: true },
+      }),
+      this.settings.getDirectoryPageSize(),
+      this.prisma.feedPost.count({
+        where: {
+          status: NewsStatus.APPROVED,
+          isPublished: true,
+          OR: [
+            { pinnedAt: { gt: post.pinnedAt } },
+            { pinnedAt: post.pinnedAt, id: { gt: post.id } },
+          ],
+        },
+      }),
+    ]);
+    const rank = ahead + 1;
+    return {
+      rank,
+      page: Math.ceil(rank / pageSize),
+      total,
+      pageSize,
     };
   }
 

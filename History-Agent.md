@@ -20,7 +20,52 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.42.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.43.0**.
+
+## ۱۴۰۵/۰۷/۲۵ — ادغام «تبلیغات» در «افزایش بازدید» + جدول و تب‌های بیولینک/کارت/فید — نسخه `v2.43.0`
+
+**هدف:** صفحه‌ی `/dashboard/boost` جدولی شود، به سه تب «بیولینک‌ها/کارت‌های ویزیت/
+فیدها» تقسیم شود، و «افزایش بازدید» و «تبلیغات» در همین یک بخش ادغام شوند.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `FEED` به دو enum `BoostTargetKind` و
+  `AdTargetKind`؛ افزودن `boostedUntil` و `pinnedAt` به `FeedPost` (+ ایندکس‌ها).
+- `apps/api/src/boosts/boosts.service.ts`: پشتیبانی کامل از `FEED` در
+  `overview` (فهرست/شمارش/رنک فید + `adStatus` هر مورد)، `create`،
+  `listRequests` و `findOwnedTarget`؛ برچسب‌های فارسی اعلان/لاگ با
+  `boostKindLabel`؛ نامعتبرسازی کش `dir:feeds`.
+- `apps/api/src/ads/ads.service.ts`: پشتیبانی از `FEED` در `overview`،
+  `targetLabels`، `publicAdPayload`، `findOwnedTarget` و شمارش‌ها.
+- `apps/api/src/feeds/feeds.service.ts`: `findMySaved` (ذخیره‌شده‌های فید)،
+  `directoryRank`، و اعمال «پله» در ترتیب دایرکتوری عمومی فید.
+- `apps/api/src/feeds/feeds.controller.ts`: `GET /feeds/mine/saved`.
+- `apps/api/src/common/facets-cache.service.ts`: پشتیبانی `feed` در
+  `invalidateDirectory`.
+- `apps/api/src/boosts/boosts.module.ts`: افزودن `FeedsModule`.
+- `apps/web/components/dashboard/BoostTable.tsx` (جدید): جدول موارد با سه تب و دو
+  اکشن «پله (تبلیغ دایرکتوری)» و «تبلیغ صفحه اول» + تاریخچه‌ی درخواست‌ها؛
+  `BoostSearchForm` هم در همین فایل.
+- `apps/web/app/dashboard/boost/page.tsx`: بازنویسی روی `BoostTable`.
+- `apps/web/app/dashboard/ads/page.tsx`: تبدیل به ریدایرکت به `/dashboard/boost`.
+- `apps/web/components/dashboard/UserShell.tsx`: حذف آیتم «تبلیغات» و تغییر برچسب
+  «افزایش بازدید» به «افزایش بازدید و تبلیغات».
+- حذف کامپوننت‌های بی‌استفاده‌ی `HomeAdSection.tsx` و `DirectoryAdSection.tsx`.
+- `apps/web/lib/api.ts`: افزودن `FEED` به `BoostTargetKind`/`AdTargetKind` و فیلدهای
+  `feeds`/`feedTotal` به overviewها و `adStatus` به `BoostTargetItem`.
+- `apps/web/lib/version.ts`: نسخه به `v2.43.0`.
+
+**تأیید/تست:**
+- `tsc --noEmit` روی `apps/api` و `apps/web` → بدون خطا (پس از `prisma generate`).
+- `prisma db push` → ستون‌های `feed_posts.boostedUntil/pinnedAt` و مقادیر enum
+  `FEED` اضافه شدند.
+- API: `GET /boosts/overview` کلیدهای `feeds` و `feedTotal` را برگرداند؛
+  `POST /boosts/request` و `POST /ads/request` با `kind:"FEED"` موفق بودند؛ تأیید
+  مدیر (`PATCH /admin/boosts/:id`) روی پست فید، `boostedUntil` را ست کرد.
+- Playwright: منوی کناری دیگر «تبلیغات» ندارد و «افزایش بازدید و تبلیغات» نشان
+  می‌دهد؛ در `/dashboard/boost` سه تب و جدول با ستون‌های
+  «عنوان/وضعیت/جایگاه/بازدید/لایک/آخرین پله/عملیات» و دکمه‌های «پله» و
+  «تبلیغ صفحه اول» رندر شد؛ `/dashboard/ads` به `/dashboard/boost` ریدایرکت شد.
+  (داده‌های آزمایشی پس از تست حذف شدند.)
 
 ## ۱۴۰۵/۰۷/۲۵ — «ذخیره‌شده‌های من»: تب‌بندی بیولینک/کارت/فید + نمایش جدولی — نسخه `v2.42.0`
 

@@ -57,6 +57,7 @@ enum SubscriptionStatus {
 enum BoostTargetKind {
   BIOLINK
   BUSINESS_CARD
+  FEED
 }
 
 enum BoostFeature {
@@ -80,6 +81,7 @@ enum SaveTargetKind {
 enum AdTargetKind {
   BUSINESS_CARD
   BIOLINK
+  FEED
 }
 
 /// What a points reward gives the user once redeemed.
@@ -167,6 +169,10 @@ model FeedPost {
   reason      String?
   isPublished Boolean        @default(false)
   publishedAt DateTime?
+  /// «پله» — when an admin approves a boost request, `boostedUntil` lifts the
+  /// post to the top of the feed directory until it lapses.
+  boostedUntil DateTime?
+  pinnedAt    DateTime       @default(now())
   likeCount   Int            @default(0)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
@@ -179,6 +185,8 @@ model FeedPost {
   @@index([userId])
   @@index([status, publishedAt])
   @@index([topicId])
+  @@index([boostedUntil])
+  @@index([pinnedAt])
   @@map("feed_posts")
 }
 

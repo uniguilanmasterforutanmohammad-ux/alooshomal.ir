@@ -430,7 +430,7 @@ export interface MySubscriptions {
   requests: UserSubscription[];
 }
 
-export type BoostTargetKind = 'BIOLINK' | 'BUSINESS_CARD';
+export type BoostTargetKind = 'BIOLINK' | 'BUSINESS_CARD' | 'FEED';
 export type BoostStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
 export interface BoostTargetItem {
@@ -441,6 +441,7 @@ export interface BoostTargetItem {
   isPublished: boolean;
   boostedUntil: string | null;
   lastBoostedAt?: string | null;
+  adStatus?: BoostStatus | null;
   pinnedAt?: string | null;
   views: number;
   likes: number;
@@ -483,6 +484,7 @@ export interface BoostRequest {
 export interface BoostOverview {
   biolinks: BoostTargetItem[];
   businessCards: BoostTargetItem[];
+  feeds: BoostTargetItem[];
   requests: BoostRequest[];
   meta?: {
     page: number;
@@ -491,12 +493,14 @@ export interface BoostOverview {
     biolinkTotalPages: number;
     cardTotal: number;
     cardTotalPages: number;
+    feedTotal: number;
+    feedTotalPages: number;
     hasNext: boolean;
     hasPrev: boolean;
   };
 }
 
-export type AdTargetKind = 'BIOLINK' | 'BUSINESS_CARD';
+export type AdTargetKind = 'BIOLINK' | 'BUSINESS_CARD' | 'FEED';
 
 export interface AdTargetItem {
   id: string;
@@ -536,6 +540,7 @@ export type AdDisplayState =
 export interface AdsOverview {
   businessCards: AdTargetItem[];
   biolinks: AdTargetItem[];
+  feeds: AdTargetItem[];
   requests: AdRequest[];
   settings: { durationDays: number; dailySlots: number };
   meta?: {
@@ -543,8 +548,10 @@ export interface AdsOverview {
     limit: number;
     biolinkTotal: number;
     cardTotal: number;
+    feedTotal: number;
     biolinkTotalPages: number;
     cardTotalPages: number;
+    feedTotalPages: number;
     hasNext: boolean;
     hasPrev: boolean;
   };

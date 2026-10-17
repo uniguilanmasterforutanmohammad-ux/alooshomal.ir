@@ -18,6 +18,7 @@ import { FacetsCacheService } from '../common/facets-cache.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BiolinksService } from '../biolinks/biolinks.service';
 import { BusinessCardsService } from '../businesscards/business-cards.service';
+import { FeedsService } from '../feeds/feeds.service';
 import { SettingsService } from '../settings/settings.service';
 import { CreateBoostDto } from './dto/create-boost.dto';
 import { DecideBoostDto } from './dto/decide-boost.dto';
@@ -28,12 +29,20 @@ import { DecideBoostDto } from './dto/decide-boost.dto';
  */
 export const BOOST_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
+/** Persian label for a boost target kind, used in notifications/logs. */
+function boostKindLabel(kind: BoostTargetKind): string {
+  if (kind === BoostTargetKind.BIOLINK) return 'بیولینک';
+  if (kind === BoostTargetKind.FEED) return 'پست فید';
+  return 'کارت ویزیت';
+}
+
 @Injectable()
 export class BoostsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly biolinks: BiolinksService,
     private readonly businessCards: BusinessCardsService,
+    private readonly feeds: FeedsService,
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
     private readonly facetsCache: FacetsCacheService,
@@ -66,7 +75,10 @@ export class BoostsService {
       : {};
     const where = { userId, ...searchWhere };
 
-    const [biolinks, biolinkTotal, businessCards, cardTotal] = await Promise.all([
+    const feedSearchWhere = search ? { body: { contains: search, mode: 'insensitive' as const } } : {};
+
+    const [biolinks, biolinkTotal, businessCards, cardTotal, feeds, feedTotal] =
+      await Promise.all([
       this.prisma.biolink.findMany({
         where,
         select: {
@@ -99,11 +111,28 @@ export class BoostsService {
         take: limit,
       }),
       this.prisma.businessCard.count({ where }),
+      this.prisma.feedPost.findMany({
+        where: { userId, ...feedSearchWhere },
+        select: {
+          id: true,
+          body: true,
+          images: true,
+          status: true,
+          isPublished: true,
+          boostedUntil: true,
+          _count: { select: { likes: true, saves: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.feedPost.count({ where: { userId, ...feedSearchWhere } }),
     ]);
 
     const pageTargetIds = [
       ...biolinks.map((item) => item.id),
       ...businessCards.map((item) => item.id),
+      ...feeds.map((item) => item.id),
     ];
     const requests = await this.prisma.boostRequest.findMany({
       where: {
@@ -112,12 +141,20 @@ export class BoostsService {
       },
       orderBy: { requestedAt: 'desc' },
     });
+    const adRequests = await this.prisma.adRequest.findMany({
+      where: {
+        userId,
+        ...(pageTargetIds.length ? { targetId: { in: pageTargetIds } } : {}),
+      },
+      orderBy: { requestedAt: 'desc' },
+    });
 
-    const [biolinkRanks, cardRanks] = await Promise.all([
+    const [biolinkRanks, cardRanks, feedRanks] = await Promise.all([
       Promise.all(biolinks.map((item) => this.biolinks.directoryRank(item.id))),
       Promise.all(
         businessCards.map((item) => this.businessCards.directoryRank(item.id)),
       ),
+      Promise.all(feeds.map((item) => this.feeds.directoryRank(item.id))),
     ]);
 
     // latest *effective* (approved) boost per target, for "last pole" date
@@ -131,6 +168,13 @@ export class BoostsService {
         }
       }
     }
+    // latest ad-request status per target (for the merged "تبلیغ" button)
+    const adStatusByTarget = new Map<string, string>();
+    for (const request of adRequests) {
+      if (!adStatusByTarget.has(request.targetId)) {
+        adStatusByTarget.set(request.targetId, request.status);
+      }
+    }
 
     return {
       biolinks: biolinks.map((item, index) => ({
@@ -139,6 +183,7 @@ export class BoostsService {
         likes: item._count.likes,
         rank: biolinkRanks[index],
         lastBoostedAt: approvedByTarget.get(`BIOLINK:${item.id}`) ?? null,
+        adStatus: adStatusByTarget.get(item.id) ?? null,
       })),
       businessCards: businessCards.map((item, index) => ({
         ...item,
@@ -146,6 +191,20 @@ export class BoostsService {
         likes: item._count.likes,
         rank: cardRanks[index],
         lastBoostedAt: approvedByTarget.get(`BUSINESS_CARD:${item.id}`) ?? null,
+        adStatus: adStatusByTarget.get(item.id) ?? null,
+      })),
+      feeds: feeds.map((item, index) => ({
+        id: item.id,
+        fullName: item.body?.slice(0, 60) || '(پست تصویری)',
+        status: item.status,
+        isPublished: item.isPublished,
+        boostedUntil: item.boostedUntil,
+        slug: item.id,
+        views: 0,
+        likes: item._count.likes,
+        rank: feedRanks[index],
+        lastBoostedAt: approvedByTarget.get(`FEED:${item.id}`) ?? null,
+        adStatus: adStatusByTarget.get(item.id) ?? null,
       })),
       requests,
       meta: {
@@ -155,7 +214,10 @@ export class BoostsService {
         biolinkTotalPages: Math.max(1, Math.ceil(biolinkTotal / limit)),
         cardTotal,
         cardTotalPages: Math.max(1, Math.ceil(cardTotal / limit)),
-        hasNext: currentPage * limit < Math.max(biolinkTotal, cardTotal),
+        feedTotal,
+        feedTotalPages: Math.max(1, Math.ceil(feedTotal / limit)),
+        hasNext:
+          currentPage * limit < Math.max(biolinkTotal, cardTotal, feedTotal),
         hasPrev: currentPage > 1,
       },
     };
@@ -195,7 +257,7 @@ export class BoostsService {
     await this.notifications.notifyAdmins({
       category: 'BOOST',
       title: 'درخواست پله جدید',
-      body: `یک درخواست «پله» برای ${dto.kind === 'BIOLINK' ? 'بیولینک' : 'کارت ویزیت'} ثبت شد.`,
+      body: `یک درخواست «پله» برای ${boostKindLabel(dto.kind)} ثبت شد.`,
       type: NotificationType.INFO,
       link: '/admin?section=boosts',
       actorId: userId,
@@ -203,7 +265,7 @@ export class BoostsService {
 
     await this.activity.log({
       action: 'BOOST_REQUESTED',
-      summary: `درخواست پله برای ${dto.kind === 'BIOLINK' ? 'بیولینک' : 'کارت ویزیت'}`,
+      summary: `درخواست پله برای ${boostKindLabel(dto.kind)}`,
       entityType: 'BOOST',
       entityId: request.id,
     });
@@ -230,8 +292,11 @@ export class BoostsService {
     const cardIds = requests
       .filter((r) => r.kind === BoostTargetKind.BUSINESS_CARD)
       .map((r) => r.targetId);
+    const feedIds = requests
+      .filter((r) => r.kind === BoostTargetKind.FEED)
+      .map((r) => r.targetId);
 
-    const [biolinks, cards] = await Promise.all([
+    const [biolinks, cards, feeds] = await Promise.all([
       biolinkIds.length
         ? this.prisma.biolink.findMany({
             where: { id: { in: biolinkIds } },
@@ -244,9 +309,22 @@ export class BoostsService {
             select: { id: true, fullName: true, slug: true },
           })
         : Promise.resolve([]),
+      feedIds.length
+        ? this.prisma.feedPost.findMany({
+            where: { id: { in: feedIds } },
+            select: { id: true, body: true },
+          })
+        : Promise.resolve([]),
     ]);
     const map = new Map<string, { id: string; fullName: string; slug: string }>();
     [...biolinks, ...cards].forEach((item) => map.set(item.id, item));
+    feeds.forEach((item) =>
+      map.set(item.id, {
+        id: item.id,
+        fullName: item.body?.slice(0, 40) || 'پست فید',
+        slug: item.id,
+      }),
+    );
 
     return requests.map((request) => ({
       ...request,
@@ -292,13 +370,18 @@ export class BoostsService {
         // slice of the directory (handled by the directory services), so it
         // never leaks into unrelated filters. `pinnedAt` is intentionally left
         // untouched here.
-        if (request.kind === BoostTargetKind.BIOLINK) {
+      if (request.kind === BoostTargetKind.BIOLINK) {
           await tx.biolink.update({
             where: { id: request.targetId },
             data: { boostedUntil },
           });
-        } else {
+        } else if (request.kind === BoostTargetKind.BUSINESS_CARD) {
           await tx.businessCard.update({
+            where: { id: request.targetId },
+            data: { boostedUntil },
+          });
+        } else {
+          await tx.feedPost.update({
             where: { id: request.targetId },
             data: { boostedUntil },
           });
@@ -328,7 +411,11 @@ export class BoostsService {
 
     if (approved) {
       this.facetsCache.invalidateDirectory(
-        request.kind === BoostTargetKind.BIOLINK ? 'biolink' : 'businesscard',
+        request.kind === BoostTargetKind.BIOLINK
+          ? 'biolink'
+          : request.kind === BoostTargetKind.FEED
+            ? 'feed'
+            : 'businesscard',
       );
     }
     return updated;
@@ -348,6 +435,16 @@ export class BoostsService {
         throw new ForbiddenException('دسترسی به این بیولینک مجاز نیست');
       }
       return biolink;
+    }
+    if (kind === BoostTargetKind.FEED) {
+      const post = await this.prisma.feedPost.findUnique({
+        where: { id: targetId },
+      });
+      if (!post) throw new NotFoundException('پست فید یافت نشد');
+      if (post.userId !== userId) {
+        throw new ForbiddenException('دسترسی به این پست فید مجاز نیست');
+      }
+      return post;
     }
     const card = await this.prisma.businessCard.findUnique({
       where: { id: targetId },

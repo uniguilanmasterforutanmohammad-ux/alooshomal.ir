@@ -93,6 +93,8 @@ export class AdsService {
       cardTotal,
       biolinks,
       biolinkTotal,
+      feeds,
+      feedTotal,
       requests,
       durationDays,
       dailySlots,
@@ -129,6 +131,32 @@ export class AdsService {
         take: limit,
       }),
       this.prisma.biolink.count({ where: { userId, ...searchWhere } }),
+      this.prisma.feedPost.findMany({
+        where: {
+          userId,
+          ...(search
+            ? { body: { contains: search, mode: 'insensitive' as const } }
+            : {}),
+        },
+        select: {
+          id: true,
+          body: true,
+          images: true,
+          isPublished: true,
+          status: true,
+        },
+        orderBy: { updatedAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.feedPost.count({
+        where: {
+          userId,
+          ...(search
+            ? { body: { contains: search, mode: 'insensitive' as const } }
+            : {}),
+        },
+      }),
       this.prisma.adRequest.findMany({
         where: { userId },
         orderBy: { requestedAt: 'desc' },
@@ -150,6 +178,11 @@ export class AdsService {
         ...item,
         approved: status === 'APPROVED',
       })),
+      feeds: feeds.map(({ status, body, ...item }) => ({
+        ...item,
+        fullName: body?.slice(0, 60) || '(پست تصویری)',
+        approved: status === 'APPROVED',
+      })),
       requests: requests.map((request) => ({
         ...request,
         target: labels.get(request.targetId) ?? null,
@@ -163,7 +196,10 @@ export class AdsService {
         cardTotal,
         biolinkTotalPages: Math.max(1, Math.ceil(biolinkTotal / limit)),
         cardTotalPages: Math.max(1, Math.ceil(cardTotal / limit)),
-        hasNext: currentPage * limit < Math.max(biolinkTotal, cardTotal),
+        feedTotal,
+        feedTotalPages: Math.max(1, Math.ceil(feedTotal / limit)),
+        hasNext:
+          currentPage * limit < Math.max(biolinkTotal, cardTotal, feedTotal),
         hasPrev: currentPage > 1,
       },
     };
@@ -385,8 +421,11 @@ export class AdsService {
     const biolinkIds = requests
       .filter((r) => r.kind === AdTargetKind.BIOLINK)
       .map((r) => r.targetId);
+    const feedIds = requests
+      .filter((r) => r.kind === AdTargetKind.FEED)
+      .map((r) => r.targetId);
 
-    const [cards, biolinks] = await Promise.all([
+    const [cards, biolinks, feeds] = await Promise.all([
       cardIds.length
         ? this.prisma.businessCard.findMany({
             where: { id: { in: cardIds } },
@@ -399,9 +438,22 @@ export class AdsService {
             select: { id: true, fullName: true, slug: true },
           })
         : Promise.resolve([]),
+      feedIds.length
+        ? this.prisma.feedPost.findMany({
+            where: { id: { in: feedIds } },
+            select: { id: true, body: true },
+          })
+        : Promise.resolve([]),
     ]);
     const map = new Map<string, { id: string; fullName: string; slug: string }>();
     [...cards, ...biolinks].forEach((item) => map.set(item.id, item));
+    feeds.forEach((item) =>
+      map.set(item.id, {
+        id: item.id,
+        fullName: item.body?.slice(0, 40) || 'پست فید',
+        slug: item.id,
+      }),
+    );
     return map;
   }
 
@@ -428,9 +480,29 @@ export class AdsService {
           business: { select: { id: true, name: true } },
         },
       });
-      if (!card) return null;
+    if (!card) return null;
       const { id: _cardId, ...rest } = card;
       return { ...rest, kind: ad.kind, id: ad.id, href: `/business-cards/${card.slug}` };
+    }
+    if (ad.kind === AdTargetKind.FEED) {
+      const post = await this.prisma.feedPost.findFirst({
+        where: { id: ad.targetId, isPublished: true },
+        select: { id: true, body: true, images: true },
+      });
+      if (!post) return null;
+      return {
+        kind: ad.kind,
+        id: ad.id,
+        slug: post.id,
+        fullName: post.body?.slice(0, 60) || 'پست فید',
+        jobTitle: null,
+        company: null,
+        bio: post.body,
+        avatarUrl: post.images[0] ?? null,
+        logoUrl: null,
+        primaryColor: '#f59e0b',
+        href: `/feeds/${post.id}`,
+      };
     }
     const biolink = await this.prisma.biolink.findFirst({
       where: { id: ad.targetId, isPublished: true },
@@ -476,6 +548,29 @@ export class AdsService {
         throw new ForbiddenException('دسترسی به این بیولینک مجاز نیست');
       }
       return biolink;
+    }
+    if (kind === AdTargetKind.FEED) {
+      const post = await this.prisma.feedPost.findUnique({
+        where: { id: targetId },
+        select: {
+          id: true,
+          body: true,
+          isPublished: true,
+          userId: true,
+        },
+      });
+      if (!post) throw new NotFoundException('پست فید یافت نشد');
+      if (post.userId !== userId) {
+        throw new ForbiddenException('دسترسی به این پست فید مجاز نیست');
+      }
+      return {
+        id: post.id,
+        slug: post.id,
+        fullName: post.body?.slice(0, 60) || 'پست فید',
+        jobTitle: null,
+        company: null,
+        isPublished: post.isPublished,
+      };
     }
     const card = await this.prisma.businessCard.findUnique({
       where: { id: targetId },

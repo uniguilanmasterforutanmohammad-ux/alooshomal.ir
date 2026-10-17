@@ -94,7 +94,11 @@ export class FacetsCacheService {
    * the cached result pages and the facet lists. Called after every write that
    * can add, remove or reorder a public entry.
    */
-  invalidateDirectory(kind: 'biolink' | 'businesscard'): void {
+  invalidateDirectory(kind: 'biolink' | 'businesscard' | 'feed'): void {
+    if (kind === 'feed') {
+      this.invalidate('dir:feeds');
+      return;
+    }
     const dir = kind === 'biolink' ? 'dir:biolinks' : 'dir:businesscards';
     const facets = kind === 'biolink' ? 'biolinks:facets' : 'businesscards:facets';
     this.invalidate(dir);
