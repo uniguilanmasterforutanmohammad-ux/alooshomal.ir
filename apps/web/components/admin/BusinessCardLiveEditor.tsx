@@ -35,6 +35,7 @@ const toFormValues = (businessCard: AdminBusinessCardFull): BusinessCardFormValu
   template: businessCard.template ?? 'glassmorphism',
   cityId: businessCard.cityId ?? '',
   businessId: businessCard.businessId ?? '',
+  biolinkId: '',
   avatarUrl: businessCard.avatarUrl ?? '',
   logoUrl: businessCard.logoUrl ?? '',
 });
@@ -139,6 +140,7 @@ export function BusinessCardLiveEditor({ businessCardId, onClose, onModerated }:
           onSubmit={save}
           submitting={saving}
           submitLabel="ذخیره تغییرات"
+          hideLink
         />
       </div>
 

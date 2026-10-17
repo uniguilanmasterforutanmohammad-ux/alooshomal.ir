@@ -52,6 +52,18 @@ export class BusinessCardsController {
     return this.businessCardsService.findMineById(user.id, id);
   }
 
+  @Get('linkable/biolinks')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'بیولینک‌های خودِ کاربر برای اتصال به کارت ویزیت (انتخاب‌گر)',
+  })
+  linkableBiolinks(
+    @CurrentUser() user: AuthUser,
+    @Query('currentId') currentId?: string,
+  ) {
+    return this.businessCardsService.linkableBiolinks(user.id, currentId);
+  }
+
   @Patch(':id')
   @ApiBearerAuth()
   @RequirePermission('BUSINESS_CARD_EDIT')

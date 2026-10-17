@@ -35,6 +35,7 @@ const toFormValues = (biolink: AdminBiolinkFull): BiolinkFormValues => ({
   template: biolink.template ?? 'vintage',
   cityId: biolink.cityId ?? '',
   businessId: biolink.businessId ?? '',
+  businessCardId: '',
   avatarUrl: biolink.avatarUrl ?? '',
   logoUrl: biolink.logoUrl ?? '',
 });
@@ -139,6 +140,7 @@ export function BiolinkLiveEditor({ biolinkId, onClose, onModerated }: Props) {
           onSubmit={save}
           submitting={saving}
           submitLabel="ذخیره تغییرات"
+          hideLink
         />
       </div>
 

@@ -112,6 +112,15 @@ export class CreateBiolinkDto {
 
   @ApiPropertyOptional({
     description:
+      'شناسه کارت ویزیتِ خودِ کاربر برای اتصال به این بیولینک (خالی = قطع اتصال)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  businessCardId?: string;
+
+  @ApiPropertyOptional({
+    description:
       'ذخیره به‌عنوان پیش‌نویس (بدون ارسال برای تأیید مدیر و بدون اطلاع‌رسانی)',
   })
   @IsOptional()

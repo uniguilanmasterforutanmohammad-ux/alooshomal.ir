@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/Input';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { ThemePicker } from '@/components/ui/ThemePicker';
+import { LinkSelector } from '@/components/link/LinkSelector';
 import { LiveBusinessCardPreview } from '@/components/businesscard/LiveBusinessCardPreview';
 import { api, type TaxonomyItem } from '@/lib/api';
 import { BUSINESS_CARD_THEMES, DEFAULT_BUSINESS_CARD_THEME_KEY } from '@/lib/themes';
@@ -27,6 +28,8 @@ export interface BusinessCardFormValues {
   template: string;
   cityId: string;
   businessId: string;
+  /** one-to-one link to one of the owner's biolinks (`''` = none) */
+  biolinkId: string;
   avatarUrl: string;
   logoUrl: string;
 }
@@ -49,6 +52,7 @@ const emptyValues: BusinessCardFormValues = {
   template: DEFAULT_BUSINESS_CARD_THEME_KEY,
   cityId: '',
   businessId: '',
+  biolinkId: '',
   avatarUrl: '',
   logoUrl: '',
 };
@@ -62,6 +66,10 @@ interface Props {
   inline?: boolean;
   /** show the secondary "save as draft" action in the builder */
   showDraftButton?: boolean;
+  /** id of the business card being edited (so its own link stays selectable) */
+  linkCurrentId?: string;
+  /** hide the link picker (used by the admin editor, which must not re-link) */
+  hideLink?: boolean;
 }
 
 export function BusinessCardForm({
@@ -71,6 +79,8 @@ export function BusinessCardForm({
   submitLabel,
   inline,
   showDraftButton,
+  linkCurrentId,
+  hideLink,
 }: Props) {
   const [values, setValues] = useState<BusinessCardFormValues>({
     ...emptyValues,
@@ -194,6 +204,24 @@ export function BusinessCardForm({
             </div>
           </div>
 
+          {hideLink ? null : (
+            <div className="indeed-panel p-6">
+              <h2 className="text-lg font-extrabold text-ink">اتصال بیولینک</h2>
+              <p className="mt-1 text-xs text-muted">
+                می‌توانید این کارت ویزیت را به یکی از بیولینک‌های خود متصل کنید تا در
+                دایرکتوری، هرکدام لینک مشاهده‌ی دیگری را نشان دهد.
+              </p>
+              <div className="mt-4">
+                <LinkSelector
+                  kind="business-card"
+                  value={values.biolinkId}
+                  onChange={(value) => setField('biolinkId', value)}
+                  currentId={linkCurrentId}
+                />
+              </div>
+            </div>
+          )}
+
           <button
             type="button"
             disabled={submitting || !values.fullName.trim()}
@@ -305,6 +333,16 @@ export function BusinessCardForm({
               maxLength={600}
             />
           </label>
+          {hideLink ? null : (
+            <div className="mt-4">
+              <LinkSelector
+                kind="business-card"
+                value={values.biolinkId}
+                onChange={(value) => setField('biolinkId', value)}
+                currentId={linkCurrentId}
+              />
+            </div>
+          )}
         </div>
 
         <div className="indeed-panel p-6">

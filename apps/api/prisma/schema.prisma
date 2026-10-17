@@ -356,6 +356,10 @@ model Biolink {
   slug   String @unique
   cityId       String?
   businessId   String?
+  // Optional one-to-one link to the owner's business card. Stored on the
+  // biolink side only; the business card's linked biolink is resolved by the
+  // inverse lookup (`biolink.findUnique({ where: { businessCardId } })`).
+  businessCardId String? @unique
 
   // personal / professional info
   fullName    String
@@ -403,6 +407,7 @@ model Biolink {
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   city        City?           @relation(fields: [cityId], references: [id], onDelete: SetNull)
   business    BusinessCategory? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  businessCard BusinessCard?   @relation("BiolinkBusinessCard", fields: [businessCardId], references: [id], onDelete: SetNull)
   moderation  ModerationLog[]
   scanEvents  ScanEvent[]
   likes       BiolinkLike[]
@@ -502,6 +507,7 @@ model BusinessCard {
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   city        City?           @relation(fields: [cityId], references: [id], onDelete: SetNull)
   business    BusinessCategory? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  linkedBiolinks Biolink[]    @relation("BiolinkBusinessCard")
   scans       BusinessCardScanEvent[]
   likes       BusinessCardLike[]
   saves       BusinessCardSave[]

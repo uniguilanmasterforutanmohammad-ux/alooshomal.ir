@@ -20,7 +20,55 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.32.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.33.0**.
+
+## ۱۴۰۵/۰۷/۲۵ — اتصال یک‌به‌یک بیولینک و کارت ویزیت — نسخه `v2.33.0`
+
+**هدف:** کاربر هنگام ساخت/ویرایش بیولینک یا کارت ویزیت بتواند آن را به کارت/بیولینک
+خود متصل کند، و در دایرکتوری هر کارت پس از نمایش خلاصه، دکمه‌ی رفتن به طرف مقابل
+نمایش داده شود («مشاهده کارت ویزیت این بیولینک» / «مشاهده بیولینک این کارت ویزیت»).
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن رابطه‌ی یک‌به‌یک «BiolinkBusinessCard»
+  (`Biolink.businessCardId` یکتا و nullable ↔ `BusinessCard.linkedBiolinks`). حذف
+  طرف، لینک را با `SetNull` پاک می‌کند.
+- `apps/api/src/biolinks/dto/create-biolink.dto.ts` و
+  `apps/api/src/businesscards/dto/create-business-card.dto.ts`: فیلدهای اختیاری
+  `businessCardId` و `biolinkId`.
+- `apps/api/src/biolinks/biolinks.service.ts`: ذخیره/اعتبارسنجی اتصال در create/update
+  (خالی‌کردن = قطع اتصال)، متد `linkableBusinessCards` برای انتخاب‌گر، و افزودن
+  `linkedBusinessCard` (فقط وقتی کارت تأیید و منتشر شده) به خروجی عمومی.
+- `apps/api/src/businesscards/business-cards.service.ts`: مدیریت اتصال سمت بیولینک در
+  create/update به‌صورت تراکنشی، متد `linkableBiolinks`، و `linkedBiolink` در خروجی عمومی.
+- کنترلرها: اندپوینت‌های احرازشده‌ی `GET /biolinks/linkable/business-cards` و
+  `GET /business-cards/linkable/biolinks`.
+- `apps/web/components/link/LinkSelector.tsx`: انتخاب‌گر مشترک یک‌به‌یک؛ گزینه‌های
+  ازپیش‌متصل غیرفعال و گزینه‌ی خودِ آیتم قابل‌انتخاب است.
+- `apps/web/components/biolink/BiolinkForm.tsx` و
+  `apps/web/components/businesscard/BusinessCardForm.tsx`: بخش «اتصال …» (پنهان‌شدنی
+  با `hideLink` برای ویرایشگر ادمین).
+- `apps/web/app/dashboard/biolinks/[id]/edit/page.tsx` و
+  `apps/web/app/dashboard/business-cards/[id]/edit/page.tsx`: پیش‌انتخاب اتصال و ارسال
+  صریح فیلد اتصال (حتی خالی) تا امکان قطع اتصال باشد.
+- `apps/web/components/biolink/DirectoryDetail.tsx` و
+  `apps/web/components/businesscard/DirectoryBusinessCardDetail.tsx`: دکمه‌ی متقاطع
+  بالای دکمه‌ی «مشاهده صفحه کامل».
+- `apps/web/lib/api.ts`: نوع `LinkedCounterpart` و فیلدهای `linkedBusinessCard` /
+  `linkedBiolink` / `businessCard` / `linkedBiolinks`.
+- `apps/web/lib/version.ts`: نسخه به `v2.33.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit` و `docker exec alooshomal-web npx tsc --noEmit` → بدون خطا.
+- `prisma generate` + `prisma db push` موفق؛ ستون یکتای `biolinks.businessCardId` ساخته شد.
+- تست API با کاربر آزمایشی: ساخت کارت با `biolinkId` و ساخت بیولینک با `businessCardId`
+  اتصال را در DB ثبت کرد؛ پس از تأیید/انتشار، خروجی عمومی هر دو طرف
+  `linkedBiolink`/`linkedBusinessCard` را برگرداند.
+- قواعد اعتبارسنجی: اتصال کارت متعلق به کاربر دیگر یا ناموجود → ۴۰۰؛ اتصال کارتی که
+  به بیولینک دیگری وصل است → ۴۰۹؛ PATCH با مقدار خالی اتصال را قطع کرد (`businessCardId`=null).
+- Playwright: در دایرکتوری، هر دو دکمه‌ی متقاطع با href صحیح و **بالای** دکمه‌ی صفحه‌ی کامل
+  نمایش یافتند؛ در ویرایشگرها انتخاب‌گر گزینه‌ی جاری را پیش‌انتخاب و گزینه‌های گرفته‌شده را
+  غیرفعال کرد؛ قطع اتصال از UI با PATCH موفق و `businessCardId:null` ثبت شد.
+- داده‌های کاربر/آیتم آزمایشی و اتصال موقت حذف/بازگردانی شدند.
 
 ## ۱۴۰۵/۰۷/۲۵ — کادر جستجوی صفحه‌ی اصلی (متن + شهر + کسب‌وکار) — نسخه `v2.32.0`
 

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   Building2,
+  IdCard,
   ExternalLink,
   Globe,
   Instagram,
@@ -210,9 +211,21 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
           </div>
         ) : null}
 
+        {businessCard.linkedBiolink ? (
+          <Link
+            href={`/biolinks/${businessCard.linkedBiolink.slug}`}
+            className="indeed-btn indeed-btn-secondary mt-5 w-full"
+          >
+            <IdCard className="size-4" aria-hidden />
+            مشاهده بیولینک این کارت ویزیت
+          </Link>
+        ) : null}
+
         <Link
           href={`/business-cards/${businessCard.slug}`}
-          className="indeed-btn indeed-btn-primary mt-5 w-full"
+          className={`indeed-btn indeed-btn-primary w-full ${
+            businessCard.linkedBiolink ? 'mt-2' : 'mt-5'
+          }`}
         >
           <ExternalLink className="size-4" aria-hidden />
           مشاهده صفحه کامل کارت ویزیت

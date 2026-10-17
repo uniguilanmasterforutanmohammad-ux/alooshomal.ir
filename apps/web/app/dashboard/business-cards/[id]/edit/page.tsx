@@ -30,6 +30,8 @@ export default function EditBiolinkPage() {
       const payload = Object.fromEntries(
         Object.entries(values).filter(([, value]) => value !== ''),
       );
+      // Send the link explicitly (even when empty) so the user can detach it.
+      (payload as Record<string, unknown>).biolinkId = values.biolinkId;
       if (options?.draft) {
         (payload as Record<string, unknown>).draft = true;
       }
@@ -75,6 +77,7 @@ export default function EditBiolinkPage() {
               template: businessCard.template ?? 'glassmorphism',
               cityId: businessCard.cityId ?? '',
               businessId: businessCard.businessId ?? '',
+              biolinkId: businessCard.linkedBiolinks?.[0]?.id ?? '',
               avatarUrl: businessCard.avatarUrl ?? '',
               logoUrl: businessCard.logoUrl ?? '',
             }}
@@ -83,6 +86,7 @@ export default function EditBiolinkPage() {
             submitLabel="ذخیره تغییرات"
             inline
             showDraftButton
+            linkCurrentId={params.id}
           />
         </div>
       ) : (

@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/Input';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { ThemePicker } from '@/components/ui/ThemePicker';
+import { LinkSelector } from '@/components/link/LinkSelector';
 import { LiveBiolinkPreview } from '@/components/biolink/LiveBiolinkPreview';
 import { api, type TaxonomyItem } from '@/lib/api';
 import { BIOLINK_THEMES, DEFAULT_THEME_KEY } from '@/lib/themes';
@@ -27,6 +28,8 @@ export interface BiolinkFormValues {
   template: string;
   cityId: string;
   businessId: string;
+  /** one-to-one link to one of the owner's business cards (`''` = none) */
+  businessCardId: string;
   avatarUrl: string;
   logoUrl: string;
 }
@@ -49,6 +52,7 @@ const emptyValues: BiolinkFormValues = {
   template: DEFAULT_THEME_KEY,
   cityId: '',
   businessId: '',
+  businessCardId: '',
   avatarUrl: '',
   logoUrl: '',
 };
@@ -62,6 +66,10 @@ interface Props {
   inline?: boolean;
   /** show the secondary "save as draft" action in the builder */
   showDraftButton?: boolean;
+  /** id of the biolink being edited (so its own link stays selectable) */
+  linkCurrentId?: string;
+  /** hide the link picker (used by the admin editor, which must not re-link) */
+  hideLink?: boolean;
 }
 
 export function BiolinkForm({
@@ -71,6 +79,8 @@ export function BiolinkForm({
   submitLabel,
   inline,
   showDraftButton,
+  linkCurrentId,
+  hideLink,
 }: Props) {
   const [values, setValues] = useState<BiolinkFormValues>({
     ...emptyValues,
@@ -194,6 +204,24 @@ export function BiolinkForm({
             </div>
           </div>
 
+          {hideLink ? null : (
+            <div className="indeed-panel p-6">
+              <h2 className="text-lg font-extrabold text-ink">اتصال کارت ویزیت</h2>
+              <p className="mt-1 text-xs text-muted">
+                می‌توانید این بیولینک را به یکی از کارت‌های ویزیت خود متصل کنید تا در
+                دایرکتوری، هرکدام لینک مشاهده‌ی دیگری را نشان دهد.
+              </p>
+              <div className="mt-4">
+                <LinkSelector
+                  kind="biolink"
+                  value={values.businessCardId}
+                  onChange={(value) => setField('businessCardId', value)}
+                  currentId={linkCurrentId}
+                />
+              </div>
+            </div>
+          )}
+
           <button
             type="button"
             disabled={submitting || !values.fullName.trim()}
@@ -305,6 +333,16 @@ export function BiolinkForm({
               maxLength={600}
             />
           </label>
+          {hideLink ? null : (
+            <div className="mt-4">
+              <LinkSelector
+                kind="biolink"
+                value={values.businessCardId}
+                onChange={(value) => setField('businessCardId', value)}
+                currentId={linkCurrentId}
+              />
+            </div>
+          )}
         </div>
 
         <div className="indeed-panel p-6">

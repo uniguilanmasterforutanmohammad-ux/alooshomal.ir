@@ -229,6 +229,10 @@ export interface Biolink {
   business?: { id: string; name: string } | null;
   /** owner's subscription plan name, shown on the public page */
   planName?: string | null;
+  /** published business card this biolink is linked to (public pages only) */
+  linkedBusinessCard?: LinkedCounterpart | null;
+  /** the linked business card on the owner's own biolink (edit form) */
+  businessCard?: { id: string; slug: string; fullName: string } | null;
   // enriched on /biolinks/mine
   likeCount?: number;
   saveCount?: number;
@@ -289,6 +293,12 @@ export interface DirectoryFacet {
   name: string;
 }
 
+/** The linked counterpart of a biolink / business card, when it is published. */
+export interface LinkedCounterpart {
+  slug: string;
+  link: string;
+}
+
 export interface DirectoryResponse {
   items: DirectoryBiolink[];
   meta: {
@@ -334,6 +344,10 @@ export interface BusinessCard {
   business?: { id: string; name: string } | null;
   /** owner's subscription plan name, shown on the public page */
   planName?: string | null;
+  /** published biolink this card is linked to (public pages only) */
+  linkedBiolink?: LinkedCounterpart | null;
+  /** the linked biolink on the owner's own card (edit form) */
+  linkedBiolinks?: Array<{ id: string; slug: string; fullName: string }>;
   // enriched on /business-cards/mine
   likeCount?: number;
   saveCount?: number;

@@ -76,6 +76,34 @@ export class BiolinksService {
     throw new ConflictException('ساخت شناسه یکتای بیولینک ناموفق بود، دوباره تلاش کنید');
   }
 
+  /**
+   * Validates that `businessCardId` belongs to `userId` and is not already
+   * linked to a *different* biolink (the relation is one-to-one). `selfId` is
+   * the biolink being edited, so re-saving its own link is allowed.
+   */
+  private async assertLinkedBusinessCard(
+    userId: string,
+    businessCardId: string,
+    selfId?: string,
+  ) {
+    const businessCard = await this.prisma.businessCard.findUnique({
+      where: { id: businessCardId },
+      select: { id: true, userId: true },
+    });
+    if (!businessCard || businessCard.userId !== userId) {
+      throw new BadRequestException('کارت ویزیت انتخاب‌شده معتبر نیست');
+    }
+    const takenBy = await this.prisma.biolink.findFirst({
+      where: { businessCardId, ...(selfId ? { id: { not: selfId } } : {}) },
+      select: { id: true },
+    });
+    if (takenBy) {
+      throw new ConflictException(
+        'این کارت ویزیت قبلاً به یک بیولینک دیگر متصل شده است',
+      );
+    }
+  }
+
   async create(userId: string, dto: CreateBiolinkDto) {
     // `draft` is a transport-only flag: it decides the initial status and
     // whether the moderators get pinged, and must never reach Prisma.
@@ -103,10 +131,19 @@ export class BiolinksService {
         throw new BadRequestException('کسب‌وکار انتخاب‌شده معتبر نیست');
       }
     }
+    // Optional link to one of the owner's own business cards. An empty string
+    // (the "no link" option) is normalised to null so the form can also clear
+    // an existing link.
+    const businessCardId =
+      dto.businessCardId === '' ? null : (dto.businessCardId ?? null);
+    if (businessCardId) {
+      await this.assertLinkedBusinessCard(userId, businessCardId);
+    }
     const slug = await this.generateSlug(dto.fullName);
     const biolink = await this.prisma.biolink.create({
       data: {
         ...fields,
+        businessCardId,
         slug,
         userId,
         status: draft ? BiolinkStatus.DRAFT : BiolinkStatus.PENDING,
@@ -209,7 +246,11 @@ export class BiolinksService {
   async findMineById(userId: string, id: string) {
     const biolink = await this.prisma.biolink.findUnique({
       where: { id },
-      include: { city: true, business: true },
+      include: {
+        city: true,
+        business: true,
+        businessCard: { select: { id: true, slug: true, fullName: true } },
+      },
     });
     if (!biolink) {
       throw new NotFoundException('بیولینک یافت نشد');
@@ -218,6 +259,38 @@ export class BiolinksService {
       throw new ForbiddenException('دسترسی به این بیولینک مجاز نیست');
     }
     return biolink;
+  }
+
+  /**
+   * The user's own business cards as compact options for the biolink form's
+   * "link a business card" picker. `currentId` is the biolink being edited, so
+   * the card already linked to it stays selectable; cards taken by other
+   * biolinks are flagged as unselectable.
+   */
+  async linkableBusinessCards(userId: string, currentId?: string) {
+    const rows = await this.prisma.businessCard.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        slug: true,
+        fullName: true,
+        status: true,
+        linkedBiolinks: { select: { id: true }, take: 1 },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+    return rows.map((row) => {
+      const linkedBiolinkId = row.linkedBiolinks[0]?.id ?? null;
+      return {
+        id: row.id,
+        slug: row.slug,
+        fullName: row.fullName,
+        status: row.status,
+        linkedBiolinkId,
+        selectable:
+          linkedBiolinkId === null || linkedBiolinkId === (currentId ?? null),
+      };
+    });
   }
 
   async update(userId: string, id: string, dto: UpdateBiolinkDto) {
@@ -237,6 +310,18 @@ export class BiolinksService {
         throw new BadRequestException('کسب‌وکار انتخاب‌شده معتبر نیست');
       }
     }
+    // `businessCardId` is handled separately so an empty string can detach the
+    // link; `undefined` (field absent) leaves the existing link untouched.
+    const linkProvided = dto.businessCardId !== undefined;
+    const businessCardId = linkProvided
+      ? dto.businessCardId === ''
+        ? null
+        : (dto.businessCardId ?? null)
+      : undefined;
+    if (businessCardId) {
+      await this.assertLinkedBusinessCard(userId, businessCardId, id);
+    }
+    delete fields.businessCardId;
     // Saving a draft keeps the item private and does not re-enter moderation.
     // Any other edit re-enters the moderation queue (per PRD).
     const staysDraft = draft === true && existing.status === BiolinkStatus.DRAFT;
@@ -244,6 +329,7 @@ export class BiolinksService {
       where: { id },
       data: {
         ...fields,
+        ...(linkProvided ? { businessCardId } : {}),
         ...(staysDraft
           ? { status: BiolinkStatus.DRAFT, isPublished: false }
           : {
@@ -303,6 +389,14 @@ export class BiolinksService {
       include: {
         city: { select: { id: true, name: true } },
         business: { select: { id: true, name: true } },
+        businessCard: {
+          select: {
+            id: true,
+            slug: true,
+            status: true,
+            isPublished: true,
+          },
+        },
         user: { select: { plan: true } },
       },
     });
@@ -311,8 +405,25 @@ export class BiolinksService {
     }
     // The owner's plan name is surfaced on the public page as a small badge.
     const planName = planLimitsFrom(biolink.user?.plan).name;
-    const { user, ...rest } = this.applyPlanVisibility(biolink);
-    return { ...rest, planName };
+    // Only expose the linked business card when it is itself publicly visible;
+    // a link to a pending/unpublished card must not leak its slug.
+    const linkedBusinessCard =
+      biolink.businessCard &&
+      biolink.businessCard.status === BiolinkStatus.APPROVED &&
+      biolink.businessCard.isPublished
+        ? {
+            slug: biolink.businessCard.slug,
+            link: this.linkedBusinessCardLink(biolink.businessCard.slug),
+          }
+        : null;
+    const { user, businessCard: _businessCard, ...rest } =
+      this.applyPlanVisibility(biolink);
+    return { ...rest, planName, linkedBusinessCard };
+  }
+
+  /** Public URL of a linked business card (used by the directory detail panel). */
+  private linkedBusinessCardLink(slug: string): string {
+    return `${this.appUrl.replace(/\/$/, '')}/business-cards/${slug}`;
   }
 
   /**

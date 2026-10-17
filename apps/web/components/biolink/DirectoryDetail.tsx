@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   Building2,
+  Briefcase,
   ExternalLink,
   Globe,
   Instagram,
@@ -210,9 +211,21 @@ export function DirectoryDetail({ slug, onClose, hideHeader }: Props) {
           </div>
         ) : null}
 
+        {biolink.linkedBusinessCard ? (
+          <Link
+            href={`/business-cards/${biolink.linkedBusinessCard.slug}`}
+            className="indeed-btn indeed-btn-secondary mt-5 w-full"
+          >
+            <Briefcase className="size-4" aria-hidden />
+            مشاهده کارت ویزیت این بیولینک
+          </Link>
+        ) : null}
+
         <Link
           href={`/biolinks/${biolink.slug}`}
-          className="indeed-btn indeed-btn-primary mt-5 w-full"
+          className={`indeed-btn indeed-btn-primary w-full ${
+            biolink.linkedBusinessCard ? 'mt-2' : 'mt-5'
+          }`}
         >
           <ExternalLink className="size-4" aria-hidden />
           مشاهده صفحه کامل بیولینک
