@@ -20,7 +20,37 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.52.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.53.0**.
+
+## ۱۴۰۵/۰۷/۲۵ — سخت‌سازی امنیت: هدرهای امنیتی وب، کاربر غیر‌روت API، Dependabot و سند ممیزی — نسخه `v2.53.0`
+
+**هدف:** اجرای مرحله‌ی سوم چک‌لیست امنیتی (`secure.pdf`): افزودن هدرهای امنیتی و
+CSP به فرانت‌اند، اجرای کانتینر API با کاربر غیر‌روت، فعال‌سازی اسکن خودکار
+وابستگی‌ها و ثبت یک سند ممیزی لایه‌به‌لایه.
+
+**تغییرات:**
+- `apps/web/proxy.ts` (فایل جدید): جایگزین `middleware.ts` بر پایه‌ی قرارداد
+  جدید Next.js 16 («`middleware`» به «`proxy`» تغییر نام یافته و همیشه روی
+  رانتایم Node اجرا می‌شود). روی همه‌ی مسیرها هدرهای `Content-Security-Policy`،
+  `X-Content-Type-Options`، `X-Frame-Options: DENY`، `Referrer-Policy`،
+  `Permissions-Policy`، `Cross-Origin-Opener-Policy` و در HTTPS
+  `Strict-Transport-Security` اضافه می‌شود.
+- `apps/web/middleware.ts`: حذف شد (به `proxy.ts` منتقل شد).
+- `apps/api/Dockerfile`: در مرحله‌ی production کاربر غیر‌روت `node` تنظیم شد
+  (به‌همراه ساخت و chown پوشه‌ی `backups` تا اسنپ‌شات entrypoint کار کند).
+- `.github/dependabot.yml` (فایل جدید): به‌روزرسانی هفتگی وابستگی‌های `npm`
+  (ریشه، api، web)، `github-actions` و `docker`.
+- `docs/SECURITY-AUDIT.md` (فایل جدید): ممیزی چک‌لیست امنیتی به تفکیک لایه‌ها
+  (SCA، SAST/Secret، بک‌اند Prisma/NestJS، فرانت‌اند Next.js، DAST، داکر/Postgres)
+  و وضعیت فعلی هر مورد در مخزن.
+
+**تأیید/تست:**
+- `tsc --noEmit` برای `apps/web` بدون خطا.
+- `curl -s -D - http://localhost:3000/{,biolinks,dashboard,api/health}`: حضور
+  همهٔ هدرهای امنیتی (CSP، `X-Frame-Options: DENY`، `nosniff`، …) روی پاسخ‌ها
+  تأیید شد و هشدار deprecated صادر نشد.
+- `python3 scripts/sync_install.py && python3 scripts/sync_install.py --check` →
+  `patched: 0 / added: 0`.
 
 ## ۱۴۰۵/۰۷/۲۵ — بهینه‌سازی سرعت: حذف N+1 لایک و پیش‌واکشی تهاجمی — نسخه `v2.52.0`
 

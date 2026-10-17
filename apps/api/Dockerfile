@@ -32,7 +32,13 @@ COPY --from=build /usr/src/app/node_modules ./node_modules
 COPY --from=build /usr/src/app/dist ./dist
 COPY --from=build /usr/src/app/prisma ./prisma
 COPY docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh
+RUN chmod +x docker-entrypoint.sh \
+    && mkdir -p /usr/src/app/backups \
+    && chown -R node:node /usr/src/app
+# Run as the non-root `node` user (uid 1000) that ships with the base image.
+# The `backups` directory is pre-created and chowned so the entrypoint can
+# still snapshot the database when the schema changes.
+USER node
 EXPOSE 4000
 ENTRYPOINT ["./docker-entrypoint.sh"]
 CMD ["node", "dist/main.js"]
