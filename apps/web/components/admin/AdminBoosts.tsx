@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Check, Sparkles, X } from 'lucide-react';
 
 import { api, type BoostRequest } from '@/lib/api';
+import { AdminDataTable, type AdminColumn } from './AdminDataTable';
 
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
   { value: 'PENDING', label: 'در انتظار' },
@@ -46,6 +47,79 @@ export function AdminBoosts() {
     }
   }
 
+  const columns: Array<AdminColumn<BoostRequest>> = [
+    {
+      key: 'target',
+      label: 'مورد',
+      render: (request) => (
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 font-extrabold text-ink">
+            <Sparkles className="size-4 text-amber-500" aria-hidden />
+            {request.target?.fullName ?? 'مورد نامشخص'}
+          </p>
+          <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+            {request.kind === 'BIOLINK'
+              ? 'بیولینک'
+              : request.kind === 'FEED'
+                ? 'پست فید'
+                : 'کارت ویزیت'}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'user',
+      label: 'کاربر',
+      render: (request) => (
+        <span dir="ltr" className="text-xs text-muted">
+          {request.user?.email}
+        </span>
+      ),
+    },
+    {
+      key: 'requestedAt',
+      label: 'تاریخ درخواست',
+      render: (request) => (
+        <span className="text-xs text-muted">
+          {new Date(request.requestedAt).toLocaleDateString('fa-IR')}
+        </span>
+      ),
+    },
+    {
+      key: 'note',
+      label: 'یادداشت کاربر',
+      render: (request) => (
+        <span className="text-xs text-muted">{request.note ?? '—'}</span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'عملیات',
+      render: (request) => (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={busyId === request.id}
+            onClick={() => decide(request.id, 'APPROVED')}
+            className="indeed-btn indeed-btn-primary py-1.5 text-xs disabled:opacity-60"
+          >
+            <Check className="size-3.5" aria-hidden />
+            تأیید
+          </button>
+          <button
+            type="button"
+            disabled={busyId === request.id}
+            onClick={() => decide(request.id, 'REJECTED')}
+            className="indeed-btn indeed-btn-secondary py-1.5 text-xs disabled:opacity-60"
+          >
+            <X className="size-3.5" aria-hidden />
+            رد
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-3">
       {error ? (
@@ -71,55 +145,13 @@ export function AdminBoosts() {
 
       {loading ? (
         <p className="text-muted">در حال بارگذاری...</p>
-      ) : requests.length === 0 ? (
-        <div className="indeed-panel p-8 text-center text-muted">
-          درخواست پله‌ای در این وضعیت وجود ندارد.
-        </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          {requests.map((request) => (
-            <div
-              key={request.id}
-              className="indeed-panel flex flex-wrap items-center justify-between gap-3 p-4"
-            >
-              <div>
-                <p className="flex items-center gap-2 font-extrabold text-ink">
-                  <Sparkles className="size-4 text-amber-500" aria-hidden />
-                  {request.target?.fullName ?? 'مورد نامشخص'}
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
-                    {request.kind === 'BIOLINK' ? 'بیولینک' : 'کارت ویزیت'}
-                  </span>
-                </p>
-                <p dir="ltr" className="text-xs text-muted">
-                  {request.user?.email}
-                </p>
-                {request.note ? (
-                  <p className="mt-1 text-xs text-muted">یادداشت کاربر: {request.note}</p>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={busyId === request.id}
-                  onClick={() => decide(request.id, 'APPROVED')}
-                  className="indeed-btn indeed-btn-primary py-2 text-sm disabled:opacity-60"
-                >
-                  <Check className="size-4" aria-hidden />
-                  تأیید
-                </button>
-                <button
-                  type="button"
-                  disabled={busyId === request.id}
-                  onClick={() => decide(request.id, 'REJECTED')}
-                  className="indeed-btn indeed-btn-secondary py-2 text-sm disabled:opacity-60"
-                >
-                  <X className="size-4" aria-hidden />
-                  رد
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+        <AdminDataTable
+          columns={columns}
+          rows={requests}
+          rowKey={(request) => request.id}
+          empty="درخواست پله‌ای در این وضعیت وجود ندارد."
+        />
       )}
     </div>
   );

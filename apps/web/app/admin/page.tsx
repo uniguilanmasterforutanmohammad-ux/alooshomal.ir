@@ -25,6 +25,7 @@ import { AdminNewsSettings } from '@/components/admin/AdminNewsSettings';
 import { AdminStoragePanel } from '@/components/admin/AdminStoragePanel';
 import { ActivityLogPanel } from '@/components/admin/ActivityLogPanel';
 import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
+import { AdminDataTable, type AdminColumn } from '@/components/admin/AdminDataTable';
 import { BiolinkLiveEditor } from '@/components/admin/BiolinkLiveEditor';
 import { BusinessCardLiveEditor } from '@/components/admin/BusinessCardLiveEditor';
 import {
@@ -324,6 +325,120 @@ function AdminContent() {
 
   const stats = overview?.stats ?? EMPTY_STATS;
 
+  const biolinkColumns: Array<AdminColumn<AdminBiolink>> = [
+    {
+      key: 'fullName',
+      label: 'نام',
+      render: (item) => (
+        <span className="font-extrabold text-ink">{item.fullName}</span>
+      ),
+    },
+    {
+      key: 'job',
+      label: 'شغل / شرکت',
+      render: (item) => (
+        <span className="text-xs text-muted">
+          {item.jobTitle ?? '—'} {item.company ? `— ${item.company}` : ''}
+        </span>
+      ),
+    },
+    {
+      key: 'user',
+      label: 'کاربر',
+      render: (item) => (
+        <span dir="ltr" className="text-xs text-muted">
+          {item.user.email}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'وضعیت',
+      render: (item) => <BiolinkStatusBadge status={item.status} />,
+    },
+    {
+      key: 'actions',
+      label: 'عملیات',
+      render: (item) => (
+        <div className="flex items-center gap-2">
+          {item.isPublished ? (
+            <a
+              href={`/biolinks/${item.slug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="indeed-btn indeed-btn-secondary py-1.5 text-xs"
+            >
+              مشاهده
+            </a>
+          ) : null}
+          <button
+            onClick={() => setEditingId(item.id)}
+            className="indeed-btn indeed-btn-primary py-1.5 text-xs"
+          >
+            بررسی و ویرایش
+          </button>
+        </div>
+      ),
+    },
+  ];
+
+  const businessCardColumns: Array<AdminColumn<AdminBusinessCard>> = [
+    {
+      key: 'fullName',
+      label: 'نام',
+      render: (item) => (
+        <span className="font-extrabold text-ink">{item.fullName}</span>
+      ),
+    },
+    {
+      key: 'job',
+      label: 'شغل / شرکت',
+      render: (item) => (
+        <span className="text-xs text-muted">
+          {item.jobTitle ?? '—'} {item.company ? `— ${item.company}` : ''}
+        </span>
+      ),
+    },
+    {
+      key: 'user',
+      label: 'کاربر',
+      render: (item) => (
+        <span dir="ltr" className="text-xs text-muted">
+          {item.user.email}
+        </span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'وضعیت',
+      render: (item) => <BusinessCardStatusBadge status={item.status} />,
+    },
+    {
+      key: 'actions',
+      label: 'عملیات',
+      render: (item) => (
+        <div className="flex items-center gap-2">
+          {item.isPublished ? (
+            <a
+              href={`/business-cards/${item.slug}`}
+              target="_blank"
+              rel="noreferrer"
+              className="indeed-btn indeed-btn-secondary py-1.5 text-xs"
+            >
+              مشاهده
+            </a>
+          ) : null}
+          <button
+            onClick={() => setEditingBusinessCardId(item.id)}
+            className="indeed-btn indeed-btn-primary py-1.5 text-xs"
+          >
+            بررسی و ویرایش
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   const pageHead: Record<AdminSection, { title: string; sub: string }> = {
     overview: { title: 'داشبورد مدیریت', sub: 'نمای کلی پلتفرم شما در یک نگاه' },
     biolinks: { title: 'بررسی بیولینک‌ها', sub: 'تأیید، رد و ویرایش بیولینک‌ها' },
@@ -466,50 +581,13 @@ function AdminContent() {
 
           {loading ? (
             <p className="text-muted">در حال بارگذاری...</p>
-          ) : biolinks.length === 0 ? (
-            <div className="indeed-panel p-8 text-center text-muted">
-              بیولینکی در این وضعیت وجود ندارد.
-            </div>
           ) : (
-            <div className="flex flex-col gap-3">
-              {biolinks.map((biolink) => (
-                <div
-                  key={biolink.id}
-                  className="indeed-panel flex flex-wrap items-center justify-between gap-4 p-5"
-                >
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-extrabold text-ink">{biolink.fullName}</h3>
-                      <BiolinkStatusBadge status={biolink.status} />
-                    </div>
-                    <p className="text-sm text-muted">
-                      {biolink.jobTitle ?? '—'} {biolink.company ? `— ${biolink.company}` : ''}
-                    </p>
-                    <p dir="ltr" className="text-xs text-muted">
-                      {biolink.user.email}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {biolink.isPublished ? (
-                      <a
-                        href={`/biolinks/${biolink.slug}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="indeed-btn indeed-btn-secondary py-2 text-sm"
-                      >
-                        مشاهده
-                      </a>
-                    ) : null}
-                    <button
-                      onClick={() => setEditingId(biolink.id)}
-                      className="indeed-btn indeed-btn-primary py-2 text-sm"
-                    >
-                      بررسی و ویرایش
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <AdminDataTable
+              columns={biolinkColumns}
+              rows={biolinks}
+              rowKey={(item) => item.id}
+              empty="بیولینکی در این وضعیت وجود ندارد."
+            />
           )}
 
           {editingId ? (
@@ -553,53 +631,13 @@ function AdminContent() {
 
           {loading ? (
             <p className="text-muted">در حال بارگذاری...</p>
-          ) : businessCards.length === 0 ? (
-            <div className="indeed-panel p-8 text-center text-muted">
-              کارت ویزیتی در این وضعیت وجود ندارد.
-            </div>
           ) : (
-            <div className="flex flex-col gap-3">
-              {businessCards.map((businessCard) => (
-                <div
-                  key={businessCard.id}
-                  className="indeed-panel flex flex-wrap items-center justify-between gap-4 p-5"
-                >
-                  <div>
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-extrabold text-ink">
-                        {businessCard.fullName}
-                      </h3>
-                      <BusinessCardStatusBadge status={businessCard.status} />
-                    </div>
-                    <p className="text-sm text-muted">
-                      {businessCard.jobTitle ?? '—'}{' '}
-                      {businessCard.company ? `— ${businessCard.company}` : ''}
-                    </p>
-                    <p dir="ltr" className="text-xs text-muted">
-                      {businessCard.user.email}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {businessCard.isPublished ? (
-                      <a
-                        href={`/business-cards/${businessCard.slug}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="indeed-btn indeed-btn-secondary py-2 text-sm"
-                      >
-                        مشاهده
-                      </a>
-                    ) : null}
-                    <button
-                      onClick={() => setEditingBusinessCardId(businessCard.id)}
-                      className="indeed-btn indeed-btn-primary py-2 text-sm"
-                    >
-                      بررسی و ویرایش
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <AdminDataTable
+              columns={businessCardColumns}
+              rows={businessCards}
+              rowKey={(item) => item.id}
+              empty="کارت ویزیتی در این وضعیت وجود ندارد."
+            />
           )}
 
           {editingBusinessCardId ? (

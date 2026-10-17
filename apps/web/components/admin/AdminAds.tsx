@@ -5,6 +5,7 @@ import { Check, Megaphone, Save, X } from 'lucide-react';
 
 import { api, type AdRequest } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { AdminDataTable, type AdminColumn } from './AdminDataTable';
 import { AdminBoosts } from './AdminBoosts';
 
 type Tab = 'home' | 'directory' | 'settings';
@@ -25,6 +26,12 @@ const DISPLAY_LABELS: Record<string, string> = {
 
 function faDate(value: string) {
   return new Date(value).toLocaleDateString('fa-IR');
+}
+
+function kindLabel(kind: AdRequest['kind']) {
+  if (kind === 'BUSINESS_CARD') return 'کارت ویزیت';
+  if (kind === 'BIOLINK') return 'بیولینک';
+  return 'پست فید';
 }
 
 interface SettingsPayload {
@@ -73,6 +80,110 @@ export function AdminAds() {
       setBusyId(null);
     }
   }
+
+  const columns: Array<AdminColumn<AdRequest>> = [
+    {
+      key: 'target',
+      label: 'مورد',
+      render: (request) => (
+        <div className="min-w-0">
+          <p className="flex items-center gap-2 truncate font-extrabold text-ink">
+            <Megaphone className="size-4 text-brand" aria-hidden />
+            {request.target?.fullName ?? '—'}
+          </p>
+          <span className="mt-1 inline-block rounded-full bg-soft px-2 py-0.5 text-[10px] font-bold text-muted">
+            {kindLabel(request.kind)}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'user',
+      label: 'کاربر',
+      render: (request) => (
+        <span dir="ltr" className="text-xs text-muted">
+          {request.user?.email}
+        </span>
+      ),
+    },
+    {
+      key: 'requestedAt',
+      label: 'تاریخ درخواست',
+      render: (request) => (
+        <span className="text-xs text-muted">{faDate(request.requestedAt)}</span>
+      ),
+    },
+    {
+      key: 'window',
+      label: 'بازه نمایش',
+      render: (request) =>
+        request.status === 'APPROVED' ? (
+          <span className="text-xs text-muted">
+            {request.startedAt ? faDate(request.startedAt) : '—'} تا{' '}
+            {request.endsAt ? faDate(request.endsAt) : '—'}
+          </span>
+        ) : (
+          <span className="text-xs text-muted">—</span>
+        ),
+    },
+    {
+      key: 'note',
+      label: 'یادداشت',
+      render: (request) => (
+        <span className="text-xs text-muted">{request.note ?? '—'}</span>
+      ),
+    },
+    {
+      key: 'status',
+      label: 'وضعیت',
+      render: (request) => (
+        <span
+          className={cn(
+            'inline-block rounded-full px-3 py-1 text-xs font-bold',
+            request.status === 'PENDING'
+              ? 'bg-amber-50 text-amber-700'
+              : request.displayState === 'ACTIVE'
+                ? 'bg-green-50 text-green-700'
+                : request.displayState === 'SCHEDULED'
+                  ? 'bg-amber-50 text-amber-700'
+                  : 'bg-red-50 text-red-700',
+          )}
+        >
+          {request.status === 'PENDING'
+            ? 'در انتظار تأیید'
+            : DISPLAY_LABELS[request.displayState ?? request.status] ??
+              (request.status === 'APPROVED' ? 'تأییدشده' : 'ردشده')}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'عملیات',
+      render: (request) =>
+        request.status === 'PENDING' ? (
+          <div className="flex items-center gap-2">
+            <button
+              disabled={busyId === request.id}
+              onClick={() => decide(request.id, 'APPROVED')}
+              className="indeed-btn indeed-btn-primary py-1.5 text-xs disabled:opacity-60"
+            >
+              <Check className="size-3.5" aria-hidden />
+              تأیید
+            </button>
+            <button
+              disabled={busyId === request.id}
+              onClick={() => decide(request.id, 'REJECTED')}
+              className="indeed-btn indeed-btn-secondary py-1.5 text-xs text-red-600 disabled:opacity-60"
+            >
+              <X className="size-3.5" aria-hidden />
+              رد
+            </button>
+          </div>
+        ) : (
+          <span className="text-xs text-muted">بررسی‌شده</span>
+        ),
+    },
+  ];
 
   return (
     <div className="flex flex-col gap-5">
@@ -128,84 +239,14 @@ export function AdminAds() {
 
           {loading ? (
             <p className="text-muted">در حال بارگذاری...</p>
-          ) : requests.length === 0 ? (
-            <div className="indeed-panel p-8 text-center text-muted">
-              درخواست تبلیغی در این وضعیت وجود ندارد.
-            </div>
           ) : (
-            requests.map((request) => (
-              <div
-                key={request.id}
-                className="indeed-panel flex flex-wrap items-center justify-between gap-4 p-4"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Megaphone className="size-4 text-brand" aria-hidden />
-                    <h3 className="truncate text-base font-extrabold text-ink">
-                      {request.target?.fullName ?? '—'}
-                    </h3>
-                    <span className="rounded-full bg-soft px-2 py-0.5 text-[10px] font-bold text-muted">
-                      {request.kind === 'BUSINESS_CARD' ? 'کارت ویزیت' : 'بیولینک'}
-                    </span>
-                  </div>
-                  <p dir="ltr" className="mt-1 text-xs text-muted">
-                    {request.user?.email}
-                  </p>
-                  {request.note ? (
-                    <p className="mt-1 text-xs text-muted">یادداشت: {request.note}</p>
-                  ) : null}
-                  <p className="mt-1 text-xs text-muted">
-                    تاریخ درخواست:{' '}
-                    {new Date(request.requestedAt).toLocaleDateString('fa-IR')}
-                  </p>
-                  {request.status === 'APPROVED' ? (
-                    <p className="mt-1 text-xs text-muted">
-                      بازه نمایش:{' '}
-                      {request.startedAt ? faDate(request.startedAt) : '—'} تا{' '}
-                      {request.endsAt ? faDate(request.endsAt) : '—'}
-                      {request.displayState
-                        ? ` • ${DISPLAY_LABELS[request.displayState] ?? ''}`
-                        : ''}
-                    </p>
-                  ) : null}
-                </div>
-
-                {request.status === 'PENDING' ? (
-                  <div className="flex items-center gap-2">
-                    <button
-                      disabled={busyId === request.id}
-                      onClick={() => decide(request.id, 'APPROVED')}
-                      className="indeed-btn indeed-btn-primary py-2 text-sm disabled:opacity-60"
-                    >
-                      <Check className="size-4" aria-hidden />
-                      تأیید
-                    </button>
-                    <button
-                      disabled={busyId === request.id}
-                      onClick={() => decide(request.id, 'REJECTED')}
-                      className="indeed-btn indeed-btn-secondary py-2 text-sm text-red-600 disabled:opacity-60"
-                    >
-                      <X className="size-4" aria-hidden />
-                      رد
-                    </button>
-                  </div>
-                ) : (
-                  <span
-                    className={cn(
-                      'rounded-full px-3 py-1 text-xs font-bold',
-                      request.displayState === 'ACTIVE'
-                        ? 'bg-green-50 text-green-700'
-                        : request.displayState === 'SCHEDULED'
-                          ? 'bg-amber-50 text-amber-700'
-                          : 'bg-red-50 text-red-700',
-                    )}
-                  >
-                    {DISPLAY_LABELS[request.displayState ?? request.status] ??
-                      (request.status === 'APPROVED' ? 'تأییدشده' : 'ردشده')}
-                  </span>
-                )}
-              </div>
-            ))
+            <AdminDataTable
+              columns={columns}
+              rows={requests}
+              rowKey={(request) => request.id}
+              empty="درخواست تبلیغی در این وضعیت وجود ندارد."
+              minWidthClass="min-w-[62rem]"
+            />
           )}
         </div>
       ) : null}

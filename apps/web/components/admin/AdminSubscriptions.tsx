@@ -9,6 +9,7 @@ import {
   type UserSubscription,
 } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { AdminDataTable, type AdminColumn } from './AdminDataTable';
 
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
   { value: 'PENDING', label: 'در انتظار' },
@@ -115,6 +116,126 @@ export function AdminSubscriptions() {
     }
   }
 
+  const planColumns: Array<AdminColumn<SubscriptionPlan>> = [
+    {
+      key: 'name',
+      label: 'نام بسته',
+      render: (plan) => (
+        <div>
+          <p className="font-extrabold text-ink">
+            {plan.name}
+            {!plan.isActive ? (
+              <span className="ms-2 text-xs font-bold text-muted">(غیرفعال)</span>
+            ) : null}
+          </p>
+          {plan.description ? (
+            <p className="mt-0.5 text-xs text-muted">{plan.description}</p>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      key: 'limits',
+      label: 'محدودیت‌ها',
+      render: (plan) => (
+        <span className="text-xs text-muted">
+          {plan.maxBiolinks} بیولینک · {plan.maxBusinessCards} کارت ویزیت
+        </span>
+      ),
+    },
+    {
+      key: 'links',
+      label: 'نمایش لینک‌ها',
+      render: (plan) => (
+        <span className="text-xs text-muted">
+          {plan.showSocialLinks ? 'نمایش لینک‌ها' : 'بدون لینک'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'عملیات',
+      render: (plan) => (
+        <button
+          type="button"
+          onClick={() => removePlan(plan.id)}
+          className="indeed-btn border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-600"
+        >
+          <Trash2 className="size-3.5" aria-hidden />
+          حذف
+        </button>
+      ),
+    },
+  ];
+
+  const requestColumns: Array<AdminColumn<UserSubscription>> = [
+    {
+      key: 'plan',
+      label: 'بسته',
+      render: (request) => (
+        <span className="font-extrabold text-ink">{request.plan?.name ?? '—'}</span>
+      ),
+    },
+    {
+      key: 'user',
+      label: 'کاربر',
+      render: (request) => (
+        <div>
+          <p className="text-sm font-semibold text-ink">
+            {request.user?.fullName ?? '—'}
+          </p>
+          <span dir="ltr" className="text-xs text-muted">
+            {request.user?.email}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'requestedAt',
+      label: 'تاریخ درخواست',
+      render: (request) => (
+        <span className="text-xs text-muted">
+          {new Date(request.requestedAt).toLocaleDateString('fa-IR')}
+        </span>
+      ),
+    },
+    {
+      key: 'note',
+      label: 'یادداشت',
+      render: (request) => (
+        <span className="text-xs text-muted">{request.note ?? '—'}</span>
+      ),
+    },
+    {
+      key: 'actions',
+      label: 'عملیات',
+      render: (request) => (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            disabled={busyId === request.id}
+            onClick={() => decide(request.id, 'ACTIVE')}
+            className="indeed-btn indeed-btn-primary py-1.5 text-xs disabled:opacity-60"
+          >
+            <Check className="size-3.5" aria-hidden />
+            تأیید و اعمال
+          </button>
+          <button
+            type="button"
+            disabled={busyId === request.id}
+            onClick={() => decide(request.id, 'REJECTED')}
+            className={cn(
+              'indeed-btn indeed-btn-secondary py-1.5 text-xs disabled:opacity-60',
+            )}
+          >
+            <X className="size-3.5" aria-hidden />
+            رد
+          </button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div className="flex flex-col gap-5">
       {error ? (
@@ -202,40 +323,12 @@ export function AdminSubscriptions() {
           </form>
         ) : null}
 
-        <ul className="divide-y divide-[var(--vintage-border)]">
-          {plans.map((plan) => (
-            <li
-              key={plan.id}
-              className="flex flex-wrap items-center justify-between gap-3 px-5 py-3"
-            >
-              <div>
-                <p className="font-extrabold text-ink">
-                  {plan.name}
-                  {!plan.isActive ? (
-                    <span className="ms-2 text-xs font-bold text-muted">(غیرفعال)</span>
-                  ) : null}
-                </p>
-                <p className="text-xs text-muted">
-                  {plan.maxBiolinks} بیولینک · {plan.maxBusinessCards} کارت ویزیت ·{' '}
-                  {plan.showSocialLinks ? 'نمایش لینک‌ها' : 'بدون لینک'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => removePlan(plan.id)}
-                className="indeed-btn border border-red-200 bg-red-50 px-3 py-1.5 text-xs text-red-600"
-              >
-                <Trash2 className="size-3.5" aria-hidden />
-                حذف
-              </button>
-            </li>
-          ))}
-          {plans.length === 0 ? (
-            <li className="px-5 py-6 text-center text-sm text-muted">
-              هنوز اشتراکی ساخته نشده است.
-            </li>
-          ) : null}
-        </ul>
+        <AdminDataTable
+          columns={planColumns}
+          rows={plans}
+          rowKey={(plan) => plan.id}
+          empty="هنوز اشتراکی ساخته نشده است."
+        />
       </div>
 
       <div className="flex flex-col gap-3">
@@ -258,53 +351,13 @@ export function AdminSubscriptions() {
 
         {loading ? (
           <p className="text-muted">در حال بارگذاری...</p>
-        ) : requests.length === 0 ? (
-          <div className="indeed-panel p-8 text-center text-muted">
-            درخواستی در این وضعیت وجود ندارد.
-          </div>
         ) : (
-          <div className="flex flex-col gap-3">
-            {requests.map((request) => (
-              <div
-                key={request.id}
-                className="indeed-panel flex flex-wrap items-center justify-between gap-3 p-4"
-              >
-                <div>
-                  <p className="font-extrabold text-ink">
-                    {request.plan?.name ?? '—'}
-                    <span className="ms-2 text-xs font-bold text-muted">
-                      {request.user?.fullName ?? request.user?.email}
-                    </span>
-                  </p>
-                  <p dir="ltr" className="text-xs text-muted">
-                    {request.user?.email}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={busyId === request.id}
-                    onClick={() => decide(request.id, 'ACTIVE')}
-                    className="indeed-btn indeed-btn-primary py-2 text-sm disabled:opacity-60"
-                  >
-                    <Check className="size-4" aria-hidden />
-                    تأیید و اعمال
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busyId === request.id}
-                    onClick={() => decide(request.id, 'REJECTED')}
-                    className={cn(
-                      'indeed-btn indeed-btn-secondary py-2 text-sm disabled:opacity-60',
-                    )}
-                  >
-                    <X className="size-4" aria-hidden />
-                    رد
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          <AdminDataTable
+            columns={requestColumns}
+            rows={requests}
+            rowKey={(request) => request.id}
+            empty="درخواستی در این وضعیت وجود ندارد."
+          />
         )}
       </div>
     </div>
