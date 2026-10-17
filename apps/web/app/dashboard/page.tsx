@@ -3,18 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  BadgeCheck,
-  Clock,
-  Eye,
-  IdCard,
-  LifeBuoy,
-  Plus,
-  XCircle,
-} from 'lucide-react';
+import { BadgeCheck, Clock, Eye, IdCard, LifeBuoy } from 'lucide-react';
 
-import { BiolinkStatusBadge } from '@/components/biolink/BiolinkStatusBadge';
-import { BusinessCardStatusBadge } from '@/components/businesscard/BusinessCardStatusBadge';
 import { api, type Biolink, type BusinessCard, type Paged } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
@@ -70,8 +60,6 @@ export default function DashboardPage() {
     closed: 0,
     total: 0,
   });
-  const [loading, setLoading] = useState(true);
-
   const load = useCallback(async () => {
     try {
       const [mine, cards, ticketSummary] = await Promise.all([
@@ -85,8 +73,6 @@ export default function DashboardPage() {
     } catch {
       setBiolinks([]);
       setBusinessCards([]);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -103,7 +89,6 @@ export default function DashboardPage() {
 
   const published = biolinks.filter((biolink) => biolink.isPublished).length;
   const pending = biolinks.filter((biolink) => biolink.status === 'PENDING').length;
-  const rejected = biolinks.filter((biolink) => biolink.status === 'REJECTED').length;
 
   return (
     <div className="flex flex-col gap-5">
@@ -127,103 +112,6 @@ export default function DashboardPage() {
         <StatTile icon={BadgeCheck} label="منتشرشده" value={published} tone="ok" />
         <StatTile icon={Clock} label="در انتظار تأیید" value={pending} tone="warn" />
       </section>
-
-      <div className="grid gap-5 xl:grid-cols-2">
-      <div className="indeed-panel overflow-hidden">
-        <div className="flex items-center justify-between border-b-2 border-dashed border-[var(--vintage-accent-hover)] px-5 py-3">
-          <h3 className="text-sm font-extrabold text-ink">آخرین کارت‌های ویزیت من</h3>
-          <Link
-            href="/dashboard/business-cards"
-            className="text-xs font-bold text-brand"
-          >
-            مشاهده همه
-          </Link>
-        </div>
-        {loading ? (
-          <p className="p-6 text-center text-sm text-muted">در حال بارگذاری...</p>
-        ) : businessCards.length === 0 ? (
-          <div className="p-8 text-center">
-            <p className="text-sm text-muted">هنوز کارت ویزیتی نساخته‌اید.</p>
-            <Link
-              href="/dashboard/business-cards/new"
-              className="indeed-btn indeed-btn-primary mt-4"
-            >
-              <Plus className="size-4" aria-hidden />
-              ساخت اولین کارت ویزیت
-            </Link>
-          </div>
-        ) : (
-          <ul className="divide-y divide-[var(--vintage-border)]">
-            {businessCards.slice(0, 4).map((card) => (
-              <li
-                key={card.id}
-                className="flex items-center justify-between gap-3 px-5 py-3"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-bold text-ink">
-                    {card.fullName}
-                  </p>
-                  <p className="truncate text-xs text-muted">
-                    {card.jobTitle ?? '—'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <BusinessCardStatusBadge status={card.status} />
-                  <Link
-                    href={`/dashboard/business-cards/${card.id}/edit`}
-                    className="text-xs font-bold text-brand"
-                  >
-                    ویرایش
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-        <div className="indeed-panel overflow-hidden">
-          <div className="flex items-center justify-between border-b-2 border-dashed border-[var(--vintage-accent-hover)] px-5 py-3">
-            <h3 className="text-sm font-extrabold text-ink">آخرین بیولینک‌های من</h3>
-            <Link href="/dashboard/biolinks" className="text-xs font-bold text-brand">
-              مشاهده همه
-            </Link>
-          </div>
-          {loading ? (
-            <p className="p-6 text-center text-sm text-muted">در حال بارگذاری...</p>
-          ) : biolinks.length === 0 ? (
-            <div className="p-8 text-center">
-              <p className="text-sm text-muted">هنوز بیولینکی نساخته‌اید.</p>
-              <Link href="/dashboard/biolinks/new" className="indeed-btn indeed-btn-primary mt-4">
-                <Plus className="size-4" aria-hidden />
-                ساخت اولین بیولینک
-              </Link>
-            </div>
-          ) : (
-            <ul className="divide-y divide-[var(--vintage-border)]">
-              {biolinks.slice(0, 4).map((biolink) => (
-                <li key={biolink.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-ink">{biolink.fullName}</p>
-                    <p className="truncate text-xs text-muted">
-                      {biolink.jobTitle ?? '—'}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <BiolinkStatusBadge status={biolink.status} />
-                    <Link
-                      href={`/dashboard/biolinks/${biolink.id}/edit`}
-                      className="text-xs font-bold text-brand"
-                    >
-                      ویرایش
-                    </Link>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      </div>
 
       <div className="grid gap-5 md:grid-cols-2">
           <div className="indeed-panel p-5">
