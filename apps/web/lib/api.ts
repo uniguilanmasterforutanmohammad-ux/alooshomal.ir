@@ -284,6 +284,8 @@ export interface DirectoryBiolink {
   publishedAt: string | null;
   pinnedAt?: string | null;
   boostedUntil?: string | null;
+  /** paid directory-ad expiry; when in the future a «تبلیغات» tag is shown */
+  adDirectoryUntil?: string | null;
   likeCount: number;
   liked: boolean;
   saved: boolean;
@@ -372,6 +374,8 @@ export interface DirectoryBusinessCard {
   publishedAt: string | null;
   pinnedAt?: string | null;
   boostedUntil?: string | null;
+  /** paid directory-ad expiry; when in the future a «تبلیغات» tag is shown */
+  adDirectoryUntil?: string | null;
   likeCount: number;
   liked: boolean;
   saved: boolean;
@@ -440,8 +444,11 @@ export interface BoostTargetItem {
   status: string;
   isPublished: boolean;
   boostedUntil: string | null;
+  /** paid directory-ad expiry (when in the future the item sits at the top) */
+  adDirectoryUntil?: string | null;
   lastBoostedAt?: string | null;
   adStatus?: BoostStatus | null;
+  directoryAdStatus?: BoostStatus | null;
   pinnedAt?: string | null;
   views: number;
   likes: number;
@@ -517,6 +524,7 @@ export interface AdRequest {
   userId: string;
   kind: AdTargetKind;
   targetId: string;
+  placement?: 'HOME' | 'DIRECTORY';
   status: BoostStatus;
   requestedAt: string;
   decidedAt: string | null;
@@ -782,6 +790,10 @@ export interface FeedPost {
   publishedAt: string | null;
   likeCount: number;
   createdAt: string;
+  /** «پله» promotion expiry */
+  boostedUntil?: string | null;
+  /** paid directory-ad expiry */
+  adDirectoryUntil?: string | null;
   /** set on /feeds/mine/saved */
   savedAt?: string;
   user?: { id: string; fullName: string | null; email: string | null };

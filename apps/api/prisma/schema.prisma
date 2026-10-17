@@ -84,6 +84,16 @@ enum AdTargetKind {
   FEED
 }
 
+/// Where an approved ad is shown:
+///   - HOME      → the rotating «تبلیغات» box on the home page (server-scheduled
+///                 by `startedAt`/`endsAt`).
+///   - DIRECTORY → the top of the item's own city+business slice of the
+///                 directory, marked with a «تبلیغات» tag (paid, time-limited).
+enum AdPlacement {
+  HOME
+  DIRECTORY
+}
+
 /// What a points reward gives the user once redeemed.
 enum RewardKind {
   /// grants a subscription plan (see `planId`)
@@ -172,6 +182,9 @@ model FeedPost {
   /// «پله» — when an admin approves a boost request, `boostedUntil` lifts the
   /// post to the top of the feed directory until it lapses.
   boostedUntil DateTime?
+  /// «تبلیغ در دایرکتوری» — paid, time-limited, targeted promotion within the
+  /// post's own topic slice, tagged «تبلیغات».
+  adDirectoryUntil DateTime?
   pinnedAt    DateTime       @default(now())
   likeCount   Int            @default(0)
   createdAt   DateTime       @default(now())
@@ -552,6 +565,11 @@ model Biolink {
   // boost ("پله") — when approved by an admin the biolink is pinned at the top
   // of its directory by resetting `pinnedAt` to the approval time.
   boostedUntil DateTime?
+
+  /// «تبلیغ در دایرکتوری» — a paid, time-limited, *targeted* promotion. While
+  /// set, the item sits at the very top of its own city+business slice of the
+  /// directory with a «تبلیغات» tag (distinct from the «پله» tag).
+  adDirectoryUntil DateTime?
   pinnedAt     DateTime @default(now())
 
   /// Seeded by the admin bulk importer for load-testing; safe to delete en masse.
@@ -652,6 +670,9 @@ model BusinessCard {
   // boost ("پله") — when approved by an admin the business card is pinned at the
   // top of its directory by resetting `pinnedAt` to the approval time.
   boostedUntil DateTime?
+  /// «تبلیغ در دایرکتوری» — paid, time-limited, targeted promotion to the top
+  /// of the card's own city+business directory slice, tagged «تبلیغات».
+  adDirectoryUntil DateTime?
   pinnedAt     DateTime @default(now())
 
   /// Seeded by the admin bulk importer for load-testing; safe to delete en masse.
@@ -851,6 +872,9 @@ model AdRequest {
   userId      String
   kind        AdTargetKind
   targetId    String
+  /// HOME (default) or DIRECTORY — kept separate from BoostRequest so a «پله»
+  /// and a paid directory ad are two distinct products.
+  placement   AdPlacement   @default(HOME)
   status      BoostStatus   @default(PENDING)
   requestedAt DateTime      @default(now())
   decidedAt   DateTime?
@@ -864,6 +888,7 @@ model AdRequest {
   decidedBy User? @relation("AdDecisions", fields: [decidedById], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([placement, targetId])
   @@index([status])
   @@index([endsAt])
   @@map("ad_requests")

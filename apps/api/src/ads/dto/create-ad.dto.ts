@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { AdTargetKind } from '@prisma/client';
+import { AdPlacement, AdTargetKind } from '@prisma/client';
 import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class CreateAdDto {
@@ -16,4 +16,14 @@ export class CreateAdDto {
   @IsString()
   @MaxLength(300)
   note?: string;
+
+  @ApiPropertyOptional({
+    enum: AdPlacement,
+    default: AdPlacement.HOME,
+    description:
+      'HOME = تبلیغ در صفحه اصلی | DIRECTORY = تبلیغ در دایرکتوری (صدر لیست همان شهر/کسب‌وکار)',
+  })
+  @IsOptional()
+  @IsEnum(AdPlacement)
+  placement?: AdPlacement;
 }

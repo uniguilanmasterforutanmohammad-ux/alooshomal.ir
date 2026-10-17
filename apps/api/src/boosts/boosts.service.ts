@@ -88,6 +88,7 @@ export class BoostsService {
           status: true,
           isPublished: true,
           boostedUntil: true,
+          adDirectoryUntil: true,
           _count: { select: { scanEvents: true, likes: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -104,6 +105,7 @@ export class BoostsService {
           status: true,
           isPublished: true,
           boostedUntil: true,
+          adDirectoryUntil: true,
           _count: { select: { scans: true, likes: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -120,6 +122,7 @@ export class BoostsService {
           status: true,
           isPublished: true,
           boostedUntil: true,
+          adDirectoryUntil: true,
           _count: { select: { likes: true, saves: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -170,9 +173,15 @@ export class BoostsService {
     }
     // latest ad-request status per target (for the merged "تبلیغ" button)
     const adStatusByTarget = new Map<string, string>();
+    const directoryAdStatusByTarget = new Map<string, string>();
     for (const request of adRequests) {
-      if (!adStatusByTarget.has(request.targetId)) {
-        adStatusByTarget.set(request.targetId, request.status);
+      const key = `${request.kind}:${request.targetId}`;
+      if (request.placement === 'DIRECTORY') {
+        if (!directoryAdStatusByTarget.has(key)) {
+          directoryAdStatusByTarget.set(key, request.status);
+        }
+      } else if (!adStatusByTarget.has(key)) {
+        adStatusByTarget.set(key, request.status);
       }
     }
 
@@ -183,7 +192,9 @@ export class BoostsService {
         likes: item._count.likes,
         rank: biolinkRanks[index],
         lastBoostedAt: approvedByTarget.get(`BIOLINK:${item.id}`) ?? null,
-        adStatus: adStatusByTarget.get(item.id) ?? null,
+        adStatus: adStatusByTarget.get(`BIOLINK:${item.id}`) ?? null,
+        directoryAdStatus:
+          directoryAdStatusByTarget.get(`BIOLINK:${item.id}`) ?? null,
       })),
       businessCards: businessCards.map((item, index) => ({
         ...item,
@@ -191,7 +202,9 @@ export class BoostsService {
         likes: item._count.likes,
         rank: cardRanks[index],
         lastBoostedAt: approvedByTarget.get(`BUSINESS_CARD:${item.id}`) ?? null,
-        adStatus: adStatusByTarget.get(item.id) ?? null,
+        adStatus: adStatusByTarget.get(`BUSINESS_CARD:${item.id}`) ?? null,
+        directoryAdStatus:
+          directoryAdStatusByTarget.get(`BUSINESS_CARD:${item.id}`) ?? null,
       })),
       feeds: feeds.map((item, index) => ({
         id: item.id,
@@ -199,12 +212,15 @@ export class BoostsService {
         status: item.status,
         isPublished: item.isPublished,
         boostedUntil: item.boostedUntil,
+        adDirectoryUntil: item.adDirectoryUntil,
         slug: item.id,
         views: 0,
         likes: item._count.likes,
         rank: feedRanks[index],
         lastBoostedAt: approvedByTarget.get(`FEED:${item.id}`) ?? null,
-        adStatus: adStatusByTarget.get(item.id) ?? null,
+        adStatus: adStatusByTarget.get(`FEED:${item.id}`) ?? null,
+        directoryAdStatus:
+          directoryAdStatusByTarget.get(`FEED:${item.id}`) ?? null,
       })),
       requests,
       meta: {

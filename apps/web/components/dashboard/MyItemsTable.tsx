@@ -77,18 +77,19 @@ export function MyItemsTable({ kind, items, loading, deletingId, onRemove }: Pro
   }
 
   /**
-   * «تبلیغ در دایرکتوری» — asks the admins to lift this item to the top of its
-   * own city/business slice of the directory. It shares the boost (پله) queue,
-   * so a pending directory request also disables the «بله» button.
+   * «تبلیغ در دایرکتوری» — a paid, targeted ad that lifts this item to the top
+   * of its own city/business slice of the directory with a «تبلیغات» tag. This
+   * is a separate product from «پله» (which re-pins the item as if it were
+   * brand-new), so it goes through the ads queue with `placement=DIRECTORY`.
    */
   async function requestDirectoryAd(item: Row) {
     setBusy(`dir:${item.id}`);
     setError(null);
     try {
-      await api.post('/boosts/request', {
+      await api.post('/ads/request', {
         kind: apiKind,
         targetId: item.id,
-        feature: 'POLE',
+        placement: 'DIRECTORY',
         note: 'درخواست تبلیغ در صدر لیست دایرکتوری',
       });
       setDirectoryState((prev) => ({ ...prev, [item.id]: 'PENDING' }));

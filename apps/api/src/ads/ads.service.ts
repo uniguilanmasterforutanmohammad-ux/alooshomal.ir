@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  AdPlacement,
   AdTargetKind,
   BoostStatus,
   NotificationType,
@@ -213,12 +214,14 @@ export class AdsService {
         'برای ثبت تبلیغ، کارت/بیولینک باید تأیید و منتشر شده باشد',
       );
     }
+    const placement = dto.placement ?? AdPlacement.HOME;
 
     const existing = await this.prisma.adRequest.findFirst({
       where: {
         userId,
         kind: dto.kind,
         targetId: dto.targetId,
+        placement,
         status: BoostStatus.PENDING,
       },
     });
@@ -231,14 +234,21 @@ export class AdsService {
         userId,
         kind: dto.kind,
         targetId: dto.targetId,
+        placement,
         note: dto.note ?? null,
       },
     });
 
     await this.notifications.notifyAdmins({
       category: 'AD',
-      title: 'درخواست تبلیغ جدید',
-      body: `درخواست تبلیغ «${target.fullName}» برای نمایش در صفحه اصلی ثبت شد.`,
+      title:
+        placement === AdPlacement.DIRECTORY
+          ? 'درخواست تبلیغ در دایرکتوری جدید'
+          : 'درخواست تبلیغ جدید',
+      body:
+        placement === AdPlacement.DIRECTORY
+          ? `درخواست تبلیغ «${target.fullName}» برای نمایش در صدر دایرکتوری همان شهر/کسب‌وکار ثبت شد.`
+          : `درخواست تبلیغ «${target.fullName}» برای نمایش در صفحه اصلی ثبت شد.`,
       type: NotificationType.INFO,
       link: '/admin?section=ads',
       actorId: userId,
@@ -273,6 +283,9 @@ export class AdsService {
       this.prisma.adRequest.findMany({
         where: {
           status: BoostStatus.APPROVED,
+          // Only home-page ads go in the home-page box; directory ads live in
+          // the directory slices instead.
+          placement: AdPlacement.HOME,
           AND: [
             { OR: [{ startedAt: null }, { startedAt: { lte: now } }] },
             { OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
@@ -296,8 +309,11 @@ export class AdsService {
   }
 
   /** Admin list with the optional status filter. */
-  async listRequests(status?: BoostStatus) {
-    const where: Prisma.AdRequestWhereInput = status ? { status } : {};
+  async listRequests(status?: BoostStatus, placement?: AdPlacement) {
+    const where: Prisma.AdRequestWhereInput = {
+      ...(status ? { status } : {}),
+      ...(placement ? { placement } : {}),
+    };
     const requests = await this.prisma.adRequest.findMany({
       where,
       include: {
@@ -333,19 +349,29 @@ export class AdsService {
 
     const approved = dto.status === BoostStatus.APPROVED;
     const now = new Date();
-    const [durationDays, slots] = await Promise.all([
+    const isDirectory = request.placement === AdPlacement.DIRECTORY;
+    const [durationDays, slots, directoryDurationDays] = await Promise.all([
       this.settings.getAdDurationDays(),
       this.settings.getAdDailySlots(),
+      this.settings.getAdDirectoryDurationDays(),
     ]);
 
-    // Approved ads are queued: they run for `durationDays` in one of the
+    // Directory ads are *not* queued in lanes: approving one lifts the target to
+    // the top of its own city+business slice for `adDirectoryDurationDays`.
+    // Home-page ads are queued: they run for `durationDays` in one of the
     // `slots` parallel lanes. When all lanes are busy the new ad is scheduled
     // to start automatically when the first lane frees up.
     let window: { startedAt: Date; endsAt: Date } | null = null;
-    if (approved) {
+    if (approved && isDirectory) {
+      window = {
+        startedAt: now,
+        endsAt: new Date(now.getTime() + directoryDurationDays * 86_400_000),
+      };
+    } else if (approved) {
       const active = await this.prisma.adRequest.findMany({
         where: {
           status: BoostStatus.APPROVED,
+          placement: AdPlacement.HOME,
           startedAt: { not: null },
           endsAt: { gt: now },
           id: { not: requestId },
@@ -363,16 +389,39 @@ export class AdsService {
       );
     }
 
-    const updated = await this.prisma.adRequest.update({
-      where: { id: requestId },
-      data: {
-        status: dto.status,
-        decidedAt: now,
-        decidedById: adminId,
-        adminNote: dto.adminNote ?? null,
-        startedAt: window?.startedAt ?? null,
-        endsAt: window?.endsAt ?? null,
-      },
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const saved = await tx.adRequest.update({
+        where: { id: requestId },
+        data: {
+          status: dto.status,
+          decidedAt: now,
+          decidedById: adminId,
+          adminNote: dto.adminNote ?? null,
+          startedAt: window?.startedAt ?? null,
+          endsAt: window?.endsAt ?? null,
+        },
+      });
+      if (approved && isDirectory && window) {
+        // Stamp the target's `adDirectoryUntil` so the directory services can
+        // pin it to the top of exactly its own city+business slice.
+        if (request.kind === AdTargetKind.BIOLINK) {
+          await tx.biolink.update({
+            where: { id: request.targetId },
+            data: { adDirectoryUntil: window.endsAt },
+          });
+        } else if (request.kind === AdTargetKind.BUSINESS_CARD) {
+          await tx.businessCard.update({
+            where: { id: request.targetId },
+            data: { adDirectoryUntil: window.endsAt },
+          });
+        } else {
+          await tx.feedPost.update({
+            where: { id: request.targetId },
+            data: { adDirectoryUntil: window.endsAt },
+          });
+        }
+      }
+      return saved;
     });
 
     const labels = await this.targetLabels([request]);
@@ -383,11 +432,17 @@ export class AdsService {
     await this.notifications.notify({
       userId: request.userId,
       type: approved ? NotificationType.SUCCESS : NotificationType.WARNING,
-      title: approved ? 'تبلیغ شما تأیید شد' : 'درخواست تبلیغ شما رد شد',
+      title: approved
+        ? isDirectory
+          ? 'تبلیغ در دایرکتوری شما تأیید شد'
+          : 'تبلیغ شما تأیید شد'
+        : 'درخواست تبلیغ شما رد شد',
       body: approved
-        ? queued && window
-          ? `تبلیغ «${label}» تأیید شد و از ${window.startedAt.toLocaleDateString('fa-IR')} تا ${window.endsAt.toLocaleDateString('fa-IR')} در صفحه اصلی نمایش داده می‌شود.`
-          : `تبلیغ «${label}» به‌مدت ${durationDays.toLocaleString('fa-IR')} روز در صفحه اصلی نمایش داده می‌شود.`
+        ? isDirectory && window
+          ? `تبلیغ «${label}» تأیید شد و تا ${window.endsAt.toLocaleDateString('fa-IR')} در صدر دایرکتوری همان شهر/کسب‌وکار نمایش داده می‌شود.`
+          : queued && window
+            ? `تبلیغ «${label}» تأیید شد و از ${window.startedAt.toLocaleDateString('fa-IR')} تا ${window.endsAt.toLocaleDateString('fa-IR')} در صفحه اصلی نمایش داده می‌شود.`
+            : `تبلیغ «${label}» به‌مدت ${durationDays.toLocaleString('fa-IR')} روز در صفحه اصلی نمایش داده می‌شود.`
         : `درخواست تبلیغ «${label}» رد شد.` +
           (dto.adminNote ? ` دلیل: ${dto.adminNote}` : ''),
       link: '/dashboard/ads',
@@ -403,6 +458,11 @@ export class AdsService {
 
     if (approved) {
       this.facetsCache.invalidate('ads:');
+      if (isDirectory) {
+        this.facetsCache.invalidate('dir:biolinks');
+        this.facetsCache.invalidate('dir:businesscards');
+        this.facetsCache.invalidate('dir:feeds');
+      }
     }
     return updated;
   }

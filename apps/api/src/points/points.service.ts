@@ -6,9 +6,9 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import {
+  AdPlacement,
   AdTargetKind,
   BoostStatus,
-  BoostTargetKind,
   NotificationType,
   RewardKind,
 } from '@prisma/client';
@@ -29,7 +29,7 @@ import {
 /**
  * Points («امتیاز») ledger + rewards. Users earn points for each approved
  * «نبض شهر» news item (value set by the admin) and redeem them for rewards the
- * admin defines — a paid subscription, a home-page ad, or a directory boost.
+ * admin defines — a paid subscription, a home-page ad, or a paid directory ad.
  *
  * Every balance change writes a `PointsLedger` row and updates
  * `User.pointsBalance` in the same transaction, so the running total can never
@@ -57,7 +57,7 @@ export class PointsService implements OnModuleInit {
 
   /**
    * Starter rewards mirroring the spec: Eco for 50 points, Plus for 150, a
-   * home-page ad for 300 and a directory boost for 250. Only created when the
+   * home-page ad for 300 and a directory ad for 250. Only created when the
    * catalogue is empty, so an admin's edits are never overwritten.
    */
   async ensureDefaultRewards(): Promise<void> {
@@ -296,31 +296,35 @@ export class PointsService implements OnModuleInit {
           },
         });
       } else if (reward.kind === RewardKind.AD_DIRECTORY && target) {
-        await tx.boostRequest.create({
+        // A directory ad is its own product: it lifts the item to the top of
+        // its own city+business slice with a «تبلیغات» tag for the admin-set
+        // duration — *not* a boost («پله»).
+        const directoryUntil = new Date(
+          now.getTime() +
+            (await this.settings.getAdDirectoryDurationDays()) * 86_400_000,
+        );
+        await tx.adRequest.create({
           data: {
             userId,
-            kind:
-              target.kind === AdTargetKind.BIOLINK
-                ? BoostTargetKind.BIOLINK
-                : BoostTargetKind.BUSINESS_CARD,
+            kind: target.kind,
             targetId: target.id,
+            placement: AdPlacement.DIRECTORY,
             status: BoostStatus.APPROVED,
             decidedAt: now,
+            startedAt: now,
+            endsAt: directoryUntil,
             adminNote: 'جایزه امتیاز',
           },
         });
-        const boostedUntil = new Date(
-          now.getTime() + (await this.settings.getBoostDurationDays()) * 86_400_000,
-        );
         if (target.kind === AdTargetKind.BIOLINK) {
           await tx.biolink.update({
             where: { id: target.id },
-            data: { boostedUntil },
+            data: { adDirectoryUntil: directoryUntil },
           });
         } else {
           await tx.businessCard.update({
             where: { id: target.id },
-            data: { boostedUntil },
+            data: { adDirectoryUntil: directoryUntil },
           });
         }
       }

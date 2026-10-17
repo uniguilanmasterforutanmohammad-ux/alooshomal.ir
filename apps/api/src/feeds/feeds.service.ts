@@ -154,8 +154,15 @@ export class FeedsService implements OnModuleInit {
       this.prisma.feedPost.findMany({
         where,
         include: feedPostInclude,
-        // boosted («پله») posts float to the top until `boostedUntil` lapses
-        orderBy: [{ boostedUntil: { sort: 'desc', nulls: 'last' } }, { pinnedAt: 'desc' }, { id: 'desc' }],
+        // Paid directory ads float above boosted («پله») posts, which in turn
+        // float above the plain chronological rows — each until its timestamp
+        // lapses.
+        orderBy: [
+          { adDirectoryUntil: { sort: 'desc', nulls: 'last' } },
+          { boostedUntil: { sort: 'desc', nulls: 'last' } },
+          { pinnedAt: 'desc' },
+          { id: 'desc' },
+        ],
         skip: (page - 1) * limit,
         take: limit,
       }),

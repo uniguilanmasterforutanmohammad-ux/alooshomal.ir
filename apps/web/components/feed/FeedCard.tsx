@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Heart, Images, MessageSquare, UserRound } from 'lucide-react';
 
+import { BoostBadge } from '@/components/ui/BoostBadge';
 import { cn } from '@/lib/utils';
 import type { FeedPost } from '@/lib/api';
 
@@ -24,6 +25,11 @@ function faDate(value: string) {
  */
 export function FeedCard({ post, compact = false }: Props) {
   const cover = post.images[0];
+  const now = new Date();
+  const directoryAd =
+    post.adDirectoryUntil && new Date(post.adDirectoryUntil) > now;
+  const boosted =
+    !directoryAd && post.boostedUntil && new Date(post.boostedUntil) > now;
   return (
     <Link
       href={`/feeds/${post.id}`}
@@ -54,6 +60,19 @@ export function FeedCard({ post, compact = false }: Props) {
           <span className="absolute start-2 top-2 rounded-full bg-brand/90 px-2 py-0.5 text-[10px] font-bold text-white">
             {post.topic.name}
           </span>
+        ) : null}
+        {directoryAd ? (
+          <BoostBadge
+            className="absolute bottom-2 end-2"
+            label="تبلیغات"
+            title="این پست تبلیغ هدفمند است و در صدر همین موضوع در دایرکتوری فیدها نمایش داده می‌شود"
+          />
+        ) : boosted ? (
+          <BoostBadge
+            className="absolute bottom-2 end-2"
+            label="پله"
+            title="این پست با «پله» به صدر دایرکتوری فیدها آورده شده است"
+          />
         ) : null}
       </div>
 

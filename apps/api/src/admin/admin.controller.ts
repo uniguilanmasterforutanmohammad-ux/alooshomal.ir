@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { BoostStatus, SubscriptionStatus } from '@prisma/client';
+import { AdPlacement, BoostStatus, SubscriptionStatus } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -278,9 +278,12 @@ export class AdminController {
   // ----- Ads (تبلیغات) -----
 
   @Get('ads')
-  @ApiOperation({ summary: 'درخواست‌های تبلیغ صفحه اصلی' })
-  ads(@Query('status') status?: BoostStatus) {
-    return this.adsService.listRequests(status);
+  @ApiOperation({ summary: 'درخواست‌های تبلیغ (صفحه اصلی یا دایرکتوری)' })
+  ads(
+    @Query('status') status?: BoostStatus,
+    @Query('placement') placement?: AdPlacement,
+  ) {
+    return this.adsService.listRequests(status, placement);
   }
 
   @Patch('ads/:id')

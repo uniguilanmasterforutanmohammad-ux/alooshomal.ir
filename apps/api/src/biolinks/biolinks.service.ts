@@ -35,6 +35,7 @@ interface DirectoryBiolinkItem {
   publishedAt: Date | null;
   pinnedAt: Date;
   boostedUntil: Date | null;
+  adDirectoryUntil: Date | null;
   likeCount: number;
 }
 
@@ -580,6 +581,7 @@ export class BiolinksService {
       publishedAt: true,
       pinnedAt: true,
       boostedUntil: true,
+      adDirectoryUntil: true,
       _count: { select: { likes: true } },
     } satisfies Prisma.BiolinkSelect;
 
@@ -591,46 +593,52 @@ export class BiolinksService {
     // promotion inside the exact slice of the directory the advertiser paid for.
     if (boostScopeMatches(cityId, businessId)) {
       const now = new Date();
+      // Paid directory ads sit above boosts, which sit above the plain
+      // chronological rows. Each group is fetched in its own order (enough
+      // rows to cover the requested page), then concatenated and sliced — so
+      // the page straddles the group boundaries cleanly.
+      const adWhere: Prisma.BiolinkWhereInput = {
+        ...where,
+        adDirectoryUntil: { gt: now },
+      };
       const boostedWhere: Prisma.BiolinkWhereInput = {
         ...where,
         boostedUntil: { gt: now },
+        OR: [{ adDirectoryUntil: null }, { adDirectoryUntil: { lte: now } }],
       };
-      const [boostedRows, total, boostedTotal] = await Promise.all([
+      const regularWhere: Prisma.BiolinkWhereInput = {
+        AND: [
+          where,
+          { OR: [{ adDirectoryUntil: null }, { adDirectoryUntil: { lte: now } }] },
+          { OR: [{ boostedUntil: null }, { boostedUntil: { lte: now } }] },
+        ],
+      };
+      const take = pageSize + skip;
+      const [adRows, boostedRows, regularRows, total] = await Promise.all([
+        this.prisma.biolink.findMany({
+          where: adWhere,
+          select,
+          orderBy: [{ adDirectoryUntil: 'desc' }, { id: 'desc' }],
+          take,
+        }),
         this.prisma.biolink.findMany({
           where: boostedWhere,
           select,
           orderBy: [{ boostedUntil: 'desc' }, { id: 'desc' }],
-          take: pageSize + skip,
+          take,
+        }),
+        this.prisma.biolink.findMany({
+          where: regularWhere,
+          select,
+          orderBy: biolinkOrderBy(sort),
+          take,
         }),
         this.prisma.biolink.count({ where }),
-        this.prisma.biolink.count({ where: boostedWhere }),
       ]);
 
-      // Boosted rows always come first, so the page slice may straddle the
-      // boosted/regular boundary. Fetch the regular rows for the remainder.
-      const fromBoosted = boostedRows.slice(skip, skip + pageSize);
-      const need = pageSize - fromBoosted.length;
-      const regularSkip = Math.max(0, skip - boostedTotal);
-      // `NOT: { boostedUntil: { gt: now } }` would also drop rows whose
-      // `boostedUntil` is NULL (SQL three-valued logic), so list the "not
-      // currently boosted" case explicitly instead.
-      const notBoosted: Prisma.BiolinkWhereInput = {
-        OR: [{ boostedUntil: null }, { boostedUntil: { lte: now } }],
-      };
-      const regularRows = need
-        ? await this.prisma.biolink.findMany({
-            where: { AND: [where, notBoosted] },
-            select,
-            orderBy: biolinkOrderBy(sort),
-            skip: regularSkip,
-            take: need,
-          })
-        : [];
-
-      const items = [...fromBoosted, ...regularRows].map(({ _count, ...item }) => ({
-        ...item,
-        likeCount: _count.likes,
-      }));
+      const items = [...adRows, ...boostedRows, ...regularRows]
+        .slice(skip, skip + pageSize)
+        .map(({ _count, ...item }) => ({ ...item, likeCount: _count.likes }));
       return { items, total };
     }
 
@@ -645,11 +653,12 @@ export class BiolinksService {
       this.prisma.biolink.count({ where }),
     ]);
 
-    // Outside the city+business slice a boost must not advertise itself, so the
-    // public row drops `boostedUntil` and the client shows no tag.
+    // Outside the city+business slice a promotion must not advertise itself, so
+    // the public row drops both timestamps and the client shows no tag.
     const items = rows.map(({ _count, ...item }) => ({
       ...item,
       boostedUntil: null,
+      adDirectoryUntil: null,
       likeCount: _count.likes,
     }));
     return { items, total };

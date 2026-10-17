@@ -17,8 +17,14 @@ interface Props {
 
 export function DirectoryBusinessCardItem({ businessCard, selected, onSelect }: Props) {
   const initials = businessCard.fullName.trim().slice(0, 1);
+  const now = new Date();
+  const directoryAd =
+    businessCard.adDirectoryUntil &&
+    new Date(businessCard.adDirectoryUntil) > now;
   const boosted =
-    businessCard.boostedUntil && new Date(businessCard.boostedUntil) > new Date();
+    !directoryAd &&
+    businessCard.boostedUntil &&
+    new Date(businessCard.boostedUntil) > now;
 
   return (
     <div
@@ -38,11 +44,17 @@ export function DirectoryBusinessCardItem({ businessCard, selected, onSelect }: 
           : 'border-s-transparent hover:border-s-brand/50 hover:shadow-sm',
       )}
     >
-      {boosted ? (
+      {directoryAd ? (
         <BoostBadge
           className="absolute end-3 top-3"
           label="تبلیغات"
-          title="این کارت ویزیت تبلیغ است و در همین دسته‌بندی شهر و کسب‌وکار در صدر لیست نمایش داده می‌شود"
+          title="این کارت ویزیت تبلیغ هدفمند است و در همین دسته‌بندی شهر و کسب‌وکار در صدر لیست نمایش داده می‌شود"
+        />
+      ) : boosted ? (
+        <BoostBadge
+          className="absolute end-3 top-3"
+          label="پله"
+          title="این کارت ویزیت با «پله» به صدر لیست همین دسته‌بندی شهر و کسب‌وکار آورده شده است"
         />
       ) : null}
       <div className="flex items-start gap-3">

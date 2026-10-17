@@ -20,7 +20,68 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.47.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.48.0**.
+
+## ۱۴۰۵/۰۷/۲۵ — جداسازی «تبلیغ در دایرکتوری» (تبلیغ هدفمند مدت‌دار) از «پله» — نسخه `v2.48.0`
+
+**هدف:** از چهار مدل درآمدی، مدل «تبلیغ در دایرکتوری» به‌اشتباه با «پله» یکی
+گرفته شده بود. «پله» مورد را مثل تازه‌ساخته‌شده به صدر می‌آورد، اما «تبلیغ در
+دایرکتوری» یک محصول مستقل است: پرداختی، هدفمند و مدت‌دار (مدت را ادمین تعیین
+می‌کند)؛ فقط وقتی بازدیدکننده هم شهر و هم کسب‌وکار را فیلتر می‌کند، مورد تبلیغ‌شده
+با نشان **«تبلیغات»** بالای همه می‌نشیند. «پله» نشان **«پله»** دارد و از آن جداست.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن enum `AdPlacement { HOME, DIRECTORY }`؛
+  افزودن `placement` به `AdRequest` (پیش‌فرض `HOME`) با ایندکس
+  `[placement, targetId]`؛ افزودن `adDirectoryUntil DateTime?` به `Biolink`،
+  `BusinessCard` و `FeedPost`.
+- `apps/api/src/settings/settings.service.ts` و `settings.controller.ts`: کلید
+  `adDirectoryDurationDays` (پیش‌فرض ۳۰ روز) + getter/setter و اعتبارسنجی DTO.
+- `apps/api/src/ads/dto/create-ad.dto.ts`: فیلد اختیاری `placement`.
+- `apps/api/src/ads/ads.service.ts`: `create` جداسازی صف بر اساس `placement` و
+  متن اعلان متفاوت؛ `decide` برای تبلیغ دایرکتوری پنجره‌ی فوری (بدون صف لِین)
+  با مدت ادمین و مهر `adDirectoryUntil` روی هدف در یک تراکنش؛ `computeActiveAd`
+  فقط تبلیغ‌های `HOME` را برمی‌گرداند؛ `listRequests(status, placement)`؛
+  باطل‌کردن کش دایرکتوری‌ها هنگام تأیید تبلیغ دایرکتوری.
+- `apps/api/src/admin/admin.controller.ts`: افزودن کوئری `placement` به
+  `GET /admin/ads`.
+- `apps/api/src/biolinks/biolinks.service.ts` و
+  `business-cards.service.ts`: در حالت فیلتر دقیق شهر+کسب‌وکار سه گروه
+  (تبلیغ > پله > عادی) جداگانه واکشی و به‌ترتیب چیده می‌شوند؛ بیرون از آن برش،
+  `adDirectoryUntil`/`boostedUntil` صفر می‌شوند.
+- `apps/api/src/feeds/feeds.service.ts`: ترتیب دایرکتوری فید
+  `adDirectoryUntil` → `boostedUntil` → `pinnedAt` → `id`.
+- `apps/api/src/boosts/boosts.service.ts`: افزودن `adDirectoryUntil` به select و
+  بازگرداندن `directoryAdStatus` جدا از `adStatus` (کلید `kind:id`).
+- `apps/api/src/points/points.service.ts`: اصلاح مسیر جایزه‌ی امتیازی
+  `AD_DIRECTORY` — پیش‌تر «پله» می‌داد، حالا یک `AdRequest` با
+  `placement=DIRECTORY` و مهر `adDirectoryUntil` به‌مدت ادمین می‌سازد.
+- `apps/web/lib/api.ts`: افزودن `placement` به `AdRequest` و
+  `adDirectoryUntil`/`directoryAdStatus` به تایپ‌های مربوطه.
+- `apps/web/components/biolink/DirectoryBiolinkItem.tsx` و
+  `businesscard/DirectoryBusinessCardItem.tsx` و `feed/FeedCard.tsx`: نشان
+  «تبلیغات» برای تبلیغ دایرکتوری و نشان «پله» برای پله.
+- `apps/web/components/dashboard/BoostTable.tsx` و `MyItemsTable.tsx`: افزودن
+  دکمه‌ی «تبلیغ در دایرکتوری» با `POST /ads/request {placement:'DIRECTORY'}`؛
+  تغییر برچسب «تبلیغ صفحه اول» به «تبلیغ در صفحه اول» و «پله (تبلیغ دایرکتوری)»
+  به «پله».
+- `apps/web/components/admin/AdminAds.tsx`: تب «دایرکتوری» حالا تبلیغ‌های
+  واقعی `placement=DIRECTORY` را جدولی نشان می‌دهد (پله بخش ادمین مستقل خود را
+  دارد)؛ افزودن فیلد تنظیمات مدت تبلیغ دایرکتوری.
+- `apps/web/app/dashboard/boost/page.tsx`: به‌روزرسانی متن معرفی سه گزینه.
+- `apps/web/lib/version.ts`: نسخه به `v2.48.0`.
+
+**تأیید/تست:**
+- `tsc --noEmit` روی `apps/api` و `apps/web` → بدون خطا.
+- `prisma generate` + `prisma db push` موفق؛ دیتابیس هم‌گام.
+- API: درخواست تبلیغ دایرکتوری → `PENDING` با `placement=DIRECTORY`؛ تأیید ادمین
+  → `adDirectoryUntil` به‌اندازه‌ی ۳۰ روز و `boostedUntil` دست‌نخورده.
+  `GET /biolinks/public?cityId=..&businessId=..` مورد تبلیغ‌شده را ایندکس ۰
+  برگرداند و در لیست بدون فیلتر دیده نشد؛ باکس تبلیغ صفحه اصلی
+  (`/ads/public/active`) تبلیغ دایرکتوری را نشان نداد.
+- Playwright: نشان‌های «تبلیغات» و «پله» در دایرکتوری `/biolinks`، سه دکمه در
+  `/dashboard/boost` و جدول تب دایرکتوری در پنل ادمین رندر شدند.
+- داده‌های تست (بیولینک، درخواست تبلیغ، اعلان‌ها) و اسکریپت‌های موقت پاک شدند.
 
 ## ۱۴۰۵/۰۷/۲۵ — فیدها: آپلود پس‌زمینه تصویر + ارتقای اشتراک — نسخه `v2.47.0`
 

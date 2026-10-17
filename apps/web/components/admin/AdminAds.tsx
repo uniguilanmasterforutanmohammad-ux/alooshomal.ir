@@ -6,7 +6,6 @@ import { Check, Megaphone, Save, X } from 'lucide-react';
 import { api, type AdRequest } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { AdminDataTable, type AdminColumn } from './AdminDataTable';
-import { AdminBoosts } from './AdminBoosts';
 
 type Tab = 'home' | 'directory' | 'settings';
 
@@ -37,18 +36,21 @@ function kindLabel(kind: AdRequest['kind']) {
 interface SettingsPayload {
   adDurationDays: number;
   adDailySlots: number;
+  adDirectoryDurationDays: number;
 }
 
 /**
  * Admin «تبلیغات» panel with three tabs: home-page ad approvals, directory ads
- * («پله» — requests to lift an item to the top of its directory slice) and the
- * settings controlling how long each home ad runs and how many rotate per day.
+ * (paid «تبلیغ در دایرکتوری» placement — distinct from the free/quota «پله»)
+ * and the settings controlling how long each ad runs.
  */
 export function AdminAds() {
   const [tab, setTab] = useState<Tab>('home');
   const [status, setStatus] = useState('PENDING');
   const [requests, setRequests] = useState<AdRequest[]>([]);
+  const [directoryRequests, setDirectoryRequests] = useState<AdRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [directoryLoading, setDirectoryLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -56,7 +58,9 @@ export function AdminAds() {
     setLoading(true);
     setError(null);
     try {
-      setRequests(await api.get<AdRequest[]>(`/admin/ads?status=${status}`));
+      setRequests(
+        await api.get<AdRequest[]>(`/admin/ads?status=${status}&placement=HOME`),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری');
     } finally {
@@ -64,16 +68,36 @@ export function AdminAds() {
     }
   }, [status]);
 
+  const loadDirectory = useCallback(async () => {
+    setDirectoryLoading(true);
+    setError(null);
+    try {
+      setDirectoryRequests(
+        await api.get<AdRequest[]>(
+          `/admin/ads?status=${status}&placement=DIRECTORY`,
+        ),
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'خطا در بارگذاری');
+    } finally {
+      setDirectoryLoading(false);
+    }
+  }, [status]);
+
   useEffect(() => {
-    if (tab !== 'home') return;
-    void load();
-  }, [tab, load]);
+    if (tab === 'home') void load();
+    if (tab === 'directory') void loadDirectory();
+  }, [tab, load, loadDirectory]);
 
   async function decide(id: string, decision: 'APPROVED' | 'REJECTED') {
     setBusyId(id);
     try {
       await api.patch(`/admin/ads/${id}`, { status: decision });
-      await load();
+      if (tab === 'directory') {
+        await loadDirectory();
+      } else {
+        await load();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در ثبت تصمیم');
     } finally {
@@ -210,11 +234,9 @@ export function AdminAds() {
         ))}
       </div>
 
-      {tab === 'directory' ? <AdminBoosts /> : null}
-
       {tab === 'settings' ? <AdminAdSettings /> : null}
 
-      {tab === 'home' ? (
+      {tab === 'home' || tab === 'directory' ? (
         <div className="flex flex-col gap-3">
           {error ? (
             <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
@@ -237,12 +259,18 @@ export function AdminAds() {
             ))}
           </div>
 
-          {loading ? (
+          <p className="text-xs text-muted">
+            {tab === 'directory'
+              ? 'این تبلیغ هدفمند است: پس از تأیید، مورد انتخابی با نشان «تبلیغات» به صدر دایرکتوری همان شهر/کسب‌وکار منتقل می‌شود.'
+              : 'این تبلیغ در کادر چرخشی صفحه اصلی نمایش داده می‌شود.'}
+          </p>
+
+          {(tab === 'home' ? loading : directoryLoading) ? (
             <p className="text-muted">در حال بارگذاری...</p>
           ) : (
             <AdminDataTable
               columns={columns}
-              rows={requests}
+              rows={tab === 'home' ? requests : directoryRequests}
               rowKey={(request) => request.id}
               empty="درخواست تبلیغی در این وضعیت وجود ندارد."
               minWidthClass="min-w-[62rem]"
@@ -258,6 +286,7 @@ export function AdminAds() {
 function AdminAdSettings() {
   const [duration, setDuration] = useState('');
   const [slots, setSlots] = useState('');
+  const [directoryDuration, setDirectoryDuration] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -270,6 +299,7 @@ function AdminAdSettings() {
       const result = await api.get<SettingsPayload>('/admin/settings');
       setDuration(String(result.adDurationDays));
       setSlots(String(result.adDailySlots));
+      setDirectoryDuration(String(result.adDirectoryDurationDays));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری تنظیمات');
     } finally {
@@ -293,6 +323,15 @@ function AdminAdSettings() {
       setError('تعداد تبلیغ در روز باید بین ۱ تا ۲۰ باشد');
       return;
     }
+    const parsedDirectoryDuration = Number(directoryDuration);
+    if (
+      !Number.isInteger(parsedDirectoryDuration) ||
+      parsedDirectoryDuration < 1 ||
+      parsedDirectoryDuration > 365
+    ) {
+      setError('مدت تبلیغ در دایرکتوری باید بین ۱ تا ۳۶۵ روز باشد');
+      return;
+    }
     setBusy(true);
     setError(null);
     setMessage(null);
@@ -300,9 +339,11 @@ function AdminAdSettings() {
       const result = await api.patch<SettingsPayload>('/admin/settings', {
         adDurationDays: parsedDuration,
         adDailySlots: parsedSlots,
+        adDirectoryDurationDays: parsedDirectoryDuration,
       });
       setDuration(String(result.adDurationDays));
       setSlots(String(result.adDailySlots));
+      setDirectoryDuration(String(result.adDirectoryDurationDays));
       setMessage('تنظیمات تبلیغات ذخیره شد.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره تنظیمات ناموفق بود');
@@ -346,6 +387,17 @@ function AdminAdSettings() {
               value={slots}
               onChange={(event) => setSlots(event.target.value)}
               className="w-40 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-bold text-muted">
+            مدت نمایش تبلیغ در دایرکتوری (روز)
+            <input
+              type="number"
+              min={1}
+              max={365}
+              value={directoryDuration}
+              onChange={(event) => setDirectoryDuration(event.target.value)}
+              className="w-48 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand"
             />
           </label>
           <button

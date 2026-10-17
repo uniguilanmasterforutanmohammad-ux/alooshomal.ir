@@ -17,7 +17,11 @@ interface Props {
 
 export function DirectoryBiolinkItem({ biolink, selected, onSelect }: Props) {
   const initials = biolink.fullName.trim().slice(0, 1);
-  const boosted = biolink.boostedUntil && new Date(biolink.boostedUntil) > new Date();
+  const now = new Date();
+  const directoryAd =
+    biolink.adDirectoryUntil && new Date(biolink.adDirectoryUntil) > now;
+  const boosted =
+    !directoryAd && biolink.boostedUntil && new Date(biolink.boostedUntil) > now;
 
   return (
     <div
@@ -37,11 +41,17 @@ export function DirectoryBiolinkItem({ biolink, selected, onSelect }: Props) {
           : 'border-s-transparent hover:border-s-brand/50 hover:shadow-sm',
       )}
     >
-      {boosted ? (
+      {directoryAd ? (
         <BoostBadge
           className="absolute end-3 top-3"
           label="تبلیغات"
-          title="این بیولینک تبلیغ است و در همین دسته‌بندی شهر و کسب‌وکار در صدر لیست نمایش داده می‌شود"
+          title="این بیولینک تبلیغ هدفمند است و در همین دسته‌بندی شهر و کسب‌وکار در صدر لیست نمایش داده می‌شود"
+        />
+      ) : boosted ? (
+        <BoostBadge
+          className="absolute end-3 top-3"
+          label="پله"
+          title="این بیولینک با «پله» به صدر لیست همین دسته‌بندی شهر و کسب‌وکار آورده شده است"
         />
       ) : null}
       <div className="flex items-start gap-3">

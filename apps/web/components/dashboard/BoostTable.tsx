@@ -81,6 +81,9 @@ export function BoostTable({
   const [busy, setBusy] = useState<string | null>(null);
   const [localBoost, setLocalBoost] = useState<Record<string, BoostStatus>>({});
   const [localAd, setLocalAd] = useState<Record<string, BoostStatus>>({});
+  const [localDirectoryAd, setLocalDirectoryAd] = useState<
+    Record<string, BoostStatus>
+  >({});
 
   const rows: BoostTargetItem[] =
     tab === 'biolinks'
@@ -121,6 +124,30 @@ export function BoostTable({
       onReload();
     } catch (err) {
       onError(err instanceof Error ? err.message : 'ثبت درخواست تبلیغ ناموفق بود');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /** «تبلیغ در دایرکتوری» — a paid, targeted ad (distinct from «پله»). */
+  async function requestDirectoryAd(item: BoostTargetItem) {
+    const kind = TAB_KIND[tab];
+    setBusy(`dir:${item.id}`);
+    onError(null);
+    onMessage(null);
+    try {
+      await api.post('/ads/request', {
+        kind,
+        targetId: item.id,
+        placement: 'DIRECTORY',
+      });
+      setLocalDirectoryAd((prev) => ({ ...prev, [`${kind}:${item.id}`]: 'PENDING' }));
+      onMessage(
+        'درخواست تبلیغ در دایرکتوری ثبت شد. پس از تأیید مدیر در صدر لیست همان شهر/کسب‌وکار نمایش داده می‌شود.',
+      );
+      onReload();
+    } catch (err) {
+      onError(err instanceof Error ? err.message : 'ثبت درخواست تبلیغ دایرکتوری ناموفق بود');
     } finally {
       setBusy(null);
     }
@@ -194,7 +221,15 @@ export function BoostTable({
                   localBoost[key] ?? request?.status ?? null;
                 const adStatus = localAd[key] ?? item.adStatus ?? null;
                 const boostedUntil = item.boostedUntil ? new Date(item.boostedUntil) : null;
-                const isBoosted = boostedUntil && boostedUntil > new Date();
+                const directoryAdStatus =
+                  localDirectoryAd[key] ?? item.directoryAdStatus ?? null;
+                const adDirectoryUntil = item.adDirectoryUntil
+                  ? new Date(item.adDirectoryUntil)
+                  : null;
+                const isDirectoryAd =
+                  adDirectoryUntil && adDirectoryUntil > new Date();
+                const isBoosted =
+                  !isDirectoryAd && boostedUntil && boostedUntil > new Date();
                 const rank = item.rank?.rank ?? null;
                 const rankPage = item.rank?.page ?? null;
                 return (
@@ -207,7 +242,14 @@ export function BoostTable({
                         <span className="min-w-0 truncate font-bold text-ink">
                           {item.fullName}
                         </span>
-                        {isBoosted ? <BoostBadge /> : null}
+                        {isDirectoryAd ? (
+                          <BoostBadge
+                            label="تبلیغات"
+                            title="این مورد تبلیغ هدفمند در دایرکتوری است"
+                          />
+                        ) : isBoosted ? (
+                          <BoostBadge />
+                        ) : null}
                       </div>
                     </td>
                     <td className="px-3 py-3">
@@ -261,7 +303,7 @@ export function BoostTable({
                           type="button"
                           disabled={busy === `boost:${item.id}` || boostStatus === 'PENDING' || !item.isPublished}
                           onClick={() => requestBoost(item)}
-                          title={!item.isPublished ? 'فقط موارد منتشرشده قابل پله هستند' : 'درخواست تبلیغ در دایرکتوری'}
+                          title={!item.isPublished ? 'فقط موارد منتشرشده قابل پله هستند' : 'درخواست پله (رسیدن به صدر لیست دایرکتوری)'}
                           className={cn(
                             'indeed-btn py-1.5 text-xs',
                             boostStatus === 'PENDING'
@@ -274,7 +316,34 @@ export function BoostTable({
                             ? 'پله: در انتظار'
                             : boostStatus === 'APPROVED'
                               ? BOOST_STATUS_LABELS.APPROVED
-                              : 'پله (تبلیغ دایرکتوری)'}
+                              : 'پله'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={
+                            busy === `dir:${item.id}` ||
+                            directoryAdStatus === 'PENDING' ||
+                            !item.isPublished
+                          }
+                          onClick={() => requestDirectoryAd(item)}
+                          title={
+                            !item.isPublished
+                              ? 'فقط موارد منتشرشده قابل تبلیغ هستند'
+                              : 'درخواست تبلیغ در صدر لیست دایرکتوری شهر/کسب‌وکار'
+                          }
+                          className={cn(
+                            'indeed-btn py-1.5 text-xs',
+                            directoryAdStatus === 'PENDING'
+                              ? 'border border-amber-200 bg-amber-50 text-amber-600'
+                              : 'indeed-btn-secondary',
+                          )}
+                        >
+                          <ListOrdered className="size-3.5" aria-hidden />
+                          {directoryAdStatus === 'PENDING'
+                            ? 'دایرکتوری: در انتظار'
+                            : directoryAdStatus === 'APPROVED'
+                              ? 'تبلیغ دایرکتوری تأییدشده'
+                              : 'تبلیغ در دایرکتوری'}
                         </button>
                         <button
                           type="button"
@@ -293,7 +362,7 @@ export function BoostTable({
                             ? 'تبلیغ: در انتظار'
                             : adStatus === 'APPROVED'
                               ? 'تبلیغ تأییدشده'
-                              : 'تبلیغ صفحه اول'}
+                              : 'تبلیغ در صفحه اول'}
                         </button>
                       </div>
                     </td>

@@ -35,6 +35,7 @@ interface DirectoryBusinessCardItem {
   publishedAt: Date | null;
   pinnedAt: Date;
   boostedUntil: Date | null;
+  adDirectoryUntil: Date | null;
   likeCount: number;
 }
 
@@ -597,54 +598,61 @@ export class BusinessCardsService {
       publishedAt: true,
       pinnedAt: true,
       boostedUntil: true,
+      adDirectoryUntil: true,
       _count: { select: { likes: true } },
     } satisfies Prisma.BusinessCardSelect;
 
     const pageSize = limit;
     const skip = (page - 1) * pageSize;
 
-    // A boost only lifts an item when the visitor narrowed the list down to the
-    // item's own city *and* business — see `boostScopeMatches`.
+    // A promotion (paid directory ad or «پله») only lifts an item when the
+    // visitor narrowed the list down to the item's own city *and* business —
+    // see `boostScopeMatches`. Paid ads sit above boosts, which sit above the
+    // plain chronological rows.
     if (boostScopeMatches(cityId, businessId)) {
       const now = new Date();
+      const adWhere: Prisma.BusinessCardWhereInput = {
+        ...where,
+        adDirectoryUntil: { gt: now },
+      };
       const boostedWhere: Prisma.BusinessCardWhereInput = {
         ...where,
         boostedUntil: { gt: now },
+        OR: [{ adDirectoryUntil: null }, { adDirectoryUntil: { lte: now } }],
       };
-      const [boostedRows, total, boostedTotal] = await Promise.all([
+      const regularWhere: Prisma.BusinessCardWhereInput = {
+        AND: [
+          where,
+          { OR: [{ adDirectoryUntil: null }, { adDirectoryUntil: { lte: now } }] },
+          { OR: [{ boostedUntil: null }, { boostedUntil: { lte: now } }] },
+        ],
+      };
+      const take = pageSize + skip;
+      const [adRows, boostedRows, regularRows, total] = await Promise.all([
+        this.prisma.businessCard.findMany({
+          where: adWhere,
+          select,
+          orderBy: [{ adDirectoryUntil: 'desc' }, { id: 'desc' }],
+          take,
+        }),
         this.prisma.businessCard.findMany({
           where: boostedWhere,
           select,
           orderBy: [{ boostedUntil: 'desc' }, { id: 'desc' }],
-          take: pageSize + skip,
+          take,
+        }),
+        this.prisma.businessCard.findMany({
+          where: regularWhere,
+          select,
+          orderBy: businessCardOrderBy(sort),
+          take,
         }),
         this.prisma.businessCard.count({ where }),
-        this.prisma.businessCard.count({ where: boostedWhere }),
       ]);
 
-      const fromBoosted = boostedRows.slice(skip, skip + pageSize);
-      const need = pageSize - fromBoosted.length;
-      const regularSkip = Math.max(0, skip - boostedTotal);
-      // `NOT: { boostedUntil: { gt: now } }` would also drop rows whose
-      // `boostedUntil` is NULL (SQL three-valued logic), so list the "not
-      // currently boosted" case explicitly instead.
-      const notBoosted: Prisma.BusinessCardWhereInput = {
-        OR: [{ boostedUntil: null }, { boostedUntil: { lte: now } }],
-      };
-      const regularRows = need
-        ? await this.prisma.businessCard.findMany({
-            where: { AND: [where, notBoosted] },
-            select,
-            orderBy: businessCardOrderBy(sort),
-            skip: regularSkip,
-            take: need,
-          })
-        : [];
-
-      const items = [...fromBoosted, ...regularRows].map(({ _count, ...item }) => ({
-        ...item,
-        likeCount: _count.likes,
-      }));
+      const items = [...adRows, ...boostedRows, ...regularRows]
+        .slice(skip, skip + pageSize)
+        .map(({ _count, ...item }) => ({ ...item, likeCount: _count.likes }));
       return { items, total };
     }
 
@@ -659,10 +667,11 @@ export class BusinessCardsService {
       this.prisma.businessCard.count({ where }),
     ]);
 
-    // Outside the city+business slice a boost must not advertise itself.
+    // Outside the city+business slice a promotion must not advertise itself.
     const items = rows.map(({ _count, ...item }) => ({
       ...item,
       boostedUntil: null,
+      adDirectoryUntil: null,
       likeCount: _count.likes,
     }));
     return { items, total };

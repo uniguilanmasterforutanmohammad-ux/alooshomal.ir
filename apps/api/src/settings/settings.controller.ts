@@ -91,6 +91,13 @@ class UpdateSettingsDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @Min(1)
+  @Max(365)
+  adDirectoryDurationDays?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
   @Min(0)
   @Max(100000)
   pointsPerNews?: number;
@@ -160,6 +167,8 @@ export class AdminSettingsController {
       adDurationDays: await this.settingsService.getAdDurationDays(),
       adDailySlots: await this.settingsService.getAdDailySlots(),
       boostDurationDays: await this.settingsService.getBoostDurationDays(),
+      adDirectoryDurationDays:
+        await this.settingsService.getAdDirectoryDurationDays(),
       pointsPerNews: await this.settingsService.getPointsPerNews(),
       feedMaxImages: await this.settingsService.getFeedMaxImages(),
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
@@ -184,6 +193,7 @@ export class AdminSettingsController {
       adDurationDays?: number;
       adDailySlots?: number;
       boostDurationDays?: number;
+      adDirectoryDurationDays?: number;
       pointsPerNews?: number;
       feedMaxImages?: number;
       feedMaxImageKb?: number;
@@ -262,6 +272,12 @@ export class AdminSettingsController {
       result.boostDurationDays = await this.settingsService.setBoostDurationDays(
         dto.boostDurationDays,
       );
+    }
+    if (dto.adDirectoryDurationDays !== undefined) {
+      result.adDirectoryDurationDays =
+        await this.settingsService.setAdDirectoryDurationDays(
+          dto.adDirectoryDurationDays,
+        );
     }
     if (dto.pointsPerNews !== undefined) {
       result.pointsPerNews = await this.settingsService.setPointsPerNews(

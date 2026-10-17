@@ -43,6 +43,14 @@ export const DEFAULT_AD_DAILY_SLOTS = 1;
 export const BOOST_DURATION_DAYS_KEY = 'boostDurationDays';
 export const DEFAULT_BOOST_DURATION_DAYS = 7;
 
+/**
+ * How many days an approved «تبلیغ در دایرکتوری» keeps an item at the top of
+ * its city+business directory slice. This is a paid, targeted ad — distinct
+ * from a free/quota-based «پله».
+ */
+export const AD_DIRECTORY_DURATION_DAYS_KEY = 'adDirectoryDurationDays';
+export const DEFAULT_AD_DIRECTORY_DURATION_DAYS = 30;
+
 // ---------------------------------------------------------------------------
 //  «امتیاز» (points) — earned by approved «نبض شهر» news, spent on rewards
 // ---------------------------------------------------------------------------
@@ -246,6 +254,14 @@ export class SettingsService implements OnModuleInit {
         create: {
           key: BOOST_DURATION_DAYS_KEY,
           value: String(DEFAULT_BOOST_DURATION_DAYS),
+        },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: AD_DIRECTORY_DURATION_DAYS_KEY },
+        update: {},
+        create: {
+          key: AD_DIRECTORY_DURATION_DAYS_KEY,
+          value: String(DEFAULT_AD_DIRECTORY_DURATION_DAYS),
         },
       }),
       this.prisma.setting.upsert({
@@ -609,6 +625,27 @@ export class SettingsService implements OnModuleInit {
       where: { key: BOOST_DURATION_DAYS_KEY },
       update: { value: String(clamped) },
       create: { key: BOOST_DURATION_DAYS_KEY, value: String(clamped) },
+    });
+    return clamped;
+  }
+
+  /** How many days an approved directory ad keeps an item at the top. */
+  async getAdDirectoryDurationDays(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: AD_DIRECTORY_DURATION_DAYS_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 1 && parsed <= 365
+      ? Math.floor(parsed)
+      : DEFAULT_AD_DIRECTORY_DURATION_DAYS;
+  }
+
+  async setAdDirectoryDurationDays(value: number): Promise<number> {
+    const clamped = Math.min(365, Math.max(1, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: AD_DIRECTORY_DURATION_DAYS_KEY },
+      update: { value: String(clamped) },
+      create: { key: AD_DIRECTORY_DURATION_DAYS_KEY, value: String(clamped) },
     });
     return clamped;
   }
