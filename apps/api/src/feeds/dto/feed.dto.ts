@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
-  ArrayMinSize,
   IsArray,
   IsOptional,
   IsString,
@@ -19,7 +18,6 @@ export class CreateFeedPostDto {
 
   @ApiProperty({ description: 'آدرس تصاویر آپلودشده (به ترتیب نمایش)' })
   @IsArray()
-  @ArrayMinSize(1)
   @ArrayMaxSize(20)
   @IsString({ each: true })
   images!: string[];

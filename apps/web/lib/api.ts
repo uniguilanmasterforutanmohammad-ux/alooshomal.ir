@@ -809,5 +809,9 @@ export interface FeedMineOverview {
   posts: FeedPost[];
   topics: FeedTopic[];
   active: FeedSubscription | null;
+  /** set when the active subscription is inside its window but out of quota */
+  exhausted: FeedSubscription | null;
+  /** packages the user may switch to right now (a strict upgrade when exhausted) */
+  upgradePackageIds: string[];
   limits: { maxImages: number; maxImageKb: number };
 }

@@ -280,6 +280,12 @@ export class FeedsService implements OnModuleInit {
       })),
       topics,
       active: this.activeSubscription(subscriptions),
+      // When the current subscription is still active but its quota is used up,
+      // the user may *upgrade* to a bigger package. `exhausted` drives the
+      // «ارتقا» panel; `upgradePackageIds` are the only packages they may pick
+      // (strictly larger quota, so the subscription can only go up).
+      exhausted: this.exhaustedSubscription(subscriptions, posts.length),
+      upgradePackageIds: this.upgradePackageIds(subscriptions, posts.length, packages),
       limits: { maxImages, maxImageKb },
     };
   }
@@ -386,6 +392,61 @@ export class FeedsService implements OnModuleInit {
     );
   }
 
+  /**
+   * The subscription whose quota is used up while it is still inside its paid
+   * window. That is the state where the user may only *upgrade* (never buy a
+   * smaller/equal package).
+   */
+  private exhaustedSubscription(
+    subscriptions: Array<{
+      id: string;
+      status: SubscriptionStatus;
+      expiresAt: Date | null;
+      postsUsed: number;
+      package?: { id: string; name: string; postsQuota: number } | null;
+    }>,
+    postCount: number,
+  ) {
+    const now = new Date();
+    return (
+      subscriptions.find((sub) => {
+        if (
+          sub.status !== SubscriptionStatus.ACTIVE ||
+          !sub.expiresAt ||
+          sub.expiresAt <= now
+        ) {
+          return false;
+        }
+        const quota = sub.package?.postsQuota ?? 0;
+        return sub.postsUsed >= quota || postCount >= quota;
+      }) ?? null
+    );
+  }
+
+  /**
+   * Package ids the user is allowed to switch to right now. With an exhausted
+   * active subscription only strictly bigger packages qualify (an upgrade);
+   * otherwise every active package is a valid first-time purchase.
+   */
+  private upgradePackageIds(
+    subscriptions: Array<{
+      id: string;
+      status: SubscriptionStatus;
+      expiresAt: Date | null;
+      postsUsed: number;
+      package?: { id: string; name: string; postsQuota: number } | null;
+    }>,
+    postCount: number,
+    packages: Array<{ id: string; postsQuota: number }>,
+  ): string[] {
+    const current = this.exhaustedSubscription(subscriptions, postCount);
+    if (!current) return [];
+    const currentQuota = current.package?.postsQuota ?? 0;
+    return packages
+      .filter((pkg) => pkg.postsQuota > currentQuota)
+      .map((pkg) => pkg.id);
+  }
+
   /** Request a feed package (pending admin approval). */
   async requestSubscription(userId: string, packageId: string) {
     const pkg = await this.prisma.feedPackage.findUnique({ where: { id: packageId } });
@@ -398,12 +459,31 @@ export class FeedsService implements OnModuleInit {
     if (pending) {
       throw new BadRequestException('یک درخواست اشتراک فید در انتظار تأیید دارید');
     }
+
+    // When the user's current subscription has run out of quota, they may only
+    // move *up* to a package with a larger post quota.
+    const currentSubs = await this.prisma.userFeedSubscription.findMany({
+      where: { userId },
+      include: { package: { select: { id: true, name: true, postsQuota: true } } },
+      orderBy: { requestedAt: 'desc' },
+    });
+    const postCount = await this.prisma.feedPost.count({ where: { userId } });
+    const exhausted = this.exhaustedSubscription(currentSubs, postCount);
+    if (exhausted) {
+      const currentQuota = exhausted.package?.postsQuota ?? 0;
+      if (pkg.postsQuota <= currentQuota) {
+        throw new BadRequestException(
+          `ظرفیت اشتراک فعلی شما پر شده است؛ فقط ارتقا به بسته‌ای با ظرفیت بیشتر از ${currentQuota.toLocaleString('fa-IR')} پست مجاز است`,
+        );
+      }
+    }
+
     const created = await this.prisma.userFeedSubscription.create({
       data: { userId, packageId },
     });
     await this.notifications.notifyAdmins({
       category: 'FEED',
-      title: 'درخواست اشتراک فید جدید',
+      title: exhausted ? 'درخواست ارتقای اشتراک فید' : 'درخواست اشتراک فید جدید',
       body: `درخواست بسته «${pkg.name}» برای فید ثبت شد.`,
       type: NotificationType.INFO,
       link: '/admin?section=feeds',
@@ -696,6 +776,24 @@ export class FeedsService implements OnModuleInit {
     }
     const now = new Date();
     const approved = decision === SubscriptionStatus.ACTIVE;
+
+    // An *upgrade* is an approval given while another ACTIVE subscription is
+    // still inside its paid window. In that case the new package's quota must
+    // account for the posts the user already has, and its days start from now.
+    const existingActive = approved
+      ? await this.prisma.userFeedSubscription.findFirst({
+          where: {
+            userId: sub.userId,
+            status: SubscriptionStatus.ACTIVE,
+            id: { not: id },
+            expiresAt: { gt: now },
+          },
+        })
+      : null;
+    const existingPostCount = existingActive
+      ? await this.prisma.feedPost.count({ where: { userId: sub.userId } })
+      : 0;
+
     const updated = await this.prisma.userFeedSubscription.update({
       where: { id },
       data: {
@@ -707,13 +805,32 @@ export class FeedsService implements OnModuleInit {
         expiresAt: approved
           ? new Date(now.getTime() + sub.package.durationDays * 86_400_000)
           : null,
+        // On an upgrade keep counting the posts the user already published so
+        // the bigger package's quota is not consumed twice.
+        ...(existingActive ? { postsUsed: existingPostCount } : {}),
       },
     });
+
+    // Retire the previous active subscription so the upgraded one becomes the
+    // single source of truth for quota and expiry.
+    if (existingActive) {
+      await this.prisma.userFeedSubscription.update({
+        where: { id: existingActive.id },
+        data: { status: SubscriptionStatus.CANCELLED },
+      });
+    }
+
     await this.notifications.notify({
       userId: sub.userId,
-      title: approved ? 'اشتراک فید شما فعال شد' : 'درخواست اشتراک فید رد شد',
+      title: approved
+        ? existingActive
+          ? 'اشتراک فید شما ارتقا یافت'
+          : 'اشتراک فید شما فعال شد'
+        : 'درخواست اشتراک فید رد شد',
       body: approved
-        ? `بسته «${sub.package.name}» فعال شد و می‌توانید پست ثبت کنید.`
+        ? existingActive
+          ? `بسته «${sub.package.name}» فعال شد؛ ${existingPostCount.toLocaleString('fa-IR')} پست فعلی شما از سهمیه‌ی ${sub.package.postsQuota.toLocaleString('fa-IR')} تایی کسر شد.`
+          : `بسته «${sub.package.name}» فعال شد و می‌توانید پست ثبت کنید.`
         : `درخواست بسته «${sub.package.name}» رد شد.` +
           (adminNote ? ` دلیل: ${adminNote}` : ''),
       type: approved ? NotificationType.SUCCESS : NotificationType.WARNING,
