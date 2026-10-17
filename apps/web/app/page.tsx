@@ -3,6 +3,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { PulseSection } from '@/components/news/PulseSection';
 import { ReporterCtaButton } from '@/components/news/ReporterCtaButton';
+import { HomeSearchBox } from '@/components/home/HomeSearchBox';
 import {
   BadgeCheck,
   Link2,
@@ -56,6 +57,7 @@ export default function HomePage() {
               اطلاعات حرفه‌ای‌ات را یک‌بار وارد کن و در رویدادها تنها با یک QR یا لینک
               به اشتراک بگذار. بدون نیاز به نصب برنامه برای مخاطب.
             </p>
+            <HomeSearchBox />
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link
                 href="/login"
