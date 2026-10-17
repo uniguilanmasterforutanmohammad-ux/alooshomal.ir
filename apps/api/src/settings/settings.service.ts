@@ -44,6 +44,14 @@ export const BOOST_DURATION_DAYS_KEY = 'boostDurationDays';
 export const DEFAULT_BOOST_DURATION_DAYS = 7;
 
 // ---------------------------------------------------------------------------
+//  «امتیاز» (points) — earned by approved «نبض شهر» news, spent on rewards
+// ---------------------------------------------------------------------------
+
+/** Points credited to a reporter for each approved news item. */
+export const POINTS_PER_NEWS_KEY = 'pointsPerNews';
+export const DEFAULT_POINTS_PER_NEWS = 10;
+
+// ---------------------------------------------------------------------------
 //  «نبض شهر» news settings
 // ---------------------------------------------------------------------------
 
@@ -225,6 +233,14 @@ export class SettingsService implements OnModuleInit {
         create: {
           key: BOOST_DURATION_DAYS_KEY,
           value: String(DEFAULT_BOOST_DURATION_DAYS),
+        },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: POINTS_PER_NEWS_KEY },
+        update: {},
+        create: {
+          key: POINTS_PER_NEWS_KEY,
+          value: String(DEFAULT_POINTS_PER_NEWS),
         },
       }),
       ...ADMIN_NOTIFY_CATEGORIES.map((category) =>
@@ -564,6 +580,27 @@ export class SettingsService implements OnModuleInit {
       where: { key: BOOST_DURATION_DAYS_KEY },
       update: { value: String(clamped) },
       create: { key: BOOST_DURATION_DAYS_KEY, value: String(clamped) },
+    });
+    return clamped;
+  }
+
+  /** Points credited per approved «نبض شهر» news item. */
+  async getPointsPerNews(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: POINTS_PER_NEWS_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100000
+      ? Math.floor(parsed)
+      : DEFAULT_POINTS_PER_NEWS;
+  }
+
+  async setPointsPerNews(value: number): Promise<number> {
+    const clamped = Math.min(100000, Math.max(0, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: POINTS_PER_NEWS_KEY },
+      update: { value: String(clamped) },
+      create: { key: POINTS_PER_NEWS_KEY, value: String(clamped) },
     });
     return clamped;
   }

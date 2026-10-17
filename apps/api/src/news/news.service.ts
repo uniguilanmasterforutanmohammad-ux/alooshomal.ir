@@ -12,6 +12,7 @@ import {
 
 import { ActivityService } from '../activity/activity.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PointsService } from '../points/points.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { CreateNewsDto } from './dto/create-news.dto';
@@ -29,6 +30,7 @@ export class NewsService {
     private readonly notifications: NotificationsService,
     private readonly settings: SettingsService,
     private readonly activity: ActivityService,
+    private readonly points: PointsService,
   ) {}
 
   // ------------------------------------------------------------------
@@ -370,6 +372,11 @@ export class NewsService {
         link: '/dashboard/reporter',
         actorId: adminId,
       });
+      // Every approved news item credits the author's points balance (the
+      // per-news value is admin-configurable; the service is idempotent).
+      if (approved) {
+        await this.points.earnForNews(item.authorId, item.id);
+      }
     }
 
     await this.activity.log({
@@ -430,6 +437,10 @@ export class NewsService {
       entityType: 'NEWS',
       entityId: id,
     });
+    // A direct admin publish also credits the author (idempotent per item).
+    if (approved && updated.authorId) {
+      await this.points.earnForNews(updated.authorId, updated.id);
+    }
     return updated;
   }
 

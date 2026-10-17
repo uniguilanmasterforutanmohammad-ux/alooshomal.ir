@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
   BarChart3,
+  Coins,
   Crown,
   HardDrive,
   IdCard,
@@ -34,6 +35,7 @@ export type AdminSection =
   | 'subscriptions'
   | 'boosts'
   | 'ads'
+  | 'points'
   | 'users'
   | 'tickets'
   | 'reports'
@@ -57,6 +59,7 @@ const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboar
   { key: 'subscriptions', label: 'اشتراک‌ها', icon: Crown },
   { key: 'boosts', label: 'افزایش بازدید', icon: TrendingUp },
   { key: 'ads', label: 'تبلیغات', icon: Megaphone },
+  { key: 'points', label: 'امتیازها', icon: Coins },
   { key: 'users', label: 'کاربران', icon: Users },
   { key: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
   { key: 'news', label: 'نبض شهر', icon: Newspaper },

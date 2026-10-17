@@ -110,9 +110,15 @@ export default function HomePage() {
               <h2 className="text-base font-extrabold text-ink">شهروند خبرنگار شوید</h2>
               <p className="mt-1 text-sm text-muted">
                 خبرهای شهر خود را ثبت کنید تا پس از تأیید مدیر در «نبض شهر» منتشر شود.
+                {' '}با تأیید هر خبر، امتیاز بگیرید و آن را صرف اشتراک و تبلیغ کنید.
               </p>
             </div>
-            <ReporterCtaButton variant="primary" />
+            <div className="flex flex-wrap gap-2">
+              <ReporterCtaButton variant="primary" />
+              <Link href="/dashboard/points" className="indeed-btn indeed-btn-secondary py-2 text-sm">
+                مشاهده امتیازها
+              </Link>
+            </div>
           </div>
         </section>
 

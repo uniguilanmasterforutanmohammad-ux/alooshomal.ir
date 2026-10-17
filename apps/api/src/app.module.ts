@@ -17,6 +17,7 @@ import { BusinessCardsModule } from './businesscards/business-cards.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { NewsModule } from './news/news.module';
+import { PointsModule } from './points/points.module';
 import { ProfileModule } from './profile/profile.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
@@ -46,6 +47,7 @@ import { UsersModule } from './users/users.module';
     SettingsModule,
     NotificationsModule,
     NewsModule,
+    PointsModule,
     ProfileModule,
     AdminModule,
     TaxonomyModule,

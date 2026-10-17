@@ -14,6 +14,7 @@ import { AdminAuthSettings } from '@/components/admin/AdminAuthSettings';
 import { AdminSubscriptions } from '@/components/admin/AdminSubscriptions';
 import { AdminBoosts } from '@/components/admin/AdminBoosts';
 import { AdminAds } from '@/components/admin/AdminAds';
+import { AdminPoints } from '@/components/admin/AdminPoints';
 import { AdminNotificationSettings } from '@/components/admin/AdminNotificationSettings';
 import { NotificationsInbox } from '@/components/ui/NotificationsInbox';
 import { AdminNewsPanel } from '@/components/admin/AdminNewsPanel';
@@ -86,6 +87,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'subscriptions',
   'boosts',
   'ads',
+  'points',
   'users',
   'tickets',
   'news',
@@ -330,6 +332,7 @@ function AdminContent() {
     subscriptions: { title: 'اشتراک‌ها', sub: 'مدیریت بسته‌ها و تأیید درخواست کاربران' },
     boosts: { title: 'افزایش بازدید', sub: 'بررسی و تأیید درخواست‌های پله' },
     ads: { title: 'تبلیغات', sub: 'تأیید درخواست‌های تبلیغ و تنظیمات نمایش' },
+    points: { title: 'امتیازها', sub: 'مدیریت جوایز، امتیاز هر خبر و دریافت‌ها' },
     users: { title: 'کاربران', sub: 'لیست کاربران پلتفرم' },
     tickets: { title: 'تیکت‌ها', sub: 'مدیریت تیکت‌های پشتیبانی' },
     news: {
@@ -634,6 +637,8 @@ function AdminContent() {
       {section === 'boosts' ? <AdminBoosts /> : null}
 
       {section === 'ads' ? <AdminAds /> : null}
+
+      {section === 'points' ? <AdminPoints /> : null}
 
       {section === 'tickets' ? (
         <div className="flex flex-col gap-4">

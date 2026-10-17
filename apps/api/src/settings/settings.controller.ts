@@ -87,6 +87,13 @@ class UpdateSettingsDto {
   @Min(1)
   @Max(365)
   boostDurationDays?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100000)
+  pointsPerNews?: number;
 }
 const ADMIN_NOTIFY_CATEGORY_SET = new Set<string>(ADMIN_NOTIFY_CATEGORIES);
 const NEWS_ACCESS_LEVEL_SET = new Set<string>(NEWS_ACCESS_LEVELS);
@@ -137,6 +144,7 @@ export class AdminSettingsController {
       adDurationDays: await this.settingsService.getAdDurationDays(),
       adDailySlots: await this.settingsService.getAdDailySlots(),
       boostDurationDays: await this.settingsService.getBoostDurationDays(),
+      pointsPerNews: await this.settingsService.getPointsPerNews(),
       ...locks,
     };
   }
@@ -158,6 +166,7 @@ export class AdminSettingsController {
       adDurationDays?: number;
       adDailySlots?: number;
       boostDurationDays?: number;
+      pointsPerNews?: number;
     } = {};
     if (dto.directoryPageSize !== undefined) {
       result.directoryPageSize = await this.settingsService.setDirectoryPageSize(
@@ -232,6 +241,11 @@ export class AdminSettingsController {
     if (dto.boostDurationDays !== undefined) {
       result.boostDurationDays = await this.settingsService.setBoostDurationDays(
         dto.boostDurationDays,
+      );
+    }
+    if (dto.pointsPerNews !== undefined) {
+      result.pointsPerNews = await this.settingsService.setPointsPerNews(
+        dto.pointsPerNews,
       );
     }
     return result;

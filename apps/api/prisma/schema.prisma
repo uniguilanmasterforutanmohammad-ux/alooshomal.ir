@@ -82,6 +82,16 @@ enum AdTargetKind {
   BIOLINK
 }
 
+/// What a points reward gives the user once redeemed.
+enum RewardKind {
+  /// grants a subscription plan (see `planId`)
+  SUBSCRIPTION
+  /// features one of the user's cards/biolinks in the home-page ad box
+  AD_HOME
+  /// boosts one of the user's cards/biolinks in its directory slice
+  AD_DIRECTORY
+}
+
 enum NotificationType {
   INFO
   SUCCESS
@@ -147,6 +157,8 @@ model User {
   deactivatedAt     DateTime?
   adminComment      String?
   planId       String?
+  /// running total of the points ledger; kept in sync with every ledger write
+  pointsBalance Int     @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -170,6 +182,8 @@ model User {
   actingNotifications Notification[]  @relation("NotificationActors")
   profileChangeRequests ProfileChangeRequest[]
   sessions          Session[]
+  pointsLedger      PointsLedger[]
+  rewardRedemptions RewardRedemption[]
 
   @@index([email])
   @@index([phone])
@@ -642,6 +656,7 @@ model SubscriptionPlan {
 
   userSubscriptions UserSubscription[]
   planUsers         User[]
+  rewards           Reward[]
 
   @@index([isActive, sortOrder])
   @@map("subscription_plans")
@@ -720,6 +735,72 @@ model AdRequest {
   @@index([status])
   @@index([endsAt])
   @@map("ad_requests")
+}
+
+// ---------------------------------------------------------------------------
+// Points («امتیاز») — active users earn points when their «نبض شهر» news is
+// approved. Points are redeemed for rewards (a paid subscription or an ad),
+// each with an admin-defined cost. `PointsLedger` is the append-only audit
+// trail; `User.pointsBalance` is the running total kept in sync in the same
+// transaction as every ledger write.
+// ---------------------------------------------------------------------------
+
+/// Admin-defined rewards a user can redeem with points.
+model Reward {
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  kind        RewardKind
+  /// cost in points
+  points      Int
+  /// for SUBSCRIPTION rewards: which plan is granted
+  planId      String?
+  isActive    Boolean    @default(true)
+  sortOrder   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  plan    SubscriptionPlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  redemptions RewardRedemption[]
+
+  @@index([isActive, sortOrder])
+  @@map("rewards")
+}
+
+/// One redemption of a reward by a user (immediately applied, points deducted).
+model RewardRedemption {
+  id          String   @id @default(cuid())
+  userId      String
+  rewardId    String
+  pointsSpent Int
+  /// free-form note (e.g. which plan/card was granted)
+  detail      String?
+  createdAt   DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reward Reward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([rewardId])
+  @@map("reward_redemptions")
+}
+
+/// Append-only points ledger; every earn/spend writes one row.
+model PointsLedger {
+  id        String   @id @default(cuid())
+  userId    String
+  /// positive = earned, negative = spent
+  delta     Int
+  reason    String
+  entityType String?
+  entityId   String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("points_ledger")
 }
 
 // ---------------------------------------------------------------------------
