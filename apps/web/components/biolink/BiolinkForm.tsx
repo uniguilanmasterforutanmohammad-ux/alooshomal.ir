@@ -9,6 +9,7 @@ import { LinkSelector } from '@/components/link/LinkSelector';
 import { LiveBiolinkPreview } from '@/components/biolink/LiveBiolinkPreview';
 import { api, type TaxonomyItem } from '@/lib/api';
 import { BIOLINK_THEMES, DEFAULT_THEME_KEY } from '@/lib/themes';
+import { hasAnyValue, useFormAutosave } from '@/lib/use-form-autosave';
 
 export interface BiolinkFormValues {
   fullName: string;
@@ -60,7 +61,11 @@ const emptyValues: BiolinkFormValues = {
 interface Props {
   initial?: Partial<BiolinkFormValues>;
   submitting?: boolean;
-  onSubmit: (values: BiolinkFormValues, options?: { draft?: boolean }) => void;
+  /** Return `false` (or reject) on failure so the autosave snapshot is kept. */
+  onSubmit: (
+    values: BiolinkFormValues,
+    options?: { draft?: boolean },
+  ) => void | boolean | Promise<void | boolean>;
   submitLabel?: string;
   /** theme-first builder: pick a theme, then edit fields on the preview */
   inline?: boolean;
@@ -70,6 +75,11 @@ interface Props {
   linkCurrentId?: string;
   /** hide the link picker (used by the admin editor, which must not re-link) */
   hideLink?: boolean;
+  /**
+   * localStorage key for autosaving the in-progress values (only pass this on
+   * the "new" builder, so a half-filled form survives a reload/navigation).
+   */
+  autosaveKey?: string;
 }
 
 export function BiolinkForm({
@@ -81,6 +91,7 @@ export function BiolinkForm({
   showDraftButton,
   linkCurrentId,
   hideLink,
+  autosaveKey,
 }: Props) {
   const [values, setValues] = useState<BiolinkFormValues>({
     ...emptyValues,
@@ -89,6 +100,24 @@ export function BiolinkForm({
   const [cities, setCities] = useState<TaxonomyItem[]>([]);
   const [businesses, setBusinesses] = useState<TaxonomyItem[]>([]);
   const [themeConfirmed, setThemeConfirmed] = useState(Boolean(initial?.template));
+  const [showRestore, setShowRestore] = useState(false);
+
+  const autosave = useFormAutosave(autosaveKey ?? '', values, {
+    enabled: Boolean(autosaveKey),
+    shouldPersist: (v) => hasAnyValue(v as unknown as Record<string, unknown>),
+  });
+  const restoredSnapshot = autosave.restored;
+
+  useEffect(() => {
+    // Offer to restore only when there is a meaningful snapshot to recover.
+    if (
+      autosaveKey &&
+      restoredSnapshot &&
+      hasAnyValue(restoredSnapshot as unknown as Record<string, unknown>)
+    ) {
+      setShowRestore(true);
+    }
+  }, [autosaveKey, restoredSnapshot]);
 
   useEffect(() => {
     api
@@ -111,23 +140,77 @@ export function BiolinkForm({
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    onSubmit(values);
+    void submit(values);
+  }
+
+  /**
+   * Runs the parent's submit and, only if it resolves successfully, drops the
+   * localStorage snapshot (so a failed submit keeps the recovery copy).
+   */
+  async function submit(
+    next: BiolinkFormValues,
+    options?: { draft?: boolean },
+  ) {
+    let ok: void | boolean = true;
+    try {
+      ok = await onSubmit(next, options);
+    } catch {
+      return;
+    }
+    // The parent already surfaces any error; only drop the recovery copy when
+    // the submit actually succeeded (`false` = explicit failure).
+    if (ok !== false) autosave.clear();
+  }
+
+  function applyRestored() {
+    if (!restoredSnapshot) return;
+    setValues((prev) => ({ ...prev, ...restoredSnapshot }));
+    setThemeConfirmed(true);
+    setShowRestore(false);
   }
 
   const cityName = cities.find((c) => c.id === values.cityId)?.name;
   const businessName = businesses.find((b) => b.id === values.businessId)?.name;
 
+  const restoreBanner = showRestore ? (
+    <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+      <span>اطلاعات نیمه‌کاره‌ی ذخیره‌شده در همین مرورگر پیدا شد.</span>
+      <span className="flex gap-2">
+        <button
+          type="button"
+          onClick={applyRestored}
+          className="indeed-btn indeed-btn-primary py-1.5 text-xs"
+        >
+          بازیابی
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            autosave.clear();
+            setShowRestore(false);
+          }}
+          className="indeed-btn indeed-btn-secondary py-1.5 text-xs"
+        >
+          نادیده بگیر
+        </button>
+      </span>
+    </div>
+  ) : null;
+
   if (inline && !themeConfirmed) {
     return (
-      <ThemePicker
-        themes={BIOLINK_THEMES}
-        selected={values.template}
-        onSelect={(key) => {
-          setField('template', key);
-          setThemeConfirmed(true);
-        }}
-        hint="تم را انتخاب کنید تا کارت با همان تم باز شود و بتوانید همه‌ی فیلدها را مستقیم روی پیش‌نمایش پر کنید."
-      />
+      <div>
+        {restoreBanner}
+        <ThemePicker
+          themes={BIOLINK_THEMES}
+          selected={values.template}
+          onSelect={(key) => {
+            setField('template', key);
+            setThemeConfirmed(true);
+          }}
+          hint="تم را انتخاب کنید تا کارت با همان تم باز شود و بتوانید همه‌ی فیلدها را مستقیم روی پیش‌نمایش پر کنید."
+        />
+      </div>
     );
   }
 
@@ -154,6 +237,7 @@ export function BiolinkForm({
         </aside>
 
         <div className="order-2 flex flex-col gap-4">
+          {restoreBanner}
           <div className="indeed-panel p-6">
             <h2 className="text-lg font-extrabold text-ink">ظاهر بیولینک</h2>
             <p className="mt-1 text-xs text-muted">
@@ -225,7 +309,7 @@ export function BiolinkForm({
           <button
             type="button"
             disabled={submitting || !values.fullName.trim()}
-            onClick={() => onSubmit(values)}
+            onClick={() => void submit(values)}
             className="indeed-btn indeed-btn-primary w-full disabled:opacity-60"
           >
             {submitting ? 'در حال ذخیره...' : (submitLabel ?? 'ذخیره و ارسال برای تأیید')}
@@ -234,7 +318,7 @@ export function BiolinkForm({
             <button
               type="button"
               disabled={submitting || !values.fullName.trim()}
-              onClick={() => onSubmit(values, { draft: true })}
+              onClick={() => void submit(values, { draft: true })}
               className="indeed-btn indeed-btn-secondary w-full disabled:opacity-60"
             >
               ذخیره به‌عنوان پیش‌نویس

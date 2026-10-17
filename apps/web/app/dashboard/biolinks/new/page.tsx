@@ -28,7 +28,7 @@ export default function NewBiolinkPage() {
   async function handleSubmit(
     values: BiolinkFormValues,
     options?: { draft?: boolean },
-  ) {
+  ): Promise<boolean> {
     setSubmitting(true);
     setError(null);
     setQuota(false);
@@ -48,10 +48,12 @@ export default function NewBiolinkPage() {
         await api.post<Biolink>('/biolinks', payload);
       }
       router.push(options?.draft ? '/dashboard/biolinks' : '/dashboard');
+      return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'ذخیره بیولینک ناموفق بود';
       setError(message);
       setQuota(isQuotaMessage(message));
+      return false;
     } finally {
       setSubmitting(false);
     }
@@ -137,6 +139,7 @@ export default function NewBiolinkPage() {
             inline
             showDraftButton
             linkCurrentId={draft?.id}
+            autosaveKey="alooshomal_autosave_biolink_new"
           />
         )}
       </div>

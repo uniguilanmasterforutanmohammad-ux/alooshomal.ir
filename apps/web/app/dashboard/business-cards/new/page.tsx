@@ -28,7 +28,7 @@ export default function NewBusinessCardPage() {
   async function handleSubmit(
     values: BusinessCardFormValues,
     options?: { draft?: boolean },
-  ) {
+  ): Promise<boolean> {
     setSubmitting(true);
     setError(null);
     setQuota(false);
@@ -48,10 +48,12 @@ export default function NewBusinessCardPage() {
         await api.post<BusinessCard>('/business-cards', payload);
       }
       router.push(options?.draft ? '/dashboard/business-cards' : '/dashboard');
+      return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'ذخیره کارت ویزیت ناموفق بود';
       setError(message);
       setQuota(isQuotaMessage(message));
+      return false;
     } finally {
       setSubmitting(false);
     }
@@ -137,6 +139,7 @@ export default function NewBusinessCardPage() {
             inline
             showDraftButton
             linkCurrentId={draft?.id}
+            autosaveKey="alooshomal_autosave_business_card_new"
           />
         )}
       </div>
