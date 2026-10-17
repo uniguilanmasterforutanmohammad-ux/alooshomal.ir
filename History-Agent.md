@@ -20,7 +20,67 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.36.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.37.0**.
+
+## ۱۴۰۵/۰۷/۲۵ — بخش فیدها (پست تصویری، اشتراک، لایک/ذخیره، پنل مدیر) — نسخه `v2.37.0`
+
+**هدف:** افزودن بخش «فیدها» شبیه پست‌های اینستاگرام: کاربر اشتراک ماهانه (۵ یا ۱۰
+پست) می‌خرد، پست متن‌+عکس ثبت می‌کند (با تأیید مدیر منتشر می‌شود)، بازدیدکننده می‌تواند
+لایک و ذخیره کند. دایرکتوری کلی فیدها با فیلتر موضوع، جستجوی متنی و اسکرول بی‌نهایت؛
+هر پست صفحه‌ی تک دارد. مدیر سهمیه/بسته‌ها، موضوع‌ها و محدودیت تعداد و حجم تصویر را
+تعیین می‌کند.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: enumهای `FeedTopic`، `FeedPackage` و مدل‌های
+  `UserFeedSubscription`، `FeedPost`، `FeedLike`، `FeedSave` (+ روابط روی `User`).
+- `apps/api/src/settings/settings.service.ts` + `settings.controller.ts`: کلیدهای
+  `feedMaxImages` (پیش‌فرض ۵، بازه ۱–۲۰) و `feedMaxImageKb` (پیش‌فرض ۲۰۴۸، بازه
+  ۶۴KB–۲۰MB) با گتر/ستر و افزودن به DTO و پاسخ‌های عمومی/مدیر.
+- `apps/api/src/uploads/uploads.constants.ts`: دسته‌ی آپلود `feed` (پوشه `feeds`،
+  خروجی ۱۰۸۰×۱۳۵۰) و سقف مطلق `MAX_FEED_UPLOAD_BYTES` (۲۰MB).
+- `apps/api/src/uploads/uploads.service.ts`: پارامتر اختیاری `maxBytes` برای اعمال
+  سقف اندازه‌ی تعیین‌شده توسط مدیر روی آپلود.
+- `apps/api/src/feeds/`: ماژول/سرویس/کنترلر/DTO جدید. کنترلرها: دایرکتوری عمومی
+  (`GET /feeds/public`، موضوع‌ها، جزئیات، لایک، ذخیره)، «فید من»
+  (`GET/POST/PATCH/DELETE /feeds/mine`، درخواست اشتراک، آپلود با اعمال
+  `getFeedMaxImageKb`)، و پنل مدیر (`/admin/feeds/posts|packages|subscriptions|topics`).
+  seed بسته‌های پیش‌فرض در boot؛ رزرو سهمیه هنگام ثبت پست و برگشت سهمیه در رد شدن.
+- `apps/api/src/app.module.ts` + `settings.service.ts`: ثبت `FeedsModule` و افزودن
+  دسته‌ی اعلان `FEED`.
+- `apps/web/lib/api.ts`: تایپ‌های `FeedTopic`/`FeedPackage`/`FeedSubscription`/
+  `FeedPost`/`FeedDirectoryResponse`/`FeedMineOverview`.
+- `apps/web/lib/directory.ts`: جنریک‌کردن `useDirectoryResults` روی شکل facetها و
+  پارامتر `initialFacets` (رفع کرش دایرکتوری فید که facetهای `{cities,businesses}`
+  می‌گرفت ولی `topics` لازم داشت).
+- `apps/web/components/feed/FeedCard.tsx`: کارت اینستاگرامی (تصویر مربع، بج چندتصویری،
+  موضوع، نویسنده، لایک).
+- `apps/web/app/feeds/page.tsx`: دایرکتوری فیدها با فیلتر موضوع + جستجوی متن +
+  صفحه‌بندی/اسکرول بی‌نهایت و سینگل‌صفحه‌ی `apps/web/app/feeds/[id]/page.tsx` با لایک/ذخیره.
+- `apps/web/app/dashboard/feeds/page.tsx`: «فید من» (خرید اشتراک، ثبت/ویرایش/حذف پست،
+  آپلود عکس با رعایت محدودیت‌ها).
+- `apps/web/components/admin/AdminFeeds.tsx` + `app/admin/page.tsx` + `AdminShell.tsx`:
+  پنل مدیر فیدها با تب‌های بررسی پست‌ها، اشتراک‌ها، بسته‌ها، موضوع‌ها و تنظیمات
+  (تعداد و حجم تصویر).
+- `apps/web/components/dashboard/UserShell.tsx` و `components/layout/MobileNav.tsx`:
+  افزودن «فید من» و آیتم «فیدها» در نوار پایین موبایل/تبلت (گرید ۶ ستونی).
+- `apps/web/components/admin/AdminNotificationSettings.tsx`: برچسب `FEED`.
+- `apps/web/lib/version.ts`: نسخه به `v2.37.0`.
+
+**تأیید/تست:**
+- `prisma db push` + `prisma generate` → جداول feed_* ساخته شد؛ `tsc --noEmit` روی API
+  و Web → بدون خطا.
+- API (curl): seed دو بسته‌ی پیش‌فرض؛ درخواست اشتراک → تأیید مدیر (`ACTIVE`) →
+  `expiresAt=+۳۰ روز` و `startedAt`؛ آپلود تصویر → WebP؛ ثبت پست → `PENDING` و
+  `postsUsed=1`؛ عدم نمایش در دایرکتوری پیش از تأیید؛ تأیید → انتشار و نمایش؛
+  ویرایش → بازگشت به صف بررسی و حذف از دایرکتوری؛ لایک/ذخیره و نمایش وضعیت در
+  جزئیات؛ جستجوی متنی hit/miss و فیلتر موضوع؛ رد شدن پست → برگشت سهمیه؛ حذف توسط
+  کاربر و مدیر؛ CRUD بسته/موضوع؛ اعمال سرورساید `feedMaxImageKb` (خطای «حداکثر ۶۴
+  کیلوبایت» برای فایل ۸۴KB) و بازگشت به مقدار پیش‌فرض.
+- Web (Playwright + google-chrome): `/feeds` کارت‌ها و فیلتر موضوع را رندر می‌کند و
+  بدون خطای runtime است (کرش قبلی facet رفع شد)؛ صفحه‌ی سینگل پست متن و دکمه‌ی
+  پسند را نشان می‌دهد؛ `/dashboard/feeds` فرم و اینپوت فایل دارد؛ `/admin?section=feeds`
+  همه‌ی ۵ تب را نشان می‌دهد؛ نوار پایین موبایل شامل «فیدها» و بدون سرریز افقی
+  (۳۶۰px). حالت `INFINITE` نیز تا بارگذاری کامل ۱۷ پست اسکرول شد (بدون صفحه‌بندی).
 
 ## ۱۴۰۵/۰۷/۲۵ — سیستم امتیاز نبض شهر + جوایز (اشتراک/تبلیغ) — نسخه `v2.36.0`
 

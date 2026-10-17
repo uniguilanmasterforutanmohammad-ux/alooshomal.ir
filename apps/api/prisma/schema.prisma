@@ -92,6 +92,126 @@ enum RewardKind {
   AD_DIRECTORY
 }
 
+/// «فیدها» — an Instagram-style micro-blogging feed. A user buys a monthly
+/// package (a post quota), submits posts with text + images, and an admin
+/// approves each post before it appears in the public feed directory.
+model FeedTopic {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  posts FeedPost[]
+
+  @@index([isActive])
+  @@map("feed_topics")
+}
+
+/// A purchasable feed package (e.g. «یک‌ماهه ۵ پست»). `postsQuota` is how many
+/// approved posts the subscriber may publish while the package is active.
+model FeedPackage {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  price       Int      @default(0)
+  postsQuota  Int      @default(5)
+  /// package length in days (monthly packages use 30)
+  durationDays Int     @default(30)
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subscriptions UserFeedSubscription[]
+
+  @@index([isActive, sortOrder])
+  @@map("feed_packages")
+}
+
+/// A user's feed package purchase; an admin activates it and it then runs for
+/// `durationDays`, during which `postsUsed` of `postsQuota` may be published.
+model UserFeedSubscription {
+  id          String             @id @default(cuid())
+  userId      String
+  packageId   String
+  status      SubscriptionStatus @default(PENDING)
+  requestedAt DateTime           @default(now())
+  decidedAt   DateTime?
+  decidedById String?
+  startedAt   DateTime?
+  expiresAt   DateTime?
+  postsUsed   Int                @default(0)
+  note        String?
+  adminNote   String?
+
+  user      User        @relation("UserFeedSubscriptions", fields: [userId], references: [id], onDelete: Cascade)
+  package   FeedPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+  decidedBy User?       @relation("FeedSubscriptionDecisions", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([packageId])
+  @@index([status])
+  @@map("user_feed_subscriptions")
+}
+
+/// One feed post (Instagram-style card). `images` holds the uploaded image
+/// URLs in display order; `topicId` powers the directory filter.
+model FeedPost {
+  id          String         @id @default(cuid())
+  userId      String
+  body        String?
+  images      String[]       @default([])
+  topicId     String?
+  status      NewsStatus     @default(PENDING)
+  reason      String?
+  isPublished Boolean        @default(false)
+  publishedAt DateTime?
+  likeCount   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topic FeedTopic? @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  likes FeedLike[]
+  saves FeedSave[]
+
+  @@index([userId])
+  @@index([status, publishedAt])
+  @@index([topicId])
+  @@map("feed_posts")
+}
+
+/// One row per (visitor, post); `visitorKey` mirrors the biolink like scheme.
+model FeedLike {
+  id         String   @id @default(cuid())
+  feedPostId String
+  visitorKey String
+  createdAt  DateTime @default(now())
+
+  feedPost FeedPost @relation(fields: [feedPostId], references: [id], onDelete: Cascade)
+
+  @@unique([feedPostId, visitorKey])
+  @@index([feedPostId])
+  @@map("feed_likes")
+}
+
+/// A logged-in user's saved feed posts ("ذخیره").
+model FeedSave {
+  id         String   @id @default(cuid())
+  userId     String
+  feedPostId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedPost FeedPost @relation(fields: [feedPostId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, feedPostId])
+  @@index([userId])
+  @@index([feedPostId])
+  @@map("feed_saves")
+}
+
 enum NotificationType {
   INFO
   SUCCESS
@@ -184,6 +304,10 @@ model User {
   sessions          Session[]
   pointsLedger      PointsLedger[]
   rewardRedemptions RewardRedemption[]
+  feedSubscriptions UserFeedSubscription[] @relation("UserFeedSubscriptions")
+  feedDecisions     UserFeedSubscription[] @relation("FeedSubscriptionDecisions")
+  feedPosts         FeedPost[]
+  feedSaves         FeedSave[]
 
   @@index([email])
   @@index([phone])

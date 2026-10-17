@@ -2,7 +2,15 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BadgeCheck, Home, IdCard, LayoutDashboard, LogIn, Newspaper } from 'lucide-react';
+import {
+  BadgeCheck,
+  Home,
+  IdCard,
+  ImagePlus,
+  LayoutDashboard,
+  LogIn,
+  Newspaper,
+} from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -32,6 +40,7 @@ export function MobileNav() {
     { href: '/business-cards', label: 'کارت ویزیت‌ها', icon: BadgeCheck },
     { href: '/biolinks', label: 'بیولینک‌ها', icon: IdCard },
     { href: '/pulse', label: 'نبض شهر', icon: Newspaper },
+    { href: '/feeds', label: 'فیدها', icon: ImagePlus },
     hydrated && token
       ? { href: '/dashboard', label: 'داشبورد', icon: LayoutDashboard }
       : { href: '/login', label: 'ورود', icon: LogIn },
@@ -45,7 +54,7 @@ export function MobileNav() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-label="ناوبری پایین"
     >
-      <ul className="grid grid-cols-5">
+      <ul className="grid grid-cols-6">
         {items.map((item) => {
           const active = item.exact
             ? pathname === item.href

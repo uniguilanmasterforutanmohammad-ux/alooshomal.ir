@@ -94,6 +94,20 @@ class UpdateSettingsDto {
   @Min(0)
   @Max(100000)
   pointsPerNews?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  feedMaxImages?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(64)
+  @Max(20480)
+  feedMaxImageKb?: number;
 }
 const ADMIN_NOTIFY_CATEGORY_SET = new Set<string>(ADMIN_NOTIFY_CATEGORIES);
 const NEWS_ACCESS_LEVEL_SET = new Set<string>(NEWS_ACCESS_LEVELS);
@@ -113,6 +127,8 @@ export class SettingsController {
       directoryDisplayMode: await this.settingsService.getDirectoryDisplayMode(),
       myListPageSize: await this.settingsService.getMyListPageSize(),
       phoneLoginEnabled: await this.settingsService.getPhoneLoginEnabled(),
+      feedMaxImages: await this.settingsService.getFeedMaxImages(),
+      feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
       ...locks,
     };
   }
@@ -145,6 +161,8 @@ export class AdminSettingsController {
       adDailySlots: await this.settingsService.getAdDailySlots(),
       boostDurationDays: await this.settingsService.getBoostDurationDays(),
       pointsPerNews: await this.settingsService.getPointsPerNews(),
+      feedMaxImages: await this.settingsService.getFeedMaxImages(),
+      feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
       ...locks,
     };
   }
@@ -167,6 +185,8 @@ export class AdminSettingsController {
       adDailySlots?: number;
       boostDurationDays?: number;
       pointsPerNews?: number;
+      feedMaxImages?: number;
+      feedMaxImageKb?: number;
     } = {};
     if (dto.directoryPageSize !== undefined) {
       result.directoryPageSize = await this.settingsService.setDirectoryPageSize(
@@ -246,6 +266,16 @@ export class AdminSettingsController {
     if (dto.pointsPerNews !== undefined) {
       result.pointsPerNews = await this.settingsService.setPointsPerNews(
         dto.pointsPerNews,
+      );
+    }
+    if (dto.feedMaxImages !== undefined) {
+      result.feedMaxImages = await this.settingsService.setFeedMaxImages(
+        dto.feedMaxImages,
+      );
+    }
+    if (dto.feedMaxImageKb !== undefined) {
+      result.feedMaxImageKb = await this.settingsService.setFeedMaxImageKb(
+        dto.feedMaxImageKb,
       );
     }
     return result;

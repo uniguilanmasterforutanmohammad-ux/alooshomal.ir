@@ -59,13 +59,25 @@ export interface DirectoryResult<T> {
   };
 }
 
-interface Options {
+/**
+ * Generic filter facets bag. The biolink/business-card directories return
+ * `{cities, businesses}` while the feed directory returns `{topics}`, so the
+ * hook is parameterised on the facet shape.
+ */
+export interface DirectoryFacets {
+  cities: DirectoryFacet[];
+  businesses: DirectoryFacet[];
+}
+
+interface Options<F> {
   path: string;
   /** Everything after the page number, already URL-encoded (may be empty). */
   query: string;
   mode: DirectoryDisplayMode;
   /** Page to start on (e.g. restored from a shareable URL). Defaults to 1. */
   initialPage?: number;
+  /** Facet shape to use before the first response lands (matches the endpoint). */
+  initialFacets?: F;
 }
 
 /**
@@ -75,19 +87,19 @@ interface Options {
  * returned pagination controls. Any query change resets to the first page and
  * replaces the list, so stale rows never linger after a new search.
  */
-export function useDirectoryResults<T>({
+export function useDirectoryResults<T, F = DirectoryFacets>({
   path,
   query,
   mode,
   initialPage = 1,
-}: Options) {
+  initialFacets,
+}: Options<F>) {
   const [page, setPage] = useState(initialPage);
   const [items, setItems] = useState<T[]>([]);
   const [meta, setMeta] = useState<DirectoryMeta | null>(null);
-  const [facets, setFacets] = useState<DirectoryResult<T>['filters']>({
-    cities: [],
-    businesses: [],
-  });
+  const [facets, setFacets] = useState<F>(
+    initialFacets ?? ({ cities: [], businesses: [] } as unknown as F),
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // The last page whose response actually landed. `loadMore` compares against
@@ -115,8 +127,8 @@ export function useDirectoryResults<T>({
     const controller = new AbortController();
     setLoading(true);
     setError(null);
-    api
-      .get<DirectoryResult<T>>(`${path}?${fullQuery}`)
+      api
+        .get<{ items: T[]; meta: DirectoryMeta; filters: F }>(`${path}?${fullQuery}`)
       .then((result) => {
         if (controller.signal.aborted) return;
         loadedPage.current = result.meta.page;

@@ -704,3 +704,80 @@ export interface AdminPointsOverview {
   redemptions: RewardRedemption[];
   rewardCount: number;
 }
+
+// ---------------------------------------------------------------------------
+//  «فیدها» (feed)
+// ---------------------------------------------------------------------------
+
+export interface FeedTopic {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
+export interface FeedPackage {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  postsQuota: number;
+  durationDays: number;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export interface FeedSubscription {
+  id: string;
+  userId: string;
+  packageId: string;
+  status: SubscriptionStatus;
+  requestedAt: string;
+  decidedAt: string | null;
+  startedAt: string | null;
+  expiresAt: string | null;
+  postsUsed: number;
+  note: string | null;
+  adminNote: string | null;
+  package?: FeedPackage | { id: string; name: string; postsQuota: number };
+  user?: { id: string; email: string | null; fullName: string | null };
+}
+
+export interface FeedPost {
+  id: string;
+  userId: string;
+  body: string | null;
+  images: string[];
+  topicId: string | null;
+  status: NewsStatus;
+  reason: string | null;
+  isPublished: boolean;
+  publishedAt: string | null;
+  likeCount: number;
+  createdAt: string;
+  user?: { id: string; fullName: string | null; email: string | null };
+  topic?: { id: string; name: string } | null;
+  liked?: boolean;
+  saved?: boolean;
+}
+
+export interface FeedDirectoryResponse {
+  items: FeedPost[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  filters: { topics: FeedTopic[] };
+}
+
+export interface FeedMineOverview {
+  packages: FeedPackage[];
+  subscriptions: FeedSubscription[];
+  posts: FeedPost[];
+  topics: FeedTopic[];
+  active: FeedSubscription | null;
+  limits: { maxImages: number; maxImageKb: number };
+}

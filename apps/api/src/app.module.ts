@@ -14,6 +14,7 @@ import { AuthModule } from './auth/auth.module';
 import { BiolinksModule } from './biolinks/biolinks.module';
 import { BoostsModule } from './boosts/boosts.module';
 import { BusinessCardsModule } from './businesscards/business-cards.module';
+import { FeedsModule } from './feeds/feeds.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { NewsModule } from './news/news.module';
@@ -41,6 +42,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     BiolinksModule,
     BusinessCardsModule,
+    FeedsModule,
     SubscriptionsModule,
     BoostsModule,
     AdsModule,

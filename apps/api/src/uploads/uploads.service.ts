@@ -31,17 +31,23 @@ export class UploadsService {
   /**
    * Validate → normalise to WebP → store under `<folder>/<ownerId>/`.
    * Returns the public URL the form should persist in `logoUrl`/`avatarUrl`.
+   *
+   * `maxBytes` lets a caller apply a smaller, admin-configured cap (e.g. the
+   * feed image size setting) in place of the platform-wide default.
    */
   async upload(
     category: UploadCategoryKey,
     ownerId: string,
     file: Express.Multer.File | undefined,
+    maxBytes?: number,
   ): Promise<UploadResult> {
     if (!file?.buffer) {
       throw new BadRequestException('فایلی آپلود نشده است');
     }
-    if (file.size > MAX_UPLOAD_BYTES) {
-      throw new BadRequestException('حجم تصویر نباید بیشتر از ۲ مگابایت باشد');
+    const limitBytes = maxBytes ?? MAX_UPLOAD_BYTES;
+    if (file.size > limitBytes) {
+      const kb = Math.floor(limitBytes / 1024).toLocaleString('fa-IR');
+      throw new BadRequestException(`حجم تصویر نباید بیشتر از ${kb} کیلوبایت باشد`);
     }
     if (!this.storage.isReady) {
       throw new ServiceUnavailableException(

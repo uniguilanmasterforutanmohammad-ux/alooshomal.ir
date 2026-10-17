@@ -13,6 +13,7 @@ import {
   LayoutDashboard,
   LogOut,
   Megaphone,
+  ImagePlus,
   Menu,
   Bell,
   Newspaper,
@@ -36,6 +37,7 @@ export type AdminSection =
   | 'boosts'
   | 'ads'
   | 'points'
+  | 'feeds'
   | 'users'
   | 'tickets'
   | 'reports'
@@ -60,6 +62,7 @@ const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboar
   { key: 'boosts', label: 'افزایش بازدید', icon: TrendingUp },
   { key: 'ads', label: 'تبلیغات', icon: Megaphone },
   { key: 'points', label: 'امتیازها', icon: Coins },
+  { key: 'feeds', label: 'فیدها', icon: ImagePlus },
   { key: 'users', label: 'کاربران', icon: Users },
   { key: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
   { key: 'news', label: 'نبض شهر', icon: Newspaper },

@@ -52,6 +52,18 @@ export const POINTS_PER_NEWS_KEY = 'pointsPerNews';
 export const DEFAULT_POINTS_PER_NEWS = 10;
 
 // ---------------------------------------------------------------------------
+//  «فیدها» (feed) limits
+// ---------------------------------------------------------------------------
+
+/** Max number of images allowed on a single feed post. */
+export const FEED_MAX_IMAGES_KEY = 'feedMaxImages';
+export const DEFAULT_FEED_MAX_IMAGES = 5;
+
+/** Max size (in KB) allowed for each feed image. */
+export const FEED_MAX_IMAGE_KB_KEY = 'feedMaxImageKb';
+export const DEFAULT_FEED_MAX_IMAGE_KB = 2048;
+
+// ---------------------------------------------------------------------------
 //  «نبض شهر» news settings
 // ---------------------------------------------------------------------------
 
@@ -108,6 +120,7 @@ export const ADMIN_NOTIFY_CATEGORIES = [
   'SUBSCRIPTION',
   'BOOST',
   'AD',
+  'FEED',
   'TICKET',
   'SECURITY',
 ] as const;
@@ -241,6 +254,22 @@ export class SettingsService implements OnModuleInit {
         create: {
           key: POINTS_PER_NEWS_KEY,
           value: String(DEFAULT_POINTS_PER_NEWS),
+        },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: FEED_MAX_IMAGES_KEY },
+        update: {},
+        create: {
+          key: FEED_MAX_IMAGES_KEY,
+          value: String(DEFAULT_FEED_MAX_IMAGES),
+        },
+      }),
+      this.prisma.setting.upsert({
+        where: { key: FEED_MAX_IMAGE_KB_KEY },
+        update: {},
+        create: {
+          key: FEED_MAX_IMAGE_KB_KEY,
+          value: String(DEFAULT_FEED_MAX_IMAGE_KB),
         },
       }),
       ...ADMIN_NOTIFY_CATEGORIES.map((category) =>
@@ -601,6 +630,48 @@ export class SettingsService implements OnModuleInit {
       where: { key: POINTS_PER_NEWS_KEY },
       update: { value: String(clamped) },
       create: { key: POINTS_PER_NEWS_KEY, value: String(clamped) },
+    });
+    return clamped;
+  }
+
+  /** Max images per feed post (1–20). */
+  async getFeedMaxImages(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: FEED_MAX_IMAGES_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 1 && parsed <= 20
+      ? Math.floor(parsed)
+      : DEFAULT_FEED_MAX_IMAGES;
+  }
+
+  async setFeedMaxImages(value: number): Promise<number> {
+    const clamped = Math.min(20, Math.max(1, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: FEED_MAX_IMAGES_KEY },
+      update: { value: String(clamped) },
+      create: { key: FEED_MAX_IMAGES_KEY, value: String(clamped) },
+    });
+    return clamped;
+  }
+
+  /** Max size of each feed image, in KB (64 KB – 20 MB). */
+  async getFeedMaxImageKb(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: FEED_MAX_IMAGE_KB_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 64 && parsed <= 20480
+      ? Math.floor(parsed)
+      : DEFAULT_FEED_MAX_IMAGE_KB;
+  }
+
+  async setFeedMaxImageKb(value: number): Promise<number> {
+    const clamped = Math.min(20480, Math.max(64, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: FEED_MAX_IMAGE_KB_KEY },
+      update: { value: String(clamped) },
+      create: { key: FEED_MAX_IMAGE_KB_KEY, value: String(clamped) },
     });
     return clamped;
   }

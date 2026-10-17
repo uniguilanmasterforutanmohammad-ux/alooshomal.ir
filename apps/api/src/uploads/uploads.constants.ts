@@ -19,7 +19,7 @@ export interface UploadCategory {
   label: string;
 }
 
-export type UploadCategoryKey = 'logo' | 'avatar';
+export type UploadCategoryKey = 'logo' | 'avatar' | 'feed';
 
 export const UPLOAD_CATEGORIES: Record<UploadCategoryKey, UploadCategory> = {
   logo: { folder: 'logos', maxWidth: 512, maxHeight: 512, label: 'لوگو' },
@@ -30,9 +30,12 @@ export const UPLOAD_CATEGORIES: Record<UploadCategoryKey, UploadCategory> = {
     cover: 400,
     label: 'تصویر پروفایل',
   },
+  feed: { folder: 'feeds', maxWidth: 1080, maxHeight: 1350, label: 'تصویر فید' },
 };
 
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB
+/** Absolute ceiling for feed images; the admin setting picks a value below it. */
+export const MAX_FEED_UPLOAD_BYTES = 20 * 1024 * 1024; // 20 MB
 export const ALLOWED_IMAGE_MIME = [
   'image/png',
   'image/jpeg',
