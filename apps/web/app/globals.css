@@ -135,60 +135,89 @@ body {
   }
 }
 
-/* Phone + tablet: on the directory pages keep the heading, filters and
-   pagination fixed and scroll only the card list. `directory-shell` fills the
-   viewport minus the fixed bottom nav; `directory-list` is the one scrollable
-   region. Desktop (lg+) is untouched and keeps normal page scrolling. */
-@media (max-width: 1023px) {
+/* Directory pages (/biolinks, /business-cards): the heading, filters and
+   pagination stay put and only the card list scrolls — on every breakpoint.
+   `directory-shell` fills the viewport minus the fixed bottom nav (phones /
+   tablets) or the sticky top header (desktop); `directory-list` is the one
+   scrollable region.
+
+   `--dir-top`/`--dir-bottom` reserve those chrome heights so the shell plus the
+   in-flow header/nav always add up to exactly 100dvh and the page itself never
+   scrolls. The footer is intentionally omitted on these pages (see the pages
+   themselves) so it cannot stretch the layout. */
+.directory-shell {
+  --dir-top: 0px;
+  --dir-bottom: calc(56px + env(safe-area-inset-bottom));
+  height: calc(100dvh - var(--dir-top) - var(--dir-bottom));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Desktop shows the sticky top header (h-16 = 64px + 2px dashed border)
+   instead of the bottom nav. */
+@media (min-width: 1024px) {
   .directory-shell {
-    height: calc(100dvh - 56px - env(safe-area-inset-bottom));
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    --dir-top: 66px;
+    --dir-bottom: 0px;
   }
-  .directory-shell .directory-grid {
-    flex: 1 1 auto;
-    min-height: 0;
-  }
-  .directory-shell .directory-list {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    /* Keep the (normally left-side) RTL scrollbar on the right and style it
-       thin + on-theme. Children are flipped back to RTL below. */
-    direction: ltr;
-    scrollbar-width: thin;
-    scrollbar-color: var(--vintage-accent) transparent;
-    padding-right: 10px;
-  }
-  .directory-shell .directory-list > * {
-    direction: rtl;
-  }
-  .directory-shell .directory-list::-webkit-scrollbar {
-    width: 5px;
-  }
-  .directory-shell .directory-list::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .directory-shell .directory-list::-webkit-scrollbar-thumb {
-    background: var(--vintage-accent);
-    border-radius: 9999px;
-  }
-  .directory-shell .directory-list::-webkit-scrollbar-thumb:hover {
-    background: var(--vintage-accent-hover);
-  }
-  .directory-shell .directory-aside,
-  .directory-shell .directory-aside > div,
-  .directory-shell .directory-aside .indeed-panel {
-    height: 100%;
-  }
-  .directory-shell .directory-aside {
-    min-height: 0;
-  }
-  .directory-shell .directory-sticky {
-    position: static;
-  }
+}
+
+/* The grid fills the shell and keeps a single full-height row, so both columns
+   get a definite height and can scroll independently. */
+.directory-shell .directory-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.directory-shell .directory-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Keep the (normally left-side) RTL scrollbar on the right and style it
+     thin + on-theme. Children are flipped back to RTL below. */
+  direction: ltr;
+  scrollbar-width: thin;
+  scrollbar-color: var(--vintage-accent) transparent;
+  padding-right: 10px;
+}
+
+.directory-shell .directory-list > * {
+  direction: rtl;
+}
+
+.directory-shell .directory-list::-webkit-scrollbar {
+  width: 5px;
+}
+
+.directory-shell .directory-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.directory-shell .directory-list::-webkit-scrollbar-thumb {
+  background: var(--vintage-accent);
+  border-radius: 9999px;
+}
+
+.directory-shell .directory-list::-webkit-scrollbar-thumb:hover {
+  background: var(--vintage-accent-hover);
+}
+
+/* The detail column scrolls on its own instead of growing the page. */
+.directory-shell .directory-aside,
+.directory-shell .directory-aside > div,
+.directory-shell .directory-aside .indeed-panel {
+  height: 100%;
+}
+
+.directory-shell .directory-aside {
+  min-height: 0;
+}
+
+.directory-shell .directory-sticky {
+  position: static;
 }
 
 a {

@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Users } from 'lucide-react';
 
 import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
 import { DirectoryBusinessCardItem } from '@/components/businesscard/DirectoryBusinessCardItem';
 import { DirectoryBusinessCardDetail } from '@/components/businesscard/DirectoryBusinessCardDetail';
 import { MobileSheet } from '@/components/ui/MobileSheet';
@@ -237,10 +236,9 @@ export default function DirectoryPage() {
       >
         <DirectoryContent />
       </Suspense>
-      {/* Mobile/tablet hide the footer so only the card list scrolls. */}
-      <div className="hidden lg:block">
-        <Footer />
-      </div>
+      {/* The footer is intentionally omitted on the directory pages so the
+          shell can fill the viewport exactly and only the card list scrolls
+          (see `.directory-shell` in globals.css). */}
     </>
   );
 }
