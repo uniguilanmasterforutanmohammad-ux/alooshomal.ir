@@ -1,0 +1,530 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>گزارش اجرای سه مرحله: سئو، سرعت و امنیت — آلوشمال</title>
+    <style>
+      @font-face {
+        font-family: 'Vazirmatn';
+        src: url('file:///usr/share/fonts/truetype/vazirmatn/Vazirmatn-Regular.ttf')
+          format('truetype');
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: 'Vazirmatn';
+        src: url('file:///usr/share/fonts/truetype/vazirmatn/Vazirmatn-Medium.ttf')
+          format('truetype');
+        font-weight: 500;
+      }
+      @font-face {
+        font-family: 'Vazirmatn';
+        src: url('file:///usr/share/fonts/truetype/vazirmatn/Vazirmatn-SemiBold.ttf')
+          format('truetype');
+        font-weight: 600;
+      }
+      @font-face {
+        font-family: 'Vazirmatn';
+        src: url('file:///usr/share/fonts/truetype/vazirmatn/Vazirmatn-Bold.ttf')
+          format('truetype');
+        font-weight: 700;
+      }
+      @page {
+        size: A4;
+        margin: 18mm 16mm;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: 'Vazirmatn', 'Noto Naskh Arabic', sans-serif;
+        direction: rtl;
+        text-align: right;
+        color: #1f2937;
+        font-size: 10.5pt;
+        line-height: 1.9;
+        margin: 0;
+      }
+      h1 {
+        font-size: 20pt;
+        font-weight: 700;
+        color: #0f3d5c;
+        margin: 0 0 4px;
+      }
+      h2 {
+        font-size: 14.5pt;
+        font-weight: 700;
+        color: #0f3d5c;
+        margin: 26px 0 8px;
+        padding-bottom: 6px;
+        border-bottom: 2px solid #d7e3ec;
+        page-break-after: avoid;
+      }
+      h3 {
+        font-size: 12pt;
+        font-weight: 600;
+        color: #14556b;
+        margin: 16px 0 6px;
+        page-break-after: avoid;
+      }
+      p {
+        margin: 6px 0;
+      }
+      ul {
+        margin: 6px 0;
+        padding-right: 20px;
+      }
+      li {
+        margin: 3px 0;
+      }
+      code {
+        font-family: 'Vazir Code', 'DejaVu Sans Mono', monospace;
+        direction: ltr;
+        unicode-bidi: embed;
+        background: #f1f5f9;
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-size: 9pt;
+        color: #0f3d5c;
+      }
+      .cover {
+        text-align: center;
+        padding-top: 60px;
+        page-break-after: always;
+      }
+      .cover .badge {
+        display: inline-block;
+        border: 2px solid #0f3d5c;
+        color: #0f3d5c;
+        border-radius: 999px;
+        padding: 4px 18px;
+        font-size: 11pt;
+        font-weight: 600;
+        margin-bottom: 24px;
+      }
+      .cover h1 {
+        font-size: 26pt;
+        line-height: 1.5;
+      }
+      .cover .sub {
+        font-size: 13pt;
+        color: #475569;
+        margin-top: 10px;
+      }
+      .cover .meta {
+        margin-top: 40px;
+        color: #64748b;
+        font-size: 10.5pt;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 10px 0;
+        font-size: 9.5pt;
+        page-break-inside: avoid;
+      }
+      th,
+      td {
+        border: 1px solid #cbd5e1;
+        padding: 6px 9px;
+        text-align: right;
+        vertical-align: top;
+      }
+      th {
+        background: #e8f1f7;
+        color: #0f3d5c;
+        font-weight: 600;
+      }
+      tr:nth-child(even) td {
+        background: #f8fafc;
+      }
+      .box {
+        background: #f8fafc;
+        border-right: 4px solid #0f3d5c;
+        border-radius: 6px;
+        padding: 10px 14px;
+        margin: 10px 0;
+        page-break-inside: avoid;
+      }
+      .box.ok {
+        border-right-color: #15803d;
+        background: #f0fdf4;
+      }
+      .box.warn {
+        border-right-color: #b45309;
+        background: #fffbeb;
+      }
+      .tag {
+        display: inline-block;
+        font-size: 8.5pt;
+        font-weight: 600;
+        border-radius: 4px;
+        padding: 1px 8px;
+        margin-left: 6px;
+      }
+      .tag.done {
+        background: #dcfce7;
+        color: #15803d;
+      }
+      .tag.partial {
+        background: #fef3c7;
+        color: #b45309;
+      }
+      .tag.proc {
+        background: #e0e7ff;
+        color: #3730a3;
+      }
+      .muted {
+        color: #64748b;
+        font-size: 9.5pt;
+      }
+      .pagebreak {
+        page-break-before: always;
+      }
+    </style>
+  </head>
+  <body>
+    <section class="cover">
+      <div class="badge">گزارش اجرای کار</div>
+      <h1>گزارش اجرای سه مرحله‌ی سئو، بهینه‌سازی سرعت و امنیت</h1>
+      <div class="sub">پلتفرم کارت ویزیت دیجیتال آلوشمال</div>
+      <div class="meta">
+        <p>تاریخ: ۲۵ مهر ۱۴۰۵</p>
+        <p>نسخه‌ی نهایی پروژه: <code>v2.53.0</code></p>
+        <p>
+          مستندات مرتبط: <code>docs/REVENUE-MODELS.md</code>،
+          <code>docs/SECURITY-AUDIT.md</code>، <code>History-Agent.md</code>
+        </p>
+      </div>
+    </section>
+
+    <h2>خلاصه‌ی مدیریتی</h2>
+    <p>
+      در این چرخه‌ی کاری، سه مرحله‌ی مستندات راهنمای پروژه به‌ترتیب اجرا شد:
+      <strong>مرحله‌ی یک (سئو)</strong> بر پایه‌ی <code>seocart-1 .pdf</code> و
+      <code>seocart-2.pdf</code>، <strong>مرحله‌ی دو (سرعت)</strong> بر پایه‌ی
+      <code>speed.pdf</code> و <code>speed-2.pdf</code>، و
+      <strong>مرحله‌ی سه (امنیت)</strong> بر پایه‌ی <code>secure.pdf</code>.
+      هر مرحله پس از پیاده‌سازی تست و در یک کامیت مستقل ثبت شد؛ نسخه‌ی پروژه از
+      <code>v2.49.0</code> به <code>v2.53.0</code> رسید.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>مرحله</th>
+          <th>موضوع</th>
+          <th>وضعیت</th>
+          <th>نسخه</th>
+          <th>کامیت</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>—</td>
+          <td>مستندسازی چهار مدل کسب درآمد</td>
+          <td><span class="tag done">انجام‌شده</span></td>
+          <td><code>v2.50.0</code></td>
+          <td><code>930ec8b</code></td>
+        </tr>
+        <tr>
+          <td>یک</td>
+          <td>سئو و رندر دایرکتوری‌ها</td>
+          <td><span class="tag done">انجام‌شده</span></td>
+          <td><code>v2.51.0</code></td>
+          <td><code>a6727fe</code></td>
+        </tr>
+        <tr>
+          <td>دو</td>
+          <td>بهینه‌سازی سرعت</td>
+          <td><span class="tag done">انجام‌شده</span></td>
+          <td><code>v2.52.0</code></td>
+          <td><code>e4ab7ca</code></td>
+        </tr>
+        <tr>
+          <td>سه</td>
+          <td>سخت‌سازی امنیت</td>
+          <td><span class="tag done">انجام‌شده</span></td>
+          <td><code>v2.53.0</code></td>
+          <td><code>eb8f55f</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>۱. مستندسازی چهار مدل کسب درآمد</h2>
+    <p>
+      مستند <code>docs/REVENUE-MODELS.md</code> به‌عنوان مرجع فنیِ برنامه‌نویس نوشته
+      شد و در <code>README</code> به آن ارجاع داده شد. این سند چهار مدل درآمدی
+      پلتفرم و یک جریان مکمل را با جزئیات پیاده‌سازی توضیح می‌دهد:
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>مدل</th>
+          <th>معنی</th>
+          <th>برچسب</th>
+          <th>مدت‌دار؟</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>۱</td>
+          <td>خرید اشتراک</td>
+          <td>فروش سهمیه‌ی تعداد آیتم و سطح نمایش فیلدها (سقف ساخت)</td>
+          <td>—</td>
+          <td>بله (پلن)</td>
+        </tr>
+        <tr>
+          <td>۲</td>
+          <td>پله</td>
+          <td>
+            بردن آیتم به صدر <strong>دسته‌ی همان شهر + کسب‌وکار</strong>، انگار
+            تازه ساخته شده
+          </td>
+          <td>«پله»</td>
+          <td>بله</td>
+        </tr>
+        <tr>
+          <td>۳</td>
+          <td>تبلیغ در دایرکتوری</td>
+          <td>
+            تبلیغ <strong>هدفمند</strong>: فقط وقتی بازدیدکننده همان شهر و همان
+            کسب‌وکار را فیلتر کند، آیتم اول فهرست می‌آید
+          </td>
+          <td>«تبلیغات»</td>
+          <td>بله</td>
+        </tr>
+        <tr>
+          <td>۴</td>
+          <td>تبلیغ در صفحه‌ی اصلی</td>
+          <td>نمایش آیتم در جعبه‌ی تبلیغات صفحه‌ی خانه به مدت تعیین‌شده‌ی ادمین</td>
+          <td>«تبلیغات»</td>
+          <td>بله</td>
+        </tr>
+        <tr>
+          <td>۵</td>
+          <td>اشتراک فید (مکمل)</td>
+          <td>فروش بسته‌ی سهمیه‌ی پست تصویری برای فیدها</td>
+          <td>—</td>
+          <td>بله</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="box warn">
+      <strong>تفکیک حیاتی:</strong> «پله» رایگان/سهمیه‌ای است و برچسبش «پله» است؛
+      «تبلیغ در دایرکتوری» پرداختی، مدت‌دار، برچسبش «تبلیغات» و اولویت بالاتری از پله
+      دارد. این دو هرگز نباید با هم اشتباه شوند.
+    </div>
+
+    <h2 class="pagebreak">۲. مرحله‌ی یک — سئو و رندر دایرکتوری‌ها</h2>
+    <p>
+      بر پایه‌ی <code>seocart-1 .pdf</code> (خزش‌نشدن اسکرول بی‌پایان و قطع زنجیره‌ی
+      لینک‌سازی داخلی) و <code>seocart-2.pdf</code> (ساختار سئوی کارت‌های ویزیت با
+      اسلاگ عددی و JSON-LD).
+    </p>
+    <h3>تغییرات</h3>
+    <ul>
+      <li>
+        <strong>ماژول سئو در API</strong>: ماژول جدید
+        <code>apps/api/src/seo/</code> با اندپوینت عمومی
+        <code>GET /seo/sitemap</code> که کارت‌های ویزیت، بیولینک‌ها و پست‌های فیدِ
+        منتشرشده و تأییدشده به‌همراه صفحات ثابت را برمی‌گرداند (۲۵۱۷ ورودی).
+      </li>
+      <li>
+        <strong>سایت‌مپ و robots</strong>: <code>app/sitemap.ts</code> (با revalidate
+        ساعتی)، <code>app/robots.ts</code> و آیکون <code>app/icon.svg</code>.
+      </li>
+      <li>
+        <strong>متادیتا و JSON-LD</strong>: در صفحات جزئیات کارت ویزیت و بیولینک،
+        <code>generateMetadata</code> با canonical و Open Graph/Twitter اضافه شد و
+        داده‌ی ساخت‌یافته (LocalBusiness برای کسب‌وکار، ProfilePage برای بیولینک)
+        تزریق شد؛ صفحات ناموجود <code>noindex</code> شدند.
+      </li>
+      <li>
+        <strong>رندر سمت سرور دایرکتوری‌ها</strong>: فایل
+        <code>lib/directory-server.ts</code> و گذار صفحات دایرکتوری به Server
+        Component؛ منطق تعاملی به کامپوننت‌های جدید
+        <code>DirectoryBiolinkContent.tsx</code> و
+        <code>DirectoryBusinessCardContent.tsx</code> منتقل شد. اکنون ردیف‌ها لینکِ
+        واقعی <code>&lt;a href&gt;</code> با متن توصیفی دارند تا خزنده‌ی گوگل آن‌ها را
+        ببیند.
+      </li>
+    </ul>
+    <div class="box ok">
+      <strong>تأیید:</strong> در HTML رندرشده‌ی سمت سرور لینک‌های قابل‌خزش وجود دارد؛
+      <code>sitemap.xml</code>، <code>robots.txt</code> و <code>icon.svg</code> کد ۲۰۰
+      برمی‌گردانند؛ عنوان/canonical/JSON-LD روی صفحات جزئیات حاضرند؛ اسکرول بی‌پایان
+      (۲۰→۷۰ ردیف) و نمای دوقسمتی کار می‌کنند.
+    </div>
+
+    <h2>۳. مرحله‌ی دو — بهینه‌سازی سرعت</h2>
+    <p>
+      بر پایه‌ی <code>speed.pdf</code> (تحلیل ترافیک شبکه و گلوله‌های N+1) و
+      <code>speed-2.pdf</code> (اقدامات فوری بدون ویرایش کد، از جمله تست بار با
+      Autocannon).
+    </p>
+    <h3>تغییرات</h3>
+    <ul>
+      <li>
+        <strong>حذف درخواست N+1 لایک</strong>: به <code>LikeButton</code> پراپ
+        <code>reconcile</code> اضافه شد؛ ردیف‌های دایرکتوری با
+        <code>reconcile={false}</code> دیگر درخواست مستقل
+        <code>GET .../like</code> نمی‌فرستند (۵ درخواست → صفر). یک افکت آینه‌ای با
+        <code>useRef</code> نیز حالت واقعی والد را بدون پاک‌کردن کلیک خوش‌بینانه‌ی
+        کاربر همگام می‌کند.
+      </li>
+      <li>
+        <strong>فروکش پیش‌واکشی ناوبری</strong>: به لینک‌های
+        <code>MobileNav</code>، <code>Footer</code> و <code>UserShell</code> پراپ
+        <code>prefetch={false}</code> اضافه شد تا سیل درخواست <code>?_rsc=</code> روی
+        مسیرهای سنگین (پنل و ادمین) متوقف شود.
+      </li>
+    </ul>
+    <div class="box ok">
+      <strong>تأیید:</strong> <code>tsc</code> تمیز؛ صفحه‌ی ۵ ردیفی صفر درخواست لایک
+      می‌فرستد؛ تست بار Autocannon روی <code>GET /business-cards/public</code>:
+      میانه‌ی ~۴۸ms، میانگین ~۵۱ms، توان ~۳۸۸ درخواست/ثانیه، بدون پاسخ غیر‑2xx.
+    </div>
+
+    <h2 class="pagebreak">۴. مرحله‌ی سه — سخت‌سازی امنیت</h2>
+    <p>بر پایه‌ی <code>secure.pdf</code> (چک‌لیست شش‌لایه‌ی امنیت پروژه).</p>
+    <h3>تغییرات</h3>
+    <ul>
+      <li>
+        <strong>هدرهای امنیتی و CSP فرانت‌اند</strong>: فایل
+        <code>apps/web/proxy.ts</code> (جایگزین <code>middleware.ts</code> بر پایه‌ی
+        قرارداد جدید Next.js 16) روی همه‌ی مسیرها هدرهای
+        <code>Content-Security-Policy</code>، <code>X-Content-Type-Options</code>،
+        <code>X-Frame-Options: DENY</code>، <code>Referrer-Policy</code>،
+        <code>Permissions-Policy</code>، <code>Cross-Origin-Opener-Policy</code> و در
+        HTTPS <code>Strict-Transport-Security</code> را اضافه می‌کند.
+      </li>
+      <li>
+        <strong>کاربر غیر‌روت API</strong>: در مرحله‌ی production فایل
+        <code>apps/api/Dockerfile</code> کاربر <code>node</code> تنظیم شد (به‌همراه
+        ساخت و chown پوشه‌ی <code>backups</code> برای اسنپ‌شات entrypoint).
+      </li>
+      <li>
+        <strong>اسکن خودکار وابستگی‌ها</strong>: فایل
+        <code>.github/dependabot.yml</code> برای اکوسیستم‌های <code>npm</code>،
+        <code>github-actions</code> و <code>docker</code> فعال شد.
+      </li>
+      <li>
+        <strong>سند ممیزی</strong>: <code>docs/SECURITY-AUDIT.md</code> چک‌لیست را
+        لایه‌به‌لایه (SCA، SAST/Secret، بک‌اند Prisma/NestJS، فرانت‌اند، DAST،
+        داکر/Postgres) مرور و وضعیت هر مورد را در مخزن ثبت می‌کند.
+      </li>
+    </ul>
+    <h3>نتیجه‌ی بررسی چک‌لیست</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>لایه</th>
+          <th>مورد</th>
+          <th>وضعیت در مخزن</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>SCA</td>
+          <td>اسکن خودکار وابستگی‌ها</td>
+          <td><span class="tag done">پیاده‌شده</span> Dependabot فعال شد</td>
+        </tr>
+        <tr>
+          <td>SAST/Secret</td>
+          <td>Semgrep / gitleaks</td>
+          <td>
+            <span class="tag proc">رویه‌ی آماده</span> دستورها در سند ممیزی ثبت شد
+          </td>
+        </tr>
+        <tr>
+          <td>بک‌اند</td>
+          <td><code>$queryRawUnsafe</code> / SQL Injection</td>
+          <td>
+            <span class="tag done">امن</span> فقط <code>$queryRaw</code> در health
+            check استفاده شده
+          </td>
+        </tr>
+        <tr>
+          <td>بک‌اند</td>
+          <td>اعتبارسنجی ورودی (Mass Assignment)</td>
+          <td>
+            <span class="tag done">فعال</span> <code>ValidationPipe</code> سراسری با
+            whitelist
+          </td>
+        </tr>
+        <tr>
+          <td>بک‌اند</td>
+          <td>هدرها، CORS و Rate Limiting</td>
+          <td>
+            <span class="tag done">فعال</span> helmet، CORS محدود، محدودیت نرخ روی
+            Redis
+          </td>
+        </tr>
+        <tr>
+          <td>فرانت‌اند</td>
+          <td>CSP و هدرهای امنیتی</td>
+          <td><span class="tag done">پیاده‌شده</span> <code>proxy.ts</code></td>
+        </tr>
+        <tr>
+          <td>فرانت‌اند</td>
+          <td>XSS / متغیرهای محیطی</td>
+          <td>
+            <span class="tag done">امن</span> تنها JSON-LD تزریق می‌شود؛ هیچ Secretی
+            با <code>NEXT_PUBLIC_</code> نیست
+          </td>
+        </tr>
+        <tr>
+          <td>DAST</td>
+          <td>OWASP ZAP</td>
+          <td><span class="tag proc">رویه‌ی آماده</span> دستور در سند ممیزی</td>
+        </tr>
+        <tr>
+          <td>داکر/DB</td>
+          <td>عدم اجرای Root و عدم اکسپوز 5432</td>
+          <td>
+            <span class="tag done">پیاده‌شده</span> <code>USER node/nextjs</code> +
+            پورت‌های پروداکشن محدود به <code>127.0.0.1</code>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="box ok">
+      <strong>تأیید:</strong> <code>tsc</code> بدون خطا؛ <code>curl -D -</code> روی
+      مسیرهای <code>/</code>، <code>/biolinks</code>، <code>/dashboard</code> و
+      <code>/api/health</code> حضور همهٔ هدرهای امنیتی را نشان داد و هشدار
+      deprecated صادر نشد؛ <code>sync_install.py --check</code> → بدون تغییر معلق.
+    </div>
+
+    <h2>۵. کنترل کیفیت و قواعد پروژه</h2>
+    <ul>
+      <li>
+        هر تغییر پس از تست، در <code>History-Agent.md</code> ثبت و نسخه در
+        <code>apps/web/lib/version.ts</code> بالا برده شد (نسخه‌ی نهایی
+        <code>v2.53.0</code>).
+      </li>
+      <li>
+        پس از هر ویرایش، <code>install.sh</code> با
+        <code>python3 scripts/sync_install.py</code> همگام و با
+        <code>--check</code> تأیید شد (بدون تغییر معلق).
+      </li>
+      <li>
+        هر مرحله در یک کامیت مستقل و با پیام معنادار ثبت شد؛
+        <code>push</code> طبق قواعد پروژه بر عهده‌ی کاربر است.
+      </li>
+    </ul>
+
+    <h2>۶. گام‌های بعدی پیشنهادی</h2>
+    <ul>
+      <li>
+        راه‌اندازی اجرای دوره‌ای <code>npm audit</code> و <code>gitleaks</code> در
+        CI (فراتر از Dependabot) و یک اسکن پایه‌ی OWASP ZAP روی اندپوینت‌ها.
+      </li>
+      <li>
+        جایگزینی <code>'unsafe-inline'</code> در CSP با یک خط‌لوله‌ی nonce برای
+        سخت‌ترکردن بیشتر سیاست امنیت محتوا.
+      </li>
+      <li>افزودن اسکن ایمیج با <code>trivy</code> به‌عنوان یک گام در گردش کار انتشار.</li>
+      <li>پیگیری موارد معوق ثبت‌شده در <code>BACKLOG.md</code>.</li>
+    </ul>
+  </body>
+</html>
