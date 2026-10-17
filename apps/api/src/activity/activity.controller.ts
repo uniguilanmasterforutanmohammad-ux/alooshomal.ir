@@ -13,7 +13,7 @@ import { Type } from 'class-transformer';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { SettingsService } from '../settings/settings.service';
-import { ActivityService } from './activity.service';
+import { ActivityService, REVENUE_ACTIONS } from './activity.service';
 
 class ListActivityDto {
   @IsOptional()
@@ -41,6 +41,12 @@ class ListActivityDto {
   @Type(() => Boolean)
   @IsBoolean()
   adminOnly?: boolean;
+
+  /** When set, only monetisation events (subscriptions/boosts/ads/rewards). */
+  @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
+  revenueOnly?: boolean;
 }
 
 class UpdateActivitySettingsDto {
@@ -66,11 +72,19 @@ export class AdminActivityController {
   @Get()
   @ApiOperation({ summary: 'گزارش رویدادهای سیستم با صفحه‌بندی' })
   async list(@Query() query: ListActivityDto) {
+    const { revenueOnly, ...params } = query;
     const [result, actions] = await Promise.all([
-      this.activity.list(query),
+      this.activity.list(
+        revenueOnly ? { ...params, actions: REVENUE_ACTIONS } : params,
+      ),
       this.activity.actions(),
     ]);
-    return { ...result, actions };
+    // Keep the filter dropdown in step with the panel scope: the revenue panel
+    // only ever lists monetisation keys.
+    const visibleActions = revenueOnly
+      ? actions.filter((key) => REVENUE_ACTIONS.includes(key))
+      : actions;
+    return { ...result, actions: visibleActions };
   }
 
   @Get('settings')

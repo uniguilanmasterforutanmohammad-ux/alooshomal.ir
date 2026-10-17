@@ -22,6 +22,29 @@ export interface ActivityLogInput {
   userAgent?: string | null;
 }
 
+/**
+ * The activity keys that represent a *monetisation* event — a subscription,
+ * boost («پله»), paid directory/home ad, feed package or a points reward. The
+ * admin "درآمد → لاگ اقدامات درآمدی" panel is scoped to exactly these keys so
+ * every purchase attempt and decision is auditable in one place.
+ */
+export const REVENUE_ACTIONS: readonly string[] = [
+  'SUBSCRIPTION_REQUESTED',
+  'SUBSCRIPTION_APPROVED',
+  'SUBSCRIPTION_REJECTED',
+  'SUBSCRIPTION_ASSIGNED',
+  'FEED_SUBSCRIPTION_REQUESTED',
+  'FEED_SUBSCRIPTION_APPROVED',
+  'FEED_SUBSCRIPTION_REJECTED',
+  'BOOST_REQUESTED',
+  'BOOST_APPROVED',
+  'BOOST_REJECTED',
+  'AD_REQUESTED',
+  'AD_APPROVED',
+  'AD_REJECTED',
+  'REWARD_REDEEMED',
+];
+
 @Injectable()
 export class ActivityService {
   private readonly logger = new Logger(ActivityService.name);
@@ -66,6 +89,7 @@ export class ActivityService {
     page?: number;
     limit?: number;
     action?: string;
+    actions?: readonly string[];
     adminOnly?: boolean;
     search?: string;
   }) {
@@ -74,6 +98,7 @@ export class ActivityService {
 
     const where: Prisma.ActivityLogWhereInput = {};
     if (params.action) where.action = params.action;
+    else if (params.actions?.length) where.action = { in: [...params.actions] };
     if (params.adminOnly) where.actorIsAdmin = true;
     if (params.search) {
       where.OR = [

@@ -5,6 +5,7 @@ import { Banknote, Coins, Save, Tag } from 'lucide-react';
 
 import { api } from '@/lib/api';
 import { AdminDataTable, type AdminColumn } from './AdminDataTable';
+import { ActivityLogPanel } from './ActivityLogPanel';
 
 interface RevenueItem {
   model: string;
@@ -253,6 +254,10 @@ export function AdminRevenue() {
           </div>
         )}
       </form>
+
+      <div className="mt-2 border-t-2 border-dashed border-[var(--vintage-accent-hover)] pt-4">
+        <ActivityLogPanel scope="revenue" />
+      </div>
     </div>
   );
 }

@@ -60,6 +60,13 @@ const ACTION_LABELS: Record<string, string> = {
   BOOST_REQUESTED: 'درخواست پله',
   BOOST_APPROVED: 'تأیید پله',
   BOOST_REJECTED: 'رد پله',
+  AD_REQUESTED: 'درخواست تبلیغ',
+  AD_APPROVED: 'تأیید تبلیغ',
+  AD_REJECTED: 'رد تبلیغ',
+  FEED_SUBSCRIPTION_REQUESTED: 'درخواست اشتراک فید',
+  FEED_SUBSCRIPTION_APPROVED: 'تأیید اشتراک فید',
+  FEED_SUBSCRIPTION_REJECTED: 'رد اشتراک فید',
+  REWARD_REDEEMED: 'دریافت جایزه امتیاز',
   PROFILE_CHANGE_REQUESTED: 'درخواست تغییر نام',
   PROFILE_CHANGE_APPROVED: 'تأیید تغییر نام',
   PROFILE_CHANGE_REJECTED: 'رد تغییر نام',
@@ -83,8 +90,13 @@ function faDateTime(value: string) {
  * Admin "گزارش‌های سیستم" tab: a paginated, one-line-per-event activity log
  * with a configurable retention window (months) after which older rows are
  * pruned automatically.
+ *
+ * Pass `scope="revenue"` to reuse the same table as the dedicated monetisation
+ * audit ("لاگ اقدامات درآمدی"): every subscription/boost/ad/feed-package/reward
+ * event is then listed on its own.
  */
-export function ActivityLogPanel() {
+export function ActivityLogPanel({ scope }: { scope?: 'revenue' } = {}) {
+  const revenueOnly = scope === 'revenue';
   const [data, setData] = useState<ActivityPayload | null>(null);
   const [page, setPage] = useState(1);
   const [action, setAction] = useState('');
@@ -105,6 +117,7 @@ export function ActivityLogPanel() {
       if (action) params.set('action', action);
       if (search.trim()) params.set('search', search.trim());
       if (adminOnly) params.set('adminOnly', 'true');
+      if (revenueOnly) params.set('revenueOnly', 'true');
       const result = await api.get<ActivityPayload>(`/admin/activity?${params.toString()}`);
       setData(result);
     } catch (err) {
@@ -112,7 +125,7 @@ export function ActivityLogPanel() {
     } finally {
       setLoading(false);
     }
-  }, [page, action, search, adminOnly]);
+  }, [page, action, search, adminOnly, revenueOnly]);
 
   useEffect(() => {
     void load();
@@ -162,60 +175,72 @@ export function ActivityLogPanel() {
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="indeed-panel p-5">
-        <div className="flex items-center gap-2">
-          <Activity className="size-5 text-brand" aria-hidden />
-          <h3 className="text-sm font-extrabold text-ink">ماندگاری گزارش‌ها</h3>
-        </div>
-        <p className="mt-1 text-xs text-muted">
-          رویدادهای قدیمی‌تر از این مدت به‌صورت خودکار حذف می‌شوند تا حجم دیتابیس سنگین
-          نشود. حذف یک‌بار در روز و همچنین به‌محض تغییر همین مقدار انجام می‌شود.
-        </p>
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-xs font-bold text-muted">
-            مدت ماندگاری (ماه)
-            <input
-              type="number"
-              min={1}
-              max={60}
-              dir="ltr"
-              value={retention}
-              onChange={(event) => setRetention(event.target.value)}
-              className="w-32 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-brand"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={saveRetention}
-            disabled={savingRetention}
-            className="indeed-btn indeed-btn-primary py-2 text-sm disabled:opacity-60"
-          >
-            <Save className="size-4" aria-hidden />
-            ذخیره
-          </button>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="indeed-btn indeed-btn-secondary py-2 text-sm"
-          >
-            <RefreshCw className="size-4" aria-hidden />
-            به‌روزرسانی
-          </button>
-        </div>
-        {retentionMessage ? (
-          <p className="mt-3 rounded-lg bg-green-50 p-2 text-xs text-green-700">
-            {retentionMessage}
+      {!revenueOnly ? (
+        <div className="indeed-panel p-5">
+          <div className="flex items-center gap-2">
+            <Activity className="size-5 text-brand" aria-hidden />
+            <h3 className="text-sm font-extrabold text-ink">ماندگاری گزارش‌ها</h3>
+          </div>
+          <p className="mt-1 text-xs text-muted">
+            رویدادهای قدیمی‌تر از این مدت به‌صورت خودکار حذف می‌شوند تا حجم دیتابیس
+            سنگین نشود. حذف یک‌بار در روز و همچنین به‌محض تغییر همین مقدار انجام می‌شود.
           </p>
-        ) : null}
-      </div>
+          <div className="mt-4 flex flex-wrap items-end gap-3">
+            <label className="flex flex-col gap-1 text-xs font-bold text-muted">
+              مدت ماندگاری (ماه)
+              <input
+                type="number"
+                min={1}
+                max={60}
+                dir="ltr"
+                value={retention}
+                onChange={(event) => setRetention(event.target.value)}
+                className="w-32 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm font-semibold text-ink outline-none focus:border-brand"
+              />
+            </label>
+            <button
+              type="button"
+              onClick={saveRetention}
+              disabled={savingRetention}
+              className="indeed-btn indeed-btn-primary py-2 text-sm disabled:opacity-60"
+            >
+              <Save className="size-4" aria-hidden />
+              ذخیره
+            </button>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="indeed-btn indeed-btn-secondary py-2 text-sm"
+            >
+              <RefreshCw className="size-4" aria-hidden />
+              به‌روزرسانی
+            </button>
+          </div>
+          {retentionMessage ? (
+            <p className="mt-3 rounded-lg bg-green-50 p-2 text-xs text-green-700">
+              {retentionMessage}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="indeed-panel overflow-hidden">
         <div className="flex flex-wrap items-center gap-3 border-b-2 border-dashed border-[var(--vintage-accent-hover)] px-5 py-3">
-          <h3 className="text-sm font-extrabold text-ink">گزارش رویدادهای سیستم</h3>
+          <h3 className="text-sm font-extrabold text-ink">
+            {revenueOnly ? 'گزارش اقدامات درآمدی' : 'گزارش رویدادهای سیستم'}
+          </h3>
           <span className="text-xs text-muted">
             {meta ? `${meta.total.toLocaleString('fa-IR')} رویداد` : ''}
           </span>
         </div>
+
+        {revenueOnly ? (
+          <p className="border-b border-[var(--vintage-border)] px-5 py-3 text-xs text-muted">
+            هر اقدام مربوط به خرید/ارتقای اشتراک، پله، تبلیغ دایرکتوری، تبلیغ صفحه
+            اول، اشتراک فید و دریافت جایزه امتیاز اینجا ثبت می‌شود؛ بنابراین سابقه‌ی
+            کامل درآمدزایی و تصمیم‌های مدیر قابل رهگیری است.
+          </p>
+        ) : null}
 
         <div className="flex flex-wrap items-end gap-3 border-b border-[var(--vintage-border)] px-5 py-3">
           <label className="flex min-w-48 flex-1 flex-col gap-1 text-xs font-bold text-muted">
