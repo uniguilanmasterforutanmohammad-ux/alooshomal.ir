@@ -17,12 +17,21 @@ import { NextResponse, type NextRequest } from 'next/server';
  *     unless a nonce pipeline is wired in. We keep it as a pragmatic baseline
  *     and restrict everything else (`object-src 'none'`, `frame-ancestors`,
  *     `base-uri`, `form-action`).
+ *   - In development Turbopack/HMR requires `eval()` for stack reconstruction,
+ *     so `'unsafe-eval'` is appended to `script-src` **only** when
+ *     `NODE_ENV !== 'production'`. Production never uses `eval`, so the policy
+ *     stays strict there.
  *   - `img-src` allows `data:`/`blob:`/`https:` because avatars/logos are served
- *     from the media origin (MinIO via /media) and QR images are data URLs.
+ *     from the media origin (MinIO via /media) and QR images are data URLs. In
+ *     development the media host is plain HTTP (local MinIO), so its origin is
+ *     appended from `MINIO_PUBLIC_URL` to keep images loading.
  *   - `connect-src` allows the same-origin API proxy and the configured API
  *     origin so `fetch`/SSE keep working.
  */
 export function proxy(request: NextRequest) {
+  // Turbopack's dev server needs `eval()`; production builds do not.
+  const isDev = process.env.NODE_ENV !== 'production';
+
   const apiOrigin = (() => {
     try {
       return new URL(
@@ -33,15 +42,31 @@ export function proxy(request: NextRequest) {
     }
   })();
 
+  // Browser-facing media origin (MinIO). Production uses https (already covered
+  // by `https:`), but dev serves images over plain HTTP, so allow that origin.
+  const mediaOrigin = (() => {
+    const configured = process.env.MINIO_PUBLIC_URL?.trim();
+    if (!configured) return isDev ? 'http://localhost:9000' : '';
+    try {
+      return new URL(configured).origin;
+    } catch {
+      return '';
+    }
+  })();
+
+  const scriptSrc = isDev
+    ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
+    : "script-src 'self' 'unsafe-inline'";
+
   const csp = [
     "default-src 'self'",
     "base-uri 'self'",
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    "script-src 'self' 'unsafe-inline'",
+    scriptSrc,
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https:",
+    `img-src 'self' data: blob: https:${mediaOrigin ? ` ${mediaOrigin}` : ''}`,
     "font-src 'self' data:",
     `connect-src 'self'${apiOrigin ? ` ${apiOrigin}` : ''} ws: wss:`,
     "manifest-src 'self'",

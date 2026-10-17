@@ -20,7 +20,31 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.53.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.53.2**.
+
+## ۱۴۰۵/۰۷/۲۵ — رفع خطای CSP در حالت توسعه (`unsafe-eval` و منبع تصاویر) — نسخه `v2.53.2`
+
+**هدف:** پس از افزودن CSP در مرحله‌ی امنیت، حالت توسعه‌ی Next.js/Turbopack دچار
+خطای کنسول `eval() is not supported in this environment` شد و تصاویر MinIO
+(`http://localhost:9000`) توسط `img-src` بلاک می‌شدند.
+
+**تغییرات:**
+- `apps/web/proxy.ts`: در حالت توسعه (`NODE_ENV !== 'production'`) به `script-src`
+  مقدار `'unsafe-eval'` اضافه می‌شود تا Turbopack/HMR کار کند؛ در پروداکشن
+  سیاست سخت‌گیرانه باقی می‌ماند. همچنین منبع عمومی رسانه از `MINIO_PUBLIC_URL`
+  خوانده و در حالت توسعه به `img-src` اضافه می‌شود (پیش‌فرض `http://localhost:9000`)
+  تا آواتارها/لوگوها بلاک نشوند.
+- `docker-compose.yml` و `docker-compose.prod.yml`: پاس‌دادن متغیر
+  `MINIO_PUBLIC_URL` به سرویس web برای ساخت درست `img-src` در CSP.
+
+**تأیید/تست:**
+- `tsc --noEmit` برای `apps/web` بدون خطا.
+- `curl -D -` نشان می‌دهد در dev هدر CSP شامل `'unsafe-eval'` و
+  `http://localhost:9000` است و در پروداکشن بدون `'unsafe-eval'` خواهد بود.
+- اجرای Playwright روی `/`، `/business-cards`، `/biolinks` و `/dashboard`:
+  صفر خطای کنسول و صفر نقض CSP.
+- `python3 scripts/sync_install.py && python3 scripts/sync_install.py --check` →
+  `patched: 0 / added: 0`.
 
 ## ۱۴۰۵/۰۷/۲۵ — گزارش PDF اجرای سه مرحله (سئو، سرعت، امنیت) — نسخه `v2.53.1`
 
