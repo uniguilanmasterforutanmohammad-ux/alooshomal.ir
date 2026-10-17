@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
+import { scheduleAdWindow } from '../common/ad-scheduling';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -28,6 +29,32 @@ interface AdTarget {
   jobTitle: string | null;
   company: string | null;
   isPublished: boolean;
+}
+
+/** Where an approved ad sits in its display window, for the user/admin panels. */
+type AdDisplayState =
+  | 'PENDING'
+  | 'SCHEDULED'
+  | 'ACTIVE'
+  | 'EXPIRED'
+  | 'REJECTED';
+
+function displayStateOf(
+  request: {
+    status: BoostStatus;
+    startedAt: Date | null;
+    endsAt: Date | null;
+  },
+  now: Date,
+): AdDisplayState {
+  if (request.status === BoostStatus.PENDING) return 'PENDING';
+  if (request.status === BoostStatus.REJECTED) return 'REJECTED';
+  if (!request.endsAt) return 'ACTIVE';
+  if (request.endsAt.getTime() <= now.getTime()) return 'EXPIRED';
+  if (request.startedAt && request.startedAt.getTime() > now.getTime()) {
+    return 'SCHEDULED';
+  }
+  return 'ACTIVE';
 }
 
 @Injectable()
@@ -83,6 +110,7 @@ export class AdsService {
       ]);
 
     const labels = await this.targetLabels(requests);
+    const now = new Date();
 
     return {
       businessCards: businessCards.map(({ status, ...item }) => ({
@@ -96,6 +124,7 @@ export class AdsService {
       requests: requests.map((request) => ({
         ...request,
         target: labels.get(request.targetId) ?? null,
+        displayState: displayStateOf(request, now),
       })),
       settings: { durationDays, dailySlots },
     };
@@ -151,9 +180,11 @@ export class AdsService {
   }
 
   /**
-   * The single active ad shown in the home-page box. Approved ads that have not
-   * yet expired are rotated deterministically by day so each advertiser gets a
-   * fair turn when the admin allows only one slot.
+   * The ad(s) shown in the home-page box right now: approved requests whose
+   * scheduled window already started and has not expired. Queued ads (whose
+   * `startedAt` is still in the future) stay hidden until their turn. At most
+   * `adDailySlots` ads run in parallel; when more are live (e.g. legacy rows
+   * created before scheduling) the ones closest to finishing are kept.
    */
   async activeAd() {
     // Cached for a few seconds (like the directory facets): the home page is the
@@ -167,24 +198,20 @@ export class AdsService {
       this.prisma.adRequest.findMany({
         where: {
           status: BoostStatus.APPROVED,
-          OR: [{ endsAt: null }, { endsAt: { gt: now } }],
+          AND: [
+            { OR: [{ startedAt: null }, { startedAt: { lte: now } }] },
+            { OR: [{ endsAt: null }, { endsAt: { gt: now } }] },
+          ],
         },
-        orderBy: { decidedAt: 'desc' },
-        take: 60,
+        orderBy: { endsAt: 'asc' },
+        take: 20,
       }),
       this.settings.getAdDailySlots(),
     ]);
 
     if (ads.length === 0) return null;
 
-    // Stable per-day offset so the rotation is the same for every visitor on a
-    // given day but changes at midnight.
-    const dayIndex = Math.floor(now.getTime() / 86_400_000);
-    const poolSize = Math.min(slots, 20);
-    const chosen: typeof ads = [];
-    for (let i = 0; i < Math.min(poolSize, ads.length); i += 1) {
-      chosen.push(ads[(dayIndex + i) % ads.length]);
-    }
+    const chosen = ads.slice(0, Math.min(Math.max(1, slots), ads.length));
 
     const labels = await this.targetLabels(chosen);
     const items = await Promise.all(
@@ -206,9 +233,11 @@ export class AdsService {
       take: 200,
     });
     const labels = await this.targetLabels(requests);
+    const now = new Date();
     return requests.map((request) => ({
       ...request,
       target: labels.get(request.targetId) ?? null,
+      displayState: displayStateOf(request, now),
     }));
   }
 
@@ -229,7 +258,35 @@ export class AdsService {
 
     const approved = dto.status === BoostStatus.APPROVED;
     const now = new Date();
-    const durationDays = await this.settings.getAdDurationDays();
+    const [durationDays, slots] = await Promise.all([
+      this.settings.getAdDurationDays(),
+      this.settings.getAdDailySlots(),
+    ]);
+
+    // Approved ads are queued: they run for `durationDays` in one of the
+    // `slots` parallel lanes. When all lanes are busy the new ad is scheduled
+    // to start automatically when the first lane frees up.
+    let window: { startedAt: Date; endsAt: Date } | null = null;
+    if (approved) {
+      const active = await this.prisma.adRequest.findMany({
+        where: {
+          status: BoostStatus.APPROVED,
+          startedAt: { not: null },
+          endsAt: { gt: now },
+          id: { not: requestId },
+        },
+        select: { startedAt: true, endsAt: true },
+      });
+      window = scheduleAdWindow(
+        now,
+        active.map((ad) => ({
+          startedAt: ad.startedAt as Date,
+          endsAt: ad.endsAt as Date,
+        })),
+        slots,
+        durationDays,
+      );
+    }
 
     const updated = await this.prisma.adRequest.update({
       where: { id: requestId },
@@ -238,22 +295,24 @@ export class AdsService {
         decidedAt: now,
         decidedById: adminId,
         adminNote: dto.adminNote ?? null,
-        startedAt: approved ? now : null,
-        endsAt: approved
-          ? new Date(now.getTime() + durationDays * 86_400_000)
-          : null,
+        startedAt: window?.startedAt ?? null,
+        endsAt: window?.endsAt ?? null,
       },
     });
 
     const labels = await this.targetLabels([request]);
     const label = labels.get(request.targetId)?.fullName ?? 'مورد انتخابی';
+    const queued =
+      approved && window !== null && window.startedAt.getTime() > now.getTime();
 
     await this.notifications.notify({
       userId: request.userId,
       type: approved ? NotificationType.SUCCESS : NotificationType.WARNING,
       title: approved ? 'تبلیغ شما تأیید شد' : 'درخواست تبلیغ شما رد شد',
       body: approved
-        ? `تبلیغ «${label}» به‌مدت ${durationDays.toLocaleString('fa-IR')} روز در صفحه اصلی نمایش داده می‌شود.`
+        ? queued && window
+          ? `تبلیغ «${label}» تأیید شد و از ${window.startedAt.toLocaleDateString('fa-IR')} تا ${window.endsAt.toLocaleDateString('fa-IR')} در صفحه اصلی نمایش داده می‌شود.`
+          : `تبلیغ «${label}» به‌مدت ${durationDays.toLocaleString('fa-IR')} روز در صفحه اصلی نمایش داده می‌شود.`
         : `درخواست تبلیغ «${label}» رد شد.` +
           (dto.adminNote ? ` دلیل: ${dto.adminNote}` : ''),
       link: '/dashboard/ads',

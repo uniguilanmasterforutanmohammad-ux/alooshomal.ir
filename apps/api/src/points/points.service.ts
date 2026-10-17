@@ -14,6 +14,7 @@ import {
 } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
+import { scheduleAdWindow } from '../common/ad-scheduling';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -43,8 +44,6 @@ export class PointsService implements OnModuleInit {
     private readonly activity: ActivityService,
     private readonly facetsCache: FacetsCacheService,
   ) {}
-
-  private static readonly AD_DURATION_MS = 30 * 24 * 60 * 60 * 1000;
 
   async onModuleInit(): Promise<void> {
     // Seed a starter reward catalogue (points costs the admin can edit). The
@@ -226,6 +225,35 @@ export class PointsService implements OnModuleInit {
     }
 
     const now = new Date();
+
+    // A home-page ad reward joins the same scheduling queue as admin-approved
+    // ads: it starts immediately if a lane is free, otherwise when the first
+    // lane frees up (never overlapping inside a lane).
+    let adWindow: { startedAt: Date; endsAt: Date } | null = null;
+    if (reward.kind === RewardKind.AD_HOME) {
+      const [durationDays, slots, active] = await Promise.all([
+        this.settings.getAdDurationDays(),
+        this.settings.getAdDailySlots(),
+        this.prisma.adRequest.findMany({
+          where: {
+            status: BoostStatus.APPROVED,
+            startedAt: { not: null },
+            endsAt: { gt: now },
+          },
+          select: { startedAt: true, endsAt: true },
+        }),
+      ]);
+      adWindow = scheduleAdWindow(
+        now,
+        active.map((ad) => ({
+          startedAt: ad.startedAt as Date,
+          endsAt: ad.endsAt as Date,
+        })),
+        slots,
+        durationDays,
+      );
+    }
+
     await this.prisma.$transaction(async (tx) => {
       await tx.pointsLedger.create({
         data: {
@@ -262,8 +290,8 @@ export class PointsService implements OnModuleInit {
             targetId: target.id,
             status: BoostStatus.APPROVED,
             decidedAt: now,
-            startedAt: now,
-            endsAt: new Date(now.getTime() + PointsService.AD_DURATION_MS),
+            startedAt: adWindow?.startedAt ?? now,
+            endsAt: adWindow?.endsAt ?? null,
             adminNote: 'جایزه امتیاز',
           },
         });

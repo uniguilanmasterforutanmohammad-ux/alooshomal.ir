@@ -9,10 +9,22 @@ import { cn } from '@/lib/utils';
 type Tab = 'pending' | 'settings';
 
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
-  { value: 'PENDING', label: 'در انتظار' },
+  { value: 'PENDING', label: 'در انتظار تأیید' },
   { value: 'APPROVED', label: 'تأییدشده' },
   { value: 'REJECTED', label: 'ردشده' },
 ];
+
+const DISPLAY_LABELS: Record<string, string> = {
+  PENDING: 'در انتظار تأیید',
+  SCHEDULED: 'در انتظار نمایش',
+  ACTIVE: 'در حال نمایش',
+  EXPIRED: 'پایان‌یافته',
+  REJECTED: 'ردشده',
+};
+
+function faDate(value: string) {
+  return new Date(value).toLocaleDateString('fa-IR');
+}
 
 interface SettingsPayload {
   adDurationDays: number;
@@ -141,10 +153,17 @@ export function AdminAds() {
                   <p className="mt-1 text-xs text-muted">
                     تاریخ درخواست:{' '}
                     {new Date(request.requestedAt).toLocaleDateString('fa-IR')}
-                    {request.endsAt
-                      ? ` • پایان نمایش: ${new Date(request.endsAt).toLocaleDateString('fa-IR')}`
-                      : ''}
                   </p>
+                  {request.status === 'APPROVED' ? (
+                    <p className="mt-1 text-xs text-muted">
+                      بازه نمایش:{' '}
+                      {request.startedAt ? faDate(request.startedAt) : '—'} تا{' '}
+                      {request.endsAt ? faDate(request.endsAt) : '—'}
+                      {request.displayState
+                        ? ` • ${DISPLAY_LABELS[request.displayState] ?? ''}`
+                        : ''}
+                    </p>
+                  ) : null}
                 </div>
 
                 {request.status === 'PENDING' ? (
@@ -170,12 +189,15 @@ export function AdminAds() {
                   <span
                     className={cn(
                       'rounded-full px-3 py-1 text-xs font-bold',
-                      request.status === 'APPROVED'
+                      request.displayState === 'ACTIVE'
                         ? 'bg-green-50 text-green-700'
-                        : 'bg-red-50 text-red-700',
+                        : request.displayState === 'SCHEDULED'
+                          ? 'bg-amber-50 text-amber-700'
+                          : 'bg-red-50 text-red-700',
                     )}
                   >
-                    {request.status === 'APPROVED' ? 'تأییدشده' : 'ردشده'}
+                    {DISPLAY_LABELS[request.displayState ?? request.status] ??
+                      (request.status === 'APPROVED' ? 'تأییدشده' : 'ردشده')}
                   </span>
                 )}
               </div>

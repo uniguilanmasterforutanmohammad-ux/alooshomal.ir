@@ -21,6 +21,18 @@ const STATUS_LABELS: Record<string, string> = {
   REJECTED: 'ردشده',
 };
 
+const DISPLAY_LABELS: Record<string, string> = {
+  PENDING: 'در انتظار تأیید',
+  SCHEDULED: 'در انتظار نمایش',
+  ACTIVE: 'در حال نمایش',
+  EXPIRED: 'پایان‌یافته',
+  REJECTED: 'ردشده',
+};
+
+function faDate(value: string) {
+  return new Date(value).toLocaleDateString('fa-IR');
+}
+
 interface RowProps {
   item: AdTargetItem;
   kind: AdTargetKind;
@@ -31,10 +43,7 @@ interface RowProps {
 
 function TargetRow({ item, kind, request, busy, onRequest }: RowProps) {
   const pending = request?.status === 'PENDING';
-  const active =
-    request?.status === 'APPROVED' &&
-    request.endsAt &&
-    new Date(request.endsAt) > new Date();
+  const active = request?.displayState === 'ACTIVE';
 
   return (
     <div className="indeed-panel flex flex-wrap items-center justify-between gap-4 p-4">
@@ -51,18 +60,27 @@ function TargetRow({ item, kind, request, busy, onRequest }: RowProps) {
           {item.jobTitle ?? '—'}
           {item.company ? ` — ${item.company}` : ''}
         </p>
-        {request && request.status !== 'REJECTED' ? (
+        {request ? (
           <span
             className={cn(
               'mt-2 inline-block rounded-full px-2 py-0.5 text-[11px] font-bold',
-              request.status === 'APPROVED'
+              request.displayState === 'ACTIVE'
                 ? 'bg-green-50 text-green-700'
-                : 'bg-amber-50 text-amber-700',
+                : request.displayState === 'REJECTED' || request.displayState === 'EXPIRED'
+                  ? 'bg-red-50 text-red-700'
+                  : 'bg-amber-50 text-amber-700',
             )}
           >
-            {STATUS_LABELS[request.status] ?? request.status}
-            {active && request.endsAt
-              ? ` • تا ${new Date(request.endsAt).toLocaleDateString('fa-IR')}`
+            {DISPLAY_LABELS[request.displayState ?? request.status] ??
+              request.status}
+            {request.displayState === 'SCHEDULED' && request.startedAt
+              ? ` • شروع از ${faDate(request.startedAt)}`
+              : ''}
+            {request.displayState === 'ACTIVE' && request.endsAt
+              ? ` • تا ${faDate(request.endsAt)}`
+              : ''}
+            {request.displayState === 'EXPIRED' && request.endsAt
+              ? ` • ${faDate(request.endsAt)}`
               : ''}
           </span>
         ) : null}
@@ -254,19 +272,29 @@ export default function AdsPage() {
                       </span>
                     </span>
                     <span className="text-xs text-muted">
-                      {new Date(request.requestedAt).toLocaleDateString('fa-IR')}
+                      درخواست: {faDate(request.requestedAt)}
                     </span>
                     <span
                       className={cn(
                         'rounded-full px-2 py-0.5 text-[11px] font-bold',
-                        request.status === 'APPROVED'
+                        request.displayState === 'ACTIVE'
                           ? 'bg-green-50 text-green-700'
-                          : request.status === 'PENDING'
+                          : request.displayState === 'REJECTED' ||
+                              request.displayState === 'EXPIRED'
+                            ? 'bg-red-50 text-red-700'
+                            : request.status === 'PENDING'
                             ? 'bg-amber-50 text-amber-700'
-                            : 'bg-red-50 text-red-700',
+                            : 'bg-amber-50 text-amber-700',
                       )}
                     >
-                      {STATUS_LABELS[request.status] ?? request.status}
+                      {DISPLAY_LABELS[request.displayState ?? request.status] ??
+                        request.status}
+                      {request.displayState === 'SCHEDULED' && request.startedAt
+                        ? ` • ${faDate(request.startedAt)} تا ${request.endsAt ? faDate(request.endsAt) : '—'}`
+                        : ''}
+                      {request.displayState === 'ACTIVE' && request.endsAt
+                        ? ` • تا ${faDate(request.endsAt)}`
+                        : ''}
                     </span>
                   </div>
                 ))}

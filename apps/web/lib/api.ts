@@ -518,9 +518,18 @@ export interface AdRequest {
   endsAt: string | null;
   note: string | null;
   adminNote: string | null;
+  displayState?: AdDisplayState;
   target?: { id: string; fullName: string; slug: string } | null;
   user?: { id: string; email: string; fullName: string | null };
 }
+
+/** Where an approved ad sits in its display window (computed by the API). */
+export type AdDisplayState =
+  | 'PENDING'
+  | 'SCHEDULED'
+  | 'ACTIVE'
+  | 'EXPIRED'
+  | 'REJECTED';
 
 export interface AdsOverview {
   businessCards: AdTargetItem[];
