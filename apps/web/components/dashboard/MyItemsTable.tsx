@@ -39,6 +39,7 @@ interface Props {
  */
 export function MyItemsTable({ kind, items, loading, deletingId, onRemove }: Props) {
   const [boostState, setBoostState] = useState<Record<string, RequestStatus>>({});
+  const [directoryState, setDirectoryState] = useState<Record<string, RequestStatus>>({});
   const [adState, setAdState] = useState<Record<string, RequestStatus>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +71,29 @@ export function MyItemsTable({ kind, items, loading, deletingId, onRemove }: Pro
       setAdState((prev) => ({ ...prev, [item.id]: 'PENDING' }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ثبت درخواست تبلیغ ناموفق بود');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  /**
+   * «تبلیغ در دایرکتوری» — asks the admins to lift this item to the top of its
+   * own city/business slice of the directory. It shares the boost (پله) queue,
+   * so a pending directory request also disables the «بله» button.
+   */
+  async function requestDirectoryAd(item: Row) {
+    setBusy(`dir:${item.id}`);
+    setError(null);
+    try {
+      await api.post('/boosts/request', {
+        kind: apiKind,
+        targetId: item.id,
+        feature: 'POLE',
+        note: 'درخواست تبلیغ در صدر لیست دایرکتوری',
+      });
+      setDirectoryState((prev) => ({ ...prev, [item.id]: 'PENDING' }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ثبت درخواست تبلیغ در دایرکتوری ناموفق بود');
     } finally {
       setBusy(null);
     }
@@ -193,7 +217,7 @@ export function MyItemsTable({ kind, items, loading, deletingId, onRemove }: Pro
                         )}
                       >
                         <Megaphone className="size-3.5" aria-hidden />
-                        {adStatus === 'PENDING' ? 'تبلیغ: در انتظار' : 'تبلیغ صفحه اول'}
+                        {adStatus === 'PENDING' ? 'تبلیغ: در انتظار' : 'تبلیغ در صفحه اول'}
                       </button>
                       <button
                         type="button"
@@ -208,7 +232,22 @@ export function MyItemsTable({ kind, items, loading, deletingId, onRemove }: Pro
                         )}
                       >
                         <TrendingUp className="size-3.5" aria-hidden />
-                        {boostStatus === 'PENDING' ? 'پله: در انتظار' : 'تبلیغ دایرکتوری'}
+                        {boostStatus === 'PENDING' ? 'پله: در انتظار' : 'پله'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={busy === `dir:${item.id}` || directoryState[item.id] === 'PENDING' || !item.isPublished}
+                        onClick={() => requestDirectoryAd(item)}
+                        title={!item.isPublished ? 'فقط موارد منتشرشده قابل تبلیغ هستند' : 'درخواست تبلیغ در صدر لیست دایرکتوری شهر/کسب‌وکار'}
+                        className={cn(
+                          'indeed-btn py-1.5 text-xs',
+                          directoryState[item.id] === 'PENDING'
+                            ? 'border border-amber-200 bg-amber-50 text-amber-600'
+                            : 'indeed-btn-secondary',
+                        )}
+                      >
+                        <ListOrdered className="size-3.5" aria-hidden />
+                        {directoryState[item.id] === 'PENDING' ? 'دایرکتوری: در انتظار' : 'تبلیغ در دایرکتوری'}
                       </button>
                       <button
                         type="button"
