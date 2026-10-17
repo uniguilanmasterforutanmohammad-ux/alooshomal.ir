@@ -50,7 +50,7 @@
     "@types/node": "^24.0.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/qrcode": "^1.5.5",
-    "prisma": "^6.16.0",
+    "prisma": "^7.10.0",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.0"
