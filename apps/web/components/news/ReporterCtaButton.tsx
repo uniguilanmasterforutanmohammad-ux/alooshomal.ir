@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { UserPlus } from 'lucide-react';
+import { PenLine, UserPlus } from 'lucide-react';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -16,9 +16,10 @@ interface Props {
 
 /**
  * «درخواست شهروند خبرنگار» call-to-action shown on the home page and the
- * «نبض شهر» pages. Hidden entirely for users who are already citizen-reporters
- * (or admins), so approved reporters never see a redundant request button.
- * Anonymous visitors are sent to login and returned to their panel afterwards.
+ * «نبض شهر» pages. For users who are already citizen-reporters (or admins) the
+ * button turns into «ثبت خبر» and links to the reporter panel, so approved
+ * reporters get a direct shortcut to file a news item. Anonymous visitors are
+ * sent to login and returned to their panel afterwards.
  */
 export function ReporterCtaButton({ variant = 'secondary', className }: Props) {
   const { token, user, hydrated } = useAuth();
@@ -50,7 +51,22 @@ export function ReporterCtaButton({ variant = 'secondary', className }: Props) {
   const effectiveRole = token ? serverRole ?? user?.role : user?.role;
   const alreadyReporter =
     effectiveRole === 'CITIZEN_REPORTER' || effectiveRole === 'ADMIN';
-  if (alreadyReporter) return null;
+
+  if (alreadyReporter) {
+    return (
+      <Link
+        href="/dashboard/reporter"
+        className={cn(
+          variant === 'primary' ? 'indeed-btn indeed-btn-primary' : 'indeed-btn indeed-btn-secondary',
+          'py-2 text-sm',
+          className,
+        )}
+      >
+        <PenLine className="size-4" aria-hidden />
+        ثبت خبر
+      </Link>
+    );
+  }
 
   const href = token ? '/dashboard/reporter' : '/login?next=/dashboard/reporter';
 

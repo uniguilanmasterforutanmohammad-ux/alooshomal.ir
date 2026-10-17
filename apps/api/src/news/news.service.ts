@@ -131,6 +131,24 @@ export class NewsService {
     const created = await this.prisma.reporterRequest.create({
       data: { userId, message: message ?? null },
     });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true, email: true },
+    });
+    await this.notifications.notifyAdmins({
+      title: 'درخواست شهروند خبرنگار جدید',
+      body: `«${user?.fullName ?? user?.email ?? 'کاربر'}» درخواست نقش شهروند خبرنگار ثبت کرد.`,
+      type: NotificationType.INFO,
+      link: '/admin?section=news',
+      actorId: userId,
+    });
+    await this.activity.log({
+      actor: { id: userId },
+      action: 'REPORTER_REQUESTED',
+      summary: `ثبت درخواست شهروند خبرنگار`,
+      entityType: 'REPORTER_REQUEST',
+      entityId: created.id,
+    });
     return created;
   }
 
