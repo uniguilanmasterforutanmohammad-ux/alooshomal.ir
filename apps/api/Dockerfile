@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:24-alpine AS base
+FROM node:25-alpine AS base
 ENV NODE_ENV=production
 WORKDIR /usr/src/app
 RUN apk add --no-cache openssl libc6-compat postgresql17-client
