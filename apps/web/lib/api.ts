@@ -775,6 +775,8 @@ export interface FeedPost {
   publishedAt: string | null;
   likeCount: number;
   createdAt: string;
+  /** set on /feeds/mine/saved */
+  savedAt?: string;
   user?: { id: string; fullName: string | null; email: string | null };
   topic?: { id: string; name: string } | null;
   liked?: boolean;

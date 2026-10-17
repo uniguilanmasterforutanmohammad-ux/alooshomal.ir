@@ -27,6 +27,7 @@ import { OptionalAuth } from '../common/decorators/optional-auth.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { PaginationDto } from '../common/dto/pagination.dto';
 import { visitorKeyFrom } from '../common/visitor-key';
 import { SettingsService } from '../settings/settings.service';
 import { MAX_FEED_UPLOAD_BYTES } from '../uploads/uploads.constants';
@@ -101,6 +102,12 @@ export class FeedsUserController {
   @ApiOperation({ summary: 'وضعیت فید من: اشتراک‌ها، بسته‌ها و پست‌های من' })
   mine(@CurrentUser() user: AuthUser) {
     return this.feeds.myOverview(user.id);
+  }
+
+  @Get('saved')
+  @ApiOperation({ summary: 'پست‌های فید ذخیره‌شده من (صفحه‌بندی‌شده)' })
+  saved(@CurrentUser() user: AuthUser, @Query() query: PaginationDto) {
+    return this.feeds.findMySaved(user.id, query.page, query.limit);
   }
 
   @Post('subscriptions/request')

@@ -283,6 +283,48 @@ export class FeedsService implements OnModuleInit {
     };
   }
 
+  /**
+   * Published feed posts the user has saved, newest save first, paginated with
+   * the admin-controlled `myListPageSize` setting — mirrors the saved lists of
+   * the other directories so «ذخیره‌شده‌های من» can show a feed tab.
+   */
+  async findMySaved(userId: string, page = 1, limitOverride?: number) {
+    const limit = limitOverride ?? (await this.settings.getMyListPageSize());
+    const currentPage = Math.max(1, page);
+
+    const [saves, total] = await Promise.all([
+      this.prisma.feedSave.findMany({
+        where: { userId },
+        include: { feedPost: { include: feedPostInclude } },
+        orderBy: { createdAt: 'desc' },
+        skip: (currentPage - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.feedSave.count({ where: { userId } }),
+    ]);
+
+    return {
+      items: saves
+        .filter((save) => save.feedPost)
+        .map((save) => {
+          const { _count, ...post } = save.feedPost;
+          return {
+            ...post,
+            likeCount: _count.likes,
+            savedAt: save.createdAt,
+          };
+        }),
+      meta: {
+        page: currentPage,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+        hasNext: currentPage * limit < total,
+        hasPrev: currentPage > 1,
+      },
+    };
+  }
+
   /** The active (approved, unexpired, quota left) subscription, if any. */
   private activeSubscription(
     subscriptions: Array<{
