@@ -2,7 +2,16 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Clock, FileText, Newspaper, Plus, Trash2, XCircle } from 'lucide-react';
+import {
+  CheckCircle2,
+  Clock,
+  Coins,
+  FileText,
+  Newspaper,
+  Plus,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
 
 import {
   api,
@@ -11,8 +20,10 @@ import {
   type NewsListResponse,
   type ReporterSummary,
 } from '@/lib/api';
+import { PointsPanel } from '@/components/dashboard/PointsPanel';
 import { useAuth } from '@/lib/auth';
 import { toast } from '@/lib/toast';
+import { cn } from '@/lib/utils';
 
 const STATUS_LABEL: Record<NewsItem['status'], string> = {
   PENDING: 'در انتظار تأیید',
@@ -48,6 +59,7 @@ const EMPTY_DRAFT: Draft = {
  */
 export function ReporterPanel() {
   const { user, hydrated } = useAuth();
+  const [tab, setTab] = useState<'news' | 'points'>('news');
   // The stored role can be stale right after an admin approves the request, so
   // confirm it against the server before gating the panel.
   const [liveRole, setLiveRole] = useState<string | null>(null);
@@ -158,32 +170,39 @@ export function ReporterPanel() {
 
   if (!isReporter) {
     return (
-      <div className="indeed-panel p-8 text-center">
-        <span className="vintage-avatar mx-auto flex size-14 items-center justify-center">
-          <Newspaper className="size-6" aria-hidden />
-        </span>
-        <h2 className="mt-4 text-lg font-extrabold text-ink">شهروند خبرنگار شوید</h2>
-        <p className="mx-auto mt-2 max-w-lg text-sm leading-7 text-muted">
-          برای ثبت خبر در «نبض شهر»، ابتدا درخواست خود را ارسال کنید. پس از تأیید مدیر،
-          امکان ثبت و ویرایش خبر برای شما فعال می‌شود.
-        </p>
-
-        {requestStatus === 'PENDING' ? (
-          <p className="mt-6 inline-flex items-center gap-2 rounded-lg bg-amber-50 px-4 py-2 text-sm font-bold text-amber-700">
-            <Clock className="size-4" aria-hidden />
-            درخواست شما در انتظار بررسی مدیر است.
-          </p>
+      <div className="flex flex-col gap-5">
+        <ReporterTabs tab={tab} onChange={setTab} />
+        {tab === 'points' ? (
+          <PointsPanel />
         ) : (
-          <div className="mt-6">
-            {requestStatus === 'REJECTED' ? (
-              <p className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-red-700">
-                <XCircle className="size-4" aria-hidden />
-                درخواست قبلی شما رد شد. می‌توانید دوباره درخواست دهید.
+          <div className="indeed-panel p-8 text-center">
+            <span className="vintage-avatar mx-auto flex size-14 items-center justify-center">
+              <Newspaper className="size-6" aria-hidden />
+            </span>
+            <h2 className="mt-4 text-lg font-extrabold text-ink">شهروند خبرنگار شوید</h2>
+            <p className="mx-auto mt-2 max-w-lg text-sm leading-7 text-muted">
+              برای ثبت خبر در «نبض شهر»، ابتدا درخواست خود را ارسال کنید. پس از تأیید مدیر،
+              امکان ثبت و ویرایش خبر برای شما فعال می‌شود.
+            </p>
+
+            {requestStatus === 'PENDING' ? (
+              <p className="mt-6 inline-flex items-center gap-2 rounded-lg bg-amber-50 px-4 py-2 text-sm font-bold text-amber-700">
+                <Clock className="size-4" aria-hidden />
+                درخواست شما در انتظار بررسی مدیر است.
               </p>
-            ) : null}
-            <button onClick={requestAccess} className="indeed-btn indeed-btn-primary">
-              درخواست شهروند خبرنگار
-            </button>
+            ) : (
+              <div className="mt-6">
+                {requestStatus === 'REJECTED' ? (
+                  <p className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-red-700">
+                    <XCircle className="size-4" aria-hidden />
+                    درخواست قبلی شما رد شد. می‌توانید دوباره درخواست دهید.
+                  </p>
+                ) : null}
+                <button onClick={requestAccess} className="indeed-btn indeed-btn-primary">
+                  درخواست شهروند خبرنگار
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -192,6 +211,12 @@ export function ReporterPanel() {
 
   return (
     <div className="flex flex-col gap-5">
+      <ReporterTabs tab={tab} onChange={setTab} />
+
+      {tab === 'points' ? (
+        <PointsPanel />
+      ) : (
+      <>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-extrabold text-ink">خبرهای من</h2>
@@ -335,6 +360,41 @@ export function ReporterPanel() {
           ))
         )}
       </div>
+      </>
+      )}
+    </div>
+  );
+}
+
+function ReporterTabs({
+  tab,
+  onChange,
+}: {
+  tab: 'news' | 'points';
+  onChange: (tab: 'news' | 'points') => void;
+}) {
+  const TABS: Array<{ key: 'news' | 'points'; label: string; icon: typeof Newspaper }> = [
+    { key: 'news', label: 'خبرهای من', icon: Newspaper },
+    { key: 'points', label: 'امتیاز من', icon: Coins },
+  ];
+  return (
+    <div className="flex flex-wrap gap-2">
+      {TABS.map(({ key, label, icon: Icon }) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onChange(key)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-bold transition',
+            tab === key
+              ? 'border-brand bg-brand-light text-brand'
+              : 'border-[var(--vintage-border)] bg-white text-muted hover:border-brand',
+          )}
+        >
+          <Icon className="size-4" aria-hidden />
+          {label}
+        </button>
+      ))}
     </div>
   );
 }

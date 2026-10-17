@@ -13,7 +13,6 @@ import {
   LogOut,
   Menu,
   Megaphone,
-  Coins,
   ImagePlus,
   Newspaper,
   ShieldCheck,
@@ -29,17 +28,16 @@ import { APP_VERSION } from '@/lib/version';
 
 const NAV = [
   { href: '/dashboard', label: 'داشبورد', icon: LayoutDashboard, exact: true },
-  { href: '/dashboard/biolinks', label: 'بیولینک‌های من', icon: IdCard, exact: false },
   { href: '/dashboard/business-cards', label: 'کارت‌های ویزیت من', icon: BadgeCheck, exact: false },
+  { href: '/dashboard/biolinks', label: 'بیولینک‌های من', icon: IdCard, exact: false },
+  { href: '/dashboard/feeds', label: 'فید من', icon: ImagePlus, exact: false },
   { href: '/dashboard/saved', label: 'ذخیره‌شده‌های من', icon: Bookmark, exact: false },
+  { href: '/dashboard/subscriptions', label: 'اشتراک', icon: Crown, exact: false },
   { href: '/dashboard/boost', label: 'افزایش بازدید', icon: TrendingUp, exact: false },
   { href: '/dashboard/ads', label: 'تبلیغات', icon: Megaphone, exact: false },
-  { href: '/dashboard/points', label: 'امتیاز من', icon: Coins, exact: false },
-  { href: '/dashboard/feeds', label: 'فید من', icon: ImagePlus, exact: false },
-  { href: '/dashboard/subscriptions', label: 'اشتراک', icon: Crown, exact: false },
+  { href: '/dashboard/reporter', label: 'شهروند خبرنگار', icon: Newspaper, exact: false },
   { href: '/dashboard/tickets', label: 'تیکت‌های پشتیبانی', icon: LifeBuoy, exact: false },
   { href: '/dashboard/profile', label: 'پروفایل کاربری', icon: UserRound, exact: false },
-  { href: '/dashboard/reporter', label: 'شهروند خبرنگار', icon: Newspaper, exact: false },
 ] as const;
 
 export function UserShell({ children }: { children: React.ReactNode }) {
