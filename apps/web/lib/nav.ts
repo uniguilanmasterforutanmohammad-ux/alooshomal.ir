@@ -13,4 +13,5 @@ export const PUBLIC_NAV: PublicNavItem[] = [
   { href: '/feeds', label: 'فیدها' },
   { href: '/pulse', label: 'نبض شهر' },
   { href: '/services', label: 'لیست خدمات' },
+  { href: '/guide', label: 'راهنما' },
 ];
