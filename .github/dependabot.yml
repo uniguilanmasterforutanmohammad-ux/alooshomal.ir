@@ -22,15 +22,24 @@ updates:
       interval: weekly
     open-pull-requests-limit: 2
 
-  # Base-image updates (node:*-alpine) for the api/web Dockerfiles.
+  # Base-image updates (node:*-alpine) for the api/web Dockerfiles. Major Node
+  # bumps are ignored on purpose: odd majors (25, 27, ...) are non-LTS and
+  # breaking, while the project pins the LTS line via package.json `engines`
+  # (>=24). Minor/patch base updates still come through.
   - package-ecosystem: docker
     directory: '/apps/api'
     schedule:
       interval: weekly
     open-pull-requests-limit: 2
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: docker
     directory: '/apps/web'
     schedule:
       interval: weekly
     open-pull-requests-limit: 2
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
