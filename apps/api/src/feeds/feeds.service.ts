@@ -154,12 +154,12 @@ export class FeedsService implements OnModuleInit {
       this.prisma.feedPost.findMany({
         where,
         include: feedPostInclude,
-        // Paid directory ads float above boosted («پله») posts, which in turn
-        // float above the plain chronological rows — each until its timestamp
-        // lapses.
+        // Paid directory ads float above the plain chronological rows. A boost
+        // («پله») re-pins the post (`pinnedAt = now` on approval), so it already
+        // sits at the top of the chronological rows and drops down as soon as a
+        // newer post appears — exactly like a freshly created post.
         orderBy: [
           { adDirectoryUntil: { sort: 'desc', nulls: 'last' } },
-          { boostedUntil: { sort: 'desc', nulls: 'last' } },
           { pinnedAt: 'desc' },
           { id: 'desc' },
         ],

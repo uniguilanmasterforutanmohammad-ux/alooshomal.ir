@@ -349,9 +349,10 @@ export class BoostsService {
   }
 
   /**
-   * Admin decision. Approving pins the item to the top of its directory by
-   * setting `boostedUntil` ("now + boostDurationDays"), so it rises to the top
-   * only inside whatever city/business filter the visitor has applied.
+   * Admin decision. Approving re-pins the item (`pinnedAt = now`) and sets
+   * `boostedUntil` ("now + boostDurationDays"), so it rises to the top of the
+   * whole directory as if it were brand-new — and then drops back down as soon
+   * as a newer item is created.
    */
   async decide(adminId: string, requestId: string, dto: DecideBoostDto) {
     const request = await this.prisma.boostRequest.findUnique({
@@ -382,24 +383,24 @@ export class BoostsService {
 
       if (approved) {
         const boostedUntil = new Date(now.getTime() + durationMs);
-        // The boost only lifts the item to the top of its own city + business
-        // slice of the directory (handled by the directory services), so it
-        // never leaks into unrelated filters. `pinnedAt` is intentionally left
-        // untouched here.
-      if (request.kind === BoostTargetKind.BIOLINK) {
+        // Resetting `pinnedAt` pushes the item back to the top of the directory
+        // by "newness" — exactly like a freshly created item. It stays there
+        // only until a newer item appears (then it falls to rank 2), and the
+        // active `boostedUntil` drives the «پله» tag in the UI.
+        if (request.kind === BoostTargetKind.BIOLINK) {
           await tx.biolink.update({
             where: { id: request.targetId },
-            data: { boostedUntil },
+            data: { boostedUntil, pinnedAt: now },
           });
         } else if (request.kind === BoostTargetKind.BUSINESS_CARD) {
           await tx.businessCard.update({
             where: { id: request.targetId },
-            data: { boostedUntil },
+            data: { boostedUntil, pinnedAt: now },
           });
         } else {
           await tx.feedPost.update({
             where: { id: request.targetId },
-            data: { boostedUntil },
+            data: { boostedUntil, pinnedAt: now },
           });
         }
       }

@@ -22,7 +22,7 @@ interface Props {
 export function BoostBadge({
   withLabel = true,
   label = 'پله',
-  title = 'این کارت با فیچر پله به صدر لیست آورده شده است',
+  title = 'این مورد با «پله» به صدر لیست دایرکتوری آورده شده است',
   className,
 }: Props) {
   return (

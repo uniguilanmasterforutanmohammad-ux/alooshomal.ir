@@ -8,7 +8,10 @@ import {
 import { BiolinkStatus, NotificationType, Prisma } from '@prisma/client';
 import * as QRCode from 'qrcode';
 
-import { boostScopeMatches, businessCardOrderBy } from '../common/directory-sort';
+import {
+  adDirectoryScopeMatches,
+  businessCardOrderBy,
+} from '../common/directory-sort';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { planLimitsFrom } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -623,40 +626,33 @@ export class BusinessCardsService {
     const pageSize = limit;
     const skip = (page - 1) * pageSize;
 
-    // A promotion (paid directory ad or «پله») only lifts an item when the
-    // visitor narrowed the list down to the item's own city *and* business —
-    // see `boostScopeMatches`. Paid ads sit above boosts, which sit above the
-    // plain chronological rows.
-    if (boostScopeMatches(cityId, businessId)) {
+    // A paid directory ad only lifts an item when the visitor narrowed the list
+    // down to the item's own city *and* business — see
+    // `adDirectoryScopeMatches`. Paid ads sit above boosts, which sit above the
+    // plain chronological rows. A boost («پله») is *not* scoped: it re-pins the
+    // item (see boosts.service) so it tops the whole list, and automatically
+    // drops down once a newer item is created.
+    if (adDirectoryScopeMatches(cityId, businessId)) {
       const now = new Date();
       const adWhere: Prisma.BusinessCardWhereInput = {
         ...where,
         adDirectoryUntil: { gt: now },
       };
-      const boostedWhere: Prisma.BusinessCardWhereInput = {
-        ...where,
-        boostedUntil: { gt: now },
-        OR: [{ adDirectoryUntil: null }, { adDirectoryUntil: { lte: now } }],
-      };
+      // Boosts («پله») are part of the chronological rows: their `pinnedAt` was
+      // reset on approval, so they are already the newest. Only paid ads are
+      // pulled out into their own group above them.
       const regularWhere: Prisma.BusinessCardWhereInput = {
         AND: [
           where,
           { OR: [{ adDirectoryUntil: null }, { adDirectoryUntil: { lte: now } }] },
-          { OR: [{ boostedUntil: null }, { boostedUntil: { lte: now } }] },
         ],
       };
       const take = pageSize + skip;
-      const [adRows, boostedRows, regularRows, total] = await Promise.all([
+      const [adRows, regularRows, total] = await Promise.all([
         this.prisma.businessCard.findMany({
           where: adWhere,
           select,
           orderBy: [{ adDirectoryUntil: 'desc' }, { id: 'desc' }],
-          take,
-        }),
-        this.prisma.businessCard.findMany({
-          where: boostedWhere,
-          select,
-          orderBy: [{ boostedUntil: 'desc' }, { id: 'desc' }],
           take,
         }),
         this.prisma.businessCard.findMany({
@@ -668,7 +664,7 @@ export class BusinessCardsService {
         this.prisma.businessCard.count({ where }),
       ]);
 
-      const items = [...adRows, ...boostedRows, ...regularRows]
+      const items = [...adRows, ...regularRows]
         .slice(skip, skip + pageSize)
         .map(({ _count, ...item }) => ({ ...item, likeCount: _count.likes }));
       return { items, total };
@@ -685,10 +681,11 @@ export class BusinessCardsService {
       this.prisma.businessCard.count({ where }),
     ]);
 
-    // Outside the city+business slice a promotion must not advertise itself.
+    // Outside the city+business slice a paid ad must not advertise itself, so
+    // the «تبلیغات» tag is dropped. The «پله» timestamp is kept so the boosted
+    // row still shows its badge while it sits at the top of the whole directory.
     const items = rows.map(({ _count, ...item }) => ({
       ...item,
-      boostedUntil: null,
       adDirectoryUntil: null,
       likeCount: _count.likes,
     }));

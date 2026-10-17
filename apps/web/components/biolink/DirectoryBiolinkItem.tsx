@@ -49,7 +49,7 @@ export function DirectoryBiolinkItem({ biolink, selected, onSelect }: Props) {
         <BoostBadge
           className="absolute end-3 top-3"
           label="پله"
-          title="این بیولینک با «پله» به صدر لیست همین دسته‌بندی شهر و کسب‌وکار آورده شده است"
+          title="این بیولینک با «پله» به صدر لیست کل دایرکتوری آورده شده است و با ثبت موارد جدیدتر پایین می‌رود"
         />
       ) : null}
       <div className="flex items-start gap-3">

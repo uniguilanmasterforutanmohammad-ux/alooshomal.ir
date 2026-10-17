@@ -34,13 +34,19 @@ export function businessCardOrderBy(
 }
 
 /**
- * Where an approved promotion (boost «پله» or a paid directory ad) is allowed
- * to lift an item. Both only promote their item to the top of the directory
- * when the visitor has narrowed the list down to *both* the city and the
- * business category the item belongs to — exactly the slice the advertiser paid
- * for. Anything broader (no filter or a single filter) keeps the plain
- * chronological order.
+ * Where a paid directory ad («تبلیغ در دایرکتوری») is allowed to lift an item.
+ * Ads are targeted: they only rise to the top when the visitor narrowed the
+ * list down to *both* the city and the business category the item belongs to —
+ * exactly the slice the advertiser paid for. Anything broader (no filter or a
+ * single filter) keeps the plain chronological order.
+ *
+ * NB: the boost «پله» is intentionally *not* scoped — it re-pins the item as if
+ * it were brand-new, so it rises to the top of the whole directory and only
+ * drops when a newer item is created.
  */
-export function boostScopeMatches(cityId?: string, businessId?: string): boolean {
+export function adDirectoryScopeMatches(
+  cityId?: string,
+  businessId?: string,
+): boolean {
   return Boolean(cityId && businessId);
 }
