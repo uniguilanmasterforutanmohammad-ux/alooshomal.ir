@@ -1,41 +1,36 @@
 version: 2
 updates:
-  # Root workspace (npm workspaces: apps/api, apps/web).
+  # Root workspace (npm workspaces: apps/api, apps/web). This single entry
+  # already covers every workspace package, so there are deliberately no
+  # separate `/apps/*` npm entries — those produced duplicate PRs for the same
+  # dependency (e.g. zod renamed under both root and apps/web).
   - package-ecosystem: npm
     directory: '/'
     schedule:
       interval: weekly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     groups:
       production-dependencies:
         dependency-type: production
       development-dependencies:
         dependency-type: development
 
-  - package-ecosystem: npm
-    directory: '/apps/api'
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-
-  - package-ecosystem: npm
-    directory: '/apps/web'
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-
   # Keep the CI base images patched.
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
 
+  # Base-image updates (node:*-alpine) for the api/web Dockerfiles.
   - package-ecosystem: docker
     directory: '/apps/api'
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2
 
   - package-ecosystem: docker
     directory: '/apps/web'
     schedule:
       interval: weekly
+    open-pull-requests-limit: 2

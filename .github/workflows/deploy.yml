@@ -6,6 +6,13 @@ on:
       - main
   workflow_dispatch:
 
+# Only one deploy at a time. Back-to-back pushes used to start several
+# deploys in parallel, each running `docker compose up -d` on the same server
+# and racing each other; a newer push now cancels the in-flight one.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   # github.repository is already lowercase (e.g. uniguilanmasterforutanmohammad-ux/alooshomal.ir)
