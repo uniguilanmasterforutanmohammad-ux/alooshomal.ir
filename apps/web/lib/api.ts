@@ -223,6 +223,7 @@ export interface Biolink {
   isPublished: boolean;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNPUBLISHED';
   rejectionReason: string | null;
+  publishedAt?: string | null;
   cityId?: string | null;
   businessId?: string | null;
   city?: { id: string; name: string } | null;
@@ -341,14 +342,15 @@ export interface BusinessCard {
   isPublished: boolean;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNPUBLISHED';
   rejectionReason: string | null;
-  cityId?: string | null;
-  businessId?: string | null;
-  city?: { id: string; name: string } | null;
-  business?: { id: string; name: string } | null;
-  /** owner's subscription plan name, shown on the public page */
-  planName?: string | null;
-  /** published biolink this card is linked to (public pages only) */
-  linkedBiolink?: LinkedCounterpart | null;
+  publishedAt?: string | null;
+ cityId?: string | null;
+ businessId?: string | null;
+ city?: { id: string; name: string } | null;
+ business?: { id: string; name: string } | null;
+ /** owner's subscription plan name, shown on the public page */
+ planName?: string | null;
+ /** published biolink this card is linked to (public pages only) */
+ linkedBiolink?: LinkedCounterpart | null;
   /** the linked biolink on the owner's own card (edit form) */
   linkedBiolinks?: Array<{ id: string; slug: string; fullName: string }>;
   // enriched on /business-cards/mine

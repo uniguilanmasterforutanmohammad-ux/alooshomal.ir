@@ -23,6 +23,7 @@ import { ProfileModule } from './profile/profile.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { SessionsModule } from './sessions/sessions.module';
+import { SeoModule } from './seo/seo.module';
 import { SettingsModule } from './settings/settings.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TaxonomyModule } from './taxonomy/taxonomy.module';
@@ -55,6 +56,7 @@ import { UsersModule } from './users/users.module';
     TaxonomyModule,
     TicketsModule,
     UploadsModule,
+    SeoModule,
     HealthModule,
   ],
   providers: [

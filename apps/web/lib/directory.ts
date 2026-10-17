@@ -69,7 +69,7 @@ export interface DirectoryFacets {
   businesses: DirectoryFacet[];
 }
 
-interface Options<F> {
+interface Options<T, F> {
   path: string;
   /** Everything after the page number, already URL-encoded (may be empty). */
   query: string;
@@ -78,6 +78,18 @@ interface Options<F> {
   initialPage?: number;
   /** Facet shape to use before the first response lands (matches the endpoint). */
   initialFacets?: F;
+  /**
+   * Server-rendered first page (SSR). When present, the hook hydrates straight
+   * from it so the initial HTML already contains real `<a>` links for crawlers.
+   * The client still re-fetches page 1 on mount to reconcile viewer-specific
+   * flags (`liked`/`saved`) that the server cannot know; because the rows are
+   * already present the list never blanks or shows a skeleton while doing so.
+   */
+  initialData?: {
+    items: T[];
+    meta: DirectoryMeta;
+    filters: F;
+  } | null;
 }
 
 /**
@@ -93,13 +105,15 @@ export function useDirectoryResults<T, F = DirectoryFacets>({
   mode,
   initialPage = 1,
   initialFacets,
-}: Options<F>) {
+  initialData,
+}: Options<T, F>) {
   const [page, setPage] = useState(initialPage);
-  const [items, setItems] = useState<T[]>([]);
-  const [meta, setMeta] = useState<DirectoryMeta | null>(null);
+  const [items, setItems] = useState<T[]>(initialData?.items ?? []);
+  const [meta, setMeta] = useState<DirectoryMeta | null>(initialData?.meta ?? null);
   const [facets, setFacets] = useState<F>(
-    initialFacets ?? ({ cities: [], businesses: [] } as unknown as F),
+    initialData?.filters ?? initialFacets ?? ({ cities: [], businesses: [] } as unknown as F),
   );
+  // Always true: the mount reconcile fetch runs even when SSR seeded the rows.
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // The last page whose response actually landed. `loadMore` compares against
@@ -107,7 +121,7 @@ export function useDirectoryResults<T, F = DirectoryFacets>({
   // the same next page twice, and never skips one either.
   const loadedPage = useRef(0);
   // Whether the server reported more pages after what was last loaded.
-  const hasMore = useRef(false);
+  const hasMore = useRef(initialData?.meta.hasNext ?? false);
   // `query|mode` of the previous render. Any change restarts at page 1, while
   // the initial render (and React's dev double-invoke) leaves the page as-is so
   // an `initialPage` restored from the URL is preserved.

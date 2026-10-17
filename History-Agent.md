@@ -20,7 +20,59 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.50.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.51.0**.
+
+## ۱۴۰۵/۰۷/۲۵ — ارتقای سئو دایرکتوری‌ها (SSR، لینک خزنده‌پسند، سایت‌مپ، متادیتا) — نسخه `v2.51.0`
+
+**هدف:** رفعِ ریشه‌ایِ سه اشکال سئوی گزارش‌شده در «گزارش معماری سئو»: (۱) صفحات
+دایرکتوری کاملاً CSR بودند و خزنده گوگل هیچ لینک/محتوایی در HTML اولیه نمی‌دید،
+(۲) هیچ نقشه سایت XML پویا و robots.txt نبود، (۳) صفحه‌های کارت/بیولینک متادیتای
+سئو و داده ساخت‌یافته (JSON-LD) نداشتند و درخواست `favicon.ico` خطای ۴۰۴ می‌داد.
+
+**تغییرات:**
+- `apps/api/src/seo/seo.module.ts` / `seo.service.ts` / `seo.controller.ts` (جدید):
+  اندپوینت عمومی `GET /seo/sitemap` که فقط صفحات منتشرشده و تأییدشده (کارت ویزیت،
+  بیولینک، پست فید) به‌همراه صفحات ثابت را با `lastModified`/`changeFrequency`
+  برمی‌گرداند (سقف ۲۰٬۰۰۰ ردیف برای هر نوع).
+- `apps/api/src/app.module.ts`: ثبت `SeoModule`.
+- `apps/web/app/sitemap.ts` (جدید): تولید `sitemap.xml` زنده از اندپوینت بالا با
+  `revalidate = 3600`.
+- `apps/web/app/robots.ts` (جدید): مسدودسازی `/dashboard`, `/admin`, `/api/`,
+  `/login`, `/register` و معرفی سایت‌مپ.
+- `apps/web/app/icon.svg` (جدید): فاوآیکون تا درخواست `favicon.ico` ۴۰۴ نشود.
+- `apps/web/lib/site.ts` (جدید): `SITE_URL`، `absoluteUrl`، `SERVER_API_URL` و
+  `metaDescription`.
+- `apps/web/app/layout.tsx`: افزودن `metadataBase`، canonical، Open Graph و
+  Twitter به متادیتای ریشه.
+- `apps/web/app/business-cards/[slug]/page.tsx` و `apps/web/app/biolinks/[slug]/page.tsx`:
+  افزودن `generateMetadata` (عنوان کلیدواژه‌دار + description + canonical + OG)،
+  JSON-LD (`LocalBusiness` وقتی شرکت ست است، وگرنه `ProfilePage`) در HTML سرور، و
+  `robots: noindex` برای صفحات ناموجود.
+- `apps/web/lib/directory-server.ts` (جدید): واکشی‌های SSR برای صفحهٔ اول دایرکتوری.
+- `apps/web/lib/directory.ts`: افزودن گزینهٔ `initialData` به `useDirectoryResults`
+  تا از دادهٔ SSR هایدریت شود و بازهم برای آشتی‌دادن پرچم‌های per-visitor
+  (`liked`/`saved`) یک‌بار بازواکشی کند.
+- `apps/web/app/business-cards/page.tsx` و `apps/web/app/biolinks/page.tsx`:
+  تبدیل به Server Component که صفحهٔ اول را SSR می‌کند؛ منطق تعاملی به
+  `components/**/DirectoryBusinessCardContent.tsx` و `DirectoryBiolinkContent.tsx`
+  منتقل شد.
+- `apps/web/components/businesscard/DirectoryBusinessCardItem.tsx` و
+  `apps/web/components/biolink/DirectoryBiolinkItem.tsx`: عنوان هر ردیف حالا یک
+  `<a href>` واقعی با متن لینک توصیفی است (به‌جای کلیک JS-only) تا خزنده‌ها آن را
+  دنبال کنند؛ دکمه‌های لایک/ذخیره بیرون از لنگر ماندند.
+- `apps/web/lib/api.ts`: افزودن `publishedAt` اختیاری به `Biolink`/`BusinessCard`.
+
+**تأیید/تست:**
+- `node_modules/.bin/tsc --noEmit` روی `apps/api` و `apps/web` → بدون خطا.
+- `curl http://localhost:3001/api/seo/sitemap` → ۲۵۱۷ ورودی معتبر.
+- `curl http://localhost:3000/business-cards` → ۴۲ کیلوبایت HTML با ۵ لینک واقعی
+  `href="/business-cards/<slug>"` در سورس اولیه (قبلاً فقط شل خالی بود).
+- `curl /biolinks` → لینک‌های `/biolinks/<slug>` در سورس؛ `/sitemap.xml` و
+  `/robots.txt` و `/icon.svg` همه با کد ۲۰۰ پاسخ دادند.
+- متادیتای `/business-cards/9074939`: تگ `title` کلیدواژه‌دار، `description`،
+  `canonical` و بلوک `application/ld+json` در HTML سرور.
+- Playwright: کلیک روی ردیف دایرکتوری جزئیات را در همان صفحه باز کرد
+  (`?card=<slug>`)؛ اسکرول بی‌نهایت سالم بود (۲۰ → ۷۰ لینک) و خطای کنسول نبود.
 
 ## ۱۴۰۵/۰۷/۲۵ — مستندسازی چهار مدل کسب درآمد برای برنامه‌نویس — نسخه `v2.50.0`
 

@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { Building2, UserRound } from 'lucide-react';
 
 import { BoostBadge } from '@/components/ui/BoostBadge';
@@ -27,16 +28,13 @@ export function DirectoryBusinessCardItem({ businessCard, selected, onSelect }: 
     new Date(businessCard.boostedUntil) > now;
 
   return (
+    // The row is clickable (split view) but the *link* is a real `<a href>` on
+    // the heading so crawlers can follow it to the detail page. Keeping the
+    // like/save buttons outside the anchor avoids nesting interactive elements.
     <div
       role="button"
-      tabIndex={0}
+      tabIndex={-1}
       onClick={onSelect}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-          event.preventDefault();
-          onSelect();
-        }
-      }}
       className={cn(
         'indeed-panel relative w-full cursor-pointer border-s-4 p-4 text-right transition',
         selected
@@ -80,7 +78,22 @@ export function DirectoryBusinessCardItem({ businessCard, selected, onSelect }: 
               selected ? 'text-brand' : 'text-ink',
             )}
           >
-            {businessCard.fullName}
+            <Link
+              href={`/business-cards/${businessCard.slug}`}
+              onClick={(event) => {
+                event.preventDefault();
+                onSelect();
+              }}
+              className="hover:underline focus:underline focus:outline-none"
+            >
+              {businessCard.fullName}
+              {/* descriptive anchor text for crawlers (avoids "click here") */}
+              <span className="sr-only">
+                {' '}
+                — مشاهده کارت ویزیت {businessCard.fullName}
+                {businessCard.jobTitle ? ` (${businessCard.jobTitle})` : ''}
+              </span>
+            </Link>
           </h3>
           {businessCard.jobTitle ? (
             <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted">
