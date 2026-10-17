@@ -47,6 +47,15 @@ const BOOST_STATUS_LABELS: Record<string, string> = {
   REJECTED: 'ردشده',
 };
 
+/** Persian labels for an ad request's display window (see `AdDisplayState`). */
+const AD_DISPLAY_LABELS: Record<string, string> = {
+  PENDING: 'در انتظار تأیید',
+  SCHEDULED: 'در انتظار نمایش',
+  ACTIVE: 'در حال نمایش',
+  EXPIRED: 'پایان‌یافته',
+  REJECTED: 'ردشده',
+};
+
 function faDate(value: string) {
   return new Date(value).toLocaleDateString('fa-IR');
 }
@@ -412,6 +421,61 @@ export function BoostTable({
                   )}
                 >
                   {BOOST_STATUS_LABELS[request.status] ?? request.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {data?.adRequests?.length ? (
+        <section className="flex flex-col gap-3">
+          <h3 className="flex items-center gap-2 text-sm font-extrabold text-ink">
+            <Megaphone className="size-4 text-brand" aria-hidden />
+            تاریخچه درخواست‌های تبلیغ
+          </h3>
+          <div className="indeed-panel divide-y divide-[var(--vintage-border)]">
+            {data.adRequests.map((request) => (
+              <div
+                key={request.id}
+                className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm"
+              >
+                <span className="font-bold text-ink">
+                  {request.target?.fullName ?? '—'}
+                  <span className="ms-2 text-xs text-muted">
+                    {request.kind === 'BIOLINK'
+                      ? 'بیولینک'
+                      : request.kind === 'FEED'
+                        ? 'فید'
+                        : 'کارت ویزیت'}
+                    {' • '}
+                    {request.placement === 'DIRECTORY'
+                      ? 'دایرکتوری'
+                      : 'صفحه اول'}
+                  </span>
+                </span>
+                <span className="text-xs text-muted">
+                  درخواست: {faDate(request.requestedAt)}
+                  {request.displayState === 'ACTIVE' && request.endsAt
+                    ? ` • تا ${faDate(request.endsAt)}`
+                    : ''}
+                  {request.displayState === 'SCHEDULED' && request.startedAt
+                    ? ` • شروع از ${faDate(request.startedAt)}`
+                    : ''}
+                </span>
+                <span
+                  className={cn(
+                    'rounded-full px-2 py-0.5 text-[11px] font-bold',
+                    request.displayState === 'ACTIVE'
+                      ? 'bg-green-50 text-green-700'
+                      : request.displayState === 'REJECTED' ||
+                          request.displayState === 'EXPIRED'
+                        ? 'bg-red-50 text-red-700'
+                        : 'bg-amber-50 text-amber-700',
+                  )}
+                >
+                  {AD_DISPLAY_LABELS[request.displayState ?? request.status] ??
+                    request.status}
                 </span>
               </div>
             ))}

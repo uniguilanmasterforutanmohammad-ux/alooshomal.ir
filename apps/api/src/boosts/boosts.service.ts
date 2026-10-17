@@ -36,6 +36,36 @@ function boostKindLabel(kind: BoostTargetKind): string {
   return 'کارت ویزیت';
 }
 
+/**
+ * Where an approved ad sits in its display window, mirrored from the ads
+ * service so the user's merged «افزایش بازدید» panel can render the ad-request
+ * history with the same Persian states.
+ */
+type AdDisplayState =
+  | 'PENDING'
+  | 'SCHEDULED'
+  | 'ACTIVE'
+  | 'EXPIRED'
+  | 'REJECTED';
+
+function adDisplayState(
+  request: {
+    status: BoostStatus;
+    startedAt: Date | null;
+    endsAt: Date | null;
+  },
+  now: Date,
+): AdDisplayState {
+  if (request.status === BoostStatus.PENDING) return 'PENDING';
+  if (request.status === BoostStatus.REJECTED) return 'REJECTED';
+  if (!request.endsAt) return 'ACTIVE';
+  if (request.endsAt.getTime() <= now.getTime()) return 'EXPIRED';
+  if (request.startedAt && request.startedAt.getTime() > now.getTime()) {
+    return 'SCHEDULED';
+  }
+  return 'ACTIVE';
+}
+
 @Injectable()
 export class BoostsService {
   constructor(
@@ -132,25 +162,28 @@ export class BoostsService {
       this.prisma.feedPost.count({ where: { userId, ...feedSearchWhere } }),
     ]);
 
-    const pageTargetIds = [
-      ...biolinks.map((item) => item.id),
-      ...businessCards.map((item) => item.id),
-      ...feeds.map((item) => item.id),
-    ];
+    // The request history must cover *every* item the user owns, not just the
+    // rows on the current page. Filtering by page ids (as before) hid every
+    // request whose item happened to sit on another page — so with thousands of
+    // items the past boosts/ads looked as if they had been deleted. Fetch the
+    // user's requests directly instead.
     const requests = await this.prisma.boostRequest.findMany({
-      where: {
-        userId,
-        ...(pageTargetIds.length ? { targetId: { in: pageTargetIds } } : {}),
-      },
+      where: { userId },
       orderBy: { requestedAt: 'desc' },
+      take: 300,
     });
     const adRequests = await this.prisma.adRequest.findMany({
-      where: {
-        userId,
-        ...(pageTargetIds.length ? { targetId: { in: pageTargetIds } } : {}),
-      },
+      where: { userId },
       orderBy: { requestedAt: 'desc' },
+      take: 300,
     });
+
+    // Resolve a human-readable label for every request target so both the boost
+    // and the ad history can name the item.
+    const requestTargetLabels = await this.resolveTargetLabels([
+      ...requests,
+      ...adRequests,
+    ]);
 
     const [biolinkRanks, cardRanks, feedRanks] = await Promise.all([
       Promise.all(biolinks.map((item) => this.biolinks.directoryRank(item.id))),
@@ -222,7 +255,15 @@ export class BoostsService {
         directoryAdStatus:
           directoryAdStatusByTarget.get(`FEED:${item.id}`) ?? null,
       })),
-      requests,
+      requests: requests.map((request) => ({
+        ...request,
+        target: requestTargetLabels.get(request.targetId) ?? null,
+      })),
+      adRequests: adRequests.map((request) => ({
+        ...request,
+        target: requestTargetLabels.get(request.targetId) ?? null,
+        displayState: adDisplayState(request, new Date()),
+      })),
       meta: {
         page: currentPage,
         limit,
@@ -237,6 +278,56 @@ export class BoostsService {
         hasPrev: currentPage > 1,
       },
     };
+  }
+
+  /**
+   * Resolve the human-readable label (item name + slug) for a mixed batch of
+   * boost/ad requests, regardless of which kind of target each one points at.
+   */
+  private async resolveTargetLabels(
+    requests: Array<{ kind: BoostTargetKind; targetId: string }>,
+  ): Promise<Map<string, { id: string; fullName: string; slug: string }>> {
+    const biolinkIds = requests
+      .filter((r) => r.kind === BoostTargetKind.BIOLINK)
+      .map((r) => r.targetId);
+    const cardIds = requests
+      .filter((r) => r.kind === BoostTargetKind.BUSINESS_CARD)
+      .map((r) => r.targetId);
+    const feedIds = requests
+      .filter((r) => r.kind === BoostTargetKind.FEED)
+      .map((r) => r.targetId);
+
+    const [biolinks, cards, feeds] = await Promise.all([
+      biolinkIds.length
+        ? this.prisma.biolink.findMany({
+            where: { id: { in: biolinkIds } },
+            select: { id: true, fullName: true, slug: true },
+          })
+        : Promise.resolve([]),
+      cardIds.length
+        ? this.prisma.businessCard.findMany({
+            where: { id: { in: cardIds } },
+            select: { id: true, fullName: true, slug: true },
+          })
+        : Promise.resolve([]),
+      feedIds.length
+        ? this.prisma.feedPost.findMany({
+            where: { id: { in: feedIds } },
+            select: { id: true, body: true },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const map = new Map<string, { id: string; fullName: string; slug: string }>();
+    [...biolinks, ...cards].forEach((item) => map.set(item.id, item));
+    feeds.forEach((item) =>
+      map.set(item.id, {
+        id: item.id,
+        fullName: item.body?.slice(0, 40) || 'پست فید',
+        slug: item.id,
+      }),
+    );
+    return map;
   }
 
   async create(userId: string, dto: CreateBoostDto) {

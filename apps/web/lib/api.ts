@@ -495,6 +495,12 @@ export interface BoostOverview {
   businessCards: BoostTargetItem[];
   feeds: BoostTargetItem[];
   requests: BoostRequest[];
+  /**
+   * The user's ad requests (both «تبلیغ در دایرکتوری» and «تبلیغ در صفحه اول»),
+   * so the merged «افزایش بازدید» panel can show their full history — the
+   * standalone home/directory ad panels were removed in the merge.
+   */
+  adRequests: AdRequest[];
   meta?: {
     page: number;
     limit: number;
