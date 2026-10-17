@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <title>راهنمای بررسی خزش خزنده‌ها — آلوشمال</title>
+    <style>
+      @font-face {
+        font-family: 'Vazirmatn';
+        src: url('file:///usr/share/fonts/truetype/vazirmatn/Vazirmatn-Regular.ttf') format('truetype');
+        font-weight: 400;
+      }
+      @font-face {
+        font-family: 'Vazirmatn';
+        src: url('file:///usr/share/fonts/truetype/vazirmatn/Vazirmatn-Bold.ttf') format('truetype');
+        font-weight: 700;
+      }
+      @font-face {
+        font-family: 'Vazirmatn';
+        src: url('file:///usr/share/fonts/truetype/vazirmatn/Vazirmatn-SemiBold.ttf') format('truetype');
+        font-weight: 600;
+      }
+      @page { size: A4; margin: 18mm 16mm; }
+      * { box-sizing: border-box; }
+      body {
+        font-family: 'Vazirmatn', 'Noto Naskh Arabic', sans-serif;
+        direction: rtl; text-align: right; color: #1f2937;
+        font-size: 10.5pt; line-height: 1.9; margin: 0;
+      }
+      h1 { font-size: 19pt; font-weight: 700; color: #0f3d5c; margin: 0 0 4px; }
+      h2 {
+        font-size: 14pt; font-weight: 700; color: #0f3d5c; margin: 24px 0 8px;
+        padding-bottom: 6px; border-bottom: 2px solid #d7e3ec; page-break-after: avoid;
+      }
+      h3 { font-size: 11.5pt; font-weight: 600; color: #14556b; margin: 14px 0 6px; page-break-after: avoid; }
+      p { margin: 6px 0; }
+      ul, ol { margin: 6px 0; padding-right: 20px; }
+      li { margin: 3px 0; }
+      pre {
+        direction: ltr; text-align: left; background: #0f172a; color: #e2e8f0;
+        border-radius: 6px; padding: 10px 12px; font-size: 8.8pt; line-height: 1.6;
+        overflow-x: auto; page-break-inside: avoid;
+        font-family: 'Vazir Code', 'DejaVu Sans Mono', monospace;
+      }
+      code {
+        font-family: 'Vazir Code', 'DejaVu Sans Mono', monospace;
+        direction: ltr; unicode-bidi: embed; background: #f1f5f9;
+        border-radius: 4px; padding: 1px 5px; font-size: 9pt; color: #0f3d5c;
+      }
+      table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9.5pt; page-break-inside: avoid; }
+      th, td { border: 1px solid #cbd5e1; padding: 6px 9px; text-align: right; vertical-align: top; }
+      th { background: #e8f1f7; color: #0f3d5c; font-weight: 600; }
+      tr:nth-child(even) td { background: #f8fafc; }
+      .box { background: #f8fafc; border-right: 4px solid #0f3d5c; border-radius: 6px; padding: 10px 14px; margin: 10px 0; page-break-inside: avoid; }
+      .box.ok { border-right-color: #15803d; background: #f0fdf4; }
+      .box.warn { border-right-color: #b45309; background: #fffbeb; }
+      .cover { text-align: center; padding-top: 50px; }
+      .cover .badge {
+        display: inline-block; border: 2px solid #0f3d5c; color: #0f3d5c;
+        border-radius: 999px; padding: 4px 18px; font-size: 11pt; font-weight: 600; margin-bottom: 20px;
+      }
+      .cover h1 { font-size: 23pt; line-height: 1.5; }
+      .cover .sub { font-size: 12pt; color: #475569; margin-top: 10px; }
+      .cover .meta { margin-top: 34px; color: #64748b; font-size: 10.5pt; }
+      .pagebreak { page-break-before: always; }
+      .muted { color: #64748b; font-size: 9.5pt; }
+    </style>
+  </head>
+  <body>
+    <section class="cover">
+      <div class="badge">راهنمای فنی</div>
+      <h1>راهنمای بررسی خزش خزنده‌ها</h1>
+      <div class="sub">آیا گوگل کارت‌ویزیت‌ها و بیولینک‌ها را می‌بیند؟ چگونه خودم چک کنم؟</div>
+      <div class="meta">
+        <p>پلتفرم آلوشمال — <code>alooshomal.ir</code></p>
+        <p>تاریخ: ۲۵ مهر ۱۴۰۵</p>
+        <p>منبع کد: <code>docs/SEO-CRAWLER-CHECK.md</code></p>
+      </div>
+    </section>
+
+    <h2>پاسخ کوتاه</h2>
+    <p>
+      بله. همه‌ی کارت‌ویزیت‌ها و بیولینک‌های منتشرشده به‌صورت خودکار در
+      <code>sitemap.xml</code> فهرست می‌شوند و محتوای هر صفحه به‌صورت HTML سمت سرور
+      (SSR) در اختیار خزنده قرار می‌گیرد؛ نیازی به اجرای جاوااسکریپت نیست.
+    </p>
+    <table>
+      <thead>
+        <tr><th>پرسش</th><th>پاسخ</th><th>کجای کد</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>لیست کامل صفحات قابل‌خزش؟</td>
+          <td><code>sitemap.xml</code></td>
+          <td><code>apps/web/app/sitemap.ts</code> + <code>apps/api/src/seo/</code></td>
+        </tr>
+        <tr>
+          <td>اجازه‌ی خزش و مسیرهای ممنوع؟</td>
+          <td><code>robots.txt</code></td>
+          <td><code>apps/web/app/robots.ts</code></td>
+        </tr>
+        <tr>
+          <td>محتوای هر کارت قابل‌خواندن است؟</td>
+          <td>بله، SSR</td>
+          <td>صفحات <code>[slug]/page.tsx</code></td>
+        </tr>
+        <tr>
+          <td>داده‌ی ساخت‌یافته؟</td>
+          <td>JSON-LD</td>
+          <td>صفحات جزئیات</td>
+        </tr>
+        <tr>
+          <td>لینک‌های داخلی دایرکتوری؟</td>
+          <td>لینک واقعی <code>&lt;a href&gt;</code></td>
+          <td><code>Directory*Content.tsx</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 class="pagebreak">چطور خودم هر لحظه چک کنم</h2>
+    <p>همه‌ی دستورها روی دامنه‌ی واقعی قابل اجرا هستند (نیاز به نصب چیزی نیست):</p>
+    <pre># ۱) تعداد کل آدرس‌های قابل‌خزش
+curl -s https://alooshomal.ir/sitemap.xml | grep -c '&lt;loc&gt;'
+
+# ۲) فقط کارت‌ویزیت‌ها
+curl -s https://alooshomal.ir/sitemap.xml | grep -c 'business-cards/'
+
+# ۳) فقط بیولینک‌ها
+curl -s https://alooshomal.ir/sitemap.xml | grep -c 'biolinks/'
+
+# ۴) محتوای یک کارت با «دید گوگل» (بدون اجرای JS)
+curl -A "Mozilla/5.0 (compatible; Googlebot/2.1)" \
+  https://alooshomal.ir/business-cards/&lt;slug&gt;
+
+# ۵) مجوز خزش و آدرس نقشه‌ی سایت
+curl -s https://alooshomal.ir/robots.txt
+
+# ۶) کد پاسخ یک صفحه برای خزنده (باید 200 باشد)
+curl -s -o /dev/null -w '%{http_code}\n' \
+  -A "Googlebot" https://alooshomal.ir/business-cards/&lt;slug&gt;</pre>
+    <p class="muted">
+      نکته: در محیط توسعه، <code>https://alooshomal.ir</code> را با
+      <code>http://localhost:3000</code> جای‌گزین کن.
+    </p>
+
+    <h3>فهرست کردن همه‌ی آدرس‌ها به‌صورت متن</h3>
+    <pre># همه‌ی کارت‌ویزیت‌ها، یک در هر خط
+curl -s https://alooshomal.ir/sitemap.xml \
+  | grep -oE '&lt;loc&gt;[^&lt;]+business-cards/[^&lt;]+&lt;/loc&gt;' \
+  | sed -E 's#&lt;/?loc&gt;##g'
+
+# همه‌ی بیولینک‌ها
+curl -s https://alooshomal.ir/sitemap.xml \
+  | grep -oE '&lt;loc&gt;[^&lt;]+biolinks/[^&lt;]+&lt;/loc&gt;' \
+  | sed -E 's#&lt;/?loc&gt;##g'</pre>
+
+    <h3>ابزارهای رسمی گوگل</h3>
+    <ul>
+      <li><strong>Google Search Console → URL Inspection</strong>: همان HTML خامی که گوگل دیده را نشان می‌دهد.</li>
+      <li><strong>Rich Results Test</strong>: اعتبار JSON-LD و امکان نمایش نتایج غنی.</li>
+      <li><strong>Lighthouse / PageSpeed</strong>: بخش SEO (قابل‌خزش بودن و متادیتا).</li>
+    </ul>
+
+    <h2>آیا کارت/بیولینک جدید خودکار وارد لیست می‌شود؟</h2>
+    <div class="box ok">
+      <strong>بله.</strong> مکانیزم کاملاً خودکار است و هیچ لیست دستی‌ای وجود ندارد.
+    </div>
+    <ol>
+      <li>
+        <code>apps/web/app/sitemap.ts</code> هنگام درخواست، اندپوینت
+        <code>GET /seo/sitemap</code> را صدا می‌زند.
+      </li>
+      <li>
+        <code>apps/api/src/seo/seo.service.ts</code> با یک کوئری زنده از دیتابیس،
+        ردیف‌های <code>status = APPROVED</code> و <code>isPublished = true</code> را
+        برمی‌گرداند.
+      </li>
+      <li>
+        پس هر آیتم جدید که منتشر و تأیید شود، در درخواست بعدی حاضر است؛ و هر آیتم
+        غیرفعال/حذف‌شده، خودکار حذف می‌شود.
+      </li>
+    </ol>
+    <pre># تست سریع زنده از سمت API
+curl -s http://localhost:3001/api/seo/sitemap \
+  | python3 -c "import sys,json;print(len(json.load(sys.stdin)['data']),'entries')"</pre>
+
+    <h3>نکته‌ی مهم: تأخیر کش</h3>
+    <div class="box warn">
+      نقشه‌ی سایت <code>revalidate = 3600</code> دارد؛ یعنی تا حداکثر یک ساعت ممکن
+      است نسخه‌ی کش‌شده سرو شود. خزنده‌ی گوگل هم بازدید دوره‌ای خودش را دارد و کارت
+      جدید را در بازدید بعدی ایندکس می‌کند (نه فوری).
+    </div>
+
+    <h3>سقف تعداد</h3>
+    <p>
+      <code>MAX_ROWS = 20_000</code> سقف هر نوع ردیف در هر پاسخ است. با عبور از این
+      عدد باید نقشه‌ی سایت به چند فایل صفحه‌بندی شود (sitemap index).
+    </p>
+
+    <h2>خروجی واقعی نمونه</h2>
+    <p>برای نمونه، محتوایی که یک خزنده از یک کارت واقعی می‌بیند (نسخه‌ی ساده‌شده):</p>
+    <pre>{
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  "name": "شرکت آریا 2300",
+  "telephone": "9689271131",
+  "address": { "@type": "PostalAddress",
+    "streetAddress": "گرگان، خیابان امام، پلاک 179",
+    "addressLocality": "گرگان", "addressCountry": "IR" },
+  "employee": { "@type": "Person",
+    "name": "پویا کرمانی", "jobTitle": "کارشناس کیفیت غذا" }
+}</pre>
+
+    <h2>چک‌لیست تغییر مکانیزم سئو</h2>
+    <ul>
+      <li>آیا ردیف‌های غیرمنتشرشده/رد‌شده از sitemap خارج می‌مانند؟</li>
+      <li>آیا صفحات ناموجود همچنان <code>noindex</code> می‌خورند؟</li>
+      <li>آیا <code>canonical</code> و Open Graph به‌روز است؟</li>
+      <li>آیا لینک‌های دایرکتوری در HTML سمت سرور باقی مانده‌اند؟</li>
+      <li>آیا <code>History-Agent.md</code> و نسخه‌ی <code>apps/web/lib/version.ts</code> به‌روز شده؟</li>
+    </ul>
+  </body>
+</html>
