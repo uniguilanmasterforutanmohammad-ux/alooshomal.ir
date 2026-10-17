@@ -609,9 +609,15 @@ export class BusinessCardsService {
       const fromBoosted = boostedRows.slice(skip, skip + pageSize);
       const need = pageSize - fromBoosted.length;
       const regularSkip = Math.max(0, skip - boostedTotal);
+      // `NOT: { boostedUntil: { gt: now } }` would also drop rows whose
+      // `boostedUntil` is NULL (SQL three-valued logic), so list the "not
+      // currently boosted" case explicitly instead.
+      const notBoosted: Prisma.BusinessCardWhereInput = {
+        OR: [{ boostedUntil: null }, { boostedUntil: { lte: now } }],
+      };
       const regularRows = need
         ? await this.prisma.businessCard.findMany({
-            where: { ...where, NOT: { boostedUntil: { gt: now } } },
+            where: { AND: [where, notBoosted] },
             select,
             orderBy: businessCardOrderBy(sort),
             skip: regularSkip,

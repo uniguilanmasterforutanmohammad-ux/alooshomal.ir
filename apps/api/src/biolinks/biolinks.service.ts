@@ -595,9 +595,15 @@ export class BiolinksService {
       const fromBoosted = boostedRows.slice(skip, skip + pageSize);
       const need = pageSize - fromBoosted.length;
       const regularSkip = Math.max(0, skip - boostedTotal);
+      // `NOT: { boostedUntil: { gt: now } }` would also drop rows whose
+      // `boostedUntil` is NULL (SQL three-valued logic), so list the "not
+      // currently boosted" case explicitly instead.
+      const notBoosted: Prisma.BiolinkWhereInput = {
+        OR: [{ boostedUntil: null }, { boostedUntil: { lte: now } }],
+      };
       const regularRows = need
         ? await this.prisma.biolink.findMany({
-            where: { ...where, NOT: { boostedUntil: { gt: now } } },
+            where: { AND: [where, notBoosted] },
             select,
             orderBy: biolinkOrderBy(sort),
             skip: regularSkip,
