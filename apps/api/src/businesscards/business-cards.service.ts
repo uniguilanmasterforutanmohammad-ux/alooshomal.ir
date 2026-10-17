@@ -198,12 +198,21 @@ export class BusinessCardsService {
       this.prisma.businessCard.count({ where: { userId } }),
     ]);
 
-    const [requests, ranks] = await Promise.all([
+    const targetIds = businessCards.map((item) => item.id);
+    const [requests, adRequests, ranks] = await Promise.all([
       this.prisma.boostRequest.findMany({
         where: {
           userId,
           kind: 'BUSINESS_CARD',
-          targetId: { in: businessCards.map((item) => item.id) },
+          targetId: { in: targetIds },
+        },
+        orderBy: { requestedAt: 'desc' },
+      }),
+      this.prisma.adRequest.findMany({
+        where: {
+          userId,
+          kind: 'BUSINESS_CARD',
+          targetId: { in: targetIds },
         },
         orderBy: { requestedAt: 'desc' },
       }),
@@ -215,6 +224,12 @@ export class BusinessCardsService {
         requestByTarget.set(request.targetId, request.status);
       }
     }
+    const adByTarget = new Map<string, string>();
+    for (const request of adRequests) {
+      if (!adByTarget.has(request.targetId)) {
+        adByTarget.set(request.targetId, request.status);
+      }
+    }
 
     return {
       items: businessCards.map((item, index) => ({
@@ -223,6 +238,7 @@ export class BusinessCardsService {
         saveCount: item._count.saves,
         views: item._count.scans,
         boostStatus: requestByTarget.get(item.id) ?? null,
+        adStatus: adByTarget.get(item.id) ?? null,
         rank: ranks[index],
       })),
       meta: this.paginationMeta(currentPage, limit, total),

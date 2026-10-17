@@ -238,6 +238,7 @@ export interface Biolink {
   saveCount?: number;
   views?: number;
   boostStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
+  adStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
   rank?: OwnerRank | null;
 }
 
@@ -353,6 +354,7 @@ export interface BusinessCard {
   saveCount?: number;
   views?: number;
   boostStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
+  adStatus?: 'PENDING' | 'APPROVED' | 'REJECTED' | null;
   rank?: OwnerRank | null;
 }
 

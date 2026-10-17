@@ -199,13 +199,22 @@ export class BiolinksService {
       this.prisma.biolink.count({ where: { userId } }),
     ]);
 
-    // latest boost request per item so the card can show its request state
-    const [requests, ranks] = await Promise.all([
+    const targetIds = biolinks.map((item) => item.id);
+    // latest boost/ad request per item so the table can show its request state
+    const [requests, adRequests, ranks] = await Promise.all([
       this.prisma.boostRequest.findMany({
         where: {
           userId,
           kind: 'BIOLINK',
-          targetId: { in: biolinks.map((item) => item.id) },
+          targetId: { in: targetIds },
+        },
+        orderBy: { requestedAt: 'desc' },
+      }),
+      this.prisma.adRequest.findMany({
+        where: {
+          userId,
+          kind: 'BIOLINK',
+          targetId: { in: targetIds },
         },
         orderBy: { requestedAt: 'desc' },
       }),
@@ -217,6 +226,12 @@ export class BiolinksService {
         requestByTarget.set(request.targetId, request.status);
       }
     }
+    const adByTarget = new Map<string, string>();
+    for (const request of adRequests) {
+      if (!adByTarget.has(request.targetId)) {
+        adByTarget.set(request.targetId, request.status);
+      }
+    }
 
     return {
       items: biolinks.map((item, index) => ({
@@ -225,6 +240,7 @@ export class BiolinksService {
         saveCount: item._count.saves,
         views: item._count.scanEvents,
         boostStatus: requestByTarget.get(item.id) ?? null,
+        adStatus: adByTarget.get(item.id) ?? null,
         rank: ranks[index],
       })),
       meta: this.paginationMeta(currentPage, limit, total),
