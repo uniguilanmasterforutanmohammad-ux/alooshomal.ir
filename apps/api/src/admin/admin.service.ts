@@ -6,9 +6,11 @@ import {
 import { statfs } from 'node:fs/promises';
 import {
   BiolinkStatus,
+  BoostStatus,
   ModerationDecision,
   NotificationType,
   Prisma,
+  SubscriptionStatus,
 } from '@prisma/client';
 
 import { UpdateBiolinkDto } from '../biolinks/dto/update-biolink.dto';
@@ -724,6 +726,119 @@ export class AdminService {
       }
     }
     return buckets;
+  }
+
+  /**
+   * Revenue estimate for the four monetisation models. There is no payment
+   * gateway yet, so each approved transaction is priced with the admin-set
+   * unit price for its model:
+   *
+   *   1. subscriptions   → SubscriptionPlan.price  (per approved plan request)
+   *   2. boosts «پله»    → BOOST_PRICE              (per approved boost)
+   *   3. directory ads   → AD_DIRECTORY_PRICE       (per approved DIRECTORY ad)
+   *   4. home-page ads   → AD_HOME_PRICE            (per approved HOME ad)
+   *
+   * The feed packages (FeedPackage.price) are counted as a fifth row so the
+   * whole picture is visible, since they are a separate paid subscription.
+   */
+  async revenueReport() {
+    const [boostPrice, adHomePrice, adDirectoryPrice] = await Promise.all([
+      this.settings.getBoostPrice(),
+      this.settings.getAdHomePrice(),
+      this.settings.getAdDirectoryPrice(),
+    ]);
+
+    const [
+      boostApproved,
+      homeAdApproved,
+      directoryAdApproved,
+      planSubscriptions,
+      feedSubscriptions,
+    ] = await Promise.all([
+      this.prisma.boostRequest.count({
+        where: { status: BoostStatus.APPROVED },
+      }),
+      this.prisma.adRequest.count({
+        where: { status: BoostStatus.APPROVED, placement: 'HOME' },
+      }),
+      this.prisma.adRequest.count({
+        where: { status: BoostStatus.APPROVED, placement: 'DIRECTORY' },
+      }),
+      this.prisma.userSubscription.findMany({
+        where: { status: SubscriptionStatus.ACTIVE },
+        select: { plan: { select: { name: true, price: true } } },
+      }),
+      this.prisma.userFeedSubscription.findMany({
+        where: { status: SubscriptionStatus.ACTIVE },
+        select: { package: { select: { name: true, price: true } } },
+      }),
+    ]);
+
+    const planRows = new Map<string, { name: string; price: number; count: number }>();
+    for (const sub of planSubscriptions) {
+      const key = sub.plan?.name ?? '—';
+      const row = planRows.get(key) ?? {
+        name: key,
+        price: sub.plan?.price ?? 0,
+        count: 0,
+      };
+      row.count += 1;
+      planRows.set(key, row);
+    }
+
+    const feedRows = new Map<string, { name: string; price: number; count: number }>();
+    for (const sub of feedSubscriptions) {
+      const key = sub.package?.name ?? '—';
+      const row = feedRows.get(key) ?? {
+        name: key,
+        price: sub.package?.price ?? 0,
+        count: 0,
+      };
+      row.count += 1;
+      feedRows.set(key, row);
+    }
+
+    const items = [
+      ...Array.from(planRows.values()).map((row) => ({
+        model: 'اشتراک پلن',
+        label: row.name,
+        count: row.count,
+        unitPrice: row.price,
+        revenue: row.count * row.price,
+      })),
+      ...Array.from(feedRows.values()).map((row) => ({
+        model: 'اشتراک فید',
+        label: row.name,
+        count: row.count,
+        unitPrice: row.price,
+        revenue: row.count * row.price,
+      })),
+      {
+        model: 'پله',
+        label: 'افزایش بازدید (پله)',
+        count: boostApproved,
+        unitPrice: boostPrice,
+        revenue: boostApproved * boostPrice,
+      },
+      {
+        model: 'تبلیغ در دایرکتوری',
+        label: 'تبلیغ هدفمند در دایرکتوری',
+        count: directoryAdApproved,
+        unitPrice: adDirectoryPrice,
+        revenue: directoryAdApproved * adDirectoryPrice,
+      },
+      {
+        model: 'تبلیغ در صفحه اصلی',
+        label: 'تبلیغ در کادر صفحه اصلی',
+        count: homeAdApproved,
+        unitPrice: adHomePrice,
+        revenue: homeAdApproved * adHomePrice,
+      },
+    ];
+
+    const totalRevenue = items.reduce((sum, item) => sum + item.revenue, 0);
+    const totalCount = items.reduce((sum, item) => sum + item.count, 0);
+    return { items, totalRevenue, totalCount };
   }
 
 }

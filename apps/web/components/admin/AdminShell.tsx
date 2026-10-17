@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
+  Banknote,
   BarChart3,
   Coins,
   Crown,
@@ -37,6 +38,7 @@ export type AdminSection =
   | 'boosts'
   | 'ads'
   | 'points'
+  | 'revenue'
   | 'feeds'
   | 'users'
   | 'tickets'
@@ -61,6 +63,7 @@ const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboar
   { key: 'subscriptions', label: 'اشتراک‌ها', icon: Crown },
   { key: 'boosts', label: 'افزایش بازدید', icon: TrendingUp },
   { key: 'ads', label: 'تبلیغات', icon: Megaphone },
+  { key: 'revenue', label: 'درآمد', icon: Banknote },
   { key: 'points', label: 'امتیازها', icon: Coins },
   { key: 'feeds', label: 'فیدها', icon: ImagePlus },
   { key: 'users', label: 'کاربران', icon: Users },

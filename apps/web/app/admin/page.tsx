@@ -15,6 +15,7 @@ import { AdminSubscriptions } from '@/components/admin/AdminSubscriptions';
 import { AdminBoosts } from '@/components/admin/AdminBoosts';
 import { AdminAds } from '@/components/admin/AdminAds';
 import { AdminPoints } from '@/components/admin/AdminPoints';
+import { AdminRevenue } from '@/components/admin/AdminRevenue';
 import { AdminFeeds } from '@/components/admin/AdminFeeds';
 import { AdminNotificationSettings } from '@/components/admin/AdminNotificationSettings';
 import { NotificationsInbox } from '@/components/ui/NotificationsInbox';
@@ -90,6 +91,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'boosts',
   'ads',
   'points',
+  'revenue',
   'feeds',
   'users',
   'tickets',
@@ -450,6 +452,10 @@ function AdminContent() {
     boosts: { title: 'افزایش بازدید', sub: 'بررسی و تأیید درخواست‌های پله' },
     ads: { title: 'تبلیغات', sub: 'تأیید درخواست‌های تبلیغ و تنظیمات نمایش' },
     points: { title: 'امتیازها', sub: 'مدیریت جوایز، امتیاز هر خبر و دریافت‌ها' },
+    revenue: {
+      title: 'گزارش درآمد',
+      sub: 'برآورد درآمد هر مدل درآمدی و تعیین قیمت واحد',
+    },
     feeds: { title: 'فیدها', sub: 'بررسی پست‌ها، اشتراک‌ها، بسته‌ها و تنظیمات' },
     users: { title: 'کاربران', sub: 'لیست کاربران پلتفرم' },
     tickets: { title: 'تیکت‌ها', sub: 'مدیریت تیکت‌های پشتیبانی' },
@@ -680,6 +686,8 @@ function AdminContent() {
       {section === 'ads' ? <AdminAds /> : null}
 
       {section === 'points' ? <AdminPoints /> : null}
+
+      {section === 'revenue' ? <AdminRevenue /> : null}
 
       {section === 'feeds' ? <AdminFeeds /> : null}
 

@@ -69,6 +69,12 @@ export class AdminController {
     return this.adminService.stats();
   }
 
+  @Get('revenue')
+  @ApiOperation({ summary: 'گزارش درآمد تخمینی هر مدل درآمدی' })
+  revenue() {
+    return this.adminService.revenueReport();
+  }
+
   @Get('storage')
   @ApiOperation({
     summary: 'وضعیت ذخیره‌سازی رسانه (حجم آپلودها) و فضای دیسک سرور',

@@ -99,6 +99,27 @@ class UpdateSettingsDto {
   @Type(() => Number)
   @IsInt()
   @Min(0)
+  @Max(1_000_000_000)
+  boostPrice?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000_000)
+  adHomePrice?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000_000)
+  adDirectoryPrice?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
   @Max(100000)
   pointsPerNews?: number;
 
@@ -169,6 +190,9 @@ export class AdminSettingsController {
       boostDurationDays: await this.settingsService.getBoostDurationDays(),
       adDirectoryDurationDays:
         await this.settingsService.getAdDirectoryDurationDays(),
+      boostPrice: await this.settingsService.getBoostPrice(),
+      adHomePrice: await this.settingsService.getAdHomePrice(),
+      adDirectoryPrice: await this.settingsService.getAdDirectoryPrice(),
       pointsPerNews: await this.settingsService.getPointsPerNews(),
       feedMaxImages: await this.settingsService.getFeedMaxImages(),
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
@@ -194,6 +218,9 @@ export class AdminSettingsController {
       adDailySlots?: number;
       boostDurationDays?: number;
       adDirectoryDurationDays?: number;
+      boostPrice?: number;
+      adHomePrice?: number;
+      adDirectoryPrice?: number;
       pointsPerNews?: number;
       feedMaxImages?: number;
       feedMaxImageKb?: number;
@@ -278,6 +305,21 @@ export class AdminSettingsController {
         await this.settingsService.setAdDirectoryDurationDays(
           dto.adDirectoryDurationDays,
         );
+    }
+    if (dto.boostPrice !== undefined) {
+      result.boostPrice = await this.settingsService.setBoostPrice(
+        dto.boostPrice,
+      );
+    }
+    if (dto.adHomePrice !== undefined) {
+      result.adHomePrice = await this.settingsService.setAdHomePrice(
+        dto.adHomePrice,
+      );
+    }
+    if (dto.adDirectoryPrice !== undefined) {
+      result.adDirectoryPrice = await this.settingsService.setAdDirectoryPrice(
+        dto.adDirectoryPrice,
+      );
     }
     if (dto.pointsPerNews !== undefined) {
       result.pointsPerNews = await this.settingsService.setPointsPerNews(
