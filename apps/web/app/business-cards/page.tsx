@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 
 import { Header } from '@/components/layout/Header';
 import { DirectoryBusinessCardItem } from '@/components/businesscard/DirectoryBusinessCardItem';
@@ -14,7 +14,6 @@ import {
 } from '@/components/businesscard/DirectoryBusinessCardFilters';
 import { type DirectoryBusinessCard } from '@/lib/api';
 import {
-  useDirectoryDisplayMode,
   useDirectoryResults,
   useInfiniteScroll,
 } from '@/lib/directory';
@@ -43,42 +42,32 @@ function DirectoryContent() {
     return params.toString();
   }, [filters.q, filters.cityId, filters.businessId, filters.sort]);
 
-  const displayMode = useDirectoryDisplayMode();
   const {
     items,
     meta,
     filters: facets,
     loading,
     error,
-    page,
-    setPage,
     loadMore,
   } = useDirectoryResults<DirectoryBusinessCard>({
     path: '/business-cards/public',
     query: queryString,
-    mode: displayMode,
-    initialPage: Number(searchParams.get('page') ?? 1) || 1,
+    mode: 'INFINITE',
   });
 
-  const sentinelRef = useInfiniteScroll(
-    displayMode === 'INFINITE',
-    loading,
-    loadMore,
-  );
+  const sentinelRef = useInfiniteScroll(true, loading, loadMore);
 
   // keep the browser URL in sync (shareable results + selected card)
   useEffect(() => {
     const params = new URLSearchParams(queryString);
     params.delete('limit');
-    if (page > 1) params.set('page', String(page));
     if (selectedSlug) params.set('card', selectedSlug);
     const next = params.toString();
     router.replace(next ? `/business-cards?${next}` : '/business-cards', { scroll: false });
-  }, [queryString, page, selectedSlug, router]);
+  }, [queryString, selectedSlug, router]);
 
   function reset() {
     setFilters({ q: '', cityId: '', businessId: '', sort: 'recent' });
-    setPage(1);
   }
 
   return (
@@ -134,15 +123,13 @@ function DirectoryContent() {
                     />
                   ))}
                 </div>
-                {displayMode === 'INFINITE' ? (
-                  <div ref={sentinelRef} className="h-2" aria-hidden />
-                ) : null}
-                {displayMode === 'INFINITE' && loading ? (
+                <div ref={sentinelRef} className="h-2" aria-hidden />
+                {loading ? (
                   <div className="py-3 text-center text-xs text-muted">
                     در حال بارگذاری موارد بیشتر...
                   </div>
                 ) : null}
-                {displayMode === 'INFINITE' && !loading && meta && !meta.hasNext ? (
+                {!loading && meta && !meta.hasNext ? (
                   <div className="py-3 text-center text-xs text-muted">
                     همه نتایج نمایش داده شد.
                   </div>
@@ -161,30 +148,6 @@ function DirectoryContent() {
             )}
           </div>
 
-          {displayMode === 'PAGINATION' && meta && meta.totalPages > 1 ? (
-            <div className="mt-4 flex shrink-0 items-center justify-center gap-3 pt-2">
-              <button
-                onClick={() => setPage((current) => Math.max(1, current - 1))}
-                disabled={!meta.hasPrev}
-                className="indeed-btn indeed-btn-secondary disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <ChevronRight className="size-4" aria-hidden />
-                قبلی
-              </button>
-              <span className="text-sm text-muted">
-                صفحه {meta.page.toLocaleString('fa-IR')} از{' '}
-                {meta.totalPages.toLocaleString('fa-IR')}
-              </span>
-              <button
-                onClick={() => setPage((current) => current + 1)}
-                disabled={!meta.hasNext}
-                className="indeed-btn indeed-btn-secondary disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                بعدی
-                <ChevronLeft className="size-4" aria-hidden />
-              </button>
-            </div>
-          ) : null}
         </section>
 
         <aside className="directory-aside order-1 hidden min-h-0 md:order-2 md:block">
