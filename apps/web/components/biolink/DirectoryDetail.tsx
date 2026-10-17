@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 
 import { api, type Biolink } from '@/lib/api';
+import { RecordView } from '@/components/ui/RecordView';
 
 interface Payload {
   biolink: Biolink;
@@ -107,6 +108,7 @@ export function DirectoryDetail({ slug, onClose, hideHeader }: Props) {
 
   return (
     <div className="flex h-full flex-col bg-[var(--vintage-surface)]">
+      <RecordView kind="biolinks" slug={slug} />
       {hideHeader ? null : (
         <div className="flex items-center justify-between border-b border-[var(--vintage-border)] px-5 py-3">
           <p className="text-sm font-bold text-ink">جزئیات بیولینک</p>

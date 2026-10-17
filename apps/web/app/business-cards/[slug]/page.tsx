@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 
 import { PublicBusinessCardView } from '@/components/businesscard/PublicBusinessCardView';
+import { RecordView } from '@/components/ui/RecordView';
 import { type BusinessCard } from '@/lib/api';
 
 interface BusinessCardPayload {
@@ -40,11 +41,14 @@ export default async function PublicBusinessCardPage({
     notFound();
   }
   return (
-    <PublicBusinessCardView
-      businessCard={data.businessCard}
-      qr={data.qr}
-      link={data.link}
-      like={data.like}
-    />
+    <>
+      <RecordView kind="business-cards" slug={slug} />
+      <PublicBusinessCardView
+        businessCard={data.businessCard}
+        qr={data.qr}
+        link={data.link}
+        like={data.like}
+      />
+    </>
   );
 }

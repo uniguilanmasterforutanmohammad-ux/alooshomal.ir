@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 
 import { PublicBiolinkView } from '@/components/biolink/PublicBiolinkView';
+import { RecordView } from '@/components/ui/RecordView';
 import { type Biolink } from '@/lib/api';
 
 interface BiolinkPayload {
@@ -40,11 +41,14 @@ export default async function PublicBiolinkPage({
     notFound();
   }
   return (
-    <PublicBiolinkView
-      biolink={data.biolink}
-      qr={data.qr}
-      link={data.link}
-      like={data.like}
-    />
+    <>
+      <RecordView kind="biolinks" slug={slug} />
+      <PublicBiolinkView
+        biolink={data.biolink}
+        qr={data.qr}
+        link={data.link}
+        like={data.like}
+      />
+    </>
   );
 }

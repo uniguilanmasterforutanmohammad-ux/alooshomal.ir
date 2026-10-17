@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 
 import { api, type BusinessCard } from '@/lib/api';
+import { RecordView } from '@/components/ui/RecordView';
 
 interface Payload {
   businessCard: BusinessCard;
@@ -107,8 +108,9 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
 
   return (
     <div className="flex h-full flex-col bg-[var(--vintage-surface)]">
+      <RecordView kind="business-cards" slug={slug} />
       {hideHeader ? null : (
-        <div className="flex items-center justify-between border-b border-[var(--vintage-border)] px-5 py-3">
+            <div className="flex items-center justify-between border-b border-[var(--vintage-border)] px-5 py-3">
           <p className="text-sm font-bold text-ink">جزئیات کارت ویزیت</p>
           <button
             onClick={onClose}
