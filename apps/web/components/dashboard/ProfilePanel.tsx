@@ -136,25 +136,29 @@ export function ProfilePanel() {
         </div>
       </div>
 
-      <div className="indeed-panel grid gap-4 p-5 sm:grid-cols-2">
-        <InfoRow icon={UserRound} label="نام" value={profile.fullName ?? '—'} />
-        <InfoRow icon={Mail} label="ایمیل" value={profile.email ?? '—'} ltr />
-        <InfoRow icon={Phone} label="موبایل" value={profile.phone ?? '—'} ltr />
-        <InfoRow
-          icon={ShieldCheck}
-          label="نقش"
-          value={ROLE_LABEL[profile.role] ?? profile.role}
-        />
-        <InfoRow
-          icon={BadgeCheck}
-          label="وضعیت حساب"
-          value={profile.isActive ? 'فعال' : 'غیرفعال'}
-        />
-        <InfoRow
-          icon={IdCard}
-          label="تاریخ عضویت"
-          value={new Date(profile.createdAt).toLocaleDateString('fa-IR')}
-        />
+      <div className="indeed-panel overflow-hidden">
+        <table className="w-full border-collapse text-sm">
+          <tbody>
+            <ProfileRow icon={UserRound} label="نام" value={profile.fullName ?? '—'} />
+            <ProfileRow icon={Mail} label="ایمیل" value={profile.email ?? '—'} ltr />
+            <ProfileRow icon={Phone} label="موبایل" value={profile.phone ?? '—'} ltr />
+            <ProfileRow
+              icon={ShieldCheck}
+              label="نقش"
+              value={ROLE_LABEL[profile.role] ?? profile.role}
+            />
+            <ProfileRow
+              icon={BadgeCheck}
+              label="وضعیت حساب"
+              value={profile.isActive ? 'فعال' : 'غیرفعال'}
+            />
+            <ProfileRow
+              icon={IdCard}
+              label="تاریخ عضویت"
+              value={new Date(profile.createdAt).toLocaleDateString('fa-IR')}
+            />
+          </tbody>
+        </table>
       </div>
 
       <div className="indeed-panel p-5">
@@ -271,7 +275,7 @@ export function ProfilePanel() {
   );
 }
 
-function InfoRow({
+function ProfileRow({
   icon: Icon,
   label,
   value,
@@ -283,14 +287,16 @@ function InfoRow({
   ltr?: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3">
-      <Icon className="size-4 text-brand" aria-hidden />
-      <div>
-        <p className="text-[11px] text-muted">{label}</p>
-        <p dir={ltr ? 'ltr' : undefined} className="text-sm font-bold text-ink">
-          {value}
-        </p>
-      </div>
-    </div>
+    <tr className="border-b border-dashed border-[var(--vintage-border)] last:border-b-0">
+      <th className="w-40 px-4 py-3 text-right text-xs font-bold text-muted">
+        <span className="inline-flex items-center gap-2">
+          <Icon className="size-4 text-brand" aria-hidden />
+          {label}
+        </span>
+      </th>
+      <td dir={ltr ? 'ltr' : undefined} className="px-4 py-3 font-bold text-ink">
+        {value}
+      </td>
+    </tr>
   );
 }

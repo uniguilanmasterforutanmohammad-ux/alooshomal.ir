@@ -1,6 +1,7 @@
-import { Controller, Delete, Get, Param } from '@nestjs/common';
+import { Controller, Delete, Get, Param, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
+import { PaginationDto } from '../common/dto/pagination.dto';
 import { SessionsService } from './sessions.service';
 
 @ApiTags('sessions')
@@ -11,9 +12,9 @@ export class SessionsController {
 
   @Get()
   @ApiOperation({ summary: 'فهرست نشست‌های فعال من' })
-  async list(@CurrentUser() user: AuthUser) {
+  async list(@CurrentUser() user: AuthUser, @Query() query: PaginationDto) {
     await this.sessions.pruneStale(user.id);
-    return this.sessions.listForUser(user.id);
+    return this.sessions.listForUser(user.id, query.page, query.limit);
   }
 
   @Delete(':id')

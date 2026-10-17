@@ -185,36 +185,53 @@ export class SessionsService {
     });
   }
 
-  /** Sessions of one user, newest activity first. */
-  async listForUser(userId: string) {
+  /** Sessions of one user, newest activity first, paginated. */
+  async listForUser(userId: string, page = 1, limitOverride?: number) {
+    const limit = limitOverride ?? 10;
+    const currentPage = Math.max(1, page);
     const idleCutoff = new Date(Date.now() - SESSION_IDLE_DAYS * 86400_000);
-    const rows = await this.prisma.session.findMany({
-      where: { userId },
-      orderBy: { lastUsedAt: 'desc' },
-      take: 50,
-      select: {
-        id: true,
-        userAgent: true,
-        ip: true,
-        createdAt: true,
-        lastUsedAt: true,
-        expiresAt: true,
-        revokedAt: true,
-      },
-    });
+    const [rows, total] = await Promise.all([
+      this.prisma.session.findMany({
+        where: { userId },
+        orderBy: { lastUsedAt: 'desc' },
+        skip: (currentPage - 1) * limit,
+        take: limit,
+        select: {
+          id: true,
+          userAgent: true,
+          ip: true,
+          createdAt: true,
+          lastUsedAt: true,
+          expiresAt: true,
+          revokedAt: true,
+        },
+      }),
+      this.prisma.session.count({ where: { userId } }),
+    ]);
     const now = Date.now();
-    return rows.map((row) => ({
-      ...row,
-      active:
-        !row.revokedAt &&
-        row.expiresAt.getTime() > now &&
-        now - row.lastUsedAt.getTime() <= SESSION_IDLE_DAYS * 86400_000,
-      idleExpiresAt: new Date(row.lastUsedAt.getTime() + SESSION_IDLE_DAYS * 86400_000),
-    }));
+    return {
+      items: rows.map((row) => ({
+        ...row,
+        active:
+          !row.revokedAt &&
+          row.expiresAt.getTime() > now &&
+          now - row.lastUsedAt.getTime() <= SESSION_IDLE_DAYS * 86400_000,
+        idleExpiresAt: new Date(row.lastUsedAt.getTime() + SESSION_IDLE_DAYS * 86400_000),
+      })),
+      meta: {
+        page: currentPage,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+        hasNext: currentPage * limit < total,
+        hasPrev: currentPage > 1,
+      },
+    };
   }
 
   /** Sessions of an arbitrary user (admin view), with the owner attached. */
   async listForAdmin(userId: string) {
-    return this.listForUser(userId);
+    const { items } = await this.listForUser(userId, 1, 100);
+    return items;
   }
 }
