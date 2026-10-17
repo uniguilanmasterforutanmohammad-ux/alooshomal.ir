@@ -65,6 +65,11 @@ export function MobileNav() {
             <li key={item.href}>
               <Link
                 href={item.href}
+                // Prefetching every nav destination on every page load caused a
+                // burst of wasted RSC requests (see the speed report). The
+                // bottom bar is reached instantly, so on-demand navigation is
+                // plenty and the network stays calm.
+                prefetch={false}
                 className={cn(
                   'flex flex-col items-center gap-0.5 px-0.5 py-2 text-[10px] font-bold transition',
                   active ? 'text-brand' : 'text-muted',

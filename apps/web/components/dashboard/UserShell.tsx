@@ -83,6 +83,10 @@ export function UserShell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
+              // The dashboard sidebar links to every panel; letting Next prefetch
+              // all of them fired a burst of `?_rsc=` requests on every page load
+              // (the top network bottleneck in the speed report). Navigate on demand.
+              prefetch={false}
               onClick={() => setOpen(false)}
               className={cn(
                 'flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm font-semibold transition',
@@ -99,6 +103,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
           {user?.role === 'ADMIN' ? (
             <Link
               href="/admin"
+              prefetch={false}
               className="flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-semibold text-muted transition hover:border-[var(--vintage-border)] hover:bg-white"
             >
               <ShieldCheck className="size-4" aria-hidden />

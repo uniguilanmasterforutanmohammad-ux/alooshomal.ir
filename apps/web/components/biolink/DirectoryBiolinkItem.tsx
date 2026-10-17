@@ -111,6 +111,7 @@ export function DirectoryBiolinkItem({ biolink, selected, onSelect }: Props) {
               slug={biolink.slug}
               initialCount={biolink.likeCount ?? 0}
               initialLiked={biolink.liked ?? false}
+              reconcile={false}
             />
             <SaveButton
               kind="biolinks"

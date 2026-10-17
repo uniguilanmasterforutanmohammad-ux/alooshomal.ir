@@ -24,7 +24,14 @@ export function Footer() {
 
         <nav aria-label="پیوندهای فوتر" className="flex flex-col gap-1.5 text-xs">
           {PUBLIC_NAV.map((item) => (
-            <Link key={item.href} href={item.href} className="text-muted hover:text-brand">
+            <Link
+              key={item.href}
+              href={item.href}
+              // These repeat the header nav on every page; prefetching them all
+              // doubles the wasted background RSC traffic (see the speed report).
+              prefetch={false}
+              className="text-muted hover:text-brand"
+            >
               {item.label}
             </Link>
           ))}

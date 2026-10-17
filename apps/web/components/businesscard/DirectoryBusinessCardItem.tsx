@@ -114,6 +114,7 @@ export function DirectoryBusinessCardItem({ businessCard, selected, onSelect }: 
               slug={businessCard.slug}
               initialCount={businessCard.likeCount ?? 0}
               initialLiked={businessCard.liked ?? false}
+              reconcile={false}
             />
             <SaveButton
               kind="business-cards"
