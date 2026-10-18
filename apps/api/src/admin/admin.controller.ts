@@ -28,6 +28,7 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { CreatePlanDto } from '../subscriptions/dto/create-plan.dto';
 import { DecideSubscriptionDto } from '../subscriptions/dto/decide-subscription.dto';
 import { UpdatePlanDto } from '../subscriptions/dto/update-plan.dto';
+import { PLAN_FIELDS } from '../common/plans';
 import { PermissionsService } from '../auth/permissions.service';
 import {
   APP_ROLES,
@@ -223,6 +224,12 @@ export class AdminController {
   @ApiOperation({ summary: 'فهرست همه اشتراک‌ها (فعال و غیرفعال)' })
   plans() {
     return this.subscriptionsService.listPlans(false);
+  }
+
+  @Get('plan-fields')
+  @ApiOperation({ summary: 'فهرست فیلدهای قابل نمایش در بسته‌های اشتراک' })
+  planFields() {
+    return PLAN_FIELDS;
   }
 
   @Post('plans')

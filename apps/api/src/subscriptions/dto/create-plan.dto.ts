@@ -44,6 +44,15 @@ export class CreatePlanDto {
   @IsBoolean()
   showSocialLinks?: boolean;
 
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'کلید فیلدهای مخفی‌شده در این بسته (خالی = نمایش همه)',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  hiddenFields?: string[];
+
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()

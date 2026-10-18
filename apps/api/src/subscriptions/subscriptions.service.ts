@@ -11,6 +11,8 @@ import { NotificationType, Prisma, SubscriptionStatus } from '@prisma/client';
 import {
   DEFAULT_PLAN,
   DEFAULT_PLANS,
+  DEFAULT_HIDDEN_LINK_FIELDS,
+  hiddenFieldsFrom,
   planLimitsFrom,
   PlanLimits,
 } from '../common/plans';
@@ -34,10 +36,24 @@ export class SubscriptionsService implements OnModuleInit {
     // Make sure the built-in plans always exist, even without running the seed.
     try {
       await this.ensureDefaultPlans();
+      await this.backfillHiddenFields();
     } catch {
       // The table may not exist yet on a very first boot; ignore and let the
       // entrypoint `prisma db push` create it, a later boot will seed it.
     }
+  }
+
+  /**
+   * One-time migration for plans created before the per-field `hiddenFields`
+   * column existed: a plan that had social/web links hidden (`showSocialLinks
+   * = false`) gets the legacy link-field list. The write path keeps the two in
+   * sync, so this only ever matches un-migrated rows and is safe to re-run.
+   */
+  private async backfillHiddenFields() {
+    await this.prisma.subscriptionPlan.updateMany({
+      where: { showSocialLinks: false, hiddenFields: { equals: [] } },
+      data: { hiddenFields: DEFAULT_HIDDEN_LINK_FIELDS },
+    });
   }
 
   /**
@@ -56,6 +72,7 @@ export class SubscriptionsService implements OnModuleInit {
           maxBiolinks: plan.maxBiolinks,
           maxBusinessCards: plan.maxBusinessCards,
           showSocialLinks: plan.showSocialLinks,
+          hiddenFields: plan.hiddenFields,
           features: plan.features,
           sortOrder: plan.sortOrder,
           isActive: true,
@@ -108,6 +125,7 @@ export class SubscriptionsService implements OnModuleInit {
     if (exists) {
       throw new ConflictException('اشتراکی با این نام قبلاً وجود دارد');
     }
+    const hiddenFields = dto.hiddenFields ?? [];
     return this.prisma.subscriptionPlan.create({
       data: {
         name: dto.name,
@@ -115,7 +133,10 @@ export class SubscriptionsService implements OnModuleInit {
         price: dto.price ?? 0,
         maxBiolinks: dto.maxBiolinks ?? 1,
         maxBusinessCards: dto.maxBusinessCards ?? 1,
-        showSocialLinks: dto.showSocialLinks ?? true,
+        // `showSocialLinks` is kept in sync with the field toggles so the
+        // legacy flag (and older clients) still behaves correctly.
+        showSocialLinks: !hiddenFields.includes('website'),
+        hiddenFields,
         features: dto.features ?? [],
         isActive: dto.isActive ?? true,
         sortOrder: dto.sortOrder ?? 99,
@@ -124,11 +145,17 @@ export class SubscriptionsService implements OnModuleInit {
   }
 
   async updatePlan(id: string, dto: UpdatePlanDto) {
-    await this.getPlan(id);
+    const current = await this.getPlan(id);
+    const hiddenFields =
+      dto.hiddenFields !== undefined
+        ? dto.hiddenFields
+        : hiddenFieldsFrom(current);
     return this.prisma.subscriptionPlan.update({
       where: { id },
       data: {
         ...dto,
+        hiddenFields,
+        showSocialLinks: !hiddenFields.includes('website'),
       },
     });
   }

@@ -13,7 +13,7 @@ import {
   biolinkOrderBy,
 } from '../common/directory-sort';
 import { FacetsCacheService } from '../common/facets-cache.service';
-import { planLimitsFrom } from '../common/plans';
+import { applyHiddenFields, hiddenFieldsFrom, planLimitsFrom } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -526,6 +526,7 @@ export class BiolinksService {
           maxBiolinks: number;
           maxBusinessCards: number;
           showSocialLinks: boolean;
+          hiddenFields: string[];
         } | null;
       } | null;
       businessCard?: {
@@ -536,8 +537,8 @@ export class BiolinksService {
     },
   >(biolink: T) {
     // The owner's plan name is surfaced on the public page as a small badge,
-    // while `planHidesFields` lets the owner's own view warn that a free plan
-    // is masking links/socials instead of silently dropping them.
+    // while `planHidesFields` lets the owner's own view warn that their plan
+    // is masking fields instead of silently dropping them.
     const limits = planLimitsFrom(biolink.user?.plan);
     // Only expose the linked business card when it is itself publicly visible;
     // a link to a pending/unpublished card must not leak its slug.
@@ -555,7 +556,7 @@ export class BiolinksService {
     return {
       ...rest,
       planName: limits.name,
-      planHidesFields: !limits.showSocialLinks,
+      planHidesFields: limits.hiddenFields.length > 0,
       linkedBusinessCard,
     };
   }
@@ -570,27 +571,16 @@ export class BiolinksService {
    * no plan (fresh account) the free limits apply.
    */
   private applyPlanVisibility<T extends {
-    website: string | null;
-    linkedin: string | null;
-    instagram: string | null;
-    telegram: string | null;
-    twitter: string | null;
-    whatsapp: string | null;
-    user?: { plan: { showSocialLinks: boolean } | null } | null;
+    user?: { plan: { showSocialLinks: boolean; hiddenFields: string[] } | null } | null;
   }>(biolink: T): T {
-    const showLinks = biolink.user?.plan?.showSocialLinks ?? false;
-    if (showLinks) {
-      return biolink;
-    }
-    return {
-      ...biolink,
-      website: null,
-      linkedin: null,
-      instagram: null,
-      telegram: null,
-      twitter: null,
-      whatsapp: null,
-    };
+    // A plan masks exactly the field keys its admin disabled; the legacy
+    // `showSocialLinks` flag is folded into that list by `hiddenFieldsFrom`.
+    const hidden = hiddenFieldsFrom(biolink.user?.plan);
+    const masked = applyHiddenFields(
+      biolink as unknown as Record<string, unknown>,
+      hidden,
+    ) as T;
+    return masked;
   }
 
   /**

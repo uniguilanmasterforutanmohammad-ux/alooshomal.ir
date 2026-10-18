@@ -13,7 +13,7 @@ import {
   businessCardOrderBy,
 } from '../common/directory-sort';
 import { FacetsCacheService } from '../common/facets-cache.service';
-import { planLimitsFrom } from '../common/plans';
+import { applyHiddenFields, hiddenFieldsFrom, planLimitsFrom } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -545,6 +545,7 @@ export class BusinessCardsService {
           maxBiolinks: number;
           maxBusinessCards: number;
           showSocialLinks: boolean;
+          hiddenFields: string[];
         } | null;
       } | null;
       linkedBiolinks?: Array<{
@@ -572,7 +573,7 @@ export class BusinessCardsService {
     return {
       ...rest,
       planName: limits.name,
-      planHidesFields: !limits.showSocialLinks,
+      planHidesFields: limits.hiddenFields.length > 0,
       linkedBiolink,
     };
   }
@@ -587,27 +588,15 @@ export class BusinessCardsService {
    * no plan (fresh account) the free limits apply.
    */
   private applyPlanVisibility<T extends {
-    website: string | null;
-    linkedin: string | null;
-    instagram: string | null;
-    telegram: string | null;
-    twitter: string | null;
-    whatsapp: string | null;
-    user?: { plan: { showSocialLinks: boolean } | null } | null;
+    user?: { plan: { showSocialLinks: boolean; hiddenFields: string[] } | null } | null;
   }>(businessCard: T): T {
-    const showLinks = businessCard.user?.plan?.showSocialLinks ?? false;
-    if (showLinks) {
-      return businessCard;
-    }
-    return {
-      ...businessCard,
-      website: null,
-      linkedin: null,
-      instagram: null,
-      telegram: null,
-      twitter: null,
-      whatsapp: null,
-    };
+    // A plan masks exactly the field keys its admin disabled; the legacy
+    // `showSocialLinks` flag is folded into that list by `hiddenFieldsFrom`.
+    const hidden = hiddenFieldsFrom(businessCard.user?.plan);
+    return applyHiddenFields(
+      businessCard as unknown as Record<string, unknown>,
+      hidden,
+    ) as T;
   }
 
   /**

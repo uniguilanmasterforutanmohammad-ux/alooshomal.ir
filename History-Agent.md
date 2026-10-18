@@ -20,7 +20,47 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.66.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.67.0**.
+
+## ۱۴۰۵/۰۷/۲۷ — بازطراحی پنل اشتراک‌ها: دو تب، ویرایش بسته و فیلدهای نمایشی — نسخه `v2.67.0`
+
+**هدف:** «درخواست جدید» — در `/admin?section=subscriptions` الف) اشتراک‌ها و
+مدیریت بسته + تأیید درخواست‌ها در دو تب مجزا باشند؛ ب) بسته‌های ساخته‌شده
+قابلیت ویرایش داشته باشند؛ ج) هنگام ساخت/ویرایش بسته، تمامی فیلدهای قابل‌ورود در
+کارت ویزیت و بیولینک به‌صورت آبشن‌های فعال/غیرفعال بیایند و دو عبارت «ویژگی‌ها هر
+خط یک مورد» و «تیک نمایش لینک‌ها و…» حذف شوند.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن ستون `hiddenFields String[]` به
+  `SubscriptionPlan` (اعمال با `prisma db push`).
+- `apps/api/src/common/plans.ts`: افزودن `PLAN_FIELDS` (فهرست مشترک فیلدها)،
+  `DEFAULT_HIDDEN_LINK_FIELDS` و توابع `hiddenFieldsFrom`/`applyHiddenFields`؛
+  `PlanLimits` حالا `hiddenFields` را هم برمی‌گرداند.
+- `apps/api/src/subscriptions/dto/create-plan.dto.ts`: افزودن `hiddenFields`.
+- `apps/api/src/subscriptions/subscriptions.service.ts`: ذخیره‌ی `hiddenFields`
+  در ساخت/ویرایش بسته، همگام‌سازی `showSocialLinks` با فیلد `website`، و
+  `backfillHiddenFields()` یک‌باره در بوت برای بسته‌های قدیمی.
+- `apps/api/src/biolinks/biolinks.service.ts` و
+  `apps/api/src/businesscards/business-cards.service.ts`: ماسک‌کردن فیلدها بر
+  اساس `hiddenFields` بسته (به‌جای فقط لینک‌های شبکه‌های اجتماعی) و
+  `planHidesFields` بر پایه‌ی وجود فیلد مخفی.
+- `apps/api/src/admin/admin.controller.ts`: اندپوینت `GET /admin/plan-fields`.
+- `apps/web/lib/api.ts`: افزودن `hiddenFields` به تایپ `SubscriptionPlan`.
+- `apps/web/components/admin/AdminSubscriptions.tsx`: بازنویسی کامل — دو تب
+  «درخواست‌ها» و «مدیریت بسته‌ها»، فرم ویرایش بسته، و گرید سوییچ‌های
+  فعال/غیرفعال برای همه‌ی فیلدهای کارت/بیولینک؛ حذف فیلد «ویژگی‌ها» و تیک
+  «نمایش لینک‌ها».
+
+**تأیید/تست:**
+- `npx tsc --noEmit` روی `apps/api` و `apps/web` بدون خطا (exit 0).
+- `python3 scripts/sync_install.py --check` → `patched: 0 / added: 0`.
+- `prisma db push` موفق؛ `GET /admin/plan-fields` فهرست ۱۵ فیلد را برگرداند؛
+  ساخت/ویرایش/حذف بسته با `hiddenFields` درست کار کرد و `showSocialLinks`
+  هم‌گام شد؛ بک‌فیل بسته‌ی «رایگان» فیلدهای لینک قدیمی را گرفت.
+- تست مرورگری با `playwright-core`: تب «مدیریت بسته‌ها»، دکمه‌های ویرایش، و پس
+  از باز کردن فرم ویرایش «رایگان» ۱۵ سوییچ نمایش داده شد (۹ فعال / ۶ غیرفعال).
+- ماسک عمومی: بیولینک‌های کاربران بسته‌ی «رایگان» بدون `website`/شبکه‌های
+  اجتماعی و بیولینک کاربر بسته‌ی «بلاس» کامل برگشتند.
 
 ## ۱۴۰۵/۰۷/۲۷ — بازطراحی نمایش فیدها: متن‌محور با اسکرول بی‌نهایت و صفحه‌ی ثابت — نسخه `v2.66.0`
 

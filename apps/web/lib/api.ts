@@ -415,6 +415,7 @@ export interface SubscriptionPlan {
   maxBiolinks: number;
   maxBusinessCards: number;
   showSocialLinks: boolean;
+  hiddenFields: string[];
   features: string[];
   isActive: boolean;
   sortOrder: number;

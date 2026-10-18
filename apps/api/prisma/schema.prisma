@@ -864,6 +864,10 @@ model SubscriptionPlan {
   maxBiolinks       Int      @default(1)
   maxBusinessCards  Int      @default(1)
   showSocialLinks   Boolean  @default(false)
+  /// Field keys (see `PLAN_FIELDS` in `common/plans.ts`) hidden on every item
+  /// owned by a user on this plan. Empty = show everything. This supersedes the
+  /// legacy `showSocialLinks` toggle but the two stay in sync for back-compat.
+  hiddenFields      String[] @default([])
   features          String[] @default([])
   isActive          Boolean  @default(true)
   sortOrder         Int      @default(0)
