@@ -162,7 +162,7 @@ export class AdminController {
   @Get('biolinks')
   @ApiOperation({ summary: 'فهرست بیولینک‌ها برای بررسی' })
   biolinks(@Query() query: ListBiolinksDto) {
-    return this.adminService.listBiolinks(query, query.status);
+    return this.adminService.listBiolinks(query, query.status, query.search);
   }
 
   @Patch('biolinks/:id/moderate')
@@ -190,7 +190,7 @@ export class AdminController {
   @Get('business-cards')
   @ApiOperation({ summary: 'فهرست کارت‌های ویزیت برای بررسی' })
   businessCards(@Query() query: ListBusinessCardsDto) {
-    return this.adminService.listBusinessCards(query, query.status);
+    return this.adminService.listBusinessCards(query, query.status, query.search);
   }
 
   @Patch('business-cards/:id/moderate')

@@ -8,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 import {
   BiolinkStatus,
   BoostStatus,
+  ContentDecisionKind,
   ModerationDecision,
   NotificationType,
   Prisma,
@@ -41,10 +42,29 @@ export class AdminService {
     private readonly sessions: SessionsService,
   ) {}
 
-  async listBiolinks(pagination: PaginationDto, status?: BiolinkStatus) {
+  async listBiolinks(
+    pagination: PaginationDto,
+    status?: BiolinkStatus,
+    search?: string,
+  ) {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? (await this.settings.getAdminListPageSize());
-    const where: Prisma.BiolinkWhereInput = status ? { status } : {};
+    const where: Prisma.BiolinkWhereInput = {
+      ...(status ? { status } : {}),
+      ...(search
+        ? {
+            OR: [
+              { fullName: { contains: search, mode: 'insensitive' } },
+              { jobTitle: { contains: search, mode: 'insensitive' } },
+              { company: { contains: search, mode: 'insensitive' } },
+              { slug: { contains: search, mode: 'insensitive' } },
+              { phone: { contains: search, mode: 'insensitive' } },
+              { user: { email: { contains: search, mode: 'insensitive' } } },
+              { user: { fullName: { contains: search, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
+    };
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.biolink.findMany({
@@ -59,8 +79,15 @@ export class AdminService {
       this.prisma.biolink.count({ where }),
     ]);
 
+    const decisions = await this.contentDecisionMap(
+      ContentDecisionKind.BIOLINK,
+      items.map((item) => item.id),
+    );
     return {
-      items,
+      items: items.map((item) => ({
+        ...item,
+        decidedBy: decisions.get(item.id) ?? null,
+      })),
       meta: {
         page,
         limit,
@@ -70,6 +97,51 @@ export class AdminService {
         hasPrev: page > 1,
       },
     };
+  }
+
+  /**
+   * Admin reviewer trail for a set of items. Biased to the limited «کاربر ادمین»
+   * decision (`content_decisions`, written by the moderator panel) and, when
+   * absent, falling back to the classic `ModerationLog` for biolinks. Both map
+   * to `{ id, fullName, email }` of the deciding admin.
+   */
+  private async contentDecisionMap(
+    kind: ContentDecisionKind,
+    itemIds: string[],
+  ): Promise<
+    Map<string, { id: string; fullName: string | null; email: string | null }>
+  > {
+    const result = new Map<
+      string,
+      { id: string; fullName: string | null; email: string | null }
+    >();
+    if (itemIds.length === 0) return result;
+
+    const decisions = await this.prisma.contentDecision.findMany({
+      where: { kind, itemId: { in: itemIds } },
+      include: { admin: { select: { id: true, fullName: true, email: true } } },
+    });
+    for (const decision of decisions) {
+      result.set(decision.itemId, decision.admin);
+    }
+
+    // Legacy moderation logs (only biolinks keep a full log); fill the gaps.
+    if (kind === ContentDecisionKind.BIOLINK) {
+      const missing = itemIds.filter((id) => !result.has(id));
+      if (missing.length > 0) {
+        const logs = await this.prisma.moderationLog.findMany({
+          where: { biolinkId: { in: missing } },
+          orderBy: { createdAt: 'desc' },
+          include: { admin: { select: { id: true, fullName: true, email: true } } },
+        });
+        for (const log of logs) {
+          if (!result.has(log.biolinkId)) {
+            result.set(log.biolinkId, log.admin);
+          }
+        }
+      }
+    }
+    return result;
   }
 
   async moderate(adminId: string, biolinkId: string, dto: ModerateBiolinkDto) {
@@ -108,6 +180,20 @@ export class AdminService {
           biolinkId,
           adminId,
           decision: dto.decision,
+          reason: dto.reason ?? null,
+        },
+      });
+
+      // Record the reviewer so the admin list can show «تأییدکننده» for every
+      // decision, not only the ones taken from the limited moderator panel.
+      await tx.contentDecision.upsert({
+        where: { kind_itemId: { kind: ContentDecisionKind.BIOLINK, itemId: biolinkId } },
+        update: { adminId, approved, reason: dto.reason ?? null },
+        create: {
+          kind: ContentDecisionKind.BIOLINK,
+          itemId: biolinkId,
+          adminId,
+          approved,
           reason: dto.reason ?? null,
         },
       });
@@ -183,10 +269,29 @@ export class AdminService {
     return updated;
   }
 
-  async listBusinessCards(pagination: PaginationDto, status?: BiolinkStatus) {
+  async listBusinessCards(
+    pagination: PaginationDto,
+    status?: BiolinkStatus,
+    search?: string,
+  ) {
     const page = pagination.page ?? 1;
     const limit = pagination.limit ?? (await this.settings.getAdminListPageSize());
-    const where: Prisma.BusinessCardWhereInput = status ? { status } : {};
+    const where: Prisma.BusinessCardWhereInput = {
+      ...(status ? { status } : {}),
+      ...(search
+        ? {
+            OR: [
+              { fullName: { contains: search, mode: 'insensitive' } },
+              { jobTitle: { contains: search, mode: 'insensitive' } },
+              { company: { contains: search, mode: 'insensitive' } },
+              { slug: { contains: search, mode: 'insensitive' } },
+              { phone: { contains: search, mode: 'insensitive' } },
+              { user: { email: { contains: search, mode: 'insensitive' } } },
+              { user: { fullName: { contains: search, mode: 'insensitive' } } },
+            ],
+          }
+        : {}),
+    };
 
     const [items, total] = await this.prisma.$transaction([
       this.prisma.businessCard.findMany({
@@ -201,8 +306,15 @@ export class AdminService {
       this.prisma.businessCard.count({ where }),
     ]);
 
+    const decisions = await this.contentDecisionMap(
+      ContentDecisionKind.BUSINESS_CARD,
+      items.map((item) => item.id),
+    );
     return {
-      items,
+      items: items.map((item) => ({
+        ...item,
+        decidedBy: decisions.get(item.id) ?? null,
+      })),
       meta: {
         page,
         limit,
@@ -268,6 +380,25 @@ export class AdminService {
       summary: `${approved ? 'تأیید' : 'رد'} کارت ویزیت «${updated.fullName}»`,
       entityType: 'BUSINESS_CARD',
       entityId: businessCardId,
+    });
+
+    // Record the reviewer so the admin list can show «تأییدکننده» for every
+    // decision, not only the ones taken from the limited moderator panel.
+    await this.prisma.contentDecision.upsert({
+      where: {
+        kind_itemId: {
+          kind: ContentDecisionKind.BUSINESS_CARD,
+          itemId: businessCardId,
+        },
+      },
+      update: { adminId, approved, reason: dto.reason ?? null },
+      create: {
+        kind: ContentDecisionKind.BUSINESS_CARD,
+        itemId: businessCardId,
+        adminId,
+        approved,
+        reason: dto.reason ?? null,
+      },
     });
 
     this.facetsCache.invalidateDirectory('businesscard');

@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Download, Plus } from 'lucide-react';
+import { Download, Plus, Search } from 'lucide-react';
 
 import { AdminShell, type AdminSection } from '@/components/admin/AdminShell';
 import { AdminTicketPanel } from '@/components/admin/AdminTicketPanel';
@@ -60,6 +60,7 @@ interface AdminBiolink {
   status: string;
   isPublished: boolean;
   user: { email: string; fullName: string | null };
+  decidedBy?: { id: string; fullName: string | null; email: string | null } | null;
 }
 
 type AdminBusinessCard = AdminBiolink;
@@ -119,6 +120,8 @@ function AdminContent() {
   const [biolinks, setBiolinks] = useState<AdminBiolink[]>([]);
   const [businessCards, setBusinessCards] = useState<AdminBusinessCard[]>([]);
   const [status, setStatus] = useState('PENDING');
+  const [search, setSearch] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingBusinessCardId, setEditingBusinessCardId] = useState<string | null>(null);
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
@@ -166,8 +169,13 @@ function AdminContent() {
   const loadBiolinks = useCallback(async (page = biolinksPage) => {
     setLoading(true);
     try {
+      const query = new URLSearchParams({
+        status,
+        page: String(page),
+      });
+      if (appliedSearch.trim()) query.set('search', appliedSearch.trim());
       const result = await api.get<{ items: AdminBiolink[]; meta: PaginationMeta }>(
-        `/admin/biolinks?status=${status}&page=${page}`,
+        `/admin/biolinks?${query.toString()}`,
       );
       setBiolinks(result.items);
       setBiolinksMeta(result.meta);
@@ -176,13 +184,18 @@ function AdminContent() {
     } finally {
       setLoading(false);
     }
-  }, [status, biolinksPage]);
+  }, [status, biolinksPage, appliedSearch]);
 
   const loadBusinessCards = useCallback(async (page = cardsPage) => {
     setLoading(true);
     try {
+      const query = new URLSearchParams({
+        status,
+        page: String(page),
+      });
+      if (appliedSearch.trim()) query.set('search', appliedSearch.trim());
       const result = await api.get<{ items: AdminBusinessCard[]; meta: PaginationMeta }>(
-        `/admin/business-cards?status=${status}&page=${page}`,
+        `/admin/business-cards?${query.toString()}`,
       );
       setBusinessCards(result.items);
       setCardsMeta(result.meta);
@@ -191,7 +204,7 @@ function AdminContent() {
     } finally {
       setLoading(false);
     }
-  }, [status, cardsPage]);
+  }, [status, cardsPage, appliedSearch]);
 
   useEffect(() => {
     if (!hydrated) {
@@ -255,7 +268,7 @@ function AdminContent() {
   useEffect(() => {
     setBiolinksPage(1);
     setCardsPage(1);
-  }, [status]);
+  }, [status, appliedSearch]);
 
   async function updateTicket(id: string, next: AdminTicket['status']) {
     try {
@@ -371,6 +384,17 @@ function AdminContent() {
       render: (item) => <BiolinkStatusBadge status={item.status} />,
     },
     {
+      key: 'approver',
+      label: 'تأییدکننده',
+      render: (item) => (
+        <span className="text-xs text-muted">
+          {item.decidedBy
+            ? item.decidedBy.fullName ?? item.decidedBy.email ?? '—'
+            : '—'}
+        </span>
+      ),
+    },
+    {
       key: 'actions',
       label: 'عملیات',
       render: (item) => (
@@ -426,6 +450,17 @@ function AdminContent() {
       key: 'status',
       label: 'وضعیت',
       render: (item) => <BusinessCardStatusBadge status={item.status} />,
+    },
+    {
+      key: 'approver',
+      label: 'تأییدکننده',
+      render: (item) => (
+        <span className="text-xs text-muted">
+          {item.decidedBy
+            ? item.decidedBy.fullName ?? item.decidedBy.email ?? '—'
+            : '—'}
+        </span>
+      ),
     },
     {
       key: 'actions',
@@ -581,7 +616,7 @@ function AdminContent() {
 
       {section === 'biolinks' ? (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {(['PENDING', 'APPROVED', 'REJECTED'] as const).map((value) => (
               <button
                 key={value}
@@ -599,6 +634,41 @@ function AdminContent() {
                     : 'ردشده'}
               </button>
             ))}
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                setAppliedSearch(search);
+              }}
+              className="ms-auto flex items-center gap-2"
+            >
+              <div className="relative">
+                <Search
+                  className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted"
+                  aria-hidden
+                />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="جستجوی نام، شغل، شرکت، ایمیل…"
+                  className="indeed-input w-64 py-2 pr-9 text-sm"
+                />
+              </div>
+              <button type="submit" className="indeed-btn indeed-btn-secondary py-2 text-sm">
+                جستجو
+              </button>
+              {appliedSearch ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch('');
+                    setAppliedSearch('');
+                  }}
+                  className="indeed-btn indeed-btn-secondary py-2 text-sm"
+                >
+                  پاک‌کردن
+                </button>
+              ) : null}
+            </form>
           </div>
 
           {loading ? (
@@ -631,7 +701,7 @@ function AdminContent() {
 
       {section === 'business-cards' ? (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {(['PENDING', 'APPROVED', 'REJECTED'] as const).map((value) => (
               <button
                 key={value}
@@ -649,6 +719,41 @@ function AdminContent() {
                     : 'ردشده'}
               </button>
             ))}
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                setAppliedSearch(search);
+              }}
+              className="ms-auto flex items-center gap-2"
+            >
+              <div className="relative">
+                <Search
+                  className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted"
+                  aria-hidden
+                />
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="جستجوی نام، شغل، شرکت، ایمیل…"
+                  className="indeed-input w-64 py-2 pr-9 text-sm"
+                />
+              </div>
+              <button type="submit" className="indeed-btn indeed-btn-secondary py-2 text-sm">
+                جستجو
+              </button>
+              {appliedSearch ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearch('');
+                    setAppliedSearch('');
+                  }}
+                  className="indeed-btn indeed-btn-secondary py-2 text-sm"
+                >
+                  پاک‌کردن
+                </button>
+              ) : null}
+            </form>
           </div>
 
           {loading ? (
