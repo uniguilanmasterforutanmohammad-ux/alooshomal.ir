@@ -490,6 +490,7 @@ export class FeedsService implements OnModuleInit {
     });
     await this.notifications.notifyAdmins({
       category: 'FEED',
+      scope: 'FEED',
       title: exhausted ? 'درخواست ارتقای اشتراک فید' : 'درخواست اشتراک فید جدید',
       body: `درخواست بسته «${pkg.name}» برای فید ثبت شد.`,
       type: NotificationType.INFO,
@@ -542,6 +543,7 @@ export class FeedsService implements OnModuleInit {
     });
     await this.notifications.notifyAdmins({
       category: 'FEED',
+      scope: 'FEED',
       title: 'پست فید جدید در انتظار تأیید',
       body: 'یک پست فید برای بررسی ثبت شد.',
       type: NotificationType.INFO,

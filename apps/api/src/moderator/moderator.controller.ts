@@ -10,7 +10,10 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { NewsStatus } from '@prisma/client';
 
-import { MODERATOR_SCOPES, ModeratorScope } from '../auth/moderator-scopes';
+import {
+  MODERATOR_SCOPE_META,
+  ModeratorScope,
+} from '../auth/moderator-scopes';
 import { ModeratorScopeGuard } from '../auth/moderator-scope.guard';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -50,8 +53,8 @@ export class ModeratorController {
       fullName: context.fullName,
       role: context.role,
       scopes: context.scopes,
-      scopeMeta: MODERATOR_SCOPES.map((scope) => ({ scope })),
-      pending: overview.pending,
+      scopeMeta: MODERATOR_SCOPE_META,
+      counts: overview.counts,
     };
   }
 
@@ -73,9 +76,10 @@ export class ModeratorController {
     @CurrentUser() user: AuthUser,
     @Param('scope') scope: ModeratorScope,
     @Query('status') status?: NewsStatus,
+    @Query('page') page?: string,
   ) {
     const context = await this.context(user);
-    return this.moderator.list(context, scope, status);
+    return this.moderator.list(context, scope, status ?? NewsStatus.PENDING, page ? Number(page) : 1);
   }
 
   @Get('item/:scope/:id')

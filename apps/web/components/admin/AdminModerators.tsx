@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 
 interface ScopeMeta {
   scope: ModeratorScope;
+  group: string;
   label: string;
   hint: string;
 }
@@ -307,40 +308,51 @@ function ScopePicker({
   selected: ModeratorScope[];
   onToggle: (scope: ModeratorScope) => void;
 }) {
+  const groups = meta.reduce<Record<string, ScopeMeta[]>>((acc, item) => {
+    const key = item.group ?? 'عمومی';
+    (acc[key] ??= []).push(item);
+    return acc;
+  }, {});
+
   return (
     <div className="mt-4">
       <p className="text-xs font-bold text-muted">سطح دسترسی‌ها</p>
-      <div className="mt-2 grid gap-2 sm:grid-cols-2">
-        {meta.map((item) => {
-          const active = selected.includes(item.scope);
-          return (
-            <button
-              key={item.scope}
-              type="button"
-              onClick={() => onToggle(item.scope)}
-              className={cn(
-                'flex items-start gap-3 rounded-lg border p-3 text-right transition',
-                active
-                  ? 'border-brand bg-brand-light'
-                  : 'border-[var(--vintage-border)] bg-white',
-              )}
-            >
-              <span
-                className={cn(
-                  'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border',
-                  active ? 'border-brand bg-brand text-white' : 'border-[var(--vintage-border)]',
-                )}
-              >
-                {active ? '✓' : ''}
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-bold text-ink">{item.label}</span>
-                <span className="block text-[11px] text-muted">{item.hint}</span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
+      {Object.entries(groups).map(([group, items]) => (
+        <div key={group} className="mt-3">
+          <p className="text-[11px] font-extrabold text-brand">{group}</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {items.map((item) => {
+              const active = selected.includes(item.scope);
+              return (
+                <button
+                  key={item.scope}
+                  type="button"
+                  onClick={() => onToggle(item.scope)}
+                  className={cn(
+                    'flex items-start gap-3 rounded-lg border p-3 text-right transition',
+                    active
+                      ? 'border-brand bg-brand-light'
+                      : 'border-[var(--vintage-border)] bg-white',
+                  )}
+                >
+                  <span
+                    className={cn(
+                      'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border',
+                      active ? 'border-brand bg-brand text-white' : 'border-[var(--vintage-border)]',
+                    )}
+                  >
+                    {active ? '✓' : ''}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-bold text-ink">{item.label}</span>
+                    <span className="block text-[11px] text-muted">{item.hint}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

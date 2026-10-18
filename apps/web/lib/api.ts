@@ -638,8 +638,29 @@ export interface NotificationPage {
 
 export type NewsStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
-/** Content-moderation scopes granted to a limited «کاربر ادمین». */
-export type ModeratorScope = 'BIOLINK' | 'BUSINESS_CARD' | 'FEED' | 'NEWS';
+/** Scopes granted to a limited «کاربر ادمین» (content + request queues). */
+export type ModeratorScope =
+  | 'BIOLINK'
+  | 'BUSINESS_CARD'
+  | 'FEED'
+  | 'NEWS'
+  | 'SUBSCRIPTION_REQUESTS'
+  | 'AD_REQUESTS'
+  | 'DIRECTORY_AD_REQUESTS'
+  | 'BOOST_REQUESTS';
+
+export interface ModeratorScopeMeta {
+  scope: ModeratorScope;
+  group: string;
+  label: string;
+  hint: string;
+}
+
+export interface QueueCounts {
+  pending: number;
+  approved: number;
+  rejected: number;
+}
 
 export interface ModeratorMe {
   id: string;
@@ -647,7 +668,17 @@ export interface ModeratorMe {
   fullName: string | null;
   role: 'MODERATOR' | 'ADMIN';
   scopes: ModeratorScope[];
-  pending: Record<ModeratorScope, number>;
+  scopeMeta?: ModeratorScopeMeta[];
+  counts: Record<ModeratorScope, QueueCounts>;
+}
+
+/** One infinite-scroll page of a moderator review queue. */
+export interface ModeratorQueuePage<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  hasNext: boolean;
 }
 
 export interface ModeratorAccount {

@@ -14,9 +14,39 @@ enum Role {
   USER
   CITIZEN_REPORTER
   /// «کاربر ادمین محدود» — a super-admin-created reviewer whose powers are
-  /// limited to the content scopes stored in `User.moderatorScopes`.
+  /// limited to the scopes stored in `User.moderatorScopes` (content review
+  /// queues and/or the monetisation request queues).
   MODERATOR
   ADMIN
+}
+
+/// Which review queue a decision belongs to. Stored per decision so the
+/// «تأییدشده / ردشده» tabs can show only what *this* reviewer decided.
+enum ContentDecisionKind {
+  BIOLINK
+  BUSINESS_CARD
+  FEED
+  NEWS
+  SUBSCRIPTION
+  AD
+  BOOST
+}
+
+/// Delivery scope of an admin notification, so a limited «کاربر ادمین» only
+/// receives the ones that match a scope granted to them.
+enum NotificationScope {
+  ALL
+  USER
+  BIOLINK
+  BUSINESS_CARD
+  FEED
+  NEWS
+  SUBSCRIPTION
+  AD
+  DIRECTORY_AD
+  BOOST
+  TICKET
+  SECURITY
 }
 
 enum BiolinkStatus {
@@ -336,6 +366,7 @@ model User {
   feedDecisions     UserFeedSubscription[] @relation("FeedSubscriptionDecisions")
   feedPosts         FeedPost[]
   feedSaves         FeedSave[]
+  contentDecisions  ContentDecision[] @relation("ContentDecisions")
 
   @@index([email])
   @@index([phone])
@@ -978,6 +1009,10 @@ model Notification {
   id        String           @id @default(cuid())
   userId    String?
   audience  String           @default("USER")
+  /// Which reviewer scope(s) this admin notification is addressed to. `ALL`
+  /// (the default) reaches every admin; a limited «کاربر ادمین» only sees the
+  /// rows whose scope they have been granted.
+  scope     NotificationScope @default(ALL)
   type      NotificationType @default(INFO)
   title     String
   body      String?
@@ -991,6 +1026,29 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([audience, readAt])
+  @@index([audience, scope, readAt])
   @@index([createdAt])
   @@map("notifications")
+}
+
+/// One row per moderation decision, so the limited «کاربر ادمین» panel can show
+/// «تأییدشده / ردشده» scoped to just the items *this* reviewer decided.
+/// `adminId` is the deciding user (a moderator or a super admin); `itemId` is
+/// the decided record's id in its own table.
+model ContentDecision {
+  id        String              @id @default(cuid())
+  kind      ContentDecisionKind
+  itemId    String
+  adminId   String
+  approved  Boolean
+  reason    String?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  admin User @relation("ContentDecisions", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@unique([kind, itemId])
+  @@index([adminId, kind, approved])
+  @@index([kind, approved])
+  @@map("content_decisions")
 }

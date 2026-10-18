@@ -363,6 +363,7 @@ export class BoostsService {
 
     await this.notifications.notifyAdmins({
       category: 'BOOST',
+      scope: 'BOOST',
       title: 'درخواست پله جدید',
       body: `یک درخواست «پله» برای ${boostKindLabel(dto.kind)} ثبت شد.`,
       type: NotificationType.INFO,
@@ -391,6 +392,56 @@ export class BoostsService {
       orderBy: { requestedAt: 'desc' },
       take: 200,
     });
+    return this.attachTargets(requests);
+  }
+
+  /** Paginated review queue scoped to the requesting reviewer for decided rows. */
+  async listRequestQueue(params: {
+    status?: BoostStatus;
+    decidedById?: string;
+    skip: number;
+    take: number;
+  }) {
+    const { status, decidedById, skip, take } = params;
+    const where: Prisma.BoostRequestWhereInput = {
+      ...(status ? { status } : {}),
+      ...(decidedById && status && status !== BoostStatus.PENDING
+        ? { decidedById }
+        : {}),
+    };
+    const [requests, total] = await this.prisma.$transaction([
+      this.prisma.boostRequest.findMany({
+        where,
+        include: {
+          user: { select: { id: true, email: true, fullName: true } },
+          decidedBy: { select: { id: true, email: true, fullName: true } },
+        },
+        orderBy: { requestedAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.boostRequest.count({ where }),
+    ]);
+    return { items: await this.attachTargets(requests), total };
+  }
+
+  /** Per-status counts for the review-queue tabs. */
+  async requestQueueCounts(decidedById: string) {
+    const [pending, approved, rejected] = await this.prisma.$transaction([
+      this.prisma.boostRequest.count({ where: { status: BoostStatus.PENDING } }),
+      this.prisma.boostRequest.count({
+        where: { status: BoostStatus.APPROVED, decidedById },
+      }),
+      this.prisma.boostRequest.count({
+        where: { status: BoostStatus.REJECTED, decidedById },
+      }),
+    ]);
+    return { pending, approved, rejected };
+  }
+
+  private async attachTargets<
+    T extends { kind: BoostTargetKind; targetId: string },
+  >(requests: T[]) {
 
     // Attach a human-readable label of the boosted item.
     const biolinkIds = requests

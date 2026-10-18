@@ -205,6 +205,7 @@ export class SubscriptionsService implements OnModuleInit {
 
     await this.notifications.notifyAdmins({
       category: 'SUBSCRIPTION',
+      scope: 'SUBSCRIPTION',
       title: 'درخواست اشتراک جدید',
       body: `${user?.fullName ?? user?.email ?? 'کاربر'} درخواست بسته «${plan.name}» را ثبت کرد.`,
       type: NotificationType.INFO,
@@ -234,6 +235,55 @@ export class SubscriptionsService implements OnModuleInit {
       orderBy: { requestedAt: 'desc' },
       take: 100,
     });
+  }
+
+  /**
+   * Paginated review queue for the limited «کاربر ادمین» panel. Pending rows
+   * are shown to every reviewer; decided rows only to the reviewer who made
+   * the call (`decidedById`).
+   */
+  async listRequestQueue(params: {
+    status?: SubscriptionStatus;
+    decidedById?: string;
+    skip: number;
+    take: number;
+  }) {
+    const { status, decidedById, skip, take } = params;
+    const where: Prisma.UserSubscriptionWhereInput = {
+      ...(status ? { status } : {}),
+      ...(decidedById && status && status !== SubscriptionStatus.PENDING
+        ? { decidedById }
+        : {}),
+    };
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.userSubscription.findMany({
+        where,
+        include: {
+          plan: true,
+          user: { select: { id: true, email: true, fullName: true } },
+          decidedBy: { select: { id: true, email: true, fullName: true } },
+        },
+        orderBy: { requestedAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.userSubscription.count({ where }),
+    ]);
+    return { items, total };
+  }
+
+  /** Per-status counts for the review-queue tabs. */
+  async requestQueueCounts(decidedById: string) {
+    const [pending, approved, rejected] = await this.prisma.$transaction([
+      this.prisma.userSubscription.count({ where: { status: SubscriptionStatus.PENDING } }),
+      this.prisma.userSubscription.count({
+        where: { status: SubscriptionStatus.ACTIVE, decidedById },
+      }),
+      this.prisma.userSubscription.count({
+        where: { status: SubscriptionStatus.REJECTED, decidedById },
+      }),
+    ]);
+    return { pending, approved, rejected };
   }
 
   /**

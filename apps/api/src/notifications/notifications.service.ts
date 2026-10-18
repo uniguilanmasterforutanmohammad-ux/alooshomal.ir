@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { NotificationType } from '@prisma/client';
+import { NotificationScope, NotificationType, Prisma } from '@prisma/client';
 
+import { SCOPE_TO_NOTIFICATION } from '../auth/moderator-scope-map';
+import { MODERATOR_SCOPES } from '../auth/moderator-scopes';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AdminNotifyCategory,
@@ -18,6 +20,12 @@ export interface NotifyPayload {
   link?: string | null;
   /** the user who triggered the event (for the trail) */
   actorId?: string | null;
+  /**
+   * Reviewer scope this admin notification is addressed to. Defaults to `ALL`
+   * (every admin). Used to keep a limited «کاربر ادمین» bell limited to the
+   * queues they may act on.
+   */
+  scope?: NotificationScope;
   /**
    * Admin-feed category. When set and the admin has muted that category, the
    * notification is dropped before it is written (no row, no client poll hit).
@@ -50,6 +58,7 @@ export class NotificationsService {
         data: {
           userId: payload.userId ?? null,
           audience,
+          scope: payload.scope ?? NotificationScope.ALL,
           type: payload.type ?? NotificationType.INFO,
           title: payload.title,
           body: payload.body ?? null,
@@ -170,9 +179,12 @@ export class NotificationsService {
     return this.prisma.notification.count({ where: { userId, readAt: null } });
   }
 
-  async markRead(id: string, scope: { userId?: string; admin?: boolean }) {
+  async markRead(
+    id: string,
+    scope: { userId?: string; admin?: boolean; scopeFilter?: Prisma.NotificationWhereInput },
+  ) {
     const where = scope.admin
-      ? { id, audience: 'ADMIN' }
+      ? { id, audience: 'ADMIN', ...(scope.scopeFilter ?? {}) }
       : { id, userId: scope.userId };
     await this.prisma.notification.updateMany({
       where: { ...where, readAt: null },
@@ -181,14 +193,105 @@ export class NotificationsService {
     return { ok: true };
   }
 
-  async markAllRead(scope: { userId?: string; admin?: boolean }) {
+  async markAllRead(scope: {
+    userId?: string;
+    admin?: boolean;
+    scopeFilter?: Prisma.NotificationWhereInput;
+  }) {
     const where = scope.admin
-      ? { audience: 'ADMIN' as const, readAt: null }
+      ? { audience: 'ADMIN' as const, readAt: null, ...(scope.scopeFilter ?? {}) }
       : { userId: scope.userId, readAt: null };
     await this.prisma.notification.updateMany({
       where,
       data: { readAt: new Date() },
     });
     return { ok: true };
+  }
+
+  /** Where-clause for a reviewer's own admin feed (exposed for mark-read). */
+  async scopeFilterFor(userId: string) {
+    return this.adminScopeFilter(userId);
+  }
+
+  // ------------------------------------------------------------------
+  //  Limited «کاربر ادمین» feeds (scope-filtered)
+  // ------------------------------------------------------------------
+
+  /**
+   * Notification scopes a reviewer may see. A super admin sees everything; a
+   * moderator only the review queues they have been granted. Unscoped (`ALL`)
+   * broadcasts — new sign-ups, tickets, security changes — are deliberately
+   * excluded: a limited «کاربر ادمین» only has the content-review panel and
+   * must not be pinged about unrelated admin work.
+   */
+  private async adminScopeFilter(userId: string): Promise<Prisma.NotificationWhereInput> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, moderatorScopes: true },
+    });
+    if (!user || user.role === 'ADMIN') return {};
+    const allowed = MODERATOR_SCOPES.filter((scope) =>
+      user.moderatorScopes.includes(scope),
+    ).map((scope) => SCOPE_TO_NOTIFICATION[scope]);
+    return { scope: { in: allowed } };
+  }
+
+  /** Unread, scope-filtered admin notifications for one reviewer's bell. */
+  async listForReviewer(userId: string, limit = 50) {
+    const scopeFilter = await this.adminScopeFilter(userId);
+    const where: Prisma.NotificationWhereInput = {
+      audience: 'ADMIN',
+      ...scopeFilter,
+    };
+    const [items, unread] = await Promise.all([
+      this.prisma.notification.findMany({
+        where: { ...where, readAt: null },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      }),
+      this.prisma.notification.count({ where: { ...where, readAt: null } }),
+    ]);
+    return { items, unread, total: unread };
+  }
+
+  /** Full, scope-filtered admin history for one reviewer. */
+  async pageForReviewer(userId: string, page = 1, limit = 20) {
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const safePage = Math.max(page, 1);
+    const scopeFilter = await this.adminScopeFilter(userId);
+    const where: Prisma.NotificationWhereInput = {
+      audience: 'ADMIN',
+      ...scopeFilter,
+    };
+    const [items, total, unread] = await Promise.all([
+      this.prisma.notification.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (safePage - 1) * safeLimit,
+        take: safeLimit,
+      }),
+      this.prisma.notification.count({ where }),
+      this.prisma.notification.count({ where: { ...where, readAt: null } }),
+    ]);
+    const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+    return {
+      items,
+      unread,
+      meta: {
+        page: safePage,
+        limit: safeLimit,
+        total,
+        totalPages,
+        hasNext: safePage < totalPages,
+        hasPrev: safePage > 1,
+      },
+    };
+  }
+
+  async unreadCountForReviewer(userId: string) {
+    const scopeFilter = await this.adminScopeFilter(userId);
+    return this.prisma.notification.count({
+      where: { audience: 'ADMIN', ...scopeFilter, readAt: null },
+    });
   }
 }

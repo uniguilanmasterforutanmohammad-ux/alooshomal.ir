@@ -11,6 +11,8 @@ import { Pagination } from '@/components/ui/Pagination';
 interface Props {
   /** admin panel shows the shared ADMIN feed */
   scope?: 'user' | 'admin';
+  /** rewrite an individual notification link (e.g. /admin?section=… → /moderator?scope=…) */
+  linkMapper?: (link: string) => string;
 }
 
 const typeStyles: Record<AppNotification['type'], string> = {
@@ -25,7 +27,7 @@ const typeStyles: Record<AppNotification['type'], string> = {
  * This is the page the bell's "مشاهده تمامی اعلانات" link opens; the bell
  * popover itself only lists unread items.
  */
-export function NotificationsInbox({ scope = 'user' }: Props) {
+export function NotificationsInbox({ scope = 'user', linkMapper }: Props) {
   const [page, setPage] = useState(1);
   const [data, setData] = useState<NotificationPage | null>(null);
   const [loading, setLoading] = useState(true);
@@ -123,6 +125,7 @@ export function NotificationsInbox({ scope = 'user' }: Props) {
           <p className="px-4 py-10 text-center text-sm text-muted">اعلانی وجود ندارد.</p>
         ) : (
           data.items.map((item) => {
+            const href = item.link ? (linkMapper?.(item.link) ?? item.link) : null;
             const content = (
               <>
                 <div className="flex items-center justify-between gap-2">
@@ -139,10 +142,10 @@ export function NotificationsInbox({ scope = 'user' }: Props) {
                 </p>
               </>
             );
-            return item.link ? (
+            return href ? (
               <Link
                 key={item.id}
-                href={item.link}
+                href={href}
                 onClick={() => void markOne(item.id, item.link)}
                 className={cn(
                   'block border-s-4 border-b border-b-[var(--vintage-border)] px-4 py-3 transition hover:bg-soft',

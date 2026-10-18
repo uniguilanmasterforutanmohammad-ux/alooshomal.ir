@@ -20,7 +20,57 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.59.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.60.0**.
+
+## ۱۴۰۵/۰۷/۲۶ — صف‌های درآمدی برای کاربر ادمین، صفحه‌بندی و آمار صف‌ها، زنگ اعلان بلادرنگ — نسخه `v2.60.0`
+
+**هدف:** تکمیل پنل «کاربر ادمین محدود»: افزودن صف‌های درخواست درآمدی (اشتراک، تبلیغ
+صفحه اصلی، تبلیغ در صدر دایرکتوری، پله)، نمایش آمار عددی هر تب در همه‌ی صف‌ها،
+اسکرول نامحدود با ۱۰ قلم در هر بار، محدودکردن تب‌های «تأییدشده/ردشده» به تصمیم‌های
+همین بررسی‌کننده، حذف دسترسی این نقش به داشبورد و CTA شهروند خبرنگار، و بلادرنگ
+کردن زنگ اعلان‌ها متناسب با سطح دسترسی.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن enum های `ContentDecisionKind` و
+  `NotificationScope`، فیلد `Notification.scope` + ایندکس، و مدل `ContentDecision`
+  (کلید یکتای `kind + itemId`) برای ردیابی تصمیم هر بررسی‌کننده.
+- `apps/api/src/auth/moderator-scopes.ts`: گسترش سطح‌ها به ۸ مورد در دو گروه
+  «محتوا» و «درخواست‌ها» به‌همراه `CONTENT_SCOPES`، `REQUEST_SCOPES` و متادیتای گروه‌دار.
+- `apps/api/src/auth/moderator-scope-map.ts` و `apps/api/src/moderator/content-decision.service.ts`: نگاشت سطح‌ها به scope اعلان و رجیستری تصمیم‌ها.
+- `apps/api/src/moderator/*`: بازنویسی سرویس/کنترلر برای صفحه‌بندی
+  (`MODERATOR_PAGE_SIZE=10`)، آمار `counts` سه‌حالته، صف‌های درآمدی و فیلتر تب‌ها بر
+  اساس تصمیم‌های خود بررسی‌کننده.
+- `apps/api/src/subscriptions|boosts|ads/*`: افزودن `listRequestQueue`،
+  `requestQueueCounts` و `decidedById` برای صف‌های درخواست.
+- `apps/api/src/notifications/*`: `listForReviewer`/`unreadCountForReviewer`/`scopeFilterFor`
+  و SSE متناسب با سطح دسترسی؛ زنگ اعلان فقط queue های مجاز کاربر ادمین را می‌شمارد.
+- `apps/api/src/{biolinks,businesscards,feeds,news,subscriptions,boosts,ads}/*`:
+  ثبت `scope` روی اعلان‌های مدیریتی مربوطه.
+- `apps/web/components/moderator/ModeratorPanel.tsx`: بازنویسی کامل با اسکرول
+  نامحدود، کارت‌های آماری و کارت‌های درخواست درآمدی.
+- `apps/web/components/moderator/ModeratorShell.tsx` و
+  `apps/web/app/moderator/notifications/page.tsx`: زنگ اعلان مبتنی بر بررسی‌کننده و
+  صفحه‌ی اعلانات اختصاصی کاربر ادمین.
+- `apps/web/components/ui/NotificationBell.tsx` و `NotificationsInbox.tsx`: پشتیبانی از
+  `allPath` و `linkMapper` برای هدایت لینک‌های `/admin?section=…` به صف معادل.
+- `apps/web/lib/moderator-links.ts`: نگاشت لینک اعلان‌ها به صف‌های `/moderator`.
+- `apps/web/components/dashboard/UserShell.tsx`: هدایت کاربر ادمین از داشبورد به `/moderator`.
+- `apps/web/components/news/ReporterCtaButton.tsx`: پنهان‌کردن «درخواست شهروند خبرنگار» برای این نقش.
+- `apps/web/components/admin/AdminModerators.tsx`: گروه‌بندی انتخابگر سطح دسترسی بر اساس گروه.
+- `apps/web/lib/api.ts` و `apps/web/lib/version.ts`: تایپ‌های جدید و ارتقای نسخه.
+
+**تأیید/تست:**
+- `tsc --noEmit` برای `apps/api` و `apps/web` بدون خطا.
+- `prisma generate` و `prisma db push` روی دیتابیس dev؛ وجود جدول `content_decisions` و ستون `notifications.scope` بررسی شد.
+- تست API با curl: صفحه‌بندی `total=25, page1=10, page3=5`، شمارش‌های سه‌حالته،
+  فیلتر تب «تأییدشده» فقط شامل ۳ قلم تصمیم‌شده‌ی همان بررسی‌کننده (از میان ۲۵۰۰+ تأییدشده‌ی کلی)،
+  و خالی‌بودن تب‌های بررسی‌کننده‌ی دیگر؛ همچنین ۴۰۳ برای سطح‌های غیرمجاز.
+- فیلتر scope اعلان‌ها: کاربر ادمین با scope بیولینک فقط اعلان‌های `BIOLINK` را می‌بیند و ادمین کل همه را.
+- تست SSE: با ثبت یک بیولینک جدید از طریق API، شمارنده‌ی خوانده‌نشده بلافاصله از ۱ به ۲ تغییر کرد.
+- تست UI با `playwright-core` و `/usr/bin/google-chrome` روی viewport تبلت و موبایل:
+  تب‌ها و اعداد آماری، اسکرول نامحدود `10 → 22`، تب تأییدشده `3` و ردشده `1`،
+  نبود دکمه‌ی ویرایش در صف‌های درخواست، هدایت زنگ به `/moderator/notifications` و
+  هدایت `/dashboard` به `/moderator`، بدون خطای کنسول.
 
 ## ۱۴۰۵/۰۷/۲۶ — کاربر ادمین محدود با سطح دسترسی + پنل بررسی موبایل‌محور — نسخه `v2.59.0`
 

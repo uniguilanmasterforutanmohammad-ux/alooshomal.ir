@@ -8,8 +8,16 @@ import { api, type AppNotification, type NotificationFeed } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 interface Props {
-  /** admin panel uses the shared ADMIN feed */
+  /**
+   * `user` = the personal feed; `admin` = the shared reviewer feed (super
+   * admins and limited «کاربر ادمین» accounts). The panel passes `admin` so a
+   * moderator's bell only counts the queues they were granted.
+   */
   scope?: 'user' | 'admin';
+  /** override the "مشاهده تمامی اعلانات" destination (moderators have no /admin) */
+  allPath?: string;
+  /** rewrite an individual notification link (e.g. /admin?section=… → /moderator?scope=…) */
+  linkMapper?: (link: string) => string;
 }
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
@@ -28,7 +36,11 @@ const typeStyles: Record<AppNotification['type'], string> = {
   ERROR: 'border-s-red-400 bg-red-50 text-red-700',
 };
 
-export function NotificationBell({ scope = 'user' }: Props) {
+export function NotificationBell({
+  scope = 'user',
+  allPath: allPathProp,
+  linkMapper,
+}: Props) {
   const [feed, setFeed] = useState<NotificationFeed>({ items: [], unread: 0, total: 0 });
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -36,7 +48,9 @@ export function NotificationBell({ scope = 'user' }: Props) {
   const listPath = scope === 'admin' ? '/admin/notifications' : '/notifications/mine';
   const streamPath = scope === 'admin' ? '/admin/notifications/stream' : '/notifications/mine/stream';
   const ticketPath = `${streamPath}-ticket`;
-  const allPath = scope === 'admin' ? '/admin?section=notifications' : '/dashboard/notifications';
+  const allPath =
+    allPathProp ??
+    (scope === 'admin' ? '/admin?section=notifications' : '/dashboard/notifications');
 
   const load = useCallback(async () => {
     try {
@@ -178,6 +192,9 @@ export function NotificationBell({ scope = 'user' }: Props) {
               </p>
             ) : (
               feed.items.map((item) => {
+                const href = item.link
+                  ? (linkMapper?.(item.link) ?? item.link)
+                  : null;
                 const content = (
                   <>
                     <div className="flex items-center justify-between gap-2">
@@ -194,10 +211,10 @@ export function NotificationBell({ scope = 'user' }: Props) {
                     </p>
                   </>
                 );
-                return item.link ? (
+                return href ? (
                   <Link
                     key={item.id}
-                    href={item.link}
+                    href={href}
                     onClick={() => void markOne(item.id, item.link)}
                     className={cn(
                       'block border-s-4 px-4 py-3 transition hover:bg-soft',

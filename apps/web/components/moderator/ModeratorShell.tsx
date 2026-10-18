@@ -7,6 +7,7 @@ import { IdCard, LogOut, ShieldCheck } from 'lucide-react';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { moderatorNotificationLink } from '@/lib/moderator-links';
 import { cn } from '@/lib/utils';
 import { APP_VERSION } from '@/lib/version';
 
@@ -52,7 +53,11 @@ export function ModeratorShell({ tabs, active, onTab, children }: Props) {
             </p>
             <p className="text-[11px] text-muted">پنل بررسی محتوا</p>
           </div>
-          <NotificationBell scope="user" />
+          <NotificationBell
+            scope="admin"
+            allPath="/moderator/notifications"
+            linkMapper={moderatorNotificationLink}
+          />
           <button
             onClick={logout}
             className="flex size-10 items-center justify-center rounded-lg border border-[var(--vintage-border)] bg-white text-red-600"

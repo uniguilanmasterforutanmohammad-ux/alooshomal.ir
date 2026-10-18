@@ -132,7 +132,7 @@ export class NotificationsController {
 @ApiTags('admin')
 @ApiBearerAuth()
 @UseGuards(RolesGuard)
-@Roles('ADMIN')
+@Roles('MODERATOR', 'ADMIN')
 @Controller('admin/notifications')
 export class AdminNotificationsController {
   constructor(
@@ -142,15 +142,22 @@ export class AdminNotificationsController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'اعلانات خوانده‌نشده‌ی مدیران (برای زنگ اعلان)' })
-  admin(@Query('limit') limit?: string) {
-    return this.notifications.listForAdmin(limit ? Number(limit) : 50);
+  @ApiOperation({
+    summary: 'اعلانات خوانده‌نشده‌ی مدیران (برای زنگ اعلان، متناسب با سطح دسترسی)',
+  })
+  admin(@CurrentUser() user: AuthUser, @Query('limit') limit?: string) {
+    return this.notifications.listForReviewer(user.id, limit ? Number(limit) : 50);
   }
 
   @Get('page')
   @ApiOperation({ summary: 'تاریخچه‌ی کامل اعلانات مدیران (خوانده + خوانده‌نشده)' })
-  adminPage(@Query('page') page?: string, @Query('limit') limit?: string) {
-    return this.notifications.pageForAdmin(
+  adminPage(
+    @CurrentUser() user: AuthUser,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.notifications.pageForReviewer(
+      user.id,
       page ? Number(page) : 1,
       limit ? Number(limit) : 20,
     );
@@ -158,21 +165,22 @@ export class AdminNotificationsController {
 
   @Get('unread-count')
   @ApiOperation({ summary: 'تعداد اعلانات خوانده‌نشده مدیران' })
-  async unread() {
-    const result = await this.notifications.listForAdmin(1);
-    return { unread: result.unread };
+  async unread(@CurrentUser() user: AuthUser) {
+    return { unread: await this.notifications.unreadCountForReviewer(user.id) };
   }
 
   @Patch(':id/read')
   @ApiOperation({ summary: 'خواندن یک اعلان مدیر' })
-  read(@Param('id') id: string) {
-    return this.notifications.markRead(id, { admin: true });
+  async read(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    const scopeFilter = await this.notifications.scopeFilterFor(user.id);
+    return this.notifications.markRead(id, { admin: true, scopeFilter });
   }
 
   @Patch('read-all')
   @ApiOperation({ summary: 'خواندن همه اعلانات مدیران' })
-  readAll() {
-    return this.notifications.markAllRead({ admin: true });
+  async readAll(@CurrentUser() user: AuthUser) {
+    const scopeFilter = await this.notifications.scopeFilterFor(user.id);
+    return this.notifications.markAllRead({ admin: true, scopeFilter });
   }
 
   @Get('stream')
@@ -185,8 +193,7 @@ export class AdminNotificationsController {
       return;
     }
     openSseStream(res, req, this.events.forAdmins(), async () => {
-      const result = await this.notifications.listForAdmin(1);
-      return result.unread;
+      return this.notifications.unreadCountForReviewer(grant.userId);
     });
   }
 

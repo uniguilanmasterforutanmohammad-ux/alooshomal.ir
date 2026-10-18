@@ -136,6 +136,7 @@ export class NewsService {
       select: { fullName: true, email: true },
     });
     await this.notifications.notifyAdmins({
+      scope: 'USER',
       title: 'درخواست شهروند خبرنگار جدید',
       body: `«${user?.fullName ?? user?.email ?? 'کاربر'}» درخواست نقش شهروند خبرنگار ثبت کرد.`,
       type: NotificationType.INFO,
@@ -207,6 +208,7 @@ export class NewsService {
       include: newsInclude,
     });
     await this.notifications.notifyAdmins({
+      scope: 'NEWS',
       title: 'خبر جدید در انتظار تأیید',
       body: `خبر «${item.title}» ثبت شد و در انتظار بررسی است.`,
       link: '/admin?section=news',

@@ -241,6 +241,7 @@ export class AdsService {
 
     await this.notifications.notifyAdmins({
       category: 'AD',
+      scope: placement === AdPlacement.DIRECTORY ? 'DIRECTORY_AD' : 'AD',
       title:
         placement === AdPlacement.DIRECTORY
           ? 'درخواست تبلیغ در دایرکتوری جدید'
@@ -250,7 +251,10 @@ export class AdsService {
           ? `درخواست تبلیغ «${target.fullName}» برای نمایش در صدر دایرکتوری همان شهر/کسب‌وکار ثبت شد.`
           : `درخواست تبلیغ «${target.fullName}» برای نمایش در صفحه اصلی ثبت شد.`,
       type: NotificationType.INFO,
-      link: '/admin?section=ads',
+      link:
+        placement === AdPlacement.DIRECTORY
+          ? '/admin?section=ads&placement=directory'
+          : '/admin?section=ads',
       actorId: userId,
     });
 
@@ -330,6 +334,62 @@ export class AdsService {
       target: labels.get(request.targetId) ?? null,
       displayState: displayStateOf(request, now),
     }));
+  }
+
+  /** Paginated review queue scoped to the reviewer for decided rows. */
+  async listRequestQueueByPlacement(params: {
+    placement: AdPlacement;
+    status?: BoostStatus;
+    decidedById?: string;
+    skip: number;
+    take: number;
+  }) {
+    const { placement, status, decidedById, skip, take } = params;
+    const where: Prisma.AdRequestWhereInput = {
+      placement,
+      ...(status ? { status } : {}),
+      ...(decidedById && status && status !== BoostStatus.PENDING
+        ? { decidedById }
+        : {}),
+    };
+    const [requests, total] = await this.prisma.$transaction([
+      this.prisma.adRequest.findMany({
+        where,
+        include: {
+          user: { select: { id: true, email: true, fullName: true } },
+          decidedBy: { select: { id: true, email: true, fullName: true } },
+        },
+        orderBy: { requestedAt: 'desc' },
+        skip,
+        take,
+      }),
+      this.prisma.adRequest.count({ where }),
+    ]);
+    const labels = await this.targetLabels(requests);
+    const now = new Date();
+    return {
+      items: requests.map((request) => ({
+        ...request,
+        target: labels.get(request.targetId) ?? null,
+        displayState: displayStateOf(request, now),
+      })),
+      total,
+    };
+  }
+
+  /** Per-status counts for one reviewer, split by ad placement. */
+  async requestQueueCounts(decidedById: string, placement?: AdPlacement) {
+    const base: Prisma.AdRequestWhereInput = placement ? { placement } : {};
+    const [pending, approved, rejected] = await this.prisma.$transaction([
+      this.prisma.adRequest.count({ where: { ...base, status: BoostStatus.PENDING } }),
+      this.prisma.adRequest.count({
+        where: { ...base, status: BoostStatus.APPROVED, decidedById },
+      }),
+      this.prisma.adRequest.count({
+        where: { ...base, status: BoostStatus.REJECTED, decidedById },
+      }),
+    ]);
+    return { pending, approved, rejected };
   }
 
   /**

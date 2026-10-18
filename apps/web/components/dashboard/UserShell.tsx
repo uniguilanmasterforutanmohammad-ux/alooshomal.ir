@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   BadgeCheck,
   Bookmark,
@@ -43,6 +43,13 @@ export function UserShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, clear } = useAuth();
   const [open, setOpen] = useState(false);
+
+  // A limited «کاربر ادمین» has no dashboard — only the content-review panel.
+  useEffect(() => {
+    if (user?.role === 'MODERATOR') {
+      router.replace('/moderator');
+    }
+  }, [user, router]);
 
   function logout() {
     // Best-effort server-side revoke; never block the UI on it.

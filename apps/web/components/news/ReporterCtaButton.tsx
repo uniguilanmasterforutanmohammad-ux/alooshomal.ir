@@ -49,6 +49,11 @@ export function ReporterCtaButton({ variant = 'secondary', className }: Props) {
   if (!hydrated) return null;
 
   const effectiveRole = token ? serverRole ?? user?.role : user?.role;
+
+  // A limited «کاربر ادمین» is a content reviewer, never a citizen-reporter —
+  // the call-to-action makes no sense for that role, so hide it.
+  if (effectiveRole === 'MODERATOR') return null;
+
   const alreadyReporter =
     effectiveRole === 'CITIZEN_REPORTER' || effectiveRole === 'ADMIN';
 
