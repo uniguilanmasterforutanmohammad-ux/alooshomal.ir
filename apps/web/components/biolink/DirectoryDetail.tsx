@@ -22,6 +22,7 @@ import {
 import { type Biolink } from '@/lib/api';
 import { useDirectoryDetail } from '@/lib/directory-detail';
 import { RecordView } from '@/components/ui/RecordView';
+import { DetailTags } from '@/components/ui/DetailTags';
 
 interface Props {
   slug: string;
@@ -134,6 +135,11 @@ export function DirectoryDetail({ slug, onClose, hideHeader }: Props) {
         {biolink.bio ? (
           <p className="mt-4 whitespace-pre-line text-sm leading-7 text-ink">{biolink.bio}</p>
         ) : null}
+
+        <DetailTags
+          cityName={biolink.city?.name}
+          businessName={biolink.business?.name}
+        />
 
         {rows.length > 0 ? (
           <ul className="mt-4 flex flex-col divide-y divide-[var(--vintage-border)] border-y border-[var(--vintage-border)]">

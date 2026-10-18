@@ -22,6 +22,7 @@ import {
 import { type BusinessCard } from '@/lib/api';
 import { useDirectoryDetail } from '@/lib/directory-detail';
 import { RecordView } from '@/components/ui/RecordView';
+import { DetailTags } from '@/components/ui/DetailTags';
 
 interface Props {
   slug: string;
@@ -134,6 +135,11 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
         {businessCard.bio ? (
           <p className="mt-4 whitespace-pre-line text-sm leading-7 text-ink">{businessCard.bio}</p>
         ) : null}
+
+        <DetailTags
+          cityName={businessCard.city?.name}
+          businessName={businessCard.business?.name}
+        />
 
         {rows.length > 0 ? (
           <ul className="mt-4 flex flex-col divide-y divide-[var(--vintage-border)] border-y border-[var(--vintage-border)]">
