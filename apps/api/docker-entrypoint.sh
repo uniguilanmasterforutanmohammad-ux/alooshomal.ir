@@ -32,7 +32,20 @@ log() { echo "[entrypoint] $*"; }
 # 1) Snapshot the database only when the schema changed
 # ---------------------------------------------------------------------------
 if [ -n "${DATABASE_URL:-}" ] && [ -f "$SCHEMA_FILE" ]; then
-  mkdir -p "$BACKUP_DIR"
+  # The API runs as the non-root `node` user. A named volume mounted over
+  # $BACKUP_DIR can still be owned by root (e.g. created before the image
+  # switched to a non-root user), which would make every write here fail.
+  # Backup/snapshot troubles must NEVER stop the app from booting, so probe
+  # writability and fall back to a container-local scratch dir when needed.
+  if ! mkdir -p "$BACKUP_DIR" 2>/dev/null \
+     || ! ( : > "$BACKUP_DIR/.write-probe" ) 2>/dev/null; then
+    log "backup dir '$BACKUP_DIR' is not writable (root-owned volume?) → using scratch dir"
+    BACKUP_DIR="/tmp/alooshomal-backups"
+    mkdir -p "$BACKUP_DIR" 2>/dev/null || BACKUP_DIR=""
+  else
+    rm -f "$BACKUP_DIR/.write-probe" 2>/dev/null || true
+  fi
+  HASH_FILE="${BACKUP_DIR:+$BACKUP_DIR/.last-schema-hash}"
 
   CURRENT_HASH="$(sha256sum "$SCHEMA_FILE" 2>/dev/null | cut -d' ' -f1 || echo unknown)"
   PREVIOUS_HASH="$(cat "$HASH_FILE" 2>/dev/null || echo none)"
@@ -58,13 +71,18 @@ if [ -n "${DATABASE_URL:-}" ] && [ -f "$SCHEMA_FILE" ]; then
     fi
 
     # Retention: keep the most recent $BACKUP_KEEP dumps.
-    if [ "$(ls -1 "$BACKUP_DIR"/alooshomal_*.sql.gz 2>/dev/null | wc -l)" -gt "$BACKUP_KEEP" ]; then
+    if [ -n "$BACKUP_DIR" ] && [ "$(ls -1 "$BACKUP_DIR"/alooshomal_*.sql.gz 2>/dev/null | wc -l)" -gt "$BACKUP_KEEP" ]; then
       ls -1t "$BACKUP_DIR"/alooshomal_*.sql.gz 2>/dev/null \
         | tail -n "+$((BACKUP_KEEP + 1))" \
         | while read -r old; do rm -f "$old"; done
     fi
 
-    printf '%s' "$CURRENT_HASH" > "$HASH_FILE"
+    # Remember the hash so the (potentially expensive) snapshot is taken once.
+    # A failed write must not abort startup — at worst we re-snapshot next boot.
+    if [ -n "$HASH_FILE" ]; then
+      printf '%s' "$CURRENT_HASH" > "$HASH_FILE" 2>/dev/null \
+        || log "could not persist schema hash (continuing)"
+    fi
   else
     log "schema unchanged → skipping snapshot"
   fi
