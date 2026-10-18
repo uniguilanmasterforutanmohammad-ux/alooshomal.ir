@@ -33,7 +33,16 @@ export function Header() {
 
         <nav className="hidden items-center gap-6 text-sm font-medium text-muted lg:flex">
           {PUBLIC_NAV.map((item) => (
-            <Link key={item.href} href={item.href} className="hover:text-brand">
+            <Link
+              key={item.href}
+              href={item.href}
+              // These repeat on every page; eager prefetching fired ~10 extra
+              // RSC requests during the initial load and competed with the
+              // render-blocking CSS/fonts (see the Lighthouse report). The
+              // footer and mobile bar already disable it for the same reason.
+              prefetch={false}
+              className="hover:text-brand"
+            >
               {item.label}
             </Link>
           ))}

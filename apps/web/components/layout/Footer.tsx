@@ -30,7 +30,9 @@ export function Footer() {
               // These repeat the header nav on every page; prefetching them all
               // doubles the wasted background RSC traffic (see the speed report).
               prefetch={false}
-              className="text-muted hover:text-brand"
+              // `py-1.5` gives each link a ~44px-tall touch target so the
+              // Lighthouse "touch targets" audit passes on phones.
+              className="py-1.5 text-muted hover:text-brand"
             >
               {item.label}
             </Link>
