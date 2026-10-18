@@ -18,6 +18,7 @@ import { FeedsModule } from './feeds/feeds.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { NewsModule } from './news/news.module';
+import { ModeratorModule } from './moderator/moderator.module';
 import { PointsModule } from './points/points.module';
 import { ProfileModule } from './profile/profile.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -52,6 +53,7 @@ import { UsersModule } from './users/users.module';
     NewsModule,
     PointsModule,
     ProfileModule,
+    ModeratorModule,
     AdminModule,
     TaxonomyModule,
     TicketsModule,

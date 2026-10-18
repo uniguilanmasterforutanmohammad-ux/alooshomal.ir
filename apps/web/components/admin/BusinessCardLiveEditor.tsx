@@ -15,7 +15,14 @@ interface Props {
   businessCardId: string;
   onClose: () => void;
   onModerated: () => void;
+  /** Override the admin routes for the limited moderator panel. */
+  routes?: { item: (id: string) => string; decide: (id: string) => string };
 }
+
+const ADMIN_ROUTES = {
+  item: (id: string) => `/admin/business-cards/${id}`,
+  decide: (id: string) => `/admin/business-cards/${id}/moderate`,
+};
 
 const toFormValues = (businessCard: AdminBusinessCardFull): BusinessCardFormValues => ({
   fullName: businessCard.fullName ?? '',
@@ -40,7 +47,12 @@ const toFormValues = (businessCard: AdminBusinessCardFull): BusinessCardFormValu
   logoUrl: businessCard.logoUrl ?? '',
 });
 
-export function BusinessCardLiveEditor({ businessCardId, onClose, onModerated }: Props) {
+export function BusinessCardLiveEditor({
+  businessCardId,
+  onClose,
+  onModerated,
+  routes = ADMIN_ROUTES,
+}: Props) {
   const [businessCard, setBusinessCard] = useState<AdminBusinessCardFull | null>(null);
   const [saving, setSaving] = useState(false);
   const [moderating, setModerating] = useState(false);
@@ -49,10 +61,10 @@ export function BusinessCardLiveEditor({ businessCardId, onClose, onModerated }:
 
   useEffect(() => {
     api
-      .get<AdminBusinessCardFull>(`/admin/business-cards/${businessCardId}`)
+      .get<AdminBusinessCardFull>(routes.item(businessCardId))
       .then(setBusinessCard)
       .catch((err) => setError(err instanceof Error ? err.message : 'خطا'));
-  }, [businessCardId]);
+  }, [businessCardId, routes]);
 
   async function save(values: BusinessCardFormValues) {
     setSaving(true);
@@ -62,7 +74,7 @@ export function BusinessCardLiveEditor({ businessCardId, onClose, onModerated }:
       const payload = Object.fromEntries(
         Object.entries(values).filter(([, value]) => value !== ''),
       );
-      const updated = await api.patch<AdminBusinessCardFull>(`/admin/business-cards/${businessCardId}`, payload);
+      const updated = await api.patch<AdminBusinessCardFull>(routes.item(businessCardId), payload);
       setBusinessCard(updated);
       setMessage('تغییرات ذخیره شد. اکنون می‌توانید تأیید یا رد کنید.');
     } catch (err) {
@@ -80,7 +92,7 @@ export function BusinessCardLiveEditor({ businessCardId, onClose, onModerated }:
     setModerating(true);
     setError(null);
     try {
-      await api.patch(`/admin/business-cards/${businessCardId}/moderate`, { decision, reason });
+      await api.patch(routes.decide(businessCardId), { decision, reason });
       onModerated();
       onClose();
     } catch (err) {

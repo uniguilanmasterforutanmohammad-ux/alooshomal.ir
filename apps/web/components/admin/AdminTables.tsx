@@ -9,7 +9,7 @@ export interface AdminUser {
   id: string;
   email: string;
   fullName: string | null;
-  role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
+  role: 'USER' | 'CITIZEN_REPORTER' | 'MODERATOR' | 'ADMIN';
   isActive: boolean;
   deactivatedReason?: string | null;
   adminComment?: string | null;
@@ -176,9 +176,9 @@ export function UsersTable({
                     >
                       <option value="USER">کاربر</option>
                       <option value="CITIZEN_REPORTER">شهروند خبرنگار</option>
-                      {user.role === 'ADMIN' ? (
-                        <option value="ADMIN" disabled>
-                          مدیر
+                      {user.role === 'ADMIN' || user.role === 'MODERATOR' ? (
+                        <option value={user.role} disabled>
+                          {user.role === 'ADMIN' ? 'مدیر' : 'کاربر ادمین'}
                         </option>
                       ) : null}
                     </select>

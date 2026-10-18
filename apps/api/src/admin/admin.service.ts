@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { statfs } from 'node:fs/promises';
+import * as bcrypt from 'bcrypt';
 import {
   BiolinkStatus,
   BoostStatus,
@@ -13,6 +14,7 @@ import {
   SubscriptionStatus,
 } from '@prisma/client';
 
+import { normalizeScopes, ModeratorScope } from '../auth/moderator-scopes';
 import { UpdateBiolinkDto } from '../biolinks/dto/update-biolink.dto';
 import { UpdateBusinessCardDto } from '../businesscards/dto/update-business-card.dto';
 import { ActivityService } from '../activity/activity.service';
@@ -24,6 +26,8 @@ import { SessionsService } from '../sessions/sessions.service';
 import { SettingsService } from '../settings/settings.service';
 import { StorageService } from '../uploads/storage.service';
 import { ModerateBiolinkDto } from './dto/moderate-biolink.dto';
+
+const SALT_ROUNDS = 12;
 
 @Injectable()
 export class AdminService {
@@ -594,8 +598,15 @@ export class AdminService {
   async setUserRole(
     adminId: string,
     userId: string,
-    role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN',
+    role: 'USER' | 'CITIZEN_REPORTER' | 'MODERATOR' | 'ADMIN',
   ) {
+    // Limited admins have per-account content scopes, so they are created and
+    // granted through the dedicated «کاربران ادمین» panel — not this selector.
+    if (role === 'MODERATOR') {
+      throw new BadRequestException(
+        'برای ساخت کاربر ادمین از بخش «کاربران ادمین» استفاده کنید',
+      );
+    }
     if (role === 'ADMIN') {
       throw new BadRequestException('ارتقای کاربر به نقش مدیر امکان‌پذیر نیست');
     }
@@ -611,19 +622,25 @@ export class AdminService {
     }
     const updated = await this.prisma.user.update({
       where: { id: userId },
-      data: { role },
+      // Demoting a limited admin clears its content scopes so a later re-grant
+      // never silently inherits stale permissions.
+      data: { role, moderatorScopes: [] },
       select: {
         id: true,
         email: true,
         fullName: true,
         role: true,
+        moderatorScopes: true,
         isActive: true,
         deactivatedReason: true,
         adminComment: true,
         createdAt: true,
       },
     });
-    const roleLabel = role === 'CITIZEN_REPORTER' ? 'شهروند خبرنگار' : 'کاربر';
+    const roleLabel =
+      role === 'CITIZEN_REPORTER'
+        ? 'شهروند خبرنگار'
+        : 'کاربر';
     await this.notifications.notify({
       userId,
       title: 'نقش کاربری شما تغییر کرد',
@@ -640,6 +657,181 @@ export class AdminService {
       entityId: userId,
     });
     return updated;
+  }
+
+  // ------------------------------------------------------------------
+  //  «کاربر ادمین محدود» (moderators) — created by the super admin
+  // ------------------------------------------------------------------
+
+  /** List every moderator account plus the currently-signed-in admin. */
+  async listModerators() {
+    return this.prisma.user.findMany({
+      where: { role: 'MODERATOR' },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        fullName: true,
+        isActive: true,
+        moderatorScopes: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  /**
+   * Create a limited admin account. Requires only an email + password (the
+   * moderator signs in with email/password) and the granted content scopes.
+   */
+  async createModerator(
+    adminId: string,
+    input: {
+      email: string;
+      password: string;
+      fullName?: string | null;
+      scopes: ModeratorScope[];
+    },
+  ) {
+    const email = input.email.toLowerCase().trim();
+    const scopes = normalizeScopes(input.scopes);
+    if (scopes.length === 0) {
+      throw new BadRequestException('حداقل یک سطح دسترسی را انتخاب کنید');
+    }
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      throw new BadRequestException('این ایمیل قبلاً ثبت شده است');
+    }
+    const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
+    const created = await this.prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        fullName: input.fullName?.trim() || null,
+        role: 'MODERATOR',
+        moderatorScopes: scopes,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        fullName: true,
+        isActive: true,
+        moderatorScopes: true,
+        createdAt: true,
+      },
+    });
+    await this.activity.log({
+      actor: { id: adminId },
+      action: 'MODERATOR_CREATED',
+      summary: `ایجاد کاربر ادمین «${created.fullName ?? created.email}» با دسترسی ${scopes.join(', ')}`,
+      entityType: 'USER',
+      entityId: created.id,
+    });
+    return created;
+  }
+
+  /** Update a moderator's scopes, active flag, name or password. */
+  async updateModerator(
+    adminId: string,
+    userId: string,
+    input: {
+      scopes?: ModeratorScope[];
+      isActive?: boolean;
+      fullName?: string | null;
+      password?: string;
+    },
+  ) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('کاربر ادمین یافت نشد');
+    }
+    if (user.role !== 'MODERATOR') {
+      throw new BadRequestException('این حساب کاربر ادمین محدود نیست');
+    }
+
+    const data: Prisma.UserUpdateInput = {};
+    if (input.scopes !== undefined) {
+      const scopes = normalizeScopes(input.scopes);
+      if (scopes.length === 0) {
+        throw new BadRequestException('حداقل یک سطح دسترسی را انتخاب کنید');
+      }
+      data.moderatorScopes = scopes;
+    }
+    if (input.isActive !== undefined) {
+      data.isActive = input.isActive;
+      if (!input.isActive) {
+        data.deactivatedAt = new Date();
+        data.deactivatedReason = 'غیرفعال‌سازی توسط مدیر کل';
+      } else {
+        data.deactivatedAt = null;
+        data.deactivatedReason = null;
+      }
+    }
+    if (input.fullName !== undefined) {
+      data.fullName = input.fullName?.trim() || null;
+    }
+    if (input.password) {
+      data.passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data,
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        fullName: true,
+        isActive: true,
+        moderatorScopes: true,
+        createdAt: true,
+      },
+    });
+
+    if (input.isActive === false) {
+      // A disabled moderator must not keep working on a live token.
+      await this.sessions.revokeAll(userId);
+    }
+    await this.activity.log({
+      actor: { id: adminId },
+      action: 'MODERATOR_UPDATED',
+      summary: `ویرایش کاربر ادمین «${updated.fullName ?? updated.email}»`,
+      entityType: 'USER',
+      entityId: userId,
+    });
+    return updated;
+  }
+
+  /** Permanently remove a moderator account. */
+  async deleteModerator(adminId: string, userId: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('کاربر ادمین یافت نشد');
+    }
+    if (user.role !== 'MODERATOR') {
+      throw new BadRequestException('این حساب کاربر ادمین محدود نیست');
+    }
+    await this.sessions.revokeAll(userId);
+    // `ModerationLog.adminId` is `onDelete: Restrict` (an audit trail must not
+    // silently vanish), so reassign this reviewer's past decisions to the
+    // super admin performing the removal before deleting the account.
+    await this.prisma.$transaction([
+      this.prisma.moderationLog.updateMany({
+        where: { adminId: userId },
+        data: { adminId },
+      }),
+      this.prisma.user.delete({ where: { id: userId } }),
+    ]);
+    await this.activity.log({
+      actor: { id: adminId },
+      action: 'MODERATOR_DELETED',
+      summary: `حذف کاربر ادمین «${user.fullName ?? user.email}»`,
+      entityType: 'USER',
+      entityId: userId,
+    });
+    return { deleted: true };
   }
 
   /** Guard: refuse an action that would remove the last remaining admin. */

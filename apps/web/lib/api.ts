@@ -259,7 +259,7 @@ export interface AuthResponse {
     email: string | null;
     phone?: string | null;
     fullName: string | null;
-    role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
+    role: 'USER' | 'CITIZEN_REPORTER' | 'MODERATOR' | 'ADMIN';
   };
   isNewUser?: boolean;
 }
@@ -637,6 +637,28 @@ export interface NotificationPage {
 }
 
 export type NewsStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+/** Content-moderation scopes granted to a limited «کاربر ادمین». */
+export type ModeratorScope = 'BIOLINK' | 'BUSINESS_CARD' | 'FEED' | 'NEWS';
+
+export interface ModeratorMe {
+  id: string;
+  email: string | null;
+  fullName: string | null;
+  role: 'MODERATOR' | 'ADMIN';
+  scopes: ModeratorScope[];
+  pending: Record<ModeratorScope, number>;
+}
+
+export interface ModeratorAccount {
+  id: string;
+  email: string | null;
+  phone: string | null;
+  fullName: string | null;
+  isActive: boolean;
+  moderatorScopes: ModeratorScope[];
+  createdAt: string;
+}
 
 export interface NewsCategory {
   id: string;

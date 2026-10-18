@@ -35,6 +35,7 @@ import {
   PERMISSION_SUBJECTS,
   ROLE_LABELS,
 } from '../auth/permissions';
+import { MODERATOR_SCOPE_META, normalizeScopes } from '../auth/moderator-scopes';
 import { AdminService } from './admin.service';
 import { BulkKind, BulkService } from './bulk.service';
 import { ListBiolinksDto } from './dto/list-biolinks.dto';
@@ -47,6 +48,10 @@ import {
 } from './dto/manage-user.dto';
 import { ModerateBiolinkDto } from './dto/moderate-biolink.dto';
 import { ModerateBusinessCardDto } from './dto/moderate-business-card.dto';
+import {
+  CreateModeratorDto,
+  UpdateModeratorDto,
+} from './dto/manage-moderator.dto';
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -337,6 +342,53 @@ export class AdminController {
   }
 
   // ----- Role permission matrix -----
+
+  // ----- Limited admin accounts («کاربر ادمین») -----
+
+  @Get('moderators')
+  @ApiOperation({ summary: 'فهرست کاربران ادمین محدود' })
+  async listModerators() {
+    const items = await this.adminService.listModerators();
+    return {
+      items,
+      scopeMeta: MODERATOR_SCOPE_META,
+    };
+  }
+
+  @Post('moderators')
+  @ApiOperation({ summary: 'ایجاد کاربر ادمین محدود با تعیین سطح دسترسی' })
+  createModerator(
+    @CurrentUser() admin: AuthUser,
+    @Body() dto: CreateModeratorDto,
+  ) {
+    return this.adminService.createModerator(admin.id, {
+      email: dto.email,
+      password: dto.password,
+      fullName: dto.fullName,
+      scopes: normalizeScopes(dto.scopes),
+    });
+  }
+
+  @Patch('moderators/:id')
+  @ApiOperation({ summary: 'ویرایش سطح دسترسی / وضعیت کاربر ادمین' })
+  updateModerator(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateModeratorDto,
+  ) {
+    return this.adminService.updateModerator(admin.id, id, {
+      scopes: dto.scopes ? normalizeScopes(dto.scopes) : undefined,
+      isActive: dto.isActive,
+      fullName: dto.fullName,
+      password: dto.password,
+    });
+  }
+
+  @Delete('moderators/:id')
+  @ApiOperation({ summary: 'حذف کاربر ادمین محدود' })
+  deleteModerator(@CurrentUser() admin: AuthUser, @Param('id') id: string) {
+    return this.adminService.deleteModerator(admin.id, id);
+  }
 
   @Get('permissions')
   @ApiOperation({ summary: 'ماتریس سطوح دسترسی نقش‌ها' })

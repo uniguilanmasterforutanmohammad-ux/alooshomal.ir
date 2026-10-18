@@ -20,7 +20,56 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.58.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.59.0**.
+
+## ۱۴۰۵/۰۷/۲۶ — کاربر ادمین محدود با سطح دسترسی + پنل بررسی موبایل‌محور — نسخه `v2.59.0`
+
+**هدف:** افزودن قابلیت جدید «امکان تعریف کاربر ادمین توسط ادمین کل با تعیین سطح
+دسترسی». کاربر ادمین محدود فقط می‌تواند محتوای مجازِ تعیین‌شده را تأیید، ویرایش یا رد
+کند (بیولینک‌ها، کارت‌های ویزیت، فیدها، خبرها) و هیچ دسترسی دیگری به پنل مدیریت ندارد.
+رابط کاربری این پنل مخصوص موبایل/تبلت و کاملاً یوزرفرندلی طراحی شده است.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن مقدار `MODERATOR` به enum نقش `Role` و
+  فیلد `moderatorScopes String[]` روی مدل `User`.
+- `apps/api/src/auth/moderator-scopes.ts`: منبع یکتای سطح‌های دسترسی محتوا
+  (`BIOLINK`/`BUSINESS_CARD`/`FEED`/`NEWS`) به‌همراه متادیتای فارسی و نرمال‌ساز.
+- `apps/api/src/auth/moderator-scope.decorator.ts` و `moderator-scope.guard.ts`:
+  دکوراتور `@RequireScope` و گارد بررسی سطح دسترسی (ادمین کل همه را دارد).
+- `apps/api/src/moderator/*`: ماژول، کنترلر و سرویس اختصاصی پنل بررسی
+  (`/moderator/me`, `/moderator/queue/:scope`, `/moderator/item/:scope/:id`
+  و `.../decide`) که همان سرویس‌های پنل مدیریت را با محدودیت سطح فراخوانی می‌کند.
+- `apps/api/src/admin/*`: افزودن اندپوینت‌های ساخت/ویرایش/حذف کاربر ادمین
+  (`/admin/moderators`)، DTO مربوطه و جلوگیری از ارتقا به `MODERATOR` از مسیر
+  تغییر نقش عادی. `AdminService` برای ماژول moderator اکسپورت شد.
+- `apps/api/src/feeds/feeds.service.ts`: متد `updatePostContent` برای ویرایش
+  درجای پست فید توسط کاربر ادمین (بدون بازگشت به صف).
+- `apps/web/components/moderator/*`: شل موبایل‌محور (`ModeratorShell`)، پنل بررسی
+  (`ModeratorPanel`) و ویرایشگر پست فید (`ModeratorFeedEditor`).
+- `apps/web/app/moderator/page.tsx`: صفحه‌ی پنل بررسی.
+- `apps/web/components/admin/AdminModerators.tsx`, `AdminShell.tsx` و
+  `apps/web/app/admin/page.tsx`: بخش مدیریت «کاربران ادمین» در پنل مدیر کل.
+- `apps/web/components/admin/BiolinkLiveEditor.tsx`, `BusinessCardLiveEditor.tsx`,
+  `AdminNewsEditor.tsx`: امکان بازاستفاده با مسیرهای سفارشی (`routes`/`itemPath`)
+  برای پنل کاربر ادمین.
+- `apps/web/lib/api.ts`, `lib/auth.ts`, `ProfilePanel.tsx`, `UserShell.tsx`,
+  `app/(auth)/login/page.tsx`: افزودن نقش `MODERATOR`، تایپ‌ها، برچسب‌ها و
+  هدایت کاربر ادمین به `/moderator`.
+- `apps/web/lib/version.ts`: نسخه به `v2.59.0`.
+
+**تأیید/تست:**
+- `apps/api`: `tsc --noEmit` بدون خطا؛ `apps/web`: `tsc --noEmit` بدون خطا.
+- `prisma db push` روی دیتابیس dev: مقدار `MODERATOR` به enum و ستون
+  `moderatorScopes` اضافه شد (بررسی با `psql`).
+- تست دستی API با curl: ساخت کاربر ادمین با `scopes`، ورود، `GET /moderator/me`
+  (بازگشت سطح‌ها و شمارنده‌ها)، مشاهده‌ی صف مجاز، ویرایش و تأیید بیولینک،
+  رد شدن `403` برای صف غیرمجاز (`FEED`) و برای `/admin/users`، تغییر سطح
+  (اعمال فوری روی توکن موجود)، غیرفعال‌سازی (باطل‌شدن نشست) و حذف حساب.
+- تست UI با `playwright-core` و `/usr/bin/google-chrome` (موبایل 390px و تبلت
+  768px): بارگذاری پنل `/moderator`، نمایش تب‌های مجاز، رندر کارت‌ها، تأیید
+  درجای یک بیولینک، هدایت `/admin` → `/moderator`، و رندر بخش «کاربران ادمین» در
+  پنل مدیر — بدون خطای کنسول.
+- `python3 scripts/sync_install.py` سپس `--check` → `patched: 0` / `added: 0`.
 
 ## ۱۴۰۵/۰۷/۲۵ — سند تحلیل پلتفرم استخدام/SSO/ابزارهای مشترک — نسخه `v2.58.1`
 

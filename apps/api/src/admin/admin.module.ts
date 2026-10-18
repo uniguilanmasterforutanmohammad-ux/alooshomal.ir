@@ -23,5 +23,6 @@ import { BulkService } from './bulk.service';
   ],
   controllers: [AdminController],
   providers: [AdminService, BulkService],
+  exports: [AdminService],
 })
 export class AdminModule {}

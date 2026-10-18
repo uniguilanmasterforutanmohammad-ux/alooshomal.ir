@@ -40,7 +40,11 @@ function AuthPageContent() {
     try {
       const data = await api.post<AuthResponse>('/auth/login', { email, password });
       setSession(data.accessToken, data.user);
-      router.replace(next);
+      // A limited admin has no dashboard of their own — land them on the
+      // review panel directly (unless an explicit `next` was requested).
+      router.replace(
+        next === '/dashboard' && data.user.role === 'MODERATOR' ? '/moderator' : next,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ورود ناموفق بود');
     } finally {

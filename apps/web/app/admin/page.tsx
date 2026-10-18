@@ -22,6 +22,7 @@ import { NotificationsInbox } from '@/components/ui/NotificationsInbox';
 import { AdminNewsPanel } from '@/components/admin/AdminNewsPanel';
 import { AdminProfileRequests } from '@/components/admin/AdminProfileRequests';
 import { AdminPermissionsMatrix } from '@/components/admin/AdminPermissionsMatrix';
+import { AdminModerators } from '@/components/admin/AdminModerators';
 import { AdminNewsSettings } from '@/components/admin/AdminNewsSettings';
 import { AdminStoragePanel } from '@/components/admin/AdminStoragePanel';
 import { ActivityLogPanel } from '@/components/admin/ActivityLogPanel';
@@ -97,6 +98,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'tickets',
   'news',
   'permissions',
+  'moderators',
   'storage',
   'reports',
   'tools',
@@ -199,6 +201,10 @@ function AdminContent() {
       router.replace('/login');
       return;
     }
+    if (user && user.role === 'MODERATOR') {
+      router.replace('/moderator');
+      return;
+    }
     if (user && user.role !== 'ADMIN') {
       router.replace('/dashboard');
       return;
@@ -283,7 +289,13 @@ function AdminContent() {
     const target = (allUsers ?? overview?.recentUsers ?? []).find((u) => u.id === id);
     const name = target?.fullName ?? target?.email ?? 'این کاربر';
     const roleLabel =
-      role === 'ADMIN' ? 'مدیر' : role === 'CITIZEN_REPORTER' ? 'شهروند خبرنگار' : 'کاربر';
+      role === 'ADMIN'
+        ? 'مدیر'
+        : role === 'MODERATOR'
+          ? 'کاربر ادمین'
+          : role === 'CITIZEN_REPORTER'
+            ? 'شهروند خبرنگار'
+            : 'کاربر';
     if (
       !window.confirm(
         `آیا از تغییر نقش «${name}» به «${roleLabel}» مطمئن هستید؟`,
@@ -466,6 +478,10 @@ function AdminContent() {
     permissions: {
       title: 'سطوح دسترسی',
       sub: 'تعیین دسترسی هر نقش به امکانات پلتفرم',
+    },
+    moderators: {
+      title: 'کاربران ادمین محدود',
+      sub: 'ساخت حساب کاربر ادمین با تعیین سطح دسترسی برای بررسی محتوا',
     },
     storage: {
       title: 'فضای سرور',
@@ -717,6 +733,8 @@ function AdminContent() {
       {section === 'news' ? <AdminNewsPanel /> : null}
 
       {section === 'permissions' ? <AdminPermissionsMatrix /> : null}
+
+      {section === 'moderators' ? <AdminModerators /> : null}
 
       {section === 'storage' ? <AdminStoragePanel /> : null}
 

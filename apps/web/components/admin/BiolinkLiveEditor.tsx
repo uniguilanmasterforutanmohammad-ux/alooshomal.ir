@@ -15,7 +15,18 @@ interface Props {
   biolinkId: string;
   onClose: () => void;
   onModerated: () => void;
+  /**
+   * Where to load/save/decide this item. Defaults to the super-admin routes;
+   * the limited «کاربر ادمین» panel passes its own `/moderator/...` routes so
+   * the exact same editor is reused with a narrower permission set.
+   */
+  routes?: { item: (id: string) => string; decide: (id: string) => string };
 }
+
+const ADMIN_ROUTES = {
+  item: (id: string) => `/admin/biolinks/${id}`,
+  decide: (id: string) => `/admin/biolinks/${id}/moderate`,
+};
 
 const toFormValues = (biolink: AdminBiolinkFull): BiolinkFormValues => ({
   fullName: biolink.fullName ?? '',
@@ -40,7 +51,12 @@ const toFormValues = (biolink: AdminBiolinkFull): BiolinkFormValues => ({
   logoUrl: biolink.logoUrl ?? '',
 });
 
-export function BiolinkLiveEditor({ biolinkId, onClose, onModerated }: Props) {
+export function BiolinkLiveEditor({
+  biolinkId,
+  onClose,
+  onModerated,
+  routes = ADMIN_ROUTES,
+}: Props) {
   const [biolink, setBiolink] = useState<AdminBiolinkFull | null>(null);
   const [saving, setSaving] = useState(false);
   const [moderating, setModerating] = useState(false);
@@ -49,10 +65,10 @@ export function BiolinkLiveEditor({ biolinkId, onClose, onModerated }: Props) {
 
   useEffect(() => {
     api
-      .get<AdminBiolinkFull>(`/admin/biolinks/${biolinkId}`)
+      .get<AdminBiolinkFull>(routes.item(biolinkId))
       .then(setBiolink)
       .catch((err) => setError(err instanceof Error ? err.message : 'خطا'));
-  }, [biolinkId]);
+  }, [biolinkId, routes]);
 
   async function save(values: BiolinkFormValues) {
     setSaving(true);
@@ -62,7 +78,7 @@ export function BiolinkLiveEditor({ biolinkId, onClose, onModerated }: Props) {
       const payload = Object.fromEntries(
         Object.entries(values).filter(([, value]) => value !== ''),
       );
-      const updated = await api.patch<AdminBiolinkFull>(`/admin/biolinks/${biolinkId}`, payload);
+      const updated = await api.patch<AdminBiolinkFull>(routes.item(biolinkId), payload);
       setBiolink(updated);
       setMessage('تغییرات ذخیره شد. اکنون می‌توانید تأیید یا رد کنید.');
     } catch (err) {
@@ -80,7 +96,7 @@ export function BiolinkLiveEditor({ biolinkId, onClose, onModerated }: Props) {
     setModerating(true);
     setError(null);
     try {
-      await api.patch(`/admin/biolinks/${biolinkId}/moderate`, { decision, reason });
+      await api.patch(routes.decide(biolinkId), { decision, reason });
       onModerated();
       onClose();
     } catch (err) {

@@ -295,7 +295,7 @@ export class AuthService {
       email: string | null;
       phone?: string | null;
       fullName?: string | null;
-      role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
+      role: 'USER' | 'CITIZEN_REPORTER' | 'MODERATOR' | 'ADMIN';
     },
     context: SessionContext = {},
   ) {

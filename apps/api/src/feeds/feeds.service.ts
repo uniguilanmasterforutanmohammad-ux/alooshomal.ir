@@ -618,6 +618,35 @@ export class FeedsService implements OnModuleInit {
     return { deleted: true };
   }
 
+  /**
+   * Moderator/admin edit: fix a post's text, images or topic in place without
+   * bouncing it back to the review queue (mirrors the news admin edit).
+   */
+  async updatePostContent(
+    id: string,
+    dto: { body?: string; images?: string[]; topicId?: string | null },
+  ) {
+    const post = await this.prisma.feedPost.findUnique({ where: { id } });
+    if (!post) throw new NotFoundException('پست فید یافت نشد');
+
+    const data: Prisma.FeedPostUpdateInput = {};
+    if (dto.body !== undefined) data.body = dto.body.trim() || null;
+    if (dto.images !== undefined) {
+      const maxImages = await this.settings.getFeedMaxImages();
+      if (dto.images.length > maxImages) {
+        throw new BadRequestException(`حداکثر ${maxImages} تصویر مجاز است`);
+      }
+      data.images = dto.images;
+    }
+    if (dto.topicId !== undefined) {
+      data.topic = dto.topicId ? { connect: { id: dto.topicId } } : { disconnect: true };
+    }
+
+    const updated = await this.prisma.feedPost.update({ where: { id }, data });
+    this.facetsCache.invalidate('dir:feeds');
+    return updated;
+  }
+
   // ------------------------------------------------------------------
   //  admin
   // ------------------------------------------------------------------

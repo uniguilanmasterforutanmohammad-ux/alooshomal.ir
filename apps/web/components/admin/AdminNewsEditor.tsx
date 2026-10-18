@@ -10,6 +10,12 @@ interface Props {
   newsId: string;
   onClose: () => void;
   onChanged: () => void;
+  /** Base item route (defaults to the super-admin `/admin/news/:id`). */
+  itemPath?: (id: string) => string;
+  /** Base list route for decide/delete, and the categories endpoint. */
+  categoriesPath?: string;
+  /** Hide the delete button for limited moderators. */
+  allowDelete?: boolean;
 }
 
 const STATUS_OPTIONS: Array<{ value: NewsStatus; label: string }> = [
@@ -24,7 +30,14 @@ const STATUS_OPTIONS: Array<{ value: NewsStatus; label: string }> = [
  * it outright. This backs the «ویرایش» button on the moderation table so an
  * admin never hits the public 404 for a non-approved item.
  */
-export function AdminNewsEditor({ newsId, onClose, onChanged }: Props) {
+export function AdminNewsEditor({
+  newsId,
+  onClose,
+  onChanged,
+  itemPath = (id) => `/admin/news/${id}`,
+  categoriesPath = '/admin/news/categories',
+  allowDelete = true,
+}: Props) {
   const [item, setItem] = useState<NewsItem | null>(null);
   const [categories, setCategories] = useState<NewsCategory[]>([]);
   const [draft, setDraft] = useState({
@@ -39,8 +52,8 @@ export function AdminNewsEditor({ newsId, onClose, onChanged }: Props) {
 
   useEffect(() => {
     Promise.all([
-      api.get<NewsItem>(`/admin/news/${newsId}`),
-      api.get<NewsCategory[]>('/admin/news/categories').catch(() => []),
+      api.get<NewsItem>(itemPath(newsId)),
+      api.get<NewsCategory[]>(categoriesPath).catch(() => []),
     ])
       .then(([news, cats]) => {
         setItem(news);
@@ -55,7 +68,7 @@ export function AdminNewsEditor({ newsId, onClose, onChanged }: Props) {
       })
       .catch((err) => toast.error(err instanceof Error ? err.message : 'خطا در بارگذاری خبر'))
       .finally(() => setLoading(false));
-  }, [newsId]);
+  }, [newsId, itemPath, categoriesPath]);
 
   async function save() {
     if (draft.title.trim().length < 4) {
@@ -71,7 +84,7 @@ export function AdminNewsEditor({ newsId, onClose, onChanged }: Props) {
         categoryId: draft.categoryId || undefined,
         status: draft.status,
       };
-      await api.patch(`/admin/news/${newsId}`, payload);
+      await api.patch(itemPath(newsId), payload);
       toast.success('خبر ذخیره شد.');
       onChanged();
       onClose();
@@ -85,7 +98,7 @@ export function AdminNewsEditor({ newsId, onClose, onChanged }: Props) {
   async function remove() {
     if (!window.confirm('حذف کامل این خبر؟ این عملیات بازگشت‌پذیر نیست.')) return;
     try {
-      await api.delete(`/admin/news/${newsId}`);
+      await api.delete(itemPath(newsId));
       toast.success('خبر حذف شد.');
       onChanged();
       onClose();
@@ -177,13 +190,15 @@ export function AdminNewsEditor({ newsId, onClose, onChanged }: Props) {
               <Save className="size-4" aria-hidden />
               {saving ? 'در حال ذخیره...' : 'ذخیره تغییرات'}
             </button>
-            <button
-              onClick={remove}
-              className="indeed-btn indeed-btn-secondary text-red-600"
-            >
-              <Trash2 className="size-4" aria-hidden />
-              حذف خبر
-            </button>
+            {allowDelete ? (
+              <button
+                onClick={remove}
+                className="indeed-btn indeed-btn-secondary text-red-600"
+              >
+                <Trash2 className="size-4" aria-hidden />
+                حذف خبر
+              </button>
+            ) : null}
           </div>
         </div>
       )}

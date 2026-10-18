@@ -111,6 +111,17 @@ export function UserShell({ children }: { children: React.ReactNode }) {
             </Link>
           ) : null}
 
+          {user?.role === 'MODERATOR' ? (
+            <Link
+              href="/moderator"
+              prefetch={false}
+              className="flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-semibold text-muted transition hover:border-[var(--vintage-border)] hover:bg-white"
+            >
+              <ShieldCheck className="size-4" aria-hidden />
+              پنل بررسی محتوا
+            </Link>
+          ) : null}
+
           <button
             onClick={logout}
             className="mt-3 flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
@@ -167,7 +178,11 @@ export function UserShell({ children }: { children: React.ReactNode }) {
                 {user?.fullName ?? 'کاربر'}
               </p>
               <p className="text-[11px] text-muted">
-                {user?.role === 'ADMIN' ? 'مدیر' : 'کاربر'}
+                {user?.role === 'ADMIN'
+                  ? 'مدیر'
+                  : user?.role === 'MODERATOR'
+                    ? 'کاربر ادمین'
+                    : 'کاربر'}
               </p>
             </div>
             <span className="vintage-avatar flex size-10 items-center justify-center">

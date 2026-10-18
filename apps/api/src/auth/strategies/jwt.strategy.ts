@@ -14,7 +14,7 @@ export interface JwtPayload {
   sid?: string;
   email: string | null;
   phone?: string | null;
-  role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
+  role: 'USER' | 'CITIZEN_REPORTER' | 'MODERATOR' | 'ADMIN';
 }
 
 @Injectable()

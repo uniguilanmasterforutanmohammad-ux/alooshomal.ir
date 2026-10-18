@@ -4,7 +4,7 @@ export interface AuthUser {
   id: string;
   email: string | null;
   phone?: string | null;
-  role: 'USER' | 'CITIZEN_REPORTER' | 'ADMIN';
+  role: 'USER' | 'CITIZEN_REPORTER' | 'MODERATOR' | 'ADMIN';
   /** Id of the session this request was authenticated with (when known). */
   sessionId?: string;
 }

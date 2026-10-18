@@ -13,6 +13,9 @@ datasource db {
 enum Role {
   USER
   CITIZEN_REPORTER
+  /// «کاربر ادمین محدود» — a super-admin-created reviewer whose powers are
+  /// limited to the content scopes stored in `User.moderatorScopes`.
+  MODERATOR
   ADMIN
 }
 
@@ -293,6 +296,10 @@ model User {
   fullName     String?
   role         Role     @default(USER)
   isActive     Boolean  @default(true)
+  /// For `MODERATOR` accounts: the content types this reviewer may moderate
+  /// (any of `BIOLINK`, `BUSINESS_CARD`, `FEED`, `NEWS`). Ignored for other
+  /// roles; super admins implicitly cover every scope.
+  moderatorScopes String[] @default([])
   // admin moderation trail for account status changes
   deactivatedReason String?
   deactivatedAt     DateTime?

@@ -22,6 +22,7 @@ import {
   Settings,
   ShieldCheck,
   TrendingUp,
+  UserCog,
   Users,
 } from 'lucide-react';
 
@@ -46,6 +47,7 @@ export type AdminSection =
   | 'tools'
   | 'news'
   | 'permissions'
+  | 'moderators'
   | 'storage'
   | 'notifications'
   | 'settings';
@@ -70,6 +72,7 @@ const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboar
   { key: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
   { key: 'news', label: 'نبض شهر', icon: Newspaper },
   { key: 'permissions', label: 'سطوح دسترسی', icon: ShieldCheck },
+  { key: 'moderators', label: 'کاربران ادمین', icon: UserCog },
   { key: 'storage', label: 'فضای سرور', icon: HardDrive },
   { key: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
   { key: 'notifications', label: 'اعلانات', icon: Bell },

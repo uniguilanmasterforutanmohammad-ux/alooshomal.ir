@@ -41,6 +41,7 @@ interface ProfilePayload {
 const ROLE_LABEL: Record<string, string> = {
   USER: 'کاربر',
   CITIZEN_REPORTER: 'شهروند خبرنگار',
+  MODERATOR: 'کاربر ادمین محدود',
   ADMIN: 'مدیر',
 };
 
