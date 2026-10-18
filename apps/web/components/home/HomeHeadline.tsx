@@ -8,11 +8,13 @@ import { useEffect, useState } from 'react';
  * the product (digital business card + professional biolink) without a static
  * wall of text.
  *
- * The full phrases are also exposed on the wrapper's `aria-label` and the live
- * text is `aria-hidden`, so screen readers announce one stable sentence instead
- * of a letter-by-letter mutation. Visitors who ask for reduced motion get the
- * first phrase rendered statically.
+ * The «با شمالی کارت» prefix stays fixed; only the phrase after it cycles. The
+ * full sentence is also exposed on the wrapper's `aria-label` and the live text
+ * is `aria-hidden`, so screen readers announce one stable sentence instead of a
+ * letter-by-letter mutation. Visitors who ask for reduced motion get the first
+ * phrase rendered statically.
  */
+const PREFIX = 'با شمالی کارت';
 const PHRASES = ['کارت ویزیت دیجیتال بساز', 'بیولینک حرفه‌ای بساز'];
 
 const TYPE_MS = 90;
@@ -66,10 +68,11 @@ export function HomeHeadline() {
     // visible text is `aria-hidden` and the stable sentence lives in
     // `aria-label`, so screen readers never hear a letter-by-letter mutation.
     <h1
-      className="min-h-[2.6em] text-3xl font-extrabold leading-snug md:min-h-[1.4em] md:text-4xl"
-      aria-label="کارت ویزیت دیجیتال و بیولینک حرفه‌ای بساز"
+      className="flex min-h-[2.6em] flex-wrap items-center justify-center gap-x-2 text-3xl font-extrabold leading-snug md:min-h-[1.4em] md:text-4xl"
+      aria-label="با شمالی کارت کارت ویزیت دیجیتال یا بیولینک حرفه‌ای بساز"
     >
-      <span aria-hidden>
+      <span aria-hidden>{PREFIX}</span>
+      <span aria-hidden className="whitespace-nowrap">
         {shown}
         {reduceMotion ? null : (
           <span className="typewriter-caret ms-1 inline-block h-[0.85em] w-[3px] translate-y-[0.08em] bg-white align-middle" />
