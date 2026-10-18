@@ -509,8 +509,10 @@ export class BiolinksService {
       } | null;
     },
   >(biolink: T) {
-    // The owner's plan name is surfaced on the public page as a small badge.
-    const planName = planLimitsFrom(biolink.user?.plan).name;
+    // The owner's plan name is surfaced on the public page as a small badge,
+    // while `planHidesFields` lets the owner's own view warn that a free plan
+    // is masking links/socials instead of silently dropping them.
+    const limits = planLimitsFrom(biolink.user?.plan);
     // Only expose the linked business card when it is itself publicly visible;
     // a link to a pending/unpublished card must not leak its slug.
     const linkedBusinessCard =
@@ -524,7 +526,12 @@ export class BiolinksService {
         : null;
     const { user, businessCard: _businessCard, ...rest } =
       this.applyPlanVisibility(biolink);
-    return { ...rest, planName, linkedBusinessCard };
+    return {
+      ...rest,
+      planName: limits.name,
+      planHidesFields: !limits.showSocialLinks,
+      linkedBusinessCard,
+    };
   }
 
   /** Public URL of a linked business card (used by the directory detail panel). */

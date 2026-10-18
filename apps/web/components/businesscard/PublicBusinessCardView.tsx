@@ -3,6 +3,7 @@ import { ArrowRight, Crown, Home } from 'lucide-react';
 
 import { ThemedBusinessCard } from './ThemedBusinessCard';
 import { LikeButton } from '@/components/ui/LikeButton';
+import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
 import { businessCardThemeClassName } from '@/lib/themes';
 import type { BusinessCard } from '@/lib/api';
 
@@ -20,10 +21,15 @@ interface Props {
  */
 export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) {
   return (
-    <div className={`bcard-theme bcard-theme-page ${businessCardThemeClassName(businessCard.template)}`}>
-      <div className="flex min-h-screen items-center justify-center px-4 py-8">
-        <div className="w-full max-w-[460px]">
-          <div className="mb-3 flex items-center justify-between gap-2">
+    <div
+      className={`bcard-theme bcard-theme-page card-public-page ${businessCardThemeClassName(
+        businessCard.template,
+      )}`}
+    >
+      <div className="flex min-h-0 flex-1 items-stretch justify-center px-4 py-4 sm:py-8">
+        <div className="card-public-inner w-full max-w-[460px]">
+          {/* One aligned row: back link · plan badge · home link. */}
+          <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
             <Link
               href="/business-cards"
               className="bc-panel bc-fa bc-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-85 transition hover:opacity-100"
@@ -31,6 +37,14 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
               <ArrowRight className="size-3.5" aria-hidden />
               بازگشت به دایرکتوری
             </Link>
+
+            {businessCard.planName ? (
+              <span className="bc-panel bc-fa bc-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-90">
+                <Crown className="size-3.5" aria-hidden />
+                نوع اشتراک: {businessCard.planName}
+              </span>
+            ) : null}
+
             <Link
               href="/"
               className="bc-panel bc-fa bc-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-85 transition hover:opacity-100"
@@ -40,24 +54,23 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
             </Link>
           </div>
 
-          {businessCard.planName ? (
-            <div className="mb-3 flex justify-center">
-              <span className="bc-panel bc-fa bc-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-90">
-                <Crown className="size-3.5" aria-hidden />
-                نوع اشتراک: {businessCard.planName}
-              </span>
-            </div>
-          ) : null}
-
-          <ThemedBusinessCard
-            themeKey={businessCard.template}
-            data={businessCard}
-            cityName={businessCard.city?.name}
-            businessName={businessCard.business?.name}
-            interactive
+          <PlanUpgradeNotice
+            ownerUserId={businessCard.userId}
+            hidesFields={businessCard.planHidesFields}
           />
 
-          <div className="bc-panel mt-6 flex items-center gap-4 p-4">
+          {/* Only this region scrolls; the chrome above and below stays put. */}
+          <div className="card-public-scroll">
+            <ThemedBusinessCard
+              themeKey={businessCard.template}
+              data={businessCard}
+              cityName={businessCard.city?.name}
+              businessName={businessCard.business?.name}
+              interactive
+            />
+          </div>
+
+          <div className="bc-panel mt-4 flex shrink-0 items-center gap-4 p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={qr}
@@ -91,7 +104,7 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
             </div>
           </div>
 
-          <p className="bc-muted bc-fa mt-6 text-center text-xs">
+          <p className="bc-muted bc-fa mt-3 shrink-0 text-center text-xs">
             ساخته‌شده با{' '}
             <Link href="/" className="font-bold underline">
               شمالی کارت

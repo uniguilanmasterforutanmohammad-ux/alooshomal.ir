@@ -529,8 +529,10 @@ export class BusinessCardsService {
       }>;
     },
   >(businessCard: T) {
-    // The owner's plan name is surfaced on the public page as a small badge.
-    const planName = planLimitsFrom(businessCard.user?.plan).name;
+    // The owner's plan name is surfaced on the public page as a small badge,
+    // while `planHidesFields` lets the owner's own view warn that a free plan
+    // is masking links/socials instead of silently dropping them.
+    const limits = planLimitsFrom(businessCard.user?.plan);
     // Only expose the linked biolink when it is itself publicly visible.
     const linked = businessCard.linkedBiolinks?.[0];
     const linkedBiolink =
@@ -542,7 +544,12 @@ export class BusinessCardsService {
         : null;
     const { user, linkedBiolinks: _linkedBiolinks, ...rest } =
       this.applyPlanVisibility(businessCard);
-    return { ...rest, planName, linkedBiolink };
+    return {
+      ...rest,
+      planName: limits.name,
+      planHidesFields: !limits.showSocialLinks,
+      linkedBiolink,
+    };
   }
 
   /** Public URL of a linked biolink (used by the directory detail panel). */

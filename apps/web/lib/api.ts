@@ -230,6 +230,10 @@ export interface Biolink {
   business?: { id: string; name: string } | null;
   /** owner's subscription plan name, shown on the public page */
   planName?: string | null;
+  /** the owner's plan masks links/socials (free plan) */
+  planHidesFields?: boolean;
+  /** id of the owner account (public payload only, used to detect "my card") */
+  userId?: string | null;
   /** published business card this biolink is linked to (public pages only) */
   linkedBusinessCard?: LinkedCounterpart | null;
   /** the linked business card on the owner's own biolink (edit form) */
@@ -349,6 +353,10 @@ export interface BusinessCard {
  business?: { id: string; name: string } | null;
  /** owner's subscription plan name, shown on the public page */
  planName?: string | null;
+ /** the owner's plan masks links/socials (free plan) */
+ planHidesFields?: boolean;
+ /** id of the owner account (public payload only, used to detect "my card") */
+ userId?: string | null;
  /** published biolink this card is linked to (public pages only) */
  linkedBiolink?: LinkedCounterpart | null;
   /** the linked biolink on the owner's own card (edit form) */

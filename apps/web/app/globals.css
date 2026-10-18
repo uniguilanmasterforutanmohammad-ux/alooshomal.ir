@@ -473,6 +473,66 @@ header.bg-white {
 }
 .biolink-theme-page .theme-panel-text { color: var(--biolink-page-text); }
 .biolink-theme-page .theme-panel-muted { color: var(--biolink-page-muted); }
+
+/* ---- Public card pages (/biolinks/<slug>, /business-cards/<slug>) ----
+   The page itself must never scroll: the top row (back/home + plan badge)
+   and the bottom share block stay pinned, and only the card frame in the
+   middle scrolls when its content is taller than the room left for it. */
+.card-public-page {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Two-class selector so this wins over `.biolink-theme-page` /
+   `.bcard-theme-page`'s `min-height: 100vh`, which would otherwise let the
+   page grow past the viewport and scroll as a whole again. */
+.biolink-theme-page.card-public-page,
+.bcard-theme-page.card-public-page {
+  min-height: 0;
+}
+
+/* Phones / tablets reserve the fixed bottom navigation (same 56px the body
+   already reserves), so the shell plus that chrome add up to exactly 100dvh. */
+@media (max-width: 1023px) {
+  .card-public-page {
+    height: calc(100dvh - 56px - env(safe-area-inset-bottom));
+  }
+}
+
+.card-public-inner {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+/* The one scrollable region: it wraps the themed card box. It is itself a
+   centred flex column, so a short card sits vertically centred while a tall
+   one overflows and scrolls internally (auto margins centre only on overflow
+   → they collapse to 0). */
+.card-public-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--biolink-panel-border, var(--bc-border, #d9c3a9)) transparent;
+}
+
+.card-public-scroll > * {
+  margin-block: auto;
+}
+
+.card-public-scroll::-webkit-scrollbar { width: 6px; }
+.card-public-scroll::-webkit-scrollbar-track { background: transparent; }
+.card-public-scroll::-webkit-scrollbar-thumb {
+  background: var(--biolink-panel-border, var(--bc-border, #d9c3a9));
+  border-radius: 9999px;
+}
 .biolink-theme .theme-title { color: var(--biolink-text); }
 .biolink-theme .theme-muted { color: var(--biolink-muted); }
 .biolink-theme .theme-avatar {

@@ -3,6 +3,7 @@ import { ArrowRight, Crown, Home } from 'lucide-react';
 
 import { ThemedBiolink } from './ThemedBiolink';
 import { LikeButton } from '@/components/ui/LikeButton';
+import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
 import { themeClassName } from '@/lib/themes';
 import type { Biolink } from '@/lib/api';
 
@@ -20,10 +21,15 @@ interface Props {
  */
 export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
   return (
-    <div className={`biolink-theme biolink-theme-page ${themeClassName(biolink.template)}`}>
-      <div className="flex min-h-screen items-center justify-center px-4 py-8">
-        <div className="w-full max-w-[480px]">
-          <div className="mb-3 flex items-center justify-between gap-2">
+    <div
+      className={`biolink-theme biolink-theme-page card-public-page ${themeClassName(
+        biolink.template,
+      )}`}
+    >
+      <div className="flex min-h-0 flex-1 items-stretch justify-center px-4 py-4 sm:py-8">
+        <div className="card-public-inner w-full max-w-[480px]">
+          {/* One aligned row: back link · plan badge · home link. */}
+          <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
             <Link
               href="/biolinks"
               className="theme-panel theme-panel-text inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-85 transition hover:opacity-100"
@@ -31,6 +37,14 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
               <ArrowRight className="size-3.5" aria-hidden />
               بازگشت به دایرکتوری
             </Link>
+
+            {biolink.planName ? (
+              <span className="theme-panel theme-panel-text inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-90">
+                <Crown className="size-3.5" aria-hidden />
+                نوع اشتراک: {biolink.planName}
+              </span>
+            ) : null}
+
             <Link
               href="/"
               className="theme-panel theme-panel-text inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-85 transition hover:opacity-100"
@@ -40,24 +54,23 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
             </Link>
           </div>
 
-          {biolink.planName ? (
-            <div className="mb-3 flex justify-center">
-              <span className="theme-panel theme-panel-text inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-90">
-                <Crown className="size-3.5" aria-hidden />
-                نوع اشتراک: {biolink.planName}
-              </span>
-            </div>
-          ) : null}
-
-          <ThemedBiolink
-            themeKey={biolink.template}
-            data={biolink}
-            cityName={biolink.city?.name}
-            businessName={biolink.business?.name}
-            interactive
+          <PlanUpgradeNotice
+            ownerUserId={biolink.userId}
+            hidesFields={biolink.planHidesFields}
           />
 
-          <div className="theme-panel mt-6 flex items-center gap-4 p-4">
+          {/* Only this region scrolls; the chrome above and below stays put. */}
+          <div className="card-public-scroll">
+            <ThemedBiolink
+              themeKey={biolink.template}
+              data={biolink}
+              cityName={biolink.city?.name}
+              businessName={biolink.business?.name}
+              interactive
+            />
+          </div>
+
+          <div className="theme-panel mt-4 flex shrink-0 items-center gap-4 p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={qr}
@@ -91,7 +104,7 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
             </div>
           </div>
 
-          <p className="theme-panel-muted mt-6 text-center text-xs">
+          <p className="theme-panel-muted mt-3 shrink-0 text-center text-xs">
             ساخته‌شده با{' '}
             <Link href="/" className="font-bold underline">
               شمالی کارت
