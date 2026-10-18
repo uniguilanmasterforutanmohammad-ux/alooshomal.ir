@@ -26,10 +26,10 @@ function faDate(value: string | null) {
 }
 
 /**
- * «نبض شهر» — the home-page news table: a headline next to its publish date and
- * publisher, with a per-row badge and a «مشاهده کامل خبر» button. Follows the
- * reference table layout (badge + title + date + publisher + action) but keeps
- * the site's vintage theme instead of the reference's palette.
+ * «اخبار شهر» (formerly «نبض شهر») — the home-page news table: a headline next
+ * to its publish date and publisher, with a per-row badge and a «مشاهده کامل
+ * خبر» button. Follows the reference table layout (badge + title + date +
+ * publisher + action) but keeps the site's vintage theme.
  */
 export async function PulseSection() {
   const headlines = await getHeadlines();
@@ -39,14 +39,14 @@ export async function PulseSection() {
   }
 
   return (
-    <section className="container-page mt-16" id="pulse">
+    <section className="container-page mt-10 sm:mt-16" id="pulse">
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="vintage-avatar flex size-11 items-center justify-center">
             <Newspaper className="size-5" aria-hidden />
           </span>
           <div>
-            <h2 className="text-xl font-extrabold text-ink">نبض شهر</h2>
+            <h2 className="text-lg font-extrabold text-ink sm:text-xl">اخبار شهر</h2>
             <p className="text-sm text-muted">تازه‌ترین تیترهای خبری شهر</p>
           </div>
         </div>

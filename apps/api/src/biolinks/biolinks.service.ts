@@ -481,6 +481,32 @@ export class BiolinksService {
   }
 
   /**
+   * The most recently published biolinks, used by the home-page slider. A tiny
+   * projection (no contact fields) so six cards cost almost nothing and the
+   * home page never ships the whole directory payload.
+   */
+  async findLatestPublished(take = 6) {
+    const rows = await this.prisma.biolink.findMany({
+      where: { status: BiolinkStatus.APPROVED, isPublished: true },
+      orderBy: [{ pinnedAt: 'desc' }, { id: 'desc' }],
+      take,
+      select: {
+        id: true,
+        slug: true,
+        fullName: true,
+        jobTitle: true,
+        company: true,
+        avatarUrl: true,
+        logoUrl: true,
+        publishedAt: true,
+        city: { select: { id: true, name: true } },
+        business: { select: { id: true, name: true } },
+      },
+    });
+    return rows;
+  }
+
+  /**
    * Shapes one raw public biolink row into the payload the public page and the
    * directory detail panel expect: the owner's plan name as a badge, the linked
    * business card only when it is itself publicly visible, and the free-plan

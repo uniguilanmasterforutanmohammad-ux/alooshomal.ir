@@ -88,7 +88,7 @@ function PulseContent() {
             <Newspaper className="size-5" aria-hidden />
           </span>
           <div>
-            <h1 className="text-xl font-extrabold text-ink">نبض شهر</h1>
+            <h1 className="text-xl font-extrabold text-ink">اخبار شهر</h1>
             <p className="text-sm text-muted">
               {meta
                 ? `${meta.total.toLocaleString('fa-IR')} خبر منتشرشده`

@@ -40,7 +40,7 @@ export default async function NewsDetailPage({
       <main className="container-page py-8">
         <Link href="/pulse" className="inline-flex items-center gap-1 text-sm font-bold text-brand">
           <ArrowRight className="size-4" aria-hidden />
-          بازگشت به نبض شهر
+          بازگشت به اخبار شهر
         </Link>
 
         <article className="indeed-panel mt-4 p-6 md:p-8">

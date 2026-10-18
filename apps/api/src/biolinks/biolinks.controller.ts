@@ -124,6 +124,17 @@ export class BiolinksController {
   }
 
   @Public()
+  @Get('public/latest')
+  @ApiOperation({ summary: 'آخرین بیولینک‌های منتشرشده (برای اسلایدر صفحه‌ی اصلی)' })
+  latest(@Query('limit') limit?: string) {
+    const parsed = Number(limit);
+    const take = Number.isFinite(parsed)
+      ? Math.min(24, Math.max(1, Math.floor(parsed)))
+      : 6;
+    return this.biolinksService.findLatestPublished(take);
+  }
+
+  @Public()
   @Get('public/:slug')
   @ApiOperation({ summary: 'مشاهده عمومی بیولینک با slug' })
   async public(@Param('slug') slug: string, @Req() request: Request) {

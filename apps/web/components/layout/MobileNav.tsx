@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BadgeCheck,
-  BookOpen,
   Home,
   IdCard,
   ImagePlus,
@@ -42,7 +41,6 @@ export function MobileNav() {
     { href: '/biolinks', label: 'بیولینک‌ها', icon: IdCard },
     { href: '/pulse', label: 'اخبار شهر', icon: Newspaper },
     { href: '/feeds', label: 'پست کاربران', icon: ImagePlus },
-    { href: '/guide', label: 'راهنما', icon: BookOpen },
     hydrated && token
       ? { href: '/dashboard', label: 'داشبورد', icon: LayoutDashboard }
       : { href: '/login', label: 'ورود', icon: LogIn },
@@ -56,7 +54,7 @@ export function MobileNav() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-label="ناوبری پایین"
     >
-      <ul className="grid grid-cols-7">
+      <ul className="grid grid-cols-6">
         {items.map((item) => {
           const active = item.exact
             ? pathname === item.href

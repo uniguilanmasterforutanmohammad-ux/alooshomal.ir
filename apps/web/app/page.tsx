@@ -7,11 +7,34 @@ import { HomeSearchBox } from '@/components/home/HomeSearchBox';
 import { HomeAdBox } from '@/components/home/HomeAdBox';
 import { HomeHeadline } from '@/components/home/HomeHeadline';
 import {
+  HomeItemSlider,
+  type HomeSliderItem,
+} from '@/components/home/HomeItemSlider';
+import {
   BadgeCheck,
   QrCode,
   Smartphone,
   Sparkles,
 } from 'lucide-react';
+
+const API_URL =
+  process.env.INTERNAL_API_URL ??
+  process.env.NEXT_PUBLIC_API_URL ??
+  'http://localhost:4000/api';
+
+/** Fetch the home-page sliders (6 latest cards / biolinks) server-side. */
+async function getLatest(path: string): Promise<HomeSliderItem[]> {
+  try {
+    const response = await fetch(`${API_URL}${path}`, {
+      next: { revalidate: 60 },
+    });
+    if (!response.ok) return [];
+    const payload = (await response.json()) as { data: HomeSliderItem[] };
+    return payload.data ?? [];
+  } catch {
+    return [];
+  }
+}
 
 const features = [
   {
@@ -41,21 +64,27 @@ const features = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Both sliders are fetched in parallel; a failed fetch just hides its slider.
+  const [latestCards, latestBiolinks] = await Promise.all([
+    getLatest('/business-cards/public/latest?limit=6'),
+    getLatest('/biolinks/public/latest?limit=6'),
+  ]);
+
   return (
     <>
       <Header />
 
       <main>
-        <section className="bg-brand py-16 text-white md:py-20">
+        <section className="bg-brand py-12 text-white sm:py-16 md:py-20">
           <div className="container-page mx-auto max-w-3xl text-center">
             <HomeHeadline />
-            <p className="mt-4 text-base leading-8 text-white/90">
+            <p className="mt-4 text-sm leading-7 text-white/90 sm:text-base sm:leading-8">
               کارت ویزیت دیجیتال خود را بسازید، با یک QR اختصاصی به اشتراک بگذارید و در
               بزرگ‌ترین بانک مشاغل شهر، به‌سادگی توسط مشتریان جستجو شوید.
             </p>
             <HomeSearchBox />
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-3 sm:mt-8">
               <Link
                 href="/business-cards"
                 className="indeed-btn border-white text-white hover:bg-white/10"
@@ -74,7 +103,26 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="container-page -mt-8">
+        {/* Order requested for the home page, right below the search box and its
+            two buttons: ads → latest business cards → latest biolinks → city
+            news → the rest of the page. */}
+        <HomeAdBox />
+
+        <HomeItemSlider
+          kind="business-cards"
+          items={latestCards}
+          moreHref="/business-cards"
+        />
+
+        <HomeItemSlider
+          kind="biolinks"
+          items={latestBiolinks}
+          moreHref="/biolinks"
+        />
+
+        <PulseSection />
+
+        <section className="container-page mt-10 sm:mt-16">
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {features.map((feature) => (
               <div key={feature.title} className="indeed-panel p-5">
@@ -91,7 +139,7 @@ export default function HomePage() {
             <div>
               <h2 className="text-base font-extrabold text-ink">شهروند خبرنگار شوید</h2>
               <p className="mt-1 text-sm text-muted">
-                خبرهای شهر خود را ثبت کنید تا پس از تأیید مدیر در «نبض شهر» منتشر شود.
+                خبرهای شهر خود را ثبت کنید تا پس از تأیید مدیر در «اخبار شهر» منتشر شود.
                 {' '}با تأیید هر خبر، امتیاز بگیرید و آن را صرف اشتراک و تبلیغ کنید.
               </p>
             </div>
@@ -104,9 +152,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        <HomeAdBox />
-
-        <section className="container-page mt-16">
+        <section className="container-page mt-10 sm:mt-16">
           <div className="indeed-panel p-8">
             <h2 className="text-xl font-extrabold text-ink">چطور کار می‌کند؟</h2>
             <ol className="mt-6 grid gap-6 md:grid-cols-3">
@@ -134,8 +180,6 @@ export default function HomePage() {
             </ol>
           </div>
         </section>
-
-        <PulseSection />
       </main>
 
       <Footer />

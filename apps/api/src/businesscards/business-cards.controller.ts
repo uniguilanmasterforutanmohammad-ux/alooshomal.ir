@@ -124,6 +124,17 @@ export class BusinessCardsController {
   }
 
   @Public()
+  @Get('public/latest')
+  @ApiOperation({ summary: 'آخرین کارت‌های ویزیت منتشرشده (برای اسلایدر صفحه‌ی اصلی)' })
+  latest(@Query('limit') limit?: string) {
+    const parsed = Number(limit);
+    const take = Number.isFinite(parsed)
+      ? Math.min(24, Math.max(1, Math.floor(parsed)))
+      : 6;
+    return this.businessCardsService.findLatestPublished(take);
+  }
+
+  @Public()
   @Get('public/:slug')
   @ApiOperation({ summary: 'مشاهده عمومی کارت ویزیت با slug' })
   async public(@Param('slug') slug: string, @Req() request: Request) {

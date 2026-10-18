@@ -474,6 +474,16 @@ header.bg-white {
 .biolink-theme-page .theme-panel-text { color: var(--biolink-page-text); }
 .biolink-theme-page .theme-panel-muted { color: var(--biolink-page-muted); }
 
+/* Home-page item sliders: the native scrollbar is hidden (phones swipe,
+   desktop uses the arrow buttons) while scroll-snap keeps cards aligned. */
+.home-slider {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.home-slider::-webkit-scrollbar {
+  display: none;
+}
+
 /* ---- Public card pages (/biolinks/<slug>, /business-cards/<slug>) ----
    The page itself must never scroll: the top row (back/home + plan badge)
    and the bottom share block stay pinned, and only the card frame in the
