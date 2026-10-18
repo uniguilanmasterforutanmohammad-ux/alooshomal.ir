@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Mail, Smartphone } from 'lucide-react';
 
@@ -26,12 +26,24 @@ function AuthPageContent() {
   const params = useSearchParams();
   const next = safeNext(params.get('next'));
   const setSession = useAuth((state) => state.setSession);
+  const { token, user, hydrated } = useAuth();
 
   const [mode, setMode] = useState<'phone' | 'email'>('phone');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // An already signed-in visitor has no reason to see the login form: send them
+  // straight to their panel (a limited admin has no dashboard, so it gets the
+  // review panel instead). Runs only after the persisted session rehydrates, so
+  // a fresh page load never flashes the form for a logged-in user.
+  useEffect(() => {
+    if (!hydrated || !token) return;
+    const target =
+      next === '/dashboard' && user?.role === 'MODERATOR' ? '/moderator' : next;
+    router.replace(target);
+  }, [hydrated, token, user?.role, next, router]);
 
   async function handleEmailLogin(event: React.FormEvent) {
     event.preventDefault();
