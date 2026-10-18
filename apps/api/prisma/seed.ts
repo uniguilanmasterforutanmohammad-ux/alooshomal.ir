@@ -135,13 +135,18 @@ async function main() {
     { subject: 'درخواست افزودن شهر جدید', status: TicketStatus.IN_PROGRESS, priority: TicketPriority.NORMAL, userId: null },
   ];
 
-  await prisma.ticket.deleteMany({});
+  // Seeded tickets use fixed ids and are created with `upsert` (never deleted),
+  // so re-running the seed on a live database never removes real support
+  // tickets. Only the sample rows with `seed-ticket-*` ids are touched.
   for (const [index, ticket] of ticketSeed.entries()) {
     const firstMessage =
       'این تیکت نمونه برای نمایش در داشبورد مدیریت ایجاد شده است.';
-    await prisma.ticket.create({
-      data: {
-        id: `seed-ticket-${index + 1}`,
+    const id = `seed-ticket-${index + 1}`;
+    await prisma.ticket.upsert({
+      where: { id },
+      update: {},
+      create: {
+        id,
         subject: ticket.subject,
         status: ticket.status,
         priority: ticket.priority,
@@ -176,11 +181,14 @@ async function main() {
     { title: 'گزارش بازدید بیولینک‌ها', type: 'scans', status: ReportStatus.READY },
   ];
 
-  await prisma.report.deleteMany({});
+  // Reports also use fixed ids and are upserted, so live reports are preserved.
   for (const [index, report] of reportSeed.entries()) {
-    await prisma.report.create({
-      data: {
-        id: `seed-report-${index + 1}`,
+    const id = `seed-report-${index + 1}`;
+    await prisma.report.upsert({
+      where: { id },
+      update: {},
+      create: {
+        id,
         title: report.title,
         type: report.type,
         status: report.status,
@@ -194,12 +202,18 @@ async function main() {
 
   // ---- «نبض شهر»: default categories + a couple of sample headlines ----
   const newsCategories = ['شهری', 'فرهنگی', 'ورزشی', 'اقتصادی', 'اجتماعی'];
-  await prisma.newsCategory.deleteMany({});
+  // Categories are keyed by their unique `name` and upserted (never deleted), so
+  // admin-created categories and live news are untouched by a re-seed.
   const createdCategories = await Promise.all(
-    newsCategories.map((name) => prisma.newsCategory.create({ data: { name } })),
+    newsCategories.map((name) =>
+      prisma.newsCategory.upsert({
+        where: { name },
+        update: {},
+        create: { name },
+      }),
+    ),
   );
 
-  await prisma.newsItem.deleteMany({});
   const sampleNews: Array<{ title: string; summary: string; publisher: string; categoryIndex: number }> = [
     {
       title: 'افتتاح پارک محله پس از بازسازی',
@@ -215,6 +229,14 @@ async function main() {
     },
   ];
   for (const item of sampleNews) {
+    // The sample headlines have no natural unique key; only create them when an
+    // identical headline does not already exist, so re-seeding is idempotent
+    // and never wipes real «نبض شهر» content.
+    const existing = await prisma.newsItem.findFirst({
+      where: { title: item.title, publisherName: item.publisher },
+      select: { id: true },
+    });
+    if (existing) continue;
     await prisma.newsItem.create({
       data: {
         title: item.title,
