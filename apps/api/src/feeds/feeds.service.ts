@@ -6,6 +6,7 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import {
+  FeedTagKind,
   NewsStatus,
   NotificationType,
   Prisma,
@@ -28,6 +29,17 @@ const feedPostInclude = {
   user: { select: { id: true, fullName: true, email: true } },
   topic: { select: { id: true, name: true } },
   _count: { select: { likes: true } },
+} satisfies Prisma.FeedPostInclude;
+
+/**
+ * Resolves the public tag attached to a feed post: the author's own biolink or
+ * business card, surfaced only once the tag fee has been confirmed by an admin.
+ * Shared by the directory rows and the single-post payload so both link the
+ * same way.
+ */
+const feedTagInclude = {
+  tagBiolink: { select: { slug: true, fullName: true, company: true } },
+  tagBusinessCard: { select: { slug: true, fullName: true, company: true } },
 } satisfies Prisma.FeedPostInclude;
 
 /**
@@ -126,7 +138,7 @@ export class FeedsService implements OnModuleInit {
 
     return {
       items: items.map((item) => ({
-        ...item,
+        ...this.projectFeedTag(item),
         liked: likedIds.has(item.id),
         saved: savedIds.has(item.id),
       })),
@@ -153,7 +165,7 @@ export class FeedsService implements OnModuleInit {
     const [rows, total] = await Promise.all([
       this.prisma.feedPost.findMany({
         where,
-        include: feedPostInclude,
+        include: { ...feedPostInclude, ...feedTagInclude },
         // Paid directory ads float above the plain chronological rows. A boost
         // («پله») re-pins the post (`pinnedAt = now` on approval), so it already
         // sits at the top of the chronological rows and drops down as soon as a
@@ -175,11 +187,43 @@ export class FeedsService implements OnModuleInit {
     return { items, total };
   }
 
+  /**
+   * Turns the joined tag relations into one `tag` object. The tag is only
+   * exposed once its fee has been paid (`tagPaid`), so an unpaid tag never
+   * leaks a link on the public feed; the owning panels still see the raw
+   * `tag*` columns for their own posts.
+   */
+  private projectFeedTag<
+    T extends {
+      tagKind?: FeedTagKind | null;
+      tagPaid?: boolean;
+      tagBiolink?: { slug: string; fullName: string; company: string | null } | null;
+      tagBusinessCard?: { slug: string; fullName: string; company: string | null } | null;
+    },
+  >(post: T) {
+    const { tagBiolink, tagBusinessCard, ...rest } = post;
+    const target = post.tagKind === FeedTagKind.BIOLINK ? tagBiolink : tagBusinessCard;
+    const tag =
+      post.tagPaid && post.tagKind && target
+        ? {
+            kind: post.tagKind,
+            slug: target.slug,
+            fullName: target.fullName,
+            company: target.company,
+            href:
+              post.tagKind === FeedTagKind.BIOLINK
+                ? `/biolinks/${target.slug}`
+                : `/business-cards/${target.slug}`,
+          }
+        : null;
+    return { ...rest, tag };
+  }
+
   /** One published feed post by id + visitor like/save state. */
   async publicPost(id: string, visitorKey?: string, userId?: string) {
     const post = await this.prisma.feedPost.findFirst({
       where: { id, status: NewsStatus.APPROVED, isPublished: true },
-      include: feedPostInclude,
+      include: { ...feedPostInclude, ...feedTagInclude },
     });
     if (!post) throw new NotFoundException('پست فید یافت نشد');
 
@@ -198,7 +242,12 @@ export class FeedsService implements OnModuleInit {
         : false,
     ]);
     const { _count, ...rest } = post;
-    return { ...rest, likeCount: _count.likes, liked, saved };
+    return {
+      ...this.projectFeedTag(rest),
+      likeCount: _count.likes,
+      liked,
+      saved,
+    };
   }
 
   async toggleLike(id: string, visitorKey: string) {
@@ -256,7 +305,17 @@ export class FeedsService implements OnModuleInit {
 
   /** The user's feed subscription state, packages and their own posts. */
   async myOverview(userId: string) {
-    const [packages, subscriptions, posts, topics, maxImages, maxImageKb] =
+    const [
+      packages,
+      subscriptions,
+      posts,
+      topics,
+      maxImages,
+      maxImageKb,
+      tagPrice,
+      biolinks,
+      cards,
+    ] =
       await Promise.all([
         this.listPackages(true),
         this.prisma.userFeedSubscription.findMany({
@@ -271,18 +330,32 @@ export class FeedsService implements OnModuleInit {
         this.prisma.feedPost.findMany({
           where: { userId },
           orderBy: { createdAt: 'desc' },
-          include: feedPostInclude,
+          include: { ...feedPostInclude, ...feedTagInclude },
         }),
         this.listTopics(true),
         this.settings.getFeedMaxImages(),
         this.settings.getFeedMaxImageKb(),
+        this.settings.getFeedTagPrice(),
+        // The author's own items available to tag (id + label only).
+        this.prisma.biolink.findMany({
+          where: { userId, isPublished: true, status: 'APPROVED' },
+          select: { id: true, fullName: true, company: true, slug: true },
+          orderBy: { updatedAt: 'desc' },
+          take: 50,
+        }),
+        this.prisma.businessCard.findMany({
+          where: { userId, isPublished: true, status: 'APPROVED' },
+          select: { id: true, fullName: true, company: true, slug: true },
+          orderBy: { updatedAt: 'desc' },
+          take: 50,
+        }),
       ]);
 
     return {
       packages,
       subscriptions,
       posts: posts.map(({ _count, ...post }) => ({
-        ...post,
+        ...this.projectFeedTag(post),
         likeCount: _count.likes,
       })),
       topics,
@@ -294,6 +367,9 @@ export class FeedsService implements OnModuleInit {
       exhausted: this.exhaustedSubscription(subscriptions, posts.length),
       upgradePackageIds: this.upgradePackageIds(subscriptions, posts.length, packages),
       limits: { maxImages, maxImageKb },
+      tagPrice,
+      taggableBiolinks: biolinks,
+      taggableCards: cards,
     };
   }
 
@@ -309,7 +385,7 @@ export class FeedsService implements OnModuleInit {
     const [saves, total] = await Promise.all([
       this.prisma.feedSave.findMany({
         where: { userId },
-        include: { feedPost: { include: feedPostInclude } },
+        include: { feedPost: { include: { ...feedPostInclude, ...feedTagInclude } } },
         orderBy: { createdAt: 'desc' },
         skip: (currentPage - 1) * limit,
         take: limit,
@@ -323,7 +399,7 @@ export class FeedsService implements OnModuleInit {
         .map((save) => {
           const { _count, ...post } = save.feedPost;
           return {
-            ...post,
+            ...this.projectFeedTag(post),
             likeCount: _count.likes,
             savedAt: save.createdAt,
           };
@@ -517,7 +593,6 @@ export class FeedsService implements OnModuleInit {
     if (!dto.body?.trim() && dto.images.length === 0) {
       throw new BadRequestException('پست باید متن یا تصویر داشته باشد');
     }
-    const subscription = await this.requirePublishable(userId);
     if (dto.topicId) {
       const topic = await this.prisma.feedTopic.findUnique({
         where: { id: dto.topicId },
@@ -527,25 +602,33 @@ export class FeedsService implements OnModuleInit {
       }
     }
 
+    // Tagging one of the author's own items is the paid extra: validate the
+    // target belongs to them and snapshot the current fee. The tag stays hidden
+    // until an admin confirms the (currently simulated) payment.
+    const tag = await this.resolveTagTarget(userId, dto);
+    const tagPrice = tag ? await this.settings.getFeedTagPrice() : null;
+
     const post = await this.prisma.feedPost.create({
       data: {
         userId,
         body: dto.body?.trim() || null,
         images: dto.images,
         topicId: dto.topicId ?? null,
+        tagKind: tag?.kind ?? null,
+        tagBiolinkId: tag?.biolinkId ?? null,
+        tagBusinessCardId: tag?.businessCardId ?? null,
+        tagPrice,
+        tagPaid: false,
         status: NewsStatus.PENDING,
       },
-    });
-    // Reserve the quota now so a user cannot fire many pending posts at once.
-    await this.prisma.userFeedSubscription.update({
-      where: { id: subscription.id },
-      data: { postsUsed: { increment: 1 } },
     });
     await this.notifications.notifyAdmins({
       category: 'FEED',
       scope: 'FEED',
       title: 'پست فید جدید در انتظار تأیید',
-      body: 'یک پست فید برای بررسی ثبت شد.',
+      body: tag
+        ? 'یک پست فید همراه با تگ کارت/بیولینک برای بررسی ثبت شد.'
+        : 'یک پست فید برای بررسی ثبت شد.',
       type: NotificationType.INFO,
       link: '/admin?section=feeds',
       actorId: userId,
@@ -559,27 +642,40 @@ export class FeedsService implements OnModuleInit {
     return post;
   }
 
-  /** Ensure the user has an active subscription with quota left. */
-  private async requirePublishable(userId: string) {
-    const subs = await this.prisma.userFeedSubscription.findMany({
-      where: { userId },
-      include: { package: true },
-      orderBy: { requestedAt: 'desc' },
-    });
-    const now = new Date();
-    const active = subs.find(
-      (sub) =>
-        sub.status === SubscriptionStatus.ACTIVE &&
-        sub.expiresAt &&
-        sub.expiresAt > now &&
-        sub.postsUsed < sub.package.postsQuota,
-    );
-    if (!active) {
-      throw new ForbiddenException(
-        'برای انتشار پست، ابتدا یک اشتراک فید فعال با ظرفیت باقی‌مانده تهیه کنید',
-      );
+  /**
+   * Validates the optional tag target. The tag must point at one of the
+   * author's *own* published items; anything else is rejected so a post cannot
+   * be used to promote someone else's card. Returns the column values to store.
+   */
+  private async resolveTagTarget(
+    userId: string,
+    dto: CreateFeedPostDto,
+  ): Promise<
+    | { kind: FeedTagKind; biolinkId: string | null; businessCardId: string | null }
+    | null
+  > {
+    if (!dto.tagKind) return null;
+    if (!dto.tagTargetId) {
+      throw new BadRequestException('شناسه مورد تگ‌شده الزامی است');
     }
-    return active;
+    if (dto.tagKind === 'BIOLINK') {
+      const biolink = await this.prisma.biolink.findUnique({
+        where: { id: dto.tagTargetId },
+        select: { id: true, userId: true },
+      });
+      if (!biolink || biolink.userId !== userId) {
+        throw new BadRequestException('بیولینک انتخاب‌شده معتبر نیست');
+      }
+      return { kind: FeedTagKind.BIOLINK, biolinkId: biolink.id, businessCardId: null };
+    }
+    const card = await this.prisma.businessCard.findUnique({
+      where: { id: dto.tagTargetId },
+      select: { id: true, userId: true },
+    });
+    if (!card || card.userId !== userId) {
+      throw new BadRequestException('کارت ویزیت انتخاب‌شده معتبر نیست');
+    }
+    return { kind: FeedTagKind.BUSINESS_CARD, biolinkId: null, businessCardId: card.id };
   }
 
   async updatePost(userId: string, id: string, dto: CreateFeedPostDto) {
@@ -592,12 +688,26 @@ export class FeedsService implements OnModuleInit {
     if (dto.images.length > maxImages) {
       throw new BadRequestException(`حداکثر ${maxImages} تصویر مجاز است`);
     }
+    // Re-resolve the tag. If the tag target changed, the fee has to be settled
+    // again; keeping the same target preserves a already-paid tag.
+    const tag = await this.resolveTagTarget(userId, dto);
+    const sameTag =
+      tag &&
+      ((tag.kind === 'BIOLINK' && post.tagBiolinkId === tag.biolinkId) ||
+        (tag.kind === 'BUSINESS_CARD' &&
+          post.tagBusinessCardId === tag.businessCardId));
+    const tagPrice = tag ? await this.settings.getFeedTagPrice() : null;
     const updated = await this.prisma.feedPost.update({
       where: { id },
       data: {
         body: dto.body?.trim() || null,
         images: dto.images,
         topicId: dto.topicId ?? null,
+        tagKind: tag?.kind ?? null,
+        tagBiolinkId: tag?.biolinkId ?? null,
+        tagBusinessCardId: tag?.businessCardId ?? null,
+        tagPrice,
+        tagPaid: sameTag ? post.tagPaid : false,
         // An edit re-enters the moderation queue.
         status: NewsStatus.PENDING,
         isPublished: false,
@@ -656,11 +766,31 @@ export class FeedsService implements OnModuleInit {
   async adminListPosts(status?: NewsStatus) {
     const posts = await this.prisma.feedPost.findMany({
       where: status ? { status } : {},
-      include: feedPostInclude,
+      include: { ...feedPostInclude, ...feedTagInclude },
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
-    return posts.map(({ _count, ...post }) => ({ ...post, likeCount: _count.likes }));
+    return posts.map(({ _count, tagBiolink, tagBusinessCard, ...post }) => {
+      // Admins see the tag even before payment, so they can confirm/reject it.
+      const target = post.tagKind === FeedTagKind.BIOLINK ? tagBiolink : tagBusinessCard;
+      return {
+        ...post,
+        likeCount: _count.likes,
+        tag:
+          post.tagKind && target
+            ? {
+                kind: post.tagKind,
+                slug: target.slug,
+                fullName: target.fullName,
+                company: target.company,
+                href:
+                  post.tagKind === FeedTagKind.BIOLINK
+                    ? `/biolinks/${target.slug}`
+                    : `/business-cards/${target.slug}`,
+              }
+            : null,
+      };
+    });
   }
 
   async moderatePost(adminId: string, id: string, decision: NewsStatus, reason?: string) {
@@ -676,28 +806,13 @@ export class FeedsService implements OnModuleInit {
         publishedAt: approved ? post.publishedAt ?? new Date() : null,
       },
     });
-    // A rejected post returns its quota slot to the user.
-    if (!approved) {
-      const active = await this.prisma.userFeedSubscription.findFirst({
-        where: {
-          userId: post.userId,
-          status: SubscriptionStatus.ACTIVE,
-          postsUsed: { gt: 0 },
-        },
-        orderBy: { requestedAt: 'desc' },
-      });
-      if (active) {
-        await this.prisma.userFeedSubscription.update({
-          where: { id: active.id },
-          data: { postsUsed: { decrement: 1 } },
-        });
-      }
-    }
     await this.notifications.notify({
       userId: post.userId,
       title: approved ? 'پست فید شما تأیید شد' : 'پست فید شما رد شد',
       body: approved
-        ? 'پست شما در فید منتشر شد.'
+        ? post.tagKind && !post.tagPaid
+          ? 'پست شما در فید منتشر شد. توجه: تا تأیید پرداخت تگ، لینک کارت/بیولینک شما نمایش داده نمی‌شود.'
+          : 'پست شما در فید منتشر شد.'
         : reason
           ? `پست شما رد شد: ${reason}`
           : 'پست شما رد شد.',
@@ -722,6 +837,58 @@ export class FeedsService implements OnModuleInit {
     await this.prisma.feedPost.delete({ where: { id } });
     this.facetsCache.invalidate('dir:feeds');
     return { deleted: true };
+  }
+
+  /**
+   * Confirm or reject the (currently simulated) payment for a post's tag.
+   * Confirming makes the card/biolink link public on the feed; rejecting clears
+   * the tag so no fee is owed. There is no real gateway yet, so the admin acts
+   * as the payment confirmation here.
+   */
+  async decideTagPayment(
+    adminId: string,
+    postId: string,
+    decision: 'CONFIRM' | 'REJECT',
+  ) {
+    const post = await this.prisma.feedPost.findUnique({ where: { id: postId } });
+    if (!post) throw new NotFoundException('پست فید یافت نشد');
+    if (!post.tagKind) {
+      throw new BadRequestException('این پست تگی ندارد');
+    }
+    const confirm = decision === 'CONFIRM';
+    const updated = await this.prisma.feedPost.update({
+      where: { id: postId },
+      data: confirm
+        ? { tagPaid: true, tagDecidedAt: new Date(), tagDecidedById: adminId }
+        : {
+            tagKind: null,
+            tagBiolinkId: null,
+            tagBusinessCardId: null,
+            tagPaid: false,
+            tagPrice: null,
+            tagDecidedAt: new Date(),
+            tagDecidedById: adminId,
+          },
+    });
+    await this.notifications.notify({
+      userId: post.userId,
+      title: confirm ? 'پرداخت تگ پست شما تأیید شد' : 'پرداخت تگ پست شما رد شد',
+      body: confirm
+        ? 'لینک کارت/بیولینک شما در فید نمایش داده می‌شود.'
+        : 'تگ پست شما حذف شد و مبلغی محاسبه نمی‌شود.',
+      type: confirm ? NotificationType.SUCCESS : NotificationType.WARNING,
+      link: '/dashboard/feeds',
+      actorId: adminId,
+    });
+    await this.activity.log({
+      actor: { id: adminId },
+      action: confirm ? 'FEED_TAG_PAID' : 'FEED_TAG_REJECTED',
+      summary: `${confirm ? 'تأیید' : 'رد'} پرداخت تگ پست فید`,
+      entityType: 'FEED',
+      entityId: postId,
+    });
+    this.facetsCache.invalidate('dir:feeds');
+    return updated;
   }
 
   // ---- admin: packages ----

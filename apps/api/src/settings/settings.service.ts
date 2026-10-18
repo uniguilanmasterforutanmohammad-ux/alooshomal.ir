@@ -63,6 +63,14 @@ export const AD_HOME_PRICE_KEY = 'adHomePrice';
 export const DEFAULT_AD_HOME_PRICE = 150_000;
 export const AD_DIRECTORY_PRICE_KEY = 'adDirectoryPrice';
 export const DEFAULT_AD_DIRECTORY_PRICE = 100_000;
+
+/**
+ * Price (Toman) charged for tagging one of the author's own cards/biolinks on
+ * a feed post. Publishing a feed post is free; the tag is the paid extra. No
+ * gateway is wired yet, so an admin confirms the payment manually.
+ */
+export const FEED_TAG_PRICE_KEY = 'feedTagPrice';
+export const DEFAULT_FEED_TAG_PRICE = 20_000;
 export const MAX_PRICE = 1_000_000_000;
 
 // ---------------------------------------------------------------------------
@@ -727,6 +735,15 @@ export class SettingsService implements OnModuleInit {
 
   setAdDirectoryPrice(value: number): Promise<number> {
     return this.writePrice(AD_DIRECTORY_PRICE_KEY, value);
+  }
+
+  /** Price (Toman) charged for tagging a card/biolink on a feed post. */
+  getFeedTagPrice(): Promise<number> {
+    return this.readPrice(FEED_TAG_PRICE_KEY, DEFAULT_FEED_TAG_PRICE);
+  }
+
+  setFeedTagPrice(value: number): Promise<number> {
+    return this.writePrice(FEED_TAG_PRICE_KEY, value);
   }
 
   /** Points credited per approved «نبض شهر» news item. */

@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
   IsArray,
+  IsIn,
   IsOptional,
   IsString,
   MaxLength,
@@ -26,6 +27,20 @@ export class CreateFeedPostDto {
   @IsOptional()
   @IsString()
   topicId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'تگ کارت/بیولینک روی پست (رایگان نیست و پس از تأیید پرداخت توسط مدیر فعال می‌شود)',
+    enum: ['BIOLINK', 'BUSINESS_CARD'],
+  })
+  @IsOptional()
+  @IsIn(['BIOLINK', 'BUSINESS_CARD'])
+  tagKind?: 'BIOLINK' | 'BUSINESS_CARD';
+
+  @ApiPropertyOptional({ description: 'شناسه بیولینک یا کارت ویزیت برای تگ' })
+  @IsOptional()
+  @IsString()
+  tagTargetId?: string;
 }
 
 export class ListFeedQueryDto extends PaginationDto {

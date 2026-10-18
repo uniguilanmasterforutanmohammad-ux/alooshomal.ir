@@ -3,7 +3,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { ArrowUpCircle, ImagePlus, Loader2, Send, Sparkles, Trash2, Upload, X } from 'lucide-react';
+import {
+  BadgeCheck,
+  Crown,
+  ImagePlus,
+  Loader2,
+  Send,
+  Sparkles,
+  Tag,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react';
 
 import {
   api,
@@ -36,9 +47,11 @@ function faDate(value: string) {
 }
 
 /**
- * «فید من» — the user's feed panel: buy a monthly package (pending approval),
- * create a post (text + images) subject to the admin's per-post image count and
- * per-image size limits, and manage/edit/delete their own posts.
+ * «فید من» — the user's feed panel. Publishing a post (text + images) is free;
+ * the only paid product is *tagging* one of the author's own business cards or
+ * biolinks on the post. There is no payment gateway yet, so the tag fee is
+ * settled by an admin confirmation (simulated payment). The panel also manages
+ * the opt-in feed subscription package and the user's own posts.
  */
 export default function DashboardFeedsPage() {
   const router = useRouter();
@@ -53,6 +66,8 @@ export default function DashboardFeedsPage() {
   const [topicId, setTopicId] = useState('');
   const [images, setImages] = useState<ImageSlot[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [tagKind, setTagKind] = useState<'' | 'BIOLINK' | 'BUSINESS_CARD'>('');
+  const [tagTargetId, setTagTargetId] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
   // Tracks in-flight background uploads so `submit` can await the ones the user
   // has not finished yet, without blocking the form while they type.
@@ -163,12 +178,20 @@ export default function DashboardFeedsPage() {
     setTopicId('');
     setImages([]);
     setEditingId(null);
+    setTagKind('');
+    setTagTargetId('');
   }
 
   function editPost(post: FeedPost) {
     setEditingId(post.id);
     setBody(post.body ?? '');
     setTopicId(post.topicId ?? '');
+    setTagKind((post.tagKind as 'BIOLINK' | 'BUSINESS_CARD' | null) ?? '');
+    setTagTargetId(
+      post.tagKind === 'BIOLINK'
+        ? post.tagBiolinkId ?? ''
+        : post.tagBusinessCardId ?? '',
+    );
     setImages(
       post.images.map((url, index) => ({
         id: `saved-${post.id}-${index}`,
@@ -208,13 +231,19 @@ export default function DashboardFeedsPage() {
         body: body.trim() || undefined,
         images: readyImages.map((slot) => slot.url as string),
         topicId: topicId || undefined,
+        tagKind: tagKind || undefined,
+        tagTargetId: tagKind ? tagTargetId || undefined : undefined,
       };
       if (editingId) {
         await api.patch(`/feeds/mine/${editingId}`, payload);
         setMessage('پست ویرایش شد و برای بررسی مجدد ارسال شد.');
       } else {
         await api.post('/feeds/mine', payload);
-        setMessage('پست ثبت شد و پس از تأیید مدیر در فید منتشر می‌شود.');
+        setMessage(
+          tagKind
+            ? 'پست ثبت شد. پس از تأیید مدیر منتشر می‌شود و پس از تأیید پرداخت تگ، لینک کارت/بیولینک نمایش داده می‌شود.'
+            : 'پست ثبت شد و پس از تأیید مدیر در فید منتشر می‌شود.',
+        );
       }
       resetForm();
       await load();
@@ -241,17 +270,15 @@ export default function DashboardFeedsPage() {
 
   const active = data?.active ?? null;
   const pendingSub = data?.subscriptions.find((s) => s.status === 'PENDING');
-  const exhausted = data?.exhausted ?? null;
-  const upgradeIds = new Set(data?.upgradePackageIds ?? []);
-  const upgradePackages = (data?.packages ?? []).filter((pkg) => upgradeIds.has(pkg.id));
 
   return (
     <div className="flex flex-col gap-5">
       <div>
         <h2 className="text-xl font-extrabold text-ink">فید من</h2>
         <p className="text-sm text-muted">
-          با تهیه اشتراک فید، پست (متن + عکس) منتشر کنید. هر پست پس از تأیید مدیر در
-          دایرکتوری فیدها نمایش داده می‌شود.
+          انتشار پست (متن + عکس) رایگان است. هر پست پس از تأیید مدیر در دایرکتوری
+          فیدها نمایش داده می‌شود. تنها قابلیت پرداختی، تگ‌کردن کارت ویزیت یا بیولینک
+          خودتان روی پست است.
         </p>
       </div>
 
@@ -262,86 +289,38 @@ export default function DashboardFeedsPage() {
         <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
       ) : null}
 
-      {active ? (
-        <div className="indeed-panel flex flex-wrap items-center gap-4 p-4 text-sm">
-          <span className="inline-flex items-center gap-1.5">
+      <div className="indeed-panel flex flex-wrap items-center gap-3 p-4 text-sm">
+        <span className="inline-flex items-center gap-1.5 font-bold text-ink">
+          <BadgeCheck className="size-4 text-brand" aria-hidden />
+          انتشار پست رایگان است
+        </span>
+        <span className="text-muted">
+          فقط تگ‌کردن کارت ویزیت یا بیولینک روی پست هزینه دارد
+          {data?.tagPrice
+            ? ` (هر تگ ${data.tagPrice.toLocaleString('fa-IR')} تومان)`
+            : ''}
+          . پس از تأیید پرداخت توسط مدیر، لینک نمایش داده می‌شود.
+        </span>
+        {active ? (
+          <span className="ms-auto inline-flex items-center gap-1.5 text-muted">
             <Sparkles className="size-4 text-brand" aria-hidden />
-            اشتراک فعال:
-            <b className="text-ink">{active.package?.name}</b>
+            بسته فعال: <b className="text-ink">{active.package?.name}</b>
           </span>
-          <span className="text-muted">
-            ظرفیت مصرف‌شده: {active.postsUsed.toLocaleString('fa-IR')} از{' '}
-            {'postsQuota' in (active.package ?? {})
-              ? (active.package as { postsQuota: number }).postsQuota.toLocaleString('fa-IR')
-              : '—'}
+        ) : pendingSub ? (
+          <span className="ms-auto text-amber-700">
+            درخواست اشتراک فید شما در انتظار تأیید مدیر است.
           </span>
-          {active.expiresAt ? (
-            <span className="text-muted">انقضا: {faDate(active.expiresAt)}</span>
-          ) : null}
-        </div>
-      ) : pendingSub ? (
-        <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-700">
-          درخواست اشتراک فید شما در انتظار تأیید مدیر است.
-        </p>
-      ) : exhausted ? (
+        ) : (
+          <span className="ms-auto inline-flex items-center gap-1.5 text-muted">
+            <Crown className="size-4 text-brand" aria-hidden />
+            اشتراک فید اختیاری است و برای شمارش پست شماست.
+          </span>
+        )}
+      </div>
+
+      {!active && !pendingSub ? (
         <div className="flex flex-col gap-3">
-          <div className="rounded-lg bg-amber-50 p-4 text-sm text-amber-800">
-            <p className="flex items-center gap-1.5 font-bold">
-              <ArrowUpCircle className="size-4" aria-hidden />
-              ظرفیت اشتراک فعلی شما پر شده است
-            </p>
-            <p className="mt-1 leading-6">
-              اشتراک «{exhausted.package?.name ?? '—'}» به سقف{' '}
-              {(exhausted.package?.postsQuota ?? 0).toLocaleString('fa-IR')} پست رسیده
-              است. برای ادامه‌ی انتشار، اشتراک خود را به یکی از بسته‌های بالاتر ارتقا
-              دهید. پس از تأیید مدیر، روزهای اشتراک از همان لحظه شروع می‌شود و
-              پست‌های فعلی شما از سهمیه‌ی بسته‌ی جدید کسر می‌گردد.
-            </p>
-          </div>
-          <h3 className="text-sm font-extrabold text-ink">ارتقای اشتراک فید</h3>
-          <div className="grid gap-3 md:grid-cols-2">
-            {upgradePackages.map((pkg) => (
-              <div key={pkg.id} className="indeed-panel flex flex-col gap-2 p-4">
-                <h4 className="flex items-center gap-2 font-extrabold text-ink">
-                  <ArrowUpCircle className="size-4 text-brand" aria-hidden />
-                  {pkg.name}
-                </h4>
-                {pkg.description ? (
-                  <p className="text-xs leading-6 text-muted">{pkg.description}</p>
-                ) : null}
-                <p className="text-xs text-muted">
-                  {pkg.postsQuota.toLocaleString('fa-IR')} پست •{' '}
-                  {pkg.durationDays.toLocaleString('fa-IR')} روز
-                </p>
-                <p className="text-xs text-brand">
-                  ظرفیت قابل استفاده پس از ارتقا:{' '}
-                  {Math.max(
-                    pkg.postsQuota - (data?.posts.length ?? 0),
-                    0,
-                  ).toLocaleString('fa-IR')}{' '}
-                  پست
-                </p>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => requestPackage(pkg)}
-                  className="indeed-btn indeed-btn-primary mt-auto py-2 text-sm disabled:opacity-60"
-                >
-                  درخواست ارتقا
-                </button>
-              </div>
-            ))}
-            {upgradePackages.length === 0 ? (
-              <p className="indeed-panel p-4 text-sm text-muted">
-                در حال حاضر بسته‌ی بالاتری برای ارتقا موجود نیست. لطفاً بعداً دوباره
-                سر بزنید.
-              </p>
-            ) : null}
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          <h3 className="text-sm font-extrabold text-ink">خرید اشتراک فید</h3>
+          <h3 className="text-sm font-extrabold text-ink">اشتراک فید (اختیاری)</h3>
           <div className="grid gap-3 md:grid-cols-2">
             {data?.packages.map((pkg) => (
               <div key={pkg.id} className="indeed-panel flex flex-col gap-2 p-4">
@@ -365,10 +344,9 @@ export default function DashboardFeedsPage() {
             ))}
           </div>
         </div>
-      )}
+      ) : null}
 
-      {active || (exhausted && editingId) ? (
-        <form onSubmit={submit} className="indeed-panel flex flex-col gap-3 p-5">
+      <form onSubmit={submit} className="indeed-panel flex flex-col gap-3 p-5">
           <h3 className="flex items-center gap-2 text-sm font-extrabold text-ink">
             <ImagePlus className="size-4 text-brand" aria-hidden />
             {editingId ? 'ویرایش پست' : 'پست جدید'}
@@ -474,8 +452,58 @@ export default function DashboardFeedsPage() {
               </button>
             ) : null}
           </div>
-        </form>
-      ) : null}
+
+          <div className="rounded-lg border border-dashed border-[var(--vintage-border)] p-3">
+            <p className="flex items-center gap-1.5 text-sm font-bold text-ink">
+              <Tag className="size-4 text-brand" aria-hidden />
+              تگ کارت ویزیت یا بیولینک (اختیاری، پرداختی)
+            </p>
+            <p className="mt-1 text-xs text-muted">
+              با تگ‌کردن، لینک کارت/بیولینک شما روی پست نمایش داده می‌شود. هزینه هر تگ
+              {' '}
+              {(data?.tagPrice ?? 0).toLocaleString('fa-IR')} تومان است و پس از تأیید
+              پرداخت توسط مدیر فعال می‌شود.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <select
+                value={tagKind}
+                onChange={(event) => {
+                  setTagKind(event.target.value as '' | 'BIOLINK' | 'BUSINESS_CARD');
+                  setTagTargetId('');
+                }}
+                className="rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+              >
+                <option value="">بدون تگ</option>
+                <option value="BUSINESS_CARD">تگ کارت ویزیت</option>
+                <option value="BIOLINK">تگ بیولینک</option>
+              </select>
+              {tagKind ? (
+                <select
+                  value={tagTargetId}
+                  onChange={(event) => setTagTargetId(event.target.value)}
+                  className="min-w-48 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+                >
+                  <option value="">انتخاب مورد...</option>
+                  {(tagKind === 'BIOLINK' ? data?.taggableBiolinks : data?.taggableCards)?.map(
+                    (item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.company || item.fullName}
+                      </option>
+                    ),
+                  )}
+                </select>
+              ) : null}
+            </div>
+            {tagKind &&
+            ((tagKind === 'BIOLINK' ? data?.taggableBiolinks : data?.taggableCards)?.length ?? 0) ===
+              0 ? (
+              <p className="mt-2 text-xs text-amber-700">
+                مورد منتشرشده‌ای برای تگ‌کردن ندارید. ابتدا یک کارت ویزیت یا بیولینک
+                منتشر کنید.
+              </p>
+            ) : null}
+          </div>
+      </form>
 
       <section className="flex flex-col gap-3">
         <h3 className="text-sm font-extrabold text-ink">پست‌های من</h3>
@@ -508,6 +536,23 @@ export default function DashboardFeedsPage() {
                   </div>
                   {post.reason ? (
                     <p className="mt-1 text-xs text-red-600">دلیل رد: {post.reason}</p>
+                  ) : null}
+                  {post.tagKind ? (
+                    <p className="mt-1 flex items-center gap-1.5 text-xs">
+                      <Tag className="size-3.5 text-brand" aria-hidden />
+                      {post.tagPaid ? (
+                        <span className="text-green-700">
+                          تگ تأییدشده: {post.tag?.company || post.tag?.fullName || 'لینک شما'}
+                        </span>
+                      ) : (
+                        <span className="text-amber-700">
+                          تگ در انتظار تأیید پرداخت
+                          {post.tagPrice
+                            ? ` (${post.tagPrice.toLocaleString('fa-IR')} تومان)`
+                            : ''}
+                        </span>
+                      )}
+                    </p>
                   ) : null}
                 </div>
                 <div className="flex items-center gap-2">

@@ -185,6 +185,18 @@ export class AdminFeedsController {
     return this.feeds.moderatePost(admin.id, id, decision, reason);
   }
 
+  @Patch('posts/:id/tag-payment')
+  @ApiOperation({
+    summary: 'تأیید یا رد پرداخت تگ کارت/بیولینک روی پست فید (شبیه‌سازی درگاه)',
+  })
+  decideTagPayment(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body('decision') decision: 'CONFIRM' | 'REJECT',
+  ) {
+    return this.feeds.decideTagPayment(admin.id, id, decision);
+  }
+
   @Delete('posts/:id')
   @ApiOperation({ summary: 'حذف پست فید (مدیر)' })
   removePost(@Param('id') id: string) {

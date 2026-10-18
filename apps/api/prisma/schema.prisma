@@ -212,6 +212,16 @@ model FeedPost {
   reason      String?
   isPublished Boolean        @default(false)
   publishedAt DateTime?
+  /// «تگ کارت/بیولینک» — the author's own item this post links to. Attaching a
+  /// tag is the paid part of a feed post; publishing the post itself is free.
+  tagKind          FeedTagKind?
+  tagBiolinkId     String?
+  tagBusinessCardId String?
+  /// Whether the tag's fee has been settled (payment confirmed by an admin).
+  tagPaid          Boolean        @default(false)
+  tagPrice         Int?
+  tagDecidedAt     DateTime?
+  tagDecidedById   String?
   /// «پله» — when an admin approves a boost request, `boostedUntil` lifts the
   /// post to the top of the feed directory until it lapses.
   boostedUntil DateTime?
@@ -225,12 +235,17 @@ model FeedPost {
 
   user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   topic FeedTopic? @relation(fields: [topicId], references: [id], onDelete: SetNull)
+  tagBiolink     Biolink?      @relation("FeedTagBiolink", fields: [tagBiolinkId], references: [id], onDelete: SetNull)
+  tagBusinessCard BusinessCard? @relation("FeedTagBusinessCard", fields: [tagBusinessCardId], references: [id], onDelete: SetNull)
+  tagDecidedBy   User?         @relation("FeedTagDecisions", fields: [tagDecidedById], references: [id], onDelete: SetNull)
   likes FeedLike[]
   saves FeedSave[]
 
   @@index([userId])
   @@index([status, publishedAt])
   @@index([topicId])
+  @@index([tagKind])
+  @@index([tagPaid])
   @@index([boostedUntil])
   @@index([pinnedAt])
   @@map("feed_posts")
@@ -280,6 +295,13 @@ enum NewsStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+/// What a paid feed «تگ» points at. Publishing a feed post is free; attaching
+/// one of the author's own items to it is the paid product.
+enum FeedTagKind {
+  BIOLINK
+  BUSINESS_CARD
 }
 
 model NewsCategory {
@@ -366,6 +388,7 @@ model User {
   feedDecisions     UserFeedSubscription[] @relation("FeedSubscriptionDecisions")
   feedPosts         FeedPost[]
   feedSaves         FeedSave[]
+  feedTagDecisions  FeedPost[]   @relation("FeedTagDecisions")
   contentDecisions  ContentDecision[] @relation("ContentDecisions")
 
   @@index([email])
@@ -624,6 +647,7 @@ model Biolink {
   scanEvents  ScanEvent[]
   likes       BiolinkLike[]
   saves       BiolinkSave[]
+  feedTags    FeedPost[]      @relation("FeedTagBiolink")
 
   @@index([userId])
   @@index([slug])
@@ -726,6 +750,7 @@ model BusinessCard {
   scans       BusinessCardScanEvent[]
   likes       BusinessCardLike[]
   saves       BusinessCardSave[]
+  feedTags    FeedPost[]         @relation("FeedTagBusinessCard")
 
   @@index([userId])
   @@index([slug])

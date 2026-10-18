@@ -25,6 +25,7 @@ interface PriceSettings {
   boostPrice: number;
   adHomePrice: number;
   adDirectoryPrice: number;
+  feedTagPrice: number;
 }
 
 function toman(value: number) {
@@ -46,6 +47,7 @@ export function AdminRevenue() {
   const [boostPrice, setBoostPrice] = useState('');
   const [adHomePrice, setAdHomePrice] = useState('');
   const [adDirectoryPrice, setAdDirectoryPrice] = useState('');
+  const [feedTagPrice, setFeedTagPrice] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [settingsLoading, setSettingsLoading] = useState(true);
@@ -69,6 +71,7 @@ export function AdminRevenue() {
       setBoostPrice(String(result.boostPrice));
       setAdHomePrice(String(result.adHomePrice));
       setAdDirectoryPrice(String(result.adDirectoryPrice));
+      setFeedTagPrice(String(result.feedTagPrice));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری قیمت‌ها');
     } finally {
@@ -87,6 +90,7 @@ export function AdminRevenue() {
       boostPrice: Number(boostPrice),
       adHomePrice: Number(adHomePrice),
       adDirectoryPrice: Number(adDirectoryPrice),
+      feedTagPrice: Number(feedTagPrice),
     };
     for (const [key, value] of Object.entries(parsed)) {
       if (!Number.isInteger(value) || value < 0 || value > 1_000_000_000) {
@@ -102,6 +106,7 @@ export function AdminRevenue() {
       setBoostPrice(String(result.boostPrice));
       setAdHomePrice(String(result.adHomePrice));
       setAdDirectoryPrice(String(result.adDirectoryPrice));
+      setFeedTagPrice(String(result.feedTagPrice));
       setMessage('قیمت‌های واحد ذخیره شد.');
       await load();
     } catch (err) {
@@ -241,6 +246,16 @@ export function AdminRevenue() {
                 value={adHomePrice}
                 onChange={(event) => setAdHomePrice(event.target.value)}
                 className="w-44 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-xs font-bold text-muted">
+              قیمت تگ کارت/بیولینک در فید (تومان)
+              <input
+                type="number"
+                min={0}
+                value={feedTagPrice}
+                onChange={(event) => setFeedTagPrice(event.target.value)}
+                className="w-48 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand"
               />
             </label>
             <button

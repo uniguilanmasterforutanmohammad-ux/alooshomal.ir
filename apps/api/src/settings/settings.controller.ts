@@ -120,6 +120,13 @@ class UpdateSettingsDto {
   @Type(() => Number)
   @IsInt()
   @Min(0)
+  @Max(1_000_000_000)
+  feedTagPrice?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
   @Max(100000)
   pointsPerNews?: number;
 
@@ -193,6 +200,7 @@ export class AdminSettingsController {
       boostPrice: await this.settingsService.getBoostPrice(),
       adHomePrice: await this.settingsService.getAdHomePrice(),
       adDirectoryPrice: await this.settingsService.getAdDirectoryPrice(),
+      feedTagPrice: await this.settingsService.getFeedTagPrice(),
       pointsPerNews: await this.settingsService.getPointsPerNews(),
       feedMaxImages: await this.settingsService.getFeedMaxImages(),
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
@@ -221,6 +229,7 @@ export class AdminSettingsController {
       boostPrice?: number;
       adHomePrice?: number;
       adDirectoryPrice?: number;
+      feedTagPrice?: number;
       pointsPerNews?: number;
       feedMaxImages?: number;
       feedMaxImageKb?: number;
@@ -319,6 +328,11 @@ export class AdminSettingsController {
     if (dto.adDirectoryPrice !== undefined) {
       result.adDirectoryPrice = await this.settingsService.setAdDirectoryPrice(
         dto.adDirectoryPrice,
+      );
+    }
+    if (dto.feedTagPrice !== undefined) {
+      result.feedTagPrice = await this.settingsService.setFeedTagPrice(
+        dto.feedTagPrice,
       );
     }
     if (dto.pointsPerNews !== undefined) {

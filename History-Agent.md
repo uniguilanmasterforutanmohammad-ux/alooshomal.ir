@@ -20,7 +20,51 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.64.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.65.0**.
+
+## ۱۴۰۵/۰۷/۲۷ — رایگان‌سازی انتشار فید و تگ پرداختی کارت/بیولینک با تأیید مدیر — نسخه `v2.65.0`
+
+**هدف:** «درخواست جدید» — اصلاح مدل درآمدی فیدها: انتشار همه‌ی پست‌های فید
+رایگان شود. نویسنده بتواند کارت ویزیت یا بیولینک خودش را روی پست تگ کند و در
+این صورت مبلغی بپردازد. چون درگاه پرداخت راه‌اندازی نشده، پرداخت با تأیید مدیر
+(شبیه‌سازی) نهایی شود.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `enum FeedTagKind` و فیلدهای
+  `tagKind/tagBiolinkId/tagBusinessCardId/tagPaid/tagPrice/tagDecidedAt/tagDecidedById`
+  به `FeedPost` همراه روابط و ایندکس‌ها (اعمال با `prisma db push`).
+- `apps/api/src/settings/settings.{service,controller}.ts`: افزودن تنظیم
+  `feedTagPrice` (پیش‌فرض ۲۰٬۰۰۰ تومان) با متدهای `getFeedTagPrice`/
+  `setFeedTagPrice` و پشتیبانی در GET/PATCH پنل مدیر.
+- `apps/api/src/feeds/dto/feed.dto.ts`: افزودن `tagKind`/`tagTargetId` اختیاری به
+  `CreateFeedPostDto`.
+- `apps/api/src/feeds/feeds.service.ts`: انتشار پست رایگان شد (حذف الزام و کسر
+  سهمیه‌ی اشتراک و بازگرداندن سهمیه در رد). افزودن `resolveTagTarget` برای
+  اعتبارسنجی تگ روی اقلام خودِ کاربر، `projectFeedTag` برای افشای تگ فقط پس از
+  پرداخت، `decideTagPayment` برای تأیید/رد پرداخت تگ توسط مدیر، و افزودن
+  `tagPrice`/`taggableBiolinks`/`taggableCards` به `myOverview`.
+- `apps/api/src/feeds/feeds.controller.ts`: افزودن
+  `PATCH /admin/feeds/posts/:id/tag-payment`.
+- `apps/api/src/admin/admin.service.ts`: افزودن ردیف درآمد «تگ فید» به
+  `revenueReport`.
+- `apps/web/lib/api.ts`: افزودن `FeedTag`/`FeedTaggableItem` و فیلدهای تگ به
+  `FeedPost`/`FeedMineOverview`.
+- `apps/web/app/dashboard/feeds/page.tsx`: پنل «فید من» — پنل اطلاع‌رسانی انتشار
+  رایگان، کامپوزر همیشه‌فعال، انتخابگر تگ (نوع + مورد) و نمایش وضعیت تگ روی
+  پست‌های خودی؛ اشتراک فید به گزینه‌ی اختیاری تبدیل شد.
+- `apps/web/components/admin/AdminFeeds.tsx`: نمایش تگ و دکمه‌های «تأیید پرداخت»/
+  «رد تگ» در تب بررسی پست‌ها.
+- `apps/web/components/admin/AdminRevenue.tsx`: افزودن فیلد ویرایش «قیمت تگ فید».
+- `apps/web/app/feeds/[id]/page.tsx`: نمایش لینک تگ تأییدشده روی صفحه‌ی پست.
+
+**تأیید/تست:**
+- `npx tsc --noEmit` روی `apps/web` و `apps/api` بدون خطا (exit 0).
+- تست API با curl: ساخت پست تگ‌دار (بدون اشتراک) → تأیید مدیر → تگ در پاسخ عمومی
+  پنهان بود (`tag=null`) → تأیید پرداخت تگ → `tag` با `href` صحیح برگشت. مسیر رد
+  تگ، پاک‌شدن کامل تگ، رد تگ کارت کاربر دیگر (۴۰۰) و ظاهرشدن ردیف درآمد «تگ فید»
+  در گزارش درآمد هم بررسی شد.
+- تست مرورگری با `playwright-core`: پنل «فید من» و تب «بررسی پست‌ها»ی پنل مدیر
+  بدون خطای runtime رندر شدند و کنترل‌های تگ درست نمایش داده شدند.
 
 ## ۱۴۰۵/۰۷/۲۷ — بازچینش صفحه‌ی اصلی: تبلیغات، اسلایدر آخرین کارت‌ها/بیولینک‌ها، «اخبار شهر» و فوتر/نوبار موبایل — نسخه `v2.64.0`
 

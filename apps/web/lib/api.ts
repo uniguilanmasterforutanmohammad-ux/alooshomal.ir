@@ -859,6 +859,14 @@ export interface FeedPost {
   publishedAt: string | null;
   likeCount: number;
   createdAt: string;
+  /** paid tag: the author's own card/biolink linked to the post */
+  tagKind?: 'BIOLINK' | 'BUSINESS_CARD' | null;
+  tagPaid?: boolean;
+  tagPrice?: number | null;
+  /** resolved public tag (only when `tagPaid`) */
+  tag?: FeedTag | null;
+  tagBiolinkId?: string | null;
+  tagBusinessCardId?: string | null;
   /** «پله» promotion expiry */
   boostedUntil?: string | null;
   /** paid directory-ad expiry */
@@ -869,6 +877,23 @@ export interface FeedPost {
   topic?: { id: string; name: string } | null;
   liked?: boolean;
   saved?: boolean;
+}
+
+/** The resolved tag on a feed post (the author's own card/biolink). */
+export interface FeedTag {
+  kind: 'BIOLINK' | 'BUSINESS_CARD';
+  slug: string;
+  fullName: string;
+  company: string | null;
+  href: string;
+}
+
+/** One of the author's own published items, selectable as a feed-post tag. */
+export interface FeedTaggableItem {
+  id: string;
+  slug: string;
+  fullName: string;
+  company: string | null;
 }
 
 export interface FeedDirectoryResponse {
@@ -895,4 +920,9 @@ export interface FeedMineOverview {
   /** packages the user may switch to right now (a strict upgrade when exhausted) */
   upgradePackageIds: string[];
   limits: { maxImages: number; maxImageKb: number };
+  /** price (Toman) for tagging a card/biolink on a post */
+  tagPrice: number;
+  /** the author's own published items available to tag */
+  taggableBiolinks: FeedTaggableItem[];
+  taggableCards: FeedTaggableItem[];
 }

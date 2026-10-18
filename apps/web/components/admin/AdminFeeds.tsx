@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Check, Layers, Save, Trash2, X } from 'lucide-react';
+import { Check, Layers, Save, Tag, Trash2, X } from 'lucide-react';
 
 import {
   api,
@@ -112,6 +112,18 @@ function PostsModeration() {
     }
   }
 
+  async function decideTag(id: string, decision: 'CONFIRM' | 'REJECT') {
+    setBusyId(id);
+    try {
+      await api.patch(`/admin/feeds/posts/${id}/tag-payment`, { decision });
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ثبت تصمیم تگ ناموفق بود');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-3">
       {error ? (
@@ -165,6 +177,51 @@ function PostsModeration() {
                 <span>{new Date(post.createdAt).toLocaleDateString('fa-IR')}</span>
                 {post.topic ? <span>• {post.topic.name}</span> : null}
               </div>
+              {post.tagKind ? (
+                <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-[var(--vintage-border)]/20 p-2 text-xs">
+                  <Tag className="size-3.5 text-brand" aria-hidden />
+                  <span className="text-ink">
+                    تگ:{' '}
+                    <b>{post.tag?.company || post.tag?.fullName || '—'}</b>
+                    {post.tagKind === 'BIOLINK' ? ' (بیولینک)' : ' (کارت ویزیت)'}
+                  </span>
+                  <span
+                    className={
+                      post.tagPaid
+                        ? 'font-bold text-green-700'
+                        : 'font-bold text-amber-700'
+                    }
+                  >
+                    {post.tagPaid
+                      ? '✓ پرداخت تأییدشده'
+                      : `در انتظار پرداخت${
+                          post.tagPrice
+                            ? ` (${post.tagPrice.toLocaleString('fa-IR')} تومان)`
+                            : ''
+                        }`}
+                  </span>
+                  {!post.tagPaid ? (
+                    <span className="flex items-center gap-1">
+                      <button
+                        disabled={busyId === post.id}
+                        onClick={() => decideTag(post.id, 'CONFIRM')}
+                        className="indeed-btn indeed-btn-primary py-1 text-xs disabled:opacity-60"
+                      >
+                        <Check className="size-3.5" aria-hidden />
+                        تأیید پرداخت
+                      </button>
+                      <button
+                        disabled={busyId === post.id}
+                        onClick={() => decideTag(post.id, 'REJECT')}
+                        className="indeed-btn indeed-btn-secondary py-1 text-xs text-red-600 disabled:opacity-60"
+                      >
+                        <X className="size-3.5" aria-hidden />
+                        رد تگ
+                      </button>
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
             <div className="flex items-center gap-2">
               {post.status === 'PENDING' ? (

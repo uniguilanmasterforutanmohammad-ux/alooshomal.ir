@@ -929,21 +929,24 @@ export class AdminService {
    *   2. boosts «پله»    → BOOST_PRICE              (per approved boost)
    *   3. directory ads   → AD_DIRECTORY_PRICE       (per approved DIRECTORY ad)
    *   4. home-page ads   → AD_HOME_PRICE            (per approved HOME ad)
+   *   5. feed tag fee    → FEED_TAG_PRICE           (per paid feed tag)
    *
-   * The feed packages (FeedPackage.price) are counted as a fifth row so the
+   * The feed packages (FeedPackage.price) are counted as their own row so the
    * whole picture is visible, since they are a separate paid subscription.
    */
   async revenueReport() {
-    const [boostPrice, adHomePrice, adDirectoryPrice] = await Promise.all([
+    const [boostPrice, adHomePrice, adDirectoryPrice, feedTagPrice] = await Promise.all([
       this.settings.getBoostPrice(),
       this.settings.getAdHomePrice(),
       this.settings.getAdDirectoryPrice(),
+      this.settings.getFeedTagPrice(),
     ]);
 
     const [
       boostApproved,
       homeAdApproved,
       directoryAdApproved,
+      paidFeedTags,
       planSubscriptions,
       feedSubscriptions,
     ] = await Promise.all([
@@ -955,6 +958,9 @@ export class AdminService {
       }),
       this.prisma.adRequest.count({
         where: { status: BoostStatus.APPROVED, placement: 'DIRECTORY' },
+      }),
+      this.prisma.feedPost.count({
+        where: { tagPaid: true, tagKind: { not: null } },
       }),
       this.prisma.userSubscription.findMany({
         where: { status: SubscriptionStatus.ACTIVE },
@@ -1025,6 +1031,13 @@ export class AdminService {
         count: homeAdApproved,
         unitPrice: adHomePrice,
         revenue: homeAdApproved * adHomePrice,
+      },
+      {
+        model: 'تگ فید',
+        label: 'تگ کارت/بیولینک روی پست فید',
+        count: paidFeedTags,
+        unitPrice: feedTagPrice,
+        revenue: paidFeedTags * feedTagPrice,
       },
     ];
 
