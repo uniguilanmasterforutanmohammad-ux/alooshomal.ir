@@ -552,6 +552,7 @@ export interface AdRequest {
   displayState?: AdDisplayState;
   target?: { id: string; fullName: string; slug: string } | null;
   user?: { id: string; email: string; fullName: string | null };
+  decidedBy?: { id: string; email: string | null; fullName: string | null } | null;
 }
 
 /** Where an approved ad sits in its display window (computed by the API). */

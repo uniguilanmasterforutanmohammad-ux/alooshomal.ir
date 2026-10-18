@@ -158,6 +158,17 @@ export function AdminAds() {
       ),
     },
     {
+      key: 'decidedBy',
+      label: 'تأییدکننده',
+      render: (request) => (
+        <span className="text-xs text-muted">
+          {request.decidedBy
+            ? request.decidedBy.fullName ?? request.decidedBy.email ?? '—'
+            : '—'}
+        </span>
+      ),
+    },
+    {
       key: 'status',
       label: 'وضعیت',
       render: (request) => (
