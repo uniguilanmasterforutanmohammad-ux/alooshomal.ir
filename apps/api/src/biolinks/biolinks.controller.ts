@@ -109,6 +109,21 @@ export class BiolinksController {
   }
 
   @Public()
+  @Get('public/batch')
+  @ApiOperation({
+    summary: 'جزئیات چند بیولینک منتشرشده با slugها (برای گرم‌کردن پنل جزئیات دایرکتوری)',
+  })
+  publicBatch(@Query('slugs') slugs?: string) {
+    // Comma-separated slugs, capped so one request can never fan out unbounded.
+    const list = (slugs ?? '')
+      .split(',')
+      .map((slug) => slug.trim())
+      .filter(Boolean)
+      .slice(0, 50);
+    return this.biolinksService.findPublicBySlugs(list);
+  }
+
+  @Public()
   @Get('public/:slug')
   @ApiOperation({ summary: 'مشاهده عمومی بیولینک با slug' })
   async public(@Param('slug') slug: string, @Req() request: Request) {

@@ -16,6 +16,7 @@ import {
   useDirectoryResults,
   useInfiniteScroll,
 } from '@/lib/directory';
+import { primeDirectoryDetails } from '@/lib/directory-detail';
 import type { ServerDirectoryResult } from '@/lib/directory-server';
 
 export function DirectoryContent({
@@ -64,6 +65,25 @@ export function DirectoryContent({
   });
 
   const sentinelRef = useInfiniteScroll(true, loading, loadMore);
+
+  // Warm the detail panel for every row that just loaded: one batched request
+  // per page, so clicking a card shows its details instantly instead of
+  // starting a fresh fetch (the page already knows these slugs).
+  //
+  // Debounced because the SSR-rendered rows are immediately replaced by the
+  // client reconcile fetch; priming only the settled set avoids fetching a
+  // batch of details for rows that are about to disappear. A click that lands
+  // inside the debounce window still resolves fast via the single-slug
+  // fallback in `useDirectoryDetail`.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      primeDirectoryDetails(
+        'business-cards',
+        items.map((businessCard) => businessCard.slug),
+      );
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [items]);
 
   // keep the browser URL in sync (shareable results + selected card)
   useEffect(() => {

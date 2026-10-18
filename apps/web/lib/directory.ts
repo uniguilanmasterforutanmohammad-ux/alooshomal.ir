@@ -7,6 +7,9 @@ import { api, type DirectoryFacet } from './api';
 /** How the public directories display their results. */
 export type DirectoryDisplayMode = 'PAGINATION' | 'INFINITE';
 
+/** The two public assets whose directory has a split list + detail panel. */
+export type DirectoryKind = 'biolinks' | 'business-cards';
+
 interface PublicSettings {
   directoryDisplayMode: DirectoryDisplayMode;
 }

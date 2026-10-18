@@ -462,6 +462,73 @@ export class BusinessCardsService {
     if (!businessCard) {
       throw new NotFoundException('کارت ویزیت مورد نظر یافت نشد یا منتشر نشده است');
     }
+    return this.projectPublicBusinessCard(businessCard);
+  }
+
+  /**
+   * Publicly visible business cards for many slugs in a single round-trip.
+   *
+   * The directory pages use this to warm their detail panel: as soon as a page
+   * of rows arrives, every row's full contact payload is fetched in one batch,
+   * so clicking a row paints instantly instead of waiting for a per-card
+   * request. Slugs that are unknown or not public are simply omitted.
+   */
+  async findPublicBySlugs(slugs: string[]) {
+    const unique = [...new Set(slugs.filter(Boolean))];
+    if (unique.length === 0) return [];
+    const rows = await this.prisma.businessCard.findMany({
+      where: {
+        slug: { in: unique },
+        status: BiolinkStatus.APPROVED,
+        isPublished: true,
+      },
+      include: {
+        city: { select: { id: true, name: true } },
+        business: { select: { id: true, name: true } },
+        linkedBiolinks: {
+          select: {
+            id: true,
+            slug: true,
+            status: true,
+            isPublished: true,
+          },
+          take: 1,
+        },
+        user: { select: { plan: true } },
+      },
+    });
+    return rows.map((row) => this.projectPublicBusinessCard(row));
+  }
+
+  /**
+   * Shapes one raw public business-card row into the payload the public page
+   * and the directory detail panel expect: the owner's plan name as a badge,
+   * the linked biolink only when it is itself publicly visible, and the
+   * free-plan field masking. Shared by the single and batch lookups above.
+   */
+  private projectPublicBusinessCard<
+    T extends {
+      website: string | null;
+      linkedin: string | null;
+      instagram: string | null;
+      telegram: string | null;
+      twitter: string | null;
+      whatsapp: string | null;
+      user?: {
+        plan: {
+          name: string;
+          maxBiolinks: number;
+          maxBusinessCards: number;
+          showSocialLinks: boolean;
+        } | null;
+      } | null;
+      linkedBiolinks?: Array<{
+        slug: string;
+        status: BiolinkStatus;
+        isPublished: boolean;
+      }>;
+    },
+  >(businessCard: T) {
     // The owner's plan name is surfaced on the public page as a small badge.
     const planName = planLimitsFrom(businessCard.user?.plan).name;
     // Only expose the linked biolink when it is itself publicly visible.

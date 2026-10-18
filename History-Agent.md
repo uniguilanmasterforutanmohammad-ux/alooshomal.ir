@@ -20,7 +20,45 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.60.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.61.0**.
+
+## ۱۴۰۵/۰۷/۲۶ — باز شدن فوری جزئیات کارت در دایرکتوری‌های کارت ویزیت و بیولینک — نسخه `v2.61.0`
+
+**هدف:** در `/business-cards` و `/biolinks` کلیک روی هر کارت برای دیدن جزئیات یک
+درخواست شبکه‌ی تازه می‌فرستاد و کاربر تا رسیدن پاسخ اسکلتون می‌دید؛ حس کندی به‌ویژه
+هنگام بارگیری صفحات بعدی در اسکرول. حالا با هر صفحه‌ای که لود می‌شود، جزئیات همه‌ی
+کارت‌های همان صفحه به‌صورت دسته‌ای و در پس‌زمینه از قبل گرفته و کش می‌شود، پس کلیک
+روی هر کارت بلافاصله محتوای کامل (شامل تلفن، ایمیل و شبکه‌های اجتماعی) را نشان می‌دهد.
+
+**تغییرات:**
+- `apps/api/src/businesscards/business-cards.service.ts`: افزودن `findPublicBySlugs`
+  (خواندن دسته‌ای کارت‌های منتشرشده با چند slug) و استخراج منطق مشترک خروجی عمومی به
+  `projectPublicBusinessCard` تا مسیر تک و دسته دقیقاً یک شکل داشته باشند.
+- `apps/api/src/businesscards/business-cards.controller.ts`: اندپوینت عمومی
+  `GET /business-cards/public/batch?slugs=a,b,c` (حداکثر ۵۰ اسلاگ در هر درخواست).
+- `apps/api/src/biolinks/biolinks.service.ts` و `biolinks.controller.ts`: معادل
+  دقیق همان دو تغییر برای بیولینک‌ها (`findPublicBySlugs`، `projectPublicBiolink`،
+  اندپوینت `GET /biolinks/public/batch`).
+- `apps/web/lib/directory-detail.ts` (فایل جدید): کش کلاینتی جزئیات دایرکتوری به‌همراه
+  `primeDirectoryDetails` (گرم‌کردن دسته‌ای یک صفحه کامل، بدون تکرار برای کش‌شده‌ها) و
+  هوک `useDirectoryDetail` (خواندن فوری از کش و در غیر این صورت درخواست تک‌slug).
+- `apps/web/lib/directory.ts`: افزودن نوع مشترک `DirectoryKind`.
+- `apps/web/components/businesscard/DirectoryBusinessCardContent.tsx` و
+  `apps/web/components/biolink/DirectoryBiolinkContent.tsx`: با تغییر `items`،
+  جزئیات کارت‌های صفحه به‌صورت دسته‌ای و دی‌بونس‌شده (۲۵۰ms) گرم می‌شود.
+- `apps/web/components/businesscard/DirectoryBusinessCardDetail.tsx` و
+  `apps/web/components/biolink/DirectoryDetail.tsx`: دریافت جزئیات از کش مشترک
+  به‌جای درخواست مستقیم.
+
+**تأیید/تست:**
+- `tsc --noEmit` روی `apps/api` و `apps/web` بدون خطا.
+- اندپوینت‌های جدید با curl بررسی شد: `?slugs=` چند اسلاگ → آرایه‌ی همان موارد با
+  کلیدهای یکسان مسیر تک؛ بدون `slugs` یا با اسلاگ ناموجود → آرایه‌ی خالی.
+- تست مرورگری با `playwright-core` و `/usr/bin/google-chrome` روی صفحات لوکال:
+  در `/business-cards` یک درخواست batch با ۶ اسلاگ و در `/biolinks` دو درخواست
+  (صفحه ۱ و ۲ که خودکار پر می‌شوند) ارسال شد. پس از کلیک روی کارت، پنل جزئیات در
+  حدود **۲۵ms** رنگ شد و **هیچ** درخواست جزئیاتِ تازه‌ای زده نشد (فقط POST پس‌زمینه‌ی
+  ثبت بازدید)؛ بدون خطای کنسول. کلیک روی ردیف‌های صفحه‌های بعدی هم همان‌قدر سریع بود.
 
 ## ۱۴۰۵/۰۷/۲۶ — رفع کرش استقرار API روی وولوم بکاپ روت‌مالک — نسخه `v2.60.1`
 

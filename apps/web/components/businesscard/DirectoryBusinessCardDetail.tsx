@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -20,14 +19,9 @@ import {
   X,
 } from 'lucide-react';
 
-import { api, type BusinessCard } from '@/lib/api';
+import { type BusinessCard } from '@/lib/api';
+import { useDirectoryDetail } from '@/lib/directory-detail';
 import { RecordView } from '@/components/ui/RecordView';
-
-interface Payload {
-  businessCard: BusinessCard;
-  qr: string;
-  link: string;
-}
 
 interface Props {
   slug: string;
@@ -41,29 +35,12 @@ interface Props {
  * calm and consistent; the themed look lives on the full businessCard page.
  */
 export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props) {
-  const [data, setData] = useState<Payload | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setError(null);
-    api
-      .get<Payload>(`/business-cards/public/${encodeURIComponent(slug)}`)
-      .then((result) => {
-        if (active) setData(result);
-      })
-      .catch((err) => {
-        if (active) setError(err instanceof Error ? err.message : 'خطا در بارگذاری');
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [slug]);
+  // Served from the batch-warmed detail cache, so a clicked row paints on the
+  // next frame; the single-slug request is only the fallback.
+  const { item: businessCard, loading, error } = useDirectoryDetail<BusinessCard>(
+    'business-cards',
+    slug,
+  );
 
   if (loading) {
     return (
@@ -76,7 +53,7 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
     );
   }
 
-  if (error || !data) {
+  if (error || !businessCard) {
     return (
       <div className="p-6">
         <p className="rounded-lg bg-red-50 p-4 text-sm text-red-700">
@@ -89,7 +66,6 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
     );
   }
 
-  const { businessCard } = data;
   const initials = businessCard.fullName.trim().slice(0, 1);
 
   const rows: Array<{ Icon: typeof Phone; label: string; value: string; href: string }> = [];
