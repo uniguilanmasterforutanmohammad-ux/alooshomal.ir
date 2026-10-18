@@ -65,6 +65,7 @@ export default function EditBiolinkPage() {
               company: businessCard.company ?? '',
               bio: businessCard.bio ?? '',
               phone: businessCard.phone ?? '',
+              mobile: businessCard.mobile ?? '',
               email: businessCard.email ?? '',
               website: businessCard.website ?? '',
               address: businessCard.address ?? '',

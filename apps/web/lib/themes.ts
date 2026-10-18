@@ -99,6 +99,19 @@ export const BIOLINK_THEMES: BiolinkTheme[] = [
 
 export const DEFAULT_THEME_KEY = 'vintage';
 
+/**
+ * TEMPORARY: only the «وینتیج» theme is offered while the other looks are
+ * being reworked. Everything else stays in {@link BIOLINK_THEMES} so existing
+ * cards keep rendering their stored theme, but the builder hides the pickers.
+ * Flip this back to `null` to re-enable every theme everywhere.
+ */
+export const THEME_SELECTION_LOCKED = true;
+
+/** Themes the builder may offer to the user (locked to Vintage for now). */
+export const SELECTABLE_BIOLINK_THEMES: BiolinkTheme[] = THEME_SELECTION_LOCKED
+  ? BIOLINK_THEMES.filter((theme) => theme.key === DEFAULT_THEME_KEY)
+  : BIOLINK_THEMES;
+
 export function getTheme(key: string | null | undefined): BiolinkTheme {
   return (
     BIOLINK_THEMES.find((theme) => theme.key === key) ?? BIOLINK_THEMES[0]
@@ -116,6 +129,11 @@ export function themeClassName(key: string | null | undefined): string {
  * maps to a `.bc-theme-<key>` block in `globals.css`.
  */
 export const BUSINESS_CARD_THEMES: BiolinkTheme[] = [
+  {
+    key: 'vintage',
+    name: 'وینتیج (پیش‌فرض)',
+    swatch: ['#8b3a1a', '#f2e8d9', '#3a281c'],
+  },
   {
     key: 'glassmorphism',
     name: 'شیشه‌ای',
@@ -200,7 +218,22 @@ export const BUSINESS_CARD_THEMES: BiolinkTheme[] = [
   },
 ];
 
-export const DEFAULT_BUSINESS_CARD_THEME_KEY = 'glassmorphism';
+export const DEFAULT_BUSINESS_CARD_THEME_KEY = 'vintage';
+
+/**
+ * TEMPORARY: the business-card builder only offers the «وینتیج» theme (see
+ * {@link THEME_SELECTION_LOCKED}). The same vintage look is applied to the
+ * business card so both builders show one consistent, enabled theme.
+ */
+export const SELECTABLE_BUSINESS_CARD_THEMES: BiolinkTheme[] = THEME_SELECTION_LOCKED
+  ? [
+      {
+        key: 'vintage',
+        name: 'وینتیج (پیش‌فرض)',
+        swatch: ['#8b3a1a', '#f2e8d9', '#3a281c'],
+      },
+    ]
+  : BUSINESS_CARD_THEMES;
 
 export function getBusinessCardTheme(key: string | null | undefined): BiolinkTheme {
   return (

@@ -208,6 +208,7 @@ export interface Biolink {
   company: string | null;
   bio: string | null;
   phone: string | null;
+  mobile: string | null;
   email: string | null;
   website: string | null;
   address: string | null;
@@ -331,6 +332,7 @@ export interface BusinessCard {
   company: string | null;
   bio: string | null;
   phone: string | null;
+  mobile: string | null;
   email: string | null;
   website: string | null;
   address: string | null;

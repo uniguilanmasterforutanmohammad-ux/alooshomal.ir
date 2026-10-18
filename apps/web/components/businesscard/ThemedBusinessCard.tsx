@@ -20,6 +20,7 @@ export interface ThemedBusinessCardData {
   company?: string | null;
   bio?: string | null;
   phone?: string | null;
+  mobile?: string | null;
   email?: string | null;
   website?: string | null;
   address?: string | null;
@@ -101,6 +102,7 @@ export function ThemedBusinessCard({
   }> = [
     { key: 'email', value: data.email ?? '', href: `mailto:${data.email ?? ''}`, Icon: Mail },
     { key: 'phone', value: data.phone ?? '', href: `tel:${data.phone ?? ''}`, Icon: Phone },
+    { key: 'mobile', value: data.mobile ?? '', href: `tel:${data.mobile ?? ''}`, Icon: Phone },
     { key: 'website', value: data.website ?? '', href: socialHref(data.website ?? ''), Icon: Globe },
     { key: 'whatsapp', value: data.whatsapp ?? '', href: `https://wa.me/${(data.whatsapp ?? '').replace(/[^0-9]/g, '')}`, Icon: MessageCircle },
   ].filter((entry) => entry.value);
@@ -256,6 +258,7 @@ interface EditableProps {
 const EDITABLE_CONTACTS: Array<{ key: string; placeholder: string; Icon: typeof Mail }> = [
   { key: 'email', placeholder: 'ایمیل', Icon: Mail },
   { key: 'phone', placeholder: 'تلفن', Icon: Phone },
+  { key: 'mobile', placeholder: 'تلفن همراه', Icon: Phone },
   { key: 'website', placeholder: 'وب‌سایت', Icon: Globe },
   { key: 'whatsapp', placeholder: 'واتساپ', Icon: MessageCircle },
 ];

@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react';
 
 import { Input } from '@/components/ui/Input';
 import { ImageUpload } from '@/components/ui/ImageUpload';
-import { ThemePicker } from '@/components/ui/ThemePicker';
 import { LinkSelector } from '@/components/link/LinkSelector';
 import { LiveBusinessCardPreview } from '@/components/businesscard/LiveBusinessCardPreview';
 import { api, type TaxonomyItem } from '@/lib/api';
-import { BUSINESS_CARD_THEMES, DEFAULT_BUSINESS_CARD_THEME_KEY } from '@/lib/themes';
+import {
+  SELECTABLE_BUSINESS_CARD_THEMES,
+  DEFAULT_BUSINESS_CARD_THEME_KEY,
+} from '@/lib/themes';
 import { hasAnyValue, useFormAutosave } from '@/lib/use-form-autosave';
 
 export interface BusinessCardFormValues {
@@ -17,6 +19,7 @@ export interface BusinessCardFormValues {
   company: string;
   bio: string;
   phone: string;
+  mobile: string;
   email: string;
   website: string;
   address: string;
@@ -41,6 +44,7 @@ const emptyValues: BusinessCardFormValues = {
   company: '',
   bio: '',
   phone: '',
+  mobile: '',
   email: '',
   website: '',
   address: '',
@@ -99,7 +103,6 @@ export function BusinessCardForm({
   });
   const [cities, setCities] = useState<TaxonomyItem[]>([]);
   const [businesses, setBusinesses] = useState<TaxonomyItem[]>([]);
-  const [themeConfirmed, setThemeConfirmed] = useState(Boolean(initial?.template));
   const [showRestore, setShowRestore] = useState(false);
 
   const autosave = useFormAutosave(autosaveKey ?? '', values, {
@@ -158,12 +161,23 @@ export function BusinessCardForm({
   function applyRestored() {
     if (!restoredSnapshot) return;
     setValues((prev) => ({ ...prev, ...restoredSnapshot }));
-    setThemeConfirmed(true);
     setShowRestore(false);
   }
 
   const cityName = cities.find((c) => c.id === values.cityId)?.name;
   const businessName = businesses.find((b) => b.id === values.businessId)?.name;
+
+  // The builder marks a handful of fields mandatory; the submit buttons stay
+  // disabled until they are filled so a half-empty card can't be submitted.
+  const requiredOk = Boolean(
+    values.jobTitle.trim() &&
+      values.fullName.trim() &&
+      values.cityId &&
+      values.businessId &&
+      values.mobile.trim() &&
+      values.phone.trim() &&
+      values.address.trim(),
+  );
 
   const restoreBanner = showRestore ? (
     <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
@@ -190,80 +204,162 @@ export function BusinessCardForm({
     </div>
   ) : null;
 
-  if (inline && !themeConfirmed) {
-    return (
-      <div>
-        {restoreBanner}
-        <ThemePicker
-          themes={BUSINESS_CARD_THEMES}
-          selected={values.template}
-          onSelect={(key) => {
-            setField('template', key);
-            setThemeConfirmed(true);
-          }}
-          hint="تم را انتخاب کنید تا کارت با همان تم باز شود و بتوانید همه‌ی فیلدها را مستقیم روی پیش‌نمایش پر کنید."
-        />
-      </div>
-    );
-  }
-
   if (inline) {
     return (
-      <div className="grid gap-6 lg:grid-cols-[420px_1fr]">
-        <aside className="order-1">
-          <div className="lg:sticky lg:top-20">
-            <div className="indeed-panel p-4">
-              <p className="mb-3 text-center text-xs font-bold text-muted">
-                روی هر فیلد کلیک کنید و مستقیم تایپ کنید
-              </p>
-              <LiveBusinessCardPreview
-                values={values}
-                cityName={cityName}
-                businessName={businessName}
-                editable
-                onFieldChange={updateField}
-                cityOptions={cities}
-                businessOptions={businesses}
+      <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+        <div className="order-2 flex flex-col gap-4 lg:order-1">
+          {restoreBanner}
+          <div className="indeed-panel p-6">
+            <h2 className="text-lg font-extrabold text-ink">اطلاعات اصلی</h2>
+            <p className="mt-1 text-xs text-muted">
+              فیلدهای ستاره‌دار اجباری هستند؛ با پر کردن هر فیلد، پیش‌نمایش سمت چپ
+              بلافاصله به‌روز می‌شود.
+            </p>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <Input
+                label="نام کسب‌وکار (عنوان شغل) *"
+                required
+                value={values.jobTitle}
+                onChange={(event) => setField('jobTitle', event.target.value)}
+              />
+              <Input
+                label="نام و نام خانوادگی *"
+                required
+                value={values.fullName}
+                onChange={(event) => setField('fullName', event.target.value)}
+              />
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-bold text-ink">انتخاب شهر *</span>
+                <select
+                  required
+                  className="indeed-input"
+                  value={values.cityId}
+                  onChange={(event) => setField('cityId', event.target.value)}
+                >
+                  <option value="">انتخاب شهر...</option>
+                  {cities.map((city) => (
+                    <option key={city.id} value={city.id}>
+                      {city.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm font-bold text-ink">انتخاب کسب‌وکار *</span>
+                <select
+                  required
+                  className="indeed-input"
+                  value={values.businessId}
+                  onChange={(event) => setField('businessId', event.target.value)}
+                >
+                  <option value="">انتخاب کسب‌وکار...</option>
+                  {businesses.map((business) => (
+                    <option key={business.id} value={business.id}>
+                      {business.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <Input
+                label="تلفن همراه *"
+                required
+                dir="ltr"
+                inputMode="tel"
+                value={values.mobile}
+                onChange={(event) => setField('mobile', event.target.value)}
+              />
+              <Input
+                label="تلفن ثابت *"
+                required
+                dir="ltr"
+                inputMode="tel"
+                value={values.phone}
+                onChange={(event) => setField('phone', event.target.value)}
+              />
+              <div className="md:col-span-2">
+                <Input
+                  label="آدرس * (حداکثر یک خط)"
+                  required
+                  maxLength={120}
+                  value={values.address}
+                  onChange={(event) => setField('address', event.target.value)}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="indeed-panel p-6">
+            <h2 className="text-lg font-extrabold text-ink">اطلاعات اختیاری</h2>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <Input
+                label="شرکت"
+                value={values.company}
+                onChange={(event) => setField('company', event.target.value)}
+              />
+              <Input
+                label="ایمیل"
+                dir="ltr"
+                value={values.email}
+                onChange={(event) => setField('email', event.target.value)}
+              />
+              <div className="md:col-span-2">
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-sm font-bold text-ink">
+                    درباره من (حداکثر دو خط)
+                  </span>
+                  <textarea
+                    rows={2}
+                    maxLength={160}
+                    className="indeed-input resize-none"
+                    value={values.bio}
+                    onChange={(event) => setField('bio', event.target.value)}
+                  />
+                </label>
+              </div>
+              <Input
+                label="وب‌سایت"
+                dir="ltr"
+                value={values.website}
+                onChange={(event) => setField('website', event.target.value)}
+              />
+              <Input
+                label="واتساپ"
+                dir="ltr"
+                value={values.whatsapp}
+                onChange={(event) => setField('whatsapp', event.target.value)}
+              />
+              <Input
+                label="لینکدین"
+                dir="ltr"
+                value={values.linkedin}
+                onChange={(event) => setField('linkedin', event.target.value)}
+              />
+              <Input
+                label="اینستاگرام"
+                dir="ltr"
+                value={values.instagram}
+                onChange={(event) => setField('instagram', event.target.value)}
+              />
+              <Input
+                label="تلگرام"
+                dir="ltr"
+                value={values.telegram}
+                onChange={(event) => setField('telegram', event.target.value)}
+              />
+              <Input
+                label="ایکس (توییتر)"
+                dir="ltr"
+                value={values.twitter}
+                onChange={(event) => setField('twitter', event.target.value)}
               />
             </div>
           </div>
-        </aside>
 
-        <div className="order-2 flex flex-col gap-4">
-          {restoreBanner}
           <div className="indeed-panel p-6">
-            <h2 className="text-lg font-extrabold text-ink">ظاهر کارت ویزیت</h2>
+            <h2 className="text-lg font-extrabold text-ink">تصویر و تم</h2>
             <p className="mt-1 text-xs text-muted">
-              با انتخاب هر تم، پیش‌نمایش زندهٔ کنار فرم بلافاصله تغییر می‌کند.
+              در حال حاضر تنها تم «وینتیج» فعال است.
             </p>
-
-            <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {BUSINESS_CARD_THEMES.map((theme) => (
-                <button
-                  key={theme.key}
-                  type="button"
-                  onClick={() => setField('template', theme.key)}
-                  title={theme.name}
-                  aria-pressed={values.template === theme.key}
-                  className={
-                    values.template === theme.key
-                      ? 'rounded-lg border-2 border-brand p-1.5'
-                      : 'rounded-lg border-2 border-transparent p-1.5 hover:border-[var(--vintage-border)]'
-                  }
-                >
-                  <span
-                    className="block h-8 w-full rounded-md border border-[var(--vintage-border)]"
-                    style={{
-                      background: `linear-gradient(135deg, ${theme.swatch[0]} 0 34%, ${theme.swatch[1]} 34% 67%, ${theme.swatch[2]} 67% 100%)`,
-                    }}
-                  />
-                  <span className="mt-1 block truncate text-[10px] text-muted">
-                    {theme.name}
-                  </span>
-                </button>
-              ))}
-            </div>
-
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <ImageUpload
                 label="تصویر پروفایل"
@@ -301,7 +397,7 @@ export function BusinessCardForm({
 
           <button
             type="button"
-            disabled={submitting || !values.fullName.trim()}
+            disabled={submitting || !requiredOk}
             onClick={() => void submit(values)}
             className="indeed-btn indeed-btn-primary w-full disabled:opacity-60"
           >
@@ -310,7 +406,7 @@ export function BusinessCardForm({
           {showDraftButton ? (
             <button
               type="button"
-              disabled={submitting || !values.fullName.trim()}
+              disabled={submitting || !requiredOk}
               onClick={() => void submit(values, { draft: true })}
               className="indeed-btn indeed-btn-secondary w-full disabled:opacity-60"
             >
@@ -323,6 +419,21 @@ export function BusinessCardForm({
               : 'پس از ذخیره، کارت ویزیت در وضعیت «در انتظار تأیید مدیر» قرار می‌گیرد.'}
           </p>
         </div>
+
+        <aside className="order-1 lg:order-2">
+          <div className="lg:sticky lg:top-20">
+            <div className="indeed-panel p-4">
+              <p className="mb-3 text-center text-xs font-bold text-muted">
+                پیش‌نمایش زنده کارت ویزیت
+              </p>
+              <LiveBusinessCardPreview
+                values={values}
+                cityName={cityName}
+                businessName={businessName}
+              />
+            </div>
+          </div>
+        </aside>
       </div>
     );
   }
@@ -486,7 +597,7 @@ export function BusinessCardForm({
               value={values.template}
               onChange={(event) => setField('template', event.target.value)}
             >
-              {BUSINESS_CARD_THEMES.map((theme) => (
+              {SELECTABLE_BUSINESS_CARD_THEMES.map((theme) => (
                 <option key={theme.key} value={theme.key}>
                   {theme.name}
                 </option>
@@ -498,7 +609,7 @@ export function BusinessCardForm({
           </label>
 
           <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
-            {BUSINESS_CARD_THEMES.map((theme) => (
+            {SELECTABLE_BUSINESS_CARD_THEMES.map((theme) => (
               <button
                 key={theme.key}
                 type="button"

@@ -20,7 +20,42 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.68.3**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.69.0**.
+
+## ۱۴۰۵/۰۷/۲۷ — بازطراحی فرم ساخت کارت ویزیت/بیولینک با فیلدهای اجباری — نسخه `v2.69.0`
+
+**هدف:** «درخواست جدید» — در `/dashboard/biolinks/new` و
+`/dashboard/business-cards/new`: (۱) همه‌ی تم‌ها بجز «وینتیج» موقتاً غیرفعال و
+مخفی شوند؛ (۲) چیدمان به حالت قبلی برگردد — پیش‌نمایش ثابت سمت چپ، فرم سمت راست
+و با پر کردن هر فیلد پیش‌نمایش به‌روز شود؛ (۳) در موبایل/تبلت ریسپانسیو باشد؛
+(۴) فیلدهای اجباری (نام کسب‌وکار، نام و نام خانوادگی، شهر، کسب‌وکار، تلفن همراه،
+تلفن ثابت، آدرس یک‌خطی) اول فرم و اجباری باشند؛ (۵) بقیه فیلدها اختیاری.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن فیلد `mobile` (تلفن همراه، جدا از
+  `phone` که تلفن ثابت است) به `Biolink` و `BusinessCard` (اعمال با `prisma db push`).
+- `apps/api/src/biolinks/dto/create-biolink.dto.ts` و
+  `apps/api/src/businesscards/dto/create-business-card.dto.ts`: افزودن `mobile`.
+- `apps/web/lib/themes.ts`: افزودن `THEME_SELECTION_LOCKED`،
+  `SELECTABLE_BIOLINK_THEMES`، `SELECTABLE_BUSINESS_CARD_THEMES` و تم «وینتیج»
+  برای کارت ویزیت؛ پیش‌فرض کارت ویزیت به `vintage` تغییر کرد.
+- `apps/web/app/globals.css`: افزودن بلوک استایل `.bc-theme-vintage`.
+- `apps/web/components/biolink/BiolinkForm.tsx` و
+  `apps/web/components/businesscard/BusinessCardForm.tsx`: حذف مرحله‌ی انتخاب تم؛
+  فرم بازچینی‌شده به «اطلاعات اصلی (اجباری) ← اطلاعات اختیاری ← تصویر و تم ←
+  اتصال»؛ پیش‌نمایش ثابت سمت چپ و فرم سمت راست؛ افزودن `mobile`؛ دکمه‌ی ذخیره تا
+  تکمیل فیلدهای اجباری غیرفعال می‌ماند.
+- `apps/web/components/biolink/ThemedBiolink.tsx` و
+  `apps/web/components/businesscard/ThemedBusinessCard.tsx`: نمایش `mobile`.
+- `apps/web/lib/api.ts` و صفحات new/edit و LiveEditorهای ادمین: افزودن `mobile`.
+
+**تأیید/تست:**
+- `npx tsc --noEmit` روی `apps/api` و `apps/web` بدون خطا (exit 0).
+- `prisma db push` موفق؛ `PATCH /biolinks/:id` با `mobile` ذخیره و بازخوانی شد.
+- تست مرورگری با `playwright-core` روی هر دو صفحه‌ی ساخت: هیچ مرحله‌ی انتخاب تم
+  نمایش داده نشد («وینتیج» یک‌بار)، ۷ فیلد اجباری‌اند، برچسب‌ها به ترتیب درست‌اند،
+  پیش‌نمایش سمت چپ فرم است (`x=42` در مقابل `x=474`) و در عرض موبایل ۳۹۰ بدون
+  سرریز افقی رندر شد.
 
 ## ۱۴۰۵/۰۷/۲۷ — اسلایدر دستی صفحه اصلی و کارت‌های متنی بدون عکس — نسخه `v2.68.3`
 

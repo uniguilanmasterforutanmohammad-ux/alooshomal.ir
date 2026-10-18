@@ -34,6 +34,7 @@ const toFormValues = (biolink: AdminBiolinkFull): BiolinkFormValues => ({
   company: biolink.company ?? '',
   bio: biolink.bio ?? '',
   phone: biolink.phone ?? '',
+  mobile: biolink.mobile ?? '',
   email: biolink.email ?? '',
   website: biolink.website ?? '',
   address: biolink.address ?? '',

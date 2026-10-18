@@ -39,6 +39,12 @@ export class CreateBusinessCardDto {
   @MaxLength(32)
   phone?: string;
 
+  @ApiPropertyOptional({ example: '09120000000' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  mobile?: string;
+
   @ApiPropertyOptional({ example: 'user@example.com' })
   @IsOptional()
   @IsEmail()

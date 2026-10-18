@@ -21,6 +21,7 @@ export interface ThemedBiolinkData {
   company?: string | null;
   bio?: string | null;
   phone?: string | null;
+  mobile?: string | null;
   email?: string | null;
   website?: string | null;
   address?: string | null;
@@ -90,6 +91,7 @@ export function ThemedBiolink({
 
   const links: Array<{ key: string; value: string | null | undefined; href: string; Icon: typeof Linkedin; label: string }> = [
     { key: 'phone', value: data.phone, href: `tel:${data.phone ?? ''}`, Icon: Phone, label: 'PHONE' },
+    { key: 'mobile', value: data.mobile, href: `tel:${data.mobile ?? ''}`, Icon: Phone, label: 'MOBILE' },
     { key: 'whatsapp', value: data.whatsapp, href: `https://wa.me/${(data.whatsapp ?? '').replace(/[^0-9]/g, '')}`, Icon: MessageCircle, label: 'WHATSAPP' },
     { key: 'email', value: data.email, href: `mailto:${data.email ?? ''}`, Icon: Mail, label: 'EMAIL' },
     { key: 'website', value: data.website, href: socialHref(data.website ?? ''), Icon: Globe, label: 'WEBSITE' },
@@ -221,6 +223,7 @@ const EDITABLE_LINKS: Array<{
   placeholder: string;
 }> = [
   { key: 'phone', label: 'PHONE', Icon: Phone, placeholder: 'تلفن' },
+  { key: 'mobile', label: 'MOBILE', Icon: Phone, placeholder: 'تلفن همراه' },
   { key: 'whatsapp', label: 'WHATSAPP', Icon: MessageCircle, placeholder: 'واتساپ' },
   { key: 'email', label: 'EMAIL', Icon: Mail, placeholder: 'ایمیل' },
   { key: 'website', label: 'WEBSITE', Icon: Globe, placeholder: 'وب‌سایت' },

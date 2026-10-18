@@ -116,6 +116,7 @@ export default function NewBiolinkPage() {
                     company: draft.company ?? '',
                     bio: draft.bio ?? '',
                     phone: draft.phone ?? '',
+                    mobile: draft.mobile ?? '',
                     email: draft.email ?? '',
                     website: draft.website ?? '',
                     address: draft.address ?? '',

@@ -1500,6 +1500,34 @@ header.bg-white {
 .bc-theme-corporate-clean .bc-name { font-weight: 750; font-size: 31px; }
 .bc-theme-corporate-clean .bc-btn { border-radius: 6px; }
 
+/* 0. vintage — the shared, enabled look for both builders. Mirrors the vintage
+   biolink palette so a business card and a biolink built today match. */
+.bc-theme-vintage {
+  --bc-bg: #f2e8d9;
+  --bc-surface: #fbf3e9;
+  --bc-text: #3a281c;
+  --bc-muted: #563b2c;
+  --bc-accent: #8b3a1a;
+  --bc-border: #d9c3a9;
+  --bc-radius: 14px;
+  --bc-shadow: 0 6px 22px rgba(83, 43, 24, 0.16);
+  --bc-rule: #d9c3a9;
+  --bc-btn-bg: #8b3a1a;
+  --bc-btn-text: #fff7ed;
+  --bc-btn-border: #702d16;
+  --bc-page-bg: linear-gradient(rgba(242, 232, 217, 0.94), rgba(242, 232, 217, 0.94)),
+    repeating-linear-gradient(0deg, rgba(139, 58, 26, 0.045) 0 1px, transparent 1px 3px),
+    repeating-linear-gradient(90deg, rgba(139, 58, 26, 0.045) 0 1px, transparent 1px 3px),
+    #f2e8d9;
+  --bc-font: 'Shabnam', ui-serif, Georgia, serif;
+}
+.bc-theme-vintage .bc-card { border-width: 2px; }
+.bc-theme-vintage .bc-avatar {
+  background: linear-gradient(140deg, #8b3a1a, #a95c39);
+  border: 3px dashed #8b3a1a;
+}
+.bc-theme-vintage .bc-btn { border-radius: 9px; }
+
 /* 14. nature organic */
 .bc-theme-nature-organic {
   --bc-bg: #eef5ea;

@@ -597,6 +597,8 @@ model Biolink {
   company     String?
   bio         String?
   phone       String?
+  /// «تلفن همراه» — separate from the landline kept in `phone`.
+  mobile      String?
   email       String?
   website     String?
   address     String?
@@ -703,6 +705,8 @@ model BusinessCard {
   company     String?
   bio         String?
   phone       String?
+  /// «تلفن همراه» — separate from the landline kept in `phone`.
+  mobile      String?
   email       String?
   website     String?
   address     String?
