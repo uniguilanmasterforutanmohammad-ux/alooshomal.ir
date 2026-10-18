@@ -484,6 +484,15 @@ header.bg-white {
   display: none;
 }
 
+@media (min-width: 768px) {
+  .home-slider {
+    cursor: grab;
+  }
+  .home-slider:active {
+    cursor: grabbing;
+  }
+}
+
 /* ---- Public card pages (/biolinks/<slug>, /business-cards/<slug>) ----
    The page itself must never scroll: the top row (back/home + plan badge)
    and the bottom share block stay pinned, and only the card frame in the
