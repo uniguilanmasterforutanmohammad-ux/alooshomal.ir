@@ -6,16 +6,12 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Search, SlidersHorizontal, Sparkles } from 'lucide-react';
 
 import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
 import { FeedCard } from '@/components/feed/FeedCard';
-import { Pagination } from '@/components/ui/Pagination';
 import type { FeedPost, FeedTopic } from '@/lib/api';
 import {
-  useDirectoryDisplayMode,
   useDirectoryResults,
   useInfiniteScroll,
 } from '@/lib/directory';
-import { cn } from '@/lib/utils';
 
 interface FeedFilters {
   q: string;
@@ -95,85 +91,102 @@ function FeedsContent() {
     return params.toString();
   }, [filters.q, filters.topicId]);
 
-  const displayMode = useDirectoryDisplayMode();
-  const { items, meta, filters: facets, loading, error, page, setPage, loadMore } =
+  // The feed list is always infinite-scroll (like the other directories): the
+  // page chrome stays fixed and only the list scrolls.
+  const { items, meta, filters: facets, loading, error, loadMore } =
     useDirectoryResults<FeedPost, { topics: FeedTopic[] }>({
       path: '/feeds/public',
       query: queryString,
-      mode: displayMode,
-      initialPage: Number(searchParams.get('page') ?? 1) || 1,
+      mode: 'INFINITE',
       initialFacets: { topics: [] },
     });
 
-  const sentinelRef = useInfiniteScroll(
-    displayMode === 'INFINITE',
-    loading,
-    loadMore,
-  );
+  const sentinelRef = useInfiniteScroll(true, loading, loadMore);
 
-  // Keep the URL shareable as the visitor types/pages.
+  // Keep the URL shareable as the visitor types/filters.
   useEffect(() => {
     const params = new URLSearchParams();
     if (filters.q) params.set('q', filters.q);
     if (filters.topicId) params.set('topicId', filters.topicId);
-    if (displayMode === 'PAGINATION' && page > 1) params.set('page', String(page));
     const query = params.toString();
     router.replace(query ? `/feeds?${query}` : '/feeds', { scroll: false });
-  }, [filters, page, displayMode, router]);
+  }, [filters, router]);
 
   return (
     <>
       <Header />
-      <main className="container-page py-8">
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      {/* Fixed shell: heading + filters stay put and only the list below
+          scrolls (see `.directory-shell` in globals.css). The footer is
+          intentionally omitted so the shell can fill the viewport exactly. */}
+      <main className="container-page py-6 directory-shell">
+        <div className="mb-4 flex shrink-0 flex-wrap items-end justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="vintage-avatar flex size-11 items-center justify-center">
               <Sparkles className="size-5" aria-hidden />
             </span>
             <div>
               <h1 className="text-xl font-extrabold text-ink">فیدها</h1>
-              <p className="text-sm text-muted">پست‌های تصویری کاربران شهر</p>
+              <p className="text-sm text-muted">
+                {meta
+                  ? `${meta.total.toLocaleString('fa-IR')} پست منتشرشده — نمایش ${items.length.toLocaleString('fa-IR')} مورد`
+                  : 'پست‌های کاربران شهر'}
+              </p>
             </div>
           </div>
-          <Link href="/dashboard/feeds" className="indeed-btn indeed-btn-secondary py-2 text-sm">
+          <Link
+            href="/dashboard/feeds"
+            className="indeed-btn indeed-btn-secondary py-2 text-sm"
+          >
             ثبت پست و اشتراک فید
           </Link>
         </div>
 
-        <Filters value={filters} topics={facets.topics} onChange={setFilters} />
+        <div className="shrink-0">
+          <Filters value={filters} topics={facets.topics} onChange={setFilters} />
+        </div>
 
         {error ? (
-          <p className="mt-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</p>
+          <p className="mt-3 shrink-0 rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            {error}
+          </p>
         ) : null}
 
-        {loading && items.length === 0 ? (
-          <p className="mt-6 text-muted">در حال بارگذاری...</p>
-        ) : items.length === 0 ? (
-          <div className="indeed-panel mt-6 p-10 text-center text-muted">
-            پستی برای نمایش یافت نشد.
-          </div>
-        ) : (
-          <div className="mt-5 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
-            {items.map((post) => (
-              <FeedCard key={post.id} post={post} />
-            ))}
-          </div>
-        )}
-
-        {displayMode === 'INFINITE' ? (
-          <>
-            <div ref={sentinelRef} className="h-8" />
-            {loading && items.length > 0 ? (
-              <p className="py-3 text-center text-sm text-muted">در حال بارگذاری بیشتر...</p>
-            ) : null}
-          </>
-        ) : meta ? (
-          <div className="mt-6">
-            <Pagination meta={meta} onPage={setPage} />
-          </div>
-        ) : null}
+        <div className="directory-list mt-4 min-h-0 flex-1">
+          {loading && items.length === 0 ? (
+            <div className="space-y-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="indeed-panel h-28 animate-pulse bg-soft" />
+              ))}
+            </div>
+          ) : items.length === 0 ? (
+            <div className="indeed-panel p-10 text-center">
+              <p className="text-lg font-bold text-ink">پستی برای نمایش یافت نشد</p>
+              <p className="mt-2 text-sm text-muted">
+                عبارت جستجو یا موضوع را تغییر دهید.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3">
+                {items.map((post) => (
+                  <FeedCard key={post.id} post={post} />
+                ))}
+              </div>
+              <div ref={sentinelRef} className="h-2" aria-hidden />
+              {loading ? (
+                <div className="py-3 text-center text-xs text-muted">
+                  در حال بارگذاری موارد بیشتر...
+                </div>
+              ) : null}
+              {!loading && meta && !meta.hasNext ? (
+                <div className="py-3 text-center text-xs text-muted">
+                  همه نتایج نمایش داده شد.
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
       </main>
-      <Footer />
     </>
   );
 }
