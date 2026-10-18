@@ -10,8 +10,9 @@ export interface PublicNavItem {
 export const PUBLIC_NAV: PublicNavItem[] = [
   { href: '/business-cards', label: 'لیست کارت ویزیت‌ها' },
   { href: '/biolinks', label: 'لیست بیولینک‌ها' },
-  { href: '/feeds', label: 'فیدها' },
-  { href: '/pulse', label: 'نبض شهر' },
+  { href: '/feeds', label: 'پست کاربران' },
+  { href: '/pulse', label: 'اخبار شهر' },
   { href: '/services', label: 'لیست خدمات' },
   { href: '/guide', label: 'راهنما' },
+  { href: '/rules', label: 'قوانین' },
 ];

@@ -28,7 +28,7 @@ export function Header() {
           <span className="vintage-avatar flex size-9 items-center justify-center">
             <IdCard className="size-5" aria-hidden />
           </span>
-          <span>آلوشمال</span>
+          <span>شمالی کارت</span>
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-medium text-muted lg:flex">

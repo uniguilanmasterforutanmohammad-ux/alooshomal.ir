@@ -94,7 +94,7 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
           <p className="theme-panel-muted mt-6 text-center text-xs">
             ساخته‌شده با{' '}
             <Link href="/" className="font-bold underline">
-              آلوشمال
+              شمالی کارت
             </Link>
           </p>
         </div>

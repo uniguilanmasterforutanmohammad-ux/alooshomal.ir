@@ -65,6 +65,7 @@ export class SeoService {
       { path: '/pulse', lastModified: '', changeFrequency: 'daily', priority: 0.7 },
       { path: '/services', lastModified: '', changeFrequency: 'weekly', priority: 0.7 },
       { path: '/guide', lastModified: '', changeFrequency: 'monthly', priority: 0.5 },
+      { path: '/rules', lastModified: '', changeFrequency: 'monthly', priority: 0.4 },
     ];
 
     return [

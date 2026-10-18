@@ -53,7 +53,7 @@ export async function generateMetadata({
     biolink.bio,
     `بیولینک و راه‌های ارتباطی ${biolink.fullName}${
       biolink.jobTitle ? ` (${biolink.jobTitle})` : ''
-    } در آلوشمال.`,
+    } در شمالی کارت.`,
   );
 
   return {

@@ -41,7 +41,7 @@ export default function ServicesPage() {
             <Sparkles className="size-4" aria-hidden />
             خدمات و اشتراک‌ها
           </span>
-          <h1 className="mt-4 text-3xl font-extrabold text-ink">لیست خدمات آلوشمال</h1>
+          <h1 className="mt-4 text-3xl font-extrabold text-ink">لیست خدمات شمالی کارت</h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-muted">
             با انتخاب هر اشتراک، سهمیه‌ی ساخت بیولینک و کارت ویزیت و امکانات نمایش
             بیشتر می‌شود. برای فعال‌سازی، وارد حساب خود شوید.

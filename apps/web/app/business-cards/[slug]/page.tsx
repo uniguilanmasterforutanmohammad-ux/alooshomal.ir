@@ -57,7 +57,7 @@ export async function generateMetadata({
     businessCard.bio,
     `اطلاعات تماس، خدمات و راه‌های ارتباطی ${businessCard.fullName}${
       businessCard.jobTitle ? ` (${businessCard.jobTitle})` : ''
-    } در آلوشمال.`,
+    } در شمالی کارت.`,
   );
 
   return {

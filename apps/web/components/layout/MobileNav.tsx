@@ -40,8 +40,8 @@ export function MobileNav() {
     { href: '/', label: 'خانه', icon: Home, exact: true },
     { href: '/business-cards', label: 'کارت ویزیت‌ها', icon: BadgeCheck },
     { href: '/biolinks', label: 'بیولینک‌ها', icon: IdCard },
-    { href: '/pulse', label: 'نبض شهر', icon: Newspaper },
-    { href: '/feeds', label: 'فیدها', icon: ImagePlus },
+    { href: '/pulse', label: 'اخبار شهر', icon: Newspaper },
+    { href: '/feeds', label: 'پست کاربران', icon: ImagePlus },
     { href: '/guide', label: 'راهنما', icon: BookOpen },
     hydrated && token
       ? { href: '/dashboard', label: 'داشبورد', icon: LayoutDashboard }

@@ -14,7 +14,7 @@ export function Footer() {
       <div className="container-page grid grid-cols-2 items-start gap-6">
         <div className="flex flex-col gap-1 text-xs text-muted">
           <p>
-            © {new Date().getFullYear()} آلوشمال
+            © {new Date().getFullYear()} شمالی کارت
             <span dir="ltr" className="ms-2 font-bold">
               {APP_VERSION}
             </span>

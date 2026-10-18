@@ -133,7 +133,7 @@ export default function GuidePage() {
             <Rocket className="size-4" aria-hidden />
             راهنمای استفاده
           </span>
-          <h1 className="mt-4 text-3xl font-extrabold text-ink">آلوشمال چطور کار می‌کند؟</h1>
+          <h1 className="mt-4 text-3xl font-extrabold text-ink">شمالی کارت چطور کار می‌کند؟</h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-muted">
             در چند گام ساده یاد می‌گیرید چطور کارت ویزیت و بیولینک بسازید، در
             دایرکتوری دیده شوید، تبلیغ بگیرید و خبرهای شهر را منتشر کنید. روی هر گام

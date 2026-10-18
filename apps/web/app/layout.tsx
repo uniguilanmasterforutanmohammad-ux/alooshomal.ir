@@ -9,25 +9,25 @@ import './globals.css';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'آلوشمال | بیولینک دیجیتال',
-    template: '%s | آلوشمال',
+    default: 'شمالی کارت | بیولینک دیجیتال',
+    template: '%s | شمالی کارت',
   },
   description:
     'پلتفرم ساخت، شخصی‌سازی و اشتراک‌گذاری بیولینک دیجیتال؛ مشاهده بدون نصب برنامه.',
-  applicationName: 'آلوشمال',
+  applicationName: 'شمالی کارت',
   alternates: { canonical: '/' },
   openGraph: {
     type: 'website',
     locale: 'fa_IR',
-    siteName: 'آلوشمال',
-    title: 'آلوشمال | بیولینک دیجیتال',
+    siteName: 'شمالی کارت',
+    title: 'شمالی کارت | بیولینک دیجیتال',
     description:
       'پلتفرم ساخت، شخصی‌سازی و اشتراک‌گذاری بیولینک و کارت ویزیت دیجیتال؛ مشاهده بدون نصب برنامه.',
     url: '/',
   },
   twitter: {
     card: 'summary',
-    title: 'آلوشمال | بیولینک دیجیتال',
+    title: 'شمالی کارت | بیولینک دیجیتال',
     description:
       'پلتفرم ساخت، شخصی‌سازی و اشتراک‌گذاری بیولینک و کارت ویزیت دیجیتال.',
   },

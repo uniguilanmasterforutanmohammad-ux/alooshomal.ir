@@ -77,7 +77,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
             <IdCard className="size-5" aria-hidden />
           </span>
           <div>
-            <p className="text-sm font-extrabold text-ink">آلوشمال</p>
+            <p className="text-sm font-extrabold text-ink">شمالی کارت</p>
             <p className="text-[11px] text-muted">پنل کاربری</p>
           </div>
         </Link>

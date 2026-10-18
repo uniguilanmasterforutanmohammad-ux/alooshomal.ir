@@ -11,6 +11,32 @@
   }
 }
 
+/* Blinking caret for the animated home-page headline (`HomeHeadline`). */
+@keyframes typewriter-caret {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  50%,
+  95% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.typewriter-caret {
+  animation: typewriter-caret 1s steps(1, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .typewriter-caret {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 @font-face {
   font-family: 'Shabnam';
   font-style: normal;

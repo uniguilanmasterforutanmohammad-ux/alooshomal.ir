@@ -94,7 +94,7 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
           <p className="bc-muted bc-fa mt-6 text-center text-xs">
             ساخته‌شده با{' '}
             <Link href="/" className="font-bold underline">
-              آلوشمال
+              شمالی کارت
             </Link>
           </p>
         </div>

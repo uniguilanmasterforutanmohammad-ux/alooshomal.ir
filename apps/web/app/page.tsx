@@ -5,14 +5,12 @@ import { PulseSection } from '@/components/news/PulseSection';
 import { ReporterCtaButton } from '@/components/news/ReporterCtaButton';
 import { HomeSearchBox } from '@/components/home/HomeSearchBox';
 import { HomeAdBox } from '@/components/home/HomeAdBox';
+import { HomeHeadline } from '@/components/home/HomeHeadline';
 import {
   BadgeCheck,
-  Link2,
   QrCode,
   Smartphone,
   Sparkles,
-  UserPlus,
-  Users,
 } from 'lucide-react';
 
 const features = [
@@ -51,42 +49,26 @@ export default function HomePage() {
       <main>
         <section className="bg-brand py-16 text-white md:py-20">
           <div className="container-page mx-auto max-w-3xl text-center">
-            <h1 className="text-3xl font-extrabold leading-snug md:text-4xl">
-              بیولینک دیجیتال شما، آماده برای اشتراک‌گذاری
-            </h1>
+            <HomeHeadline />
             <p className="mt-4 text-base leading-8 text-white/90">
-              اطلاعات حرفه‌ای‌ات را یک‌بار وارد کن و در رویدادها تنها با یک QR یا لینک
-              به اشتراک بگذار. بدون نیاز به نصب برنامه برای مخاطب.
+              کارت ویزیت دیجیتال خود را بسازید، با یک QR اختصاصی به اشتراک بگذارید و در
+              بزرگ‌ترین بانک مشاغل شهر، به‌سادگی توسط مشتریان جستجو شوید.
             </p>
             <HomeSearchBox />
             <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
               <Link
-                href="/login"
-                className="indeed-btn bg-white text-brand hover:bg-white/90"
-              >
-                <UserPlus className="size-4" aria-hidden />
-                ساخت بیولینک رایگان
-              </Link>
-              <Link
-                href="/login"
+                href="/business-cards"
                 className="indeed-btn border-white text-white hover:bg-white/10"
               >
-                <Link2 className="size-4" aria-hidden />
-                ورود به حساب
+                <BadgeCheck className="size-4" aria-hidden />
+                لیست کارت ویزیت‌ها
               </Link>
               <Link
                 href="/biolinks"
                 className="indeed-btn border-white text-white hover:bg-white/10"
               >
-                <Users className="size-4" aria-hidden />
-                دایرکتوری بیولینک‌ها
-              </Link>
-              <Link
-                href="/business-cards"
-                className="indeed-btn border-white text-white hover:bg-white/10"
-              >
-                <Users className="size-4" aria-hidden />
-                دایرکتوری کارت ویزیت
+                <Smartphone className="size-4" aria-hidden />
+                لیست بیولینک‌ها
               </Link>
             </div>
           </div>
