@@ -159,6 +159,16 @@ export class BiolinksController {
     return this.biolinksService.likeSummary(slug, visitorKeyFrom(request));
   }
 
+  @OptionalAuth()
+  @Get('public/:slug/save')
+  @ApiOperation({ summary: 'وضعیت ذخیره‌ی بیولینک برای کاربر جاری' })
+  saveState(
+    @Param('slug') slug: string,
+    @CurrentUser() user?: AuthUser,
+  ) {
+    return this.biolinksService.saveSummary(slug, user?.id);
+  }
+
   @Get('saved/mine')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'بیولینک‌های ذخیره‌شده من (صفحه‌بندی‌شده)' })

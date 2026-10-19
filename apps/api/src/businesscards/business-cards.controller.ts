@@ -159,6 +159,16 @@ export class BusinessCardsController {
     return this.businessCardsService.likeSummary(slug, visitorKeyFrom(request));
   }
 
+  @OptionalAuth()
+  @Get('public/:slug/save')
+  @ApiOperation({ summary: 'وضعیت ذخیره‌ی کارت ویزیت برای کاربر جاری' })
+  saveState(
+    @Param('slug') slug: string,
+    @CurrentUser() user?: AuthUser,
+  ) {
+    return this.businessCardsService.saveSummary(slug, user?.id);
+  }
+
   @Get('saved/mine')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'کارت‌های ویزیت ذخیره‌شده من (صفحه‌بندی‌شده)' })

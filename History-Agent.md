@@ -20,7 +20,45 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.81.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.82.0**.
+
+## ۱۴۰۵/۰۷/۲۷ — افزودن دکمه‌های اشتراک‌گذاری و ذخیره به صفحات عمومی بیولینک/کارت ویزیت — نسخه `v2.82.0`
+
+**هدف:** «درخواست جدید» — در صفحات عمومی
+`/business-cards/<slug>` و `/biolinks/<slug>`، کنار دکمه‌ی لایک دو دکمه‌ی
+جدید اضافه شود: دکمه‌ی **اشتراک‌گذاری** (فقط آیکن) و دکمه‌ی **ذخیره** (فقط
+آیکن).
+
+**تغییرات:**
+- `apps/web/components/ui/ShareButton.tsx` [جدید]: دکمه‌ی اشتراک‌گذاری که
+  ابتدا از Web Share API (شیت اشتراک‌گذاری موبایل) استفاده می‌کند و در غیر آن
+  لینک را در کلیپ‌بورد کپی کرده و توست تأیید نشان می‌دهد؛ حالت `iconOnly`
+  فقط آیکن رندر می‌کند.
+- `apps/web/components/ui/SaveButton.tsx`: پراپ‌های `iconOnly` و `reconcile`
+  اضافه شدند؛ در حالت `reconcile` وضعیت واقعی «ذخیره»ی کاربرِ واردشده با
+  `GET .../public/<slug>/save` هم‌گام می‌شود (چون صفحات عمومی سمت سرور رندر
+  می‌شوند و بازدیدکننده را نمی‌شناسند) و در حالت `iconOnly` فقط آیکن نمایش
+  داده می‌شود.
+- `apps/api/src/biolinks/biolinks.service.ts` و
+  `apps/api/src/businesscards/business-cards.service.ts`: متد `saveSummary`
+  برای گزارش وضعیت ذخیره‌ی کاربر جاری (ناشناس → `saved:false`).
+- `apps/api/src/biolinks/biolinks.controller.ts` و
+  `apps/api/src/businesscards/business-cards.controller.ts`: مسیر جدید
+  `@OptionalAuth() GET public/:slug/save` با `@ApiOperation`.
+- `apps/web/components/biolink/PublicBiolinkView.tsx` و
+  `apps/web/components/businesscard/PublicBusinessCardView.tsx`: دو دکمه‌ی
+  آیکن‌محور اشتراک و ذخیره کنار لایک در نوار پایین کارت.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web ./node_modules/.bin/tsc --noEmit` → exit 0.
+- `docker exec alooshomal-api ./node_modules/.bin/tsc --noEmit -p tsconfig.json` → exit 0.
+- `python3 scripts/check_api_docs.py` → exit 0 (۲۲ کنترلر / ۲۱۳ مسیر).
+- `curl GET /api/biolinks/public/sample-full-biolink/save` (ناشناس) → `saved:false`؛
+  با توکن ادمین → `POST .../save` = `saved:true` سپس `GET .../save` = `saved:true`
+  و با toggle دوم به `saved:false` برگشت.
+- Playwright در سه ویوپورت (۳۹۰/۸۳۴/۱۴۴۰): در هر دو صفحه‌ی عمومی
+  `shareIcon=1`، `saveIcon=1`، `like=1`، بدون overflow افقی؛ دکمه‌های آیکن‌محور
+  کنار لایک ۴۰×۴۰ رندر شدند.
 
 ## ۱۴۰۵/۰۷/۲۷ — نمایش شبکه‌های اجتماعی بیولینک به‌صورت دکمه‌های کشیده افقی — نسخه `v2.81.0`
 

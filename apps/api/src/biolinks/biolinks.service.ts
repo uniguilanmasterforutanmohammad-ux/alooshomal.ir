@@ -884,6 +884,20 @@ export class BiolinksService {
   }
 
   /**
+   * Whether the current visitor has saved this biolink. Anonymous visitors
+   * (no `userId`) always get `saved: false`, so the public page can render the
+   * save button without requiring a login.
+   */
+  async saveSummary(slug: string, userId?: string) {
+    if (!userId) return { saved: false };
+    const biolink = await this.findPublicBySlug(slug);
+    const existing = await this.prisma.biolinkSave.findUnique({
+      where: { userId_biolinkId: { userId, biolinkId: biolink.id } },
+    });
+    return { saved: Boolean(existing) };
+  }
+
+  /**
    * Published biolinks a user has saved, newest save first, paginated with the
    * admin-controlled `myListPageSize` setting.
    */

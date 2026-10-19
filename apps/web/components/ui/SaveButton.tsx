@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Bookmark } from 'lucide-react';
 
@@ -16,6 +16,15 @@ interface Props {
   size?: 'sm' | 'md';
   /** optional callback so a parent list can remove the item from "saved" views */
   onToggled?: (saved: boolean) => void;
+  /** render as a plain icon-only button (public pages) */
+  iconOnly?: boolean;
+  /**
+   * When the parent cannot know the signed-in visitor's save state (the public
+   * pages are server-rendered), set this to `true` to reconcile it on mount
+   * with the per-user `GET .../public/<slug>/save` endpoint. Defaults to
+   * `false` because directory rows already carry the real state.
+   */
+  reconcile?: boolean;
 }
 
 /**
@@ -28,12 +37,32 @@ export function SaveButton({
   initialSaved = false,
   size = 'sm',
   onToggled,
+  iconOnly,
+  reconcile = false,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const { token, hydrated } = useAuth();
   const [saved, setSaved] = useState(initialSaved);
   const [busy, setBusy] = useState(false);
+
+  // The public record pages are server-rendered and cannot know the visitor, so
+  // ask the API for the real save state once the session is hydrated.
+  useEffect(() => {
+    if (!reconcile || !hydrated) return;
+    let active = true;
+    api
+      .get<{ saved: boolean }>(`/${kind}/public/${encodeURIComponent(slug)}/save`)
+      .then((result) => {
+        if (active) setSaved(result.saved);
+      })
+      .catch(() => {
+        /* keep the server snapshot */
+      });
+    return () => {
+      active = false;
+    };
+  }, [kind, slug, reconcile, hydrated, token]);
 
   async function toggle(event: React.MouseEvent) {
     event.stopPropagation();
@@ -67,8 +96,14 @@ export function SaveButton({
       aria-pressed={saved}
       aria-label={saved ? 'حذف از ذخیره‌شده‌ها' : 'ذخیره'}
       className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border font-bold transition',
-        size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-4 py-2 text-sm',
+        'inline-flex items-center justify-center gap-1.5 rounded-full border font-bold transition',
+        iconOnly
+          ? size === 'sm'
+            ? 'size-8'
+            : 'size-10'
+          : size === 'sm'
+            ? 'px-2.5 py-1 text-xs'
+            : 'px-4 py-2 text-sm',
         saved
           ? 'border-amber-200 bg-amber-50 text-amber-600'
           : 'border-[var(--vintage-border)] text-muted hover:border-amber-200 hover:text-amber-500',
@@ -79,7 +114,7 @@ export function SaveButton({
         className={cn(size === 'sm' ? 'size-3.5' : 'size-4', saved && 'fill-current')}
         aria-hidden
       />
-      <span>{saved ? 'ذخیره شد' : 'ذخیره'}</span>
+      {iconOnly ? null : <span>{saved ? 'ذخیره شد' : 'ذخیره'}</span>}
     </button>
   );
 }

@@ -908,6 +908,22 @@ export class BusinessCardsService {
   }
 
   /**
+   * Whether the current visitor has saved this business card. Anonymous
+   * visitors (no `userId`) always get `saved: false`, so the public page can
+   * render the save button without requiring a login.
+   */
+  async saveSummary(slug: string, userId?: string) {
+    if (!userId) return { saved: false };
+    const businessCard = await this.findPublicBySlug(slug);
+    const existing = await this.prisma.businessCardSave.findUnique({
+      where: {
+        userId_businessCardId: { userId, businessCardId: businessCard.id },
+      },
+    });
+    return { saved: Boolean(existing) };
+  }
+
+  /**
    * Published business cards a user has saved, newest save first, paginated
    * with the admin-controlled `myListPageSize` setting.
    */

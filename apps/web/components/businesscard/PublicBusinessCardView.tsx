@@ -20,6 +20,8 @@ import { CardFit } from '@/components/ui/CardFit';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
+import { SaveButton } from '@/components/ui/SaveButton';
+import { ShareButton } from '@/components/ui/ShareButton';
 import {
   RecordCard,
   type RecordIconLink,
@@ -228,6 +230,14 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
                   initialCount={like?.likeCount ?? 0}
                   initialLiked={like?.liked ?? false}
                   size="md"
+                />
+                <ShareButton url={link} title={headline} size="md" iconOnly />
+                <SaveButton
+                  kind="business-cards"
+                  slug={businessCard.slug}
+                  size="md"
+                  iconOnly
+                  reconcile
                 />
               </div>
             </div>
