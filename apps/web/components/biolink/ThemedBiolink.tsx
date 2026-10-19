@@ -128,7 +128,10 @@ export function ThemedBiolink({
             className="mx-auto mb-4 size-14 object-contain"
           />
         ) : null}
-        <div className="theme-avatar mx-auto mb-6 flex size-24 items-center justify-center overflow-hidden rounded-full text-3xl font-bold">
+        <div
+          className="theme-avatar mx-auto mb-6 flex size-24 items-center justify-center overflow-hidden text-3xl font-bold"
+          style={{ borderRadius: 'var(--biolink-radius)' }}
+        >
           {data.avatarUrl ? (
             <Image
               src={data.avatarUrl}
@@ -275,7 +278,10 @@ function EditableBiolink({
             className="mx-auto mb-4 size-14 object-contain"
           />
         ) : null}
-        <div className="theme-avatar mx-auto mb-6 flex size-24 items-center justify-center overflow-hidden rounded-full text-3xl font-bold">
+        <div
+          className="theme-avatar mx-auto mb-6 flex size-24 items-center justify-center overflow-hidden text-3xl font-bold"
+          style={{ borderRadius: 'var(--biolink-radius)' }}
+        >
           {data.avatarUrl ? (
             <Image
               src={data.avatarUrl}

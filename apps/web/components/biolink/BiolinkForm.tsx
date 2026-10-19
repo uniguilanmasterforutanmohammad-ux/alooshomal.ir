@@ -190,13 +190,14 @@ export function BiolinkForm({
 
   // The builder marks a handful of fields mandatory; the submit buttons stay
   // disabled until they are filled so a half-empty card can't be submitted.
+  // The landline (`phone`) is optional; everything else with a star stays
+  // mandatory so the submit buttons remain disabled until the card is usable.
   const requiredOk = Boolean(
     values.jobTitle.trim() &&
       values.fullName.trim() &&
       values.cityId &&
       values.businessId &&
       values.mobile.trim() &&
-      values.phone.trim() &&
       values.address.trim(),
   );
 
@@ -227,7 +228,7 @@ export function BiolinkForm({
 
   if (inline) {
     return (
-      <div className="grid gap-6 lg:grid-cols-[1fr_400px]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_480px]">
         <div className="order-2 flex flex-col gap-4 lg:order-1">
           {restoreBanner}
           <div className="indeed-panel p-6">
@@ -244,7 +245,7 @@ export function BiolinkForm({
                 onChange={(event) => setField('jobTitle', event.target.value)}
               />
               <Input
-                label="نام و نام خانوادگی *"
+                label="به مدیریت *"
                 required
                 value={values.fullName}
                 onChange={(event) => setField('fullName', event.target.value)}
@@ -290,8 +291,7 @@ export function BiolinkForm({
                 onChange={(event) => setField('mobile', event.target.value)}
               />
               <Input
-                label="تلفن ثابت *"
-                required
+                label="تلفن ثابت"
                 dir="ltr"
                 inputMode="tel"
                 value={values.phone}
@@ -418,19 +418,12 @@ export function BiolinkForm({
               </div>
             ) : null}
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+            <div className="mt-5">
               <ImageUpload
                 label="تصویر پروفایل"
                 kind="avatar"
-                round
                 value={values.avatarUrl}
                 onChange={(url) => setField('avatarUrl', url)}
-              />
-              <ImageUpload
-                label="لوگو"
-                kind="logo"
-                value={values.logoUrl}
-                onChange={(url) => setField('logoUrl', url)}
               />
             </div>
           </div>
@@ -497,7 +490,7 @@ export function BiolinkForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[420px_1fr]">
+    <form onSubmit={handleSubmit} className="grid gap-6 lg:grid-cols-[480px_1fr]">
       {/* live preview, pinned on the left in RTL */}
       <aside className="order-1 lg:order-1">
         <div className="lg:sticky lg:top-20">
@@ -519,7 +512,7 @@ export function BiolinkForm({
           <h2 className="text-lg font-extrabold text-ink">اطلاعات اصلی</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <Input
-              label="نام و نام خانوادگی *"
+              label="به مدیریت *"
               required
               value={values.fullName}
               onChange={(event) => setField('fullName', event.target.value)}
@@ -712,19 +705,12 @@ export function BiolinkForm({
             </label>
           )}
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <div className="mt-5">
             <ImageUpload
               label="تصویر پروفایل"
               kind="avatar"
-              round
               value={values.avatarUrl}
               onChange={(url) => setField('avatarUrl', url)}
-            />
-            <ImageUpload
-              label="لوگو"
-              kind="logo"
-              value={values.logoUrl}
-              onChange={(url) => setField('logoUrl', url)}
             />
           </div>
         </div>

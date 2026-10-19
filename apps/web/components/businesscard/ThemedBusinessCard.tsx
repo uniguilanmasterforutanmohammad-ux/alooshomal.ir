@@ -132,7 +132,10 @@ export function ThemedBusinessCard({
       <div className="bc-card relative w-full p-6 sm:p-8">
         <div className="relative z-[1]">
           <header className="flex items-start gap-4">
-            <div className="bc-avatar flex size-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full text-2xl font-extrabold">
+            <div
+              className="bc-avatar flex size-[72px] shrink-0 items-center justify-center overflow-hidden text-2xl font-extrabold"
+              style={{ borderRadius: 'var(--bc-radius)' }}
+            >
               {data.avatarUrl ? (
                 <Image
                   src={data.avatarUrl}
@@ -305,7 +308,10 @@ function EditableBusinessCard({
       <div className="bc-card relative w-full p-6 sm:p-8">
         <div className="relative z-[1]">
           <header className="flex items-start gap-4">
-            <div className="bc-avatar flex size-[72px] shrink-0 items-center justify-center overflow-hidden rounded-full text-2xl font-extrabold">
+            <div
+              className="bc-avatar flex size-[72px] shrink-0 items-center justify-center overflow-hidden text-2xl font-extrabold"
+              style={{ borderRadius: 'var(--bc-radius)' }}
+            >
               {data.avatarUrl ? (
                 <Image
                   src={data.avatarUrl}
