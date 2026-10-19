@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
+import { spectrumColorAt } from '@/lib/card-spectrum';
+
 export interface HomeSliderItem {
   id: string;
   slug: string;
@@ -12,6 +14,9 @@ export interface HomeSliderItem {
   company: string | null;
   avatarUrl: string | null;
   logoUrl: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  address?: string | null;
   city?: { id: string; name: string } | null;
   business?: { id: string; name: string } | null;
 }
@@ -25,17 +30,20 @@ interface Props {
 }
 
 /**
- * Liquid-glass carousel for the home page («آخرین کارت‌های ویزیت» /
- * «آخرین بیولینک‌ها»). One «one-per-view» card with a rotating conic-gradient
- * neon border around a frosted white surface, arrow buttons on both sides and
- * clickable dots.
+ * Home-page carousel for «آخرین کارت‌های ویزیت» / «آخرین بیولینک‌ها».
  *
- * Interaction matches the reference design:
+ * Each slide is the landscape business-card design from the reference file
+ * (`spectrum-v8.html`): a coloured front face (business name, manager, contact
+ * rows) and a back face (logo lockup), framed by an inner hairline border and a
+ * faint scan-line texture. The colour of every card is picked from the 14-entry
+ * spectrum palette deterministically by `spectrumColorAt`, so it looks shuffled
+ * without causing a server/client hydration mismatch.
+ *
+ * Interaction matches the previous carousel:
  *  - touch swipe (native horizontal pan) moves one card
  *  - mouse drag moves one card and swallows the trailing click
  *  - arrows wrap around the list; dots jump to a card
- * Cards are text-only (initials avatar, name, role, company, city and a
- * «مشاهده کارت» pill) so they stay fast and readable.
+ *  - tapping a card opens its public page
  */
 export function HomeItemSlider({ kind, items, moreHref }: Props) {
   const [index, setIndex] = useState(0);
@@ -56,10 +64,52 @@ export function HomeItemSlider({ kind, items, moreHref }: Props) {
     [count],
   );
 
+  const goBy = useCallback(
+    (delta: number) => {
+      setIndex((current) => {
+        if (count === 0) return 0;
+        return (((current + delta) % count) + count) % count;
+      });
+    },
+    [count],
+  );
+
+  const goByRef = useRef(goBy);
+  goByRef.current = goBy;
+
   useEffect(() => {
     // Keep the index valid if the fetched list shrinks.
     setIndex((current) => (count === 0 ? 0 : Math.min(current, count - 1)));
   }, [count]);
+
+  // Mouse drag: tracked on the window instead of with pointer capture, so a
+  // plain click still reaches the card link while a drag moves the carousel.
+  useEffect(() => {
+    function onPointerMove(event: PointerEvent) {
+      if (!drag.current.active) return;
+      if (Math.abs(event.clientX - drag.current.x) > 40) {
+        drag.current.moved = true;
+      }
+    }
+
+    function onPointerUp(event: PointerEvent) {
+      if (!drag.current.active) return;
+      drag.current.active = false;
+      const dx = event.clientX - drag.current.x;
+      if (Math.abs(dx) > 40) {
+        drag.current.moved = true;
+        // RTL: dragging right moves to the next card.
+        goByRef.current(dx > 0 ? 1 : -1);
+      }
+    }
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+    };
+  }, []);
 
   if (count === 0) return null;
 
@@ -79,30 +129,14 @@ export function HomeItemSlider({ kind, items, moreHref }: Props) {
     if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
     suppressClickUntil.current = Date.now() + 500;
     // RTL: swiping right moves to the next card.
-    go(dx > 0 ? index + 1 : index - 1);
+    goBy(dx > 0 ? 1 : -1);
   }
 
   function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (event.pointerType !== 'mouse' || event.button !== 0) return;
-    // Never capture pointer events that start on a control: pointer capture
-    // retargets the trailing click to the shell, which would swallow the
-    // arrows/dots/card-link. Only a drag started on the card body is tracked.
-    if ((event.target as Element).closest('button, a')) return;
+    // Never start a drag on a control; a drag there would swallow its click.
+    if ((event.target as Element).closest('button')) return;
     drag.current = { active: true, x: event.clientX, moved: false };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  }
-
-  function onPointerUp(event: React.PointerEvent<HTMLDivElement>) {
-    if (!drag.current.active) return;
-    drag.current.active = false;
-    const dx = event.clientX - drag.current.x;
-    if (Math.abs(dx) > 40) {
-      drag.current.moved = true;
-      go(dx > 0 ? index + 1 : index - 1);
-    }
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
   }
 
   function onClickCapture(event: React.MouseEvent<HTMLDivElement>) {
@@ -128,79 +162,113 @@ export function HomeItemSlider({ kind, items, moreHref }: Props) {
       </div>
 
       <div
-        className="liquid-shell select-none"
+        className="spectrum-shell select-none"
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
         onPointerDown={onPointerDown}
-        onPointerUp={onPointerUp}
         onClickCapture={onClickCapture}
       >
         <button
           type="button"
-          onClick={() => go(index - 1)}
-          className="liquid-arrow liquid-arrow-prev"
+          onClick={() => goBy(-1)}
+          className="spectrum-arrow spectrum-arrow-prev"
           aria-label="قبلی"
         >
           <ChevronRight className="size-5" aria-hidden />
         </button>
         <button
           type="button"
-          onClick={() => go(index + 1)}
-          className="liquid-arrow liquid-arrow-next"
+          onClick={() => goBy(1)}
+          className="spectrum-arrow spectrum-arrow-next"
           aria-label="بعدی"
         >
           <ChevronLeft className="size-5" aria-hidden />
         </button>
 
-        <div className="liquid-viewport">
+        <div className="spectrum-viewport">
           <div
-            className="liquid-track"
+            className="spectrum-track"
             style={{ transform: `translateX(-${index * 100}%)` }}
           >
-            {items.map((item) => {
-              const initials = (item.fullName || '?').trim().slice(0, 1);
-              const role = item.jobTitle || item.business?.name || '';
+            {items.map((item, itemIndex) => {
+              const color = spectrumColorAt(kind, itemIndex);
+              // The card headline is the brand: the company name when the owner
+              // set one, otherwise the business category (or the role as a last
+              // resort) — mirroring the reference card's business-name line.
+              const title = item.company || item.business?.name || item.jobTitle || '';
+              const cityName = item.city?.name ?? '';
+              const phone = item.mobile || item.phone || '';
               return (
-                <div key={item.id} className="liquid-slide">
-                  <div className="liquid-card">
-                    <div className="liquid-inner">
-                      <div className="liquid-avatar" aria-hidden>
-                        {initials}
-                      </div>
-                      <div className="liquid-name">{item.fullName}</div>
-                      {role ? <div className="liquid-role">{role}</div> : null}
-                      {item.company ? (
-                        <div className="liquid-co">{item.company}</div>
-                      ) : null}
-                      <ul className="liquid-info">
-                        {item.business?.name ? (
-                          <li>{item.business.name}</li>
+                <div key={item.id} className="spectrum-slide">
+                  <Link
+                    href={`/${kind}/${item.slug}`}
+                    prefetch={false}
+                    className="spectrum-pair"
+                    style={{ ['--card-bg' as string]: color.bg, ['--card-fg' as string]: color.fg }}
+                    aria-label={`مشاهده ${item.fullName}`}
+                  >
+                    {/* رو */}
+                    <div className="spectrum-face spectrum-front">
+                      <span className="spectrum-lbl">رو</span>
+                      {title ? <p className="spectrum-title">{title}</p> : null}
+                      <p className="spectrum-manager">{item.fullName}</p>
+                      <div className="spectrum-rows">
+                        {item.business?.name && item.business.name !== title ? (
+                          <div>
+                            <b>کسب و کار:</b>
+                            {item.business.name}
+                          </div>
                         ) : null}
-                        {item.city?.name ? <li>{item.city.name}</li> : null}
-                        <li dir="ltr">alooshomal.ir/{kind}/{item.slug}</li>
-                      </ul>
-                      <Link
-                        href={`/${kind}/${item.slug}`}
-                        prefetch={false}
-                        className="liquid-save"
-                      >
-                        مشاهده کارت
-                      </Link>
+                        {cityName ? (
+                          <div>
+                            <b>شهر:</b>
+                            {cityName}
+                          </div>
+                        ) : null}
+                        {phone ? (
+                          <div>
+                            <b>تلفن همراه:</b>
+                            <span dir="ltr">{phone}</span>
+                          </div>
+                        ) : null}
+                        {item.address ? (
+                          <div>
+                            <b>آدرس:</b>
+                            {item.address}
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
+
+                    {/* پشت */}
+                    <div className="spectrum-face spectrum-back">
+                      <span className="spectrum-lbl">پشت</span>
+                      <div className="spectrum-logo">
+                        {title ? <b>{title}</b> : null}
+                        <span className="spectrum-mg">
+                          به مدیریت {item.fullName}
+                        </span>
+                        <small>
+                          {[item.jobTitle || item.business?.name, cityName]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </small>
+                      </div>
+                    </div>
+                  </Link>
                 </div>
               );
             })}
           </div>
         </div>
 
-        <div className="liquid-dots">
+        <div className="spectrum-dots">
           {items.map((item, dotIndex) => (
             <button
               key={item.id}
               type="button"
               onClick={() => go(dotIndex)}
-              className="liquid-dot"
+              className="spectrum-dot"
               aria-current={dotIndex === index}
               aria-label={`کارت ${dotIndex + 1}`}
             />

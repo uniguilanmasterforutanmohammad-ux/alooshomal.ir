@@ -481,9 +481,9 @@ export class BiolinksService {
   }
 
   /**
-   * The most recently published biolinks, used by the home-page slider. A tiny
-   * projection (no contact fields) so six cards cost almost nothing and the
-   * home page never ships the whole directory payload.
+   * The most recently published biolinks, used by the home-page slider. The
+   * projection carries only the fields the slider cards show (name, role,
+   * company, city, business and a contact line), so six cards stay cheap.
    */
   async findLatestPublished(take = 6) {
     const rows = await this.prisma.biolink.findMany({
@@ -498,12 +498,21 @@ export class BiolinksService {
         company: true,
         avatarUrl: true,
         logoUrl: true,
+        mobile: true,
+        phone: true,
+        address: true,
         publishedAt: true,
         city: { select: { id: true, name: true } },
         business: { select: { id: true, name: true } },
+        user: { select: { plan: true } },
       },
     });
-    return rows;
+    // Hide the fields the owner's plan masks (e.g. contact details on «رایگان»)
+    // and drop the `user` relation from the public payload.
+    return rows.map((row) => {
+      const { user: _user, ...rest } = this.applyPlanVisibility(row);
+      return rest;
+    });
   }
 
   /**
