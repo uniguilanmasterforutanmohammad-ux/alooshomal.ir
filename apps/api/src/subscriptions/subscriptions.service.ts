@@ -37,6 +37,7 @@ export class SubscriptionsService implements OnModuleInit {
     try {
       await this.ensureDefaultPlans();
       await this.backfillHiddenFields();
+      await this.backfillFreeEmailHidden();
     } catch {
       // The table may not exist yet on a very first boot; ignore and let the
       // entrypoint `prisma db push` create it, a later boot will seed it.
@@ -54,6 +55,26 @@ export class SubscriptionsService implements OnModuleInit {
       where: { showSocialLinks: false, hiddenFields: { equals: [] } },
       data: { hiddenFields: DEFAULT_HIDDEN_LINK_FIELDS },
     });
+  }
+
+  /**
+   * The free plan now also hides the e-mail. Plans that already carry the
+   * legacy link-field list (without `email`) get it appended; the update is
+   * targeted so it never touches a custom list an admin curated.
+   */
+  private async backfillFreeEmailHidden() {
+    const plans = await this.prisma.subscriptionPlan.findMany({
+      where: { showSocialLinks: false },
+      select: { id: true, hiddenFields: true },
+    });
+    for (const plan of plans) {
+      const hidden = Array.isArray(plan.hiddenFields) ? plan.hiddenFields : [];
+      if (hidden.length === 0 || hidden.includes('email')) continue;
+      await this.prisma.subscriptionPlan.update({
+        where: { id: plan.id },
+        data: { hiddenFields: [...hidden, 'email'] },
+      });
+    }
   }
 
   /**

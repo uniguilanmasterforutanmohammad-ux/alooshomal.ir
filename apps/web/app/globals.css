@@ -827,12 +827,12 @@ header.bg-white {
   flex-direction: column;
 }
 
-/* The one scrollable region: it wraps the themed card box. It is itself a
-   centred flex column, so a short card sits vertically centred while a tall
-   one overflows and scrolls internally (auto margins centre only on overflow
-   → they collapse to 0). */
+/* The one scrollable region: it wraps the themed card box. It sizes to its
+   content (`flex: 0 1 auto`) so a short card keeps the sections packed tightly
+   together instead of being pushed apart, and it shrinks + scrolls internally
+   when the card is taller than the room left for it. */
 .card-public-scroll {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -843,7 +843,7 @@ header.bg-white {
 }
 
 .card-public-scroll > * {
-  margin-block: auto;
+  margin-block: 0;
 }
 
 .card-public-scroll::-webkit-scrollbar { width: 6px; }

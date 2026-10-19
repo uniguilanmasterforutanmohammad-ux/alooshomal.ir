@@ -38,12 +38,14 @@ export const PLAN_FIELDS: Array<{ key: string; label: string }> = [
 export const PLAN_FIELD_KEYS: string[] = PLAN_FIELDS.map((field) => field.key);
 
 /**
- * Legacy fields the old free plan used to hide (socials + website). Kept as the
+ * Fields the free plan masks: the social/web links plus the e-mail. Kept as the
  * fallback for plans that predate the per-field `hiddenFields` list, so the old
- * `showSocialLinks` flag keeps behaving exactly as before.
+ * `showSocialLinks` flag keeps behaving the same (only now it also hides the
+ * e-mail, matching the current free-plan rules).
  */
 export const DEFAULT_HIDDEN_LINK_FIELDS = [
   'website',
+  'email',
   'linkedin',
   'instagram',
   'telegram',
@@ -76,7 +78,7 @@ export const DEFAULT_PLANS: PlanDefinition[] = [
     hiddenFields: DEFAULT_HIDDEN_LINK_FIELDS,
     features: [
       'ساخت یک کارت ویزیت و یک بیولینک',
-      'عدم نمایش لینک‌ها، شبکه‌های اجتماعی و وب‌سایت',
+      'عدم نمایش لینک‌ها، شبکه‌های اجتماعی، وب‌سایت و ایمیل',
     ],
     sortOrder: 1,
   },

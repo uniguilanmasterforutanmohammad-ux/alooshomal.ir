@@ -35,6 +35,11 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
     >
       <div className="flex min-h-0 flex-1 items-stretch justify-center px-4 py-4 sm:py-8">
         <div className="card-public-inner w-full max-w-[460px]">
+          <PlanUpgradeNotice
+            ownerUserId={businessCard.userId}
+            hidesFields={businessCard.planHidesFields}
+          />
+
           {/* One aligned row: back link · plan badge · home link. */}
           <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
             <Link
@@ -60,11 +65,6 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
               صفحه اصلی
             </Link>
           </div>
-
-          <PlanUpgradeNotice
-            ownerUserId={businessCard.userId}
-            hidesFields={businessCard.planHidesFields}
-          />
 
           {/* Only this region scrolls; the chrome above and below stays put. */}
           <div className="card-public-scroll">

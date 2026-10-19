@@ -20,7 +20,42 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.73.3**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.73.4**.
+
+## ۱۴۰۵/۰۷/۲۷ — فشرده‌سازی سکشن‌های صفحه‌ی عمومی، انتقال اخطار ارتقا به بالا و مخفی‌کردن ایمیل در پلن رایگان — نسخه `v2.73.4`
+
+**هدف:** «درخواست جدید» — در `/business-cards/<slug>` و `/biolinks/<slug>`:
+۱) فاصله‌ی بین سکشن‌ها کم و فشرده شود، ۲) اخطار محدودیت نمایش/ارتقا (پلن رایگان)
+در بالاترین سکشن نمایش داده شود، ۳) در اشتراک رایگان ایمیل هم نمایش داده نشود.
+
+**تغییرات:**
+- `apps/web/app/globals.css`: ناحیه‌ی `.card-public-scroll` از `flex: 1 1 auto` به
+  `flex: 0 1 auto` تغییر کرد و `margin-block: auto` فرزندان به `0` رفت، تا
+  کارت‌های کوتاه به‌جای پخش‌شدن در ارتفاع صفحه، سکشن‌ها را فشرده و کنار هم نگه
+  دارند (کارت بلند همچنان درون همین ناحیه اسکرول می‌شود).
+- `apps/web/components/businesscard/PublicBusinessCardView.tsx` و
+  `apps/web/components/biolink/PublicBiolinkView.tsx`: بلوک `PlanUpgradeNotice`
+  از میان صفحه به اولین فرزند `card-public-inner` منتقل شد تا بالاترین سکشن باشد.
+- `apps/api/src/common/plans.ts`: افزودن `'email'` به `DEFAULT_HIDDEN_LINK_FIELDS`
+  و به‌روزرسانی متن ویژگی پلن رایگان («عدم نمایش لینک‌ها، شبکه‌های اجتماعی،
+  وب‌سایت و ایمیل»).
+- `apps/api/src/subscriptions/subscriptions.service.ts`: افزودن
+  `backfillFreeEmailHidden()` که در `onModuleInit` اجرا می‌شود و به پلن‌های بدون
+  `showSocialLinks` که فهرست فیلدهای مخفی دارند ولی `email` در آن‌ها نیست،
+  «ایمیل» را اضافه می‌کند (بدون دست‌زدن به فهرست‌های دست‌سازِ بدون لینک).
+
+**تأیید/تست:**
+- `docker exec alooshomal-api ... tsc --noEmit -p tsconfig.json` و همان برای web →
+  هر دو بدون خطا.
+- پس از `docker restart alooshomal-api`، مهاجرت اجرا و در `subscription_plans`
+  مقدار پلن «رایگان» به `{website,linkedin,instagram,telegram,twitter,whatsapp,email}`
+  به‌روز شد (اکو/بلاس دست‌نخورده).
+- با `playwright-core` و `/usr/bin/google-chrome` روی
+  `/business-cards/9095769` و `/biolinks/test-bl-mv50yfqd-hzab1v`: فاصله‌ی بین
+  سکشن‌ها `[12,16,12]` پیکسل (فشرده)، `emailShown === false`، و با ورود به‌عنوان
+  مالک کارت (پلن رایگان) اخطار «جهت نمایش کامل…» نخستین فرزند `card-public-inner`
+  بود و در بالاترین سکشن رندر شد. در موبایل (۳۹۰px) هم بدون سرریز افقی و بدون
+  اسکرولِ اضافه‌ی پوسته.
 
 ## ۱۴۰۵/۰۷/۲۷ — اصلاح فرم‌های ساخت کارت ویزیت/بیولینک — نسخه `v2.73.3`
 
