@@ -5,6 +5,7 @@ import { ThemedBiolink } from './ThemedBiolink';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
 import { themeClassName } from '@/lib/themes';
+import { spectrumStyleVars } from '@/lib/card-spectrum';
 import type { Biolink } from '@/lib/api';
 
 interface Props {
@@ -25,6 +26,12 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
       className={`biolink-theme biolink-theme-page card-public-page ${themeClassName(
         biolink.template,
       )}`}
+      style={
+        spectrumStyleVars({
+          theme: biolink.template,
+          primaryColor: biolink.primaryColor,
+        }) as React.CSSProperties | undefined
+      }
     >
       <div className="flex min-h-0 flex-1 items-stretch justify-center px-4 py-4 sm:py-8">
         <div className="card-public-inner w-full max-w-[480px]">

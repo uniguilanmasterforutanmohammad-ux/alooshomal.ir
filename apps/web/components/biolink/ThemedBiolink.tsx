@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { themeClassName } from '@/lib/themes';
+import { spectrumStyleVars } from '@/lib/card-spectrum';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import type { TaxonomyItem } from '@/lib/api';
 
@@ -108,9 +109,12 @@ export function ThemedBiolink({
     <div
       className={`${themeClassName(themeKey)} ${compact ? 'text-sm' : ''}`}
       style={
-        themeKey === 'vintage' && data.primaryColor
-          ? ({ ['--biolink-accent' as string]: data.primaryColor } as React.CSSProperties)
-          : undefined
+        {
+          ...(themeKey === 'vintage' && data.primaryColor
+            ? { ['--biolink-accent' as string]: data.primaryColor }
+            : {}),
+          ...spectrumStyleVars({ theme: themeKey, primaryColor: data.primaryColor }),
+        } as React.CSSProperties
       }
     >
       <div className="theme-body overflow-hidden px-8 pt-8 pb-8 text-center sm:pt-10 sm:pb-8">
@@ -252,9 +256,12 @@ function EditableBiolink({
     <div
       className={`${themeClassName(themeKey)} ${compact ? 'text-sm' : ''}`}
       style={
-        themeKey === 'vintage' && data.primaryColor
-          ? ({ ['--biolink-accent' as string]: data.primaryColor } as React.CSSProperties)
-          : undefined
+        {
+          ...(themeKey === 'vintage' && data.primaryColor
+            ? { ['--biolink-accent' as string]: data.primaryColor }
+            : {}),
+          ...spectrumStyleVars({ theme: themeKey, primaryColor: data.primaryColor }),
+        } as React.CSSProperties
       }
     >
       <div className="theme-body overflow-hidden px-8 pt-8 pb-8 text-center sm:pt-10 sm:pb-8">

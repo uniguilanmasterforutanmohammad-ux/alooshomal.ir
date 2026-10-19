@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { Input } from '@/components/ui/Input';
 import { ImageUpload } from '@/components/ui/ImageUpload';
+import { SpectrumColorPicker } from '@/components/ui/SpectrumColorPicker';
 import { LinkSelector } from '@/components/link/LinkSelector';
 import { LiveBusinessCardPreview } from '@/components/businesscard/LiveBusinessCardPreview';
 import { api, type TaxonomyItem } from '@/lib/api';
@@ -11,6 +12,7 @@ import {
   SELECTABLE_BUSINESS_CARD_THEMES,
   DEFAULT_BUSINESS_CARD_THEME_KEY,
 } from '@/lib/themes';
+import { SPECTRUM_COLORS, SPECTRUM_THEME_KEY, spectrumColorByBg } from '@/lib/card-spectrum';
 import { hasAnyValue, useFormAutosave } from '@/lib/use-form-autosave';
 
 export interface BusinessCardFormValues {
@@ -134,6 +136,18 @@ export function BusinessCardForm({
 
   function setField<K extends keyof BusinessCardFormValues>(key: K, value: BusinessCardFormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
+  }
+
+  /** Selecting the «طیفی» theme seeds a palette colour when none is set yet. */
+  function selectTheme(themeKey: string) {
+    setValues((prev) => ({
+      ...prev,
+      template: themeKey,
+      primaryColor:
+        themeKey === SPECTRUM_THEME_KEY && !spectrumColorByBg(prev.primaryColor)
+          ? SPECTRUM_COLORS[0].bg
+          : prev.primaryColor,
+    }));
   }
 
   function updateField(key: string, value: string) {
@@ -358,8 +372,45 @@ export function BusinessCardForm({
           <div className="indeed-panel p-6">
             <h2 className="text-lg font-extrabold text-ink">تصویر و تم</h2>
             <p className="mt-1 text-xs text-muted">
-              در حال حاضر تنها تم «وینتیج» فعال است.
+              تم و رنگ کارت ویزیت را انتخاب کنید؛ پیش‌نمایش بلافاصله به‌روز می‌شود.
             </p>
+
+            <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
+              {SELECTABLE_BUSINESS_CARD_THEMES.map((theme) => (
+                <button
+                  key={theme.key}
+                  type="button"
+                  onClick={() => selectTheme(theme.key)}
+                  title={theme.name}
+                  aria-pressed={values.template === theme.key}
+                  className={
+                    values.template === theme.key
+                      ? 'rounded-lg border-2 border-brand p-1.5'
+                      : 'rounded-lg border-2 border-transparent p-1.5 hover:border-[var(--vintage-border)]'
+                  }
+                >
+                  <span
+                    className="block h-8 w-full rounded-md border border-[var(--vintage-border)]"
+                    style={{
+                      background: `linear-gradient(135deg, ${theme.swatch[0]} 0 34%, ${theme.swatch[1]} 34% 67%, ${theme.swatch[2]} 67% 100%)`,
+                    }}
+                  />
+                  <span className="mt-1 block truncate text-[10px] text-muted">
+                    {theme.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {values.template === SPECTRUM_THEME_KEY ? (
+              <div className="mt-4 rounded-lg border border-[var(--vintage-border)] p-3">
+                <SpectrumColorPicker
+                  value={values.primaryColor}
+                  onChange={(color) => setField('primaryColor', color)}
+                />
+              </div>
+            ) : null}
+
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <ImageUpload
                 label="تصویر پروفایل"
@@ -595,7 +646,7 @@ export function BusinessCardForm({
             <select
               className="indeed-input"
               value={values.template}
-              onChange={(event) => setField('template', event.target.value)}
+              onChange={(event) => selectTheme(event.target.value)}
             >
               {SELECTABLE_BUSINESS_CARD_THEMES.map((theme) => (
                 <option key={theme.key} value={theme.key}>
@@ -613,7 +664,7 @@ export function BusinessCardForm({
               <button
                 key={theme.key}
                 type="button"
-                onClick={() => setField('template', theme.key)}
+                onClick={() => selectTheme(theme.key)}
                 title={theme.name}
                 aria-pressed={values.template === theme.key}
                 className={
@@ -635,15 +686,24 @@ export function BusinessCardForm({
             ))}
           </div>
 
-          <label className="mt-4 flex items-center gap-3">
-            <span className="text-sm font-bold text-ink">رنگ اصلی (تم وینتیج)</span>
-            <input
-              type="color"
-              value={values.primaryColor}
-              onChange={(event) => setField('primaryColor', event.target.value)}
-              className="h-10 w-16 cursor-pointer rounded-lg border border-[var(--indeed-border)]"
-            />
-          </label>
+          {values.template === SPECTRUM_THEME_KEY ? (
+            <div className="mt-4 rounded-lg border border-[var(--vintage-border)] p-3">
+              <SpectrumColorPicker
+                value={values.primaryColor}
+                onChange={(color) => setField('primaryColor', color)}
+              />
+            </div>
+          ) : (
+            <label className="mt-4 flex items-center gap-3">
+              <span className="text-sm font-bold text-ink">رنگ اصلی (تم وینتیج)</span>
+              <input
+                type="color"
+                value={values.primaryColor}
+                onChange={(event) => setField('primaryColor', event.target.value)}
+                className="h-10 w-16 cursor-pointer rounded-lg border border-[var(--indeed-border)]"
+              />
+            </label>
+          )}
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
             <ImageUpload

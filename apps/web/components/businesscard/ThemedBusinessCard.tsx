@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 
 import { businessCardThemeClassName } from '@/lib/themes';
+import { spectrumStyleVars } from '@/lib/card-spectrum';
 import { InlineEdit } from '@/components/ui/InlineEdit';
 import type { TaxonomyItem } from '@/lib/api';
 
@@ -124,7 +125,10 @@ export function ThemedBusinessCard({
   const company = data.company || cityName;
 
   return (
-    <div className={`${businessCardThemeClassName(themeKey)} ${compact ? 'text-sm' : ''}`}>
+    <div
+      className={`${businessCardThemeClassName(themeKey)} ${compact ? 'text-sm' : ''}`}
+      style={spectrumStyleVars({ theme: themeKey, primaryColor: data.primaryColor })}
+    >
       <div className="bc-card relative w-full p-6 sm:p-8">
         <div className="relative z-[1]">
           <header className="flex items-start gap-4">
@@ -294,7 +298,10 @@ function EditableBusinessCard({
     .toUpperCase();
 
   return (
-    <div className={`${businessCardThemeClassName(themeKey)} ${compact ? 'text-sm' : ''}`}>
+    <div
+      className={`${businessCardThemeClassName(themeKey)} ${compact ? 'text-sm' : ''}`}
+      style={spectrumStyleVars({ theme: themeKey, primaryColor: data.primaryColor })}
+    >
       <div className="bc-card relative w-full p-6 sm:p-8">
         <div className="relative z-[1]">
           <header className="flex items-start gap-4">

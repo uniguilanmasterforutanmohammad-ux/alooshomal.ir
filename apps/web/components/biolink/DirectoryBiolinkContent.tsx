@@ -6,7 +6,9 @@ import { Users } from 'lucide-react';
 
 import { DirectoryBiolinkItem } from '@/components/biolink/DirectoryBiolinkItem';
 import { DirectoryDetail } from '@/components/biolink/DirectoryDetail';
+import { DirectoryBiolinkTile } from '@/components/biolink/DirectoryBiolinkTile';
 import { MobileSheet } from '@/components/ui/MobileSheet';
+import { DirectoryViewSwitch } from '@/components/ui/DirectoryViewSwitch';
 import {
   DirectoryFilters,
   type DirectoryFilterState,
@@ -17,6 +19,7 @@ import {
   useInfiniteScroll,
 } from '@/lib/directory';
 import { primeDirectoryDetails } from '@/lib/directory-detail';
+import { useDirectoryView } from '@/lib/directory-view';
 import type { ServerDirectoryResult } from '@/lib/directory-server';
 
 export function DirectoryContent({
@@ -37,6 +40,7 @@ export function DirectoryContent({
     sort: (searchParams.get('sort') as 'recent' | 'liked') ?? 'recent',
   };
   const [filters, setFilters] = useState<DirectoryFilterState>(initial);
+  const { view, setView } = useDirectoryView();
   const [selectedSlug, setSelectedSlug] = useState<string | null>(
     searchParams.get('biolink'),
   );
@@ -100,16 +104,19 @@ export function DirectoryContent({
 
   return (
     <main className="container-page py-6 directory-shell">
-      <div className="mb-5 flex shrink-0 items-center gap-3">
-        <Users className="size-7 text-brand" aria-hidden />
-        <div>
-          <h1 className="text-xl font-extrabold text-ink">دایرکتوری بیولینک‌ها</h1>
-          <p className="text-sm text-muted">
-            {meta
-              ? `${meta.total.toLocaleString('fa-IR')} بیولینک منتشرشده — نمایش ${items.length.toLocaleString('fa-IR')} مورد`
-              : 'در حال بارگذاری...'}
-          </p>
+      <div className="mb-5 flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Users className="size-7 text-brand" aria-hidden />
+          <div>
+            <h1 className="text-xl font-extrabold text-ink">دایرکتوری بیولینک‌ها</h1>
+            <p className="text-sm text-muted">
+              {meta
+                ? `${meta.total.toLocaleString('fa-IR')} بیولینک منتشرشده — نمایش ${items.length.toLocaleString('fa-IR')} مورد`
+                : 'در حال بارگذاری...'}
+            </p>
+          </div>
         </div>
+        <DirectoryViewSwitch value={view} onChange={setView} />
       </div>
 
       <div className="shrink-0">
@@ -130,6 +137,51 @@ export function DirectoryContent({
           From tablet up it is split (like desktop) but with a narrower detail
           column so the list keeps enough room; phones show the list only and
           open the detail in a bottom sheet. */}
+      {view === 'tiles' ? (
+        /* «کاشی» view: every published biolink rendered in its owner's theme,
+           tiled next to each other. The switch above returns to the list. */
+        <div className="directory-tiles mt-5">
+          {loading && items.length === 0 ? (
+            <div className="directory-tiles-grid">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="indeed-panel h-72 animate-pulse bg-soft" />
+              ))}
+            </div>
+          ) : items.length > 0 ? (
+            <>
+              <div className="directory-tiles-grid">
+                {items.map((biolink) => (
+                  <DirectoryBiolinkTile
+                    key={biolink.id}
+                    biolink={biolink}
+                  />
+                ))}
+              </div>
+              <div ref={sentinelRef} className="h-2" aria-hidden />
+              {loading ? (
+                <div className="py-3 text-center text-xs text-muted">
+                  در حال بارگذاری موارد بیشتر...
+                </div>
+              ) : null}
+              {!loading && meta && !meta.hasNext ? (
+                <div className="py-3 text-center text-xs text-muted">
+                  همه نتایج نمایش داده شد.
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <div className="indeed-panel p-10 text-center">
+              <p className="text-lg font-bold text-ink">بیولینکی پیدا نشد</p>
+              <p className="mt-2 text-sm text-muted">
+                عبارت جستجو یا فیلترها را تغییر دهید.
+              </p>
+              <button onClick={reset} className="indeed-btn indeed-btn-primary mt-6">
+                پاک‌کردن فیلترها
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
       <div className="directory-grid mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(320px,44%)] lg:grid-cols-[1fr_420px]">
         <section className="order-2 flex min-h-0 flex-col md:order-1">
           <div className="directory-list min-h-0 flex-1">
@@ -199,6 +251,7 @@ export function DirectoryContent({
           </div>
         </aside>
       </div>
+      )}
 
       {/* Mobile: details open as a bottom-sheet modal instead of the side panel */}
       <MobileSheet

@@ -5,6 +5,7 @@ import { ThemedBusinessCard } from './ThemedBusinessCard';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
 import { businessCardThemeClassName } from '@/lib/themes';
+import { spectrumStyleVars } from '@/lib/card-spectrum';
 import type { BusinessCard } from '@/lib/api';
 
 interface Props {
@@ -25,6 +26,12 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
       className={`bcard-theme bcard-theme-page card-public-page ${businessCardThemeClassName(
         businessCard.template,
       )}`}
+      style={
+        spectrumStyleVars({
+          theme: businessCard.template,
+          primaryColor: businessCard.primaryColor,
+        }) as React.CSSProperties | undefined
+      }
     >
       <div className="flex min-h-0 flex-1 items-stretch justify-center px-4 py-4 sm:py-8">
         <div className="card-public-inner w-full max-w-[460px]">

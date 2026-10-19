@@ -20,7 +20,70 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.72.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.73.0**.
+
+## ۱۴۰۵/۰۷/۲۷ — تم «طیفی» کارت ویزیت/بیولینک، انتخاب رنگ سازنده و نمای کاشی دایرکتوری — نسخه `v2.73.0`
+
+**هدف:** «درخواست جدید» — بر پایه‌ی دو فایل نمونه‌ی `/home/mohammad/Downloads/spectrum-v8.html`
+(کارت ویزیت) و `biolink-single-v2.html` (بیولینک) یک تم رنگی مشترک به نام «طیفی» ساخته
+شود؛ سازنده هنگام ساخت کارت/بیولینک بتواند تم و رنگ خود را انتخاب کند؛ و در صفحات
+`/business-cards` و `/biolinks` دو سبک نمایش فراهم شود: (۱) سبک فعلی (لیست/جزئیات) و
+(۲) نمای کاشی‌کاری که همه‌ی کارت‌ها را با تم انتخاب‌شده‌ی سازنده کنار هم می‌چیند.
+
+**تغییرات:**
+- `apps/web/lib/card-spectrum.ts` (فایل جدید): پالت ۱۴رنگه‌ی spectrum (جفت bg/fg) مطابق
+  هر دو فایل نمونه، به‌همراه `SPECTRUM_THEME_KEY`، `hashString`، `spectrumColorAt`،
+  `spectrumColorByBg`، `contrastText`، `cardPalette` و `spectrumStyleVars` که متغیرهای
+  `--spectrum-bg/--spectrum-fg` را تولید می‌کند.
+- `apps/web/components/ui/SpectrumColorPicker.tsx` (فایل جدید): پیکر ۱۴رنگه با `title`
+  فارسی هر رنگ و `aria-pressed`.
+- `apps/web/lib/themes.ts`: افزودن تم «طیفی (انتخاب رنگ)» به `BIOLINK_THEMES` و
+  `BUSINESS_CARD_THEMES`؛ جایگزینی `THEME_SELECTION_LOCKED` با `ENABLED_THEME_KEYS`
+  (`vintage` + `spectrum`) و فیلتر کردن فهرست تم‌های قابل‌انتخاب.
+- `apps/web/components/biolink/ThemedBiolink.tsx` و
+  `apps/web/components/businesscard/ThemedBusinessCard.tsx`: اعمال `spectrumStyleVars`
+  روی ریشه‌ی هر دو حالت نمایش/ویرایش.
+- `apps/web/components/biolink/PublicBiolinkView.tsx` و
+  `apps/web/components/businesscard/PublicBusinessCardView.tsx`: اعمال همان متغیرها روی
+  پوشش صفحه‌ی عمومی.
+- `apps/web/components/biolink/BiolinkForm.tsx` و
+  `apps/web/components/businesscard/BusinessCardForm.tsx`: افزودن `selectTheme`، شبکه‌ی
+  دکمه‌های انتخاب تم و `SpectrumColorPicker` (برای طیفی) یا ورودی رنگ (برای وینتیج) در
+  هر دو شاخه‌ی فرم (`inline` و غیر آن).
+- `apps/web/app/globals.css`: افزودن `.theme-spectrum` و `.bc-theme-spectrum`
+  (قاب خط‌چین، اسکن‌لاین، رنگ آواتار/دکمه/شبکه‌های اجتماعی و پس‌زمینه‌ی تیره‌ی رنگ‌آمیخته)
+  و استایل‌های نمای کاشی (`.directory-view-switch`, `.directory-tiles`, `.directory-tiles-grid`
+  با `repeat(auto-fill,minmax(280px,1fr))`, `.directory-tile`).
+- `apps/web/lib/directory-view.ts` (فایل جدید): هوک `useDirectoryView` با ذخیره‌ی
+  `alooshomal:directory-view` در localStorage (پیش‌فرض `list`).
+- `apps/web/components/ui/DirectoryViewSwitch.tsx` (فایل جدید): سوییچ «لیست/کاشی».
+- `apps/web/components/businesscard/DirectoryBusinessCardTile.tsx` و
+  `apps/web/components/biolink/DirectoryBiolinkTile.tsx` (فایل‌های جدید): کاشی‌های
+  دایرکتوری که `ThemedBusinessCard`/`ThemedBiolink` را با تم ذخیره‌شده‌ی صاحب کارت
+  رندر می‌کنند و کل کاشی لینک به صفحه‌ی عمومی است.
+- `apps/web/components/businesscard/DirectoryBusinessCardContent.tsx` و
+  `apps/web/components/biolink/DirectoryBiolinkContent.tsx`: افزودن `DirectoryViewSwitch`
+  به سربرگ و شاخه‌ی نمای کاشی در کنار نمای فعلی.
+- `apps/web/lib/api.ts`: افزودن فیلدهای اختیاری `city`/`business` به تایپ‌های دایرکتوری.
+- `apps/api/src/businesscards/business-cards.service.ts` و
+  `apps/api/src/biolinks/biolinks.service.ts`: افزودن `city`/`business` به selectهای
+  `loadDirectoryPage` و اینترفیس‌های آیتم دایرکتوری.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web sh -lc 'cd /usr/src/app && ./node_modules/.bin/tsc --noEmit'`
+  و همان برای `alooshomal-api` → هر دو بدون خطا.
+- API: `city`/`business` در پاسخ‌های `/business-cards/public` و `/biolinks/public`
+  برگردانده می‌شود.
+- با `playwright-core` و `/usr/bin/google-chrome`: صفحه‌ی عمومی کارت نمونه کلاس
+  `bc-theme-spectrum` و متغیرهای درون‌خطی رنگ را گرفت؛ بیولینک عمومی نیز
+  `theme-spectrum` با لینک اول پرشده رندر شد.
+- نمای کاشی: ۷ کاشی کارت و ۲۰ کاشی بیولینک، در عرض‌های ۳۹۰/۷۶۸/۱۴۴۰ به‌ترتیب
+  ۱/۲/۳ ستون و بدون سرریز افقی؛ کلیک روی کاشی به صفحه‌ی عمومی همان کارت می‌رود.
+- فرم سازنده: دکمه‌ی `button[title="طیفی (انتخاب رنگ)"]` در
+  `/dashboard/business-cards/new` و `/dashboard/biolinks/new` موجود است و با کلیک روی
+  `button[title="سبز"]` رنگ پیش‌نمایش بلافاصله از `rgb(250,223,163)` به `rgb(2,180,77)`
+  تغییر می‌کند.
+- `python3 scripts/sync_install.py` و سپس `--check` بدون «تغییر معلق».
 
 ## ۱۴۰۵/۰۷/۲۷ — نمایش کنار‌هم کارت‌های «آخرین کارت‌های ویزیت» و «آخرین بیولینک‌ها» (ریل افقی) — نسخه `v2.72.0`
 

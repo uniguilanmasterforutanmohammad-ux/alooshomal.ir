@@ -10,6 +10,11 @@
  * The actual colours live in `globals.css` under `.theme-<key>` so themes
  * stay declarative and easy to extend.
  */
+import {
+  SPECTRUM_COLORS,
+  SPECTRUM_THEME_KEY,
+} from './card-spectrum';
+
 export interface BiolinkTheme {
   key: string;
   name: string;
@@ -95,22 +100,29 @@ export const BIOLINK_THEMES: BiolinkTheme[] = [
     swatch: ['#08010f', '#d46cff', '#48e8ee'],
     dark: true,
   },
+  {
+    // The «طیفی» look from the reference file `biolink-single-v2.html`: the
+    // owner picks one of the 14 spectrum colours and the whole card (title,
+    // rows, pill links and the outer page) is painted in that colour.
+    key: SPECTRUM_THEME_KEY,
+    name: 'طیفی (انتخاب رنگ)',
+    swatch: [SPECTRUM_COLORS[0].bg, SPECTRUM_COLORS[1].bg, SPECTRUM_COLORS[3].bg],
+  },
 ];
 
 export const DEFAULT_THEME_KEY = 'vintage';
 
 /**
- * TEMPORARY: only the «وینتیج» theme is offered while the other looks are
- * being reworked. Everything else stays in {@link BIOLINK_THEMES} so existing
- * cards keep rendering their stored theme, but the builder hides the pickers.
- * Flip this back to `null` to re-enable every theme everywhere.
+ * Themes the builder may offer to the user. Only «وینتیج» (kept for existing
+ * cards) and «طیفی» are enabled while the older looks are being reworked;
+ * everything else stays in {@link BIOLINK_THEMES} so existing cards keep
+ * rendering their stored theme.
  */
-export const THEME_SELECTION_LOCKED = true;
+export const ENABLED_THEME_KEYS: string[] = [DEFAULT_THEME_KEY, SPECTRUM_THEME_KEY];
 
-/** Themes the builder may offer to the user (locked to Vintage for now). */
-export const SELECTABLE_BIOLINK_THEMES: BiolinkTheme[] = THEME_SELECTION_LOCKED
-  ? BIOLINK_THEMES.filter((theme) => theme.key === DEFAULT_THEME_KEY)
-  : BIOLINK_THEMES;
+export const SELECTABLE_BIOLINK_THEMES: BiolinkTheme[] = BIOLINK_THEMES.filter(
+  (theme) => ENABLED_THEME_KEYS.includes(theme.key),
+);
 
 export function getTheme(key: string | null | undefined): BiolinkTheme {
   return (
@@ -216,24 +228,23 @@ export const BUSINESS_CARD_THEMES: BiolinkTheme[] = [
     name: 'تایپوگرافیک',
     swatch: ['#fffefa', '#101010', '#444444'],
   },
+  {
+    // The «طیفی» look from the reference file `spectrum-v8.html`: the owner
+    // picks one of the 14 spectrum colours for the front/back card faces.
+    key: SPECTRUM_THEME_KEY,
+    name: 'طیفی (انتخاب رنگ)',
+    swatch: [SPECTRUM_COLORS[0].bg, SPECTRUM_COLORS[1].bg, SPECTRUM_COLORS[3].bg],
+  },
 ];
 
 export const DEFAULT_BUSINESS_CARD_THEME_KEY = 'vintage';
 
 /**
- * TEMPORARY: the business-card builder only offers the «وینتیج» theme (see
- * {@link THEME_SELECTION_LOCKED}). The same vintage look is applied to the
- * business card so both builders show one consistent, enabled theme.
+ * The business-card builder offers the same enabled set as the biolink builder
+ * («وینتیج» + «طیفی»); the other stored looks keep rendering on existing cards.
  */
-export const SELECTABLE_BUSINESS_CARD_THEMES: BiolinkTheme[] = THEME_SELECTION_LOCKED
-  ? [
-      {
-        key: 'vintage',
-        name: 'وینتیج (پیش‌فرض)',
-        swatch: ['#8b3a1a', '#f2e8d9', '#3a281c'],
-      },
-    ]
-  : BUSINESS_CARD_THEMES;
+export const SELECTABLE_BUSINESS_CARD_THEMES: BiolinkTheme[] =
+  BUSINESS_CARD_THEMES.filter((theme) => ENABLED_THEME_KEYS.includes(theme.key));
 
 export function getBusinessCardTheme(key: string | null | undefined): BiolinkTheme {
   return (

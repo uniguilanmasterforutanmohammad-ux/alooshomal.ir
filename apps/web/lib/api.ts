@@ -292,6 +292,8 @@ export interface DirectoryBiolink {
   boostedUntil?: string | null;
   /** paid directory-ad expiry; when in the future a «تبلیغات» tag is shown */
   adDirectoryUntil?: string | null;
+  city?: { id: string; name: string } | null;
+  business?: { id: string; name: string } | null;
   likeCount: number;
   liked: boolean;
   saved: boolean;
@@ -388,6 +390,8 @@ export interface DirectoryBusinessCard {
   boostedUntil?: string | null;
   /** paid directory-ad expiry; when in the future a «تبلیغات» tag is shown */
   adDirectoryUntil?: string | null;
+  city?: { id: string; name: string } | null;
+  business?: { id: string; name: string } | null;
   likeCount: number;
   liked: boolean;
   saved: boolean;

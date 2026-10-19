@@ -723,6 +723,99 @@ header.bg-white {
   }
 }
 
+/* ---- Directory view switch (list / tiles) ----
+   The public directories offer two looks: the classic split list (default) and
+   a tile grid where every card/biolink previews its owner-selected theme. */
+.directory-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 9999px;
+  border: 1px solid var(--indeed-border);
+  background: #fff;
+}
+.directory-view-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-soft, #555);
+  transition: background 0.15s, color 0.15s;
+}
+.directory-view-switch button[aria-pressed='true'] {
+  background: var(--brand, #8b3a1a);
+  color: #fff;
+}
+
+/* Tile grid: one tile per card. The tile grid replaces the split view, so it
+   is the single scrollable region of the shell. */
+.directory-tiles {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  direction: ltr;
+  scrollbar-width: thin;
+  scrollbar-color: var(--vintage-accent) transparent;
+  padding-right: 10px;
+  padding-bottom: 8px;
+}
+.directory-tiles > * {
+  direction: rtl;
+}
+.directory-tiles::-webkit-scrollbar {
+  width: 5px;
+}
+.directory-tiles::-webkit-scrollbar-track {
+  background: transparent;
+}
+.directory-tiles::-webkit-scrollbar-thumb {
+  background: var(--vintage-accent);
+  border-radius: 9999px;
+}
+.directory-tiles-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  align-items: start;
+}
+/* Every tile renders the owner's real themed card at tile size, so the whole
+   directory previews at a glance. */
+.directory-tile {
+  position: relative;
+  display: block;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 0.18s, box-shadow 0.18s;
+}
+.directory-tile:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 14px 30px rgba(58, 40, 28, 0.18);
+}
+.directory-tile .bc-card,
+.directory-tile .theme-body { pointer-events: none; }
+.directory-tile-badges {
+  position: absolute;
+  inset-inline-end: 10px;
+  top: 10px;
+  z-index: 3;
+  display: flex;
+  gap: 6px;
+}
+.directory-tile-actions {
+  position: absolute;
+  inset-inline-end: 10px;
+  bottom: 10px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ---- Public card pages (/biolinks/<slug>, /business-cards/<slug>) ----
    The page itself must never scroll: the top row (back/home + plan badge)
    and the bottom share block stay pinned, and only the card frame in the
@@ -873,6 +966,76 @@ header.bg-white {
   font-feature-settings: 'ss01';
 }
 .biolink-theme .theme-divider { border-color: var(--biolink-border); }
+
+/* --- spectrum — the 14-colour palette from the reference files
+   (`biolink-single-v2.html` / `spectrum-v8.html`). The owner picks one colour
+   in the builder; `--spectrum-bg` / `--spectrum-fg` are set inline on the card
+   wrapper so every spectrum card reuses these rules. --- */
+.theme-spectrum {
+  --spectrum-bg: #fadfa3;
+  --spectrum-fg: #7f2d05;
+  --biolink-bg: var(--spectrum-bg);
+  --biolink-surface: var(--spectrum-bg);
+  --biolink-text: var(--spectrum-fg);
+  --biolink-muted: color-mix(in srgb, var(--spectrum-fg) 78%, transparent);
+  --biolink-accent: var(--spectrum-fg);
+  --biolink-border: color-mix(in srgb, var(--spectrum-fg) 40%, transparent);
+  --biolink-radius: 18px;
+  --biolink-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+  --biolink-link-bg: transparent;
+  --biolink-link-text: var(--spectrum-fg);
+  --biolink-link-border: var(--spectrum-fg);
+  --biolink-link-radius: 999px;
+  --biolink-link-shadow: none;
+  --biolink-link-transform: translateY(-2px);
+  --biolink-avatar-border: var(--spectrum-fg);
+  --biolink-avatar-border-width: 2px;
+  --biolink-avatar-border-style: solid;
+  /* public page: dark, tinted backdrop so the coloured card pops (as in the
+     reference file, where the body is a dark green gradient). */
+  --biolink-page-bg: linear-gradient(
+    150deg,
+    color-mix(in srgb, var(--spectrum-bg) 40%, #05070a),
+    #05070a
+  );
+  --biolink-page-text: #f6faf9;
+  --biolink-page-muted: rgba(255, 255, 255, 0.78);
+  --biolink-panel-bg: var(--spectrum-bg);
+  --biolink-panel-border: color-mix(in srgb, var(--spectrum-fg) 40%, transparent);
+}
+/* The dashed inner frame of the reference card. */
+.theme-spectrum .theme-body { position: relative; }
+.theme-spectrum .theme-body::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 1px dashed currentColor;
+  opacity: 0.4;
+  border-radius: 12px;
+  pointer-events: none;
+}
+/* The first (primary) link is a solid fill, the rest are outlines — exactly
+   like the «تماس / مسیر / ذخیره» rows in the reference biolink. */
+.theme-spectrum .theme-link:nth-child(1) {
+  --biolink-link-bg: var(--spectrum-fg);
+  --biolink-link-text: var(--spectrum-bg);
+}
+.theme-spectrum .theme-link { justify-content: center; }
+.theme-spectrum .theme-link-arrow { display: none; }
+.theme-spectrum .theme-avatar {
+  background: var(--spectrum-fg);
+  color: var(--spectrum-bg);
+}
+.theme-spectrum .theme-chip {
+  background: color-mix(in srgb, var(--spectrum-fg) 16%, transparent);
+  color: var(--spectrum-fg);
+}
+/* Panels (topnav pills, share box) sit on the coloured surface, so their text
+   is the card foreground rather than the light page text. */
+.biolink-theme-page.theme-spectrum .theme-panel-text { color: var(--spectrum-fg); }
+.biolink-theme-page.theme-spectrum .theme-panel-muted {
+  color: color-mix(in srgb, var(--spectrum-fg) 72%, transparent);
+}
 
 /* --- vintage (default) — paper + terracotta --- */
 .theme-vintage {
@@ -1729,6 +1892,62 @@ header.bg-white {
 }
 .bc-theme-corporate-clean .bc-name { font-weight: 750; font-size: 31px; }
 .bc-theme-corporate-clean .bc-btn { border-radius: 6px; }
+
+/* spectrum — the 14-colour card look from the reference file `spectrum-v8.html`.
+   The owner picks one colour in the builder; `--spectrum-bg` / `--spectrum-fg`
+   are set inline on the card wrapper. */
+.bc-theme-spectrum {
+  --spectrum-bg: #fadfa3;
+  --spectrum-fg: #7f2d05;
+  --bc-bg: var(--spectrum-bg);
+  --bc-surface: var(--spectrum-bg);
+  --bc-text: var(--spectrum-fg);
+  --bc-muted: color-mix(in srgb, var(--spectrum-fg) 76%, transparent);
+  --bc-accent: var(--spectrum-fg);
+  --bc-border: color-mix(in srgb, var(--spectrum-fg) 38%, transparent);
+  --bc-radius: 8px;
+  --bc-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  --bc-rule: color-mix(in srgb, var(--spectrum-fg) 35%, transparent);
+  --bc-btn-bg: transparent;
+  --bc-btn-text: var(--spectrum-fg);
+  --bc-btn-border: var(--spectrum-fg);
+  --bc-page-bg: color-mix(in srgb, var(--spectrum-bg) 22%, #eef0f4);
+}
+/* The reference card carries a hairline inner frame and a faint scan-line
+   texture over the selected colour. */
+.bc-theme-spectrum .bc-card {
+  position: relative;
+  overflow: hidden;
+}
+.bc-theme-spectrum .bc-card::before {
+  content: '';
+  position: absolute;
+  inset: 4%;
+  border: 1px solid currentColor;
+  opacity: 0.35;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 2;
+}
+.bc-theme-spectrum .bc-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0, 0, 0, 0.025) 0 1px,
+    transparent 1px 3px
+  );
+  z-index: 1;
+}
+.bc-theme-spectrum .bc-avatar {
+  background: var(--spectrum-fg);
+  color: var(--spectrum-bg);
+  border: 2px solid var(--spectrum-fg);
+}
+.bc-theme-spectrum .bc-btn { border-radius: 999px; }
+.bc-theme-spectrum .bc-social { border-color: var(--spectrum-fg); }
 
 /* 0. vintage — the shared, enabled look for both builders. Mirrors the vintage
    biolink palette so a business card and a biolink built today match. */

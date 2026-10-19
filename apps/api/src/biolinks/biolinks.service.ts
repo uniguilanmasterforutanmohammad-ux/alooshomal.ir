@@ -39,6 +39,8 @@ interface DirectoryBiolinkItem {
   pinnedAt: Date;
   boostedUntil: Date | null;
   adDirectoryUntil: Date | null;
+  city: { id: string; name: string } | null;
+  business: { id: string; name: string } | null;
   likeCount: number;
 }
 
@@ -703,6 +705,8 @@ export class BiolinksService {
       pinnedAt: true,
       boostedUntil: true,
       adDirectoryUntil: true,
+      city: { select: { id: true, name: true } },
+      business: { select: { id: true, name: true } },
       _count: { select: { likes: true } },
     } satisfies Prisma.BiolinkSelect;
 
