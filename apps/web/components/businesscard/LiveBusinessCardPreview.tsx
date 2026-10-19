@@ -130,7 +130,6 @@ export function LiveBusinessCardPreview({
       headline={headline}
       subline={subline}
       bio={values.bio}
-      companyName={values.company || null}
       cityName={cityName}
       businessName={businessName}
       avatarUrl={values.avatarUrl || null}

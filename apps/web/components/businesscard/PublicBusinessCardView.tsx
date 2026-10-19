@@ -179,7 +179,6 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
               headline={headline}
               subline={subline}
               bio={businessCard.bio}
-              companyName={businessCard.company}
               cityName={businessCard.city?.name}
               businessName={businessCard.business?.name}
               avatarUrl={businessCard.avatarUrl}
