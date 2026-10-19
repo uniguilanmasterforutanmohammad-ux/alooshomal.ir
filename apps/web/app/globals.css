@@ -484,6 +484,275 @@ header.bg-white {
   display: none;
 }
 
+/* ---- Home hero: fills the first viewport on every device ----
+   Phones/tablets have the fixed bottom nav (56px) instead of the top header;
+   desktop shows the 66px sticky header. The hero reserves exactly that chrome
+   so only the coloured background, the city line, the search box and its two
+   buttons are visible before any scrolling. */
+.home-hero {
+  min-height: calc(100dvh - 56px - env(safe-area-inset-bottom));
+  display: flex;
+  align-items: center;
+  position: relative;
+  overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+  .home-hero {
+    min-height: calc(100dvh - 66px);
+  }
+}
+
+/* Soft colour blobs behind the hero content (pure CSS, no images). */
+.home-hero::before,
+.home-hero::after {
+  content: '';
+  position: absolute;
+  width: 48vmax;
+  height: 48vmax;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.35;
+  pointer-events: none;
+}
+.home-hero::before {
+  top: -22%;
+  inset-inline-start: -14%;
+  background: radial-gradient(circle, #f0abfc, transparent 68%);
+}
+.home-hero::after {
+  bottom: -26%;
+  inset-inline-end: -12%;
+  background: radial-gradient(circle, #7dd3fc, transparent 68%);
+}
+
+/* ---- Liquid-glass carousel (home «آخرین کارت‌ها/بیولینک‌ها») ---- */
+.liquid-shell {
+  width: min(92vw, 380px);
+  margin-inline: auto;
+  position: relative;
+  /* Keep horizontal swipes for the carousel: without this Chrome treats a
+     swipe as the browser back/forward gesture and leaves the page. Vertical
+     page scrolling stays native. */
+  touch-action: pan-y;
+  overscroll-behavior-x: contain;
+}
+
+.liquid-viewport {
+  overflow: hidden;
+  border-radius: 36px;
+  padding: 6px;
+}
+
+.liquid-track {
+  display: flex;
+  width: 100%;
+  transition: transform 0.6s cubic-bezier(0.65, 0.05, 0.25, 1);
+  will-change: transform;
+}
+
+.liquid-slide {
+  width: 100%;
+  flex: 0 0 100%;
+  position: relative;
+  padding: 10px;
+}
+
+.liquid-card {
+  position: relative;
+  min-height: 390px;
+  border-radius: 28px;
+  padding: 2px;
+  overflow: hidden;
+  isolation: isolate;
+  box-shadow:
+    0 0 22px rgba(168, 85, 247, 0.35),
+    0 0 48px rgba(56, 189, 248, 0.2);
+}
+
+.liquid-card::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 220%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    #a855f7 60deg,
+    #38bdf8 120deg,
+    transparent 180deg,
+    #f472b6 240deg,
+    #facc15 300deg,
+    transparent 360deg
+  );
+  animation: liquid-spin 4s linear infinite;
+  z-index: -1;
+}
+
+@keyframes liquid-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+.liquid-inner {
+  position: relative;
+  height: 100%;
+  min-height: 386px;
+  border-radius: 26px;
+  padding: 34px 26px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.96) 0%, rgba(255, 255, 255, 0.78) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
+}
+
+.liquid-inner::before {
+  content: '';
+  position: absolute;
+  top: -30%;
+  right: -20%;
+  width: 70%;
+  height: 60%;
+  background: radial-gradient(ellipse, rgba(255, 255, 255, 1), transparent 70%);
+  pointer-events: none;
+}
+
+.liquid-avatar {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 18px;
+  background: linear-gradient(145deg, #a78bfa, #38bdf8);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 255, 255, 0.5),
+    0 10px 22px rgba(124, 58, 237, 0.3);
+}
+
+.liquid-name {
+  position: relative;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #1e1b4b;
+}
+.liquid-role {
+  position: relative;
+  margin-top: 6px;
+  font-size: 0.9rem;
+  color: #4338ca;
+}
+.liquid-co {
+  position: relative;
+  margin-top: 2px;
+  font-size: 0.8rem;
+  color: #64748b;
+  letter-spacing: 0.4px;
+}
+
+.liquid-info {
+  position: relative;
+  list-style: none;
+  width: 100%;
+  margin-top: auto;
+  font-size: 0.85rem;
+}
+.liquid-info li {
+  margin-top: 10px;
+  padding: 11px 14px;
+  border-radius: 14px;
+  background: rgba(99, 102, 241, 0.07);
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  color: #1e1b4b;
+  word-break: break-word;
+}
+
+.liquid-save {
+  position: relative;
+  margin-top: 20px;
+  padding: 11px 24px;
+  border-radius: 999px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #7c3aed, #0ea5e9);
+  box-shadow: 0 8px 20px rgba(124, 58, 237, 0.3);
+  transition: transform 0.25s, box-shadow 0.25s;
+}
+.liquid-save:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 26px rgba(124, 58, 237, 0.4);
+}
+
+.liquid-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #4338ca;
+  user-select: none;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.25);
+  transition: transform 0.2s;
+  transform: translateY(-50%);
+}
+.liquid-arrow:hover {
+  transform: translateY(-50%) scale(1.08);
+}
+.liquid-arrow-prev {
+  inset-inline-start: 4px;
+}
+.liquid-arrow-next {
+  inset-inline-end: 4px;
+}
+
+.liquid-dots {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 22px;
+}
+.liquid-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.25);
+  transition: all 0.35s;
+}
+.liquid-dot[aria-current='true'] {
+  background: #7c3aed;
+  width: 24px;
+  box-shadow: 0 0 10px rgba(124, 58, 237, 0.5);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .liquid-card::before {
+    animation: none;
+  }
+  .liquid-track {
+    transition: none;
+  }
+}
+
 @media (min-width: 768px) {
   .home-slider {
     cursor: grab;

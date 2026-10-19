@@ -76,12 +76,19 @@ export default async function HomePage() {
       <Header />
 
       <main>
-        <section className="bg-brand py-12 text-white sm:py-16 md:py-20">
-          <div className="container-page mx-auto max-w-3xl text-center">
+        {/* Full first-screen hero: on every device only the coloured
+            background, the city line, the search box and its two buttons are
+            visible before scrolling. */}
+        <section className="home-hero bg-brand text-white">
+          <div className="container-page relative z-[1] mx-auto w-full max-w-3xl py-10 text-center">
             <HomeHeadline />
-            <p className="mt-4 text-sm leading-7 text-white/90 sm:text-base sm:leading-8">
-              کارت ویزیت دیجیتال خود را بسازید، با یک QR اختصاصی به اشتراک بگذارید و در
-              بزرگ‌ترین بانک مشاغل شهر، به‌سادگی توسط مشتریان جستجو شوید.
+            <p className="mt-5 text-xl font-extrabold leading-relaxed text-white drop-shadow-sm sm:text-2xl md:text-3xl">
+              در شهرهای{' '}
+              <span className="whitespace-nowrap">تنکابن</span>
+              {'، '}
+              <span className="whitespace-nowrap">شیرود</span>
+              {' و '}
+              <span className="whitespace-nowrap">رامسر</span>
             </p>
             <HomeSearchBox />
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3 sm:mt-8">

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, MapPin, Store } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 export interface HomeSliderItem {
   id: string;
@@ -25,108 +25,91 @@ interface Props {
 }
 
 /**
- * Responsive horizontal slider of text-first square cards for the home page
- * («آخرین کارت‌های ویزیت» / «آخرین بیولینک‌ها»). One card per screen on phones,
- * two on tablets and more on wide desktops.
+ * Liquid-glass carousel for the home page («آخرین کارت‌های ویزیت» /
+ * «آخرین بیولینک‌ها»). One «one-per-view» card with a rotating conic-gradient
+ * neon border around a frosted white surface, arrow buttons on both sides and
+ * clickable dots.
  *
- * Movement works with a real mouse drag as well as a native touch swipe:
- *  - touch/native horizontal scroll is left to the browser
- *  - mouse drag is handled manually (pointer capture) so desktop users can
- *    grab the row and pull it, like a carousel
- *  - arrow buttons remain for keyboard/precise navigation
- * `scroll-snap` keeps each card aligned whichever way it was moved.
+ * Interaction matches the reference design:
+ *  - touch swipe (native horizontal pan) moves one card
+ *  - mouse drag moves one card and swallows the trailing click
+ *  - arrows wrap around the list; dots jump to a card
+ * Cards are text-only (initials avatar, name, role, company, city and a
+ * «مشاهده کارت» pill) so they stay fast and readable.
  */
 export function HomeItemSlider({ kind, items, moreHref }: Props) {
-  const scrollerRef = useRef<HTMLUListElement>(null);
-  const drag = useRef<{
-    active: boolean;
-    startX: number;
-    startScroll: number;
-    moved: boolean;
-  }>({ active: false, startX: 0, startScroll: 0, moved: false });
-  const [dragging, setDragging] = useState(false);
-  const [canPrev, setCanPrev] = useState(false);
-  const [canNext, setCanNext] = useState(false);
+  const [index, setIndex] = useState(0);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const drag = useRef({ active: false, x: 0, moved: false });
+  // After a touch swipe the browser still fires a click on whatever was under
+  // the finger; `suppressClickUntil` swallows that click so swiping never
+  // navigates into the card.
+  const suppressClickUntil = useRef(0);
 
-  const syncEdges = useCallback(() => {
-    const node = scrollerRef.current;
-    if (!node) return;
-    const max = node.scrollWidth - node.clientWidth;
-    // Chrome/Firefox use a negative `scrollLeft` range in RTL (0 at the first
-    // card, down to -(scrollWidth-clientWidth) at the last), so "previous"
-    // means a smaller-than-zero offset here.
-    const rtl = getComputedStyle(node).direction === 'rtl';
-    setCanPrev(rtl ? node.scrollLeft < -4 : node.scrollLeft > 4);
-    setCanNext(
-      rtl ? node.scrollLeft > -(max - 4) : node.scrollLeft < max - 4,
-    );
-  }, []);
+  const count = items.length;
+
+  const go = useCallback(
+    (next: number) => {
+      if (count === 0) return;
+      setIndex(((next % count) + count) % count);
+    },
+    [count],
+  );
 
   useEffect(() => {
-    syncEdges();
-    const node = scrollerRef.current;
-    if (!node) return;
-    const onResize = () => syncEdges();
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, [syncEdges, items.length]);
+    // Keep the index valid if the fetched list shrinks.
+    setIndex((current) => (count === 0 ? 0 : Math.min(current, count - 1)));
+  }, [count]);
 
-  if (items.length === 0) return null;
+  if (count === 0) return null;
 
-  function scrollByCards(direction: 1 | -1) {
-    const node = scrollerRef.current;
-    if (!node) return;
-    const first = node.firstElementChild as HTMLElement | null;
-    const step = first ? first.offsetWidth + 12 : node.clientWidth * 0.8;
-    const rtl = getComputedStyle(node).direction === 'rtl';
-    // In RTL "next" advances toward negative scrollLeft.
-    node.scrollBy({ left: direction * (rtl ? -1 : 1) * step * 2, behavior: 'smooth' });
+  function onTouchStart(event: React.TouchEvent) {
+    const touch = event.touches[0];
+    touchStart.current = { x: touch.clientX, y: touch.clientY };
   }
 
-  function onPointerDown(event: React.PointerEvent<HTMLUListElement>) {
-    // Only intercept a primary mouse drag; touch keeps native scrolling.
+  function onTouchEnd(event: React.TouchEvent) {
+    const start = touchStart.current;
+    touchStart.current = null;
+    if (!start) return;
+    const touch = event.changedTouches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    // Ignore vertical page scrolls and tiny taps.
+    if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+    suppressClickUntil.current = Date.now() + 500;
+    // RTL: swiping right moves to the next card.
+    go(dx > 0 ? index + 1 : index - 1);
+  }
+
+  function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
     if (event.pointerType !== 'mouse' || event.button !== 0) return;
-    const node = scrollerRef.current;
-    if (!node) return;
-    drag.current = {
-      active: true,
-      startX: event.clientX,
-      startScroll: node.scrollLeft,
-      moved: false,
-    };
-    setDragging(true);
-    node.setPointerCapture(event.pointerId);
+    // Never capture pointer events that start on a control: pointer capture
+    // retargets the trailing click to the shell, which would swallow the
+    // arrows/dots/card-link. Only a drag started on the card body is tracked.
+    if ((event.target as Element).closest('button, a')) return;
+    drag.current = { active: true, x: event.clientX, moved: false };
+    event.currentTarget.setPointerCapture(event.pointerId);
   }
 
-  function onPointerMove(event: React.PointerEvent<HTMLUListElement>) {
-    if (!drag.current.active) return;
-    const node = scrollerRef.current;
-    if (!node) return;
-    const delta = event.clientX - drag.current.startX;
-    if (Math.abs(delta) > 4) drag.current.moved = true;
-    // Grabbing the strip and pulling it to the right reveals the later cards
-    // in RTL (which live at a more negative `scrollLeft`).
-    node.scrollLeft = drag.current.startScroll - delta;
-  }
-
-  function endDrag(event: React.PointerEvent<HTMLUListElement>) {
+  function onPointerUp(event: React.PointerEvent<HTMLDivElement>) {
     if (!drag.current.active) return;
     drag.current.active = false;
-    setDragging(false);
-    const node = scrollerRef.current;
-    if (node?.hasPointerCapture(event.pointerId)) {
-      node.releasePointerCapture(event.pointerId);
+    const dx = event.clientX - drag.current.x;
+    if (Math.abs(dx) > 40) {
+      drag.current.moved = true;
+      go(dx > 0 ? index + 1 : index - 1);
     }
-    syncEdges();
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
   }
 
-  function onClickCapture(event: React.MouseEvent<HTMLUListElement>) {
-    // Swallow the click that ends a drag so grabbing the row doesn't navigate.
-    if (drag.current.moved) {
-      event.preventDefault();
-      event.stopPropagation();
-      drag.current.moved = false;
-    }
+  function onClickCapture(event: React.MouseEvent<HTMLDivElement>) {
+    if (!drag.current.moved && Date.now() > suppressClickUntil.current) return;
+    drag.current.moved = false;
+    event.preventDefault();
+    event.stopPropagation();
   }
 
   return (
@@ -135,104 +118,95 @@ export function HomeItemSlider({ kind, items, moreHref }: Props) {
         <h2 className="text-lg font-extrabold text-ink sm:text-xl">
           {kind === 'business-cards' ? 'آخرین کارت‌های ویزیت' : 'آخرین بیولینک‌ها'}
         </h2>
-        <div className="flex items-center gap-2">
-          <Link
-            href={moreHref}
-            className="text-sm font-bold text-brand hover:underline"
-            prefetch={false}
-          >
-            مشاهده همه
-          </Link>
-          <div className="hidden items-center gap-1 md:flex">
-            <button
-              type="button"
-              onClick={() => scrollByCards(-1)}
-              disabled={!canPrev}
-              className="flex size-8 items-center justify-center rounded-full border border-[var(--vintage-border)] bg-white text-brand transition hover:border-brand disabled:opacity-40"
-              aria-label="قبلی"
-            >
-              <ChevronRight className="size-4" aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollByCards(1)}
-              disabled={!canNext}
-              className="flex size-8 items-center justify-center rounded-full border border-[var(--vintage-border)] bg-white text-brand transition hover:border-brand disabled:opacity-40"
-              aria-label="بعدی"
-            >
-              <ChevronLeft className="size-4" aria-hidden />
-            </button>
-          </div>
-        </div>
+        <Link
+          href={moreHref}
+          className="text-sm font-bold text-brand hover:underline"
+          prefetch={false}
+        >
+          مشاهده همه
+        </Link>
       </div>
 
-      <ul
-        ref={scrollerRef}
-        onScroll={syncEdges}
+      <div
+        className="liquid-shell select-none"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
         onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
-        onPointerLeave={endDrag}
+        onPointerUp={onPointerUp}
         onClickCapture={onClickCapture}
-        className={`home-slider flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 ${
-          dragging ? 'cursor-grabbing select-none' : 'cursor-grab md:cursor-grab'
-        }`}
       >
-        {items.map((item) => {
-          const initials = (item.fullName || '?').trim().slice(0, 1);
-          const primary = item.company || item.fullName;
-          const showSecondaryName = Boolean(item.company && item.fullName);
-          return (
-            <li
-              key={item.id}
-              className="home-slider-item w-[72%] shrink-0 snap-start sm:w-[45%] md:w-[31%] lg:w-[23%]"
-            >
-              <Link
-                href={`/${kind}/${item.slug}`}
-                draggable={false}
-                className="group flex h-full min-h-[13rem] flex-col overflow-hidden rounded-xl border border-[var(--vintage-border)] bg-gradient-to-bl from-white to-[#fbf3e9] p-4 shadow-sm transition hover:border-brand hover:shadow-md"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <span
-                    className="flex size-11 shrink-0 items-center justify-center rounded-full bg-brand-light text-lg font-extrabold text-brand"
-                    aria-hidden
-                  >
-                    {initials}
-                  </span>
-                  {item.business?.name ? (
-                    <span className="inline-flex max-w-[55%] items-center gap-1 truncate rounded-full bg-brand-light/70 px-2 py-0.5 text-[10px] font-bold text-brand">
-                      <Store className="size-3 shrink-0" aria-hidden />
-                      <span className="truncate">{item.business.name}</span>
-                    </span>
-                  ) : null}
+        <button
+          type="button"
+          onClick={() => go(index - 1)}
+          className="liquid-arrow liquid-arrow-prev"
+          aria-label="قبلی"
+        >
+          <ChevronRight className="size-5" aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={() => go(index + 1)}
+          className="liquid-arrow liquid-arrow-next"
+          aria-label="بعدی"
+        >
+          <ChevronLeft className="size-5" aria-hidden />
+        </button>
+
+        <div className="liquid-viewport">
+          <div
+            className="liquid-track"
+            style={{ transform: `translateX(-${index * 100}%)` }}
+          >
+            {items.map((item) => {
+              const initials = (item.fullName || '?').trim().slice(0, 1);
+              const role = item.jobTitle || item.business?.name || '';
+              return (
+                <div key={item.id} className="liquid-slide">
+                  <div className="liquid-card">
+                    <div className="liquid-inner">
+                      <div className="liquid-avatar" aria-hidden>
+                        {initials}
+                      </div>
+                      <div className="liquid-name">{item.fullName}</div>
+                      {role ? <div className="liquid-role">{role}</div> : null}
+                      {item.company ? (
+                        <div className="liquid-co">{item.company}</div>
+                      ) : null}
+                      <ul className="liquid-info">
+                        {item.business?.name ? (
+                          <li>{item.business.name}</li>
+                        ) : null}
+                        {item.city?.name ? <li>{item.city.name}</li> : null}
+                        <li dir="ltr">alooshomal.ir/{kind}/{item.slug}</li>
+                      </ul>
+                      <Link
+                        href={`/${kind}/${item.slug}`}
+                        prefetch={false}
+                        className="liquid-save"
+                      >
+                        مشاهده کارت
+                      </Link>
+                    </div>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
+        </div>
 
-                <h3 className="mt-3 line-clamp-2 text-base font-extrabold leading-6 text-ink">
-                  {primary}
-                </h3>
-                {showSecondaryName ? (
-                  <p className="mt-0.5 line-clamp-1 text-xs font-semibold text-muted">
-                    {item.fullName}
-                  </p>
-                ) : null}
-                {item.jobTitle ? (
-                  <p className="mt-1.5 line-clamp-2 text-sm leading-6 text-[var(--vintage-accent-hover)]">
-                    {item.jobTitle}
-                  </p>
-                ) : null}
-
-                {item.city ? (
-                  <span className="mt-auto inline-flex items-center gap-1 pt-3 text-[11px] font-bold text-muted">
-                    <MapPin className="size-3" aria-hidden />
-                    {item.city.name}
-                  </span>
-                ) : null}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
+        <div className="liquid-dots">
+          {items.map((item, dotIndex) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => go(dotIndex)}
+              className="liquid-dot"
+              aria-current={dotIndex === index}
+              aria-label={`کارت ${dotIndex + 1}`}
+            />
+          ))}
+        </div>
+      </div>
     </section>
   );
 }
