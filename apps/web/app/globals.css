@@ -503,29 +503,6 @@ header.bg-white {
   }
 }
 
-/* Soft colour blobs behind the hero content (pure CSS, no images). */
-.home-hero::before,
-.home-hero::after {
-  content: '';
-  position: absolute;
-  width: 48vmax;
-  height: 48vmax;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.35;
-  pointer-events: none;
-}
-.home-hero::before {
-  top: -22%;
-  inset-inline-start: -14%;
-  background: radial-gradient(circle, #f0abfc, transparent 68%);
-}
-.home-hero::after {
-  bottom: -26%;
-  inset-inline-end: -12%;
-  background: radial-gradient(circle, #7dd3fc, transparent 68%);
-}
-
 /* ---- Home spectrum cards (home «آخرین کارت‌ها/بیولینک‌ها») ----
    The landscape business-card design from the reference file: a coloured front
    face and a back face (logo lockup), each with an inner hairline border and a

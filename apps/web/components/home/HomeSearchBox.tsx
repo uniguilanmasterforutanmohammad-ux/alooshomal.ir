@@ -53,17 +53,17 @@ export function HomeSearchBox() {
 
   return (
     <form
-      className="mx-auto mt-8 flex max-w-3xl flex-col overflow-hidden rounded-lg border border-[var(--indeed-border)] bg-brand text-start shadow-lg md:flex-row"
+      className="mx-auto mt-8 flex max-w-3xl flex-col overflow-hidden rounded-lg border border-[var(--indeed-border)] bg-white text-start shadow-lg md:flex-row"
       onSubmit={submit}
       role="search"
     >
       <div className="relative flex items-center border-b border-[var(--indeed-border)] md:flex-[2] md:border-b-0 md:border-e">
         <Search
-          className="pointer-events-none absolute end-3 size-4 text-white"
+          className="pointer-events-none absolute end-3 size-4 text-muted"
           aria-hidden
         />
         <input
-          className="h-12 w-full bg-transparent px-4 pe-10 text-sm text-white outline-none placeholder:text-white"
+          className="h-12 w-full bg-transparent px-4 pe-10 text-sm text-ink outline-none placeholder:text-muted"
           placeholder="عنوان شغلی، نام یا کلمه کلیدی"
           value={q}
           onChange={(event) => setQ(event.target.value)}
@@ -74,20 +74,18 @@ export function HomeSearchBox() {
       <div className="flex items-stretch md:contents">
         <div className="relative flex flex-1 items-center border-e border-[var(--indeed-border)]">
           <MapPin
-            className="pointer-events-none absolute end-2 size-4 text-white md:end-3"
+            className="pointer-events-none absolute end-2 size-4 text-muted md:end-3"
             aria-hidden
           />
           <select
-            className="h-12 w-full appearance-none bg-transparent px-2 pe-7 text-xs text-white outline-none md:px-4 md:pe-10 md:text-sm"
+            className="h-12 w-full appearance-none bg-transparent px-2 pe-7 text-xs text-ink outline-none md:px-4 md:pe-10 md:text-sm"
             value={cityId}
             onChange={(event) => setCityId(event.target.value)}
             aria-label="انتخاب شهر"
           >
-            <option value="" className="text-ink">
-              شهر
-            </option>
+            <option value="">شهر</option>
             {cities.map((city) => (
-              <option key={city.id} value={city.id} className="text-ink">
+              <option key={city.id} value={city.id}>
                 {city.name}
               </option>
             ))}
@@ -96,20 +94,18 @@ export function HomeSearchBox() {
 
         <div className="relative flex flex-1 items-center border-e border-[var(--indeed-border)]">
           <Building2
-            className="pointer-events-none absolute end-2 size-4 text-white md:end-3"
+            className="pointer-events-none absolute end-2 size-4 text-muted md:end-3"
             aria-hidden
           />
           <select
-            className="h-12 w-full appearance-none bg-transparent px-2 pe-7 text-xs text-white outline-none md:px-4 md:pe-10 md:text-sm"
+            className="h-12 w-full appearance-none bg-transparent px-2 pe-7 text-xs text-ink outline-none md:px-4 md:pe-10 md:text-sm"
             value={businessId}
             onChange={(event) => setBusinessId(event.target.value)}
             aria-label="انتخاب کسب‌وکار"
           >
-            <option value="" className="text-ink">
-              نوع کسب‌وکار
-            </option>
+            <option value="">نوع کسب‌وکار</option>
             {businesses.map((business) => (
-              <option key={business.id} value={business.id} className="text-ink">
+              <option key={business.id} value={business.id}>
                 {business.name}
               </option>
             ))}
