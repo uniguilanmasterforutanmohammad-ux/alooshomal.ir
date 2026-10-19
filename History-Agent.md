@@ -20,7 +20,34 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.86.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.86.1**.
+
+## ۱۴۰۵/۰۷/۲۸ — رنگ‌بندی کارت‌های اسلایدر صفحه‌ی اصلی مطابق رنگ انتخابی کاربر — نسخه `v2.86.1`
+
+**هدف:** «درخواست جدید» — در صفحه‌ی اصلی، بخش «آخرین کارت‌های ویزیت»، رنگ‌بندی
+هر کارت باید مطابق رنگی باشد که کاربر خودش انتخاب کرده است.
+
+**علت باگ:** پروجکشن `public/latest` برای اسلایدر، فیلد `primaryColor` را
+انتخاب نمی‌کرد؛ پس کارت‌ها همیشه با رنگ پیش‌فرض (تراکوتا) رندر می‌شدند.
+
+**تغییرات:**
+- `apps/api/src/businesscards/business-cards.service.ts`: افزودن
+  `primaryColor: true` به `select` متد `findLatestPublished`.
+- `apps/api/src/biolinks/biolinks.service.ts`: همان افزودن برای یکدستیِ
+  اسلایدر بیولینک‌ها.
+- `apps/web/components/home/HomeItemSlider.tsx`: فیلد `primaryColor` به
+  `HomeSliderItem` اضافه شد و به‌عنوان `accent` به `BusinessCardFace` و
+  `RecordCard` پاس داده می‌شود (رنگ از طریق `readableAccent` برای خوانایی
+  روی کاغذ تیره می‌شود).
+
+**تأیید/تست:**
+- `docker exec alooshomal-web ./node_modules/.bin/tsc --noEmit` → exit 0؛
+  `.../alooshomal-api ... tsc --noEmit -p tsconfig.json` → exit 0.
+- `curl /api/business-cards/public/latest` → هر آیتم حالا `primaryColor` دارد
+  (`#0F766E`, `#e3c301`, `#8B3A1A`, …).
+- Playwright روی `/` (با بایپس کش ISR): متغیر `--bizcard-accent` هر کاشی متفاوت
+  است (`#0f766e`، `#ad9401`، `#8b3a1a`، …) و مطابق رنگ مالکِ همان کارت؛ اسلایدر
+  بیولینک هم `--record-accent` را از رنگ مالک می‌گیرد.
 
 ## ۱۴۰۵/۰۷/۲۸ — هم‌سان‌سازی کارت ویزیت در نمای کاشی دایرکتوری و اسلایدر صفحه‌ی اصلی — نسخه `v2.86.0`
 

@@ -500,6 +500,7 @@ export class BiolinksService {
         company: true,
         avatarUrl: true,
         logoUrl: true,
+        primaryColor: true,
         mobile: true,
         phone: true,
         address: true,

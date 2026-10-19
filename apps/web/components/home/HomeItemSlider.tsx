@@ -15,6 +15,8 @@ export interface HomeSliderItem {
   company: string | null;
   avatarUrl: string | null;
   logoUrl: string | null;
+  /** the owner's chosen colour, so each card matches the one they built */
+  primaryColor?: string | null;
   phone?: string | null;
   mobile?: string | null;
   address?: string | null;
@@ -256,6 +258,7 @@ export function HomeItemSlider({ kind, items, moreHref }: Props) {
                     businessName={businessChip}
                     avatarUrl={item.avatarUrl}
                     rows={rows}
+                    accent={item.primaryColor}
                     compact
                   />
                 ) : (
@@ -268,6 +271,7 @@ export function HomeItemSlider({ kind, items, moreHref }: Props) {
                     businessName={businessChip}
                     avatarUrl={item.avatarUrl}
                     rows={rows}
+                    accent={item.primaryColor}
                     compact
                   />
                 )}
