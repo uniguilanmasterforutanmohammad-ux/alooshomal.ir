@@ -14,7 +14,9 @@ export class CreateFeedPostDto {
   @ApiPropertyOptional({ description: 'متن پست' })
   @IsOptional()
   @IsString()
-  @MaxLength(2000)
+  // The composer sends a small subset of HTML (bold, lists, links…), so the
+  // cap covers the markup on top of the visible text.
+  @MaxLength(8000)
   body?: string;
 
   @ApiProperty({ description: 'آدرس تصاویر آپلودشده (به ترتیب نمایش)' })

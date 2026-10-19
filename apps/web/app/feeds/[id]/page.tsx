@@ -9,6 +9,7 @@ import { ArrowRight, CalendarDays, Tag, UserRound } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { api, type FeedPost } from '@/lib/api';
+import { bodyToHtml, richTextPreview } from '@/lib/rich-text';
 import { cn } from '@/lib/utils';
 
 /**
@@ -101,7 +102,7 @@ export default function FeedPostPage() {
               <div className="relative aspect-square w-full bg-soft">
                 <Image
                   src={post.images[active]}
-                  alt={post.body?.slice(0, 40) ?? 'پست فید'}
+                  alt={richTextPreview(post.body).slice(0, 40) || 'پست فید'}
                   fill
                   sizes="(max-width: 768px) 100vw, 640px"
                   className="object-contain"
@@ -153,9 +154,11 @@ export default function FeedPostPage() {
               </div>
 
               {post.body ? (
-                <p className="mt-4 whitespace-pre-line text-sm leading-8 text-ink">
-                  {post.body}
-                </p>
+                <div
+                  className="mt-4 feed-rich"
+                  // Sanitised through the allow-list in `lib/rich-text`.
+                  dangerouslySetInnerHTML={{ __html: bodyToHtml(post.body) }}
+                />
               ) : null}
 
               {post.tag ? (

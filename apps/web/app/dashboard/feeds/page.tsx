@@ -9,13 +9,13 @@ import {
   ImagePlus,
   Loader2,
   Send,
-  Sparkles,
   Tag,
   Trash2,
   Upload,
   X,
 } from 'lucide-react';
 
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import {
   api,
   type FeedMineOverview,
@@ -24,6 +24,7 @@ import {
   type UploadResult,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { isRichTextEmpty, richTextPreview, sanitizeHtml } from '@/lib/rich-text';
 import { cn } from '@/lib/utils';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -218,7 +219,8 @@ export default function DashboardFeedsPage() {
       setBusy(false);
       return;
     }
-    if (!body.trim() && readyImages.length === 0) {
+    const bodyHtml = isRichTextEmpty(body) ? '' : sanitizeHtml(body);
+    if (!bodyHtml && readyImages.length === 0) {
       setError('پست باید متن یا تصویر داشته باشد');
       setBusy(false);
       return;
@@ -228,7 +230,7 @@ export default function DashboardFeedsPage() {
     setMessage(null);
     try {
       const payload = {
-        body: body.trim() || undefined,
+        body: bodyHtml || undefined,
         images: readyImages.map((slot) => slot.url as string),
         topicId: topicId || undefined,
         tagKind: tagKind || undefined,
@@ -301,12 +303,7 @@ export default function DashboardFeedsPage() {
             : ''}
           . پس از تأیید پرداخت توسط مدیر، لینک نمایش داده می‌شود.
         </span>
-        {active ? (
-          <span className="ms-auto inline-flex items-center gap-1.5 text-muted">
-            <Sparkles className="size-4 text-brand" aria-hidden />
-            بسته فعال: <b className="text-ink">{active.package?.name}</b>
-          </span>
-        ) : pendingSub ? (
+        {pendingSub ? (
           <span className="ms-auto text-amber-700">
             درخواست اشتراک فید شما در انتظار تأیید مدیر است.
           </span>
@@ -351,12 +348,11 @@ export default function DashboardFeedsPage() {
             <ImagePlus className="size-4 text-brand" aria-hidden />
             {editingId ? 'ویرایش پست' : 'پست جدید'}
           </h3>
-          <textarea
+          <RichTextEditor
             value={body}
-            onChange={(event) => setBody(event.target.value)}
-            rows={3}
+            onChange={setBody}
             placeholder="متن پست..."
-            className="rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+            ariaLabel="متن پست"
           />
           <div className="flex flex-wrap items-center gap-2">
             <select
@@ -516,7 +512,7 @@ export default function DashboardFeedsPage() {
               >
                 <div className="min-w-0">
                   <p className="line-clamp-2 text-sm text-ink">
-                    {post.body ?? '—'}
+                    {richTextPreview(post.body) || '—'}
                   </p>
                   <div className="mt-1 flex items-center gap-2 text-xs text-muted">
                     <span>{faDate(post.createdAt)}</span>

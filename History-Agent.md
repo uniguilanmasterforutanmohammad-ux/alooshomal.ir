@@ -20,7 +20,45 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.75.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.76.0**.
+
+## ۱۴۰۵/۰۷/۲۷ — ادیتور مینیمال HTML در فید و حذف نمایش «بسته فعال» — نسخه `v2.76.0`
+
+**هدف:** در `/dashboard/feeds` ۱) خط «بسته فعال: اشتراک یک‌ماهه ۵ پست» حذف شود،
+۲) یک ادیتور مینیمال متنی/HTML برای نوشتن پست اضافه شود.
+
+**تغییرات:**
+- `apps/web/lib/rich-text.ts` (فایل جدید): کمک‌تابع‌های متن غنی — `sanitizeHtml`
+  با allow-list کوچک (b/strong/i/em/u/s/br/p/div/span/ul/ol/li/a/blockquote/code/
+  pre/h2/h3)، حذف کامل تگ‌های خطرناک (script/style/iframe/... )، پاک‌سازی
+  `javascript:` و پراپرتی‌های رویداد، `bodyToHtml` برای ارتقای پست‌های متن ساده‌ی
+  قدیمی (تبدیل خط جدید به `<br>`)، `isRichTextEmpty` و `richTextPreview`.
+- `apps/web/components/ui/RichTextEditor.tsx` (فایل جدید): ادیتور `contentEditable`
+  بدون وابستگی با نوار ابزار درشت/کج/زیرخط/خط‌خورده، فهرست نقطه‌ای و شماره‌دار و
+  درج لینک؛ هندلر `onPaste` محتوای چسبانده‌شده را از allow-list عبور می‌دهد تا
+  `onerror`/اسکریپت اجرا نشود.
+- `apps/web/app/dashboard/feeds/page.tsx`: جایگزینی `textarea` با `RichTextEditor`،
+  پاک‌سازی بدنه پیش از ارسال، استفاده از `richTextPreview` در کارت‌های «پست‌های
+  من» و حذف بلوک «بسته فعال» از نوار وضعیت.
+- `apps/web/app/globals.css`: استایل `.rich-editor` (نوار ابزار، سطح ویرایش،
+  placeholder) و `.feed-rich` (نمایش ایمن پست).
+- `apps/web/components/feed/FeedCard.tsx` و `apps/web/app/feeds/[id]/page.tsx`:
+  رندر بدنه با `dangerouslySetInnerHTML` از روی `bodyToHtml` (پاک‌سازی‌شده) به‌جای
+  متن خام.
+- `apps/web/components/admin/AdminFeeds.tsx`: نمایش پیش‌نمایش متن ساده با
+  `richTextPreview`.
+- `apps/api/src/feeds/dto/feed.dto.ts`: افزایش سقف `body` از ۲۰۰۰ به ۸۰۰۰ کاراکتر
+  تا مارک‌آپ HTML هم جا شود.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web ... tsc --noEmit` بدون خطا.
+- با `playwright-core` روی `/dashboard/feeds`: ادیتور و هر هفت ابزار آن رندر
+  می‌شوند، متن «بسته فعال» دیگر وجود ندارد و اعمال «درشت» خروجی `<b>…</b>` می‌دهد.
+- ثبت یک پست آزمایشی با محتوای مخرب (`<script>`، `<img onerror>` و
+  `href="javascript:"`): بدنه‌ی ذخیره‌شده فقط شامل `<b>`، `<ul>` و لینک بی‌خطر بود؛
+  اسکریپت/تصویر حذف و آدرس جاوااسکریپت پاک شد. چسباندن محتوای مخرب هم فقط `<b>ok</b>`
+  را درج کرد و هندلر اجرا نشد. سپس پست آزمایشی حذف شد.
+- `python3 scripts/sync_install.py` و سپس `--check` بدون «تغییر معلق».
 
 ## ۱۴۰۵/۰۷/۲۷ — انتقال دکمه‌های عملیات جدول به زیر سطر اول در موبایل و تبلت — نسخه `v2.75.2`
 

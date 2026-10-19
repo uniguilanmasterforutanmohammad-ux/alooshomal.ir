@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Bookmark, Heart, Images, Tag, UserRound } from 'lucide-react';
 
 import { BoostBadge } from '@/components/ui/BoostBadge';
+import { bodyToHtml, richTextPreview } from '@/lib/rich-text';
 import { cn } from '@/lib/utils';
 import type { FeedPost } from '@/lib/api';
 
@@ -69,14 +70,14 @@ export function FeedCard({ post, compact = false }: Props) {
           </div>
 
           {post.body ? (
-            <p
+            <div
               className={cn(
-                'mt-2 whitespace-pre-line text-sm leading-7 text-ink',
+                'mt-2 feed-rich',
                 compact ? 'line-clamp-3' : 'line-clamp-4',
               )}
-            >
-              {post.body}
-            </p>
+              // Sanitised through the allow-list in `lib/rich-text`.
+              dangerouslySetInnerHTML={{ __html: bodyToHtml(post.body) }}
+            />
           ) : null}
 
           {post.tag ? (
@@ -114,7 +115,7 @@ export function FeedCard({ post, compact = false }: Props) {
           <div className="relative size-20 shrink-0 overflow-hidden rounded-lg bg-soft sm:size-24">
             <Image
               src={cover}
-              alt={post.body?.slice(0, 40) ?? 'پست فید'}
+              alt={richTextPreview(post.body).slice(0, 40) || 'پست فید'}
               fill
               sizes="96px"
               className="object-cover transition group-hover:scale-105"

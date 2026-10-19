@@ -12,6 +12,7 @@ import {
   type FeedTopic,
   type NewsStatus,
 } from '@/lib/api';
+import { richTextPreview } from '@/lib/rich-text';
 import { cn } from '@/lib/utils';
 
 type Tab = 'posts' | 'subscriptions' | 'packages' | 'topics' | 'settings';
@@ -170,7 +171,7 @@ function PostsModeration() {
               </div>
             ) : null}
             <div className="min-w-0 flex-1">
-              <p className="text-sm text-ink">{post.body ?? '—'}</p>
+              <p className="text-sm text-ink">{richTextPreview(post.body) || '—'}</p>
               <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
                 <span>{post.user?.fullName ?? post.user?.email ?? '—'}</span>
                 <span>•</span>
