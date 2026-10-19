@@ -17,7 +17,7 @@ interface RequestCodeResult {
   devCode?: string;
 }
 
-type Step = 'phone' | 'code' | 'password';
+type Step = 'phone' | 'code' | 'profile' | 'password';
 
 /** Only accept same-origin absolute paths, never `//evil.com` open redirects. */
 function safeNext(next?: string): string {
@@ -29,9 +29,11 @@ function safeNext(next?: string): string {
  * Unified sign-in / sign-up flow (single form, one page).
  *
  *  1. `phone`   — enter the mobile number, request a one-time code.
- *  2. `code`    — verify it. Returning numbers sign straight in; new numbers
- *                 reveal the sign-up fields (name + email) in the same step.
- *  3. `password`— shown once after a new sign-up: the email is prefilled and
+ *  2. `code`    — the OTP field only. Returning numbers sign straight in; for a
+ *                 new number the API asks for the profile fields, so the flow
+ *                 advances to `profile` (the code is not consumed yet).
+ *  3. `profile` — a new number's name + email, then the account is created.
+ *  4. `password`— shown once after a new sign-up: the email is prefilled and
  *                 the user may set a password now or skip with «بعداً».
  *
  * An «ورود با ایمیل و رمز عبور» escape hatch is available from the code step
@@ -53,8 +55,6 @@ export function AuthForm({
   const [code, setCode] = useState('');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
-  const [registered, setRegistered] = useState(false);
-  const [needSignup, setNeedSignup] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [devCode, setDevCode] = useState<string | null>(null);
@@ -74,8 +74,6 @@ export function AuthForm({
         phone,
       });
       setPhone(result.phone);
-      setRegistered(result.registered);
-      setNeedSignup(!result.registered);
       setDevCode(result.devCode ?? null);
       setStep('code');
     } catch (err) {
@@ -94,10 +92,11 @@ export function AuthForm({
         phone,
         code,
       };
-      if (needSignup || !registered) {
-        if (fullName.trim()) payload.fullName = fullName.trim();
-        if (email.trim()) payload.email = email.trim();
-      }
+      // The OTP step sends neither field (the API then asks for them); the
+      // profile step sends both. Sending only when present keeps a returning
+      // user's single-field verify call unchanged.
+      if (fullName.trim()) payload.fullName = fullName.trim();
+      if (email.trim()) payload.email = email.trim();
       const data = await api.post<AuthResponse>('/auth/phone/verify', payload);
       setSession(data.accessToken, data.user);
       if (data.isNewUser) {
@@ -107,15 +106,21 @@ export function AuthForm({
         finish();
       }
     } catch (err) {
-      // The API asks for the sign-up fields on the first call for a new phone,
-      // or rejects a duplicate email so the user can fix it and retry.
+      // The API asks for the sign-up fields on the first call for a new phone
+      // (the code is not consumed), so the OTP step stays a single field and
+      // the profile fields move to their own step. A duplicate email also lands
+      // here so the user can fix it and retry with the same code.
       if (err instanceof ApiError) {
         if (
           err.code === 'FULLNAME_REQUIRED' ||
           err.code === 'EMAIL_REQUIRED' ||
           err.code === 'EMAIL_TAKEN'
         ) {
-          setNeedSignup(true);
+          setStep('profile');
+          // The API message here is just the prompt to fill the profile
+          // fields, not a failure — don't show it as a red error.
+          setError(null);
+          return;
         }
       }
       setError(err instanceof Error ? err.message : 'تأیید کد ناموفق بود');
@@ -204,29 +209,6 @@ export function AuthForm({
           onChange={(event) => setCode(event.target.value)}
           placeholder="------"
         />
-        {needSignup ? (
-          <>
-            <p className="rounded-lg bg-black/5 p-3 text-xs leading-6 text-muted">
-              شماره‌ی جدید است؛ برای ساخت حساب نام و ایمیل خود را وارد کنید.
-            </p>
-            <Input
-              label="نام و نام خانوادگی"
-              required
-              value={fullName}
-              onChange={(event) => setFullName(event.target.value)}
-              placeholder="سارا محمدی"
-            />
-            <Input
-              label="ایمیل"
-              type="email"
-              required
-              dir="ltr"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
-            />
-          </>
-        ) : null}
         {error ? (
           <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
         ) : null}
@@ -256,6 +238,55 @@ export function AuthForm({
           className="text-sm font-bold text-muted"
         >
           تغییر شماره موبایل
+        </button>
+      </form>
+    );
+  }
+
+  if (step === 'profile') {
+    // A new number: the OTP was correct but the account needs a name + email.
+    // The code is only consumed on the successful call, so the user can retry
+    // here (e.g. after fixing a duplicate email) with the same code.
+    return (
+      <form onSubmit={verifyCode} className="flex flex-col gap-4">
+        <p className="rounded-lg bg-black/5 p-3 text-xs leading-6 text-muted">
+          شماره‌ی جدید است؛ برای ساخت حساب نام و ایمیل خود را وارد کنید.
+        </p>
+        <Input
+          label="نام و نام خانوادگی"
+          required
+          value={fullName}
+          onChange={(event) => setFullName(event.target.value)}
+          placeholder="سارا محمدی"
+        />
+        <Input
+          label="ایمیل"
+          type="email"
+          required
+          dir="ltr"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="you@example.com"
+        />
+        {error ? (
+          <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
+        ) : null}
+        <button
+          type="submit"
+          disabled={loading}
+          className="indeed-btn indeed-btn-primary w-full"
+        >
+          {loading ? 'در حال ساخت حساب...' : 'ساخت حساب و ورود'}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setStep('code');
+            setError(null);
+          }}
+          className="text-sm font-bold text-muted"
+        >
+          بازگشت
         </button>
       </form>
     );
