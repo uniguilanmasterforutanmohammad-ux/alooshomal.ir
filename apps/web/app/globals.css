@@ -2680,3 +2680,296 @@ a.record-row:hover {
   width: 15px;
   height: 15px;
 }
+
+/* =====================================================================
+   Public business-card face (/business-cards/<slug>)
+   ---------------------------------------------------------------------
+   A landscape «business card» with a clearly different structure from the
+   biolink record: a coloured identity panel on the inline-start side
+   (avatar, name, role, location chips) beside a paper contact panel
+   (labelled contact rows, bio and icon-only social circles). The owner's
+   colour drives `--bizcard-accent` so «طیفی» cards keep their hue while the
+   chrome stays on-brand paper. It stacks into one column on narrow screens.
+   ===================================================================== */
+.bizcard {
+  --bizcard-accent: var(--vintage-accent);
+  --bizcard-paper: var(--vintage-surface);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  background: var(--bizcard-paper);
+  color: var(--vintage-ink);
+  border: 2px solid color-mix(in srgb, var(--bizcard-accent) 30%, #ffffff);
+  border-radius: calc(var(--vintage-radius) + 4px);
+  box-shadow: 0 16px 38px rgba(92, 53, 29, 0.16);
+  overflow: hidden;
+}
+
+/* The identity side: a coloured panel echoing the owner's colour. */
+.bizcard-side {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 20px;
+  text-align: center;
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--bizcard-accent) 92%, #000) 0%,
+      var(--bizcard-accent) 55%,
+      color-mix(in srgb, var(--bizcard-accent) 78%, #ffffff) 100%
+    );
+  color: #fff;
+}
+
+.bizcard-side::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.45);
+  border-radius: var(--vintage-radius);
+  pointer-events: none;
+}
+
+.bizcard-avatar {
+  width: 92px;
+  height: 92px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  font-size: 32px;
+  font-weight: 800;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.22);
+}
+
+.bizcard-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bizcard-identity {
+  min-width: 0;
+  width: 100%;
+}
+
+.bizcard-name {
+  margin: 0;
+  font-size: clamp(20px, 4.4vw, 26px);
+  font-weight: 800;
+  line-height: 1.35;
+  color: #fff;
+  overflow-wrap: anywhere;
+}
+
+.bizcard-role {
+  margin: 6px 0 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.92);
+  overflow-wrap: anywhere;
+}
+
+.bizcard-tags {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.bizcard-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.bizcard-tag svg {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+
+/* The contact side: paper panel with labelled rows and social circles. */
+.bizcard-main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 22px 20px;
+  min-width: 0;
+}
+
+.bizcard-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.bizcard-rows > li + li {
+  border-top: 1px dashed var(--vintage-border);
+}
+
+.bizcard-row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 2px;
+  font-size: 14px;
+  color: var(--vintage-ink);
+  transition: background 0.15s ease;
+}
+
+a.bizcard-row:hover {
+  background: color-mix(in srgb, var(--bizcard-accent) 7%, transparent);
+}
+
+.bizcard-row-icon {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  color: var(--bizcard-accent);
+}
+
+.bizcard-row-label {
+  flex: 0 0 auto;
+  min-width: 70px;
+  font-size: 12px;
+  color: var(--vintage-ink-soft);
+}
+
+.bizcard-row-value {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.bizcard-bio {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.95;
+  color: var(--vintage-ink);
+  white-space: pre-line;
+}
+
+.bizcard-socials {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bizcard-social {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid var(--vintage-border);
+  background: var(--vintage-paper);
+  color: var(--bizcard-accent);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.bizcard-social svg {
+  width: 18px;
+  height: 18px;
+}
+
+.bizcard-social:hover {
+  border-color: var(--bizcard-accent);
+  background: color-mix(in srgb, var(--bizcard-accent) 12%, #fff);
+  transform: translateY(-2px);
+}
+
+.bizcard-footer {
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+/* Landscape: identity panel beside the contact panel. */
+@media (min-width: 560px) {
+  .bizcard {
+    grid-template-columns: minmax(190px, 34%) minmax(0, 1fr);
+  }
+  .bizcard-side {
+    justify-content: center;
+    text-align: start;
+    align-items: flex-start;
+    padding: 30px 22px;
+  }
+  .bizcard-tags {
+    justify-content: flex-start;
+  }
+  .bizcard-main {
+    padding: 30px 26px;
+  }
+}
+
+/* Dense variant (the card is scaled to fit one screen). */
+.bizcard-compact {
+  box-shadow: 0 10px 26px rgba(92, 53, 29, 0.14);
+}
+.bizcard-compact .bizcard-side {
+  padding: 18px 16px;
+  gap: 9px;
+}
+.bizcard-compact .bizcard-avatar {
+  width: 68px;
+  height: 68px;
+  font-size: 24px;
+}
+.bizcard-compact .bizcard-name {
+  font-size: 18px;
+}
+.bizcard-compact .bizcard-role {
+  margin-top: 3px;
+  font-size: 12px;
+}
+.bizcard-compact .bizcard-main {
+  padding: 16px 16px;
+  gap: 10px;
+}
+.bizcard-compact .bizcard-row {
+  padding: 7px 2px;
+  font-size: 12px;
+}
+.bizcard-compact .bizcard-row-label {
+  min-width: 58px;
+  font-size: 11px;
+}
+.bizcard-compact .bizcard-row-icon {
+  width: 15px;
+  height: 15px;
+}
+.bizcard-compact .bizcard-bio {
+  font-size: 11.5px;
+  line-height: 1.75;
+}
+.bizcard-compact .bizcard-social {
+  width: 34px;
+  height: 34px;
+}
+.bizcard-compact .bizcard-social svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* The shared dense hook (`CardFit`) also shrinks this face. */
+.card-public-scroll[data-compact] .bizcard {
+  box-shadow: 0 8px 20px rgba(92, 53, 29, 0.13);
+}

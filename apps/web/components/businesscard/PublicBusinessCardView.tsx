@@ -16,17 +16,17 @@ import {
   Twitter,
 } from 'lucide-react';
 
+import {
+  BusinessCardFace,
+  type BizCardRow,
+  type BizCardSocial,
+} from '@/components/businesscard/BusinessCardFace';
 import { CardFit } from '@/components/ui/CardFit';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
 import { SaveButton } from '@/components/ui/SaveButton';
 import { ShareButton } from '@/components/ui/ShareButton';
-import {
-  RecordCard,
-  type RecordIconLink,
-  type RecordRow,
-} from '@/components/ui/RecordCard';
 import type { BusinessCard } from '@/lib/api';
 import { socialHref as socialNetworkHref } from '@/lib/social-fields';
 
@@ -42,17 +42,16 @@ function socialHref(value: string): string {
 }
 
 /**
- * Full public business-card page, rendered in the site's own vintage «record»
- * style — the same calm, readable layout as the /business-cards detail panel
- * (cream paper, dashed accent frame, labelled icon rows, circled social icons).
- * The owner's chosen colour is kept as the record accent so «طیفی» cards still
- * look like themselves, while the chrome stays on-brand paper.
+ * Full public business-card page, rendered as a landscape «business card»
+ * (see {@link BusinessCardFace}) so it reads differently from the biolink
+ * record: a coloured identity panel beside a paper contact panel. The owner's
+ * chosen colour is kept as the card accent so «طیفی» cards still look like
+ * themselves, while the page chrome stays on-brand paper.
  */
 export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) {
-  const headline = businessCard.jobTitle || businessCard.fullName || 'کارت ویزیت';
-  const subline = `به مدیریت ${businessCard.fullName || '—'}`;
+  const headline = businessCard.fullName || 'کارت ویزیت';
 
-  const rows: RecordRow[] = [];
+  const rows: BizCardRow[] = [];
   if (businessCard.mobile) {
     rows.push({
       key: 'mobile',
@@ -102,7 +101,7 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
     });
   }
 
-  const iconLinks: RecordIconLink[] = [
+  const socials: BizCardSocial[] = [
     businessCard.whatsapp
       ? {
           key: 'whatsapp',
@@ -143,7 +142,7 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
           Icon: Twitter,
         }
       : null,
-  ].filter((entry): entry is RecordIconLink => Boolean(entry));
+  ].filter((entry): entry is BizCardSocial => Boolean(entry));
 
   return (
     <div className="card-public-page record-page">
@@ -185,16 +184,15 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
               record to fit one screen (falling back to scrolling only when even
               the minimum scale cannot fit). */}
           <CardFit>
-            <RecordCard
+            <BusinessCardFace
               fullName={businessCard.fullName}
-              headline={headline}
-              subline={subline}
+              jobTitle={businessCard.jobTitle}
               bio={businessCard.bio}
               cityName={businessCard.city?.name}
               businessName={businessCard.business?.name}
               avatarUrl={businessCard.avatarUrl}
               rows={rows}
-              iconLinks={iconLinks}
+              socials={socials}
               accent={businessCard.primaryColor}
               headingLevel="h1"
               footer={

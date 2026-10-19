@@ -13,7 +13,11 @@ import {
   Twitter,
 } from 'lucide-react';
 
-import { RecordCard, type RecordIconLink, type RecordRow } from '@/components/ui/RecordCard';
+import {
+  BusinessCardFace,
+  type BizCardRow,
+  type BizCardSocial,
+} from '@/components/businesscard/BusinessCardFace';
 import type { BusinessCardFormValues } from './BusinessCardForm';
 import type { TaxonomyItem } from '@/lib/api';
 import { socialHref as socialNetworkHref } from '@/lib/social-fields';
@@ -34,8 +38,8 @@ function socialHref(value: string): string {
 /**
  * Live, real-time preview of the public business card. It re-renders on every
  * keystroke and whenever the selected theme/colour changes, and renders the
- * exact same vintage «record» card as `/business-cards/<slug>`, so the builder
- * always shows what visitors will get.
+ * exact same landscape business-card face as `/business-cards/<slug>`, so the
+ * builder always shows what visitors will get.
  */
 export function LiveBusinessCardPreview({
   values,
@@ -43,11 +47,7 @@ export function LiveBusinessCardPreview({
   businessName,
   compact,
 }: Props) {
-  const headline =
-    values.jobTitle.trim() || values.fullName.trim() || 'نام کسب‌وکار';
-  const subline = `به مدیریت ${values.fullName.trim() || '—'}`;
-
-  const rows: RecordRow[] = [];
+  const rows: BizCardRow[] = [];
   if (values.mobile.trim()) {
     rows.push({
       key: 'mobile',
@@ -97,7 +97,7 @@ export function LiveBusinessCardPreview({
     });
   }
 
-  const iconLinks: RecordIconLink[] = [
+  const socials: BizCardSocial[] = [
     values.whatsapp
       ? {
           key: 'whatsapp',
@@ -138,19 +138,18 @@ export function LiveBusinessCardPreview({
           Icon: Twitter,
         }
       : null,
-  ].filter((entry): entry is RecordIconLink => Boolean(entry));
+  ].filter((entry): entry is BizCardSocial => Boolean(entry));
 
   return (
-    <RecordCard
+    <BusinessCardFace
       fullName={values.fullName || 'نام و نام خانوادگی'}
-      headline={headline}
-      subline={subline}
+      jobTitle={values.jobTitle || null}
       bio={values.bio}
       cityName={cityName}
       businessName={businessName}
       avatarUrl={values.avatarUrl || null}
       rows={rows}
-      iconLinks={iconLinks}
+      socials={socials}
       accent={values.primaryColor}
       compact={compact}
     />
