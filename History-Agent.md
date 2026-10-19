@@ -20,7 +20,41 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.76.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.76.2**.
+
+## ۱۴۰۵/۰۷/۲۷ — حذف اسکرول پنل جزئیات دایرکتوری — نسخه `v2.76.2`
+
+**هدف:** در `http://localhost:3000/business-cards?card=sample-full-card` و
+`http://localhost:3000/biolinks?biolink=sample-full-biolink` پنل جزئیات سمت چپ
+به‌هیچ‌وجه اسکرول نخورد و همه‌ی رکورد در همان یک صفحه جا شود.
+
+**تغییرات:**
+- `apps/web/components/ui/FitContent.tsx` (فایل جدید): منطق «جا‌شدن در یک صفحه»
+  از `CardFit` استخراج شد به یک کامپوننت مشترک — اندازه‌گیری ارتفاع طبیعی محتوا
+  در برابر فضای آزاد والد منهای ارتفاع siblingها، فعال‌سازی چیدمان فشرده
+  (`data-compact`) و سپس مقیاس‌کردن با `transform: scale`؛ اکنون پدینگ/بوردر خودِ
+  ناحیه هم از فضای آزاد کم می‌شود و ارتفاع رزرو‌شده شامل همان پدینگ است تا مرز
+  دوباره اسکرول نخورد.
+- `apps/web/components/ui/CardFit.tsx`: بازنویسی به‌صورت پوسته‌ای نازک روی
+  `FitContent` (همان API قبلی برای صفحات عمومی؛ کلاس `card-public-scroll` و
+  آینه‌کردن `data-compact` روی والد).
+- `apps/web/components/biolink/DirectoryDetail.tsx` و
+  `apps/web/components/businesscard/DirectoryBusinessCardDetail.tsx`: ناحیه‌ی
+  محتوای پنل داخل `FitContent` با کلاس `dir-detail-scroll` و `minScale=0.7`.
+- `apps/web/app/globals.css`: قواعد فشرده‌سازی `.dir-detail-scroll[data-compact]`
+  (پدینگ، اندازه‌ی آواتار/آیکن‌ها/دکمه‌ها، فاصله‌های عمودی) و
+  `.dir-detail-scroll[data-fits] { overflow: hidden }`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web ... tsc --noEmit` بدون خطا.
+- با `playwright-core` روی رکوردهای پرفیلد در عرض‌های ۱۴۴۰/۱۲۸۰/۱۰۲۴/۹۰۰/۷۶۸:
+  `overflowY` ناحیه‌ی جزئیات `hidden` است، آخرین عنصر کاملاً داخل کادر پنل
+  (`clippedBottom` منفی) و رکورد «کم‌فیلد» بدون فعال‌شدن چیدمان فشرده سالم است.
+  در موبایل (۳۹۰px) جزئیات در bottom-sheet بدون اسکرول داخلی رندر می‌شود.
+- پس از ریفکتور، صفحات عمومی (`/biolinks/sample-full-biolink` و
+  `/business-cards/sample-full-card`) در عرض‌های ۳۲۰/۳۹۰/۷۶۸/۱۲۸۰ بدون تغییر و
+  بدون اسکرول سند باقی ماندند.
+- `python3 scripts/sync_install.py` و سپس `--check` بدون «تغییر معلق».
 
 ## ۱۴۰۵/۰۷/۲۷ — حذف دکمه‌های دایرکتوری از صفحه‌ی «ذخیره‌شده‌های من» — نسخه `v2.76.1`
 

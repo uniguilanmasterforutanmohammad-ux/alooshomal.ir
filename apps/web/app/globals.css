@@ -1151,6 +1151,51 @@ header.bg-white {
   margin-top: 6px;
   font-size: 10px;
 }
+
+/* ---- Directory detail panel: keep the whole record on one screen ----
+   `FitContent` adds `data-compact` to `.dir-detail-scroll` when the record is
+   taller than the space left under the panel header, then scales it down so the
+   left column never needs its own scrollbar. */
+.dir-detail-scroll[data-compact] {
+  padding: 12px 14px;
+}
+.dir-detail-scroll[data-fits] {
+  overflow: hidden;
+}
+.dir-detail-scroll[data-compact] .size-16 {
+  width: 52px;
+  height: 52px;
+}
+.dir-detail-scroll[data-compact] .size-16 img {
+  width: 52px;
+  height: 52px;
+}
+.dir-detail-scroll[data-compact] h2 {
+  font-size: 16px;
+}
+.dir-detail-scroll[data-compact] p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.dir-detail-scroll[data-compact] ul > li > span,
+.dir-detail-scroll[data-compact] ul > li > a > span {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.dir-detail-scroll[data-compact] .size-9 {
+  width: 30px;
+  height: 30px;
+}
+.dir-detail-scroll[data-compact] .indeed-btn {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: 12px;
+}
+.dir-detail-scroll[data-compact] .mt-5,
+.dir-detail-scroll[data-compact] .mt-4 {
+  margin-top: 10px;
+}
+
 .biolink-theme .theme-title { color: var(--biolink-text); }
 .biolink-theme .theme-muted { color: var(--biolink-muted); }
 .biolink-theme .theme-avatar {

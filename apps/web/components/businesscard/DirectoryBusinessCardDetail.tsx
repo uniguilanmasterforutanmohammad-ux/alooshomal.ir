@@ -21,6 +21,7 @@ import {
 
 import { type BusinessCard } from '@/lib/api';
 import { useDirectoryDetail } from '@/lib/directory-detail';
+import { FitContent } from '@/components/ui/FitContent';
 import { RecordView } from '@/components/ui/RecordView';
 import { DetailTags } from '@/components/ui/DetailTags';
 
@@ -99,7 +100,7 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-5 py-5">
+      <FitContent className="dir-detail-scroll flex-1 overflow-y-auto px-5 py-5" minScale={0.7}>
         <div className="flex items-center gap-4">
           <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--vintage-border)] bg-soft text-xl font-extrabold text-brand">
             {businessCard.avatarUrl ? (
@@ -214,7 +215,7 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
           <ExternalLink className="size-4" aria-hidden />
           مشاهده صفحه کامل کارت ویزیت
         </Link>
-      </div>
+      </FitContent>
     </div>
   );
 }
