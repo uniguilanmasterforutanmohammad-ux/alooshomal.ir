@@ -28,6 +28,7 @@ import {
   type RecordRow,
 } from '@/components/ui/RecordCard';
 import type { Biolink } from '@/lib/api';
+import { socialHref as socialNetworkHref } from '@/lib/social-fields';
 
 interface Props {
   biolink: Biolink;
@@ -119,18 +120,33 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
       ? {
           key: 'instagram',
           label: 'اینستاگرام',
-          href: socialHref(biolink.instagram),
+          href: socialNetworkHref('instagram', biolink.instagram),
           Icon: Instagram,
         }
       : null,
     biolink.telegram
-      ? { key: 'telegram', label: 'تلگرام', href: socialHref(biolink.telegram), Icon: Send }
+      ? {
+          key: 'telegram',
+          label: 'تلگرام',
+          href: socialNetworkHref('telegram', biolink.telegram),
+          Icon: Send,
+        }
       : null,
     biolink.linkedin
-      ? { key: 'linkedin', label: 'لینکدین', href: socialHref(biolink.linkedin), Icon: Linkedin }
+      ? {
+          key: 'linkedin',
+          label: 'لینکدین',
+          href: socialNetworkHref('linkedin', biolink.linkedin),
+          Icon: Linkedin,
+        }
       : null,
     biolink.twitter
-      ? { key: 'twitter', label: 'ایکس', href: socialHref(biolink.twitter), Icon: Twitter }
+      ? {
+          key: 'twitter',
+          label: 'ایکس',
+          href: socialNetworkHref('twitter', biolink.twitter),
+          Icon: Twitter,
+        }
       : null,
   ].filter((entry): entry is RecordIconLink => Boolean(entry));
 

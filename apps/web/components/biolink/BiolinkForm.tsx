@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { Input } from '@/components/ui/Input';
 import { ImageUpload } from '@/components/ui/ImageUpload';
+import { SocialInput } from '@/components/ui/SocialInput';
 import { SpectrumColorPicker } from '@/components/ui/SpectrumColorPicker';
 import { LinkSelector } from '@/components/link/LinkSelector';
 import { LiveBiolinkPreview } from '@/components/biolink/LiveBiolinkPreview';
@@ -13,6 +14,7 @@ import {
   DEFAULT_THEME_KEY,
 } from '@/lib/themes';
 import { SPECTRUM_COLORS, SPECTRUM_THEME_KEY, spectrumColorByBg } from '@/lib/card-spectrum';
+import { SOCIAL_FIELDS } from '@/lib/social-fields';
 import { hasAnyValue, useFormAutosave } from '@/lib/use-form-autosave';
 
 export interface BiolinkFormValues {
@@ -343,36 +345,14 @@ export function BiolinkForm({
                 value={values.website}
                 onChange={(event) => setField('website', event.target.value)}
               />
-              <Input
-                label="واتساپ"
-                dir="ltr"
-                value={values.whatsapp}
-                onChange={(event) => setField('whatsapp', event.target.value)}
-              />
-              <Input
-                label="لینکدین"
-                dir="ltr"
-                value={values.linkedin}
-                onChange={(event) => setField('linkedin', event.target.value)}
-              />
-              <Input
-                label="اینستاگرام"
-                dir="ltr"
-                value={values.instagram}
-                onChange={(event) => setField('instagram', event.target.value)}
-              />
-              <Input
-                label="تلگرام"
-                dir="ltr"
-                value={values.telegram}
-                onChange={(event) => setField('telegram', event.target.value)}
-              />
-              <Input
-                label="ایکس (توییتر)"
-                dir="ltr"
-                value={values.twitter}
-                onChange={(event) => setField('twitter', event.target.value)}
-              />
+              {SOCIAL_FIELDS.map((field) => (
+                <SocialInput
+                  key={field.key}
+                  field={field.key}
+                  value={values[field.key]}
+                  onChange={(value) => setField(field.key, value)}
+                />
+              ))}
             </div>
           </div>
 
@@ -605,36 +585,14 @@ export function BiolinkForm({
               value={values.website}
               onChange={(event) => setField('website', event.target.value)}
             />
-            <Input
-              label="واتساپ"
-              dir="ltr"
-              value={values.whatsapp}
-              onChange={(event) => setField('whatsapp', event.target.value)}
-            />
-            <Input
-              label="لینکدین"
-              dir="ltr"
-              value={values.linkedin}
-              onChange={(event) => setField('linkedin', event.target.value)}
-            />
-            <Input
-              label="اینستاگرام"
-              dir="ltr"
-              value={values.instagram}
-              onChange={(event) => setField('instagram', event.target.value)}
-            />
-            <Input
-              label="تلگرام"
-              dir="ltr"
-              value={values.telegram}
-              onChange={(event) => setField('telegram', event.target.value)}
-            />
-            <Input
-              label="ایکس (توییتر)"
-              dir="ltr"
-              value={values.twitter}
-              onChange={(event) => setField('twitter', event.target.value)}
-            />
+            {SOCIAL_FIELDS.map((field) => (
+              <SocialInput
+                key={field.key}
+                field={field.key}
+                value={values[field.key]}
+                onChange={(value) => setField(field.key, value)}
+              />
+            ))}
           </div>
         </div>
 

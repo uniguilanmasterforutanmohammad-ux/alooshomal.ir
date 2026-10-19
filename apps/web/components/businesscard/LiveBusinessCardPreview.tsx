@@ -16,6 +16,7 @@ import {
 import { RecordCard, type RecordIconLink, type RecordRow } from '@/components/ui/RecordCard';
 import type { BusinessCardFormValues } from './BusinessCardForm';
 import type { TaxonomyItem } from '@/lib/api';
+import { socialHref as socialNetworkHref } from '@/lib/social-fields';
 
 interface Props {
   values: BusinessCardFormValues;
@@ -109,18 +110,33 @@ export function LiveBusinessCardPreview({
       ? {
           key: 'instagram',
           label: 'اینستاگرام',
-          href: socialHref(values.instagram),
+          href: socialNetworkHref('instagram', values.instagram),
           Icon: Instagram,
         }
       : null,
     values.telegram
-      ? { key: 'telegram', label: 'تلگرام', href: socialHref(values.telegram), Icon: Send }
+      ? {
+          key: 'telegram',
+          label: 'تلگرام',
+          href: socialNetworkHref('telegram', values.telegram),
+          Icon: Send,
+        }
       : null,
     values.linkedin
-      ? { key: 'linkedin', label: 'لینکدین', href: socialHref(values.linkedin), Icon: Linkedin }
+      ? {
+          key: 'linkedin',
+          label: 'لینکدین',
+          href: socialNetworkHref('linkedin', values.linkedin),
+          Icon: Linkedin,
+        }
       : null,
     values.twitter
-      ? { key: 'twitter', label: 'ایکس', href: socialHref(values.twitter), Icon: Twitter }
+      ? {
+          key: 'twitter',
+          label: 'ایکس',
+          href: socialNetworkHref('twitter', values.twitter),
+          Icon: Twitter,
+        }
       : null,
   ].filter((entry): entry is RecordIconLink => Boolean(entry));
 

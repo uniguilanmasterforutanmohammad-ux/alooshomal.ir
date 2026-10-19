@@ -20,7 +20,40 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.82.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.83.0**.
+
+## ۱۴۰۵/۰۷/۲۷ — شبکه‌های اجتماعی با پیشوند ثابت در فرم‌های ساخت بیولینک/کارت ویزیت — نسخه `v2.83.0`
+
+**هدف:** «درخواست جدید» — در `/dashboard/business-cards/new` و
+`/dashboard/biolinks/new` همه‌ی شبکه‌های اجتماعی باید قسمت ثابت و اولیه
+(پیشوند) را از قبل داشته باشند و کاربر فقط یوزرنیم/آیدی خود را وارد کند.
+
+**تغییرات:**
+- `apps/web/lib/social-fields.ts` [جدید]: تعریف پیشوند/پایه‌ی ثابت هر شبکه
+  (`wa.me/`، `linkedin.com/in/`، `instagram.com/`، `t.me/`، `x.com/`) به‌همراه
+  توابع `socialValueToInput` (حذف پیشوند از مقدار ذخیره‌شده برای نمایش در
+  ورودی)، `socialInputToValue` (تبدیل یوزرنیم به URL کامل برای ذخیره) و
+  `socialHref` (نرمال‌سازی مقادیر قدیمیِ فقط‌یوزرنیم به لینک کامل).
+- `apps/web/components/ui/SocialInput.tsx` [جدید]: ورودی شبکه‌ی اجتماعی با
+  پیشوند غیرقابل‌ویرایش + یک کادر برای یوزرنیم/آیدی.
+- `apps/web/components/biolink/BiolinkForm.tsx` و
+  `apps/web/components/businesscard/BusinessCardForm.tsx`: شش فیلد متنی
+  اجتماعی با `SocialInput` جایگزین شدند (در هر دو حالت `inline` و کلاسیک).
+- `apps/web/components/biolink/PublicBiolinkView.tsx`،
+  `apps/web/components/businesscard/PublicBusinessCardView.tsx`،
+  `apps/web/components/biolink/LiveBiolinkPreview.tsx` و
+  `apps/web/components/businesscard/LiveBusinessCardPreview.tsx`: لینک‌های
+  اجتماعی با `socialHref` نرمال می‌شوند تا رکوردهای قدیمی (یوزرنیم خالی از
+  URL) هم درست لینک شوند.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web ./node_modules/.bin/tsc --noEmit` → exit 0.
+- Playwright با نشست ادمین روی هر دو صفحه‌ی `new`: هر پنج شبکه با پیشوند درست
+  رندر شد (`wa.me/`, `linkedin.com/in/`, `instagram.com/`, `t.me/`, `x.com/`)
+  و پلیس‌هولدر `username`/`989121234567`؛ بدون overflow افقی.
+- مقادیر ذخیره‌شده‌ی نمونه (`sample-full-biolink`) که URL کامل بودند، هنگام
+  نمایش فقط یوزرنیم را در کادر نشان می‌دهند و در رندر عمومی به لینک کامل
+  تبدیل می‌شوند.
 
 ## ۱۴۰۵/۰۷/۲۷ — حذف نمایش «شرکت» به‌صورت تگ در کارت ویزیت — نسخه `v2.82.1`
 
