@@ -4,9 +4,11 @@ import {
   Instagram,
   Linkedin,
   Mail,
+  MapPin,
   MessageCircle,
   Phone,
   Send,
+  Smartphone,
   Twitter,
 } from 'lucide-react';
 
@@ -95,30 +97,24 @@ export function ThemedBusinessCard({
     .join('')
     .toUpperCase();
 
-  const contacts: Array<{
-    key: string;
-    value: string;
-    href: string;
-    Icon: typeof Mail;
-  }> = [
-    { key: 'email', value: data.email ?? '', href: `mailto:${data.email ?? ''}`, Icon: Mail },
-    { key: 'phone', value: data.phone ?? '', href: `tel:${data.phone ?? ''}`, Icon: Phone },
-    { key: 'mobile', value: data.mobile ?? '', href: `tel:${data.mobile ?? ''}`, Icon: Phone },
-    { key: 'website', value: data.website ?? '', href: socialHref(data.website ?? ''), Icon: Globe },
-    { key: 'whatsapp', value: data.whatsapp ?? '', href: `https://wa.me/${(data.whatsapp ?? '').replace(/[^0-9]/g, '')}`, Icon: MessageCircle },
+  // Bottom rows: mobile, landline and address are written out in full, in that
+  // order (see the card spec).
+  const rows: Array<{ key: string; label: string; value: string; href: string; Icon: typeof Phone }> = [
+    { key: 'mobile', label: 'تلفن همراه', value: data.mobile ?? '', href: `tel:${data.mobile ?? ''}`, Icon: Smartphone },
+    { key: 'phone', label: 'تلفن ثابت', value: data.phone ?? '', href: `tel:${data.phone ?? ''}`, Icon: Phone },
+    { key: 'address', label: 'آدرس', value: data.address ?? '', href: '', Icon: MapPin },
   ].filter((entry) => entry.value);
 
-  const socials: Array<{
-    key: string;
-    value: string;
-    href: string;
-    label: string;
-    Icon: typeof Linkedin;
-  }> = [
-    { key: 'linkedin', value: data.linkedin ?? '', href: socialHref(data.linkedin ?? ''), label: 'LinkedIn', Icon: Linkedin },
-    { key: 'twitter', value: data.twitter ?? '', href: socialHref(data.twitter ?? ''), label: 'X', Icon: Twitter },
-    { key: 'instagram', value: data.instagram ?? '', href: socialHref(data.instagram ?? ''), label: 'Instagram', Icon: Instagram },
-    { key: 'telegram', value: data.telegram ?? '', href: socialHref(data.telegram ?? ''), label: 'Telegram', Icon: Send },
+  // Every remaining way to reach the owner is shown icon-only: email, website,
+  // whatsapp and the social networks.
+  const iconLinks = [
+    { key: 'email', value: data.email, href: `mailto:${data.email ?? ''}`, label: 'ایمیل', Icon: Mail },
+    { key: 'website', value: data.website, href: socialHref(data.website ?? ''), label: 'وب‌سایت', Icon: Globe },
+    { key: 'whatsapp', value: data.whatsapp, href: `https://wa.me/${(data.whatsapp ?? '').replace(/[^0-9]/g, '')}`, label: 'واتساپ', Icon: MessageCircle },
+    { key: 'linkedin', value: data.linkedin, href: socialHref(data.linkedin ?? ''), label: 'LinkedIn', Icon: Linkedin },
+    { key: 'twitter', value: data.twitter, href: socialHref(data.twitter ?? ''), label: 'X', Icon: Twitter },
+    { key: 'instagram', value: data.instagram, href: socialHref(data.instagram ?? ''), label: 'Instagram', Icon: Instagram },
+    { key: 'telegram', value: data.telegram, href: socialHref(data.telegram ?? ''), label: 'Telegram', Icon: Send },
   ].filter((entry) => entry.value);
 
   const LinkTag = interactive ? 'a' : 'span';
@@ -131,7 +127,7 @@ export function ThemedBusinessCard({
     >
       <div className="bc-card relative w-full p-6 sm:p-8">
         <div className="relative z-[1]">
-          <header className="flex items-start gap-4">
+          <header className="bc-header flex items-center gap-4">
             <div
               className="bc-avatar flex size-[72px] shrink-0 items-center justify-center overflow-hidden text-2xl font-extrabold"
               style={{ borderRadius: 'var(--bc-radius)' }}
@@ -149,27 +145,15 @@ export function ThemedBusinessCard({
                 initials
               )}
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                {data.logoUrl ? (
-                  <Image
-                    src={data.logoUrl}
-                    alt={data.company || data.fullName}
-                    width={40}
-                    height={40}
-                    unoptimized
-                    className="size-8 shrink-0 object-contain"
-                  />
-                ) : null}
-                <h1 className="bc-name bc-fa truncate text-[clamp(24px,6vw,32px)] leading-tight font-extrabold">
-                  {data.fullName || 'نام و نام خانوادگی'}
-                </h1>
-              </div>
+            <div className="bc-header-text min-w-0 flex-1">
               {data.jobTitle ? (
-                <p className="bc-role bc-fa mt-1.5 text-sm font-semibold">
+                <h1 className="bc-name bc-fa text-[clamp(20px,5vw,26px)] leading-tight font-extrabold">
                   {data.jobTitle}
-                </p>
+                </h1>
               ) : null}
+              <p className="bc-manager bc-fa mt-1 text-sm font-semibold">
+                به مدیریت {data.fullName || '—'}
+              </p>
               {company ? (
                 <p className="bc-muted bc-fa mt-0.5 text-xs font-semibold">
                   {company}
@@ -181,9 +165,44 @@ export function ThemedBusinessCard({
 
           <div className="bc-rule my-5 h-px w-full" />
 
-          {contacts.length > 0 ? (
-            <div className="bc-contact flex flex-wrap justify-between gap-x-4 gap-y-2 text-[13px]">
-              {contacts.map((entry) => (
+          {rows.length > 0 ? (
+            <ul className="bc-rows mt-4 flex flex-col gap-2 text-[13px]">
+              {rows.map((row) => (
+                <li key={row.key} className="flex items-start gap-2.5">
+                  <row.Icon className="mt-0.5 size-[17px] shrink-0 bc-role" aria-hidden />
+                  <span className="shrink-0 text-xs bc-muted">{row.label}:</span>
+                  {row.href && interactive ? (
+                    <a
+                      href={row.href}
+                      dir={row.key === 'address' ? 'rtl' : 'ltr'}
+                      className="bc-contact-value min-w-0 flex-1"
+                    >
+                      {row.value}
+                    </a>
+                  ) : (
+                    <span
+                      dir={row.key === 'address' ? 'rtl' : 'ltr'}
+                      className="bc-contact-value min-w-0 flex-1"
+                    >
+                      {row.value}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+
+          {data.bio ? (
+            <p className="bc-muted bc-fa mt-3 text-xs leading-6 whitespace-pre-line">
+              {data.bio}
+            </p>
+          ) : null}
+
+          {/* All contact links as icon-only buttons (email, website, whatsapp
+              and the social networks), centred together. */}
+          {iconLinks.length > 0 ? (
+            <div className="bc-iconbar mt-5 flex flex-wrap items-center justify-center gap-2.5">
+              {iconLinks.map((entry) => (
                 <LinkTag
                   key={entry.key}
                   {...(interactive
@@ -191,62 +210,16 @@ export function ThemedBusinessCard({
                         href: entry.href,
                         target: entry.href.startsWith('http') ? '_blank' : undefined,
                         rel: entry.href.startsWith('http') ? 'noreferrer' : undefined,
+                        'aria-label': entry.label,
                       }
-                    : {})}
-                  className="flex min-w-0 items-center gap-2"
+                    : { 'aria-label': entry.label })}
+                  className="bc-social flex size-9 items-center justify-center"
                 >
-                  <entry.Icon className="size-[17px] shrink-0" aria-hidden />
-                  <span dir="ltr" className="truncate">
-                    {entry.value}
-                  </span>
+                  <entry.Icon className="size-[17px]" aria-hidden />
                 </LinkTag>
               ))}
             </div>
           ) : null}
-
-          <footer className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            {socials.length > 0 ? (
-              <div className="flex items-center gap-2.5">
-                {socials.map((entry) => (
-                  <LinkTag
-                    key={entry.key}
-                    {...(interactive
-                      ? {
-                          href: entry.href,
-                          target: '_blank',
-                          rel: 'noreferrer',
-                          'aria-label': entry.label,
-                        }
-                      : {})}
-                    className="bc-social flex size-9 items-center justify-center"
-                  >
-                    <entry.Icon className="size-[17px]" aria-hidden />
-                  </LinkTag>
-                ))}
-              </div>
-            ) : (
-              <span />
-            )}
-
-            <div className="flex gap-3">
-              {data.phone ? (
-                <a
-                  href={`tel:${data.phone}`}
-                  className="bc-btn bc-fa inline-flex min-h-[44px] flex-1 items-center justify-center px-5 text-[13px] font-bold"
-                >
-                  تماس
-                </a>
-              ) : null}
-              {data.email ? (
-                <a
-                  href={`mailto:${data.email}`}
-                  className="bc-btn bc-fa inline-flex min-h-[44px] flex-1 items-center justify-center px-5 text-[13px] font-bold"
-                >
-                  ایمیل
-                </a>
-              ) : null}
-            </div>
-          </footer>
         </div>
       </div>
     </div>
@@ -262,15 +235,18 @@ interface EditableProps {
   businessOptions?: TaxonomyItem[];
 }
 
-const EDITABLE_CONTACTS: Array<{ key: string; placeholder: string; Icon: typeof Mail }> = [
-  { key: 'email', placeholder: 'ایمیل', Icon: Mail },
-  { key: 'phone', placeholder: 'تلفن', Icon: Phone },
-  { key: 'mobile', placeholder: 'تلفن همراه', Icon: Phone },
-  { key: 'website', placeholder: 'وب‌سایت', Icon: Globe },
-  { key: 'whatsapp', placeholder: 'واتساپ', Icon: MessageCircle },
+/** Bottom rows of the editable card, in the order the card spec asks for. */
+const EDITABLE_ROWS: Array<{ key: string; label: string; placeholder: string; Icon: typeof Phone }> = [
+  { key: 'mobile', label: 'تلفن همراه', placeholder: 'تلفن همراه', Icon: Smartphone },
+  { key: 'phone', label: 'تلفن ثابت', placeholder: 'تلفن ثابت', Icon: Phone },
+  { key: 'address', label: 'آدرس', placeholder: 'آدرس', Icon: MapPin },
 ];
 
-const EDITABLE_SOCIALS: Array<{ key: string; label: string; Icon: typeof Linkedin }> = [
+/** Icon-only fields edited on the card: email, website, whatsapp and socials. */
+const EDITABLE_ICONS: Array<{ key: string; label: string; Icon: typeof Linkedin }> = [
+  { key: 'email', label: 'ایمیل', Icon: Mail },
+  { key: 'website', label: 'وب‌سایت', Icon: Globe },
+  { key: 'whatsapp', label: 'واتساپ', Icon: MessageCircle },
   { key: 'linkedin', label: 'LinkedIn', Icon: Linkedin },
   { key: 'twitter', label: 'X', Icon: Twitter },
   { key: 'instagram', label: 'Instagram', Icon: Instagram },
@@ -307,7 +283,7 @@ function EditableBusinessCard({
     >
       <div className="bc-card relative w-full p-6 sm:p-8">
         <div className="relative z-[1]">
-          <header className="flex items-start gap-4">
+          <header className="bc-header flex items-center gap-4">
             <div
               className="bc-avatar flex size-[72px] shrink-0 items-center justify-center overflow-hidden text-2xl font-extrabold"
               style={{ borderRadius: 'var(--bc-radius)' }}
@@ -325,33 +301,24 @@ function EditableBusinessCard({
                 initials
               )}
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                {data.logoUrl ? (
-                  <Image
-                    src={data.logoUrl}
-                    alt={data.company || data.fullName}
-                    width={40}
-                    height={40}
-                    unoptimized
-                    className="size-8 shrink-0 object-contain"
-                  />
-                ) : null}
+            <div className="bc-header-text min-w-0 flex-1">
+              <InlineEdit
+                value={data.jobTitle ?? ''}
+                onChange={set('jobTitle')}
+                placeholder="نام کسب‌وکار (عنوان شغلی)"
+                ariaLabel="نام کسب‌وکار"
+                className="bc-name bc-fa block text-[clamp(20px,5vw,26px)] leading-tight font-extrabold"
+              />
+              <div className="bc-manager bc-fa mt-1 flex items-center gap-1.5 text-sm font-semibold">
+                <span aria-hidden>به مدیریت</span>
                 <InlineEdit
                   value={data.fullName}
                   onChange={set('fullName')}
                   placeholder="نام و نام خانوادگی"
-                  ariaLabel="نام و نام خانوادگی"
-                  className="bc-name bc-fa block text-[clamp(24px,6vw,32px)] leading-tight font-extrabold"
+                  ariaLabel="به مدیریت"
+                  className="inline-edit"
                 />
               </div>
-              <InlineEdit
-                value={data.jobTitle ?? ''}
-                onChange={set('jobTitle')}
-                placeholder="عنوان شغلی"
-                ariaLabel="عنوان شغلی"
-                className="bc-role bc-fa mt-1.5 block text-sm font-semibold"
-              />
               <div className="bc-muted bc-fa mt-0.5 flex flex-wrap items-center gap-1.5 text-xs font-semibold">
                 <InlineEdit
                   value={data.company ?? ''}
@@ -393,17 +360,19 @@ function EditableBusinessCard({
 
           <div className="bc-rule my-5 h-px w-full" />
 
-          <div className="bc-contact flex flex-wrap justify-between gap-x-4 gap-y-2 text-[13px]">
-            {EDITABLE_CONTACTS.map((entry) => (
-              <div key={entry.key} className="flex min-w-0 items-center gap-2">
-                <entry.Icon className="size-[17px] shrink-0" aria-hidden />
+          {/* Bottom rows, in order: mobile, landline, address. */}
+          <div className="bc-rows mt-4 flex flex-col gap-2 text-[13px]">
+            {EDITABLE_ROWS.map((entry) => (
+              <div key={entry.key} className="flex items-start gap-2.5">
+                <entry.Icon className="mt-0.5 size-[17px] shrink-0 bc-role" aria-hidden />
+                <span className="shrink-0 text-xs bc-muted">{entry.label}:</span>
                 <InlineEdit
                   value={(data[entry.key as keyof ThemedBusinessCardData] as string | null) ?? ''}
                   onChange={set(entry.key)}
                   placeholder={entry.placeholder}
-                  ariaLabel={entry.placeholder}
-                  dir="ltr"
-                  className="min-w-0 truncate"
+                  ariaLabel={entry.label}
+                  dir={entry.key === 'address' ? 'rtl' : 'ltr'}
+                  className="bc-contact-value min-w-0 flex-1"
                 />
               </div>
             ))}
@@ -418,8 +387,9 @@ function EditableBusinessCard({
             className="bc-muted bc-fa mt-4 block text-xs leading-6 whitespace-pre-line"
           />
 
+          {/* Icon-only editable links: email, website, whatsapp and socials. */}
           <div className="mt-5 grid gap-2 sm:grid-cols-2">
-            {EDITABLE_SOCIALS.map((entry) => (
+            {EDITABLE_ICONS.map((entry) => (
               <div key={entry.key} className="flex min-w-0 items-center gap-2 text-[13px]">
                 <span className="bc-social flex size-8 shrink-0 items-center justify-center">
                   <entry.Icon className="size-[15px]" aria-hidden />
@@ -435,14 +405,6 @@ function EditableBusinessCard({
               </div>
             ))}
           </div>
-
-          <InlineEdit
-            value={data.address ?? ''}
-            onChange={set('address')}
-            placeholder="آدرس"
-            ariaLabel="آدرس"
-            className="bc-muted bc-fa mt-3 block text-xs"
-          />
         </div>
       </div>
     </div>

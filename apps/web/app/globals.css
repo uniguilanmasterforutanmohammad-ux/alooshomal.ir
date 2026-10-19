@@ -1015,6 +1015,30 @@ header.bg-white {
    scroll: `overflow: auto` alone still allows a scroll on a transformed box. */
 .card-public-scroll[data-fits] { overflow: hidden; }
 
+/* «کشیده تا تمام ارتفاع صفحه» — when the biolink is short enough to fit, the
+   region is given the whole screen height and the card stretches to fill it:
+   the header/contacts stay packed at the top and the link grid takes the slack
+   (its rows grow), so the card reaches the bottom of the screen. */
+.card-public-scroll[data-fill] > div,
+.card-public-scroll[data-fill] > div > *,
+.card-public-scroll[data-fill] .biolink-theme {
+  height: 100%;
+}
+.card-public-scroll[data-fill] .theme-body {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.card-public-scroll[data-fill] .theme-links-2col {
+  flex: 1 1 auto;
+  align-content: stretch;
+  grid-auto-rows: 1fr;
+}
+.card-public-scroll[data-fill] .theme-link {
+  height: 100%;
+  min-height: 52px;
+}
+
 /* ---- Dense ("one screen") layout for full-field records ----
    `CardFit` adds `data-compact` to the scroll region only when the card is
    taller than the room under the pinned chrome. These rules then shrink the
@@ -1092,22 +1116,17 @@ header.bg-white {
   margin-top: 10px;
   margin-bottom: 10px;
 }
-.card-public-scroll[data-compact] .bc-contact {
+.card-public-scroll[data-compact] .bc-rows {
   font-size: 12px;
-  gap: 4px 10px;
+  gap: 4px;
 }
 .card-public-scroll[data-compact] .bc-social {
   width: 30px;
   height: 30px;
 }
-.card-public-scroll[data-compact] .bc-btn {
-  min-height: 34px;
-  padding-inline: 14px;
-  font-size: 12px;
-}
-.card-public-scroll[data-compact] .bc-card footer {
+.card-public-scroll[data-compact] .bc-iconbar {
   margin-top: 12px;
-  gap: 10px;
+  gap: 8px;
 }
 
 /* Compact share block: shave the QR/tile padding and the link/post buttons so
@@ -1211,6 +1230,14 @@ header.bg-white {
 .biolink-theme .theme-links {
   display: grid;
   gap: 12px;
+}
+/* Two columns, justified from the icon side (icon pinned to the row start). */
+.biolink-theme .theme-links-2col {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.biolink-theme .theme-links-2col .theme-link {
+  justify-content: flex-start;
+  text-align: start;
 }
 .biolink-theme .theme-link {
   min-height: 52px;
@@ -1864,6 +1891,8 @@ header.bg-white {
 }
 .bcard-theme .bc-name { color: var(--bc-text); }
 .bcard-theme .bc-role { color: var(--bc-accent); }
+.bcard-theme .bc-manager { color: var(--bc-accent); }
+.bcard-theme .bc-contact-value { color: var(--bc-text); }
 .bcard-theme .bc-muted { color: var(--bc-muted); }
 .bcard-theme .bc-eyebrow { color: var(--bc-muted); }
 .bcard-theme .bc-rule { background: var(--bc-rule); border-color: var(--bc-rule); }

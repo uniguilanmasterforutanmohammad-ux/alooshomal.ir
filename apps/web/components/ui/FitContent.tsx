@@ -13,6 +13,11 @@ interface Props {
   minScale?: number;
   /** mirror the compact flag onto the parent (so sibling chrome can tighten) */
   mirrorCompactToParent?: boolean;
+  /**
+   * when the content is shorter than the available room, stretch it to fill the
+   * whole region (instead of packing it tight at its natural height).
+   */
+  fill?: boolean;
 }
 
 /**
@@ -35,6 +40,7 @@ export function FitContent({
   className,
   minScale = 0.75,
   mirrorCompactToParent,
+  fill,
 }: Props) {
   const outerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -43,7 +49,8 @@ export function FitContent({
     scale: number;
     height: number | null;
     fits: boolean;
-  }>({ scale: 1, height: null, fits: true });
+    fill: boolean;
+  }>({ scale: 1, height: null, fits: true, fill: false });
   const widthRef = useRef(0);
 
   const measure = useCallback(() => {
@@ -94,20 +101,33 @@ export function FitContent({
         scale,
         height: fits ? natural * scale + outerBox : null,
         fits,
+        fill: false,
       };
       setFit((prev) =>
-        prev.scale === next.scale && prev.height === next.height && prev.fits === next.fits
+        prev.scale === next.scale &&
+        prev.height === next.height &&
+        prev.fits === next.fits &&
+        prev.fill === next.fill
           ? prev
           : next,
       );
     } else {
+      // Content already fits. When `fill` is on, give the region the whole
+      // available height so the card stretches to the screen (the CSS then
+      // distributes the slack, e.g. across the link rows).
+      const next = fill
+        ? { scale: 1, height: available + outerBox, fits: true, fill: true }
+        : { scale: 1, height: null, fits: true, fill: false };
       setFit((prev) =>
-        prev.scale === 1 && prev.height === null && prev.fits
+        prev.scale === next.scale &&
+        prev.height === next.height &&
+        prev.fits === next.fits &&
+        prev.fill === next.fill
           ? prev
-          : { scale: 1, height: null, fits: true },
+          : next,
       );
     }
-  }, [compact, minScale]);
+  }, [compact, minScale, fill]);
 
   useEffect(() => {
     measure();
@@ -123,7 +143,7 @@ export function FitContent({
       if (Math.abs(w - widthRef.current) > 1) {
         widthRef.current = w;
         setCompact(false);
-        setFit({ scale: 1, height: null, fits: true });
+        setFit({ scale: 1, height: null, fits: true, fill: false });
         window.requestAnimationFrame(() => measure());
       }
     };
@@ -154,15 +174,17 @@ export function FitContent({
       className={className}
       data-compact={compact ? '' : undefined}
       data-fits={fit.fits ? '' : undefined}
+      data-fill={fit.fill ? '' : undefined}
       style={fit.height != null ? { height: fit.height } : undefined}
     >
       <div
         ref={innerRef}
-        style={
-          scaled
+        style={{
+          ...(fit.fill ? { height: '100%' } : {}),
+          ...(scaled
             ? { transform: `scale(${fit.scale})`, transformOrigin: 'top center' }
-            : undefined
-        }
+            : {}),
+        }}
       >
         {children}
       </div>

@@ -78,7 +78,7 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
           {/* The chrome above and below stays put; this region shrinks the
               card to fit one screen (falling back to scrolling only when even
               the minimum scale cannot fit). */}
-          <CardFit>
+          <CardFit fill>
             <ThemedBiolink
               themeKey={biolink.template}
               data={biolink}

@@ -118,16 +118,6 @@ export function ThemedBiolink({
       }
     >
       <div className="theme-body overflow-hidden px-8 pt-8 pb-8 text-center sm:pt-10 sm:pb-8">
-        {data.logoUrl ? (
-          <Image
-            src={data.logoUrl}
-            alt={data.company || data.fullName}
-            width={72}
-            height={72}
-            unoptimized
-            className="mx-auto mb-4 size-14 object-contain"
-          />
-        ) : null}
         <div
           className="theme-avatar mx-auto mb-6 flex size-24 items-center justify-center overflow-hidden text-3xl font-bold"
           style={{ borderRadius: 'var(--biolink-radius)' }}
@@ -188,7 +178,12 @@ export function ThemedBiolink({
         ) : null}
 
         {visible.length > 0 ? (
-          <nav className="theme-links mt-7 text-left" aria-label="راه‌های ارتباطی">
+          /* Two columns; each pill is justified from its icon side (the icon
+             hugs the row's start, the label follows it). */
+          <nav
+            className="theme-links theme-links-2col mt-7 text-left"
+            aria-label="راه‌های ارتباطی"
+          >
             {visible.map((link) => {
               const external = link.href.startsWith('http');
               return (
@@ -201,14 +196,11 @@ export function ThemedBiolink({
                         rel: external ? 'noreferrer' : undefined,
                       }
                     : {})}
-                  className="theme-link flex items-center justify-between gap-3"
+                  className="theme-link flex items-center justify-start gap-3"
                 >
                   <span className="flex items-center gap-3">
                     <link.Icon className="size-5 shrink-0" aria-hidden />
                     <span className="theme-link-label font-semibold">{link.label}</span>
-                  </span>
-                  <span aria-hidden className="theme-link-arrow text-lg">
-                    →
                   </span>
                 </LinkTag>
               );
@@ -282,16 +274,6 @@ function EditableBiolink({
       }
     >
       <div className="theme-body overflow-hidden px-8 pt-8 pb-8 text-center sm:pt-10 sm:pb-8">
-        {data.logoUrl ? (
-          <Image
-            src={data.logoUrl}
-            alt={data.company || data.fullName}
-            width={72}
-            height={72}
-            unoptimized
-            className="mx-auto mb-4 size-14 object-contain"
-          />
-        ) : null}
         <div
           className="theme-avatar mx-auto mb-6 flex size-24 items-center justify-center overflow-hidden text-3xl font-bold"
           style={{ borderRadius: 'var(--biolink-radius)' }}
