@@ -156,7 +156,7 @@ export default function DashboardPage() {
               </Link>
               <Link
                 href="/dashboard/biolinks/new"
-                className="indeed-btn indeed-btn-secondary py-2 text-sm"
+                className="indeed-btn indeed-btn-primary py-2 text-sm"
               >
                 ساخت بیولینک
               </Link>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
               </Link>
               <Link
                 href="/dashboard/business-cards/new"
-                className="indeed-btn indeed-btn-secondary py-2 text-sm"
+                className="indeed-btn indeed-btn-primary py-2 text-sm"
               >
                 ساخت کارت ویزیت
               </Link>
