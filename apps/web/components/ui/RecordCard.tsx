@@ -163,20 +163,20 @@ export function RecordCard({
       ) : null}
 
       {iconLinks.length > 0 ? (
-        <div className="record-socials">
+        <nav className="record-socials" aria-label="شبکه‌های اجتماعی">
           {iconLinks.map((link) => (
             <a
               key={link.key}
               href={link.href}
               target={link.href.startsWith('http') ? '_blank' : undefined}
               rel={link.href.startsWith('http') ? 'noreferrer' : undefined}
-              aria-label={link.label}
               className="record-social"
             >
               <link.Icon aria-hidden />
+              <span className="record-social-label">{link.label}</span>
             </a>
           ))}
-        </div>
+        </nav>
       ) : null}
 
       {footer ? <div className="record-card-footer">{footer}</div> : null}
