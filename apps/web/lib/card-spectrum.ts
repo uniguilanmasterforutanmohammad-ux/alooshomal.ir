@@ -102,6 +102,31 @@ export function contrastText(bg: string | null | undefined): string {
 }
 
 /**
+ * The owner's colour, darkened until it is readable as a text/accent colour on
+ * the cream «record» pages. Light spectrum backgrounds (e.g. `#fadfa3`) would
+ * otherwise be illegible against the paper surface; here they are pushed toward
+ * a deeper, same-hue tone so links, labels and buttons stay legible while the
+ * owner's hue is preserved.
+ */
+export function readableAccent(
+  color: string | null | undefined,
+  fallback = '#8b3a1a',
+): string {
+  const hex = normalizeHex(color) ?? fallback;
+  const channels = [1, 3, 5].map((offset) => parseInt(hex.slice(offset, offset + 2), 16));
+  let current = hex;
+  // Darken in small steps until the luminance drops below ~0.32 (roughly the
+  // contrast of the vintage terracotta against the cream paper).
+  for (let step = 0; step < 10 && relativeLuminance(current) > 0.32; step += 1) {
+    current = `#${channels
+      .map((channel) => Math.max(0, Math.round(channel * (1 - 0.12 * (step + 1)))))
+      .map((channel) => channel.toString(16).padStart(2, '0'))
+      .join('')}`;
+  }
+  return current;
+}
+
+/**
  * Resolve the `{ bg, fg }` palette a card should render with, given its stored
  * theme and colour. Spectrum cards first look the colour up in the sample
  * palette (so they match the reference file exactly) and otherwise fall back to

@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MapPin, Phone } from 'lucide-react';
 
-import { spectrumColorAt } from '@/lib/card-spectrum';
+import { RecordCard, type RecordRow } from '@/components/ui/RecordCard';
 
 export interface HomeSliderItem {
   id: string;
@@ -34,11 +34,9 @@ interface Props {
  *
  * All six items sit **side by side** in one horizontal, scroll-snap rail: the
  * cards stay next to each other and the rail scrolls (native touch swipe on
- * phones, drag / arrows / dots on desktop) to reveal the rest. Each card keeps
- * the landscape design from the reference file (`spectrum-v8.html`) — a
- * coloured front face and a back face, an inner hairline border and a faint
- * scan-line texture — with the colour picked from the spectrum palette
- * deterministically by `spectrumColorAt` (no server/client hydration mismatch).
+ * phones, drag / arrows / dots on desktop) to reveal the rest. Each card is the
+ * site's vintage «record» card (the same design as the directory detail panel
+ * and the public pages) in its compact variant, tinted with the owner's colour.
  */
 export function HomeItemSlider({ kind, items, moreHref }: Props) {
   const railRef = useRef<HTMLDivElement>(null);
@@ -209,12 +207,28 @@ export function HomeItemSlider({ kind, items, moreHref }: Props) {
         onClickCapture={onClickCapture}
       >
         {items.map((item, itemIndex) => {
-          const color = spectrumColorAt(kind, itemIndex);
           // The card headline is the brand: the company name when the owner set
           // one, otherwise the business category (or the role as a last resort).
           const title = item.company || item.business?.name || item.jobTitle || '';
           const cityName = item.city?.name ?? '';
           const phone = item.mobile || item.phone || '';
+          // Only surface a chip when it is not already the card's headline.
+          const companyChip = item.company && item.company !== title ? item.company : null;
+          const businessChip =
+            item.business?.name && item.business.name !== title ? item.business.name : null;
+          const rows: RecordRow[] = [];
+          if (cityName) {
+            rows.push({ key: 'city', label: 'شهر', value: cityName, Icon: MapPin });
+          }
+          if (phone) {
+            rows.push({
+              key: 'phone',
+              label: 'تلفن همراه',
+              value: phone,
+              dir: 'ltr',
+              Icon: Phone,
+            });
+          }
           return (
             <div
               key={item.id}
@@ -227,55 +241,19 @@ export function HomeItemSlider({ kind, items, moreHref }: Props) {
                 href={`/${kind}/${item.slug}`}
                 prefetch={false}
                 className="spectrum-pair"
-                style={{ ['--card-bg' as string]: color.bg, ['--card-fg' as string]: color.fg }}
                 aria-label={`مشاهده ${item.fullName}`}
               >
-                {/* رو */}
-                <div className="spectrum-face spectrum-front">
-                  <span className="spectrum-lbl">رو</span>
-                  {title ? <p className="spectrum-title">{title}</p> : null}
-                  <p className="spectrum-manager">{item.fullName}</p>
-                  <div className="spectrum-rows">
-                    {item.business?.name && item.business.name !== title ? (
-                      <div>
-                        <b>کسب و کار:</b>
-                        {item.business.name}
-                      </div>
-                    ) : null}
-                    {cityName ? (
-                      <div>
-                        <b>شهر:</b>
-                        {cityName}
-                      </div>
-                    ) : null}
-                    {phone ? (
-                      <div>
-                        <b>تلفن همراه:</b>
-                        <span dir="ltr">{phone}</span>
-                      </div>
-                    ) : null}
-                    {item.address ? (
-                      <div>
-                        <b>آدرس:</b>
-                        {item.address}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-
-                {/* پشت */}
-                <div className="spectrum-face spectrum-back">
-                  <span className="spectrum-lbl">پشت</span>
-                  <div className="spectrum-logo">
-                    {title ? <b>{title}</b> : null}
-                    <span className="spectrum-mg">به مدیریت {item.fullName}</span>
-                    <small>
-                      {[item.jobTitle || item.business?.name, cityName]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </small>
-                  </div>
-                </div>
+                <RecordCard
+                  fullName={item.fullName}
+                  headline={title || item.fullName}
+                  subline={title ? item.fullName : item.jobTitle}
+                  companyName={companyChip}
+                  cityName={cityName}
+                  businessName={businessChip}
+                  avatarUrl={item.avatarUrl}
+                  rows={rows}
+                  compact
+                />
               </Link>
             </div>
           );

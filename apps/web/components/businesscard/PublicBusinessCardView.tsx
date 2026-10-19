@@ -1,13 +1,30 @@
 import Link from 'next/link';
-import { ArrowRight, Crown, Home } from 'lucide-react';
+import {
+  ArrowRight,
+  Crown,
+  Globe,
+  Home,
+  IdCard,
+  Instagram,
+  Linkedin,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Phone,
+  Send,
+  Smartphone,
+  Twitter,
+} from 'lucide-react';
 
-import { ThemedBusinessCard } from './ThemedBusinessCard';
 import { CardFit } from '@/components/ui/CardFit';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
-import { businessCardThemeClassName } from '@/lib/themes';
-import { spectrumStyleVars } from '@/lib/card-spectrum';
+import {
+  RecordCard,
+  type RecordIconLink,
+  type RecordRow,
+} from '@/components/ui/RecordCard';
 import type { BusinessCard } from '@/lib/api';
 
 interface Props {
@@ -17,26 +34,108 @@ interface Props {
   like?: { liked: boolean; likeCount: number };
 }
 
+function socialHref(value: string): string {
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
 /**
- * Full public business-card page. The page background and the card itself are
- * painted with the selected business-card theme, so `/business-cards/<slug>`
- * matches the live preview and the reference templates.
+ * Full public business-card page, rendered in the site's own vintage «record»
+ * style — the same calm, readable layout as the /business-cards detail panel
+ * (cream paper, dashed accent frame, labelled icon rows, circled social icons).
+ * The owner's chosen colour is kept as the record accent so «طیفی» cards still
+ * look like themselves, while the chrome stays on-brand paper.
  */
 export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) {
+  const headline = businessCard.jobTitle || businessCard.fullName || 'کارت ویزیت';
+  const subline = `به مدیریت ${businessCard.fullName || '—'}`;
+
+  const rows: RecordRow[] = [];
+  if (businessCard.mobile) {
+    rows.push({
+      key: 'mobile',
+      label: 'تلفن همراه',
+      value: businessCard.mobile,
+      href: `tel:${businessCard.mobile}`,
+      dir: 'ltr',
+      Icon: Smartphone,
+    });
+  }
+  if (businessCard.phone) {
+    rows.push({
+      key: 'phone',
+      label: 'تلفن ثابت',
+      value: businessCard.phone,
+      href: `tel:${businessCard.phone}`,
+      dir: 'ltr',
+      Icon: Phone,
+    });
+  }
+  if (businessCard.email) {
+    rows.push({
+      key: 'email',
+      label: 'ایمیل',
+      value: businessCard.email,
+      href: `mailto:${businessCard.email}`,
+      dir: 'ltr',
+      Icon: Mail,
+    });
+  }
+  if (businessCard.website) {
+    rows.push({
+      key: 'website',
+      label: 'وب‌سایت',
+      value: businessCard.website,
+      href: socialHref(businessCard.website),
+      dir: 'ltr',
+      Icon: Globe,
+    });
+  }
+  if (businessCard.address) {
+    rows.push({
+      key: 'address',
+      label: 'آدرس',
+      value: businessCard.address,
+      Icon: MapPin,
+    });
+  }
+
+  const iconLinks: RecordIconLink[] = [
+    businessCard.whatsapp
+      ? {
+          key: 'whatsapp',
+          label: 'واتساپ',
+          href: `https://wa.me/${businessCard.whatsapp.replace(/[^0-9]/g, '')}`,
+          Icon: MessageCircle,
+        }
+      : null,
+    businessCard.instagram
+      ? {
+          key: 'instagram',
+          label: 'اینستاگرام',
+          href: socialHref(businessCard.instagram),
+          Icon: Instagram,
+        }
+      : null,
+    businessCard.telegram
+      ? { key: 'telegram', label: 'تلگرام', href: socialHref(businessCard.telegram), Icon: Send }
+      : null,
+    businessCard.linkedin
+      ? {
+          key: 'linkedin',
+          label: 'لینکدین',
+          href: socialHref(businessCard.linkedin),
+          Icon: Linkedin,
+        }
+      : null,
+    businessCard.twitter
+      ? { key: 'twitter', label: 'ایکس', href: socialHref(businessCard.twitter), Icon: Twitter }
+      : null,
+  ].filter((entry): entry is RecordIconLink => Boolean(entry));
+
   return (
-    <div
-      className={`bcard-theme bcard-theme-page card-public-page ${businessCardThemeClassName(
-        businessCard.template,
-      )}`}
-      style={
-        spectrumStyleVars({
-          theme: businessCard.template,
-          primaryColor: businessCard.primaryColor,
-        }) as React.CSSProperties | undefined
-      }
-    >
-      <div className="flex min-h-0 flex-1 items-stretch justify-center px-4 py-4 sm:py-8">
-        <div className="card-public-inner w-full max-w-[460px]">
+    <div className="card-public-page record-page">
+      <div className="record-page-inner">
+        <div className="card-public-inner w-full max-w-[520px]">
           <PlanUpgradeNotice
             ownerUserId={businessCard.userId}
             hidesFields={businessCard.planHidesFields}
@@ -44,17 +143,14 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
 
           {/* One aligned row: back link · plan badge · home link. */}
           <div className="card-public-top mb-3 flex shrink-0 items-center justify-between gap-2">
-            <Link
-              href="/business-cards"
-              className="bc-panel bc-fa bc-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-85 transition hover:opacity-100"
-            >
+            <Link href="/business-cards" className="record-pill">
               <ArrowRight className="size-3.5" aria-hidden />
               بازگشت به دایرکتوری
             </Link>
 
             <div className="flex items-center gap-2">
               {businessCard.planName ? (
-                <span className="bc-panel bc-fa bc-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-90">
+                <span className="record-pill">
                   <Crown className="size-3.5" aria-hidden />
                   نوع اشتراک: {businessCard.planName}
                 </span>
@@ -63,33 +159,47 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
                 ownerUserId={businessCard.userId}
                 href={`/dashboard/business-cards/${businessCard.id}/edit`}
                 label="ویرایش این کارت ویزیت"
-                variant="card"
               />
             </div>
 
-            <Link
-              href="/"
-              className="bc-panel bc-fa bc-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-85 transition hover:opacity-100"
-            >
+            <Link href="/" className="record-pill">
               <Home className="size-3.5" aria-hidden />
               صفحه اصلی
             </Link>
           </div>
 
           {/* The chrome above and below stays put; this region shrinks the
-              card to fit one screen (falling back to scrolling only when even
+              record to fit one screen (falling back to scrolling only when even
               the minimum scale cannot fit). */}
           <CardFit>
-            <ThemedBusinessCard
-              themeKey={businessCard.template}
-              data={businessCard}
+            <RecordCard
+              fullName={businessCard.fullName}
+              headline={headline}
+              subline={subline}
+              bio={businessCard.bio}
+              companyName={businessCard.company}
               cityName={businessCard.city?.name}
               businessName={businessCard.business?.name}
-              interactive
+              avatarUrl={businessCard.avatarUrl}
+              rows={rows}
+              iconLinks={iconLinks}
+              accent={businessCard.primaryColor}
+              headingLevel="h1"
+              footer={
+                businessCard.linkedBiolink ? (
+                  <Link
+                    href={`/biolinks/${businessCard.linkedBiolink.slug}`}
+                    className="indeed-btn indeed-btn-secondary w-full"
+                  >
+                    <IdCard className="size-4" aria-hidden />
+                    مشاهده بیولینک این کارت
+                  </Link>
+                ) : null
+              }
             />
           </CardFit>
 
-          <div className="card-public-share bc-panel mt-4 flex shrink-0 items-center gap-4 p-4">
+          <div className="card-public-share record-panel mt-4 flex shrink-0 items-center gap-4 p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={qr}
@@ -99,16 +209,16 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
               className="size-24 shrink-0 rounded-lg bg-white p-1.5"
             />
             <div className="min-w-0 flex-1 text-right">
-              <p className="bc-muted bc-fa text-xs font-bold">
+              <p className="text-xs font-bold text-ink">
                 اسکن کنید یا لینک را به اشتراک بگذارید
               </p>
-              <p dir="ltr" className="bc-muted mt-1 break-all text-[11px]">
+              <p dir="ltr" className="mt-1 break-all text-[11px] text-muted">
                 {link}
               </p>
               <div className="mt-2 flex items-center gap-2">
                 <a
                   href={`/api/proxy/business-cards/public/${businessCard.slug}/vcard`}
-                  className="bc-btn bc-fa inline-flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-bold"
+                  className="indeed-btn indeed-btn-primary flex-1 py-2 text-xs"
                 >
                   ذخیره مخاطب
                 </a>
@@ -123,7 +233,7 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
             </div>
           </div>
 
-          <p className="bc-muted bc-fa mt-3 shrink-0 text-center text-xs">
+          <p className="mt-3 shrink-0 text-center text-xs text-muted">
             ساخته‌شده با{' '}
             <Link href="/" className="font-bold underline">
               شمالی کارت

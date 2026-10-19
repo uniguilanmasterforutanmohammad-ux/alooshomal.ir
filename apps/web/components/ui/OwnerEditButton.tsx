@@ -12,8 +12,6 @@ interface Props {
   href: string;
   /** accessible label + tooltip, e.g. «ویرایش بیولینک» */
   label: string;
-  /** which public-page theme class set to use for the pill styling */
-  variant?: 'biolink' | 'card';
 }
 
 /**
@@ -29,22 +27,18 @@ export function OwnerEditButton({
   ownerUserId,
   href,
   label,
-  variant = 'biolink',
 }: Props) {
   const { user, hydrated } = useAuth();
 
   if (!hydrated || !user || !ownerUserId) return null;
   if (user.id !== ownerUserId) return null;
 
-  const themeClass =
-    variant === 'card' ? 'bc-panel bc-fa bc-muted' : 'theme-panel theme-panel-text';
-
   return (
     <Link
       href={href}
       title={label}
       aria-label={label}
-      className={`${themeClass} inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-85 transition hover:opacity-100`}
+      className="record-pill"
     >
       <Pencil className="size-3.5" aria-hidden />
       ویرایش

@@ -1,13 +1,30 @@
 import Link from 'next/link';
-import { ArrowRight, Crown, Home } from 'lucide-react';
+import {
+  ArrowRight,
+  Briefcase,
+  Crown,
+  Globe,
+  Home,
+  Instagram,
+  Linkedin,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Phone,
+  Send,
+  Smartphone,
+  Twitter,
+} from 'lucide-react';
 
-import { ThemedBiolink } from './ThemedBiolink';
 import { CardFit } from '@/components/ui/CardFit';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
-import { themeClassName } from '@/lib/themes';
-import { spectrumStyleVars } from '@/lib/card-spectrum';
+import {
+  RecordCard,
+  type RecordIconLink,
+  type RecordRow,
+} from '@/components/ui/RecordCard';
 import type { Biolink } from '@/lib/api';
 
 interface Props {
@@ -17,26 +34,108 @@ interface Props {
   like?: { liked: boolean; likeCount: number };
 }
 
+function socialHref(value: string): string {
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
 /**
- * Full public biolink page. The whole page — background, biolink and the share
- * block underneath — is painted in the theme the owner selected, so
- * `/biolinks/<slug>` matches the live preview and the reference templates.
+ * Full public biolink page, rendered in the site's own vintage «record» style —
+ * the same calm, readable layout as the /biolinks detail panel (cream paper,
+ * dashed accent frame, labelled icon rows, circled social icons). The owner's
+ * chosen colour is kept as the record accent so «طیفی» biolinks still look
+ * like themselves, but the chrome (header, share block) stays on-brand paper.
  */
 export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
+  const headline =
+    biolink.company || biolink.jobTitle || biolink.fullName || 'بیولینک';
+  const subline = biolink.company
+    ? [biolink.fullName, biolink.jobTitle].filter(Boolean).join(' — ') || null
+    : biolink.jobTitle
+      ? biolink.fullName
+      : null;
+
+  const rows: RecordRow[] = [];
+  if (biolink.mobile) {
+    rows.push({
+      key: 'mobile',
+      label: 'تلفن همراه',
+      value: biolink.mobile,
+      href: `tel:${biolink.mobile}`,
+      dir: 'ltr',
+      Icon: Smartphone,
+    });
+  }
+  if (biolink.phone) {
+    rows.push({
+      key: 'phone',
+      label: 'تلفن ثابت',
+      value: biolink.phone,
+      href: `tel:${biolink.phone}`,
+      dir: 'ltr',
+      Icon: Phone,
+    });
+  }
+  if (biolink.email) {
+    rows.push({
+      key: 'email',
+      label: 'ایمیل',
+      value: biolink.email,
+      href: `mailto:${biolink.email}`,
+      dir: 'ltr',
+      Icon: Mail,
+    });
+  }
+  if (biolink.website) {
+    rows.push({
+      key: 'website',
+      label: 'وب‌سایت',
+      value: biolink.website,
+      href: socialHref(biolink.website),
+      dir: 'ltr',
+      Icon: Globe,
+    });
+  }
+  if (biolink.address) {
+    rows.push({
+      key: 'address',
+      label: 'آدرس',
+      value: biolink.address,
+      Icon: MapPin,
+    });
+  }
+
+  const iconLinks: RecordIconLink[] = [
+    biolink.whatsapp
+      ? {
+          key: 'whatsapp',
+          label: 'واتساپ',
+          href: `https://wa.me/${biolink.whatsapp.replace(/[^0-9]/g, '')}`,
+          Icon: MessageCircle,
+        }
+      : null,
+    biolink.instagram
+      ? {
+          key: 'instagram',
+          label: 'اینستاگرام',
+          href: socialHref(biolink.instagram),
+          Icon: Instagram,
+        }
+      : null,
+    biolink.telegram
+      ? { key: 'telegram', label: 'تلگرام', href: socialHref(biolink.telegram), Icon: Send }
+      : null,
+    biolink.linkedin
+      ? { key: 'linkedin', label: 'لینکدین', href: socialHref(biolink.linkedin), Icon: Linkedin }
+      : null,
+    biolink.twitter
+      ? { key: 'twitter', label: 'ایکس', href: socialHref(biolink.twitter), Icon: Twitter }
+      : null,
+  ].filter((entry): entry is RecordIconLink => Boolean(entry));
+
   return (
-    <div
-      className={`biolink-theme biolink-theme-page card-public-page ${themeClassName(
-        biolink.template,
-      )}`}
-      style={
-        spectrumStyleVars({
-          theme: biolink.template,
-          primaryColor: biolink.primaryColor,
-        }) as React.CSSProperties | undefined
-      }
-    >
-      <div className="flex min-h-0 flex-1 items-stretch justify-center px-4 py-4 sm:py-8">
-        <div className="card-public-inner w-full max-w-[480px]">
+    <div className="card-public-page record-page">
+      <div className="record-page-inner">
+        <div className="card-public-inner w-full max-w-[520px]">
           <PlanUpgradeNotice
             ownerUserId={biolink.userId}
             hidesFields={biolink.planHidesFields}
@@ -44,17 +143,14 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
 
           {/* One aligned row: back link · plan badge · home link. */}
           <div className="card-public-top mb-3 flex shrink-0 items-center justify-between gap-2">
-            <Link
-              href="/biolinks"
-              className="theme-panel theme-panel-text inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-85 transition hover:opacity-100"
-            >
+            <Link href="/biolinks" className="record-pill">
               <ArrowRight className="size-3.5" aria-hidden />
               بازگشت به دایرکتوری
             </Link>
 
             <div className="flex items-center gap-2">
               {biolink.planName ? (
-                <span className="theme-panel theme-panel-text inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-90">
+                <span className="record-pill">
                   <Crown className="size-3.5" aria-hidden />
                   نوع اشتراک: {biolink.planName}
                 </span>
@@ -66,29 +162,43 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
               />
             </div>
 
-            <Link
-              href="/"
-              className="theme-panel theme-panel-text inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-85 transition hover:opacity-100"
-            >
+            <Link href="/" className="record-pill">
               <Home className="size-3.5" aria-hidden />
               صفحه اصلی
             </Link>
           </div>
 
           {/* The chrome above and below stays put; this region shrinks the
-              card to fit one screen (falling back to scrolling only when even
+              record to fit one screen (falling back to scrolling only when even
               the minimum scale cannot fit). */}
-          <CardFit fill>
-            <ThemedBiolink
-              themeKey={biolink.template}
-              data={biolink}
+          <CardFit>
+            <RecordCard
+              fullName={biolink.fullName}
+              headline={headline}
+              subline={subline}
+              bio={biolink.bio}
               cityName={biolink.city?.name}
               businessName={biolink.business?.name}
-              interactive
+              avatarUrl={biolink.avatarUrl}
+              rows={rows}
+              iconLinks={iconLinks}
+              accent={biolink.primaryColor}
+              headingLevel="h1"
+              footer={
+                biolink.linkedBusinessCard ? (
+                  <Link
+                    href={`/business-cards/${biolink.linkedBusinessCard.slug}`}
+                    className="indeed-btn indeed-btn-secondary w-full"
+                  >
+                    <Briefcase className="size-4" aria-hidden />
+                    مشاهده کارت ویزیت این بیولینک
+                  </Link>
+                ) : null
+              }
             />
           </CardFit>
 
-          <div className="card-public-share theme-panel mt-4 flex shrink-0 items-center gap-4 p-4">
+          <div className="card-public-share record-panel mt-4 flex shrink-0 items-center gap-4 p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={qr}
@@ -98,16 +208,16 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
               className="size-24 shrink-0 rounded-lg bg-white p-1.5"
             />
             <div className="min-w-0 flex-1 text-right">
-              <p className="theme-panel-text text-xs font-bold">
+              <p className="text-xs font-bold text-ink">
                 اسکن کنید یا لینک را به اشتراک بگذارید
               </p>
-              <p dir="ltr" className="theme-panel-muted mt-1 break-all text-[11px]">
+              <p dir="ltr" className="mt-1 break-all text-[11px] text-muted">
                 {link}
               </p>
               <div className="mt-2 flex items-center gap-2">
                 <a
                   href={`/api/proxy/biolinks/public/${biolink.slug}/vcard`}
-                  className="theme-link inline-flex flex-1 items-center justify-center gap-1.5 py-2 text-xs font-bold"
+                  className="indeed-btn indeed-btn-primary flex-1 py-2 text-xs"
                 >
                   ذخیره مخاطب
                 </a>
@@ -122,7 +232,7 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
             </div>
           </div>
 
-          <p className="theme-panel-muted mt-3 shrink-0 text-center text-xs">
+          <p className="mt-3 shrink-0 text-center text-xs text-muted">
             ساخته‌شده با{' '}
             <Link href="/" className="font-bold underline">
               شمالی کارت
