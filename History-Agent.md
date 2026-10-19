@@ -20,7 +20,33 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.73.4**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.74.0**.
+
+## ۱۴۰۵/۰۷/۲۷ — دکمه‌ی «ویرایش» مالک روی صفحات عمومی کارت ویزیت و بیولینک — نسخه `v2.74.0`
+
+**هدف:** «درخواست جدید» — وقتی صاحب یک بیولینک/کارت ویزیت صفحه‌ی عمومی آن را
+تماشا می‌کند، یک دکمه‌ی «ویرایش» برایش نمایش داده شود تا سریع به فرم ویرایش برود.
+
+**تغییرات:**
+- `apps/web/components/ui/OwnerEditButton.tsx` (فایل جدید): دکمه‌ی کلاینتی که فقط
+  وقتی کاربر وارد‌شده و `user.id === ownerUserId` باشد رندر می‌شود (پس از
+  hydration، هم‌الگو با `PlanUpgradeNotice` تا اختلاف SSR/CSR رخ ندهد) و به مسیر
+  ویرایش داشبورد لینک می‌دهد؛ کلاس پیل بر اساس `variant` (`biolink`/`card`).
+- `apps/web/components/biolink/PublicBiolinkView.tsx`: افزودن `OwnerEditButton`
+  کنار نشان اشتراک در ردیف بالای صفحه با `href=/dashboard/biolinks/<id>/edit`.
+- `apps/web/components/businesscard/PublicBusinessCardView.tsx`: همان دکمه با
+  `variant="card"` و `href=/dashboard/business-cards/<id>/edit`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web sh -lc 'cd /usr/src/app && ./node_modules/.bin/tsc --noEmit'`
+  بدون خطا.
+- با `playwright-core` و `/usr/bin/google-chrome`: وارد‌شده با حساب مالک
+  (`admin@alooshomal.local`) روی `/business-cards/9095769` دکمه با aria-label
+  «ویرایش این کارت ویزیت» و href `/dashboard/business-cards/cmvexrb.../edit` و روی
+  `/biolinks/test-bl-mv50yfqu-2ptfu8` دکمه با href `/dashboard/biolinks/cmv50y.../edit`
+  دیده شد؛ برای کاربر مهمان و برای کاربر غیرمالک (`demo@alooshomal.local`) روی هر
+  دو صفحه دکمه رندر نشد.
+- `python3 scripts/sync_install.py` و سپس `--check` بدون «تغییر معلق».
 
 ## ۱۴۰۵/۰۷/۲۷ — فشرده‌سازی سکشن‌های صفحه‌ی عمومی، انتقال اخطار ارتقا به بالا و مخفی‌کردن ایمیل در پلن رایگان — نسخه `v2.73.4`
 

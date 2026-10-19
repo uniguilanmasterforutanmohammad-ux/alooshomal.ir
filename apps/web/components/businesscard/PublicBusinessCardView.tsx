@@ -3,6 +3,7 @@ import { ArrowRight, Crown, Home } from 'lucide-react';
 
 import { ThemedBusinessCard } from './ThemedBusinessCard';
 import { LikeButton } from '@/components/ui/LikeButton';
+import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
 import { businessCardThemeClassName } from '@/lib/themes';
 import { spectrumStyleVars } from '@/lib/card-spectrum';
@@ -50,12 +51,20 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
               بازگشت به دایرکتوری
             </Link>
 
-            {businessCard.planName ? (
-              <span className="bc-panel bc-fa bc-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-90">
-                <Crown className="size-3.5" aria-hidden />
-                نوع اشتراک: {businessCard.planName}
-              </span>
-            ) : null}
+            <div className="flex items-center gap-2">
+              {businessCard.planName ? (
+                <span className="bc-panel bc-fa bc-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-90">
+                  <Crown className="size-3.5" aria-hidden />
+                  نوع اشتراک: {businessCard.planName}
+                </span>
+              ) : null}
+              <OwnerEditButton
+                ownerUserId={businessCard.userId}
+                href={`/dashboard/business-cards/${businessCard.id}/edit`}
+                label="ویرایش این کارت ویزیت"
+                variant="card"
+              />
+            </div>
 
             <Link
               href="/"

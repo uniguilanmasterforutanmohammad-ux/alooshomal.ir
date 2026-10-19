@@ -3,6 +3,7 @@ import { ArrowRight, Crown, Home } from 'lucide-react';
 
 import { ThemedBiolink } from './ThemedBiolink';
 import { LikeButton } from '@/components/ui/LikeButton';
+import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
 import { themeClassName } from '@/lib/themes';
 import { spectrumStyleVars } from '@/lib/card-spectrum';
@@ -50,12 +51,19 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
               بازگشت به دایرکتوری
             </Link>
 
-            {biolink.planName ? (
-              <span className="theme-panel theme-panel-text inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-90">
-                <Crown className="size-3.5" aria-hidden />
-                نوع اشتراک: {biolink.planName}
-              </span>
-            ) : null}
+            <div className="flex items-center gap-2">
+              {biolink.planName ? (
+                <span className="theme-panel theme-panel-text inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-90">
+                  <Crown className="size-3.5" aria-hidden />
+                  نوع اشتراک: {biolink.planName}
+                </span>
+              ) : null}
+              <OwnerEditButton
+                ownerUserId={biolink.userId}
+                href={`/dashboard/biolinks/${biolink.id}/edit`}
+                label="ویرایش این بیولینک"
+              />
+            </div>
 
             <Link
               href="/"
