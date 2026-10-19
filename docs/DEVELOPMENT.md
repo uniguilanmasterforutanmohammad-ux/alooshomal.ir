@@ -52,6 +52,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml logs -f api web
 | Web | http://localhost:3000 |
 | API | http://localhost:3001/api |
 | Swagger | http://localhost:3001/api/docs |
+| OpenAPI JSON | http://localhost:3001/api/docs-json |
 | Health | http://localhost:3001/api/health |
 | MinIO Console | http://localhost:9001 |
 | Postgres | `localhost:5432` |

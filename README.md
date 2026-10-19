@@ -49,7 +49,7 @@ Then:
 - Biolink directory: http://localhost:3000/biolinks
 - Business-card directory: http://localhost:3000/business-cards
 - API: http://localhost:4000/api
-- Swagger: http://localhost:4000/api/docs
+- Swagger: http://localhost:4000/api/docs (OpenAPI JSON: http://localhost:4000/api/docs-json — see `docs/API.md`)
 - Health: http://localhost:4000/api/health
 
 ### Development mode (hot reload)

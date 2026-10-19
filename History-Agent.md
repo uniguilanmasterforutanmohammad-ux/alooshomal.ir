@@ -20,7 +20,42 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.77.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.78.0**.
+
+## ۱۴۰۵/۰۷/۲۷ — نصب/تکمیل Swagger و مستندسازی کامل API + وظیفه دائمی به‌روزرسانی — نسخه `v2.78.0`
+
+**هدف:** «درخواست جدید» — نصب Swagger و داکیومنتیشن کامل، و افزودن «به‌روزرسانی
+مستندات پس از افزودن API جدید» به‌عنوان وظیفه‌ی دائمی ایجنت.
+
+**تغییرات:**
+- `apps/api/src/main.ts`: غنی‌سازی پیکربندی Swagger — توضیح فارسی قرارداد پاسخ
+  (`{ success, data }`) و نحوه‌ی احراز هویت، `setVersion` از متغیر `APP_VERSION`،
+  طرح امنیتی bearer با نام `bearer`، `addServer`، و ۲۱ برچسب با توضیح فارسی
+  (`auth`، `biolinks`، `business-cards`، `feeds`، `news`، `boost`، `ads`، …)؛
+  فعال‌سازی `persistAuthorization` و `displayRequestDuration` و تعیین صریح مسیر
+  `api/docs-json`.
+- `apps/api/src/health/health.controller.ts` و `apps/api/src/users/users.controller.ts`:
+  افزودن `@ApiOperation` به دو مسیری که `summary` نداشتند.
+- `apps/api/src/common/dto/pagination.dto.ts`: افزودن `@ApiPropertyOptional` به
+  فیلدهای `page`/`limit`.
+- `docs/API.md` (فایل جدید): راهنمای کامل Swagger — آدرس‌ها، `ENABLE_SWAGGER`،
+  احراز هویت، قرارداد پاسخ، بررسی کامل‌بودن و وظیفه‌ی دائمی (قانون ۸).
+- `AGENTS.md`: افزودن **قانون ۸ — به‌روز نگه‌داشتن مستندات API (Swagger)**.
+- `scripts/check_api_docs.py` (فایل جدید): بررسی خودکار اینکه هر مسیر
+  `@ApiOperation` و هر کنترلر `@ApiTags` دارد (برای CI/پیش‌کامیت).
+- `README.md` و `docs/DEVELOPMENT.md`: افزودن آدرس `api/docs-json` و ارجاع به
+  `docs/API.md`.
+
+**تأیید/تست:**
+- پیش از این کار Swagger از قبل نصب بود؛ پس از ری‌استارت API: `GET /api/docs`
+  و `GET /api/docs-json` هر دو `200`.
+- بررسی `docs-json`: ۱۷۶ مسیر، ۲۱ برچسب همه با `description`، **صفر مسیر بدون
+  `summary`**، و طرح امنیتی `bearer` (http/JWT).
+- `python3 scripts/check_api_docs.py` → «کنترلرها: ۲۲ | مسیرها: ۲۱۱ — همه‌ی
+  مسیرها مستندند» (exit 0)؛ صحت اسکریپت با حذف موقت یک `@ApiOperation` بررسی شد
+  (خروجی خطا و exit 1) و سپس بازگردانده شد.
+- `docker exec alooshomal-api ... tsc --noEmit` بدون خطا.
+- `python3 scripts/sync_install.py` و سپس `--check` بدون «تغییر معلق».
 
 ## ۱۴۰۵/۰۷/۲۷ — بازطراحی چیدمان کارت ویزیت و بیولینک (ترتیب فیلدها، آیکن‌ها، پرکردن ارتفاع) — نسخه `v2.77.0`
 
