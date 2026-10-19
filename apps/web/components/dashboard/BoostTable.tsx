@@ -209,7 +209,7 @@ export function BoostTable({
         </div>
       ) : (
         <div className="indeed-panel overflow-x-auto">
-          <table className="w-full min-w-[60rem] border-collapse text-sm">
+          <table className="dash-table w-full min-w-[60rem] border-collapse text-sm">
             <thead>
               <tr className="border-b-2 border-dashed border-[var(--vintage-accent-hover)] text-right text-xs text-muted">
                 <th className="px-3 py-3 font-bold">عنوان</th>
@@ -261,7 +261,7 @@ export function BoostTable({
                         ) : null}
                       </div>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-3" data-label="وضعیت">
                       <span
                         className={cn(
                           'rounded-md border px-2 py-0.5 text-[11px] font-bold',
@@ -273,7 +273,7 @@ export function BoostTable({
                         {item.isPublished ? 'منتشرشده' : 'منتشرنشده'}
                       </span>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-3" data-label="جایگاه">
                       <span
                         className={cn(
                           'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold',
@@ -291,22 +291,22 @@ export function BoostTable({
                         )}
                       </span>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-3" data-label="بازدید">
                       <span className="inline-flex items-center gap-1 text-xs text-muted">
                         <Eye className="size-3.5 text-sky-500" aria-hidden />
                         {(item.views ?? 0).toLocaleString('fa-IR')}
                       </span>
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="px-3 py-3" data-label="لایک">
                       <span className="inline-flex items-center gap-1 text-xs text-muted">
                         <Heart className="size-3.5 text-red-500" aria-hidden />
                         {(item.likes ?? 0).toLocaleString('fa-IR')}
                       </span>
                     </td>
-                    <td className="px-3 py-3 text-xs text-muted">
+                    <td className="px-3 py-3 text-xs text-muted" data-label="آخرین پله">
                       {item.lastBoostedAt ? faDate(item.lastBoostedAt) : '—'}
                     </td>
-                    <td className="px-3 py-3">
+                    <td className="dash-actions px-3 py-3" data-label="عملیات">
                       <div className="flex flex-wrap items-center gap-1.5">
                         <button
                           type="button"

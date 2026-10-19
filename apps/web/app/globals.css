@@ -246,6 +246,69 @@ body {
   position: static;
 }
 
+/* ---- Dashboard "my items" / boost tables on phones & tablets ----
+   The tables carry six action buttons in the last (leftmost, in RTL) column.
+   Below the desktop breakpoint the wide table would otherwise force a sideways
+   scroll, so each record collapses into a card: the title line first, the
+   metadata chips next and — below them — the action buttons as a full-width
+   wrapped row. Unlayered rules win over the Tailwind `min-w-[…]` utility, so no
+   horizontal scroll remains. */
+@media (max-width: 1023px) {
+  .dash-table {
+    display: block;
+    min-width: 0;
+  }
+  .dash-table thead {
+    display: none;
+  }
+  .dash-table tbody {
+    display: block;
+  }
+  .dash-table tr {
+    display: block;
+    margin-bottom: 10px;
+    padding: 12px;
+    border: 1px solid var(--vintage-border);
+    border-radius: 10px;
+    background: var(--vintage-surface);
+  }
+  .dash-table tr:last-child {
+    margin-bottom: 0;
+  }
+  .dash-table td {
+    display: block;
+    width: 100%;
+    padding: 0 !important;
+    border: 0 !important;
+  }
+  .dash-table td:not([data-label]) {
+    margin-bottom: 8px;
+  }
+  /* status / rank / views / likes: one wrapping line of labelled chips */
+  .dash-table td[data-label] {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: auto;
+    margin-inline-end: 12px;
+    margin-bottom: 6px;
+    vertical-align: middle;
+  }
+  .dash-table td[data-label]::before {
+    content: attr(data-label);
+    font-size: 11px;
+    color: var(--ink-soft, #6b6b6b);
+  }
+  /* the six action buttons drop to their own full-width row */
+  .dash-table td.dash-actions {
+    display: block;
+    width: 100%;
+    margin: 6px 0 0;
+    padding-top: 8px !important;
+    border-top: 1px dashed var(--vintage-border) !important;
+  }
+}
+
 a {
   color: inherit;
   text-decoration: none;

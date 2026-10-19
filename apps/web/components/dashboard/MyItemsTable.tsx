@@ -111,7 +111,7 @@ export function MyItemsTable({ kind, items, loading, deletingId, onRemove }: Pro
       ) : null}
 
       <div className="indeed-panel overflow-x-auto">
-        <table className="w-full min-w-[56rem] border-collapse text-sm">
+        <table className="dash-table w-full min-w-[56rem] border-collapse text-sm">
           <thead>
             <tr className="border-b-2 border-dashed border-[var(--vintage-accent-hover)] text-right text-xs text-muted">
               <th className="px-3 py-3 font-bold">عنوان</th>
@@ -144,14 +144,14 @@ export function MyItemsTable({ kind, items, loading, deletingId, onRemove }: Pro
                       ) : null}
                     </div>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3" data-label="وضعیت">
                     {kind === 'biolinks' ? (
                       <BiolinkStatusBadge status={item.status} />
                     ) : (
                       <BusinessCardStatusBadge status={item.status} />
                     )}
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3" data-label="جایگاه">
                     <span
                       className={cn(
                         'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold',
@@ -169,13 +169,13 @@ export function MyItemsTable({ kind, items, loading, deletingId, onRemove }: Pro
                       )}
                     </span>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3" data-label="بازدید">
                     <span className="inline-flex items-center gap-1 text-xs text-muted">
                       <Eye className="size-3.5 text-sky-500" aria-hidden />
                       {(item.views ?? 0).toLocaleString('fa-IR')}
                     </span>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3" data-label="لایک / ذخیره">
                     <span className="inline-flex items-center gap-2 text-xs text-muted">
                       <span className="inline-flex items-center gap-1">
                         <Heart className="size-3.5 text-red-500" aria-hidden />
@@ -187,7 +187,7 @@ export function MyItemsTable({ kind, items, loading, deletingId, onRemove }: Pro
                       </span>
                     </span>
                   </td>
-                  <td className="px-3 py-3">
+                  <td className="dash-actions px-3 py-3" data-label="عملیات">
                     <div className="flex flex-wrap items-center gap-1.5">
                       <Link
                         href={`/dashboard/${kind}/${item.id}/edit`}
