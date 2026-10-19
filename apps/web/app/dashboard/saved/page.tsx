@@ -144,16 +144,6 @@ export default function SavedPage() {
         <Pagination meta={feedMeta} onPage={setFeedPage} />
       ) : null}
 
-      {!loading && tab !== 'feeds' ? (
-        <div className="flex justify-center gap-3">
-          <Link href="/biolinks" className="indeed-btn indeed-btn-secondary py-2 text-sm">
-            دایرکتوری بیولینک
-          </Link>
-          <Link href="/business-cards" className="indeed-btn indeed-btn-secondary py-2 text-sm">
-            دایرکتوری کارت ویزیت
-          </Link>
-        </div>
-      ) : null}
     </div>
   );
 }
