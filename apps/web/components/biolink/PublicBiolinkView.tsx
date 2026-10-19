@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight, Crown, Home } from 'lucide-react';
 
 import { ThemedBiolink } from './ThemedBiolink';
+import { CardFit } from '@/components/ui/CardFit';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
@@ -42,7 +43,7 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
           />
 
           {/* One aligned row: back link · plan badge · home link. */}
-          <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
+          <div className="card-public-top mb-3 flex shrink-0 items-center justify-between gap-2">
             <Link
               href="/biolinks"
               className="theme-panel theme-panel-text inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-85 transition hover:opacity-100"
@@ -74,8 +75,10 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
             </Link>
           </div>
 
-          {/* Only this region scrolls; the chrome above and below stays put. */}
-          <div className="card-public-scroll">
+          {/* The chrome above and below stays put; this region shrinks the
+              card to fit one screen (falling back to scrolling only when even
+              the minimum scale cannot fit). */}
+          <CardFit>
             <ThemedBiolink
               themeKey={biolink.template}
               data={biolink}
@@ -83,9 +86,9 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
               businessName={biolink.business?.name}
               interactive
             />
-          </div>
+          </CardFit>
 
-          <div className="theme-panel mt-4 flex shrink-0 items-center gap-4 p-4">
+          <div className="card-public-share theme-panel mt-4 flex shrink-0 items-center gap-4 p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={qr}

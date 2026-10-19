@@ -155,10 +155,20 @@ export function ThemedBiolink({
           <p className="theme-muted theme-fa mt-2 text-base font-semibold">{data.fullName}</p>
         ) : null}
 
+        {data.company && data.jobTitle ? (
+          <p className="theme-muted theme-fa mt-1 text-sm">{data.jobTitle}</p>
+        ) : null}
+
         {!data.company && data.jobTitle && data.fullName ? (
           <p className="theme-muted theme-fa mt-1 flex items-center justify-center gap-1.5 text-sm">
             <UserRound className="size-3.5 shrink-0" aria-hidden />
             {data.fullName}
+          </p>
+        ) : null}
+
+        {data.bio ? (
+          <p className="theme-muted theme-fa mt-3 text-sm leading-6 whitespace-pre-line">
+            {data.bio}
           </p>
         ) : null}
 
@@ -204,6 +214,10 @@ export function ThemedBiolink({
               );
             })}
           </nav>
+        ) : null}
+
+        {data.address ? (
+          <p className="theme-muted theme-fa mt-4 text-xs leading-5">{data.address}</p>
         ) : null}
 
         <p className="theme-footer theme-muted mt-6 text-[11px] tracking-[0.12em] uppercase">

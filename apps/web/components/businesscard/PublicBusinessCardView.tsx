@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowRight, Crown, Home } from 'lucide-react';
 
 import { ThemedBusinessCard } from './ThemedBusinessCard';
+import { CardFit } from '@/components/ui/CardFit';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
@@ -42,7 +43,7 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
           />
 
           {/* One aligned row: back link · plan badge · home link. */}
-          <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
+          <div className="card-public-top mb-3 flex shrink-0 items-center justify-between gap-2">
             <Link
               href="/business-cards"
               className="bc-panel bc-fa bc-muted inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-bold opacity-85 transition hover:opacity-100"
@@ -75,8 +76,10 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
             </Link>
           </div>
 
-          {/* Only this region scrolls; the chrome above and below stays put. */}
-          <div className="card-public-scroll">
+          {/* The chrome above and below stays put; this region shrinks the
+              card to fit one screen (falling back to scrolling only when even
+              the minimum scale cannot fit). */}
+          <CardFit>
             <ThemedBusinessCard
               themeKey={businessCard.template}
               data={businessCard}
@@ -84,9 +87,9 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
               businessName={businessCard.business?.name}
               interactive
             />
-          </div>
+          </CardFit>
 
-          <div className="bc-panel mt-4 flex shrink-0 items-center gap-4 p-4">
+          <div className="card-public-share bc-panel mt-4 flex shrink-0 items-center gap-4 p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={qr}

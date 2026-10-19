@@ -842,7 +842,8 @@ header.bg-white {
   scrollbar-color: var(--biolink-panel-border, var(--bc-border, #d9c3a9)) transparent;
 }
 
-.card-public-scroll > * {
+.card-public-scroll > *,
+.card-public-scroll > * > * {
   margin-block: 0;
 }
 
@@ -851,6 +852,146 @@ header.bg-white {
 .card-public-scroll::-webkit-scrollbar-thumb {
   background: var(--biolink-panel-border, var(--bc-border, #d9c3a9));
   border-radius: 9999px;
+}
+/* When the card has been scaled down to fit one screen, the region must not
+   scroll: `overflow: auto` alone still allows a scroll on a transformed box. */
+.card-public-scroll[data-fits] { overflow: hidden; }
+
+/* ---- Dense ("one screen") layout for full-field records ----
+   `CardFit` adds `data-compact` to the scroll region only when the card is
+   taller than the room under the pinned chrome. These rules then shrink the
+   type, tighten the vertical rhythm and fold the biolink's 9 link pills into a
+   two-column grid so a record with every field still fits without scrolling.
+   Selectors are two classes + an attribute (0,3,0), so they beat both the
+   theme classes (0,2,0) and the utility classes (0,1,0) without `!important`. */
+.card-public-scroll[data-compact] .theme-body {
+  padding: 12px 14px 10px;
+}
+.card-public-scroll[data-compact] .theme-body > * + * {
+  margin-top: 6px;
+}
+.card-public-scroll[data-compact] .theme-body > img {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 5px;
+}
+.card-public-scroll[data-compact] .theme-avatar {
+  width: 48px;
+  height: 48px;
+  font-size: 1rem;
+  margin-bottom: 6px;
+}
+.card-public-scroll[data-compact] .theme-avatar img {
+  width: 48px;
+  height: 48px;
+}
+.card-public-scroll[data-compact] .theme-title {
+  font-size: 18px;
+  line-height: 1.25;
+}
+.card-public-scroll[data-compact] .theme-chip {
+  font-size: 12px;
+  padding: 3px 10px;
+}
+.card-public-scroll[data-compact] .theme-body > p {
+  font-size: 11px;
+  line-height: 1.5;
+}
+.card-public-scroll[data-compact] .theme-links {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
+}
+.card-public-scroll[data-compact] .theme-link {
+  min-height: 0;
+  padding: 5px 8px;
+  font-size: 11px;
+  border-radius: 7px;
+}
+.card-public-scroll[data-compact] .theme-link svg { width: 15px; height: 15px; }
+.card-public-scroll[data-compact] .theme-link .theme-link-label {
+  letter-spacing: 0;
+}
+.card-public-scroll[data-compact] .theme-footer {
+  display: none;
+}
+
+.card-public-scroll[data-compact] .bc-card {
+  padding: 14px 16px;
+}
+.card-public-scroll[data-compact] .bc-avatar {
+  width: 52px;
+  height: 52px;
+  font-size: 1.2rem;
+}
+.card-public-scroll[data-compact] .bc-avatar img {
+  width: 52px;
+  height: 52px;
+}
+.card-public-scroll[data-compact] .bc-name {
+  font-size: 20px;
+}
+.card-public-scroll[data-compact] .bc-rule {
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+.card-public-scroll[data-compact] .bc-contact {
+  font-size: 12px;
+  gap: 4px 10px;
+}
+.card-public-scroll[data-compact] .bc-social {
+  width: 30px;
+  height: 30px;
+}
+.card-public-scroll[data-compact] .bc-btn {
+  min-height: 34px;
+  padding-inline: 14px;
+  font-size: 12px;
+}
+.card-public-scroll[data-compact] .bc-card footer {
+  margin-top: 12px;
+  gap: 10px;
+}
+
+/* Compact share block: shave the QR/tile padding and the link/post buttons so
+   the full-field card gets more vertical room before any scaling is needed. */
+[data-compact] > .card-public-share {
+  margin-top: 8px;
+  gap: 10px;
+  padding: 10px;
+}
+[data-compact] > .card-public-share img {
+  width: 56px;
+  height: 56px;
+  padding: 3px;
+}
+[data-compact] > .card-public-share p {
+  font-size: 10px;
+}
+[data-compact] > .card-public-share a {
+  margin-top: 0;
+  padding-block: 4px;
+  font-size: 10px;
+}
+[data-compact] > .card-public-share > div > div {
+  margin-top: 4px;
+}
+[data-compact] > .card-public-share p + p {
+  margin-top: 2px;
+  font-size: 9px;
+}
+[data-compact] > .card-public-top {
+  margin-bottom: 8px;
+  gap: 6px;
+}
+[data-compact] > .card-public-top a,
+[data-compact] > .card-public-top span {
+  padding: 4px 8px;
+  font-size: 9px;
+}
+[data-compact] > .card-public-top svg { width: 12px; height: 12px; }
+[data-compact] > .theme-panel-muted {
+  margin-top: 6px;
+  font-size: 10px;
 }
 .biolink-theme .theme-title { color: var(--biolink-text); }
 .biolink-theme .theme-muted { color: var(--biolink-muted); }
