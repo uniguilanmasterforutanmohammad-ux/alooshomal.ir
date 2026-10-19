@@ -62,6 +62,13 @@ export class AuthService {
     }
   }
 
+  /** Ensures email + password sign-in is allowed by the admin toggle. */
+  private async assertEmailLoginEnabled(): Promise<void> {
+    if (!(await this.settings.getEmailLoginEnabled())) {
+      throw new ForbiddenException('ورود با ایمیل و رمز عبور در حال حاضر غیرفعال است');
+    }
+  }
+
   /**
    * Step 1 of the phone flow: normalise the number and send an OTP. The
    * response is identical whether or not the number is already registered, so
@@ -180,6 +187,7 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto, context: SessionContext = {}) {
+    await this.assertEmailLoginEnabled();
     if (context.ip) await this.rateLimit.hit(RATE_LIMITS.register, context.ip);
     const email = dto.email.toLowerCase().trim();
     const existing = await this.prisma.user.findUnique({ where: { email } });
@@ -217,6 +225,7 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, context: SessionContext = {}) {
+    await this.assertEmailLoginEnabled();
     if (context.ip) await this.rateLimit.hit(RATE_LIMITS.login, context.ip);
     const email = dto.email.toLowerCase().trim();
     const user = await this.prisma.user.findUnique({ where: { email } });

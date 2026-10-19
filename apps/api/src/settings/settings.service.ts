@@ -137,6 +137,10 @@ export interface CreationLocks {
 export const PHONE_LOGIN_ENABLED_KEY = 'authPhoneLoginEnabled';
 export const DEFAULT_PHONE_LOGIN_ENABLED = true;
 
+/** Admin toggle: allow sign-in/sign-up with email + password. */
+export const EMAIL_LOGIN_ENABLED_KEY = 'authEmailLoginEnabled';
+export const DEFAULT_EMAIL_LOGIN_ENABLED = true;
+
 /**
  * Categories of admin-facing notifications. Each one can be muted from the
  * admin settings panel: a muted category is skipped at creation time, so no
@@ -595,6 +599,23 @@ export class SettingsService implements OnModuleInit {
       where: { key: PHONE_LOGIN_ENABLED_KEY },
       update: { value: value ? 'true' : 'false' },
       create: { key: PHONE_LOGIN_ENABLED_KEY, value: value ? 'true' : 'false' },
+    });
+    return value;
+  }
+
+  /** Whether email + password sign-in/sign-up is enabled (default ON). */
+  async getEmailLoginEnabled(): Promise<boolean> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: EMAIL_LOGIN_ENABLED_KEY },
+    });
+    return setting ? setting.value !== 'false' : DEFAULT_EMAIL_LOGIN_ENABLED;
+  }
+
+  async setEmailLoginEnabled(value: boolean): Promise<boolean> {
+    await this.prisma.setting.upsert({
+      where: { key: EMAIL_LOGIN_ENABLED_KEY },
+      update: { value: value ? 'true' : 'false' },
+      create: { key: EMAIL_LOGIN_ENABLED_KEY, value: value ? 'true' : 'false' },
     });
     return value;
   }

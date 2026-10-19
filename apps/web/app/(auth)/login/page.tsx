@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { AuthForm } from '@/components/auth/AuthForm';
 import { api, type AuthResponse } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useAuthMethods } from '@/lib/auth-settings';
 import { cn } from '@/lib/utils';
 
 /** Only accept same-origin absolute paths, never `//evil.com` open redirects. */
@@ -27,6 +28,8 @@ function AuthPageContent() {
   const next = safeNext(params.get('next'));
   const setSession = useAuth((state) => state.setSession);
   const { token, user, hydrated } = useAuth();
+  const { phoneLoginEnabled, emailLoginEnabled, loaded: methodsLoaded } =
+    useAuthMethods();
 
   const [mode, setMode] = useState<'phone' | 'email'>('phone');
   const [email, setEmail] = useState('');
@@ -44,6 +47,17 @@ function AuthPageContent() {
       next === '/dashboard' && user?.role === 'MODERATOR' ? '/moderator' : next;
     router.replace(target);
   }, [hydrated, token, user?.role, next, router]);
+
+  // Default to whichever method the admin left enabled (phone first), so a
+  // visitor never lands on a tab that the API will reject.
+  useEffect(() => {
+    if (!methodsLoaded) return;
+    if (mode === 'phone' && !phoneLoginEnabled && emailLoginEnabled) {
+      setMode('email');
+    } else if (mode === 'email' && !emailLoginEnabled && phoneLoginEnabled) {
+      setMode('phone');
+    }
+  }, [methodsLoaded, phoneLoginEnabled, emailLoginEnabled, mode]);
 
   async function handleEmailLogin(event: React.FormEvent) {
     event.preventDefault();
@@ -72,31 +86,42 @@ function AuthPageContent() {
           برای ساخت و مدیریت بیولینک و کارت ویزیت، شماره موبایل خود را وارد کنید.
         </p>
 
-        <div className="mt-5 grid grid-cols-2 gap-2 rounded-lg bg-black/5 p-1">
-          {(
-            [
-              ['phone', 'موبایل و کد', Smartphone],
-              ['email', 'ایمیل و رمز عبور', Mail],
-            ] as const
-          ).map(([key, label, Icon]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setMode(key)}
-              className={cn(
-                'inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-bold',
-                mode === key ? 'bg-white text-brand shadow-sm' : 'text-muted',
-              )}
-            >
-              <Icon className="size-4" aria-hidden />
-              {label}
-            </button>
-          ))}
-        </div>
+        {phoneLoginEnabled && emailLoginEnabled ? (
+          <div className="mt-5 grid grid-cols-2 gap-2 rounded-lg bg-black/5 p-1">
+            {(
+              [
+                ['phone', 'موبایل و کد', Smartphone],
+                ['email', 'ایمیل و رمز عبور', Mail],
+              ] as const
+            ).map(([key, label, Icon]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setMode(key)}
+                className={cn(
+                  'inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-bold',
+                  mode === key ? 'bg-white text-brand shadow-sm' : 'text-muted',
+                )}
+              >
+                <Icon className="size-4" aria-hidden />
+                {label}
+              </button>
+            ))}
+          </div>
+        ) : null}
 
         <div className="mt-6">
-          {mode === 'phone' ? (
-            <AuthForm next={next} onEmailLogin={() => setMode('email')} />
+          {!phoneLoginEnabled && !emailLoginEnabled ? (
+            <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+              در حال حاضر هیچ روش ورودی توسط مدیر فعال نیست. لطفاً بعداً تلاش کنید.
+            </p>
+          ) : mode === 'phone' ? (
+            <AuthForm
+              next={next}
+              onEmailLogin={
+                emailLoginEnabled ? () => setMode('email') : undefined
+              }
+            />
           ) : (
             <form onSubmit={handleEmailLogin} className="flex flex-col gap-4">
               <Input
@@ -127,13 +152,15 @@ function AuthPageContent() {
               >
                 {loading ? 'در حال ورود...' : 'ورود'}
               </button>
-              <button
-                type="button"
-                onClick={() => setMode('phone')}
-                className="text-sm font-bold text-brand"
-              >
-                ورود با موبایل و کد یکبار مصرف
-              </button>
+              {phoneLoginEnabled ? (
+                <button
+                  type="button"
+                  onClick={() => setMode('phone')}
+                  className="text-sm font-bold text-brand"
+                >
+                  ورود با موبایل و کد یکبار مصرف
+                </button>
+              ) : null}
             </form>
           )}
         </div>

@@ -68,6 +68,10 @@ class UpdateSettingsDto {
   phoneLoginEnabled?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  emailLoginEnabled?: boolean;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
@@ -162,6 +166,7 @@ export class SettingsController {
       directoryDisplayMode: await this.settingsService.getDirectoryDisplayMode(),
       myListPageSize: await this.settingsService.getMyListPageSize(),
       phoneLoginEnabled: await this.settingsService.getPhoneLoginEnabled(),
+      emailLoginEnabled: await this.settingsService.getEmailLoginEnabled(),
       feedMaxImages: await this.settingsService.getFeedMaxImages(),
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
       ...locks,
@@ -192,6 +197,7 @@ export class AdminSettingsController {
       newsHeadlineCount: await this.settingsService.getNewsHeadlineCount(),
       newsAccessLevel: await this.settingsService.getNewsAccessLevel(),
       phoneLoginEnabled: await this.settingsService.getPhoneLoginEnabled(),
+      emailLoginEnabled: await this.settingsService.getEmailLoginEnabled(),
       adDurationDays: await this.settingsService.getAdDurationDays(),
       adDailySlots: await this.settingsService.getAdDailySlots(),
       boostDurationDays: await this.settingsService.getBoostDurationDays(),
@@ -222,6 +228,7 @@ export class AdminSettingsController {
       newsHeadlineCount?: number;
       newsAccessLevel?: NewsAccessLevel;
       phoneLoginEnabled?: boolean;
+      emailLoginEnabled?: boolean;
       adDurationDays?: number;
       adDailySlots?: number;
       boostDurationDays?: number;
@@ -292,6 +299,11 @@ export class AdminSettingsController {
     if (dto.phoneLoginEnabled !== undefined) {
       result.phoneLoginEnabled = await this.settingsService.setPhoneLoginEnabled(
         dto.phoneLoginEnabled,
+      );
+    }
+    if (dto.emailLoginEnabled !== undefined) {
+      result.emailLoginEnabled = await this.settingsService.setEmailLoginEnabled(
+        dto.emailLoginEnabled,
       );
     }
     if (dto.adDurationDays !== undefined) {

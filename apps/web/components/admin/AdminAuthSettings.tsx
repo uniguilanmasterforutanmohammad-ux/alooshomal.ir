@@ -1,21 +1,24 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Save, Smartphone } from 'lucide-react';
+import { Mail, Save, Smartphone } from 'lucide-react';
 
 import { api } from '@/lib/api';
 
 interface SettingsPayload {
   phoneLoginEnabled: boolean;
+  emailLoginEnabled: boolean;
 }
 
 /**
- * Sign-in / sign-up methods. Currently only phone + OTP is toggleable; email
- * and password always stay on. When phone login is off the API rejects both
- * `/auth/phone/*` endpoints, so the mobile tab simply stops working.
+ * Sign-in / sign-up methods. Each method can be toggled on or off: when phone
+ * login is off the API rejects both `/auth/phone/*` endpoints, and when email
+ * login is off `/auth/login` and `/auth/register` are rejected, so the matching
+ * tab simply stops working. At least one method must stay on.
  */
 export function AdminAuthSettings() {
-  const [enabled, setEnabled] = useState(true);
+  const [phoneEnabled, setPhoneEnabled] = useState(true);
+  const [emailEnabled, setEmailEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +29,8 @@ export function AdminAuthSettings() {
     setError(null);
     try {
       const result = await api.get<SettingsPayload>('/admin/settings');
-      setEnabled(result.phoneLoginEnabled);
+      setPhoneEnabled(result.phoneLoginEnabled);
+      setEmailEnabled(result.emailLoginEnabled);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری تنظیمات');
     } finally {
@@ -38,15 +42,14 @@ export function AdminAuthSettings() {
     void load();
   }, [load]);
 
-  async function save(next: boolean) {
+  async function save(patch: Partial<SettingsPayload>) {
     setBusy(true);
     setError(null);
     setMessage(null);
     try {
-      const result = await api.patch<SettingsPayload>('/admin/settings', {
-        phoneLoginEnabled: next,
-      });
-      setEnabled(result.phoneLoginEnabled);
+      const result = await api.patch<SettingsPayload>('/admin/settings', patch);
+      setPhoneEnabled(result.phoneLoginEnabled);
+      setEmailEnabled(result.emailLoginEnabled);
       setMessage('تنظیمات ذخیره شد.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره تنظیمات ناموفق بود');
@@ -62,7 +65,7 @@ export function AdminAuthSettings() {
         <h3 className="font-extrabold text-ink">روش‌های ورود و ثبت‌نام</h3>
       </div>
       <p className="mt-1 text-sm text-muted">
-        ورود با ایمیل و رمز عبور همیشه فعال است. می‌توانید روش‌های دیگر را روشن یا خاموش کنید.
+        هر روش ورود را می‌توانید روشن یا خاموش کنید. حداقل یک روش باید فعال بماند.
       </p>
 
       {loading ? (
@@ -73,9 +76,11 @@ export function AdminAuthSettings() {
             <input
               type="checkbox"
               className="mt-1 size-4"
-              checked={enabled}
+              checked={phoneEnabled}
               disabled={busy}
-              onChange={(event) => void save(event.target.checked)}
+              onChange={(event) =>
+                void save({ phoneLoginEnabled: event.target.checked })
+              }
             />
             <span>
               <span className="block text-sm font-bold text-ink">
@@ -83,6 +88,27 @@ export function AdminAuthSettings() {
               </span>
               <span className="block text-xs text-muted">
                 اگر خاموش باشد، تب «موبایل و کد» در صفحه‌ی ورود کار نمی‌کند.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 rounded-lg border border-[var(--vintage-border)] p-3">
+            <input
+              type="checkbox"
+              className="mt-1 size-4"
+              checked={emailEnabled}
+              disabled={busy}
+              onChange={(event) =>
+                void save({ emailLoginEnabled: event.target.checked })
+              }
+            />
+            <span>
+              <span className="flex items-center gap-1.5 text-sm font-bold text-ink">
+                <Mail className="size-4 text-brand" aria-hidden />
+                ورود و ثبت‌نام با ایمیل و رمز عبور
+              </span>
+              <span className="block text-xs text-muted">
+                اگر خاموش باشد، ورود با ایمیل و رمز عبور در صفحه‌ی ورود کار نمی‌کند.
               </span>
             </span>
           </label>

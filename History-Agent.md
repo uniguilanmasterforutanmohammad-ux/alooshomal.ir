@@ -20,7 +20,41 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.79.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.80.0**.
+
+## ۱۴۰۵/۰۷/۲۷ — فعال/غیرفعال کردن ورود با ایمیل و رمز عبور در تنظیمات مدیر — نسخه `v2.80.0`
+
+**هدف:** «درخواست جدید» — در `https://alooshomal.ir/admin?section=settings` مانند
+فعال/غیرفعال کردن ورود با موبایل و کد یکبار مصرف، برای ایمیل و رمز عبور هم
+گزینه اضافه شود.
+
+**تغییرات:**
+- `apps/api/src/settings/settings.service.ts`: کلید `authEmailLoginEnabled` با
+  پیش‌فرض روشن و متدهای `getEmailLoginEnabled`/`setEmailLoginEnabled`.
+- `apps/api/src/settings/settings.controller.ts`: افزودن `emailLoginEnabled` به
+  DTO، به پاسخ `GET /settings/public` و `GET /admin/settings` و به
+  `PATCH /admin/settings`.
+- `apps/api/src/auth/auth.service.ts`: افزودن `assertEmailLoginEnabled` و
+  فراخوانی آن در `login` و `register` (خطای ۴۰۳ هنگام خاموش بودن).
+- `apps/web/components/admin/AdminAuthSettings.tsx`: توگل دوم برای «ورود و
+  ثبت‌نام با ایمیل و رمز عبور» و به‌روزرسانی متن راهنما.
+- `apps/web/lib/auth-settings.ts` (فایل جدید): هوک `useAuthMethods` برای خواندن
+  وضعیت دو روش ورود از `/settings/public`.
+- `apps/web/app/(auth)/login/page.tsx`: پنهان‌کردن روش‌های غیرفعال، انتخاب
+  خودکار روش فعال، پنهان‌کردن دکمه‌ی جابه‌جایی به روش خاموش، و نمایش پیام
+  راهنما وقتی هر دو روش خاموش‌اند.
+
+**تأیید/تست:**
+- `tsc --noEmit` روی هر دو اپ (`apps/api` و `apps/web`) → exit 0.
+- با توکن مدیر: `PATCH /admin/settings {"emailLoginEnabled":false}` →
+  `emailLoginEnabled: false`؛ سپس `POST /auth/login` → **403** با پیام
+  «ورود با ایمیل و رمز عبور در حال حاضر غیرفعال است»؛ پس از بازگرداندن به
+  `true` → **200**.
+- Playwright روی `/login`: با «فقط ایمیل» تب‌ها پنهان و فرم ایمیل مستقیم بدون
+  دکمه‌ی موبایل؛ با «فقط موبایل» فرم OTP مستقیم؛ با «هر دو خاموش» پیام
+  «هیچ روش ورودی فعال نیست» و صفر فیلد. سپس هر دو به حالت فعال برگردانده شد.
+- پنل مدیر: هر دو توگل رندر شدند (`checkbox: 2`).
+- `python3 scripts/check_api_docs.py` → exit 0 (بدون مسیر بدون `@ApiOperation`).
 
 ## ۱۴۰۵/۰۷/۲۷ — ورود/ثبت‌نام: نمایش فقط فیلد کد یکبار مصرف پس از شماره موبایل — نسخه `v2.79.1`
 
