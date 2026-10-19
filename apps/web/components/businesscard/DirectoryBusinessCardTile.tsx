@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 
-import { ThemedBusinessCard } from '@/components/businesscard/ThemedBusinessCard';
+import { BusinessCardFace } from '@/components/businesscard/BusinessCardFace';
 import { BoostBadge } from '@/components/ui/BoostBadge';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { SaveButton } from '@/components/ui/SaveButton';
@@ -13,8 +13,8 @@ interface Props {
 }
 
 /**
- * One tile of the /business-cards «کاشی» grid: the owner's real themed card
- * (the same renderer the public page uses), with the boost/ad badge and the
+ * One tile of the /business-cards «کاشی» grid: the landscape business-card face
+ * (the same presentation the public page uses), with the boost/ad badge and the
  * like/save actions layered on top. Clicking the tile opens the card's public
  * page; the classic list view remains available from the view switch.
  */
@@ -28,18 +28,14 @@ export function DirectoryBusinessCardTile({ businessCard }: Props) {
   return (
     <div className="directory-tile">
       <div className="pointer-events-none">
-        <ThemedBusinessCard
-          themeKey={businessCard.template}
-          data={{
-            fullName: businessCard.fullName,
-            jobTitle: businessCard.jobTitle,
-            company: businessCard.company,
-            avatarUrl: businessCard.avatarUrl,
-            logoUrl: businessCard.logoUrl,
-            primaryColor: businessCard.primaryColor,
-          }}
+        <BusinessCardFace
+          fullName={businessCard.fullName}
+          jobTitle={businessCard.jobTitle}
+          bio={businessCard.bio}
           cityName={businessCard.city?.name}
           businessName={businessCard.business?.name}
+          avatarUrl={businessCard.avatarUrl}
+          accent={businessCard.primaryColor}
           compact
         />
       </div>

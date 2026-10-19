@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight, MapPin, Phone } from 'lucide-react';
 
-import { RecordCard, type RecordRow } from '@/components/ui/RecordCard';
+import { BusinessCardFace, type BizCardRow } from '@/components/businesscard/BusinessCardFace';
+import { RecordCard } from '@/components/ui/RecordCard';
 
 export interface HomeSliderItem {
   id: string;
@@ -34,9 +35,10 @@ interface Props {
  *
  * All six items sit **side by side** in one horizontal, scroll-snap rail: the
  * cards stay next to each other and the rail scrolls (native touch swipe on
- * phones, drag / arrows / dots on desktop) to reveal the rest. Each card is the
- * site's vintage «record» card (the same design as the directory detail panel
- * and the public pages) in its compact variant, tinted with the owner's colour.
+ * phones, drag / arrows / dots on desktop) to reveal the rest. Biolinks render
+ * the vintage «record» card, while business cards render the landscape
+ * business-card face — the same presentation their public pages use, so the
+ * two rails read differently at a glance.
  */
 export function HomeItemSlider({ kind, items, moreHref }: Props) {
   const railRef = useRef<HTMLDivElement>(null);
@@ -217,7 +219,9 @@ export function HomeItemSlider({ kind, items, moreHref }: Props) {
           const companyChip = item.company && item.company !== title ? item.company : null;
           const businessChip =
             item.business?.name && item.business.name !== title ? item.business.name : null;
-          const rows: RecordRow[] = [];
+          // Rows carry no `href`: the whole slide is already an <a>, so linking
+          // them too would nest anchors.
+          const rows: BizCardRow[] = [];
           if (cityName) {
             rows.push({ key: 'city', label: 'شهر', value: cityName, Icon: MapPin });
           }
@@ -244,17 +248,29 @@ export function HomeItemSlider({ kind, items, moreHref }: Props) {
                 className="spectrum-pair"
                 aria-label={`مشاهده ${item.fullName}`}
               >
-                <RecordCard
-                  fullName={item.fullName}
-                  headline={title || item.fullName}
-                  subline={title ? item.fullName : item.jobTitle}
-                  companyName={companyChip}
-                  cityName={cityName}
-                  businessName={businessChip}
-                  avatarUrl={item.avatarUrl}
-                  rows={rows}
-                  compact
-                />
+                {kind === 'business-cards' ? (
+                  <BusinessCardFace
+                    fullName={item.fullName}
+                    jobTitle={item.jobTitle}
+                    cityName={cityName}
+                    businessName={businessChip}
+                    avatarUrl={item.avatarUrl}
+                    rows={rows}
+                    compact
+                  />
+                ) : (
+                  <RecordCard
+                    fullName={item.fullName}
+                    headline={title || item.fullName}
+                    subline={title ? item.fullName : item.jobTitle}
+                    companyName={companyChip}
+                    cityName={cityName}
+                    businessName={businessChip}
+                    avatarUrl={item.avatarUrl}
+                    rows={rows}
+                    compact
+                  />
+                )}
               </Link>
             </div>
           );

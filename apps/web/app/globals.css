@@ -743,8 +743,15 @@ header.bg-white {
   transition: transform 0.18s ease, box-shadow 0.18s ease;
 }
 
+.spectrum-pair .bizcard {
+  height: 100%;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
 .spectrum-pair:hover .record-card,
-.spectrum-pair:focus-visible .record-card {
+.spectrum-pair:focus-visible .record-card,
+.spectrum-pair:hover .bizcard,
+.spectrum-pair:focus-visible .bizcard {
   transform: translateY(-3px);
   box-shadow: 0 14px 30px rgba(58, 40, 28, 0.18);
 }
@@ -877,6 +884,7 @@ header.bg-white {
   box-shadow: 0 14px 30px rgba(58, 40, 28, 0.18);
 }
 .directory-tile .bc-card,
+.directory-tile .bizcard,
 .directory-tile .theme-body { pointer-events: none; }
 .directory-tile-badges {
   position: absolute;
@@ -2903,19 +2911,19 @@ a.bizcard-row:hover {
 
 /* Landscape: identity panel beside the contact panel. */
 @media (min-width: 560px) {
-  .bizcard {
+  .bizcard:not(.bizcard-compact) {
     grid-template-columns: minmax(190px, 34%) minmax(0, 1fr);
   }
-  .bizcard-side {
+  .bizcard:not(.bizcard-compact) .bizcard-side {
     justify-content: center;
     text-align: start;
     align-items: flex-start;
     padding: 30px 22px;
   }
-  .bizcard-tags {
+  .bizcard:not(.bizcard-compact) .bizcard-tags {
     justify-content: flex-start;
   }
-  .bizcard-main {
+  .bizcard:not(.bizcard-compact) .bizcard-main {
     padding: 30px 26px;
   }
 }
