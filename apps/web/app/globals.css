@@ -666,6 +666,37 @@ header.bg-white {
    design as the public pages and the directory detail panel), shown at card
    scale. The rail bleeds past the page gutter so cards peek in from both
    edges; native swipe, drag, arrows and dots all pan it. */
+/* A dashed, on-theme frame drawn around each home slider (latest cards /
+   latest biolinks) so the two rails read as distinct, finished sections
+   instead of floating cards on the page background. */
+.home-section-frame {
+  position: relative;
+  padding: 18px;
+  border: 2px dashed var(--vintage-border);
+  border-radius: calc(var(--vintage-radius) + 6px);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--vintage-surface) 92%, transparent),
+    color-mix(in srgb, var(--vintage-paper) 70%, transparent)
+  );
+  box-shadow: 0 10px 26px rgba(92, 53, 29, 0.07);
+}
+
+.home-section-frame::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: var(--vintage-radius);
+  border: 1px solid color-mix(in srgb, var(--vintage-accent) 12%, transparent);
+  pointer-events: none;
+}
+
+@media (min-width: 640px) {
+  .home-section-frame {
+    padding: 24px;
+  }
+}
+
 .spectrum-shell {
   /* Roughly one card on a phone, two on a tablet, three on a wide desktop. */
   --spectrum-card: clamp(240px, 30vw, 320px);

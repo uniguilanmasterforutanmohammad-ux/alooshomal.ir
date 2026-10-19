@@ -164,6 +164,7 @@ export function HomeItemSlider({ kind, items, moreHref }: Props) {
 
   return (
     <section className="container-page mt-10" dir="rtl">
+      <div className="home-section-frame">
       <div className="mb-4 flex items-center justify-between gap-3">
         <h2 className="text-lg font-extrabold text-ink sm:text-xl">
           {kind === 'business-cards' ? 'آخرین کارت‌های ویزیت' : 'آخرین بیولینک‌ها'}
@@ -271,6 +272,7 @@ export function HomeItemSlider({ kind, items, moreHref }: Props) {
             aria-label={`کارت ${dotIndex + 1}`}
           />
         ))}
+      </div>
       </div>
     </section>
   );

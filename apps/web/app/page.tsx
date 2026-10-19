@@ -127,21 +127,9 @@ export default async function HomePage() {
           moreHref="/biolinks"
         />
 
-        <PulseSection />
-
+        {/* «شهروند خبرنگار شوید» sits directly above «اخبار شهر» so the
+            invitation to file news leads straight into the news table. */}
         <section className="container-page mt-10 sm:mt-16">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {features.map((feature) => (
-              <div key={feature.title} className="indeed-panel p-5">
-                <feature.icon className="size-7 text-brand" aria-hidden />
-                <h2 className="mt-3 text-base font-extrabold text-ink">{feature.title}</h2>
-                <p className="mt-2 text-sm leading-7 text-muted">{feature.text}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="container-page mt-8">
           <div className="indeed-panel flex flex-wrap items-center justify-between gap-3 p-5">
             <div>
               <h2 className="text-base font-extrabold text-ink">شهروند خبرنگار شوید</h2>
@@ -156,6 +144,20 @@ export default async function HomePage() {
                 مشاهده امتیازها
               </Link>
             </div>
+          </div>
+        </section>
+
+        <PulseSection />
+
+        <section className="container-page mt-10 sm:mt-16">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {features.map((feature) => (
+              <div key={feature.title} className="indeed-panel p-5">
+                <feature.icon className="size-7 text-brand" aria-hidden />
+                <h2 className="mt-3 text-base font-extrabold text-ink">{feature.title}</h2>
+                <p className="mt-2 text-sm leading-7 text-muted">{feature.text}</p>
+              </div>
+            ))}
           </div>
         </section>
 
