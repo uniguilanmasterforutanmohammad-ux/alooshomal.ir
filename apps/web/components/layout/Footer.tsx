@@ -14,9 +14,9 @@ import { APP_VERSION } from '@/lib/version';
  */
 export function Footer() {
   return (
-    <footer className="mt-16 border-t border-[var(--indeed-border)] bg-white py-8">
+    <footer className="mt-16 border-t border-pink-200 bg-pink-100 py-8">
       <div className="container-page grid grid-cols-2 items-start gap-6">
-        <div className="col-span-2 flex flex-col gap-1 text-xs text-muted lg:col-span-1">
+        <div className="col-span-2 flex flex-col gap-1 text-xs text-pink-900 lg:col-span-1">
           <p>
             © {new Date().getFullYear()} شمالی کارت
             <span dir="ltr" className="ms-2 font-bold">
@@ -39,7 +39,7 @@ export function Footer() {
               prefetch={false}
               // `py-1.5` gives each link a ~44px-tall touch target so the
               // Lighthouse "touch targets" audit passes on phones.
-              className="py-1.5 text-muted hover:text-brand"
+              className="py-1.5 text-pink-800 hover:text-pink-950"
             >
               {item.label}
             </Link>
