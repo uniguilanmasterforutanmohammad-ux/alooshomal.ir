@@ -2644,49 +2644,49 @@ a.record-row:hover {
 
 /* Dense («one screen») layout for the record card. */
 .card-public-scroll[data-compact] .record-card {
-  gap: 10px;
-  padding: 14px 16px 12px;
+  gap: 11px;
+  padding: 15px 17px 13px;
 }
 .card-public-scroll[data-compact] .record-avatar {
-  width: 52px;
-  height: 52px;
-  font-size: 20px;
+  width: 56px;
+  height: 56px;
+  font-size: 22px;
 }
 .card-public-scroll[data-compact] .record-name {
-  font-size: 18px;
+  font-size: 20px;
 }
 .card-public-scroll[data-compact] .record-subline {
-  margin-top: 3px;
-  font-size: 12px;
+  margin-top: 4px;
+  font-size: 12.5px;
 }
 .card-public-scroll[data-compact] .record-chip {
-  padding: 3px 10px;
-  font-size: 11px;
+  padding: 4px 11px;
+  font-size: 11.5px;
 }
 .card-public-scroll[data-compact] .record-bio {
-  font-size: 11.5px;
-  line-height: 1.7;
+  font-size: 12.5px;
+  line-height: 1.85;
 }
 .card-public-scroll[data-compact] .record-row {
-  padding: 7px 2px;
-  font-size: 12px;
+  padding: 8px 2px;
+  font-size: 13px;
 }
 .card-public-scroll[data-compact] .record-row-label {
-  min-width: 58px;
-  font-size: 11px;
+  min-width: 60px;
+  font-size: 11.5px;
 }
 .card-public-scroll[data-compact] .record-row-icon {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
 }
 .card-public-scroll[data-compact] .record-social {
-  min-height: 34px;
-  padding: 6px 10px;
-  font-size: 12px;
+  min-height: 37px;
+  padding: 7px 11px;
+  font-size: 12.5px;
 }
 .card-public-scroll[data-compact] .record-social svg {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
 }
 
 /* =====================================================================
