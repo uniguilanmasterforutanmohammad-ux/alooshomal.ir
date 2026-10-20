@@ -141,17 +141,3 @@ export function cardPalette(options: {
   if (preset) return preset;
   return { name: 'سفارشی', bg, fg: contrastText(bg) };
 }
-
-/**
- * Inline CSS custom properties the themed card / tile spreads onto its root so
- * the shared `.theme-spectrum` / `.bc-theme-spectrum` rules pick up the
- * owner-selected colours without a per-colour CSS class.
- */
-export function spectrumStyleVars(options: {
-  theme?: string | null;
-  primaryColor?: string | null;
-}): Record<string, string> | undefined {
-  if (options.theme !== SPECTRUM_THEME_KEY) return undefined;
-  const palette = cardPalette(options);
-  return { '--spectrum-bg': palette.bg, '--spectrum-fg': palette.fg };
-}

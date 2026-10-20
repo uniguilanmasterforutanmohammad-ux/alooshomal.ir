@@ -2,10 +2,10 @@
 
 import Link from 'next/link';
 
-import { ThemedBiolink } from '@/components/biolink/ThemedBiolink';
 import { BoostBadge } from '@/components/ui/BoostBadge';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { SaveButton } from '@/components/ui/SaveButton';
+import { RecordCard } from '@/components/ui/RecordCard';
 import type { DirectoryBiolink } from '@/lib/api';
 
 interface Props {
@@ -13,10 +13,11 @@ interface Props {
 }
 
 /**
- * One tile of the /biolinks «کاشی» grid: the owner's real themed biolink (the
- * same renderer the public page uses), with the boost/ad badge and the
- * like/save actions layered on top. Clicking the tile opens the biolink's
- * public page; the classic list view remains available from the view switch.
+ * One tile of the /biolinks «کاشی» grid: the very same `RecordCard` the public
+ * biolink page renders (so the directory previews exactly what the page shows),
+ * with the boost/ad badge and the like/save actions layered on top. Clicking the
+ * tile opens the biolink's public page; the classic list view remains available
+ * from the view switch.
  */
 export function DirectoryBiolinkTile({ biolink }: Props) {
   const now = new Date();
@@ -25,21 +26,29 @@ export function DirectoryBiolinkTile({ biolink }: Props) {
   const boosted =
     !directoryAd && biolink.boostedUntil && new Date(biolink.boostedUntil) > now;
 
+  // Same headline/subline logic as `PublicBiolinkView`, so the tile and the
+  // public page read identically. No contact rows are passed: the directory
+  // payload is lightweight and the tile stays a non-nested click target.
+  const headline =
+    biolink.company || biolink.jobTitle || biolink.fullName || 'بیولینک';
+  const subline = biolink.company
+    ? [biolink.fullName, biolink.jobTitle].filter(Boolean).join(' — ') || null
+    : biolink.jobTitle
+      ? biolink.fullName
+      : null;
+
   return (
     <div className="directory-tile">
       <div className="pointer-events-none">
-        <ThemedBiolink
-          themeKey={biolink.template}
-          data={{
-            fullName: biolink.fullName,
-            jobTitle: biolink.jobTitle,
-            company: biolink.company,
-            avatarUrl: biolink.avatarUrl,
-            logoUrl: biolink.logoUrl,
-            primaryColor: biolink.primaryColor,
-          }}
+        <RecordCard
+          fullName={biolink.fullName}
+          headline={headline}
+          subline={subline}
+          bio={biolink.bio}
           cityName={biolink.city?.name}
           businessName={biolink.business?.name}
+          avatarUrl={biolink.avatarUrl}
+          accent={biolink.primaryColor}
           compact
         />
       </div>

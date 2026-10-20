@@ -36,7 +36,7 @@ interface Props {
  * site's own vintage style rather than the biolink's theme, so browsing stays
  * calm and consistent; the themed look lives on the full biolink page.
  */
-export function DirectoryDetail({ slug, onClose, hideHeader }: Props) {
+export function DirectoryBiolinkDetail({ slug, onClose, hideHeader }: Props) {
   // Served from the batch-warmed detail cache, so a clicked row paints on the
   // next frame; the single-slug request is only the fallback.
   const { item: biolink, loading, error } = useDirectoryDetail<Biolink>(

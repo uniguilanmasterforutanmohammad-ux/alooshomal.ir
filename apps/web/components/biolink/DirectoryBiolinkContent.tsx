@@ -5,14 +5,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Users } from 'lucide-react';
 
 import { DirectoryBiolinkItem } from '@/components/biolink/DirectoryBiolinkItem';
-import { DirectoryDetail } from '@/components/biolink/DirectoryDetail';
+import { DirectoryBiolinkDetail } from '@/components/biolink/DirectoryBiolinkDetail';
 import { DirectoryBiolinkTile } from '@/components/biolink/DirectoryBiolinkTile';
 import { MobileSheet } from '@/components/ui/MobileSheet';
 import { DirectoryViewSwitch } from '@/components/ui/DirectoryViewSwitch';
 import {
-  DirectoryFilters,
+  DirectoryBiolinkFilters,
   type DirectoryFilterState,
-} from '@/components/biolink/DirectoryFilters';
+} from '@/components/biolink/DirectoryBiolinkFilters';
 import { type DirectoryBiolink } from '@/lib/api';
 import {
   useDirectoryResults,
@@ -22,7 +22,7 @@ import { primeDirectoryDetails } from '@/lib/directory-detail';
 import { useDirectoryView } from '@/lib/directory-view';
 import type { ServerDirectoryResult } from '@/lib/directory-server';
 
-export function DirectoryContent({
+export function DirectoryBiolinkContent({
   initialData,
 }: {
   initialData: ServerDirectoryResult<
@@ -120,7 +120,7 @@ export function DirectoryContent({
       </div>
 
       <div className="shrink-0">
-        <DirectoryFilters
+        <DirectoryBiolinkFilters
           value={filters}
           cities={facets.cities}
           businesses={facets.businesses}
@@ -234,7 +234,7 @@ export function DirectoryContent({
           <div className="directory-sticky md:sticky md:top-20">
             {selectedSlug ? (
               <div className="indeed-panel h-[calc(100vh-6rem)] overflow-hidden">
-                <DirectoryDetail
+                <DirectoryBiolinkDetail
                   slug={selectedSlug}
                   onClose={() => setSelectedSlug(null)}
                 />
@@ -260,7 +260,7 @@ export function DirectoryContent({
         title="جزئیات بیولینک"
       >
         {selectedSlug ? (
-          <DirectoryDetail
+          <DirectoryBiolinkDetail
             slug={selectedSlug}
             onClose={() => setSelectedSlug(null)}
             hideHeader

@@ -20,7 +20,44 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.86.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.87.0**.
+
+## ۱۴۰۵/۰۷/۲۸ — مرتب‌سازی و یکسان‌سازی کامپوننت‌های بیولینک + حذف کد مرده — نسخه `v2.87.0`
+
+**هدف:** «انجام بده» — کامپوننت‌های بیولینک مثل کارت‌ویزیت مرتب/آینه‌ای شوند،
+نمایش دایرکتوری با صفحه‌ی عمومی یکسان شود، و کدهای مرده/نیمه‌مرده حذف شوند.
+
+**تغییرات:**
+- `apps/web/components/biolink/DirectoryBiolinkTile.tsx`: به‌جای `ThemedBiolink`
+  حالا همان `RecordCard` رندر می‌شود که صفحه‌ی عمومی بیولینک استفاده می‌کند
+  (منطق `headline`/`subline` هم مثل `PublicBiolinkView`)، پس کاشی‌های
+  دایرکتوری دقیقاً همان چیزی را نشان می‌دهند که صفحه‌ی عمومی نشان می‌دهد.
+- `apps/web/components/biolink/ThemedBiolink.tsx` و
+  `apps/web/components/businesscard/ThemedBusinessCard.tsx`: حذف (کد مرده؛
+  هیچ‌جا import نمی‌شدند و مسیر `editable` بی‌استفاده بود).
+- `apps/web/components/biolink/DirectoryDetail.tsx` →
+  `DirectoryBiolinkDetail.tsx` و `DirectoryFilters.tsx` →
+  `DirectoryBiolinkFilters.tsx` (هم‌نام‌سازی با همتای businesscard)؛
+  اکسپورت‌ها به `DirectoryBiolinkDetail` / `DirectoryBiolinkFilters` تغییر نام
+  دادند و اکسپورت محتوای هر دو دایرکتوری به `DirectoryBiolinkContent` /
+  `DirectoryBusinessCardContent` هم‌نام فایل شد.
+- `apps/web/app/biolinks/page.tsx` و `apps/web/app/business-cards/page.tsx`:
+  به‌روزرسانی import/usages اکسپورت‌های تغییرنام‌یافته.
+- `apps/web/lib/themes.ts`: حذف هلپرهای مرده‌ی `getTheme`/`themeClassName`/
+  `getBusinessCardTheme`/`businessCardThemeClassName` که فقط کامپوننت‌های حذف‌شده
+  استفاده می‌کردند.
+- `apps/web/lib/card-spectrum.ts`: حذف `spectrumStyleVars` که فقط برای همان
+  کامپوننت‌های حذف‌شده بود.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web ./node_modules/.bin/tsc --noEmit` → exit 0.
+- `python3 scripts/sync_install.py` و سپس `--check` → بدون «تغییر معلق» (exit 0)؛
+  ۴ بلوک حذف‌شده و ۲ بلوک جدید در `install.sh` به‌درستی همگام شدند.
+- Playwright (۱۴۴۰px و ۱۰۲۴px): در نمای کاشی `/biolinks` هر ۲۰ کاشی حالا
+  `.record-card` هستند و هیچ `.theme-body`/`.bc-card` قدیمی رندر نمی‌شود؛
+  در `/business-cards` هر ۸ کاشی `.bizcard` هستند. صفحه‌های `/`، `/biolinks`،
+  `/business-cards` و `/biolinks/sample-full-biolink` بدون خطای کنسول/runtime
+  لود شدند.
 
 ## ۱۴۰۵/۰۷/۲۸ — بزرگ‌تر و خواناتر شدن فونت/استایل بیولینک‌های پر-فیلد (چیدمان فشرده) — نسخه `v2.86.2`
 

@@ -20,7 +20,7 @@ interface Props {
   onReset: () => void;
 }
 
-export function DirectoryFilters({
+export function DirectoryBiolinkFilters({
   value,
   cities,
   businesses,

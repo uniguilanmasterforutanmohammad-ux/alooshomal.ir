@@ -124,16 +124,6 @@ export const SELECTABLE_BIOLINK_THEMES: BiolinkTheme[] = BIOLINK_THEMES.filter(
   (theme) => ENABLED_THEME_KEYS.includes(theme.key),
 );
 
-export function getTheme(key: string | null | undefined): BiolinkTheme {
-  return (
-    BIOLINK_THEMES.find((theme) => theme.key === key) ?? BIOLINK_THEMES[0]
-  );
-}
-
-export function themeClassName(key: string | null | undefined): string {
-  return `biolink-theme theme-${getTheme(key).key}`;
-}
-
 /**
  * Ready-made business-card themes.
  *
@@ -245,14 +235,3 @@ export const DEFAULT_BUSINESS_CARD_THEME_KEY = 'vintage';
  */
 export const SELECTABLE_BUSINESS_CARD_THEMES: BiolinkTheme[] =
   BUSINESS_CARD_THEMES.filter((theme) => ENABLED_THEME_KEYS.includes(theme.key));
-
-export function getBusinessCardTheme(key: string | null | undefined): BiolinkTheme {
-  return (
-    BUSINESS_CARD_THEMES.find((theme) => theme.key === key) ??
-    BUSINESS_CARD_THEMES[0]
-  );
-}
-
-export function businessCardThemeClassName(key: string | null | undefined): string {
-  return `bcard-theme bc-theme-${getBusinessCardTheme(key).key}`;
-}

@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { Header } from '@/components/layout/Header';
-import { DirectoryContent } from '@/components/biolink/DirectoryBiolinkContent';
+import { DirectoryBiolinkContent } from '@/components/biolink/DirectoryBiolinkContent';
 import { fetchBiolinksDirectory } from '@/lib/directory-server';
 
 /**
@@ -31,7 +31,7 @@ export default async function DirectoryPage({
       <Suspense
         fallback={<div className="container-page py-8 text-muted">در حال بارگذاری...</div>}
       >
-        <DirectoryContent initialData={initialData} />
+        <DirectoryBiolinkContent initialData={initialData} />
       </Suspense>
       {/* The footer is intentionally omitted on the directory pages so the
           shell can fill the viewport exactly and only the card list scrolls

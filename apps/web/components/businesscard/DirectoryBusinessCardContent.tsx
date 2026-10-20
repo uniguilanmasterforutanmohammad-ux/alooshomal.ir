@@ -22,7 +22,7 @@ import { primeDirectoryDetails } from '@/lib/directory-detail';
 import { useDirectoryView } from '@/lib/directory-view';
 import type { ServerDirectoryResult } from '@/lib/directory-server';
 
-export function DirectoryContent({
+export function DirectoryBusinessCardContent({
   initialData,
 }: {
   initialData: ServerDirectoryResult<
