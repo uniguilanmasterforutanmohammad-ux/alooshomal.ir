@@ -2346,7 +2346,8 @@ header.bg-white {
    ===================================================================== */
 .record-card {
   --record-accent: var(--vintage-accent);
-  --record-paper: var(--vintage-surface);
+  --record-accent-deep: color-mix(in srgb, var(--record-accent) 86%, #000000);
+  --record-paper: color-mix(in srgb, var(--record-accent) 5%, var(--vintage-surface));
   --record-line: color-mix(in srgb, var(--record-accent) 22%, #ffffff);
   position: relative;
   display: flex;
@@ -2355,16 +2356,36 @@ header.bg-white {
   padding: 26px 24px 24px;
   background: var(--record-paper);
   color: var(--vintage-ink);
-  border: 2px dashed color-mix(in srgb, var(--record-accent) 55%, #ffffff);
+  border: 2px dashed color-mix(in srgb, var(--record-accent) 70%, #ffffff);
   border-radius: var(--vintage-radius);
   box-shadow: 0 12px 30px rgba(92, 53, 29, 0.12);
 }
 
 .record-head {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 16px;
+  padding: 16px;
+  overflow: hidden;
+  border-radius: calc(var(--vintage-radius) + 2px);
+  background: linear-gradient(
+    160deg,
+    var(--record-accent-deep) 0%,
+    var(--record-accent) 58%,
+    color-mix(in srgb, var(--record-accent) 82%, #ffffff) 100%
+  );
+  color: #ffffff;
   text-align: start;
+}
+
+.record-head::after {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border: 1px dashed rgba(255, 255, 255, 0.42);
+  border-radius: var(--vintage-radius);
+  pointer-events: none;
 }
 
 .record-avatar {
@@ -2375,9 +2396,9 @@ header.bg-white {
   place-items: center;
   overflow: hidden;
   border-radius: var(--vintage-radius);
-  border: 2px dashed var(--record-accent);
-  background: color-mix(in srgb, var(--record-accent) 12%, #fff);
-  color: var(--record-accent);
+  border: 2px dashed rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
   font-size: 30px;
   font-weight: 800;
 }
@@ -2398,14 +2419,15 @@ header.bg-white {
   font-size: clamp(19px, 4.6vw, 25px);
   font-weight: 800;
   line-height: 1.35;
-  color: var(--vintage-ink);
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.18);
 }
 
 .record-subline {
   margin: 6px 0 0;
   font-size: 14px;
   font-weight: 600;
-  color: var(--vintage-ink-soft);
+  color: rgba(255, 255, 255, 0.9);
 }
 
 .record-chips {
@@ -2544,6 +2566,13 @@ a.record-row:hover {
   border-width: 1.5px;
   box-shadow: 0 6px 16px rgba(92, 53, 29, 0.12);
 }
+.record-card-compact .record-head {
+  gap: 12px;
+  padding: 10px 11px;
+}
+.record-card-compact .record-head::after {
+  inset: 5px;
+}
 .record-card-compact .record-avatar {
   width: 52px;
   height: 52px;
@@ -2646,6 +2675,13 @@ a.record-row:hover {
 .card-public-scroll[data-compact] .record-card {
   gap: 11px;
   padding: 15px 17px 13px;
+}
+.card-public-scroll[data-compact] .record-head {
+  gap: 12px;
+  padding: 10px 11px;
+}
+.card-public-scroll[data-compact] .record-head::after {
+  inset: 5px;
 }
 .card-public-scroll[data-compact] .record-avatar {
   width: 56px;
