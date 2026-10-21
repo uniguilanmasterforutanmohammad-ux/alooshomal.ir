@@ -53,3 +53,79 @@ PRD-2.pdf
 
 # typescript incremental build
 *.tsbuildinfo
+
+....................
+
+# ---------- Dependencies ----------
+node_modules/
+**/node_modules/
+.pnpm-store/
+
+# ---------- Build output ----------
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+apps/api/dist/
+apps/web/.next/
+
+# ---------- Backups & dumps ----------
+backups/
+apps/api/backups/
+*.sql
+*.dump
+*.bak
+
+# ---------- Uploads & generated runtime data ----------
+uploads/
+apps/api/uploads/
+apps/web/public/uploads/
+test-data/
+*.csv
+*.xlsx
+!docs/**/*.csv
+
+# ---------- Reports & generated docs ----------
+docs/reports/*.pdf
+docs/reports/*.html
+*.pdf
+!docs/**/*.pdf
+
+# ---------- Env & secrets ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# ---------- Logs & temp ----------
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+tmp/
+temp/
+*.tmp
+.cache/
+
+# ---------- Tooling / agent / local session files ----------
+.agent/
+.gapgpt/
+.gap/
+structure.txt
+*.jsonl
+
+# ---------- OS & editor ----------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ---------- Next.js / TS ----------
+next-env.d.ts
+coverage/
+.nyc_output/

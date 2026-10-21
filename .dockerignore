@@ -10,3 +10,86 @@ install.sh
 PRD-1.pdf
 PRD-2.pdf
 
+
+
+....................
+# ---------- VCS & CI ----------
+.git
+.github
+.gitignore
+.gitattributes
+
+# ---------- Dependencies (installed inside the image instead) ----------
+node_modules
+**/node_modules
+.pnpm-store
+
+# ---------- Build output (rebuilt inside the image) ----------
+dist
+**/dist
+.next
+**/.next
+out
+*.tsbuildinfo
+**/*.tsbuildinfo
+
+# ---------- Backups, dumps, uploads, test data ----------
+backups
+**/backups
+uploads
+**/uploads
+test-data
+*.sql
+*.dump
+*.bak
+*.csv
+*.xlsx
+
+# ---------- Docs, reports, large artifacts ----------
+docs
+**/*.md
+!apps/**/README.md
+*.pdf
+structure.txt
+shabnam-font-v5.0.1
+render-report.mjs
+History-Agent.md
+
+# ---------- Deploy files not needed in images ----------
+deploy
+docker-compose*.yml
+install.sh
+
+# ---------- Env & secrets ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+
+# ---------- Logs & temp ----------
+logs
+*.log
+tmp
+temp
+.cache
+coverage
+
+# ---------- Agent / local tooling ----------
+.agent
+.gapgpt
+.gap
+*.jsonl
+
+# ---------- OS & editor ----------
+.DS_Store
+Thumbs.db
+.idea
+.vscode
+*.swp
+*.swo
+
+# ---------- Docker files themselves ----------
+Dockerfile*
+.dockerignore

@@ -1,0 +1,27 @@
+/* Brick-wall (آجرنما) texture for the home hero. Scoped to .home-hero-brick.
+   Staggered 2-row SVG tile (120x88px): mortar lines in dark brown, low opacity. */
+.home-hero-brick {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.home-hero-brick::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.2;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='88' viewBox='0 0 120 88'%3E%3Cg fill='%23000'%3E%3Crect x='0' y='0' width='120' height='3'/%3E%3Crect x='0' y='44' width='120' height='3'/%3E%3Crect x='0' y='0' width='3' height='44'/%3E%3Crect x='60' y='44' width='3' height='44'/%3E%3Crect x='0' y='84' width='3' height='4'/%3E%3C/g%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+.home-hero-brick::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.18) 100%);
+}

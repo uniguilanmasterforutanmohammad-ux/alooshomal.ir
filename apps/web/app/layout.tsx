@@ -6,6 +6,11 @@ import { SessionWatcher } from '@/components/ui/SessionWatcher';
 import { SITE_URL } from '@/lib/site';
 import './globals.css';
 
+import { ThemeScript } from '@/components/ui/ThemeScript';
+
+
+
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
@@ -43,8 +48,9 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="fa" dir="rtl">
+    <html lang="fa" dir="rtl" suppressHydrationWarning>
       <body>
+        <ThemeScript />
         {/* The hero text (the LCP element) is painted in Shabnam, which is
             otherwise only discovered after the render-blocking CSS arrives —
             that discovery delay was ~76% of the LCP time on throttled desktop.

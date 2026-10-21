@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import './hero-brick.css';
+import './site-bg-pattern.css';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { PulseSection } from '@/components/news/PulseSection';
@@ -79,7 +81,7 @@ export default async function HomePage() {
         {/* Full first-screen hero: on every device only the coloured
             background, the city line, the search box and its two buttons are
             visible before scrolling. */}
-        <section className="home-hero bg-brand text-white">
+        <section className="home-hero home-hero-brick bg-brand text-white">
           <div className="container-page relative z-[1] mx-auto w-full max-w-3xl py-10 text-center">
             <HomeHeadline />
             <p className="mt-5 text-xl font-extrabold leading-relaxed text-white drop-shadow-sm sm:text-2xl md:text-3xl">
@@ -150,14 +152,28 @@ export default async function HomePage() {
         <PulseSection />
 
         <section className="container-page mt-10 sm:mt-16">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {features.map((feature) => (
-              <div key={feature.title} className="indeed-panel p-5">
-                <feature.icon className="size-7 text-brand" aria-hidden />
-                <h2 className="mt-3 text-base font-extrabold text-ink">{feature.title}</h2>
-                <p className="mt-2 text-sm leading-7 text-muted">{feature.text}</p>
-              </div>
-            ))}
+          {/* لایه رنگی پشت شیشه تا افکت Liquid Glass دیده شود */}
+          <div className="relative isolate overflow-hidden rounded-3xl p-3 sm:p-6">
+            <div className="pointer-events-none absolute -top-16 -right-10 -z-10 h-72 w-72 rounded-full bg-brand/40 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-20 left-0 -z-10 h-72 w-72 rounded-full bg-amber-300/50 blur-3xl" />
+            <div className="pointer-events-none absolute top-1/2 left-1/3 -z-10 h-56 w-56 rounded-full bg-rose-300/40 blur-3xl" />
+
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {features.map((feature) => (
+                <div
+                  key={feature.title}
+                  className="group relative overflow-hidden rounded-3xl border border-white/50 bg-white/25 p-6 text-ink backdrop-blur-xl backdrop-saturate-150 shadow-[0_8px_32px_rgba(31,38,135,0.15),inset_0_1px_1px_rgba(255,255,255,0.7),inset_0_-1px_1px_rgba(255,255,255,0.2)] transition duration-500 hover:-translate-y-1 hover:bg-white/35 hover:shadow-[0_20px_50px_rgba(31,38,135,0.22),inset_0_1px_1px_rgba(255,255,255,0.8)]"
+                >
+                  {/* بازتاب نور روی سطح شیشه */}
+                  <div className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/40 to-transparent opacity-70" />
+                  <span className="relative flex size-12 items-center justify-center rounded-2xl border border-white/60 bg-white/50 text-brand shadow-inner backdrop-blur-md transition group-hover:scale-110">
+                    <feature.icon className="size-6" aria-hidden />
+                  </span>
+                  <h2 className="relative mt-4 text-base font-extrabold">{feature.title}</h2>
+                  <p className="relative mt-2 text-sm leading-7 text-ink/70">{feature.text}</p>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { IdCard, LayoutDashboard, LogIn } from 'lucide-react';
 
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useAuth } from '@/lib/auth';
 import { PUBLIC_NAV } from '@/lib/nav';
 
@@ -22,7 +23,7 @@ export function Header() {
   const signedIn = hydrated && Boolean(token);
 
   return (
-    <header className="sticky top-0 z-50 hidden border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[#fbf3e9]/95 backdrop-blur lg:block">
+    <header className="sticky top-0 z-50 hidden border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[#fbf3e9]/95 whitespace-nowrap backdrop-blur lg:block">
       <div className="container-page flex h-16 items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 text-xl font-extrabold text-brand">
           <span className="vintage-avatar flex size-9 items-center justify-center">
@@ -49,6 +50,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle />
           <Link
             href={signedIn ? '/dashboard' : '/login'}
             className="indeed-btn indeed-btn-secondary"

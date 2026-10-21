@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { cn } from '@/lib/utils';
 
 interface Item {
@@ -54,7 +55,7 @@ export function MobileNav() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-label="ناوبری پایین"
     >
-      <ul className="grid grid-cols-6">
+      <ul className="grid grid-cols-7">
         {items.map((item) => {
           const active = item.exact
             ? pathname === item.href
@@ -79,6 +80,9 @@ export function MobileNav() {
             </li>
           );
         })}
+        <li className="flex items-center justify-center">
+          <ThemeToggle />
+        </li>
       </ul>
     </nav>
   );

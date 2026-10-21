@@ -1,5 +1,5 @@
 /**
- * Application version — single source of truth.
+ * Application version â€” single source of truth.
  *
  * Semantic versioning (`vMAJOR.MINOR.PATCH`), bumped automatically by the
  * agent after each completed & tested change:
