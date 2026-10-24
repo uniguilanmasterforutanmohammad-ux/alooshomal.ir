@@ -23,6 +23,31 @@
 
 ---
 
+## شکست `next build` پروداکشن هنگام prerender صفحات `/feeds` و `/_global-error` — وضعیت: معوق
+
+- **تاریخ:** ۱۴۰۵/۰۸/۰۲
+- **زمینه/مشکل:** هنگام کار روی تسک ارتقای امنیتی Next.js، اجرای `next build` در
+  کانتینر توسعه با خطای
+  `TypeError: Cannot read properties of null (reading 'useState')` روی
+  `components/ui/OfflineBanner.tsx` و همچنین `reading 'useContext'` روی
+  `/_global-error` شکست خورد (و هشدار «unique key prop» برای `<html>/<head>`).
+  این خطا با کد دست‌نخورده‌ی `HEAD`، با Next 16.4.3 و React 19.1.10/19.2.6/19.3.0،
+  هم با Turbopack و هم با `--webpack`، و در یک volume نصب‌شده‌ی تازه بازتولید شد؛
+  یعنی **پیش‌موجود و نامرتبط با تغییرات اخیر** است.
+- **راه‌حل پیشنهادی:** بررسی ناسازگاری نسخه‌ی React با موتور prerender نکست ۱۶
+  (احتمالاً به‌دلیل نبود lockfile و حل‌شدن نسخه‌های ناسازگار)، افزودن
+  `package-lock.json`/پین‌کردن React به نسخه‌ای که با Next 16 تست شده، و/یا
+  خارج‌کردن `OfflineBanner`/`_global-error` از مسیر prerender ایستا. سپس تأیید با
+  `npm run build` در CI.
+- **دلیل تعویق:** مربوط به تسک جاری نبود و خارج از دامنه‌ی درخواست کاربر است؛
+  تغییر وابستگی‌ها ریسک اسکوپ‌کریپ دارد و باید جداگانه و با تست کامل انجام شود.
+- **اثر/فوریت:** متوسط — بیلد پروداکشن/استقرار (`.github/workflows/deploy.yml`)
+  می‌تواند تحت تأثیر قرار بگیرد؛ محیط توسعه سالم است.
+- **مرجع:** `apps/web/components/ui/OfflineBanner.tsx`، ورودی `v2.88.1` در
+  `History-Agent.md`، خروجی `next build` در کانتینر `alooshomal-web`.
+
+---
+
 ## پاک‌سازی CSS بی‌استفاده‌ی تم‌های بیولینک/کارت‌ویزیت — وضعیت: معوق
 
 - **تاریخ:** ۱۴۰۵/۰۷/۲۸
