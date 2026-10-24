@@ -172,6 +172,11 @@ export class NewsService {
    *   - ANY_ACTIVE_USER → any active logged-in user
    */
   private async assertCanPublish(userId: string) {
+    // Admin off-switch for the whole «نبض شهر» filing feature.
+    await this.settings.assertFeatureEnabled(
+      'featureNews',
+      'ثبت خبر در «نبض شهر» موقتاً توسط مدیر غیرفعال شده است.',
+    );
     const level = await this.settings.getNewsAccessLevel();
     if (level === 'ANY_ACTIVE_USER') return;
     const user = await this.prisma.user.findUnique({

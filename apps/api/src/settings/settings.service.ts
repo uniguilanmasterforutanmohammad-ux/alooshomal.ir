@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { ForbiddenException, Injectable, OnModuleInit } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -130,6 +130,90 @@ export interface CreationLocks {
 }
 
 // ---------------------------------------------------------------------------
+//  Unified user-facing feature switches («کلیدهای ویژگی»)
+// ---------------------------------------------------------------------------
+
+/**
+ * One admin-controllable, user-facing feature switch.
+ *
+ * IMPORTANT — permanent rule (see `AGENTS.md`, «قانون ۹»): every user-facing
+ * capability that a visitor/registered user can trigger must have an entry in
+ * `FEATURE_FLAGS` so the admin can enable/disable it from the single
+ * «ویژگی‌ها و دسترسی‌ها» panel. When you add a new such feature, add its flag
+ * here (and call `isFeatureEnabled` at its server-side entry point) in the same
+ * change — otherwise the feature would ship without an admin off-switch.
+ *
+ * Exemptions (always on, never gated): support tickets and all ways to contact
+ * the admin/support team.
+ */
+export interface FeatureFlag {
+  /** the `Setting.key` this flag is stored under (also its wire id). */
+  key: string;
+  /** admin-panel label (Persian). */
+  label: string;
+  /** one-line explanation shown under the label. */
+  description: string;
+  /** grouping header in the admin panel. */
+  group: string;
+  /** value used when the admin never touched this switch. */
+  default: boolean;
+}
+
+export const FEATURE_FLAGS: FeatureFlag[] = [
+  {
+    key: ALLOW_BIOLINK_CREATION_KEY,
+    label: 'ساخت بیولینک توسط کاربران',
+    description: 'اگر خاموش باشد، کاربران نمی‌توانند بیولینک جدید بسازند.',
+    group: 'ساخت محتوا',
+    default: true,
+  },
+  {
+    key: ALLOW_CARD_CREATION_KEY,
+    label: 'ساخت کارت ویزیت توسط کاربران',
+    description: 'اگر خاموش باشد، کاربران نمی‌توانند کارت ویزیت جدید بسازند.',
+    group: 'ساخت محتوا',
+    default: true,
+  },
+  {
+    key: 'featureFeedPosts',
+    label: 'پست کاربران (فید)',
+    description: 'اگر خاموش باشد، کاربران نمی‌توانند پست تازه منتشر کنند.',
+    group: 'ساخت محتوا',
+    default: true,
+  },
+  {
+    key: 'featureNews',
+    label: 'خبر شهروند خبرنگار (نبض شهر)',
+    description: 'اگر خاموش باشد، ثبت خبر جدید در «نبض شهر» ممکن نیست.',
+    group: 'ساخت محتوا',
+    default: true,
+  },
+  {
+    key: 'featureBoostRequests',
+    label: 'درخواست پله (ارتقای جایگاه)',
+    description: 'اگر خاموش باشد، کاربران نمی‌توانند درخواست پله ثبت کنند.',
+    group: 'بازاریابی و تبلیغات',
+    default: true,
+  },
+  {
+    key: 'featureAdRequests',
+    label: 'درخواست تبلیغ (صفحه‌ی اصلی)',
+    description: 'اگر خاموش باشد، ثبت درخواست تبلیغ برای جعبه‌ی تبلیغ صفحه‌ی اصلی ممکن نیست.',
+    group: 'بازاریابی و تبلیغات',
+    default: true,
+  },
+  {
+    key: 'featureAdDirectoryRequests',
+    label: 'درخواست تبلیغ در صدر دایرکتوری',
+    description: 'اگر خاموش باشد، ثبت تبلیغ هدفمند در صدر لیست دایرکتوری ممکن نیست.',
+    group: 'بازاریابی و تبلیغات',
+    default: true,
+  },
+];
+
+export const FEATURE_FLAG_KEYS = FEATURE_FLAGS.map((flag) => flag.key);
+
+// ---------------------------------------------------------------------------
 //  Authentication settings
 // ---------------------------------------------------------------------------
 
@@ -234,6 +318,16 @@ export class SettingsService implements OnModuleInit {
         update: {},
         create: { key: ALLOW_CARD_CREATION_KEY, value: 'true' },
       }),
+      // Seed every unified feature switch from its declared default (the two
+      // creation locks above are already part of `FEATURE_FLAGS`, so these
+      // upserts simply no-op for them).
+      ...FEATURE_FLAGS.map((flag) =>
+        this.prisma.setting.upsert({
+          where: { key: flag.key },
+          update: {},
+          create: { key: flag.key, value: flag.default ? 'true' : 'false' },
+        }),
+      ),
       this.prisma.setting.upsert({
         where: { key: NEWS_HEADLINE_COUNT_KEY },
         update: {},
@@ -538,6 +632,69 @@ export class SettingsService implements OnModuleInit {
     }
     await Promise.all(writes);
     return this.getCreationLocks();
+  }
+
+  // ---- unified feature switches ----
+
+  /**
+   * Read every user-facing feature switch as a `{ [key]: boolean }` bag.
+   * A missing row falls back to the flag's declared default.
+   */
+  async getFeatureFlags(): Promise<Record<string, boolean>> {
+    const rows = await this.prisma.setting.findMany({
+      where: { key: { in: FEATURE_FLAG_KEYS } },
+    });
+    const byKey = new Map(rows.map((row) => [row.key, row.value]));
+    const values: Record<string, boolean> = {};
+    for (const flag of FEATURE_FLAGS) {
+      values[flag.key] = byKey.has(flag.key)
+        ? byKey.get(flag.key) !== 'false'
+        : flag.default;
+    }
+    return values;
+  }
+
+  /** Whether one user-facing feature is currently enabled (default per flag). */
+  async isFeatureEnabled(key: string): Promise<boolean> {
+    const flag = FEATURE_FLAGS.find((entry) => entry.key === key);
+    const fallback = flag?.default ?? true;
+    const row = await this.prisma.setting.findUnique({ where: { key } });
+    return row ? row.value !== 'false' : fallback;
+  }
+
+  /**
+   * Persist any subset of the feature switches. Unknown keys are ignored so a
+   * stray payload can never create arbitrary settings rows.
+   */
+  async setFeatureFlags(
+    flags: Record<string, boolean | undefined>,
+  ): Promise<Record<string, boolean>> {
+    const writes: Promise<unknown>[] = [];
+    for (const flag of FEATURE_FLAGS) {
+      const value = flags[flag.key];
+      if (value === undefined) continue;
+      writes.push(
+        this.prisma.setting.upsert({
+          where: { key: flag.key },
+          update: { value: value ? 'true' : 'false' },
+          create: { key: flag.key, value: value ? 'true' : 'false' },
+        }),
+      );
+    }
+    await Promise.all(writes);
+    return this.getFeatureFlags();
+  }
+
+  /**
+   * Throw a friendly 403 when a user-facing feature has been switched off.
+   * Feature services call this at their server-side entry points so a disabled
+   * feature is blocked even if a client bypasses the hidden UI.
+   */
+  async assertFeatureEnabled(key: string, message?: string): Promise<void> {
+    if (await this.isFeatureEnabled(key)) return;
+    throw new ForbiddenException(
+      message ?? 'این قابلیت موقتاً توسط مدیر غیرفعال شده است. لطفاً بعداً تلاش کنید.',
+    );
   }
 
   // ---- «نبض شهر» settings ----

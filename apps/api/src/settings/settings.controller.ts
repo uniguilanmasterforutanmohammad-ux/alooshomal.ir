@@ -11,6 +11,7 @@ import {
   AdminNotifyCategory,
   DIRECTORY_DISPLAY_MODES,
   DirectoryDisplayMode,
+  FEATURE_FLAGS,
   NEWS_ACCESS_LEVELS,
   NewsAccessLevel,
   SettingsService,
@@ -52,6 +53,13 @@ class UpdateSettingsDto {
   @IsOptional()
   @IsBoolean()
   allowBusinessCardCreation?: boolean;
+
+  /**
+   * Unified user-facing feature switches, keyed by the flag's `key`
+   * (see `FEATURE_FLAGS`). Unknown keys are ignored server-side.
+   */
+  @IsOptional()
+  features?: Record<string, boolean>;
 
   @IsOptional()
   @Type(() => Number)
@@ -169,6 +177,7 @@ export class SettingsController {
       emailLoginEnabled: await this.settingsService.getEmailLoginEnabled(),
       feedMaxImages: await this.settingsService.getFeedMaxImages(),
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
+      features: await this.settingsService.getFeatureFlags(),
       ...locks,
     };
   }
@@ -210,6 +219,9 @@ export class AdminSettingsController {
       pointsPerNews: await this.settingsService.getPointsPerNews(),
       feedMaxImages: await this.settingsService.getFeedMaxImages(),
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
+      features: await this.settingsService.getFeatureFlags(),
+      // The registry drives the single admin panel (labels/groups/defaults).
+      featureFlags: FEATURE_FLAGS,
       ...locks,
     };
   }
@@ -225,6 +237,7 @@ export class AdminSettingsController {
       adminNotifications?: Record<AdminNotifyCategory, boolean>;
       allowBiolinkCreation?: boolean;
       allowBusinessCardCreation?: boolean;
+      features?: Record<string, boolean>;
       newsHeadlineCount?: number;
       newsAccessLevel?: NewsAccessLevel;
       phoneLoginEnabled?: boolean;
@@ -282,6 +295,15 @@ export class AdminSettingsController {
       });
       result.allowBiolinkCreation = locks.allowBiolinkCreation;
       result.allowBusinessCardCreation = locks.allowBusinessCardCreation;
+    }
+    if (dto.features !== undefined) {
+      // A single bag for every user-facing feature switch; unknown keys are
+      // dropped inside the service, and the two creation locks stay mirrored
+      // into their dedicated fields for backward compatibility.
+      const flags = await this.settingsService.setFeatureFlags(dto.features);
+      result.features = flags;
+      result.allowBiolinkCreation = flags.allowBiolinkCreation;
+      result.allowBusinessCardCreation = flags.allowBusinessCardCreation;
     }
     if (dto.newsHeadlineCount !== undefined) {
       result.newsHeadlineCount = await this.settingsService.setNewsHeadlineCount(

@@ -623,6 +623,11 @@ export class FeedsService implements OnModuleInit {
 
   /** Create a feed post (enters the moderation queue). */
   async createPost(userId: string, dto: CreateFeedPostDto) {
+    // Admin off-switch for the whole «پست کاربران» feature.
+    await this.settings.assertFeatureEnabled(
+      'featureFeedPosts',
+      'انتشار پست توسط کاربران موقتاً توسط مدیر غیرفعال شده است.',
+    );
     const maxImages = await this.settings.getFeedMaxImages();
     if (dto.images.length > maxImages) {
       throw new BadRequestException(

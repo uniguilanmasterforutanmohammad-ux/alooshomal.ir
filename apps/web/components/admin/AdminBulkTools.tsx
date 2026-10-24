@@ -1,10 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Download, FlaskConical, Lock, Trash2, Unlock, Upload } from 'lucide-react';
+import { Download, FlaskConical, Lock, Trash2, Upload } from 'lucide-react';
 
 import { api } from '@/lib/api';
-import { cn } from '@/lib/utils';
 
 interface Counts {
   biolinks: number;
@@ -16,11 +15,6 @@ interface ImportResult {
   imported: number;
   skipped: number;
   errors: string[];
-}
-
-interface SettingsPayload {
-  allowBiolinkCreation: boolean;
-  allowBusinessCardCreation: boolean;
 }
 
 interface UserOption {
@@ -43,7 +37,6 @@ function toFa(value: number) {
  */
 export function AdminBulkTools() {
   const [counts, setCounts] = useState<Counts | null>(null);
-  const [locks, setLocks] = useState<SettingsPayload | null>(null);
   const [users, setUsers] = useState<UserOption[]>([]);
   const [ownerId, setOwnerId] = useState('');
   const [kind, setKind] = useState<Kind>('BIOLINK');
@@ -54,16 +47,11 @@ export function AdminBulkTools() {
 
   const load = useCallback(async () => {
     try {
-      const [c, s, u] = await Promise.all([
+      const [c, u] = await Promise.all([
         api.get<Counts>('/admin/bulk/counts'),
-        api.get<SettingsPayload>('/admin/settings'),
         api.get<{ items: UserOption[] }>('/admin/users?limit=100'),
       ]);
       setCounts(c);
-      setLocks({
-        allowBiolinkCreation: s.allowBiolinkCreation,
-        allowBusinessCardCreation: s.allowBusinessCardCreation,
-      });
       setUsers(u.items);
       setOwnerId((prev) => prev || u.items[0]?.id || '');
     } catch (err) {
@@ -74,29 +62,6 @@ export function AdminBulkTools() {
   useEffect(() => {
     void load();
   }, [load]);
-
-  async function toggleLock(key: keyof SettingsPayload) {
-    if (!locks) return;
-    const next = { ...locks, [key]: !locks[key] };
-    setLocks(next);
-    setBusy(true);
-    setError(null);
-    try {
-      const saved = await api.patch<SettingsPayload>('/admin/settings', {
-        [key]: next[key],
-      });
-      setLocks({
-        allowBiolinkCreation: saved.allowBiolinkCreation,
-        allowBusinessCardCreation: saved.allowBusinessCardCreation,
-      });
-      setMessage('وضعیت قفل ساخت ذخیره شد.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ذخیره ناموفق بود');
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function upload() {
     const file = fileRef.current?.files?.[0];
@@ -176,58 +141,10 @@ export function AdminBulkTools() {
           <h3 className="text-sm font-extrabold text-ink">قفل ساخت (حالت تست)</h3>
         </div>
         <p className="mt-1 text-xs text-muted">
-          در حین تست با هزاران ردیف ایمپورت‌شده، ساخت واقعی را خاموش کنید تا کارت یک کاربر
-          واقعی بین داده‌های تستی گم نشود.
+          برای خاموش/روشن کردن ساخت بیولینک و کارت ویزیت در حین تست، از بخش
+          «تنظیمات ← ویژگی‌ها و دسترسی‌ها» استفاده کنید؛ همه‌ی ویژگی‌های کاربران در همان
+          یک بخش متمرکز شده‌اند.
         </p>
-        {locks ? (
-          <div className="mt-4 flex flex-col divide-y divide-dashed divide-[var(--vintage-border)]">
-            {(
-              [
-                ['allowBiolinkCreation', 'ساخت بیولینک توسط کاربران'],
-                ['allowBusinessCardCreation', 'ساخت کارت ویزیت توسط کاربران'],
-              ] as Array<[keyof SettingsPayload, string]>
-            ).map(([key, label]) => {
-              const enabled = locks[key];
-              return (
-                <label
-                  key={key}
-                  className="flex cursor-pointer items-center justify-between gap-3 py-2.5"
-                >
-                  <span className="flex items-center gap-2 text-sm font-bold text-ink">
-                    {enabled ? (
-                      <Unlock className="size-4 text-emerald-600" aria-hidden />
-                    ) : (
-                      <Lock className="size-4 text-red-500" aria-hidden />
-                    )}
-                    {label}
-                  </span>
-                  <button
-                    type="button"
-                    role="switch"
-                    aria-checked={enabled}
-                    onClick={() => void toggleLock(key)}
-                    disabled={busy}
-                    className={cn(
-                      'relative h-6 w-11 shrink-0 rounded-full border transition disabled:opacity-60',
-                      enabled
-                        ? 'border-brand bg-brand'
-                        : 'border-[var(--vintage-border)] bg-white',
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'absolute top-0.5 size-4.5 rounded-full bg-white shadow transition-all',
-                        enabled ? 'start-0.5' : 'start-5.5',
-                      )}
-                    />
-                  </button>
-                </label>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="mt-3 text-sm text-muted">در حال بارگذاری...</p>
-        )}
       </div>
 
       <div className="indeed-panel p-5">

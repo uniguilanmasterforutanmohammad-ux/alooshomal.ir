@@ -11,6 +11,7 @@ import { BusinessCardStatusBadge } from '@/components/businesscard/BusinessCardS
 import { TaxonomyManager } from '@/components/admin/TaxonomyManager';
 import { AdminDirectorySettings } from '@/components/admin/AdminDirectorySettings';
 import { AdminAuthSettings } from '@/components/admin/AdminAuthSettings';
+import { AdminFeatureFlags } from '@/components/admin/AdminFeatureFlags';
 import { AdminSubscriptions } from '@/components/admin/AdminSubscriptions';
 import { AdminBoosts } from '@/components/admin/AdminBoosts';
 import { AdminAds } from '@/components/admin/AdminAds';
@@ -528,7 +529,10 @@ function AdminContent() {
       title: 'اعلانات',
       sub: 'تاریخچه‌ی کامل اعلانات مدیران',
     },
-    settings: { title: 'تنظیمات', sub: 'شهرها، کسب‌وکارها و نمایش دایرکتوری' },
+    settings: {
+      title: 'تنظیمات',
+      sub: 'ویژگی‌ها و دسترسی‌ها، شهرها، کسب‌وکارها و نمایش دایرکتوری',
+    },
   };
 
   return (
@@ -849,6 +853,7 @@ function AdminContent() {
 
       {section === 'settings' ? (
         <div className="grid gap-4 lg:grid-cols-2">
+          <AdminFeatureFlags />
           <AdminDirectorySettings />
           <AdminAuthSettings />
           <AdminNotificationSettings />

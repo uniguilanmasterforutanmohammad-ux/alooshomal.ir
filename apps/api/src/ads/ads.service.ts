@@ -208,13 +208,23 @@ export class AdsService {
 
   /** Create a pending ad request for one of the user's own published items. */
   async create(userId: string, dto: CreateAdDto) {
+    // Two separate admin switches: the home-page ad box and the paid
+    // «تبلیغ در دایرکتوری» (top of the directory list).
+    const placement = dto.placement ?? AdPlacement.HOME;
+    await this.settings.assertFeatureEnabled(
+      placement === AdPlacement.DIRECTORY
+        ? 'featureAdDirectoryRequests'
+        : 'featureAdRequests',
+      placement === AdPlacement.DIRECTORY
+        ? 'ثبت تبلیغ در صدر دایرکتوری موقتاً توسط مدیر غیرفعال شده است.'
+        : 'ثبت درخواست تبلیغ موقتاً توسط مدیر غیرفعال شده است.',
+    );
     const target = await this.findOwnedTarget(userId, dto.kind, dto.targetId);
     if (!target.isPublished) {
       throw new BadRequestException(
         'برای ثبت تبلیغ، کارت/بیولینک باید تأیید و منتشر شده باشد',
       );
     }
-    const placement = dto.placement ?? AdPlacement.HOME;
 
     const existing = await this.prisma.adRequest.findFirst({
       where: {

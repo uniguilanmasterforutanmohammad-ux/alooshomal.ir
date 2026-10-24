@@ -20,7 +20,48 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.89.16**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.90.0**.
+
+## ۱۴۰۵/۰۸/۰۲ — پنل یکتای فعال/غیرفعال‌سازی ویژگی‌ها در بنل ادمین — نسخه `v2.90.0`
+
+**هدف:** کاربر خواست همه‌ی قابلیت‌های کاربران — فعلی و آینده — از یک بخش واحد در بنل
+ادمین فعال/غیرفعال شوند (پست کاربران، اخبار، ساخت کارت ویزیت، ساخت بیولینک، درخواست
+پله، درخواست تبلیغ، تبلیغ صدر دایرکتوری و هر ویژگی بعدی)، به‌جز تیکت و راه‌های تماس با
+پشتیبان که همیشه فعال می‌مانند. سازوکار قبلی پراکنده بود (قفل ساخت فقط داخل «ابزار تست»).
+
+**تغییرات:**
+- `apps/api/src/settings/settings.service.ts`: رجیستری یکتای `FEATURE_FLAGS`
+  (کلید/برچسب/گروه/توضیح/پیش‌فرض) + `getFeatureFlags`/`isFeatureEnabled`/
+  `setFeatureFlags`/`assertFeatureEnabled`؛ seed خودکار پیش‌فرض‌ها در `ensureDefaults`.
+- `apps/api/src/settings/settings.controller.ts`: افزودن `features` به `GET /settings/public`
+  و `GET/PATCH /admin/settings`، افزودن `featureFlags` (رجیستری) به پاسخ ادمین برای
+  ساختن پنل، و فیلد `features` در `UpdateSettingsDto`.
+- `apps/api/src/feeds/feeds.service.ts`: گیت `featureFeedPosts` در `createPost`.
+- `apps/api/src/news/news.service.ts`: گیت `featureNews` در `assertCanPublish`.
+- `apps/api/src/boosts/boosts.service.ts`: گیت `featureBoostRequests` در `create`.
+- `apps/api/src/ads/ads.service.ts`: گیت `featureAdRequests`/`featureAdDirectoryRequests`
+  بر اساس `placement` در `create`.
+- `apps/web/components/admin/AdminFeatureFlags.tsx` (فایل نو): پنل «ویژگی‌ها و دسترسی‌ها»
+  که از رجیستری پر می‌شود؛ سوئیچ هر ویژگی با ذخیره‌ی آنی و rollback در خطا.
+- `apps/web/app/admin/page.tsx`: افزودن پنل به بخش «تنظیمات» و به‌روزرسانی زیرعنوان.
+- `apps/web/components/admin/AdminBulkTools.tsx`: حذف پنل تکراری «قفل ساخت» و ارجاع به
+  بخش متمرکز ویژگی‌ها (کد و ایمپورت‌های بی‌استفاده پاک شد).
+- `AGENTS.md`: افزودن «قانون ۹» — پس از افزودن هر ویژگی کاربری جدید، همان لحظه باید
+  سوئیچ فعال/غیرفعال آن به `FEATURE_FLAGS` و پنل ادمین اضافه شود (با استثنای تیکت/پشتیبان).
+
+**تأیید/تست:**
+- `python3 scripts/check_api_docs.py` → exit 0 (۲۲ کنترلر، ۲۱۴ مسیر، همه با `@ApiOperation`).
+- تایپ‌چک API و وب → `TSC=0` هر دو.
+- `GET /api/settings/public` → `features` شامل هر ۷ سوئیچ.
+- `GET /api/admin/settings` (با توکن ادمین) → `features` + `featureFlags` با دو گروه.
+- `PATCH /api/admin/settings {features:{featureBoostRequests:false}}` → مقدار در پاسخ،
+  در `/settings/public` و در پاسخ ادمین منعکس شد.
+- اجرای گیت سمت سرور: `POST /api/biolinks` با قفل → ۴۰۳؛ `POST /api/boosts/request` →
+  ۴۰۳؛ `POST /api/ads/request` با `placement=DIRECTORY` → ۴۰۳ و با `HOME` → رد شدن در
+  مرحله‌ی هدف (یعنی گیت درست عمل می‌کند). سپس همه‌ی سوئیچ‌ها به `true` بازگردانده شدند.
+- Playwright روی `/admin?section=settings`: پنل با ۷ سوئیچ دیده شد، toggle مقدار را
+  ذخیره کرد و پیام «وضعیت ویژگی ذخیره شد.» نمایش داده شد؛ بخش «ابزار تست» به پنل
+  متمرکز ارجاع می‌دهد.
 
 ## ۱۴۰۵/۰۸/۰۲ — هم‌سان‌سازی اطلاعات حالت «کاشی» با «دفترچه تلفن» + کارت‌های با اندازه‌ی ثابت — نسخه `v2.89.16`
 

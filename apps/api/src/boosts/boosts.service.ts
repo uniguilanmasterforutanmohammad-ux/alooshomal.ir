@@ -331,6 +331,11 @@ export class BoostsService {
   }
 
   async create(userId: string, dto: CreateBoostDto) {
+    // Admin off-switch for the whole «پله» request feature.
+    await this.settings.assertFeatureEnabled(
+      'featureBoostRequests',
+      'ثبت درخواست پله موقتاً توسط مدیر غیرفعال شده است.',
+    );
     const target = await this.findOwnedTarget(userId, dto.kind, dto.targetId);
     if (target.status !== 'APPROVED' || !target.isPublished) {
       throw new BadRequestException(
