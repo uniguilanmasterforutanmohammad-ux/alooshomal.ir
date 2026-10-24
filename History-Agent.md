@@ -20,7 +20,57 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.88.3**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.88.4**.
+
+## ۱۴۰۵/۰۸/۰۲ — بازطراحی رفتار دفترچه تلفن: صفحه‌بندی/اسکرول بی‌نهایت، مرتب‌سازی، دو شماره و تب ذخیره‌ها — نسخه `v2.88.4`
+
+**هدف:** اعمال بازخورد کاربر روی `/phonebook`: حذف لوگو (فقط حرف اول نام)،
+مرتب‌سازی پیش‌فرض الفبایی + جدیدترین، آیکون ذخیره (Bookmark) به‌جای ستاره، نمایش
+هم‌زمان همراه و ثابت، حذف عنوان/متن‌های اضافه، صفحه‌ی بدون اسکرول با دفترچه‌ی
+اسکرول بی‌نهایت ۱۰تایی، و بازطراحی تب «ذخیره‌های من» با نمایش کامل مخاطب.
+
+**تغییرات:**
+- `apps/api/src/businesscards/dto/public-phonebook-query.dto.ts` (جدید): DTO با
+  `page`/`limit` (از `PaginationDto`) + `sort` (`alpha` پیش‌فرض / `recent`) + `q`.
+- `apps/api/src/businesscards/business-cards.service.ts`: `findPublicPhonebook` از
+  «همه در یک درخواست» به صفحه‌بندی‌شده تغییر کرد؛ فیلتر جستجو و مرتب‌سازی الفبایی با
+  `Intl.Collator('fa')` (چون collation دیتابیس `en_US.utf8` است و ترتیب فارسی را
+  درست نمی‌دهد) و `recent` بر اساس `pinnedAt`. صفحه‌بندی با `getDirectoryPageSize`
+  (پیش‌فرض ۱۰) و خروجی `{ items, meta }`.
+- `apps/api/src/businesscards/business-cards.controller.ts`: مسیر
+  `GET /business-cards/public/phonebook` حالا `PublicPhonebookQueryDto` می‌گیرد و
+  `@ApiOperation` آن به‌روز شد.
+- `apps/web/lib/directory-server.ts`: `fetchPhonebook()` به
+  `fetchDirectory(...)` صفحه‌بندی‌شده تغییر کرد (صفحه‌ی اول SSR).
+- `apps/web/app/phonebook/page.tsx`: `initialData` صفحه‌بندی‌شده به کلاینت؛ حذف
+  `Footer` تا پوسته دقیقاً viewport را پر کند.
+- `apps/web/app/phonebook/PhonebookNotebook.tsx`: بازنویسی روی
+  `useDirectoryResults` + `useInfiniteScroll` (مثل سایر دایرکتوری‌ها)؛ حذف کامل
+  `<img>` لوگو (فقط حرف اول)، نمایش هم‌زمان «همراه» و «ثابت»، دو سوییچ pill برای
+  نما و ترتیب، آیکون `Bookmark` به‌جای ستاره، و تب «ذخیره‌های من» که کل ردیف را در
+  `localStorage` نگه می‌دارد و کامل نمایش می‌دهد (به‌همراه «پاک‌کردن همه»).
+- `apps/web/app/phonebook/phonebook.css`: بازنویسی استایل روی الگوی full-height
+  `.directory-shell`؛ بدنه‌ی دفترچه تنها ناحیه‌ی اسکرول است؛ حذف متن hero.
+- `docs/API.md`: به‌روزرسانی قرارداد مسیر دفترچه تلفن (صفحه‌بندی/`sort`/`q`).
+- `apps/web/lib/version.ts`: نسخه به `v2.88.4`. `install.sh`: همگام‌سازی.
+
+**تأیید/تست:**
+- `tsc --noEmit` روی وب و API → هر دو exit 0.
+- `python3 scripts/check_api_docs.py` → exit 0 (۲۲ کنترلر / ۲۱۴ مسیر) و `docs-json`
+  مسیر `/business-cards/public/phonebook` را با پارامترهای `page`/`limit`/`q`/`sort`
+  نشان می‌دهد.
+- تست curl: `sort=alpha` ترتیب فارسی درست (آرش، سارا، علی، محسن، محمد…)؛
+  `sort=recent` بر اساس `publishedAt` نزولی؛ `q=محمد` → ۳ نتیجه؛ `q=۰۹۱۲` با ارقام
+  فارسی → ۲ نتیجه.
+- تست Playwright روی `/phonebook`: بدون `<img>` لوگو؛ صفحه اسکرول ندارد
+  (`pageScroll=0`) و فقط `.pb-list` اسکرول دارد؛ ردیف‌ها هر دو شماره را نشان می‌دهند؛
+  آیکون `lucide-bookmark`؛ سوییچ مرتب‌سازی ترتیب را عوض می‌کند؛ ذخیره‌ی ۳ مخاطب در
+  تب «ذخیره‌های من» کامل رندر می‌شود و پس از reload می‌ماند؛ صفر خطای کنسول.
+- تست اسکرول بی‌نهایت با تنظیم موقت `directoryPageSize=3` روی ۷ مخاطب: صفحه‌های ۲ و
+  ۳ خودکار واکشی شدند (`?sort=alpha&page=2` و `page=3`) و «همه نتایج نمایش داده شد»
+  نمایش داده شد؛ سپس تنظیم به پیش‌فرض (۱۰) بازگردانده شد.
+- ریسپانسیو ۳۹۰/۷۶۸ + دارک‌مود: صفر سرریز افقی و صفر عنصر بیرون‌زده.
+- بیلد پروداکشن جداسازی‌شده: «Compiled successfully» و prerender موفق `/phonebook`.
 
 ## ۱۴۰۵/۰۸/۰۲ — بازطراحی رابط کاربری صفحه‌ی «دفترچه تلفن» — نسخه `v2.88.3`
 

@@ -65,7 +65,7 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 
 | متد | مسیر | توضیح |
 | --- | --- | --- |
-| `GET` | `/business-cards/public/phonebook` | فهرست تخت تماس کارت‌ویزیت‌های منتشرشده‌ای که شماره دارند (بدون صفحه‌بندی؛ سقف ۲۰۰۰ ردیف). |
+| `GET` | `/business-cards/public/phonebook` | فهرست صفحه‌بندی‌شده‌ی تماس کارت‌ویزیت‌های منتشرشده‌ای که شماره دارند. پارامترهای `page`/`limit` (مشترک با `PaginationDto`) و `sort` (`alpha` پیش‌فرض / `recent`) را می‌پذیرد؛ `q` جستجو در نام/شغل/شرکت/شماره است. مرتب‌سازی الفبایی با collation فارسی در سرور انجام می‌شود (سقف ۲۰۰۰ ردیف نامزد). |
 | `GET` | `/business-cards/public/:slug` | جزئیات کامل هر مخاطب (مقصد لینک «مشاهدهٔ کارت ویزیت کامل»). |
 
 ### بررسی سریع کامل‌بودن

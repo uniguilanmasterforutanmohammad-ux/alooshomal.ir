@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 
 import { PhonebookNotebook } from './PhonebookNotebook';
 import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
 import { fetchPhonebook } from '@/lib/directory-server';
 import './phonebook.css';
 
@@ -21,20 +20,20 @@ export const metadata: Metadata = {
 };
 
 /**
- * Public «دفترچه تلفن» page. The whole contact list is fetched server-side so
- * the first paint already carries the real rows (crawlable content), then the
- * client notebook takes over for search, bookmarking and page flipping.
+ * Public «دفترچه تلفن» page. The first page of contacts is fetched
+ * server-side so the first paint already carries real, crawlable rows, then
+ * the client notebook takes over and keeps infinite-scrolling the list.
  */
 export default async function PhonebookPage() {
-  const entries = await fetchPhonebook();
+  const initialData = await fetchPhonebook({ sort: 'alpha' });
 
   return (
     <>
       <Header />
-      <main>
-        <PhonebookNotebook initialEntries={entries} />
-      </main>
-      <Footer />
+      {/* The footer is intentionally omitted so the notebook shell can fill the
+          viewport exactly and only the contact list scrolls (see
+          `.directory-shell` in globals.css). */}
+      <PhonebookNotebook initialData={initialData} />
     </>
   );
 }

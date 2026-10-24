@@ -21,6 +21,7 @@ import { SettingsService } from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { CreateBusinessCardDto } from './dto/create-business-card.dto';
 import { PublicBusinessCardQueryDto } from './dto/public-business-card-query.dto';
+import { PublicPhonebookQueryDto } from './dto/public-phonebook-query.dto';
 import { UpdateBusinessCardDto } from './dto/update-business-card.dto';
 
 /** One row of the public directory (without the per-visitor liked/saved flags). */
@@ -50,12 +51,26 @@ const DIRECTORY_CACHE_TTL_MS = (() => {
 })();
 
 /**
- * Upper bound on how many rows the public «دفترچه تلفن» returns in one payload.
- * The page groups and searches entirely on the client, so it wants the whole
- * list at once; the cap keeps a runaway directory from turning one request into
- * an unbounded transfer.
+ * Upper bound on how many rows the public «دفترچه تلفن» considers for one
+ * request. Rows are ordered in JS (Persian collation, which Postgres cannot do
+ * with the database's `en_US.utf8` collation) so the whole candidate set is
+ * pulled once and then sliced into the requested page; the cap keeps a runaway
+ * directory from turning one request into an unbounded transfer.
  */
 const PHONEBOOK_MAX_ROWS = 2_000;
+
+/**
+ * Normalizes a phonebook field for search: Persian/Arabic digits become ASCII
+ * and separators are dropped, so «۰۹۱۲ ۳۴۵» matches «0912345» regardless of
+ * which keyboard the visitor used.
+ */
+function normalizePhonebookText(value: string): string {
+  return value
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[\s-]/g, '')
+    .toLowerCase();
+}
 
 @Injectable()
 export class BusinessCardsService {
@@ -547,17 +562,28 @@ export class BusinessCardsService {
   }
 
   /**
-   * Flat contact list for the public «دفترچه تلفن» page.
+   * Paginated contact list for the public «دفترچه تلفن» page.
    *
    * Only rows that actually carry a reachable number move out of the database —
    * a phonebook entry with no phone is useless — and only the contact fields the
-   * list shows are selected, so the payload stays small even though the client
-   * receives the entire list in one shot (it searches and paginates locally).
+   * list shows are selected.
    *
-   * Like every other public projection, the owner's plan mask is applied: a
+   * Ordering is done in JS with the `fa` collation: the database's default
+   * `en_US.utf8` collation sorts Persian names by code point, which is not the
+   * alphabetical order a Persian reader expects. The candidate set (capped at
+   * `PHONEBOOK_MAX_ROWS`) is therefore read once, filtered, ordered and sliced
+   * into the requested page. `alpha` (default) sorts by name, `recent` by the
+   * newest publication; both use id as a stable tie-break.
+   *
+   * Like every other public projection the owner's plan mask is applied: a
    * free-plan card has its e-mail blanked here just as it is on its own page.
    */
-  async findPublicPhonebook() {
+  async findPublicPhonebook(query: PublicPhonebookQueryDto = new PublicPhonebookQueryDto()) {
+    const limit = await this.settings.getDirectoryPageSize();
+    const page = query.page ?? 1;
+    const sort = query.sort ?? 'alpha';
+    const needle = normalizePhonebookText(query.q ?? '');
+
     const rows = await this.prisma.businessCard.findMany({
       where: {
         status: BiolinkStatus.APPROVED,
@@ -580,6 +606,7 @@ export class BusinessCardsService {
         logoUrl: true,
         primaryColor: true,
         publishedAt: true,
+        pinnedAt: true,
         city: { select: { id: true, name: true } },
         business: { select: { id: true, name: true } },
         user: { select: { plan: true } },
@@ -587,10 +614,44 @@ export class BusinessCardsService {
       orderBy: [{ pinnedAt: 'desc' }, { id: 'desc' }],
       take: PHONEBOOK_MAX_ROWS,
     });
-    return rows.map((row) => {
+
+    const mapped = rows.map((row) => {
       const { user: _user, ...rest } = this.applyPlanVisibility(row);
       return rest;
     });
+
+    const filtered = needle
+      ? mapped.filter((row) =>
+          [row.fullName, row.jobTitle, row.company, row.phone, row.mobile]
+            .filter(Boolean)
+            .some((value) => normalizePhonebookText(String(value)).includes(needle)),
+        )
+      : mapped;
+
+    const collator = new Intl.Collator('fa');
+    const ordered =
+      sort === 'recent'
+        ? filtered
+        : [...filtered].sort(
+            (a, b) =>
+              collator.compare(a.fullName, b.fullName) || (a.id < b.id ? 1 : -1),
+          );
+
+    const total = ordered.length;
+    const start = (page - 1) * limit;
+    const items = ordered.slice(start, start + limit);
+
+    return {
+      items,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+        hasNext: start + items.length < total,
+        hasPrev: page > 1,
+      },
+    };
   }
 
   /**

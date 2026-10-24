@@ -1,117 +1,26 @@
-/* دفترچه تلفن — public /phonebook notebook.
-   Restyled to the site's vintage design language (cream paper, terracotta
-   accent, dashed frame) while keeping the ruled-paper / spiral-binding
-   identity of the reference design. Everything is scoped under `.pb-page`,
-   and all colours come from the shared tokens so dark mode works for free. */
+/* دفترچه تلفن — public /phonebook page.
+   Built on the site's vintage design tokens (cream paper, terracotta accent,
+   dashed frame) and the shared `.directory-shell` full-height pattern: the
+   page never scrolls, only the notebook body does (infinite scroll, like the
+   other public directories). Scoped under `.pb-*` classes; dark mode comes
+   from the shared tokens. */
 
-.pb-page {
-  padding-block: 40px 96px;
-}
-
-/* ---- hero heading (mirrors the other public pages) ---- */
-.pb-hero {
-  text-align: center;
-}
-
-.pb-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--vintage-border);
-  border-radius: 9999px;
-  background: var(--indeed-blue-light);
-  padding: 6px 16px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--vintage-accent);
-}
-
-.pb-title {
-  margin-top: 16px;
-  font-size: 1.875rem;
-  font-weight: 800;
-  color: var(--vintage-ink);
-  line-height: 1.4;
-}
-
-.pb-sub {
-  max-width: 42rem;
-  margin: 12px auto 0;
-  font-size: 0.875rem;
-  line-height: 1.9;
-  color: var(--vintage-ink-soft);
-}
-
-/* ---- the notebook card ---- */
-.pb-book {
-  position: relative;
-  max-width: 560px;
-  margin: 28px auto 0;
-  padding-top: 24px;
+/* ---- notebook chrome (search + view/sort switches + count) ---- */
+.pb-chrome {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px 10px;
   border: 2px dashed var(--vintage-accent-hover);
   border-radius: var(--vintage-radius);
   background: var(--vintage-surface);
-  box-shadow: 0 16px 34px rgba(92, 53, 29, 0.18);
-  overflow: hidden;
+  box-shadow: 0 10px 26px rgba(92, 53, 29, 0.1);
 }
 
-/* Spiral binding across the top edge, tinted with the brand accent. */
-.pb-book::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 22px;
-  background: radial-gradient(circle, var(--vintage-accent) 0 4px, var(--vintage-ring) 5px, transparent 6px)
-    center 4px / 26px 22px repeat-x;
-  border-bottom: 1px solid var(--vintage-border);
-}
-
-/* Ruled paper: faint accent margin line + soft rules over the cream surface. */
-.pb-paper {
-  background-color: var(--vintage-surface);
-  background-image:
-    linear-gradient(
-      90deg,
-      transparent 0 52px,
-      color-mix(in srgb, var(--vintage-accent) 55%, transparent) 52px 54px,
-      transparent 54px
-    ),
-    repeating-linear-gradient(
-      180deg,
-      transparent 0 39px,
-      color-mix(in srgb, var(--vintage-border) 70%, transparent) 39px 40px
-    );
-}
-
-.pb-head {
-  padding: 18px 22px 14px 64px;
-  border-bottom: 1px solid var(--vintage-border);
-}
-
-.pb-head-top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.pb-head h1 {
-  font-size: 1.25rem;
-  font-weight: 800;
-  color: var(--vintage-ink);
-}
-
-.pb-head-note {
-  font-size: 0.72rem;
-  color: var(--vintage-ink-soft);
-}
-
-/* ---- search ---- */
 .pb-search-wrap {
   position: relative;
   display: flex;
   align-items: center;
-  margin-top: 14px;
 }
 
 .pb-search-icon {
@@ -146,91 +55,80 @@
   box-shadow: 0 0 0 3px rgba(139, 58, 26, 0.15);
 }
 
-/* ---- view switch (same pill pattern as the directory) ---- */
-.pb-tabs {
+.pb-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* Pill switches shared by the view and the sort controls. */
+.pb-switch,
+.pb-sort {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  margin-top: 14px;
   padding: 2px;
   border: 1px solid var(--vintage-border);
   border-radius: 9999px;
   background: #fffaf2;
 }
 
-.pb-tab {
+.pb-switch button,
+.pb-sort button {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   border: none;
   border-radius: 9999px;
   background: transparent;
-  padding: 6px 14px;
+  padding: 6px 13px;
   font-family: inherit;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--vintage-ink-soft);
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease;
 }
 
-.pb-tab.on {
+.pb-switch button.on,
+.pb-sort button.on {
   background: var(--vintage-accent);
   color: #fff7ed;
 }
 
 .pb-count {
-  padding: 10px 22px 10px 64px;
-  font-size: 0.78rem;
+  font-size: 0.75rem;
   color: var(--vintage-ink-soft);
 }
 
-.pb-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  border-top: 1px solid var(--vintage-border);
-  padding-block: 12px;
-}
-
-.pb-foot a {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--vintage-accent);
-  font-weight: 700;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
-/* ---- contact list ---- */
+/* ---- the scrolling notebook body ---- */
 .pb-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  max-height: 62vh;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-  scrollbar-color: var(--vintage-accent) transparent;
-}
-
-.pb-list::-webkit-scrollbar {
-  width: 5px;
-}
-
-.pb-list::-webkit-scrollbar-thumb {
-  background: var(--vintage-accent);
-  border-radius: 9999px;
+  margin-top: 10px;
+  border: 2px dashed var(--vintage-accent-hover);
+  border-radius: var(--vintage-radius);
+  background-color: var(--vintage-surface);
+  /* Ruled paper: faint accent margin line + soft rules over the cream surface. */
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent 0 46px,
+      color-mix(in srgb, var(--vintage-accent) 45%, transparent) 46px 48px,
+      transparent 48px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0 47px,
+      color-mix(in srgb, var(--vintage-border) 65%, transparent) 47px 48px
+    );
 }
 
 .pb-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
-  min-height: 48px;
-  padding: 6px 22px 6px 64px;
+  padding: 10px 16px 10px 56px;
   transition: background 0.12s ease;
 }
 
@@ -242,17 +140,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   border: 2px dashed var(--vintage-accent);
   border-radius: 9999px;
-  box-shadow: 0 0 0 3px var(--vintage-ring);
+  box-shadow: 0 0 0 2px var(--vintage-ring);
   color: #fff;
   font-size: 0.85rem;
   font-weight: 800;
   flex-shrink: 0;
-  object-fit: cover;
-  overflow: hidden;
 }
 
 .pb-info {
@@ -260,11 +156,11 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .pb-name {
-  font-size: 0.9rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: var(--vintage-ink);
   white-space: nowrap;
@@ -273,29 +169,97 @@
 }
 
 .pb-meta {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   color: var(--vintage-ink-soft);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.pb-phone {
-  font-size: 0.85rem;
+.pb-place {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
   color: var(--vintage-ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Both numbers are shown at once: mobile and landline, each labelled. */
+.pb-phones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 2px;
+}
+
+.pb-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  color: var(--vintage-ink);
+  white-space: nowrap;
+}
+
+.pb-phone svg {
+  color: var(--vintage-accent);
+  flex-shrink: 0;
+}
+
+.pb-phone-label {
+  font-size: 0.68rem;
+  color: var(--vintage-ink-soft);
+}
+
+.pb-phone-num {
   direction: ltr;
   font-family: 'Courier New', monospace;
-  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.pb-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.pb-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--vintage-border);
+  border-radius: 9999px;
+  background: #fffaf2;
+  color: var(--vintage-ink-soft);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.pb-save:hover {
+  border-color: var(--vintage-accent);
+  color: var(--vintage-accent);
+}
+
+.pb-save[aria-pressed='true'] {
+  border-color: var(--vintage-accent);
+  background: var(--indeed-blue-light);
+  color: var(--vintage-accent);
 }
 
 .pb-call {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
   border: 1px solid var(--vintage-accent);
   border-radius: 9999px;
   background: var(--indeed-blue-light);
-  padding: 4px 12px;
+  padding: 5px 14px;
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--vintage-accent);
@@ -309,38 +273,6 @@
   color: #fff7ed;
 }
 
-.pb-star {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid transparent;
-  border-radius: 9999px;
-  background: none;
-  color: var(--vintage-ink-soft);
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-}
-
-.pb-star:hover {
-  border-color: #f2d9a0;
-  color: #b8860b;
-}
-
-.pb-star[aria-pressed='true'] {
-  border-color: #f2d9a0;
-  background: #fdf5e3;
-  color: #b8860b;
-}
-
-.pb-empty {
-  padding: 40px 24px;
-  text-align: center;
-  font-size: 0.875rem;
-  color: var(--vintage-ink-soft);
-}
-
 .pb-page mark {
   border-radius: 3px;
   background: #ffe27a;
@@ -348,183 +280,104 @@
   padding: 0 2px;
 }
 
-/* ===== نمای ذخیره‌ها: ورق زدن ===== */
-.pb-flipper {
-  padding: 14px 22px 6px 64px;
+.pb-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 48px 24px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--vintage-ink-soft);
 }
 
-.pb-sheet {
-  position: relative;
-  /* Tall enough for PER_PAGE compact rows (see `.pb-sheet .pb-row`). */
-  height: 292px;
-  perspective: 1600px;
+.pb-empty-hint {
+  font-size: 0.75rem;
 }
 
-/* The flipped leaves hold one page each, so their rows stay compact (name +
-   number only) and never grow past the fixed sheet height — otherwise a row
-   would overflow onto the pagination bar and swallow its clicks. */
-.pb-sheet .pb-row {
-  min-height: 44px;
-  padding-block: 4px;
+.pb-more {
+  padding: 10px;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--vintage-ink-soft);
 }
 
-.pb-sheet .pb-meta {
-  display: none;
-}
-
-/* Saved pages keep one contact per line (name + number inline), like a real
-   notebook leaf, so `PER_PAGE` rows always fit the fixed sheet height. */
-.pb-sheet .pb-info {
-  flex-direction: row;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.pb-sheet .pb-avatar {
-  width: 30px;
-  height: 30px;
-  font-size: 0.78rem;
-  box-shadow: 0 0 0 2px var(--vintage-ring);
-}
-
-.pb-sheet-content,
-.pb-leaf .pb-face {
-  position: absolute;
-  inset: 0;
-  padding: 6px 4px 10px 0;
+.pb-skeleton {
+  height: 72px;
   border-radius: var(--vintage-radius);
-  backface-visibility: hidden;
+  background: var(--vintage-paper);
+  animation: pb-pulse 1.4s ease-in-out infinite;
 }
 
-.pb-leaf {
-  position: absolute;
-  inset: 0;
-  transform-style: preserve-3d;
-  transition: transform 0.6s ease-in-out;
+@keyframes pb-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
 }
 
-.pb-leaf .pb-face.back {
-  transform: rotateY(180deg);
-}
-
-.pb-leaf.fwd {
-  transform-origin: right center;
-}
-
-.pb-leaf.fwd.go {
-  transform: rotateY(-180deg);
-}
-
-.pb-leaf.bwd {
-  transform-origin: left center;
-  transform: rotateY(-180deg);
-}
-
-.pb-leaf.bwd.go {
-  transform: rotateY(0);
-}
-
-.pb-leaf .pb-face {
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
-}
-
-.pb-pgbar {
+/* Saved-view header: count + clear-all. */
+.pb-saved-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 22px 16px 64px;
-  font-size: 0.8rem;
+  padding: 12px 16px 8px 56px;
+  font-size: 0.75rem;
+  font-weight: 700;
   color: var(--vintage-ink-soft);
 }
 
-.pb-pgbar button {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  border: 1px solid var(--vintage-accent);
-  border-radius: var(--vintage-radius);
-  background: #fffaf2;
-  padding: 5px 14px;
-  font-family: inherit;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--vintage-accent);
-  cursor: pointer;
-  transition: background 0.15s ease;
-}
-
-.pb-pgbar button:hover:not(:disabled) {
-  background: var(--indeed-blue-light);
-}
-
-.pb-pgbar button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.pb-unsave {
+.pb-clear {
   border: 1px solid var(--vintage-border);
   border-radius: 9999px;
   background: none;
-  padding: 3px 10px;
+  padding: 4px 12px;
   font-family: inherit;
   font-size: 0.72rem;
+  font-weight: 700;
   color: #a33;
   cursor: pointer;
 }
 
-.pb-unsave:hover {
+.pb-clear:hover {
   background: #fdecec;
 }
 
-.pb-pgno {
-  font-size: 0.72rem;
+/* ---- footer row ---- */
+.pb-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  font-size: 0.75rem;
   color: var(--vintage-ink-soft);
-  text-align: left;
-  direction: ltr;
 }
 
-@media (max-width: 560px) {
-  .pb-row,
-  .pb-count,
-  .pb-head,
-  .pb-flipper,
-  .pb-pgbar {
-    padding-inline-start: 18px;
-  }
-
-  .pb-title {
-    font-size: 1.5rem;
-  }
+.pb-foot a {
+  color: var(--vintage-accent);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 /* ---- dark mode ---- */
 html.dark .pb-search,
-html.dark .pb-tabs,
-html.dark .pb-pgbar button {
+html.dark .pb-switch,
+html.dark .pb-sort,
+html.dark .pb-save {
   background: var(--vintage-paper);
 }
 
-html.dark .pb-tab.on {
+html.dark .pb-switch button.on,
+html.dark .pb-sort button.on {
   color: #2a1a12;
 }
 
-html.dark .pb-call {
-  color: var(--vintage-accent);
-}
-
-html.dark .pb-call:hover {
-  color: #2a1a12;
-}
-
-html.dark .pb-star[aria-pressed='true'],
-html.dark .pb-star:hover {
-  border-color: #6b5320;
-  background: #33280f;
-  color: #e8c15a;
-}
-
-html.dark .pb-unsave:hover {
+html.dark .pb-clear:hover {
   background: #3a1d1d;
 }

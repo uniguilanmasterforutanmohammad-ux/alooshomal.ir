@@ -23,6 +23,7 @@ import { visitorKeyFrom } from '../common/visitor-key';
 import { BusinessCardsService } from './business-cards.service';
 import { CreateBusinessCardDto } from './dto/create-business-card.dto';
 import { PublicBusinessCardQueryDto } from './dto/public-business-card-query.dto';
+import { PublicPhonebookQueryDto } from './dto/public-phonebook-query.dto';
 import { UpdateBusinessCardDto } from './dto/update-business-card.dto';
 
 @ApiTags('business-cards')
@@ -137,10 +138,11 @@ export class BusinessCardsController {
   @Public()
   @Get('public/phonebook')
   @ApiOperation({
-    summary: 'دفترچه تلفن عمومی: فهرست تماس کارت ویزیت‌های منتشرشده‌ای که شماره دارند',
+    summary:
+      'دفترچه تلفن عمومی: فهرست صفحه‌بندی‌شده‌ی تماس کارت ویزیت‌های منتشرشده‌ای که شماره دارند (مرتب‌سازی الفبایی/جدیدترین + جستجو)',
   })
-  phonebook() {
-    return this.businessCardsService.findPublicPhonebook();
+  phonebook(@Query() query: PublicPhonebookQueryDto) {
+    return this.businessCardsService.findPublicPhonebook(query);
   }
 
   @Public()
