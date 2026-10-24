@@ -20,7 +20,33 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.89.5**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.89.6**.
+
+## ۱۴۰۵/۰۸/۰۲ — یکسان‌سازی دکمه‌ی «جستجو»ی دایرکتوری‌ها با کامپوننت مشترک (رفع رنگ در حالت تیره) — نسخه `v2.89.6`
+
+**هدف:** دکمه‌ی «جستجو» در `/business-cards` و `/biolinks` (و حالت دفترچه) در
+حالت تیره رنگ متناسبی نداشت؛ چون این دو صفحه از کلاس‌های یوتیلیتی
+`bg-brand text-white` استفاده می‌کردند (بدون قاعده‌ی دارک)، ولی `/pulse` از
+کامپوننت مشترک `.indeed-btn.indeed-btn-primary` (با قاعده‌ی دارک) بهره می‌برد.
+
+**تغییرات:**
+- `apps/web/components/businesscard/DirectoryBusinessCardFilters.tsx` و
+  `apps/web/components/biolink/DirectoryBiolinkFilters.tsx`: دکمه‌ی جستجو به
+  `indeed-btn indeed-btn-primary h-12 rounded-none` تغییر کرد تا از همان استایل
+  مشترک و قاعده‌ی تیره‌ی `html.dark button[type="submit"].indeed-btn-primary`
+  استفاده کند (الگوی `/pulse`).
+- `apps/web/app/globals.css`: سوییچ نمایش دایرکتوری
+  (`.directory-view-switch`) از متغیرهای بی‌تعریف `--ink-soft`/`--brand` و
+  پس‌زمینه‌ی سفیدِ هارد‌کد به توکن‌های واقعی تم
+  (`--vintage-ink-soft`/`--vintage-accent`/`--vintage-surface`) تغییر کرد.
+- `apps/web/lib/version.ts`: نسخه به `v2.89.6`. `install.sh`: همگام‌سازی.
+
+**تأیید/تست:**
+- Playwright در حالت تیره روی `/business-cards?view=list`، `/biolinks`،
+  `/business-cards?sort=alpha&view=notebook` و `/pulse`: هر چهار دکمه‌ی جستجو
+  اکنون یکسان‌اند — پس‌زمینه‌ی `rgb(154,74,34)` با متن `rgb(255,243,230)`
+  (کنتراست ۵٫۷:۱) و ارتفاع ۴۸px.
+- `docker exec alooshomal-web ./node_modules/.bin/tsc --noEmit` → exit 0.
 
 ## ۱۴۰۵/۰۸/۰۲ — رفع متغیرهای CSS تعریف‌نشده (ناخوانایی متن در حالت تیره) — نسخه `v2.89.5`
 

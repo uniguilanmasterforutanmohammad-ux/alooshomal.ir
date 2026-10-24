@@ -826,7 +826,7 @@ header.bg-white {
   padding: 2px;
   border-radius: 9999px;
   border: 1px solid var(--indeed-border);
-  background: #fff;
+  background: var(--vintage-surface);
 }
 .directory-view-switch button {
   display: inline-flex;
@@ -836,12 +836,12 @@ header.bg-white {
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 700;
-  color: var(--ink-soft, #555);
+  color: var(--vintage-ink-soft);
   transition: background 0.15s, color 0.15s;
 }
 .directory-view-switch button[aria-pressed='true'] {
-  background: var(--brand, #8b3a1a);
-  color: #fff;
+  background: var(--vintage-accent);
+  color: #fff7ed;
 }
 
 /* Tile grid: one tile per card. The tile grid replaces the split view, so it

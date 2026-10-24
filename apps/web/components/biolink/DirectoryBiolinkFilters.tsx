@@ -106,7 +106,7 @@ export function DirectoryBiolinkFilters({
 
           <button
             type="submit"
-            className="h-12 flex-1 shrink-0 bg-brand px-3 text-xs font-bold text-white transition hover:bg-brand-hover md:flex-none md:px-8 md:text-sm"
+            className="indeed-btn indeed-btn-primary h-12 flex-1 shrink-0 rounded-none px-3 text-xs md:flex-none md:px-8 md:text-sm"
           >
             جستجو
           </button>
