@@ -20,7 +20,38 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.88.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.88.2**.
+
+## ۱۴۰۵/۰۸/۰۲ — رفع شکست `next build` ناشی از نشت `NODE_ENV=development` — نسخه `v2.88.2`
+
+**هدف:** رفع باگ پیش‌موجودِ شکست بیلد پروداکشن هنگام prerender صفحات `/feeds` و
+`/_global-error` با خطای `TypeError: Cannot read properties of null (reading
+'useState'/'useContext')` که عملاً استقرار (`.github/workflows/deploy.yml`) را
+می‌شکست.
+
+**ریشه‌ی باگ:** هنگام اجرای `next build`، متغیر `NODE_ENV=development` از محیط/`.env`
+به پروسه‌ی بیلد نشت می‌کرد. Next.js بیلد پروداکشن را باید با `NODE_ENV=production`
+اجرا کند؛ در غیر این صورت موتور prerender نسخه‌ی dev از React را بار می‌کند و
+هوک‌ها `null` می‌شوند. با تست جداسازی‌شده تأیید شد: با `NODE_ENV=development` بیلد
+می‌شکند، ولی با `NODE_ENV=production` یا `NODE_ENV` خالی موفق است.
+
+**تغییرات:**
+- `apps/web/package.json`: اسکریپت `build` از `next build` به
+  `NODE_ENV=production next build` تغییر کرد تا بیلد همیشه مستقل از محیط با
+  production اجرا شود.
+- `apps/web/Dockerfile`: در مرحله‌ی `build` مقدار `ENV NODE_ENV=production` اضافه شد
+  (دفاع لایه‌ای برای تصویر استقرار).
+- `apps/web/lib/version.ts`: نسخه به `v2.88.2`.
+- `install.sh`: همگام‌سازی خودکار بلوک‌های تغییریافته.
+
+**تأیید/تست:**
+- بازتولید باگ در یک volume نصب‌شده‌ی تازه: `NODE_ENV=development npm run build`
+  (قبل از اصلاح) با خطای `useState` روی `OfflineBanner.tsx` شکست خورد.
+- پس از اصلاح، همان دستور با `NODE_ENV=development` در محیط → `exit 0` و
+  «Compiled successfully» و تولید کامل صفحات ایستا.
+- `docker build --build-arg NEXT_PUBLIC_API_URL=... --build-arg
+  NEXT_PUBLIC_APP_URL=... ./apps/web` → بیلد کامل تصویر پروداکشن موفق (exit 0).
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۰۲ — ارتقای امنیتی Next.js به 16.4.3 — نسخه `v2.88.1`
 

@@ -17,6 +17,7 @@ CMD ["npm", "run", "dev"]
 
 # ---------- build ----------
 FROM deps AS build
+ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_APP_URL
