@@ -92,7 +92,7 @@ export class AdminController {
   @Get('overview')
   @ApiOperation({ summary: 'نمای کلی پلتفرم برای داشبورد مدیر' })
   async overview() {
-    const [stats, recentUsers, recentTickets, reports, signups] =
+    const [stats, recentUsers, recentTickets, reports, signupSeries] =
       await Promise.all([
         this.adminService.stats(),
         this.adminService.recentUsers(),
@@ -100,7 +100,7 @@ export class AdminController {
         this.adminService.recentReports(),
         this.adminService.signupSeries(),
       ]);
-    return { stats, recentUsers, recentTickets, reports, signups };
+    return { stats, recentUsers, recentTickets, reports, signupSeries };
   }
 
   @Get('users')

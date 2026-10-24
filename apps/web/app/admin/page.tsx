@@ -34,7 +34,9 @@ import { BusinessCardLiveEditor } from '@/components/admin/BusinessCardLiveEdito
 import {
   SignupChart,
   StatsGrid,
+  EMPTY_SIGNUP_SERIES,
   type OverviewStats,
+  type SignupSeries,
 } from '@/components/admin/AdminOverviewWidgets';
 import {
   ReportsTable,
@@ -71,7 +73,7 @@ interface OverviewPayload {
   recentUsers: AdminUser[];
   recentTickets: AdminTicket[];
   reports: AdminReport[];
-  signups: number[];
+  signupSeries: SignupSeries;
 }
 
 const EMPTY_STATS: OverviewStats = {
@@ -551,7 +553,7 @@ function AdminContent() {
           <StatsGrid stats={stats} />
 
           <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
-            <SignupChart data={overview?.signups ?? new Array(12).fill(0)} />
+            <SignupChart series={overview?.signupSeries ?? EMPTY_SIGNUP_SERIES} />
             <div className="indeed-panel p-5">
               <h3 className="text-sm font-extrabold text-ink">خلاصه پلتفرم</h3>
               <ul className="mt-3 flex flex-col gap-3 text-sm">

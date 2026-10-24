@@ -30,6 +30,34 @@ import { ModerateBiolinkDto } from './dto/moderate-biolink.dto';
 
 const SALT_ROUNDS = 12;
 
+/** Jalali (Persian) calendar helpers for the dashboard signup chart. */
+
+const PERSIAN_DATE_FORMAT = new Intl.DateTimeFormat('en-US-u-ca-persian', {
+  year: 'numeric',
+  month: 'numeric',
+  day: 'numeric',
+  timeZone: 'Asia/Tehran',
+});
+
+/** Splits a Gregorian `Date` into its `Asia/Tehran` Jalali y/m/d parts. */
+function jalaliParts(date: Date): { year: number; month: number; day: number } {
+  const parts = PERSIAN_DATE_FORMAT.formatToParts(date);
+  const read = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value ?? 0);
+  return { year: read('year'), month: read('month'), day: read('day') };
+}
+
+/** Shifts a Jalali `(year, month)` pair by `delta` months (month is 1-based). */
+function addJalaliMonths(
+  year: number,
+  month: number,
+  delta: number,
+): { year: number; month: number } {
+  const zero = year * 12 + (month - 1) + delta;
+  return { year: Math.floor(zero / 12), month: (zero % 12) + 1 };
+}
+
+
 @Injectable()
 export class AdminService {
   constructor(
@@ -1025,30 +1053,58 @@ export class AdminService {
   }
 
   /**
-   * Signups per month for the dashboard chart (last 12 months).
+   * Signup chart series for the admin dashboard. Both series are bucketed on
+   * the **Persian (Jalali) calendar**, because that is the calendar the whole
+   * panel shows:
+   *
+   *   - `monthly`: the last 12 Jalali months (oldest → newest) with the Jalali
+   *     month index (1 = فروردین … 12 = اسفند) and the Jalali year, so the
+   *     client can label each bar with the correct month name.
+   *   - `daily`: every day of the *current* Jalali month up to today, with the
+   *     Jalali day-of-month, for the «روزانه در ماه جاری» tab.
+   *
+   * Istanbul/Tehran users can be up to 3.5h ahead of UTC, so "today" is
+   * computed in `Asia/Tehran` and stored query bounds are widened by one day to
+   * avoid dropping recent signups near midnight.
    */
   async signupSeries() {
-    const since = new Date();
-    since.setMonth(since.getMonth() - 11);
-    since.setDate(1);
-    since.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const today = jalaliParts(now);
+    const monthKeys: string[] = [];
+    const monthly: Array<{ month: number; year: number; count: number }> = [];
+    for (let offset = 11; offset >= 0; offset -= 1) {
+      const { month, year } = addJalaliMonths(today.year, today.month, -offset);
+      monthKeys.push(`${year}-${month}`);
+      monthly.push({ month, year, count: 0 });
+    }
+
+    const currentMonthKey = `${today.year}-${today.month}`;
+    const daily: Array<{ day: number; count: number }> = [];
+    for (let day = 1; day <= today.day; day += 1) {
+      daily.push({ day, count: 0 });
+    }
+
+    // Widen the query to ~13 months back (the oldest Jalali month can start up
+    // to a month before its Gregorian 1st) and bucket precisely in JS.
+    const since = new Date(now.getTime() - 400 * 24 * 60 * 60 * 1000);
 
     const users = await this.prisma.user.findMany({
       where: { createdAt: { gte: since } },
       select: { createdAt: true },
     });
-
-    const buckets = new Array(12).fill(0) as number[];
-    const base = new Date(since);
+    const monthIndex = new Map(monthKeys.map((key, index) => [key, index]));
     for (const user of users) {
-      const diff =
-        (user.createdAt.getFullYear() - base.getFullYear()) * 12 +
-        (user.createdAt.getMonth() - base.getMonth());
-      if (diff >= 0 && diff < 12) {
-        buckets[diff] += 1;
+      const parts = jalaliParts(user.createdAt);
+      const key = `${parts.year}-${parts.month}`;
+      const bucket = monthIndex.get(key);
+      if (bucket !== undefined) {
+        monthly[bucket].count += 1;
+      }
+      if (key === currentMonthKey && parts.day <= today.day) {
+        daily[parts.day - 1].count += 1;
       }
     }
-    return buckets;
+    return { monthly, daily };
   }
 
   /**
