@@ -20,7 +20,50 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.95.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.96.0**.
+
+## ۱۴۰۵/۰۸/۰۴ — سیستم کامنت کاربران روی پست‌های فید با تأیید مدیر — نسخه `v2.96.0`
+
+**هدف:** کاربر خواست `/feeds` قابلیت کامنت کاربران داشته باشد و کامنت‌ها پیش از
+انتشار توسط ادمین تأیید شوند.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل `FeedComment` (متن، نویسنده، وضعیت
+  `PENDING/APPROVED/REJECTED`، علت رد، تصمیم‌گیرنده) + relationها روی `FeedPost` و
+  `User`. با `prisma db push` روی دیتابیس اعمال شد.
+- `apps/api/src/settings/settings.service.ts`: ویژگی جدید `featureFeedComments`
+  (کلید فعال/نمایش خودکار در پنل ادمین) و دسته‌ی اعلان `FEED_COMMENT`.
+- `apps/api/src/feeds/dto/feed.dto.ts`: `CreateFeedCommentDto` و
+  `ListFeedCommentsQueryDto`.
+- `apps/api/src/feeds/feeds.service.ts`: `listComments` (عمومی، فقط تأییدشده)،
+  `listMyComments` (کامنت‌های تأییدشده + کامنت‌های در انتظار/ردشده خود کاربر)،
+  `createComment` (PENDING + اعلان به ادمین و به نویسنده‌ی پست)، `removeComment`،
+  `adminListComments`، `moderateComment`، `adminRemoveComment`، `commentCounts`؛
+  گارد `assertFeatureEnabled('featureFeedComments')`.
+- `apps/api/src/feeds/feeds.controller.ts`: مسیرهای عمومی
+  `GET/POST /feeds/public/:id/comments` و `DELETE /feeds/public/comments/:id` و
+  مسیرهای ادمین `GET /admin/feeds/comments`، `.../comments/stats`،
+  `PATCH .../comments/:id/moderate`، `DELETE .../comments/:id`.
+- `apps/web/lib/api.ts`: تایپ‌های `FeedComment`/`FeedCommentsResponse`/
+  `MyFeedCommentsResponse`.
+- `apps/web/components/feed/FeedComments.tsx` (جدید): بخش کامنت در صفحه‌ی پست فید؛
+  فرم ثبت برای کاربر وارد‌شده، نشان «در انتظار تأیید» برای کامنت خود کاربر،
+  حذف کامنت خودی، و پیام راهنما درباره‌ی تأیید مدیر.
+- `apps/web/app/feeds/[id]/page.tsx`: افزودن `<FeedComments/>`.
+- `apps/web/components/admin/AdminFeeds.tsx`: تب «کامنت‌ها» با صف بررسی
+  (تأیید/رد با علت/حذف) و فیلتر وضعیت.
+- `apps/web/components/admin/AdminNotificationSettings.tsx`: برچسب دسته‌ی
+  «کامنت‌های فید».
+
+**تأیید/تست:**
+- `tsc --noEmit` وب و API: هر دو `TSC=0`؛ `check_api_docs.py` خروجی ۰ (۲۲۱ مسیر).
+- API زنده: ثبت کامنت با کاربر demo → وضعیت `PENDING`؛ لیست عمومی پیش از تأیید
+  خالی (`total:0`)؛ لیست ادمین `PENDING` یک مورد؛ تأیید → `APPROVED` و سپس لیست
+  عمومی `total:1`.
+- Playwright: در `/feeds/<id>` با کاربر وارد‌شده بخش «کامنت‌ها» و فرم ثبت دیده شد،
+  ارسال کامنت پیام «پس از تأیید مدیر…» و نشان «در انتظار تأیید» را نشان داد؛ در
+  `/admin?section=feeds` تب «کامنت‌ها» و دکمه‌های «تأیید و انتشار»/«رد»/«حذف»
+  کار کردند. کامنت‌های تستی پس از بررسی حذف شدند.
 
 ## ۱۴۰۵/۰۸/۰۴ — تفکیک درآمد برآوردی و تراکنش‌ها بر اساس ماه/سال + شاخص‌های مدیریتی — نسخه `v2.95.0`
 

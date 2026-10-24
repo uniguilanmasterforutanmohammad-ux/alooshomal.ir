@@ -240,6 +240,7 @@ model FeedPost {
   tagDecidedBy   User?         @relation("FeedTagDecisions", fields: [tagDecidedById], references: [id], onDelete: SetNull)
   likes FeedLike[]
   saves FeedSave[]
+  comments FeedComment[]
 
   @@index([userId])
   @@index([status, publishedAt])
@@ -249,6 +250,32 @@ model FeedPost {
   @@index([boostedUntil])
   @@index([pinnedAt])
   @@map("feed_posts")
+}
+
+/// A visitor comment on a feed post. Comments are moderated: a new one starts
+/// `PENDING` and only shows publicly once an admin approves it (`APPROVED`).
+/// The author sees their own comment (with its status) before approval; other
+/// visitors only ever see approved comments.
+model FeedComment {
+  id         String     @id @default(cuid())
+  feedPostId String
+  userId     String
+  body       String
+  status     NewsStatus @default(PENDING)
+  reason     String?
+  decidedAt  DateTime?
+  decidedById String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  feedPost  FeedPost @relation(fields: [feedPostId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy User?    @relation("FeedCommentDecisions", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([feedPostId, status])
+  @@index([userId])
+  @@index([status])
+  @@map("feed_comments")
 }
 
 /// One row per (visitor, post); `visitorKey` mirrors the biolink like scheme.
@@ -388,6 +415,8 @@ model User {
   feedDecisions     UserFeedSubscription[] @relation("FeedSubscriptionDecisions")
   feedPosts         FeedPost[]
   feedSaves         FeedSave[]
+  feedComments      FeedComment[]
+  feedCommentDecisions FeedComment[] @relation("FeedCommentDecisions")
   feedTagDecisions  FeedPost[]   @relation("FeedTagDecisions")
   contentDecisions  ContentDecision[] @relation("ContentDecisions")
 

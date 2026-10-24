@@ -916,6 +916,44 @@ export interface FeedPost {
   saved?: boolean;
 }
 
+/** A visitor comment on a feed post (moderated before it is public). */
+export interface FeedComment {
+  id: string;
+  feedPostId: string;
+  userId: string;
+  body: string;
+  status: NewsStatus;
+  reason: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+  user?: { id: string; fullName: string | null; email: string | null };
+  feedPost?: {
+    id: string;
+    body: string | null;
+    images: string[];
+    user?: { fullName: string | null; email: string | null };
+  };
+}
+
+export interface FeedCommentsResponse {
+  items: FeedComment[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
+
+/** The author's own view: approved comments plus their pending/rejected ones. */
+export interface MyFeedCommentsResponse {
+  items: FeedComment[];
+  mineCount: number;
+  approvedCount: number;
+}
+
 /** The resolved tag on a feed post (the author's own card/biolink). */
 export interface FeedTag {
   kind: 'BIOLINK' | 'BUSINESS_CARD';

@@ -10,6 +10,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { FeedTagCard } from '@/components/feed/FeedTagCard';
+import { FeedComments } from '@/components/feed/FeedComments';
 import { api, type FeedPost } from '@/lib/api';
 import { bodyToHtml, richTextPreview } from '@/lib/rich-text';
 import { cn } from '@/lib/utils';
@@ -207,6 +208,8 @@ export default function FeedPostPage() {
             </div>
           </article>
         )}
+
+        {post ? <FeedComments postId={post.id} /> : null}
       </main>
       <Footer />
     </>

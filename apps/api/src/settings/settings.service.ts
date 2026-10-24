@@ -235,6 +235,14 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     publicSection: { name: 'اخبار شهر', routes: ['/pulse'] },
   },
   {
+    key: 'featureFeedComments',
+    label: 'کامنت کاربران روی پست‌های فید',
+    description:
+      'اگر خاموش باشد، کاربران نمی‌توانند روی پست‌های فید کامنت بگذارند. کامنت‌ها پیش از نمایش عمومی توسط مدیر تأیید می‌شوند.',
+    group: 'ساخت محتوا',
+    default: true,
+  },
+  {
     key: 'featureBoostRequests',
     label: 'درخواست پله (ارتقای جایگاه)',
     description: 'اگر خاموش باشد، کاربران نمی‌توانند درخواست پله ثبت کنند.',
@@ -290,6 +298,7 @@ export const ADMIN_NOTIFY_CATEGORIES = [
   'BOOST',
   'AD',
   'FEED',
+  'FEED_COMMENT',
   'TICKET',
   'SECURITY',
 ] as const;

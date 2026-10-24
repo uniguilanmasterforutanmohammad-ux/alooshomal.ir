@@ -13,6 +13,7 @@ type Category =
   | 'BOOST'
   | 'AD'
   | 'FEED'
+  | 'FEED_COMMENT'
   | 'TICKET'
   | 'SECURITY';
 
@@ -27,6 +28,7 @@ const LABELS: Record<Category, { title: string; hint: string }> = {
   BOOST: { title: 'افزایش بازدید', hint: 'درخواست پله جدید' },
   AD: { title: 'تبلیغات', hint: 'درخواست تبلیغ صفحه اصلی' },
   FEED: { title: 'فیدها', hint: 'پست فید یا اشتراک فید جدید در انتظار تأیید' },
+  FEED_COMMENT: { title: 'کامنت‌های فید', hint: 'کامنت جدید روی پست فید در انتظار تأیید' },
   TICKET: { title: 'تیکت‌ها', hint: 'تیکت جدید یا پاسخ کاربر' },
   SECURITY: {
     title: 'رویدادهای امنیتی',
@@ -42,6 +44,7 @@ const ORDER: Category[] = [
   'BOOST',
   'AD',
   'FEED',
+  'FEED_COMMENT',
   'TICKET',
   'SECURITY',
 ];

@@ -32,7 +32,12 @@ import { visitorKeyFrom } from '../common/visitor-key';
 import { SettingsService } from '../settings/settings.service';
 import { MAX_FEED_UPLOAD_BYTES } from '../uploads/uploads.constants';
 import { UploadsService } from '../uploads/uploads.service';
-import { CreateFeedPostDto, ListFeedQueryDto } from './dto/feed.dto';
+import {
+  CreateFeedCommentDto,
+  CreateFeedPostDto,
+  ListFeedCommentsQueryDto,
+  ListFeedQueryDto,
+} from './dto/feed.dto';
 import { FeedsService } from './feeds.service';
 
 // ---------------------------------------------------------------------------
@@ -67,6 +72,39 @@ export class FeedsPublicController {
     @CurrentUser() user?: AuthUser,
   ) {
     return this.feeds.publicPost(id, visitorKeyFrom(request), user?.id);
+  }
+
+  @OptionalAuth()
+  @Get('public/:id/comments')
+  @ApiOperation({ summary: 'کامنت‌های تأییدشده یک پست فید (+ کامنت‌های خود کاربر)' })
+  comments(
+    @Param('id') id: string,
+    @Query() query: PaginationDto,
+    @CurrentUser() user?: AuthUser,
+  ) {
+    if (user?.id) return this.feeds.listMyComments(id, user.id);
+    return this.feeds.listComments(id, query.page, query.limit);
+  }
+
+  @Post('public/:id/comments')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'ثبت کامنت روی پست فید (در انتظار تأیید مدیر)' })
+  createComment(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: CreateFeedCommentDto,
+  ) {
+    return this.feeds.createComment(user.id, id, dto);
+  }
+
+  @Delete('public/comments/:commentId')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'حذف کامنت خودم' })
+  removeMyComment(
+    @CurrentUser() user: AuthUser,
+    @Param('commentId') commentId: string,
+  ) {
+    return this.feeds.removeComment(user.id, commentId);
   }
 
   @Public()
@@ -201,6 +239,35 @@ export class AdminFeedsController {
   @ApiOperation({ summary: 'حذف پست فید (مدیر)' })
   removePost(@Param('id') id: string) {
     return this.feeds.adminRemovePost(id);
+  }
+
+  @Get('comments')
+  @ApiOperation({ summary: 'کامنت‌های فید برای بررسی (مدیر)' })
+  comments(@Query() query: ListFeedCommentsQueryDto) {
+    return this.feeds.adminListComments(query.status, query.page, query.limit);
+  }
+
+  @Get('comments/stats')
+  @ApiOperation({ summary: 'شمار کامنت‌ها بر اساس وضعیت (مدیر)' })
+  commentStats() {
+    return this.feeds.commentCounts();
+  }
+
+  @Patch('comments/:id/moderate')
+  @ApiOperation({ summary: 'تأیید یا رد کامنت فید' })
+  moderateComment(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body('decision') decision: NewsStatus,
+    @Body('reason') reason?: string,
+  ) {
+    return this.feeds.moderateComment(admin.id, id, decision, reason);
+  }
+
+  @Delete('comments/:id')
+  @ApiOperation({ summary: 'حذف کامنت فید (مدیر)' })
+  removeComment(@Param('id') id: string) {
+    return this.feeds.adminRemoveComment(id);
   }
 
   @Get('packages')

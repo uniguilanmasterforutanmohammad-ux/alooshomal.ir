@@ -57,3 +57,21 @@ export class ListFeedQueryDto extends PaginationDto {
   @IsString()
   topicId?: string;
 }
+
+export class CreateFeedCommentDto {
+  @ApiProperty({ description: 'متن کامنت' })
+  @IsString()
+  // Comments are plain text; the cap keeps them short and readable.
+  @MaxLength(2000)
+  body!: string;
+}
+
+export class ListFeedCommentsQueryDto extends PaginationDto {
+  @ApiPropertyOptional({
+    description: 'وضعیت کامنت‌ها (فقط برای مدیر؛ پیش‌فرض در حالت عمومی تأییدشده)',
+    enum: ['PENDING', 'APPROVED', 'REJECTED'],
+  })
+  @IsOptional()
+  @IsIn(['PENDING', 'APPROVED', 'REJECTED'])
+  status?: 'PENDING' | 'APPROVED' | 'REJECTED';
+}
