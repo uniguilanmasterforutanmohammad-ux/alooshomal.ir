@@ -31,10 +31,10 @@ export function PulseFilters({ value, categories, onChange, onReset }: Props) {
 
   return (
     <form
-      className="flex flex-wrap overflow-hidden rounded-lg border border-[var(--indeed-border)] bg-white shadow-sm"
+      className="flex flex-col gap-0 overflow-hidden rounded-lg border border-[var(--indeed-border)] bg-white shadow-sm md:flex-row"
       onSubmit={submit}
     >
-      <div className="relative flex flex-1 items-center border-e border-[var(--indeed-border)]">
+      <div className="relative flex flex-1 items-center border-b border-[var(--indeed-border)] md:border-b-0 md:border-e">
         <Search className="pointer-events-none absolute end-3 size-4 text-muted" aria-hidden />
         <input
           className="h-12 w-full bg-transparent px-4 pe-10 text-sm outline-none"
@@ -44,7 +44,7 @@ export function PulseFilters({ value, categories, onChange, onReset }: Props) {
         />
       </div>
 
-      <div className="relative flex min-w-44 items-center border-e border-[var(--indeed-border)]">
+      <div className="relative flex items-center border-b border-[var(--indeed-border)] md:min-w-52 md:border-b-0 md:border-e">
         <select
           className="h-12 w-full appearance-none bg-transparent px-4 text-sm outline-none"
           value={draft.categoryId}
@@ -59,16 +59,21 @@ export function PulseFilters({ value, categories, onChange, onReset }: Props) {
         </select>
       </div>
 
-      <button type="submit" className="indeed-btn indeed-btn-primary rounded-none px-6">
-        جستجو
-      </button>
-      <button
-        type="button"
-        onClick={onReset}
-        className="indeed-btn indeed-btn-secondary rounded-none border-0 px-5"
-      >
-        پاک‌کردن
-      </button>
+      <div className="flex items-stretch">
+        <button
+          type="submit"
+          className="indeed-btn indeed-btn-primary h-12 flex-1 shrink-0 rounded-none px-6 md:flex-none"
+        >
+          جستجو
+        </button>
+        <button
+          type="button"
+          onClick={onReset}
+          className="indeed-btn indeed-btn-secondary h-12 flex-1 shrink-0 rounded-none border-0 px-5 md:flex-none"
+        >
+          پاک‌کردن
+        </button>
+      </div>
     </form>
   );
 }
