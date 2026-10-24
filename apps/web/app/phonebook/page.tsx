@@ -1,39 +1,18 @@
 import type { Metadata } from 'next';
-
-import { PhonebookNotebook } from './PhonebookNotebook';
-import { Header } from '@/components/layout/Header';
-import { fetchPhonebook } from '@/lib/directory-server';
-import './phonebook.css';
+import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
   title: 'دفترچه تلفن شهر',
   description:
-    'دفترچه تلفن عمومی شهر: شماره تماس کارت ویزیت‌های منتشرشده (تنکابن، شیرود و رامسر) با جستجوی سریع و امکان ذخیره‌ی مخاطبین.',
-  alternates: { canonical: '/phonebook' },
-  openGraph: {
-    type: 'website',
-    title: 'دفترچه تلفن شهر | شمالی کارت',
-    description:
-      'شماره تماس کارت ویزیت‌های منتشرشده را یک‌جا ببینید و در دفترچه‌ی خود ذخیره کنید.',
-    url: '/phonebook',
-  },
+    'دفترچه تلفن عمومی شهر: شماره تماس کارت ویزیت‌های منتشرشده (تنکابن، شیرود و رامسر) در نمایش «دفترچه» دایرکتوری کارت ویزیت‌ها.',
+  alternates: { canonical: '/business-cards?view=notebook' },
 };
 
 /**
- * Public «دفترچه تلفن» page. The first page of contacts is fetched
- * server-side so the first paint already carries real, crawlable rows, then
- * the client notebook takes over and keeps infinite-scrolling the list.
+ * «دفترچه تلفن» now lives inside `/business-cards` as its third display mode.
+ * This route only keeps old links working — it permanently redirects to the
+ * notebook view of the directory (see `next.config.ts` / this page's redirect).
  */
-export default async function PhonebookPage() {
-  const initialData = await fetchPhonebook({ sort: 'alpha' });
-
-  return (
-    <>
-      <Header />
-      {/* The footer is intentionally omitted so the notebook shell can fill the
-          viewport exactly and only the contact list scrolls (see
-          `.directory-shell` in globals.css). */}
-      <PhonebookNotebook initialData={initialData} />
-    </>
-  );
+export default function PhonebookPage() {
+  redirect('/business-cards?view=notebook&sort=alpha');
 }

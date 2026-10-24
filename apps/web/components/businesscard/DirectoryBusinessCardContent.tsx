@@ -7,6 +7,7 @@ import { Users } from 'lucide-react';
 import { DirectoryBusinessCardItem } from '@/components/businesscard/DirectoryBusinessCardItem';
 import { DirectoryBusinessCardDetail } from '@/components/businesscard/DirectoryBusinessCardDetail';
 import { DirectoryBusinessCardTile } from '@/components/businesscard/DirectoryBusinessCardTile';
+import { DirectoryBusinessCardNotebook } from '@/components/businesscard/DirectoryBusinessCardNotebook';
 import { MobileSheet } from '@/components/ui/MobileSheet';
 import { DirectoryViewSwitch } from '@/components/ui/DirectoryViewSwitch';
 import {
@@ -20,6 +21,7 @@ import {
 } from '@/lib/directory';
 import { primeDirectoryDetails } from '@/lib/directory-detail';
 import { useDirectoryView } from '@/lib/directory-view';
+import type { DirectoryView } from '@/lib/directory-view';
 import type { ServerDirectoryResult } from '@/lib/directory-server';
 
 export function DirectoryBusinessCardContent({
@@ -37,10 +39,17 @@ export function DirectoryBusinessCardContent({
     q: searchParams.get('q') ?? '',
     cityId: searchParams.get('cityId') ?? '',
     businessId: searchParams.get('businessId') ?? '',
-    sort: (searchParams.get('sort') as 'recent' | 'liked') ?? 'recent',
+    sort: (searchParams.get('sort') as 'recent' | 'liked' | 'alpha') ?? 'recent',
   };
   const [filters, setFilters] = useState<DirectoryFilterState>(initial);
-  const { view, setView } = useDirectoryView();
+  // A `?view=` deep-link (e.g. the «دفترچه تلفن» link) wins over the stored
+  // preference so shared links open in the intended look.
+  const requestedView = searchParams.get('view') as DirectoryView | null;
+  const { view, setView } = useDirectoryView(
+    requestedView === 'list' || requestedView === 'tiles' || requestedView === 'notebook'
+      ? requestedView
+      : null,
+  );
   const [selectedSlug, setSelectedSlug] = useState<string | null>(
     searchParams.get('card'),
   );
@@ -94,9 +103,12 @@ export function DirectoryBusinessCardContent({
     const params = new URLSearchParams(queryString);
     params.delete('limit');
     if (selectedSlug) params.set('card', selectedSlug);
+    // Keep a deep-linked non-default view in the URL so the page stays
+    // shareable in the «دفترچه» / «کاشی» look (the default list omits it).
+    if (view !== 'list') params.set('view', view);
     const next = params.toString();
     router.replace(next ? `/business-cards?${next}` : '/business-cards', { scroll: false });
-  }, [queryString, selectedSlug, router]);
+  }, [queryString, selectedSlug, view, router]);
 
   function reset() {
     setFilters({ q: '', cityId: '', businessId: '', sort: 'recent' });
@@ -177,6 +189,29 @@ export function DirectoryBusinessCardContent({
             </div>
           )}
         </div>
+      ) : view === 'notebook' ? (
+        /* «دفترچه تلفن» view: the same published cards as a ruled contact book,
+           with the initial of each name (never a logo) and both numbers. */
+        items.length === 0 && !loading ? (
+          <div className="indeed-panel mt-5 p-10 text-center">
+            <p className="text-lg font-bold text-ink">کارت ویزیتی پیدا نشد</p>
+            <p className="mt-2 text-sm text-muted">
+              عبارت جستجو یا فیلترها را تغییر دهید.
+            </p>
+            <button onClick={reset} className="indeed-btn indeed-btn-primary mt-6">
+              پاک‌کردن فیلترها
+            </button>
+          </div>
+        ) : (
+          <DirectoryBusinessCardNotebook
+            items={items}
+            loading={loading}
+            query={filters.q}
+            sentinelRef={sentinelRef}
+            hasNext={Boolean(meta?.hasNext)}
+            grouped={filters.sort === 'alpha'}
+          />
+        )
       ) : (
       /* Indeed-like split view: list on the right, details on the left.
           From tablet up it is split (like desktop) but with a narrower detail

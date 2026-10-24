@@ -283,6 +283,10 @@ export interface DirectoryBiolink {
   jobTitle: string | null;
   company: string | null;
   bio: string | null;
+  /** landline number (تنها در حالت لیست/دفترچه نمایش داده می‌شود) */
+  phone?: string | null;
+  /** mobile number */
+  mobile?: string | null;
   avatarUrl: string | null;
   logoUrl: string | null;
   primaryColor: string;
@@ -402,6 +406,10 @@ export interface DirectoryBusinessCard {
   jobTitle: string | null;
   company: string | null;
   bio: string | null;
+  /** landline number (تنها در حالت لیست/دفترچه نمایش داده می‌شود) */
+  phone?: string | null;
+  /** mobile number */
+  mobile?: string | null;
   avatarUrl: string | null;
   logoUrl: string | null;
   primaryColor: string;

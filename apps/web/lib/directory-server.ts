@@ -18,7 +18,6 @@ import type {
   DirectoryBiolink,
   FeedPost,
   FeedTopic,
-  PhonebookEntry,
 } from './api';
 import { SERVER_API_URL } from './site';
 
@@ -92,17 +91,4 @@ export function fetchFeedsDirectory(params: { q?: string; topicId?: string }) {
     ...params,
     page: '1',
   });
-}
-
-/**
- * Server-side (RSC) fetch of the first «دفترچه تلفن» page. The endpoint is
- * paginated (the client keeps infinite scroll on top of it); this seeds the
- * first paint with the real contact rows for crawlers and a flash-free first
- * render.
- */
-export function fetchPhonebook(params: { q?: string; sort?: string } = {}) {
-  return fetchDirectory<PhonebookEntry, Record<string, never>>(
-    '/business-cards/public/phonebook',
-    { ...params, page: '1' },
-  );
 }

@@ -11,9 +11,16 @@ import * as QRCode from 'qrcode';
 import {
   adDirectoryScopeMatches,
   biolinkOrderBy,
+  DIRECTORY_ALPHA_MAX_ROWS,
+  orderedByAlpha,
 } from '../common/directory-sort';
 import { FacetsCacheService } from '../common/facets-cache.service';
-import { applyHiddenFields, hiddenFieldsFrom, planLimitsFrom } from '../common/plans';
+import {
+  applyContactFieldMask,
+  applyHiddenFields,
+  hiddenFieldsFrom,
+  planLimitsFrom,
+} from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -31,6 +38,8 @@ interface DirectoryBiolinkItem {
   jobTitle: string | null;
   company: string | null;
   bio: string | null;
+  phone: string | null;
+  mobile: string | null;
   avatarUrl: string | null;
   logoUrl: string | null;
   primaryColor: string;
@@ -588,7 +597,7 @@ export class BiolinksService {
     // A plan masks exactly the field keys its admin disabled; the legacy
     // `showSocialLinks` flag is folded into that list by `hiddenFieldsFrom`.
     const hidden = hiddenFieldsFrom(biolink.user?.plan);
-    const masked = applyHiddenFields(
+    const masked = applyContactFieldMask(
       biolink as unknown as Record<string, unknown>,
       hidden,
     ) as T;
@@ -698,6 +707,8 @@ export class BiolinksService {
       jobTitle: true,
       company: true,
       bio: true,
+      phone: true,
+      mobile: true,
       avatarUrl: true,
       logoUrl: true,
       primaryColor: true,
@@ -708,18 +719,55 @@ export class BiolinksService {
       adDirectoryUntil: true,
       city: { select: { id: true, name: true } },
       business: { select: { id: true, name: true } },
+      // The owner's plan decides which contact fields are masked on the public
+      // row (a plan that hides «تلفن همراه / ثابت» nulls phone + mobile).
+      user: { select: { plan: { select: { showSocialLinks: true, hiddenFields: true } } } },
       _count: { select: { likes: true } },
     } satisfies Prisma.BiolinkSelect;
 
+    type DirectoryRow = Prisma.BiolinkGetPayload<{ select: typeof select }>;
+
+    // Shape one raw row into the public directory item: derive `likeCount`, drop
+    // the paid-ad timestamp outside the city+business slice (so the «تبلیغات»
+    // badge cannot advertise itself), and apply the owner's plan mask.
+    const project = (row: DirectoryRow, keepAdBadge: boolean) => {
+      const { _count, user, ...item } = row;
+      const masked = applyContactFieldMask(
+        {
+          ...item,
+          adDirectoryUntil: keepAdBadge ? item.adDirectoryUntil : null,
+          likeCount: _count.likes,
+        },
+        hiddenFieldsFrom(user?.plan),
+      );
+      return masked as unknown as DirectoryBiolinkItem;
+    };
+
     const pageSize = limit;
     const skip = (page - 1) * pageSize;
+    const adScoped = adDirectoryScopeMatches(cityId, businessId);
+
+    // Alphabetical mode orders the whole Persian-alphabet candidate set in JS
+    // (the database collation misorders Persian letters) and then slices the
+    // requested page — see `orderedByAlpha`. Paid ads still show their badge but
+    // are not lifted above the letters, so the list stays alphabetical.
+    if (sort === 'alpha') {
+      const rows = await this.prisma.biolink.findMany({
+        where,
+        select,
+        orderBy: [{ fullName: 'asc' }, { id: 'desc' }],
+        take: DIRECTORY_ALPHA_MAX_ROWS,
+      });
+      const ordered = orderedByAlpha(rows.map((row) => project(row, adScoped)));
+      return { items: ordered.slice(skip, skip + pageSize), total: ordered.length };
+    }
 
     // A paid directory ad only lifts an item when the visitor narrowed the list
     // down to the item's own city *and* business — see
     // `adDirectoryScopeMatches`. A boost («پله») is *not* scoped: it re-pins the
     // item (see boosts.service) so it tops the whole list, and automatically
     // drops down once a newer item is created.
-    if (adDirectoryScopeMatches(cityId, businessId)) {
+    if (adScoped) {
       const now = new Date();
       // Paid directory ads sit above the plain chronological rows. Each group is
       // fetched in its own order (enough rows to cover the requested page),
@@ -755,7 +803,7 @@ export class BiolinksService {
 
       const items = [...adRows, ...regularRows]
         .slice(skip, skip + pageSize)
-        .map(({ _count, ...item }) => ({ ...item, likeCount: _count.likes }));
+        .map((row) => project(row, true));
       return { items, total };
     }
 
@@ -774,11 +822,7 @@ export class BiolinksService {
     // the public row drops the paid-ad timestamp and the client shows no
     // «تبلیغات» tag. The «پله» timestamp is kept so the boosted row still shows
     // its badge while it sits at the top of the whole directory.
-    const items = rows.map(({ _count, ...item }) => ({
-      ...item,
-      adDirectoryUntil: null,
-      likeCount: _count.likes,
-    }));
+    const items = rows.map((row) => project(row, false));
     return { items, total };
   }
 

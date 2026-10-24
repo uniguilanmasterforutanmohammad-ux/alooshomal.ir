@@ -1,6 +1,29 @@
 import { Prisma } from '@prisma/client';
 
-export type DirectorySort = 'recent' | 'liked';
+export type DirectorySort = 'recent' | 'liked' | 'alpha';
+
+/**
+ * Upper bound on how many rows the alphabetical directory ordering considers
+ * for one request. Postgres uses the database's `en_US.utf8` collation which
+ * misorders Persian letters (e.g. «چ» sorts after «ح»), so the alphabetical
+ * list is ordered in JS with `Intl.Collator('fa')`. The whole candidate set is
+ * therefore pulled once and sliced into the requested page; the cap keeps a
+ * runaway directory from turning one request into an unbounded transfer.
+ */
+export const DIRECTORY_ALPHA_MAX_ROWS = 2_000;
+
+/**
+ * Sort rows Persian-alphabetically by full name (ties broken by newest id).
+ * Shared by the «الفبا» directory sort and the public دفترچه تلفن.
+ */
+export function orderedByAlpha<T extends { fullName: string; id: string }>(
+  rows: T[],
+): T[] {
+  const collator = new Intl.Collator('fa');
+  return [...rows].sort(
+    (a, b) => collator.compare(a.fullName, b.fullName) || (a.id < b.id ? 1 : -1),
+  );
+}
 
 /**
  * Directory ordering for biolinks.

@@ -152,6 +152,20 @@ export function applyHiddenFields<T extends Record<string, unknown>>(
   return clone as T;
 }
 
+/**
+ * Like {@link applyHiddenFields}, but the `phone` key is treated as covering
+ * *both* contact numbers: a plan that hides «تلفن همراه / ثابت» nulls `phone`
+ * and `mobile` together, so a masked card never leaks its mobile number.
+ */
+export function applyContactFieldMask<T extends Record<string, unknown>>(
+  item: T,
+  hidden: string[],
+): T {
+  const masked = applyHiddenFields(item, hidden) as Record<string, unknown>;
+  if (hidden?.includes('phone') && 'mobile' in masked) masked.mobile = null;
+  return masked as T;
+}
+
 export function planLimitsFrom(plan: {
   name: string;
   maxBiolinks: number;

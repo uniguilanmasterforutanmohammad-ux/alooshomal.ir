@@ -20,7 +20,76 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.88.6**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.89.0**.
+
+## ۱۴۰۵/۰۸/۰۲ — ادغام «دفترچه تلفن» در دایرکتوری کارت ویزیت‌ها + مرتب‌سازی الفبا + نمایش تلفن همراه — نسخه `v2.89.0`
+
+**هدف:** `/phonebook` حذف و به‌عنوان مدل نمایش سوم («دفترچه») داخل
+`/business-cards` ادغام شود؛ حس دفترچه‌ی کاغذی واقعی‌تر شود؛ ذخیره/لایک با خودِ
+صفحه‌ی کارت ویزیت‌ها یکی شود؛ گزینه‌ی مرتب‌سازی «الفبا» به همه‌ی حالت‌های نمایش
+اضافه شود؛ و «تلفن همراه» در حالت لیست صفحات دایرکتوری نمایش داده شود.
+
+**تغییرات:**
+- `apps/api/src/common/directory-sort.ts`: نوع `DirectorySort` به `'alpha'` گسترش
+  یافت و تابع/ثابت مشترک `orderedByAlpha` (مرتب‌سازی فینگلیش‌درست فارسی با
+  `Intl.Collator('fa')`) + سقف `DIRECTORY_ALPHA_MAX_ROWS` اضافه شد.
+- `apps/api/src/common/plans.ts`: `applyContactFieldMask` اضافه شد تا پلنی که فیلد
+  «تلفن همراه / ثابت» را پنهان می‌کند، هم‌زمان `phone` و `mobile` را ماسک کند.
+- `apps/api/src/businesscards/business-cards.service.ts` و
+  `apps/api/src/biolinks/biolinks.service.ts`: `phone`/`mobile` (و `user.plan`) به
+  select دایرکتوری اضافه شد، ماسک پلن روی ردیف‌ها اعمال شد، پروجکشن ردیف در تابع
+  مشترک `project` یکپارچه شد، و مسیر `sort=alpha` (مرتب‌سازی فارسی + صفحه‌بندی)
+  پیاده شد. دفترچه تلفن نیز از `orderedByAlpha` مشترک استفاده می‌کند.
+- `apps/api/src/businesscards/dto/public-business-card-query.dto.ts` و
+  `apps/api/src/biolinks/dto/public-biolink-query.dto.ts`: `'alpha'` به `@IsIn`
+  و به `@ApiPropertyOptional` (enum + توضیح فارسی) اضافه شد.
+- `apps/api/src/seo/seo.service.ts`: ورودی `/phonebook` از سایت‌مپ حذف شد
+  (اکنون بخشی از `/business-cards` است).
+- `apps/web/lib/directory-view.ts`: `DirectoryView` سه‌حالته شد
+  (`list | tiles | notebook`) و مقدار اولیه‌ی `preferred` (deep-link `?view=`)
+  پشتیبانی می‌شود.
+- `apps/web/components/ui/DirectoryViewSwitch.tsx`: دکمه‌ی «دفترچه» اضافه شد.
+- `apps/web/components/businesscard/DirectoryBusinessCardNotebook.tsx` (فایل نو):
+  مدل نمایش دفترچه — حرف اول نام (بدون لوگو)، هردو شماره، دکمه‌های **مشترک**
+  `LikeButton`/`SaveButton` (همان رکورد حساب کاربری، نه localStorage)، تب‌های
+  چسبان الفبایی در حالت «الفبا» و اسکرول بی‌نهایت.
+- `apps/web/components/businesscard/DirectoryBusinessCardContent.tsx`: شاخه‌ی
+  `notebook` رندر شد، `?view=` به URL همگام شد و نوع `sort` گسترش یافت.
+- `apps/web/components/businesscard/DirectoryBusinessCardFilters.tsx` و
+  `apps/web/components/biolink/DirectoryBiolinkFilters.tsx`: گزینه‌ی «الفبا» به
+  مرتب‌سازی (در همه‌ی حالت‌های نمایش) اضافه شد.
+- `apps/web/components/businesscard/DirectoryBusinessCardItem.tsx` و
+  `apps/web/components/biolink/DirectoryBiolinkItem.tsx`: در حالت لیست، شماره‌ی
+  تلفن همراه/ثابت در لبه‌ی چپ (انتهای ردیف) با آیکون نمایش داده می‌شود.
+- `apps/web/lib/api.ts`: `phone`/`mobile` به تایپ‌های `DirectoryBiolink` و
+  `DirectoryBusinessCard` اضافه شد.
+- `apps/web/lib/nav.ts` و `apps/web/components/layout/MobileNav.tsx`: ورودی
+  «دفترچه تلفن» به `?view=notebook&sort=alpha` تغییر یافت.
+- `apps/web/app/globals.css`: استایل `.notebook-*` (کاغذ خط‌دار، شیرازه‌ی دوخته،
+  تب الفبا، ردیف تماس) اضافه شد.
+- `apps/web/app/phonebook/page.tsx`: به ریدایرکت دائمی به
+  `/business-cards?view=notebook&sort=alpha` تبدیل شد؛
+  `PhonebookNotebook.tsx` و `phonebook.css` حذف شدند. `fetchPhonebook` از
+  `apps/web/lib/directory-server.ts` برداشته شد. `apps/web/lib/version.ts` → `v2.89.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api ./node_modules/.bin/tsc --noEmit -p tsconfig.json` → exit 0.
+- `docker exec alooshomal-web ./node_modules/.bin/tsc --noEmit` → exit 0.
+- `python3 scripts/check_api_docs.py` → 22 کنترلر / 214 مسیر، بدون خطا (exit 0).
+- `GET /business-cards/public?sort=alpha` ترتیب فارسی درست داد
+  (`آرش نیک‌پور، سارا محمدی، علی فروتن، محسن، محمد فروتن…`) و `phone`/`mobile`
+  در پاسخ آمد؛ همین برای `/biolinks/public?sort=alpha` و
+  `/business-cards/public/phonebook` بررسی شد.
+- Playwright روی `/business-cards?view=notebook&sort=alpha`: سه دکمه‌ی نمایش
+  (لیست/کاشی/دفترچه) با «دفترچه» فعال، تب‌های الفبایی، فقط حرف اول به‌جای لوگو،
+  هردو شماره («همراه»/«ثابت»)، دکمه‌های لایک/ذخیره، و `bodyScrolls:false` با
+  اسکرول فقط در `.notebook-scroll`؛ بدون خطای کنسول.
+- `/phonebook` → ریدایرکت به `/business-cards?sort=alpha&view=notebook` و
+  نمایش حالت دفترچه.
+- حالت لیست: شماره‌ها در عنصر آخر ردیف با `direction: rtl` درست رندر شد (هم
+  کارت ویزیت هم بیولینک).
+- `npm run build` (بیت تولیدی در `/tmp/pbenvtest`) → exit 0 و `/phonebook`
+  استاتیک رندر شد.
 
 ## ۱۴۰۵/۰۸/۰۲ — بازطراحی «پست‌های کاربران» و «اخبار شهر» — نسخه `v2.88.6`
 

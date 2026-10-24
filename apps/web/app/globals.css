@@ -3456,5 +3456,242 @@ html.dark nav[aria-label="ناوبری پایین"] {
   border-top-color: #8a4020;
 }
 
+/* ---- «دفترچه تلفن» directory view ----
+   The third look of the public directories: the very same published cards, but
+   laid out as a ruled paper contact book — a bound sheet with an accent margin
+   line, faint rules, alphabetical tabs and only the *initial* of each name.
+   `notebook-scroll` is the one scrolling region of `.directory-shell`, exactly
+   like `.directory-list` / `.directory-tiles`. */
+.notebook-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 20px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  direction: ltr;
+  scrollbar-width: thin;
+  scrollbar-color: var(--vintage-accent) transparent;
+  padding-right: 10px;
+}
+.notebook-scroll > * {
+  direction: rtl;
+}
+.notebook-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.notebook-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.notebook-scroll::-webkit-scrollbar-thumb {
+  background: var(--vintage-accent);
+  border-radius: 9999px;
+}
+.notebook-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--vintage-accent-hover);
+}
 
+/* The bound sheet: warm paper, a stitched spine on the right (RTL gutter), a
+   faint accent margin line and soft horizontal rules — the ruled notebook. */
+.notebook-paper {
+  position: relative;
+  border: 2px dashed var(--vintage-accent-hover);
+  border-radius: var(--vintage-radius);
+  background-color: var(--vintage-surface);
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent 0 46px,
+      color-mix(in srgb, var(--vintage-accent) 45%, transparent) 46px 48px,
+      transparent 48px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0 47px,
+      color-mix(in srgb, var(--vintage-border) 65%, transparent) 47px 48px
+    );
+  box-shadow: 0 12px 30px rgba(92, 53, 29, 0.12);
+  padding-bottom: 6px;
+}
+/* The bound edge: a stitched binding strip down the RTL right side. */
+.notebook-paper::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 8px;
+  border-start-end-radius: var(--vintage-radius);
+  border-end-end-radius: var(--vintage-radius);
+  background: repeating-linear-gradient(
+    180deg,
+    var(--vintage-accent) 0 6px,
+    transparent 6px 12px
+  );
+  opacity: 0.35;
+}
 
+.notebook-entry {
+  position: relative;
+}
+
+/* Sticky alphabetical tab that heads each letter block in the «الفبا» sort. */
+.notebook-tab {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 24px;
+  margin: 8px 16px 2px;
+  padding: 0 10px;
+  border-radius: 0 0 8px 8px;
+  background: var(--vintage-accent);
+  color: #fff7ed;
+  font-size: 0.8rem;
+  font-weight: 800;
+  box-shadow: 0 2px 6px rgba(92, 53, 29, 0.25);
+}
+
+.notebook-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 16px 10px 56px;
+  transition: background 0.12s ease;
+}
+.notebook-row:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 8%, transparent);
+}
+
+.notebook-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: 2px dashed var(--vintage-accent);
+  border-radius: 9999px;
+  box-shadow: 0 0 0 2px var(--vintage-ring);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+
+.notebook-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.notebook-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--vintage-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notebook-name:hover {
+  color: var(--vintage-accent);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.notebook-meta {
+  font-size: 0.72rem;
+  color: var(--vintage-ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.notebook-place {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  color: var(--vintage-ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Both numbers are shown at once: mobile and landline, each labelled. */
+.notebook-phones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-top: 2px;
+}
+.notebook-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  color: var(--vintage-ink);
+  white-space: nowrap;
+}
+.notebook-phone svg {
+  color: var(--vintage-accent);
+  flex-shrink: 0;
+}
+.notebook-phone-label {
+  font-size: 0.68rem;
+  color: var(--vintage-ink-soft);
+}
+.notebook-phone-num {
+  direction: ltr;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.02em;
+}
+
+.notebook-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.notebook-call {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--vintage-accent);
+  border-radius: 9999px;
+  background: var(--indeed-blue-light);
+  padding: 5px 14px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--vintage-accent);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.notebook-call:hover {
+  background: var(--vintage-accent);
+  color: #fff7ed;
+}
+
+.notebook-paper mark {
+  border-radius: 3px;
+  background: #ffe27a;
+  color: inherit;
+  padding: 0 2px;
+}
+
+.notebook-more {
+  padding: 10px;
+  text-align: center;
+  font-size: 0.72rem;
+  color: var(--vintage-ink-soft);
+}
+
+/* Dark: keep the paper but let the rules/spine read against the dark surface. */
+html.dark .notebook-paper mark {
+  background: #7a5a1e;
+  color: #f7ecd9;
+}

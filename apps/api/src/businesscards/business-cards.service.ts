@@ -11,9 +11,16 @@ import * as QRCode from 'qrcode';
 import {
   adDirectoryScopeMatches,
   businessCardOrderBy,
+  DIRECTORY_ALPHA_MAX_ROWS,
+  orderedByAlpha,
 } from '../common/directory-sort';
 import { FacetsCacheService } from '../common/facets-cache.service';
-import { applyHiddenFields, hiddenFieldsFrom, planLimitsFrom } from '../common/plans';
+import {
+  applyContactFieldMask,
+  applyHiddenFields,
+  hiddenFieldsFrom,
+  planLimitsFrom,
+} from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -32,6 +39,8 @@ interface DirectoryBusinessCardItem {
   jobTitle: string | null;
   company: string | null;
   bio: string | null;
+  phone: string | null;
+  mobile: string | null;
   avatarUrl: string | null;
   logoUrl: string | null;
   primaryColor: string;
@@ -628,14 +637,10 @@ export class BusinessCardsService {
         )
       : mapped;
 
-    const collator = new Intl.Collator('fa');
     const ordered =
       sort === 'recent'
         ? filtered
-        : [...filtered].sort(
-            (a, b) =>
-              collator.compare(a.fullName, b.fullName) || (a.id < b.id ? 1 : -1),
-          );
+        : orderedByAlpha(filtered);
 
     const total = ordered.length;
     const start = (page - 1) * limit;
@@ -722,7 +727,7 @@ export class BusinessCardsService {
     // A plan masks exactly the field keys its admin disabled; the legacy
     // `showSocialLinks` flag is folded into that list by `hiddenFieldsFrom`.
     const hidden = hiddenFieldsFrom(businessCard.user?.plan);
-    return applyHiddenFields(
+    return applyContactFieldMask(
       businessCard as unknown as Record<string, unknown>,
       hidden,
     ) as T;
@@ -831,6 +836,8 @@ export class BusinessCardsService {
       jobTitle: true,
       company: true,
       bio: true,
+      phone: true,
+      mobile: true,
       avatarUrl: true,
       logoUrl: true,
       primaryColor: true,
@@ -841,11 +848,49 @@ export class BusinessCardsService {
       adDirectoryUntil: true,
       city: { select: { id: true, name: true } },
       business: { select: { id: true, name: true } },
+      // The owner's plan decides which contact fields are masked on the public
+      // row (a plan that hides «تلفن همراه / ثابت» nulls phone + mobile).
+      user: { select: { plan: { select: { showSocialLinks: true, hiddenFields: true } } } },
       _count: { select: { likes: true } },
     } satisfies Prisma.BusinessCardSelect;
 
+    type DirectoryRow = Prisma.BusinessCardGetPayload<{ select: typeof select }>;
+
+    // Shape one raw row into the public directory item: derive `likeCount`, drop
+    // the paid-ad timestamp outside the city+business slice (so the «تبلیغات»
+    // badge cannot advertise itself), and apply the owner's plan mask.
+    const project = (row: DirectoryRow, keepAdBadge: boolean) => {
+      const { _count, user, ...item } = row;
+      const masked = applyContactFieldMask(
+        {
+          ...item,
+          adDirectoryUntil: keepAdBadge ? item.adDirectoryUntil : null,
+          likeCount: _count.likes,
+        },
+        hiddenFieldsFrom(user?.plan),
+      );
+      return masked as unknown as DirectoryBusinessCardItem;
+    };
+
     const pageSize = limit;
     const skip = (page - 1) * pageSize;
+    const adScoped = adDirectoryScopeMatches(cityId, businessId);
+
+    // Alphabetical mode orders the whole Persian-alphabet candidate set in JS
+    // (the database collation misorders Persian letters) and then slices the
+    // requested page — see `orderedByAlpha`. The explicit alphabetical order is
+    // taken at face value: paid ads still show their badge but are not lifted
+    // above the letters, so the list stays alphabetical as the visitor asked.
+    if (sort === 'alpha') {
+      const rows = await this.prisma.businessCard.findMany({
+        where,
+        select,
+        orderBy: [{ fullName: 'asc' }, { id: 'desc' }],
+        take: DIRECTORY_ALPHA_MAX_ROWS,
+      });
+      const ordered = orderedByAlpha(rows.map((row) => project(row, adScoped)));
+      return { items: ordered.slice(skip, skip + pageSize), total: ordered.length };
+    }
 
     // A paid directory ad only lifts an item when the visitor narrowed the list
     // down to the item's own city *and* business — see
@@ -853,7 +898,7 @@ export class BusinessCardsService {
     // plain chronological rows. A boost («پله») is *not* scoped: it re-pins the
     // item (see boosts.service) so it tops the whole list, and automatically
     // drops down once a newer item is created.
-    if (adDirectoryScopeMatches(cityId, businessId)) {
+    if (adScoped) {
       const now = new Date();
       const adWhere: Prisma.BusinessCardWhereInput = {
         ...where,
@@ -887,7 +932,7 @@ export class BusinessCardsService {
 
       const items = [...adRows, ...regularRows]
         .slice(skip, skip + pageSize)
-        .map(({ _count, ...item }) => ({ ...item, likeCount: _count.likes }));
+        .map((row) => project(row, true));
       return { items, total };
     }
 
@@ -903,13 +948,10 @@ export class BusinessCardsService {
     ]);
 
     // Outside the city+business slice a paid ad must not advertise itself, so
-    // the «تبلیغات» tag is dropped. The «پله» timestamp is kept so the boosted
-    // row still shows its badge while it sits at the top of the whole directory.
-    const items = rows.map(({ _count, ...item }) => ({
-      ...item,
-      adDirectoryUntil: null,
-      likeCount: _count.likes,
-    }));
+    // the «تبلیغات» tag is dropped (handled in `project`). The «پله» timestamp
+    // is kept so the boosted row still shows its badge while it sits at the top
+    // of the whole directory.
+    const items = rows.map((row) => project(row, false));
     return { items, total };
   }
 

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Building2, UserRound } from 'lucide-react';
+import { Building2, Phone, Smartphone, UserRound } from 'lucide-react';
 
 import { BoostBadge } from '@/components/ui/BoostBadge';
 import { LikeButton } from '@/components/ui/LikeButton';
@@ -18,6 +18,8 @@ interface Props {
 
 export function DirectoryBusinessCardItem({ businessCard, selected, onSelect }: Props) {
   const initials = businessCard.fullName.trim().slice(0, 1);
+  const mobile = businessCard.mobile?.trim() || '';
+  const landline = businessCard.phone?.trim() || '';
   const now = new Date();
   const directoryAd =
     businessCard.adDirectoryUntil &&
@@ -123,6 +125,27 @@ export function DirectoryBusinessCardItem({ businessCard, selected, onSelect }: 
             />
           </div>
         </div>
+
+        {/* Numbers sit at the row's far (left) edge so a glance down the list
+            reads the phone column like a real phonebook. */}
+        {mobile || landline ? (
+          <div className="flex shrink-0 flex-col items-start gap-1 text-xs text-muted">
+            {mobile ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Smartphone className="size-3.5 shrink-0 text-brand" aria-hidden />
+                <span className="sr-only">تلفن همراه</span>
+                <span dir="ltr">{mobile}</span>
+              </span>
+            ) : null}
+            {landline ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Phone className="size-3.5 shrink-0 text-brand" aria-hidden />
+                <span className="sr-only">تلفن ثابت</span>
+                <span dir="ltr">{landline}</span>
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { LayoutGrid, Rows3 } from 'lucide-react';
+import { LayoutGrid, NotebookTabs, Rows3 } from 'lucide-react';
 
 import type { DirectoryView } from '@/lib/directory-view';
 import { cn } from '@/lib/utils';
@@ -11,8 +11,9 @@ interface Props {
 }
 
 /**
- * Toggle between the two directory looks: the classic split list and the tiled
- * grid that previews every card in its owner-selected theme.
+ * Toggle between the directory looks: the classic split list, the tiled grid
+ * that previews every card in its owner-selected theme, and the «دفترچه تلفن»
+ * notebook.
  */
 export function DirectoryViewSwitch({ value, onChange }: Props) {
   return (
@@ -34,6 +35,15 @@ export function DirectoryViewSwitch({ value, onChange }: Props) {
       >
         <LayoutGrid className="size-4" aria-hidden />
         کاشی
+      </button>
+      <button
+        type="button"
+        aria-pressed={value === 'notebook'}
+        onClick={() => onChange('notebook')}
+        className={cn(value === 'notebook' && 'shadow-sm')}
+      >
+        <NotebookTabs className="size-4" aria-hidden />
+        دفترچه
       </button>
     </div>
   );

@@ -9,7 +9,7 @@ export interface DirectoryFilterState {
   q: string;
   cityId: string;
   businessId: string;
-  sort: 'recent' | 'liked';
+  sort: 'recent' | 'liked' | 'alpha';
 }
 
 interface Props {
@@ -117,10 +117,14 @@ export function DirectoryBusinessCardFilters({
             className="ms-2 rounded-md border border-[var(--indeed-border)] bg-white px-2 py-1 text-sm font-bold text-ink outline-none"
             value={value.sort}
             onChange={(event) =>
-              onChange({ ...draft, sort: event.target.value as 'recent' | 'liked' })
+              onChange({
+                ...draft,
+                sort: event.target.value as 'recent' | 'liked' | 'alpha',
+              })
             }
           >
             <option value="recent">جدیدترین</option>
+            <option value="alpha">الفبا</option>
             <option value="liked">محبوب‌ترین</option>
           </select>
         </p>
