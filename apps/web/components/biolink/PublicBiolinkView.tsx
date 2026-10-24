@@ -49,13 +49,10 @@ function socialHref(value: string): string {
  * like themselves, but the chrome (header, share block) stays on-brand paper.
  */
 export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
-  const headline =
-    biolink.company || biolink.jobTitle || biolink.fullName || 'بیولینک';
-  const subline = biolink.company
-    ? [biolink.fullName, biolink.jobTitle].filter(Boolean).join(' — ') || null
-    : biolink.jobTitle
-      ? biolink.fullName
-      : null;
+  // The record header reads like a business card, in this order:
+  //   نام کسب‌وکار (عنوان شغل) → «به مدیریت …» → شرکت.
+  const headline = biolink.jobTitle || biolink.company || biolink.fullName || 'بیولینک';
+  const subline = biolink.fullName ? `به مدیریت ${biolink.fullName}` : null;
 
   const rows: RecordRow[] = [];
   if (biolink.mobile) {
@@ -195,6 +192,7 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
               headline={headline}
               subline={subline}
               bio={biolink.bio}
+              companyName={biolink.company}
               cityName={biolink.city?.name}
               businessName={biolink.business?.name}
               avatarUrl={biolink.avatarUrl}

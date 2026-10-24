@@ -426,7 +426,7 @@ export function BusinessCardForm({
             type="button"
             disabled={submitting || !requiredOk}
             onClick={() => void submit(values)}
-            className="indeed-btn indeed-btn-primary w-full disabled:opacity-60"
+            className="indeed-btn indeed-btn-primary w-full"
           >
             {submitting ? 'در حال ذخیره...' : (submitLabel ?? 'ذخیره و ارسال برای تأیید')}
           </button>
@@ -435,7 +435,7 @@ export function BusinessCardForm({
               type="button"
               disabled={submitting || !requiredOk}
               onClick={() => void submit(values, { draft: true })}
-              className="indeed-btn indeed-btn-secondary w-full disabled:opacity-60"
+              className="indeed-btn indeed-btn-secondary w-full"
             >
               ذخیره به‌عنوان پیش‌نویس
             </button>

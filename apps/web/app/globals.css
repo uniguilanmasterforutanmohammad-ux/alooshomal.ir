@@ -397,13 +397,35 @@ select {
 }
 
 .indeed-btn-secondary {
-  background: #fffaf2;
+  /* a clearly distinct, brand-tinted surface — the previous near-cream fill
+     was almost identical to the panels it sits on, so the button read as an
+     empty box in light mode. */
+  background: var(--indeed-blue-light);
   color: var(--vintage-accent);
   border-color: var(--vintage-accent);
 }
 
 .indeed-btn-secondary:hover {
-  background: var(--indeed-blue-light);
+  background: color-mix(in srgb, var(--vintage-accent) 18%, var(--vintage-surface));
+  transform: translateY(-1px);
+}
+
+/* Disabled buttons: a calm, legible "not ready" look instead of a washed-out
+   translucent brand colour (which turned muddy on the cream panels). */
+.indeed-btn:disabled {
+  cursor: not-allowed;
+  box-shadow: none;
+}
+.indeed-btn-primary:disabled {
+  background-color: var(--vintage-border);
+  background-image: none;
+  border-color: var(--vintage-border);
+  color: var(--vintage-ink-soft);
+}
+.indeed-btn-secondary:disabled {
+  background: var(--vintage-paper);
+  color: color-mix(in srgb, var(--vintage-ink-soft) 70%, var(--vintage-surface));
+  border-color: var(--vintage-border);
 }
 
 /* ---- minimal rich-text editor (feed composer) ---- */
@@ -1965,8 +1987,16 @@ html.dark {
   }
 
   /* secondary buttons */
-  .indeed-btn-secondary { background: var(--vintage-surface); }
-  .indeed-btn-secondary:hover { background: var(--indeed-blue-light); }
+  .indeed-btn-secondary { background: var(--indeed-blue-light); }
+  .indeed-btn-secondary:hover {
+    background: color-mix(in srgb, var(--vintage-accent) 22%, var(--vintage-surface));
+  }
+  .indeed-btn-primary:disabled,
+  .indeed-btn-secondary:disabled {
+    background: var(--vintage-paper);
+    color: var(--vintage-ink-soft);
+    border-color: var(--vintage-border);
+  }
 
   /* search bars / form controls (home + directory pages) */
   .bg-white,

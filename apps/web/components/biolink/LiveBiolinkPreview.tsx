@@ -44,15 +44,12 @@ export function LiveBiolinkPreview({
   compact,
 }: Props) {
   const headline =
-    values.company.trim() ||
     values.jobTitle.trim() ||
+    values.company.trim() ||
     values.fullName.trim() ||
     'نام کسب‌وکار';
-  const subline = values.company.trim()
-    ? [values.fullName, values.jobTitle].filter((part) => part.trim()).join(' — ') || null
-    : values.jobTitle.trim()
-      ? values.fullName || null
-      : null;
+  // Same order as the public page: نام کسب‌وکار → «به مدیریت …» → شرکت (chip).
+  const subline = values.fullName.trim() ? `به مدیریت ${values.fullName.trim()}` : null;
 
   const rows: RecordRow[] = [];
   if (values.mobile.trim()) {
@@ -153,6 +150,7 @@ export function LiveBiolinkPreview({
       headline={headline}
       subline={subline}
       bio={values.bio}
+      companyName={values.company || null}
       cityName={cityName}
       businessName={businessName}
       avatarUrl={values.avatarUrl || null}
