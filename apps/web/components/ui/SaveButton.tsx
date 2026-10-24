@@ -6,6 +6,11 @@ import { Bookmark } from 'lucide-react';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import {
+  interactionKey,
+  useInteraction,
+  useInteractionStore,
+} from '@/lib/interactions';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -43,8 +48,18 @@ export function SaveButton({
   const router = useRouter();
   const pathname = usePathname();
   const { token, hydrated } = useAuth();
-  const [saved, setSaved] = useState(initialSaved);
+  const apply = useInteractionStore((state) => state.apply);
+  const syncFromProps = useInteractionStore((state) => state.syncFromProps);
+  const entry = useInteraction(kind, slug);
+  const saved = entry?.saved ?? initialSaved;
   const [busy, setBusy] = useState(false);
+
+  // Seed the shared store with this row's snapshot; a view switch then remounts
+  // from the store (which already reflects any toggle) instead of the stale
+  // server prop, so a save made in another view is not lost.
+  useEffect(() => {
+    syncFromProps(interactionKey(kind, slug), { saved: initialSaved });
+  }, [kind, slug, initialSaved, syncFromProps]);
 
   // The public record pages are server-rendered and cannot know the visitor, so
   // ask the API for the real save state once the session is hydrated.
@@ -54,7 +69,9 @@ export function SaveButton({
     api
       .get<{ saved: boolean }>(`/${kind}/public/${encodeURIComponent(slug)}/save`)
       .then((result) => {
-        if (active) setSaved(result.saved);
+        if (active) {
+          apply(interactionKey(kind, slug), { saved: result.saved });
+        }
       })
       .catch(() => {
         /* keep the server snapshot */
@@ -62,7 +79,7 @@ export function SaveButton({
     return () => {
       active = false;
     };
-  }, [kind, slug, reconcile, hydrated, token]);
+  }, [kind, slug, reconcile, hydrated, token, apply]);
 
   async function toggle(event: React.MouseEvent) {
     event.stopPropagation();
@@ -74,15 +91,16 @@ export function SaveButton({
     if (busy) return;
     setBusy(true);
     const next = !saved;
-    setSaved(next);
+    const key = interactionKey(kind, slug);
+    apply(key, { saved: next });
     try {
       const result = await api.post<{ saved: boolean }>(
         `/${kind}/public/${encodeURIComponent(slug)}/save`,
       );
-      setSaved(result.saved);
+      apply(key, { saved: result.saved });
       onToggled?.(result.saved);
     } catch {
-      setSaved(!next);
+      apply(key, { saved });
     } finally {
       setBusy(false);
     }

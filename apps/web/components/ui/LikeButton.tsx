@@ -1,11 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Heart } from 'lucide-react';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import {
+  interactionKey,
+  useInteraction,
+  useInteractionStore,
+} from '@/lib/interactions';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -37,23 +42,24 @@ export function LikeButton({
   const router = useRouter();
   const pathname = usePathname();
   const { token, hydrated } = useAuth();
-  const [count, setCount] = useState(initialCount);
-  const [liked, setLiked] = useState(initialLiked);
+  const apply = useInteractionStore((state) => state.apply);
+  const syncFromProps = useInteractionStore((state) => state.syncFromProps);
+  const entry = useInteraction(kind, slug);
+  const count = entry?.likeCount ?? initialCount;
+  const liked = entry?.liked ?? initialLiked;
   const [busy, setBusy] = useState(false);
 
-  // Directory rows hand us their own reconciled `liked`/`likeCount` (the SSR
-  // snapshot is always `liked:false`, then the client re-fetch of page 1 lands
-  // with the real values). Mirror those into local state *only when the props
-  // actually change*, so a parent re-render or the optimistic toggle's `busy`
-  // flip never wipes the user's own click.
-  const lastProps = useRef({ liked: initialLiked, count: initialCount });
+  // Publish this row's own snapshot into the shared store. On the first mount
+  // it seeds the entry; on later mounts (after a view switch) it is a no-op
+  // because the store already holds the authoritative value, so a toggle made in
+  // another view survives. A stale background re-fetch cannot clobber a pending
+  // toggle — `syncFromProps` keeps local changes until the props catch up.
   useEffect(() => {
-    const previous = lastProps.current;
-    if (previous.liked === initialLiked && previous.count === initialCount) return;
-    lastProps.current = { liked: initialLiked, count: initialCount };
-    setLiked(initialLiked);
-    setCount(initialCount);
-  }, [initialLiked, initialCount]);
+    syncFromProps(interactionKey(kind, slug), {
+      liked: initialLiked,
+      likeCount: initialCount,
+    });
+  }, [kind, slug, initialLiked, initialCount, syncFromProps]);
 
   // The public pages are server-rendered, so their server-side `like` snapshot
   // cannot know the browser's `x-visitor-id`. Reconcile here on mount with the
@@ -67,8 +73,10 @@ export function LikeButton({
       )
       .then((result) => {
         if (!active) return;
-        setLiked(result.liked);
-        setCount(result.likeCount);
+        apply(interactionKey(kind, slug), {
+          liked: result.liked,
+          likeCount: result.likeCount,
+        });
       })
       .catch(() => {
         /* keep the server snapshot */
@@ -76,7 +84,7 @@ export function LikeButton({
     return () => {
       active = false;
     };
-  }, [kind, slug, reconcile]);
+  }, [kind, slug, reconcile, apply]);
 
   async function toggle(event: React.MouseEvent) {
     // directory rows are clickable; don't trigger the row's onSelect
@@ -91,18 +99,16 @@ export function LikeButton({
     setBusy(true);
     // optimistic update
     const nextLiked = !liked;
-    setLiked(nextLiked);
-    setCount((value) => value + (nextLiked ? 1 : -1));
+    const key = interactionKey(kind, slug);
+    apply(key, { liked: nextLiked, likeCount: count + (nextLiked ? 1 : -1) });
     try {
       const result = await api.post<{ liked: boolean; likeCount: number }>(
         `/${kind}/public/${encodeURIComponent(slug)}/like`,
       );
-      setLiked(result.liked);
-      setCount(result.likeCount);
+      apply(key, { liked: result.liked, likeCount: result.likeCount });
     } catch {
       // roll back on failure
-      setLiked(!nextLiked);
-      setCount((value) => value + (nextLiked ? -1 : 1));
+      apply(key, { liked, likeCount: count });
     } finally {
       setBusy(false);
     }
