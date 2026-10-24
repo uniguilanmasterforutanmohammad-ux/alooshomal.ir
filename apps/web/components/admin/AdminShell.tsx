@@ -97,7 +97,7 @@ export function AdminShell({ section, onSection, children }: Props) {
       {/* sidebar — fixed on the right for RTL */}
       <aside
         className={cn(
-          'fixed inset-y-0 right-0 z-50 w-56 border-l-2 border-dashed border-[var(--vintage-accent-hover)] bg-[#fbf3e9] p-4 transition-transform lg:translate-x-0',
+          'admin-sidebar fixed inset-y-0 right-0 z-50 w-56 overflow-y-auto overscroll-contain border-l-2 border-dashed border-[var(--vintage-accent-hover)] bg-[var(--vintage-surface)] p-4 pb-6 transition-transform lg:translate-x-0',
           open ? 'translate-x-0' : 'translate-x-full lg:translate-x-0',
         )}
       >
@@ -126,7 +126,7 @@ export function AdminShell({ section, onSection, children }: Props) {
                 'flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm font-semibold transition',
                 section === item.key
                   ? 'border-brand bg-brand-light text-brand'
-                  : 'border-transparent text-muted hover:border-[var(--vintage-border)] hover:bg-white',
+                  : 'border-transparent text-muted hover:border-[var(--vintage-border)] hover:bg-[var(--indeed-blue-light)]',
               )}
             >
               <item.icon className="size-4" aria-hidden />
@@ -151,7 +151,7 @@ export function AdminShell({ section, onSection, children }: Props) {
       ) : null}
 
       <div className="lg:mr-56">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[#fbf3e9]/95 px-4 py-3 backdrop-blur">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[color-mix(in_srgb,var(--vintage-surface)_95%,transparent)] px-4 py-3 backdrop-blur">
           <button
             onClick={() => setOpen((value) => !value)}
             className="flex size-10 items-center justify-center rounded-lg border border-[var(--vintage-border)] lg:hidden"

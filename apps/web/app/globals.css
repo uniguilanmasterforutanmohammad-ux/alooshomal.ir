@@ -1890,6 +1890,23 @@ html.dark nav[aria-label="ناوبری پایین"] {
   border-top-color: #8a4020;
 }
 
+/* Admin sidebar: the nav can be taller than the viewport, so it scrolls on its
+   own with a thin themed scrollbar (the rest of the page stays put). */
+.admin-sidebar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--vintage-accent-hover) transparent;
+}
+.admin-sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+.admin-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.admin-sidebar::-webkit-scrollbar-thumb {
+  background: var(--vintage-accent-hover);
+  border-radius: 9999px;
+}
+
 /* ---- «دفترچه تلفن» directory view ----
    The third look of the public directories: the very same published cards, but
    laid out as a ruled paper contact book — a bound sheet with an accent margin
