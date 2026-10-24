@@ -309,9 +309,15 @@ body {
   }
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Kept inside `@layer base` on purpose: an unlayered rule would beat *every*
+   layered Tailwind `text-*` utility on an anchor (e.g. `text-brand`), which made
+   the dashboard nav labels and the footer CTA inherit the wrong colour. In the
+   base layer, utilities win, and anchors with no colour class still inherit. */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 input,
