@@ -61,6 +61,13 @@ class UpdateSettingsDto {
   @IsOptional()
   features?: Record<string, boolean>;
 
+  /**
+   * Paired *visibility* switches (same keys as `features`): when false the
+   * enabled feature is not advertised in the site chrome (nav/CTAs/links).
+   */
+  @IsOptional()
+  featureVisibility?: Record<string, boolean>;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -178,6 +185,8 @@ export class SettingsController {
       feedMaxImages: await this.settingsService.getFeedMaxImages(),
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
       features: await this.settingsService.getFeatureFlags(),
+      featureVisibility: await this.settingsService.getFeatureVisibility(),
+      hiddenNavHrefs: await this.settingsService.getHiddenNavHrefs(),
       ...locks,
     };
   }
@@ -220,6 +229,7 @@ export class AdminSettingsController {
       feedMaxImages: await this.settingsService.getFeedMaxImages(),
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
       features: await this.settingsService.getFeatureFlags(),
+      featureVisibility: await this.settingsService.getFeatureVisibility(),
       // The registry drives the single admin panel (labels/groups/defaults).
       featureFlags: FEATURE_FLAGS,
       ...locks,
@@ -238,6 +248,7 @@ export class AdminSettingsController {
       allowBiolinkCreation?: boolean;
       allowBusinessCardCreation?: boolean;
       features?: Record<string, boolean>;
+      featureVisibility?: Record<string, boolean>;
       newsHeadlineCount?: number;
       newsAccessLevel?: NewsAccessLevel;
       phoneLoginEnabled?: boolean;
@@ -304,6 +315,11 @@ export class AdminSettingsController {
       result.features = flags;
       result.allowBiolinkCreation = flags.allowBiolinkCreation;
       result.allowBusinessCardCreation = flags.allowBusinessCardCreation;
+    }
+    if (dto.featureVisibility !== undefined) {
+      result.featureVisibility = await this.settingsService.setFeatureVisibility(
+        dto.featureVisibility,
+      );
     }
     if (dto.newsHeadlineCount !== undefined) {
       result.newsHeadlineCount = await this.settingsService.setNewsHeadlineCount(

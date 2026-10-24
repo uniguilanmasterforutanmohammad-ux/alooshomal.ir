@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowUpLeft } from 'lucide-react';
-import { PUBLIC_NAV } from '@/lib/nav';
+import { FooterNav } from '@/components/layout/FooterNav';
 import { APP_VERSION } from '@/lib/version';
 
 const LEGAL_LINKS = [
@@ -47,19 +47,7 @@ export function Footer() {
         <div className="grid grid-cols-1 gap-4 py-3 sm:grid-cols-2 md:gap-8">
           <nav aria-label="دسترسی سریع">
             <h3 className="mb-2.5 text-xs font-bold uppercase tracking-widest text-white/60">دسترسی سریع</h3>
-            <ul className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-              {PUBLIC_NAV.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    prefetch={false}
-                    className="text-sm text-white/85 transition hover:text-white hover:underline underline-offset-4"
-                  >
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
+            <FooterNav />
           </nav>
 
           <nav aria-label="پشتیبانی و قوانین">

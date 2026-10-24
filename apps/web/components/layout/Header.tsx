@@ -5,6 +5,7 @@ import { IdCard, LayoutDashboard, LogIn } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useAuth } from '@/lib/auth';
+import { useFeatures } from '@/lib/features';
 import { HEADER_NAV } from '@/lib/nav';
 
 /**
@@ -20,7 +21,9 @@ import { HEADER_NAV } from '@/lib/nav';
  */
 export function Header() {
   const { token, hydrated } = useAuth();
+  const { showNav } = useFeatures();
   const signedIn = hydrated && Boolean(token);
+  const navItems = HEADER_NAV.filter((item) => showNav(item.href));
 
   return (
     <header className="sticky top-0 z-50 hidden border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[#fbf3e9]/95 whitespace-nowrap backdrop-blur lg:block">
@@ -33,7 +36,7 @@ export function Header() {
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-medium text-muted lg:flex">
-          {HEADER_NAV.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

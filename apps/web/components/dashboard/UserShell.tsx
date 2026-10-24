@@ -23,27 +23,43 @@ import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { useFeatures } from '@/lib/features';
 import { cn } from '@/lib/utils';
 import { APP_VERSION } from '@/lib/version';
 
-const NAV = [
+/**
+ * Dashboard sidebar. An item may carry a `feature` key: when that feature is
+ * not visible (disabled or hidden by the admin) the entry is dropped, so the
+ * admin's «عدم نمایش» switch also cleans up the user panel navigation.
+ */
+const NAV: Array<{
+  href: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  exact: boolean;
+  feature?: string;
+}> = [
   { href: '/dashboard', label: 'داشبورد', icon: LayoutDashboard, exact: true },
   { href: '/dashboard/business-cards', label: 'کارت‌های ویزیت من', icon: BadgeCheck, exact: false },
   { href: '/dashboard/biolinks', label: 'بیولینک‌های من', icon: IdCard, exact: false },
-  { href: '/dashboard/feeds', label: 'پست‌های من', icon: ImagePlus, exact: false },
+  { href: '/dashboard/feeds', label: 'پست‌های من', icon: ImagePlus, exact: false, feature: 'featureFeedPosts' },
   { href: '/dashboard/saved', label: 'ذخیره‌شده‌های من', icon: Bookmark, exact: false },
   { href: '/dashboard/subscriptions', label: 'اشتراک', icon: Crown, exact: false },
-  { href: '/dashboard/boost', label: 'افزایش بازدید و تبلیغات', icon: TrendingUp, exact: false },
-  { href: '/dashboard/reporter', label: 'شهروند خبرنگار', icon: Newspaper, exact: false },
+  { href: '/dashboard/boost', label: 'افزایش بازدید و تبلیغات', icon: TrendingUp, exact: false, feature: 'featureBoostRequests' },
+  { href: '/dashboard/reporter', label: 'شهروند خبرنگار', icon: Newspaper, exact: false, feature: 'featureNews' },
   { href: '/dashboard/tickets', label: 'تیکت‌های پشتیبانی', icon: LifeBuoy, exact: false },
   { href: '/dashboard/profile', label: 'پروفایل کاربری', icon: UserRound, exact: false },
-] as const;
+];
 
 export function UserShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, clear } = useAuth();
+  const { isFeatureVisible } = useFeatures();
   const [open, setOpen] = useState(false);
+  const navItems = NAV.filter(
+    (item) => !item.feature || isFeatureVisible(item.feature),
+  );
 
   // A limited «کاربر ادمین» has no dashboard — only the content-review panel.
   useEffect(() => {
@@ -87,7 +103,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
           منوی اصلی
         </p>
         <nav className="flex flex-col gap-1">
-          {NAV.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}

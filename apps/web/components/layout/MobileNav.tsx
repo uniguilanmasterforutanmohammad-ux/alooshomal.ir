@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
+import { useFeatures } from '@/lib/features';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { cn } from '@/lib/utils';
 
@@ -33,11 +34,12 @@ interface Item {
 export function MobileNav() {
   const pathname = usePathname();
   const { token, hydrated } = useAuth();
+  const { showNav } = useFeatures();
 
   // Hide on the auth screens: they are a focused, full-screen flow.
   const hideOnAuth = pathname === '/login' || pathname === '/register';
 
-  const items: Item[] = [
+  const allItems: Item[] = [
     { href: '/', label: 'خانه', icon: Home, exact: true },
     { href: '/business-cards', label: 'کارت ویزیت‌ها', icon: BadgeCheck },
     { href: '/biolinks', label: 'بیولینک‌ها', icon: IdCard },
@@ -48,6 +50,10 @@ export function MobileNav() {
       ? { href: '/dashboard', label: 'داشبورد', icon: LayoutDashboard }
       : { href: '/login', label: 'ورود', icon: LogIn },
   ];
+  // Items the admin has hidden (their feature is disabled or not visible).
+  const items = allItems.filter((item) => showNav(item.href));
+  // The theme toggle always takes one slot, so the grid follows the item count.
+  const columns = items.length + 1;
 
   if (hideOnAuth) return null;
 
@@ -57,7 +63,7 @@ export function MobileNav() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-label="ناوبری پایین"
     >
-      <ul className="grid grid-cols-8">
+      <ul className="grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
         {items.map((item) => {
           const active = item.exact
             ? pathname === item.href

@@ -143,6 +143,16 @@ export interface CreationLocks {
  * here (and call `isFeatureEnabled` at its server-side entry point) in the same
  * change — otherwise the feature would ship without an admin off-switch.
  *
+ * Every flag automatically gets **two** admin switches:
+ *   - *enabled*  (`flag.key`, default `flag.default`) — whether the capability
+ *     works at all; enforced server-side via `assertFeatureEnabled`.
+ *   - *visible*  (`flag.key + 'Visible'`, default `flag.visibleDefault`) —
+ *     whether the feature is even shown in the site chrome (nav, CTAs, links)
+ *     when it is enabled. A hidden-but-enabled feature keeps working through
+ *     direct links but is not advertised anywhere (`isFeatureVisible`).
+ * Adding a flag here is therefore enough to get both switches in the panel —
+ * no per-feature wiring is needed for the switches themselves.
+ *
  * Exemptions (always on, never gated): support tickets and all ways to contact
  * the admin/support team.
  */
@@ -155,8 +165,10 @@ export interface FeatureFlag {
   description: string;
   /** grouping header in the admin panel. */
   group: string;
-  /** value used when the admin never touched this switch. */
+  /** *enabled* value used when the admin never touched this switch. */
   default: boolean;
+  /** *visible* value used when the admin never touched this switch. */
+  visibleDefault?: boolean;
 }
 
 export const FEATURE_FLAGS: FeatureFlag[] = [
@@ -212,6 +224,16 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
 ];
 
 export const FEATURE_FLAG_KEYS = FEATURE_FLAGS.map((flag) => flag.key);
+
+/** Suffix appended to a flag key to build its *visibility* setting key. */
+export const FEATURE_VISIBLE_SUFFIX = 'Visible';
+
+/** Whether the feature is advertised in the site chrome (nav/CTA/links). */
+export const FEATURE_NAV_ITEMS: Record<string, string[]> = {
+  // Public nav hrefs hidden when the matching feature is not visible.
+  featureFeedPosts: ['/feeds'],
+  featureNews: ['/pulse'],
+};
 
 // ---------------------------------------------------------------------------
 //  Authentication settings
@@ -320,14 +342,23 @@ export class SettingsService implements OnModuleInit {
       }),
       // Seed every unified feature switch from its declared default (the two
       // creation locks above are already part of `FEATURE_FLAGS`, so these
-      // upserts simply no-op for them).
-      ...FEATURE_FLAGS.map((flag) =>
+      // upserts simply no-op for them). Each flag also gets its paired
+      // *visibility* row so the second admin switch has a default.
+      ...FEATURE_FLAGS.flatMap((flag) => [
         this.prisma.setting.upsert({
           where: { key: flag.key },
           update: {},
           create: { key: flag.key, value: flag.default ? 'true' : 'false' },
         }),
-      ),
+        this.prisma.setting.upsert({
+          where: { key: flag.key + FEATURE_VISIBLE_SUFFIX },
+          update: {},
+          create: {
+            key: flag.key + FEATURE_VISIBLE_SUFFIX,
+            value: (flag.visibleDefault ?? flag.default) ? 'true' : 'false',
+          },
+        }),
+      ]),
       this.prisma.setting.upsert({
         where: { key: NEWS_HEADLINE_COUNT_KEY },
         update: {},
@@ -654,12 +685,59 @@ export class SettingsService implements OnModuleInit {
     return values;
   }
 
+  /**
+   * Read every flag's *visibility* switch as a `{ [key]: boolean }` bag, keyed
+   * by the flag's own key (not the raw `…Visible` setting key).
+   */
+  async getFeatureVisibility(): Promise<Record<string, boolean>> {
+    const visibleKeys = FEATURE_FLAG_KEYS.map((key) => key + FEATURE_VISIBLE_SUFFIX);
+    const rows = await this.prisma.setting.findMany({
+      where: { key: { in: visibleKeys } },
+    });
+    const byKey = new Map(rows.map((row) => [row.key, row.value]));
+    const values: Record<string, boolean> = {};
+    for (const flag of FEATURE_FLAGS) {
+      const row = byKey.get(flag.key + FEATURE_VISIBLE_SUFFIX);
+      values[flag.key] = row
+        ? row !== 'false'
+        : (flag.visibleDefault ?? flag.default);
+    }
+    return values;
+  }
+
   /** Whether one user-facing feature is currently enabled (default per flag). */
   async isFeatureEnabled(key: string): Promise<boolean> {
     const flag = FEATURE_FLAGS.find((entry) => entry.key === key);
     const fallback = flag?.default ?? true;
     const row = await this.prisma.setting.findUnique({ where: { key } });
     return row ? row.value !== 'false' : fallback;
+  }
+
+  /**
+   * Whether one user-facing feature should be *advertised* in the site chrome
+   * (nav entries, CTAs, direct links) — the second admin switch. A feature can
+   * be enabled but not visible, in which case it still works through direct
+   * links but is not surfaced anywhere.
+   */
+  async isFeatureVisible(key: string): Promise<boolean> {
+    // A disabled feature is never advertised, whatever the visibility switch says.
+    if (!(await this.isFeatureEnabled(key))) return false;
+    const flag = FEATURE_FLAGS.find((entry) => entry.key === key);
+    // Unknown key: default to the enabled state so nothing unexpectedly hides.
+    const fallback = flag ? (flag.visibleDefault ?? flag.default) : true;
+    const row = await this.prisma.setting.findUnique({
+      where: { key: key + FEATURE_VISIBLE_SUFFIX },
+    });
+    return row ? row.value !== 'false' : fallback;
+  }
+
+  /** Which public nav hrefs should be hidden given the current visibility flags. */
+  async getHiddenNavHrefs(): Promise<string[]> {
+    const hidden: string[] = [];
+    for (const [key, hrefs] of Object.entries(FEATURE_NAV_ITEMS)) {
+      if (!(await this.isFeatureVisible(key))) hidden.push(...hrefs);
+    }
+    return hidden;
   }
 
   /**
@@ -683,6 +761,30 @@ export class SettingsService implements OnModuleInit {
     }
     await Promise.all(writes);
     return this.getFeatureFlags();
+  }
+
+  /**
+   * Persist any subset of the feature *visibility* switches, keyed by the
+   * flag's own key. Unknown keys are ignored.
+   */
+  async setFeatureVisibility(
+    visibility: Record<string, boolean | undefined>,
+  ): Promise<Record<string, boolean>> {
+    const writes: Promise<unknown>[] = [];
+    for (const flag of FEATURE_FLAGS) {
+      const value = visibility[flag.key];
+      if (value === undefined) continue;
+      const key = flag.key + FEATURE_VISIBLE_SUFFIX;
+      writes.push(
+        this.prisma.setting.upsert({
+          where: { key },
+          update: { value: value ? 'true' : 'false' },
+          create: { key, value: value ? 'true' : 'false' },
+        }),
+      );
+    }
+    await Promise.all(writes);
+    return this.getFeatureVisibility();
   }
 
   /**

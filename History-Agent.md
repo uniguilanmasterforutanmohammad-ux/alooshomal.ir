@@ -20,7 +20,51 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.91.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.92.0**.
+
+## ۱۴۰۵/۰۸/۰۲ — افزودن کلید «عدم نمایش» برای هر ویژگی در پنل ادمین — نسخه `v2.92.0`
+
+**هدف:** کاربر خواست در «تنظیمات ← ویژگی‌ها و دسترسی‌ها» برای هر ویژگی، علاوه بر
+فعال/غیرفعال، گزینه‌ی «عدم نمایش» هم باشد تا وقتی ویژگی فعال است ولی مدیر نمی‌خواهد
+در سایت دیده شود، رابط آن را پنهان کند؛ و این قابلیت برای هر ویژگی آینده هم خودکار
+باشد.
+
+**تغییرات:**
+- `apps/api/src/settings/settings.service.ts`: هر `FeatureFlag` یک کلید جفت‌شده‌ی
+  `…Visible` گرفت (به‌همراه `visibleDefault`). متدهای `getFeatureVisibility`،
+  `setFeatureVisibility`، `isFeatureVisible` (فعال و نمایش هر دو) و
+  `getHiddenNavHrefs` افزوده شد؛ نگاشت ویژگی→آیتم ناوبری در `FEATURE_NAV_ITEMS`.
+  seed خودکار برای هر دو کلید انجام می‌شود و `isFeatureVisible` برای ویژگی غیرفعال
+  همیشه false برمی‌گرداند.
+- `apps/api/src/settings/settings.controller.ts`: افزودن `featureVisibility` به
+  `GET /admin/settings` و `GET /settings/public`، افزودن `hiddenNavHrefs` به payload
+  عمومی، و پذیرش `featureVisibility` در `PATCH /admin/settings`.
+- `apps/web/lib/features.ts` (فایل نو): هوک مشترک `useFeatures` (کش‌شده) با
+  `isFeatureVisible` و `showNav` بر پایه‌ی payload عمومی.
+- `apps/web/components/admin/AdminFeatureFlags.tsx`: هر ویژگی اکنون دو سوئیچ
+  «فعال» و «نمایش» دارد (پنل خودکار از رجیستری پر می‌شود).
+- `apps/web/components/layout/Header.tsx`، `MobileNav.tsx` و
+  `apps/web/components/layout/FooterNav.tsx` (فایل نو; فوتر سرور-کامپوننت ماند):
+  پنهان‌کردن آیتم‌های ناوبری غیرقابل‌نمایش. `MobileNav` هم‌زمان ستون‌ها را با تعداد
+  آیتم‌ها هماهنگ می‌کند.
+- `apps/web/components/dashboard/UserShell.tsx` و `apps/web/app/dashboard/page.tsx`:
+  پنهان‌کردن آیتم‌های سایدبار و دکمه‌های «ساخت بیولینک/کارت ویزیت» وقتی ویژگی نمایش
+  ندارد.
+- `AGENTS.md` (قانون ۹): مستندسازی دو کلید «فعال» و «نمایش» و الزام ثبت آیتم‌های
+  ناوبری در `FEATURE_NAV_ITEMS` برای هر ویژگی جدید.
+
+**تأیید/تست:**
+- تایپ‌چک API و وب → `TSC=0` هر دو؛ `check_api_docs.py` → exit 0.
+- `GET /api/settings/public` → هر دو بـag `features` و `featureVisibility` (۷ کلید هر
+  کدام).
+- `PATCH /api/admin/settings {featureVisibility:{featureFeedPosts:false,featureNews:false}}`
+  → در پاسخ و در payload عمومی منعکس شد؛ `hiddenNavHrefs` برابر `['/feeds','/pulse']`
+  شد در حالی که `features.featureFeedPosts` هنوز `true` بود (یعنی فعال ولی نامرئی).
+- Playwright روی `/`: هدر، فوتر و نوار موبایل هر سه لینک «پست کاربران» و «اخبار شهر»
+  را حذف کردند (بقیه‌ی لینک‌ها سالم). سپس مقادیر به `true` بازگردانده شد و
+  `hiddenNavHrefs` خالی شد.
+- Playwright روی `/admin?section=settings`: پنل ۱۴ سوئیچ (۲ در ۷ ویژگی) با برچسب‌های
+  «فعال»/«نمایش» نشان داد؛ کلیک روی «نمایش» مقدار را ذخیره کرد و پیام تأیید آمد.
 
 ## ۱۴۰۵/۰۸/۰۲ — حذف کادر جستجوی بی‌کار در هدر داشبورد و ادمین — نسخه `v2.91.2`
 

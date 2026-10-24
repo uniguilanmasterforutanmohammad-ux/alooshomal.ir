@@ -7,6 +7,7 @@ import { BadgeCheck, Clock, Eye, IdCard, LifeBuoy } from 'lucide-react';
 
 import { api, type Biolink, type BusinessCard, type Paged } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useFeatures } from '@/lib/features';
 
 interface TicketSummary {
   open: number;
@@ -52,6 +53,7 @@ function StatTile({
 export default function DashboardPage() {
   const router = useRouter();
   const { token, user, hydrated } = useAuth();
+  const { isFeatureVisible } = useFeatures();
   const [biolinks, setBiolinks] = useState<Biolink[]>([]);
   const [businessCards, setBusinessCards] = useState<BusinessCard[]>([]);
   const [summary, setSummary] = useState<TicketSummary>({
@@ -154,24 +156,28 @@ export default function DashboardPage() {
               >
                 دایرکتوری بیولینک‌ها
               </Link>
-              <Link
-                href="/dashboard/biolinks/new"
-                className="indeed-btn indeed-btn-primary py-2 text-sm"
-              >
-                ساخت بیولینک
-              </Link>
+              {isFeatureVisible('allowBiolinkCreation') ? (
+                <Link
+                  href="/dashboard/biolinks/new"
+                  className="indeed-btn indeed-btn-primary py-2 text-sm"
+                >
+                  ساخت بیولینک
+                </Link>
+              ) : null}
               <Link
                 href="/business-cards"
                 className="indeed-btn indeed-btn-secondary py-2 text-sm"
               >
                 دایرکتوری کارت ویزیت
               </Link>
-              <Link
-                href="/dashboard/business-cards/new"
-                className="indeed-btn indeed-btn-primary py-2 text-sm"
-              >
-                ساخت کارت ویزیت
-              </Link>
+              {isFeatureVisible('allowBusinessCardCreation') ? (
+                <Link
+                  href="/dashboard/business-cards/new"
+                  className="indeed-btn indeed-btn-primary py-2 text-sm"
+                >
+                  ساخت کارت ویزیت
+                </Link>
+              ) : null}
             </div>
           </div>
       </div>
