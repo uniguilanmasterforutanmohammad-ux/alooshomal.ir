@@ -161,13 +161,8 @@ export function AdminShell({ section, onSection, children }: Props) {
             <Menu className="size-5" aria-hidden />
           </button>
 
-          <label className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2">
-            <span className="text-muted">⌕</span>
-            <input
-              className="w-full bg-transparent text-sm outline-none"
-              placeholder="جستجو در داشبورد..."
-            />
-          </label>
+          {/* Spacer: pushes the actions to the far end of the header. */}
+          <div className="flex-1" />
 
           <Link
             href="/"
