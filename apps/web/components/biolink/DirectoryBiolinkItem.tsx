@@ -41,19 +41,6 @@ export function DirectoryBiolinkItem({ biolink, selected, onSelect }: Props) {
           : 'border-s-transparent hover:border-s-brand/50 hover:shadow-sm',
       )}
     >
-      {directoryAd ? (
-        <BoostBadge
-          className="absolute end-3 top-3"
-          label="تبلیغات"
-          title="این بیولینک تبلیغ هدفمند است و در همین دسته‌بندی شهر و کسب‌وکار در صدر لیست نمایش داده می‌شود"
-        />
-      ) : boosted ? (
-        <BoostBadge
-          className="absolute end-3 top-3"
-          label="پله"
-          title="این بیولینک با «پله» به صدر لیست کل دایرکتوری آورده شده است و با ثبت موارد جدیدتر پایین می‌رود"
-        />
-      ) : null}
       <div className="flex items-start gap-3">
         <div className="flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-light text-lg font-extrabold text-brand">
           {biolink.avatarUrl ? (
@@ -71,6 +58,21 @@ export function DirectoryBiolinkItem({ biolink, selected, onSelect }: Props) {
         </div>
 
         <div className="min-w-0 flex-1">
+          {/* Inline badge (not absolutely positioned) so it never collides with
+              the phone numbers at the row's left edge. */}
+          {directoryAd ? (
+            <BoostBadge
+              className="mb-1"
+              label="تبلیغات"
+              title="این بیولینک تبلیغ هدفمند است و در همین دسته‌بندی شهر و کسب‌وکار در صدر لیست نمایش داده می‌شود"
+            />
+          ) : boosted ? (
+            <BoostBadge
+              className="mb-1"
+              label="پله"
+              title="این بیولینک با «پله» به صدر لیست کل دایرکتوری آورده شده است و با ثبت موارد جدیدتر پایین می‌رود"
+            />
+          ) : null}
           <h3
             className={cn(
               'truncate text-base font-extrabold',
