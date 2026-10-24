@@ -171,6 +171,25 @@ jobs:
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
+            # Wait for the API and web healthchecks to pass before finishing.
+            # nginx only proxies once they are healthy, and waiting here makes
+            # the deploy fail loudly (instead of reporting green while the site
+            # is still 502-ing) if a new image never becomes ready.
+            echo "Waiting for api/web to become healthy..."
+            for i in $(seq 1 30); do
+              api_state=$(docker inspect -f '{{.State.Health.Status}}' alooshomal-api 2>/dev/null || echo starting)
+              web_state=$(docker inspect -f '{{.State.Health.Status}}' alooshomal-web 2>/dev/null || echo starting)
+              if [ "$api_state" = "healthy" ] && [ "$web_state" = "healthy" ]; then
+                echo "api=$api_state web=$web_state"
+                break
+              fi
+              if [ "$i" -eq 30 ]; then
+                echo "Services did not become healthy in time (api=$api_state web=$web_state)" >&2
+                exit 1
+              fi
+              sleep 3
+            done
+
             # nginx reads its config once at start; the compose file is
             # bind-mounted (deploy/nginx), so a scp of new locations does NOT
             # make the running container pick them up ("up -d" sees no change

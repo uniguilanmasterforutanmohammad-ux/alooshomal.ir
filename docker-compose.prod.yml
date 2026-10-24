@@ -106,6 +106,15 @@ services:
       - "127.0.0.1:${API_PORT:-4000}:4000"
     volumes:
       - api_backups:/usr/src/app/backups
+    # Mark the API ready only once it answers `/api/health` (which also proves
+    # the DB connection). nginx waits for this on a cold boot so it never
+    # proxies to a half-started NestJS process.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:4000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
     networks:
       - alooshomal
 
@@ -125,6 +134,13 @@ services:
       INTERNAL_API_URL: http://api:4000/api
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    # A cheap static asset proves the Next.js standalone server is serving.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/robots.txt || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
     networks:
       - alooshomal
 
@@ -133,9 +149,12 @@ services:
     container_name: alooshomal-nginx
     restart: unless-stopped
     depends_on:
-      - web
-      - api
-      - minio
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+      minio:
+        condition: service_started
     ports:
       - "${HTTP_PORT:-80}:80"
       - "${HTTPS_PORT:-443}:443"
