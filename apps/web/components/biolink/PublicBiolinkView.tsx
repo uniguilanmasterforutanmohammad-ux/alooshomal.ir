@@ -1,3 +1,6 @@
+'use client';
+
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Briefcase, Crown, Home } from 'lucide-react';
 
@@ -7,11 +10,12 @@ import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
 import { SaveButton } from '@/components/ui/SaveButton';
 import { ShareButton } from '@/components/ui/ShareButton';
-import { BiolinkTemplateStage } from '@/components/biolink/BiolinkTemplateStage';
 import {
-  DEFAULT_DARK_TEMPLATE_KEY,
-  DEFAULT_LIGHT_TEMPLATE_KEY,
-} from '@/lib/biolink-templates';
+  BiolinkTemplateStage,
+  biolinkModesFor,
+  initialModeFor,
+} from '@/components/biolink/BiolinkTemplateStage';
+import { biolinkTemplate } from '@/lib/biolink-templates';
 import type { Biolink } from '@/lib/api';
 
 interface Props {
@@ -19,31 +23,88 @@ interface Props {
   qr: string;
   link: string;
   like?: { liked: boolean; likeCount: number };
-  /** admin-enabled display templates (falls back to all when empty) */
-  enabledTemplates?: string[];
-  /** admin default template for light-mode pages */
-  defaultTemplateLight?: string;
-  /** admin default template for dark-mode pages */
-  defaultTemplateDark?: string;
 }
 
 /**
- * Full public biolink page. The biolink body is rendered by
- * {@link BiolinkTemplateStage} in one of the ready-made «حالت نمایش» designs;
- * the visitor can switch between the templates the admin enabled, while the
- * surrounding chrome (header, share block) stays on-brand paper.
+ * Full public biolink page. A published biolink has up to two view modes: the
+ * classic «رکورد» look and the ready-made design its owner chose. The visitor
+ * can flip between them here (remembered per biolink).
+ *
+ * In the classic mode the page keeps its full chrome (back link, share block,
+ * QR, …). In a ready-made design mode the page deliberately shows **only** the
+ * design box, floated on a background tinted from the design's palette.
  */
-export function PublicBiolinkView({
-  biolink,
-  qr,
-  link,
-  like,
-  enabledTemplates,
-  defaultTemplateLight,
-  defaultTemplateDark,
-}: Props) {
+export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
   const headline = biolink.jobTitle || biolink.company || biolink.fullName || 'بیولینک';
 
+  const modes = useMemo(() => biolinkModesFor(biolink), [biolink]);
+  const storageKey = `biolink-view:${biolink.slug}`;
+  const [mode, setMode] = useState<string>(() => initialModeFor(biolink));
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored && modes.some((m) => m.key === stored)) setMode(stored);
+    } catch {
+      /* storage may be blocked; ignore */
+    }
+  }, [storageKey, modes]);
+
+  function choose(key: string) {
+    setMode(key);
+    try {
+      localStorage.setItem(storageKey, key);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const design = biolinkTemplate(mode);
+  const switcher =
+    modes.length > 1 ? (
+      <div className="blt-switch" role="group" aria-label="انتخاب حالت نمایش">
+        <span className="blt-switch-label">حالت نمایش:</span>
+        {modes.map((entry) => (
+          <button
+            key={entry.key}
+            type="button"
+            onClick={() => choose(entry.key)}
+            aria-pressed={mode === entry.key}
+            className={mode === entry.key ? 'blt-switch-chip is-active' : 'blt-switch-chip'}
+            title={entry.name}
+          >
+            <span
+              className="blt-switch-dot"
+              style={{
+                background: `linear-gradient(135deg, ${entry.swatch[0]} 0 34%, ${entry.swatch[1]} 34% 67%, ${entry.swatch[2]} 67% 100%)`,
+              }}
+            />
+            {entry.name}
+          </button>
+        ))}
+      </div>
+    ) : null;
+
+  // ---- ready-made design mode: only the box, on a themed background ----
+  if (design) {
+    return (
+      <div
+        className="blt-page"
+        style={{
+          background: `radial-gradient(120% 90% at 50% 0%, ${design.swatch[1]}66 0%, ${design.swatch[0]}33 45%, #0b0b12 100%)`,
+        }}
+      >
+        <div className="blt-page-inner">
+          {switcher}
+          <CardFit>
+            <BiolinkTemplateStage biolink={biolink} mode={mode} />
+          </CardFit>
+        </div>
+      </div>
+    );
+  }
+
+  // ---- classic «رکورد» mode: full page chrome ----
   return (
     <div className="card-public-page record-page">
       <div className="record-page-inner">
@@ -80,16 +141,13 @@ export function PublicBiolinkView({
             </Link>
           </div>
 
+          {switcher ? <div className="mb-3 shrink-0">{switcher}</div> : null}
+
           {/* The chrome above and below stays put; this region shrinks the
-              card to fit one screen (falling back to scrolling only when even
+              record to fit one screen (falling back to scrolling only when even
               the minimum scale cannot fit). */}
           <CardFit>
-            <BiolinkTemplateStage
-              biolink={biolink}
-              enabledKeys={enabledTemplates ?? []}
-              defaultLight={defaultTemplateLight ?? DEFAULT_LIGHT_TEMPLATE_KEY}
-              defaultDark={defaultTemplateDark ?? DEFAULT_DARK_TEMPLATE_KEY}
-            />
+            <BiolinkTemplateStage biolink={biolink} mode={mode} />
           </CardFit>
 
           <div className="card-public-share record-panel mt-4 flex shrink-0 items-center gap-4 p-4">

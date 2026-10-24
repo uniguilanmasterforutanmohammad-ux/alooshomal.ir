@@ -5,10 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 
 import { BiolinkForm, type BiolinkFormValues } from '@/components/biolink/BiolinkForm';
 import { api, type Biolink } from '@/lib/api';
-import {
-  DEFAULT_DARK_TEMPLATE_KEY,
-  DEFAULT_LIGHT_TEMPLATE_KEY,
-} from '@/lib/biolink-templates';
+import { DEFAULT_TEMPLATE_KEY } from '@/lib/biolink-templates';
 
 export default function EditBiolinkPage() {
   const params = useParams<{ id: string }>();
@@ -79,8 +76,7 @@ export default function EditBiolinkPage() {
               twitter: biolink.twitter ?? '',
               whatsapp: biolink.whatsapp ?? '',
               primaryColor: biolink.primaryColor,
-              template: biolink.template ?? DEFAULT_LIGHT_TEMPLATE_KEY,
-              templateDark: biolink.templateDark ?? DEFAULT_DARK_TEMPLATE_KEY,
+              template: biolink.template ?? DEFAULT_TEMPLATE_KEY,
               cityId: biolink.cityId ?? '',
               businessId: biolink.businessId ?? '',
               businessCardId: biolink.businessCard?.id ?? '',

@@ -57,13 +57,6 @@ class UpdateSettingsDto {
   @IsString({ each: true })
   biolinkTemplatesEnabled?: string[];
 
-  @IsOptional()
-  @IsString()
-  biolinkTemplateDefaultLight?: string;
-
-  @IsOptional()
-  @IsString()
-  biolinkTemplateDefaultDark?: string;
 
   @IsOptional()
   adminNotifications?: Partial<Record<AdminNotifyCategory, boolean>>;
@@ -208,10 +201,6 @@ export class SettingsController {
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
       biolinkTemplatesEnabled:
         await this.settingsService.getBiolinkTemplatesEnabled(),
-      biolinkTemplateDefaultLight:
-        await this.settingsService.getBiolinkTemplateDefaultLight(),
-      biolinkTemplateDefaultDark:
-        await this.settingsService.getBiolinkTemplateDefaultDark(),
       features: await this.settingsService.getFeatureFlags(),
       featureVisibility: await this.settingsService.getFeatureVisibility(),
       hiddenNavHrefs: await this.settingsService.getHiddenNavHrefs(),
@@ -260,10 +249,6 @@ export class AdminSettingsController {
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
       biolinkTemplatesEnabled:
         await this.settingsService.getBiolinkTemplatesEnabled(),
-      biolinkTemplateDefaultLight:
-        await this.settingsService.getBiolinkTemplateDefaultLight(),
-      biolinkTemplateDefaultDark:
-        await this.settingsService.getBiolinkTemplateDefaultDark(),
       biolinkTemplateKeys: [...BIOLINK_TEMPLATE_KEYS],
       features: await this.settingsService.getFeatureFlags(),
       featureVisibility: await this.settingsService.getFeatureVisibility(),
@@ -283,8 +268,6 @@ export class AdminSettingsController {
       adminListPageSize?: number;
       myListPageSize?: number;
       biolinkTemplatesEnabled?: string[];
-      biolinkTemplateDefaultLight?: string;
-      biolinkTemplateDefaultDark?: string;
       adminNotifications?: Record<AdminNotifyCategory, boolean>;
       allowBiolinkCreation?: boolean;
       allowBusinessCardCreation?: boolean;
@@ -331,18 +314,6 @@ export class AdminSettingsController {
       result.biolinkTemplatesEnabled =
         await this.settingsService.setBiolinkTemplatesEnabled(
           dto.biolinkTemplatesEnabled,
-        );
-    }
-    if (dto.biolinkTemplateDefaultLight !== undefined) {
-      result.biolinkTemplateDefaultLight =
-        await this.settingsService.setBiolinkTemplateDefaultLight(
-          dto.biolinkTemplateDefaultLight,
-        );
-    }
-    if (dto.biolinkTemplateDefaultDark !== undefined) {
-      result.biolinkTemplateDefaultDark =
-        await this.settingsService.setBiolinkTemplateDefaultDark(
-          dto.biolinkTemplateDefaultDark,
         );
     }
     if (dto.adminNotifications !== undefined) {

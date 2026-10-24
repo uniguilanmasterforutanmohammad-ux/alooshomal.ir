@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Check, LayoutTemplate, Save, Sun, Moon } from 'lucide-react';
+import { Check, LayoutTemplate, Save } from 'lucide-react';
 
 import { api } from '@/lib/api';
 import { BIOLINK_TEMPLATES } from '@/lib/biolink-templates';
@@ -9,20 +9,17 @@ import { cn } from '@/lib/utils';
 
 interface SettingsPayload {
   biolinkTemplatesEnabled: string[];
-  biolinkTemplateDefaultLight: string;
-  biolinkTemplateDefaultDark: string;
 }
 
 /**
  * «حالت‌های نمایش بیولینک» — the admin picks which of the ready-made biolink
- * display designs are offered, and which one is the default for light-mode and
- * dark-mode pages. Visitors may switch between the enabled designs on a biolink
- * page; owners pick a light + dark design while building.
+ * designs are offered to owners. The classic «رکورد» look is always available
+ * and is not listed here. There is no per-site default: each owner chooses their
+ * own display mode while building, and visitors may switch between the classic
+ * look and the owner's chosen design.
  */
 export function AdminBiolinkTemplates() {
   const [enabled, setEnabled] = useState<string[]>([]);
-  const [defaultLight, setDefaultLight] = useState('');
-  const [defaultDark, setDefaultDark] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,8 +31,6 @@ export function AdminBiolinkTemplates() {
     try {
       const result = await api.get<SettingsPayload>('/admin/settings');
       setEnabled(result.biolinkTemplatesEnabled ?? []);
-      setDefaultLight(result.biolinkTemplateDefaultLight ?? '');
-      setDefaultDark(result.biolinkTemplateDefaultDark ?? '');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری تنظیمات');
     } finally {
@@ -47,23 +42,15 @@ export function AdminBiolinkTemplates() {
     void load();
   }, [load]);
 
-  async function persist(next: {
-    enabled?: string[];
-    defaultLight?: string;
-    defaultDark?: string;
-  }) {
+  async function persist(next: string[]) {
     setBusy(true);
     setError(null);
     setMessage(null);
     try {
       const result = await api.patch<SettingsPayload>('/admin/settings', {
-        biolinkTemplatesEnabled: next.enabled ?? enabled,
-        biolinkTemplateDefaultLight: next.defaultLight ?? defaultLight,
-        biolinkTemplateDefaultDark: next.defaultDark ?? defaultDark,
+        biolinkTemplatesEnabled: next,
       });
       setEnabled(result.biolinkTemplatesEnabled ?? []);
-      setDefaultLight(result.biolinkTemplateDefaultLight ?? '');
-      setDefaultDark(result.biolinkTemplateDefaultDark ?? '');
       setMessage('تنظیمات حالت‌های نمایش ذخیره شد.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره تنظیمات ناموفق بود');
@@ -80,28 +67,10 @@ export function AdminBiolinkTemplates() {
       setError('حداقل یک حالت نمایش باید فعال بماند.');
       return;
     }
-    // Keep the registry order so the stored value stays stable.
     const ordered = BIOLINK_TEMPLATES.map((t) => t.key).filter((k) => next.includes(k));
     setEnabled(ordered);
-    // If the current default just got disabled, fall back to the first light /
-    // dark design that is still enabled.
-    const lightFallback = BIOLINK_TEMPLATES.find(
-      (t) => ordered.includes(t.key) && !t.dark,
-    )?.key;
-    const darkFallback = BIOLINK_TEMPLATES.find(
-      (t) => ordered.includes(t.key) && t.dark,
-    )?.key;
-    const payload: { enabled: string[]; defaultLight?: string; defaultDark?: string } = {
-      enabled: ordered,
-    };
-    if (!ordered.includes(defaultLight) && lightFallback) payload.defaultLight = lightFallback;
-    if (!ordered.includes(defaultDark) && darkFallback) payload.defaultDark = darkFallback;
-    if (payload.defaultLight) setDefaultLight(payload.defaultLight);
-    if (payload.defaultDark) setDefaultDark(payload.defaultDark);
-    void persist(payload);
+    void persist(ordered);
   }
-
-  const lightOptions = BIOLINK_TEMPLATES.filter((t) => enabled.includes(t.key));
 
   if (loading) {
     return (
@@ -118,10 +87,9 @@ export function AdminBiolinkTemplates() {
         <h3 className="font-extrabold text-ink">حالت‌های نمایش بیولینک</h3>
       </div>
       <p className="mt-1 text-sm text-muted">
-        طرح‌های آماده‌ی نمایش بیولینک را فعال یا غیرفعال کنید و مشخص کنید کدام طرح
-        به‌صورت پیش‌فرض برای «تم روشن» و «تم تاریک» سایت استفاده شود. بازدیدکننده‌ها
-        می‌توانند بین طرح‌های فعال‌شده جابه‌جا شوند و کاربر هنگام ساخت، طرح روشن و
-        تاریک خود را انتخاب می‌کند.
+        طرح‌های آماده‌ی نمایش بیولینک را فعال یا غیرفعال کنید. حالت «کلاسیک (رکورد)»
+        همیشه در دسترس است و کاربر هنگام ساخت، یکی از طرح‌های فعال را انتخاب می‌کند؛
+        بازدیدکننده می‌تواند بین حالت کلاسیک و طرح انتخابی کاربر جابه‌جا شود.
       </p>
 
       <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -159,53 +127,6 @@ export function AdminBiolinkTemplates() {
             </button>
           );
         })}
-      </div>
-
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <label className="flex flex-col gap-1 text-xs font-bold text-muted">
-          <span className="flex items-center gap-1.5">
-            <Sun className="size-3.5" aria-hidden />
-            پیش‌فرض تم روشن
-          </span>
-          <select
-            className="indeed-input"
-            value={defaultLight}
-            disabled={busy}
-            onChange={(event) => {
-              const key = event.target.value;
-              setDefaultLight(key);
-              void persist({ defaultLight: key });
-            }}
-          >
-            {lightOptions.map((template) => (
-              <option key={template.key} value={template.key}>
-                {template.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-xs font-bold text-muted">
-          <span className="flex items-center gap-1.5">
-            <Moon className="size-3.5" aria-hidden />
-            پیش‌فرض تم تاریک
-          </span>
-          <select
-            className="indeed-input"
-            value={defaultDark}
-            disabled={busy}
-            onChange={(event) => {
-              const key = event.target.value;
-              setDefaultDark(key);
-              void persist({ defaultDark: key });
-            }}
-          >
-            {lightOptions.map((template) => (
-              <option key={template.key} value={template.key}>
-                {template.name}
-              </option>
-            ))}
-          </select>
-        </label>
       </div>
 
       {message ? (

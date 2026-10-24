@@ -1,9 +1,24 @@
 'use client';
 
+import {
+  Globe,
+  Instagram,
+  Linkedin,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Phone,
+  Send,
+  Smartphone,
+  Twitter,
+} from 'lucide-react';
+
 import { BiolinkTemplateCard } from './BiolinkTemplateCard';
+import { RecordCard, type RecordIconLink, type RecordRow } from '@/components/ui/RecordCard';
 import type { BiolinkFormValues } from './BiolinkForm';
 import { biolinkTemplate } from '@/lib/biolink-templates';
 import type { TaxonomyItem } from '@/lib/api';
+import { socialHref as socialNetworkHref } from '@/lib/social-fields';
 
 interface Props {
   values: BiolinkFormValues;
@@ -14,7 +29,7 @@ interface Props {
   businessOptions?: TaxonomyItem[];
 }
 
-/** Short glyph per social network for the template card's icon row. */
+/** Short glyph per social network for the design card's icon row. */
 const SOCIAL_GLYPHS: Record<string, string> = {
   whatsapp: '✆',
   instagram: '◎',
@@ -29,9 +44,9 @@ function socialHref(value: string): string {
 
 /**
  * Live, real-time preview of the public biolink. It re-renders on every
- * keystroke and whenever the selected theme/colour changes, and renders the
- * exact same vintage «record» card as `/biolinks/<slug>`, so the builder always
- * shows what visitors will get.
+ * keystroke and whenever the selected display mode changes, and renders the
+ * exact same card as `/biolinks/<slug>` (the classic «رکورد» look, or the chosen
+ * design), so the builder always shows what visitors will get.
  */
 export function LiveBiolinkPreview({
   values,
@@ -44,10 +59,9 @@ export function LiveBiolinkPreview({
     values.company.trim() ||
     values.fullName.trim() ||
     'نام کسب‌وکار';
-  // Same order as the public page: نام کسب‌وکار → «به مدیریت …» → شرکت (chip).
   const subline = values.fullName.trim() ? `به مدیریت ${values.fullName.trim()}` : null;
 
-  const rows: import('./BiolinkTemplateCard').TemplateRow[] = [];
+  const rows: RecordRow[] = [];
   if (values.mobile.trim()) {
     rows.push({
       key: 'mobile',
@@ -55,6 +69,7 @@ export function LiveBiolinkPreview({
       value: values.mobile,
       href: `tel:${values.mobile}`,
       dir: 'ltr',
+      Icon: Smartphone,
     });
   }
   if (values.phone.trim()) {
@@ -64,6 +79,7 @@ export function LiveBiolinkPreview({
       value: values.phone,
       href: `tel:${values.phone}`,
       dir: 'ltr',
+      Icon: Phone,
     });
   }
   if (values.email.trim()) {
@@ -73,6 +89,7 @@ export function LiveBiolinkPreview({
       value: values.email,
       href: `mailto:${values.email}`,
       dir: 'ltr',
+      Icon: Mail,
     });
   }
   if (values.website.trim()) {
@@ -82,38 +99,96 @@ export function LiveBiolinkPreview({
       value: values.website,
       href: socialHref(values.website),
       dir: 'ltr',
+      Icon: Globe,
     });
   }
   if (values.address.trim()) {
-    rows.push({ key: 'address', label: 'آدرس', value: values.address });
-  }
-
-  const icons: import('./BiolinkTemplateCard').TemplateIcon[] = [];
-  const socials: Array<{ key: string; value: string }> = [
-    { key: 'whatsapp', value: values.whatsapp },
-    { key: 'instagram', value: values.instagram },
-    { key: 'telegram', value: values.telegram },
-    { key: 'linkedin', value: values.linkedin },
-    { key: 'twitter', value: values.twitter },
-  ];
-  for (const social of socials) {
-    if (!social.value.trim()) continue;
-    const href =
-      social.key === 'whatsapp'
-        ? `https://wa.me/${social.value.replace(/[^0-9]/g, '')}`
-        : socialHref(social.value);
-    icons.push({
-      key: social.key,
-      label: social.key,
-      href,
-      glyph: SOCIAL_GLYPHS[social.key] ?? '◎',
+    rows.push({
+      key: 'address',
+      label: 'آدرس',
+      value: values.address,
+      Icon: MapPin,
     });
   }
 
-  const template =
-    biolinkTemplate(values.template) ??
-    biolinkTemplate(values.templateDark) ??
-    biolinkTemplate('sunny')!;
+  const iconLinks: RecordIconLink[] = [
+    values.whatsapp
+      ? {
+          key: 'whatsapp',
+          label: 'واتساپ',
+          href: `https://wa.me/${values.whatsapp.replace(/[^0-9]/g, '')}`,
+          Icon: MessageCircle,
+        }
+      : null,
+    values.instagram
+      ? {
+          key: 'instagram',
+          label: 'اینستاگرام',
+          href: socialNetworkHref('instagram', values.instagram),
+          Icon: Instagram,
+        }
+      : null,
+    values.telegram
+      ? {
+          key: 'telegram',
+          label: 'تلگرام',
+          href: socialNetworkHref('telegram', values.telegram),
+          Icon: Send,
+        }
+      : null,
+    values.linkedin
+      ? {
+          key: 'linkedin',
+          label: 'لینکدین',
+          href: socialNetworkHref('linkedin', values.linkedin),
+          Icon: Linkedin,
+        }
+      : null,
+    values.twitter
+      ? {
+          key: 'twitter',
+          label: 'ایکس',
+          href: socialNetworkHref('twitter', values.twitter),
+          Icon: Twitter,
+        }
+      : null,
+  ].filter((entry): entry is RecordIconLink => Boolean(entry));
+
+  const template = biolinkTemplate(values.template);
+
+  if (!template) {
+    return (
+      <RecordCard
+        fullName={values.fullName || 'نام و نام خانوادگی'}
+        headline={headline}
+        subline={subline}
+        bio={values.bio}
+        companyName={values.company || null}
+        cityName={cityName}
+        businessName={businessName}
+        avatarUrl={values.avatarUrl || null}
+        rows={rows}
+        iconLinks={iconLinks}
+        accent={values.primaryColor}
+        compact={compact}
+        headingLevel="h2"
+      />
+    );
+  }
+
+  const templateRows = rows.map((row) => ({
+    key: row.key,
+    label: row.label,
+    value: row.value,
+    href: row.href,
+    dir: row.dir,
+  }));
+  const templateIcons = iconLinks.map((link) => ({
+    key: link.key,
+    label: link.label,
+    href: link.href,
+    glyph: SOCIAL_GLYPHS[link.key] ?? '◎',
+  }));
 
   return (
     <BiolinkTemplateCard
@@ -125,8 +200,8 @@ export function LiveBiolinkPreview({
       cityName={cityName}
       businessName={businessName}
       avatarUrl={values.avatarUrl || null}
-      rows={rows}
-      icons={icons}
+      rows={templateRows}
+      icons={templateIcons}
       accent={values.primaryColor}
       website={values.website.trim() || null}
       headingLevel="h2"

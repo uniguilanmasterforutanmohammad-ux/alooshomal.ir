@@ -1,27 +1,41 @@
 /**
- * «حالت‌های نمایش» بیولینک — the display templates taken from the reference
- * file `biolinks.html` (14 ready-made designs).
+ * «حالت‌های نمایش» بیولینک — the display modes a public biolink can use.
  *
- * Each template is a stable `key` stored on `Biolink.template` (the owner's
- * light-mode choice) and `Biolink.templateDark` (the dark-mode choice). The
- * admin can enable/disable which templates are offered and pick the default of
- * each group from the «ویژگی‌ها» settings panel; the public page lets a visitor
- * switch between the enabled templates (and between light/dark), remembering the
- * choice in `localStorage`.
+ * There are two kinds of mode:
+ *   - `record`  — the classic «رکورد» look (cream paper, dashed accent frame,
+ *     labelled icon rows). This is the long-standing style every biolink had
+ *     before the new designs, and it always stays available.
+ *   - a ready-made design key from the reference file `biolinks.html`, which the
+ *     owner picks while building and the admin can enable/disable.
  *
- * `dark` marks designs that are inherently dark (dark surface / light text), so
- * the default picked for the dark group only offers those.
+ * A published biolink therefore has **two** view modes at most: the classic
+ * `record` design plus the owner's chosen design. The visitor can switch between
+ * them (remembered per biolink in `localStorage`).
+ *
+ * The keys are stored on `Biolink.template`. Legacy values («classic»,
+ * «vintage», «spectrum», …) are treated as `record` so old records keep the
+ * classic look.
  */
 export interface BiolinkTemplate {
   /** stable identifier stored on the biolink */
   key: string;
   /** Persian label shown in the picker and the visitor switcher */
   name: string;
-  /** whether the design is a dark one (used to group the two defaults) */
+  /** whether the design is a dark one (dark surface / light text) */
   dark: boolean;
   /** preview colours for the picker / switcher chip */
   swatch: [string, string, string];
 }
+
+/** The classic «رکورد» design — always available, never disabled by the admin. */
+export const RECORD_TEMPLATE_KEY = 'record';
+
+export const RECORD_TEMPLATE: BiolinkTemplate = {
+  key: RECORD_TEMPLATE_KEY,
+  name: 'کلاسیک (رکورد)',
+  dark: false,
+  swatch: ['#8b3a1a', '#f2e8d9', '#3a281c'],
+};
 
 export const BIOLINK_TEMPLATES: BiolinkTemplate[] = [
   { key: 'studio-nord', name: 'استودیو نورد', dark: false, swatch: ['#e5391f', '#1a0502', '#1b1b1b'] },
@@ -40,30 +54,55 @@ export const BIOLINK_TEMPLATES: BiolinkTemplate[] = [
   { key: 'bradley', name: 'بردلی اسمیت', dark: false, swatch: ['#f5f5f5', '#7c8a94', '#111111'] },
 ];
 
+/** Every design key the admin can enable/disable (excludes the classic record). */
 export const BIOLINK_TEMPLATE_KEYS = BIOLINK_TEMPLATES.map((t) => t.key);
 
-/// The legacy «طیفی» theme key, kept so old records still render.
-export const LEGACY_TEMPLATE_KEYS = ['vintage', 'spectrum'];
+/** Legacy template keys still found on old records; all map to `record`. */
+export const LEGACY_TEMPLATE_KEYS = [
+  'classic',
+  'vintage',
+  'spectrum',
+  'paper-editorial',
+  'aurora',
+  'dark-academia',
+  'monochrome',
+  'clay-3d',
+  'glassmorphism',
+  'neo-brutalism',
+  'swiss-minimal',
+  'dark-gradient',
+  'soft-pastel',
+  'retro-terminal',
+  'neumorphism',
+  'neon-cyberpunk',
+  'dark-luxury',
+  'vibrant-gradient',
+  'gold-foil',
+  'watercolor',
+  'art-deco',
+  'corporate-clean',
+  'nature-organic',
+  'typographic',
+];
 
-export const DEFAULT_LIGHT_TEMPLATE_KEY = 'sunny';
-export const DEFAULT_DARK_TEMPLATE_KEY = 'aria';
+export const DEFAULT_TEMPLATE_KEY = RECORD_TEMPLATE_KEY;
 
-export function isBiolinkTemplateKey(value: string | null | undefined): boolean {
-  return Boolean(value && BIOLINK_TEMPLATES.some((t) => t.key === value));
-}
-
+/**
+ * Look up a ready-made design. Returns `null` for the classic record key and
+ * for any legacy/unknown value (both render as the classic record).
+ */
 export function biolinkTemplate(key: string | null | undefined): BiolinkTemplate | null {
   if (!key) return null;
   return BIOLINK_TEMPLATES.find((t) => t.key === key) ?? null;
 }
 
 /**
- * The templates a visitor may switch between: the admin-enabled ones. Any key
- * not recognised (legacy «طیفی»/«وینتیج») is dropped. Falls back to every
- * template so the page still renders if the settings answer is empty.
+ * The view modes a published biolink exposes to visitors: the classic record
+ * plus the owner's chosen design (when it is a ready-made one). Deduplicated.
  */
-export function enabledTemplates(enabledKeys: string[] | null | undefined): BiolinkTemplate[] {
-  const set = new Set(enabledKeys ?? []);
-  const picked = BIOLINK_TEMPLATES.filter((t) => set.has(t.key));
-  return picked.length > 0 ? picked : BIOLINK_TEMPLATES;
+export function biolinkViewModes(template: string | null | undefined): BiolinkTemplate[] {
+  const modes: BiolinkTemplate[] = [RECORD_TEMPLATE];
+  const chosen = biolinkTemplate(template);
+  if (chosen) modes.push(chosen);
+  return modes;
 }

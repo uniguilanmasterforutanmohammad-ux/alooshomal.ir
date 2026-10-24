@@ -699,13 +699,11 @@ model Biolink {
   // appearance
   theme          String  @default("light")
   primaryColor   String  @default("#8B3A1A")
-  /// «حالت نمایش» light — the chosen biolink display template (see
-  /// `apps/web/lib/biolink-templates.ts`). Legacy values («classic»,
-  /// «vintage», «spectrum») keep rendering through the shared record card.
-  template       String  @default("sunny")
-  /// «حالت نمایش» dark — the template shown when the page is in dark mode.
-  /// Empty/null means the light template's dark sibling / the admin default.
-  templateDark   String?
+  /// «حالت نمایش» — the biolink's chosen display mode (a design key from
+  /// `apps/web/lib/biolink-templates.ts`, or the classic `record`). The classic
+  /// «رکورد» look is always the other view mode available to visitors; legacy
+  /// values («classic», «vintage», …) render as `record`.
+  template       String  @default("record")
 
   // visibility & moderation
   isPublished     Boolean    @default(false)

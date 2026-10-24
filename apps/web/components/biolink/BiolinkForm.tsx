@@ -9,10 +9,7 @@ import { LinkSelector } from '@/components/link/LinkSelector';
 import { LiveBiolinkPreview } from '@/components/biolink/LiveBiolinkPreview';
 import { BiolinkTemplatePicker } from '@/components/biolink/BiolinkTemplatePicker';
 import { api, type TaxonomyItem } from '@/lib/api';
-import {
-  DEFAULT_DARK_TEMPLATE_KEY,
-  DEFAULT_LIGHT_TEMPLATE_KEY,
-} from '@/lib/biolink-templates';
+import { DEFAULT_TEMPLATE_KEY } from '@/lib/biolink-templates';
 import { SOCIAL_FIELDS } from '@/lib/social-fields';
 import { hasAnyValue, useFormAutosave } from '@/lib/use-form-autosave';
 
@@ -33,7 +30,6 @@ export interface BiolinkFormValues {
   whatsapp: string;
   primaryColor: string;
   template: string;
-  templateDark: string;
   cityId: string;
   businessId: string;
   /** one-to-one link to one of the owner's business cards (`''` = none) */
@@ -58,8 +54,7 @@ const emptyValues: BiolinkFormValues = {
   twitter: '',
   whatsapp: '',
   primaryColor: '#8B3A1A',
-  template: DEFAULT_LIGHT_TEMPLATE_KEY,
-  templateDark: DEFAULT_DARK_TEMPLATE_KEY,
+  template: DEFAULT_TEMPLATE_KEY,
   cityId: '',
   businessId: '',
   businessCardId: '',
@@ -353,17 +348,15 @@ export function BiolinkForm({
           <div className="indeed-panel p-6">
             <h2 className="text-lg font-extrabold text-ink">حالت نمایش و تصویر</h2>
             <p className="mt-1 text-xs text-muted">
-              برای تم روشن و تم تاریک سایت یک «حالت نمایش» جدا انتخاب کنید؛
-              پیش‌نمایش بلافاصله به‌روز می‌شود.
+              یک «حالت نمایش» برای بیولینک انتخاب کنید؛ حالت پیش‌فرض «کلاسیک
+              (رکورد)» است و پیش‌نمایش بلافاصله به‌روز می‌شود.
             </p>
 
             <div className="mt-4">
               <BiolinkTemplatePicker
-                light={values.template}
-                dark={values.templateDark}
+                value={values.template}
                 enabledKeys={enabledTemplates}
-                onLight={(key) => setField('template', key)}
-                onDark={(key) => setField('templateDark', key)}
+                onChange={(key) => setField('template', key)}
               />
             </div>
 
@@ -568,17 +561,15 @@ export function BiolinkForm({
         <div className="indeed-panel p-6">
           <h2 className="text-lg font-extrabold text-ink">ظاهر بیولینک</h2>
           <p className="mt-1 text-xs text-muted">
-            برای تم روشن و تم تاریک سایت یک «حالت نمایش» جدا انتخاب کنید. کاربران
-            بازدیدکننده هم می‌توانند بین حالت‌های نمایشِ فعال‌شده جابه‌جا شوند.
+            یک «حالت نمایش» برای بیولینک انتخاب کنید. بازدیدکننده‌ها می‌توانند بین
+            حالت «کلاسیک (رکورد)» و حالت انتخابی شما جابه‌جا شوند.
           </p>
 
           <div className="mt-4">
             <BiolinkTemplatePicker
-              light={values.template}
-              dark={values.templateDark}
+              value={values.template}
               enabledKeys={enabledTemplates}
-              onLight={(key) => setField('template', key)}
-              onDark={(key) => setField('templateDark', key)}
+              onChange={(key) => setField('template', key)}
             />
           </div>
 

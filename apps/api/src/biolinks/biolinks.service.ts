@@ -26,6 +26,7 @@ import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   BIOLINK_TEMPLATE_KEYS,
+  LEGACY_TEMPLATE_KEYS,
   SettingsService,
 } from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
@@ -424,28 +425,23 @@ export class BiolinksService {
   }
 
   /**
-   * Drops an unknown display-template key (or the empty-string "clear" value)
-   * so a stale/legacy payload can never store a template the public page does
-   * not know how to render. `templateDark` is allowed to be cleared back to
-   * `null` (the owner then inherits the admin dark default).
+   * Drops an unknown display-mode key so a stale/legacy payload can never store
+   * a value the public page does not know how to render. The classic «رکورد»
+   * key is always allowed; every other key must be a known design. Legacy keys
+   * (e.g. «classic», «vintage») are normalised to the classic record so old
+   * builders keep working.
    */
   private sanitizeTemplateFields(fields: Record<string, unknown>): void {
+    if (fields.template === undefined) return;
     const known = BIOLINK_TEMPLATE_KEYS as readonly string[];
-    if (fields.template !== undefined) {
-      if (typeof fields.template !== 'string' || !known.includes(fields.template)) {
-        delete fields.template;
-      }
+    const value = fields.template;
+    if (value === 'record') return;
+    if (typeof value === 'string' && known.includes(value)) return;
+    if (typeof value === 'string' && LEGACY_TEMPLATE_KEYS.includes(value)) {
+      fields.template = 'record';
+      return;
     }
-    if (fields.templateDark !== undefined) {
-      if (fields.templateDark === '') {
-        fields.templateDark = null;
-      } else if (
-        typeof fields.templateDark !== 'string' ||
-        !known.includes(fields.templateDark)
-      ) {
-        delete fields.templateDark;
-      }
-    }
+    delete fields.template;
   }
 
   async remove(userId: string, id: string) {

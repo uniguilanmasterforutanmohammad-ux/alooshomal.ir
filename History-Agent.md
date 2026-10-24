@@ -20,7 +20,50 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.98.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.99.0**.
+
+## ۱۴۰۵/۰۸/۰۴ — بازطراحی «حالت نمایش» بیولینک: کلاسیک پایدار + یک طرح انتخابی — نسخه `v2.99.0`
+
+**هدف:** صفحه‌ی بیولینک قبلاً ظاهر «رکورد» کلاسیک را داشت. کاربر خواست آن ظاهر
+به‌عنوان تم شماره ۱ حفظ شود و در کنارش فقط یک تم جدید که سازنده هنگام ساخت انتخاب
+می‌کند قرار بگیرد (بیولینک حداکثر دو تم)، بازدیدکننده بین همان دو سوییچ کند، حالت
+کلاسیک دقیقاً همان سبک قبلی بماند، حالت جدید فقط کادر بیولینک را روی پس‌زمینه‌ی
+هم‌رنگ تم نشان دهد، و انتخاب پیش‌فرض ادمین و تفکیک روشن/تاریک در فرم حذف شود.
+
+**تغییرات:**
+- `apps/web/lib/biolink-templates.ts`: افزودن تم `record` (سبک کلاسیک، همیشه فعال)،
+  نگاشت کلیدهای قدیمی («classic»/«vintage»/…) به `record`، حذف مفهوم پیش‌فرض
+  روشن/تاریک، و `biolinkViewModes` (حداکثر دو حالت: کلاسیک + طرح انتخابی).
+- `apps/web/components/biolink/BiolinkTemplateStage.tsx`: رندر حالت کلاسیک با
+  `RecordCard` و حالت طرح با `BiolinkTemplateCard`؛ استخراج هلپرهای
+  `biolinkModesFor`/`initialModeFor`؛ حذف propهای پیش‌فرض/فعال ادمین.
+- `apps/web/components/biolink/PublicBiolinkView.tsx`: مالکیت حالت فعال و سوییچ
+  بازدیدکننده؛ در حالت طرح فقط کادر روی پس‌زمینه‌ی متناسب با پالت تم (`.blt-page`)
+  و در حالت کلاسیک همان کروم کامل قبلی.
+- `apps/web/app/globals.css`: استایل `.blt-page`/`.blt-page-inner`؛ حذف `.blt-stage`.
+- `apps/web/components/biolink/BiolinkTemplatePicker.tsx`: انتخاب تک‌حالته (کلاسیک +
+  طرح‌های فعال)، حذف دو بخش روشن/تاریک.
+- `apps/web/components/biolink/BiolinkForm.tsx` و `LiveBiolinkPreview.tsx`: حذف
+  `templateDark` و تفکیک دارک/لایت؛ پیش‌نمایش کلاسیک با `RecordCard`.
+- `apps/web/components/admin/AdminBiolinkTemplates.tsx`: حذف انتخاب پیش‌فرض روشن/تاریک؛
+  فقط فعال/غیرفعال‌سازی طرح‌ها می‌ماند.
+- `apps/api/src/settings/settings.service.ts`/`settings.controller.ts`: حذف کلیدها و
+  اندپوینت‌های پیش‌فرض تم؛ افزودن `LEGACY_TEMPLATE_KEYS`.
+- `apps/api/src/biolinks/biolinks.service.ts` + DTOها + `apps/api/prisma/schema.prisma`:
+  حذف ستون `templateDark`، پیش‌فرض `template` به `record`، و نرمال‌سازی کلیدهای قدیمی
+  به `record` در `sanitizeTemplateFields`.
+- `apps/web/lib/api.ts`/`use-form-autosave.ts`/صفحات `new` و `edit`/`BiolinkLiveEditor.tsx`:
+  هم‌گام‌سازی با حذف `templateDark`.
+
+**تأیید/تست:**
+- `tsc --noEmit` وب و API: هر دو `TSC=0`؛ `check_api_docs.py` خروجی ۰ (۲۳ کنترلر/۲۳۵ مسیر).
+- `prisma db push`: ستون `templateDark` حذف و پیش‌فرض `template` روی `record` تنظیم شد.
+- Playwright: بیولینک با طرح «موج اقیانوس» → سوییچ دو حالته «کلاسیک (رکورد)/موج
+  اقیانوس»؛ حالت طرح فقط `.blt-page` (بدون QR/اشتراک) و حالت کلاسیک همان
+  `.card-public-share` قدیمی را نشان داد؛ مقدار قدیمی `vintage` بدون سوییچ و در سبک
+  کلاسیک رندر شد. صفحه‌ی `/admin?section=settings` بدون انتخاب پیش‌فرض و صفحه‌ی
+  ویرایش بدون تفکیک روشن/تاریک بارگذاری شدند.
+- رکورد نمونه پس از تست به مقدار اولیه بازگردانده شد.
 
 ## ۱۴۰۵/۰۸/۰۴ — حالت‌های نمایش بیولینک (۱۴ طرح + کنترل ادمین + سوییچ بازدیدکننده) — نسخه `v2.98.0`
 
