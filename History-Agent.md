@@ -20,7 +20,31 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.89.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.89.3**.
+
+## ۱۴۰۵/۰۸/۰۲ — محدودکردن حالت «دفترچه» به دایرکتوری کارت ویزیت‌ها — نسخه `v2.89.3`
+
+**هدف:** حالت نمایش «دفترچه» فقط برای کارت ویزیت‌ها معنا دارد؛ چون سلیقه‌ی نمایش
+در `localStorage` مشترک است، اگر کاربر حالت دفترچه را در `/business-cards`
+انتخاب می‌کرد و سپس به `/biolinks` می‌رفت، سوئیچ آن صفحه ناسازگار می‌شد.
+
+**تغییرات:**
+- `apps/web/lib/directory-view.ts`: `useDirectoryView` اکنون `{ preferred, allowed }`
+  می‌گیرد و فقط مقادیر مجاز را می‌پذیرد؛ ثابت‌های `DIRECTORY_VIEWS_ALL` و
+  `DIRECTORY_VIEWS_NO_NOTEBOOK` اضافه شد.
+- `apps/web/components/ui/DirectoryViewSwitch.tsx`: پراپ `views` اضافه شد تا
+  دکمه‌ها بر اساس حالت‌های مجاز رندر شوند.
+- `apps/web/components/biolink/DirectoryBiolinkContent.tsx`: با
+  `DIRECTORY_VIEWS_NO_NOTEBOOK` و نوع `sort` گسترش‌یافته صدا زده می‌شود.
+- `apps/web/components/businesscard/DirectoryBusinessCardContent.tsx`:
+  فراخوانی hook به شکل شیئی جدید به‌روزرسانی شد.
+- `apps/web/lib/version.ts`: نسخه به `v2.89.3`. `install.sh`: همگام‌سازی.
+
+**تأیید/تست:**
+- Playwright: پس از بازدید `/business-cards?view=notebook` (ثبت در
+  `localStorage`) و رفتن به `/biolinks`، سوئیچ فقط «لیست/کاشی» نشان داد و حالت
+  فعال «لیست» بود؛ `.notebook-scroll` صفر و `.directory-list` یک بار رندر شد.
+- `docker exec alooshomal-web ./node_modules/.bin/tsc --noEmit` → exit 0.
 
 ## ۱۴۰۵/۰۸/۰۲ — اصلاح رنگ‌بندی منوی پنل کاربری در حالت تیره — نسخه `v2.89.2`
 

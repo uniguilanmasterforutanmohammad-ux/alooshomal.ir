@@ -20,7 +20,7 @@ import {
   useInfiniteScroll,
 } from '@/lib/directory';
 import { primeDirectoryDetails } from '@/lib/directory-detail';
-import { useDirectoryView } from '@/lib/directory-view';
+import { DIRECTORY_VIEWS_ALL, useDirectoryView } from '@/lib/directory-view';
 import type { DirectoryView } from '@/lib/directory-view';
 import type { ServerDirectoryResult } from '@/lib/directory-server';
 
@@ -45,11 +45,13 @@ export function DirectoryBusinessCardContent({
   // A `?view=` deep-link (e.g. the «دفترچه تلفن» link) wins over the stored
   // preference so shared links open in the intended look.
   const requestedView = searchParams.get('view') as DirectoryView | null;
-  const { view, setView } = useDirectoryView(
-    requestedView === 'list' || requestedView === 'tiles' || requestedView === 'notebook'
-      ? requestedView
-      : null,
-  );
+  const { view, setView } = useDirectoryView({
+    preferred:
+      requestedView === 'list' || requestedView === 'tiles' || requestedView === 'notebook'
+        ? requestedView
+        : null,
+    allowed: DIRECTORY_VIEWS_ALL,
+  });
   const [selectedSlug, setSelectedSlug] = useState<string | null>(
     searchParams.get('card'),
   );

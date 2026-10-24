@@ -19,7 +19,7 @@ import {
   useInfiniteScroll,
 } from '@/lib/directory';
 import { primeDirectoryDetails } from '@/lib/directory-detail';
-import { useDirectoryView } from '@/lib/directory-view';
+import { DIRECTORY_VIEWS_NO_NOTEBOOK, useDirectoryView } from '@/lib/directory-view';
 import type { ServerDirectoryResult } from '@/lib/directory-server';
 
 export function DirectoryBiolinkContent({
@@ -37,10 +37,13 @@ export function DirectoryBiolinkContent({
     q: searchParams.get('q') ?? '',
     cityId: searchParams.get('cityId') ?? '',
     businessId: searchParams.get('businessId') ?? '',
-    sort: (searchParams.get('sort') as 'recent' | 'liked') ?? 'recent',
+    sort: (searchParams.get('sort') as 'recent' | 'liked' | 'alpha') ?? 'recent',
   };
   const [filters, setFilters] = useState<DirectoryFilterState>(initial);
-  const { view, setView } = useDirectoryView();
+  // The «دفترچه» notebook is a business-card-only look; biolinks keep list+tiles.
+  const { view, setView } = useDirectoryView({
+    allowed: DIRECTORY_VIEWS_NO_NOTEBOOK,
+  });
   const [selectedSlug, setSelectedSlug] = useState<string | null>(
     searchParams.get('biolink'),
   );
@@ -116,7 +119,11 @@ export function DirectoryBiolinkContent({
             </p>
           </div>
         </div>
-        <DirectoryViewSwitch value={view} onChange={setView} />
+        <DirectoryViewSwitch
+          value={view}
+          onChange={setView}
+          views={DIRECTORY_VIEWS_NO_NOTEBOOK}
+        />
       </div>
 
       <div className="shrink-0">

@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 interface Props {
   value: DirectoryView;
   onChange: (view: DirectoryView) => void;
+  /** Which looks this directory offers (defaults to all three). */
+  views?: DirectoryView[];
 }
 
 /**
@@ -15,36 +17,46 @@ interface Props {
  * that previews every card in its owner-selected theme, and the «دفترچه تلفن»
  * notebook.
  */
-export function DirectoryViewSwitch({ value, onChange }: Props) {
+export function DirectoryViewSwitch({
+  value,
+  onChange,
+  views = ['list', 'tiles', 'notebook'],
+}: Props) {
   return (
     <div className="directory-view-switch" role="group" aria-label="حالت نمایش">
-      <button
-        type="button"
-        aria-pressed={value === 'list'}
-        onClick={() => onChange('list')}
-        className={cn(value === 'list' && 'shadow-sm')}
-      >
-        <Rows3 className="size-4" aria-hidden />
-        لیست
-      </button>
-      <button
-        type="button"
-        aria-pressed={value === 'tiles'}
-        onClick={() => onChange('tiles')}
-        className={cn(value === 'tiles' && 'shadow-sm')}
-      >
-        <LayoutGrid className="size-4" aria-hidden />
-        کاشی
-      </button>
-      <button
-        type="button"
-        aria-pressed={value === 'notebook'}
-        onClick={() => onChange('notebook')}
-        className={cn(value === 'notebook' && 'shadow-sm')}
-      >
-        <NotebookTabs className="size-4" aria-hidden />
-        دفترچه
-      </button>
+      {views.includes('list') ? (
+        <button
+          type="button"
+          aria-pressed={value === 'list'}
+          onClick={() => onChange('list')}
+          className={cn(value === 'list' && 'shadow-sm')}
+        >
+          <Rows3 className="size-4" aria-hidden />
+          لیست
+        </button>
+      ) : null}
+      {views.includes('tiles') ? (
+        <button
+          type="button"
+          aria-pressed={value === 'tiles'}
+          onClick={() => onChange('tiles')}
+          className={cn(value === 'tiles' && 'shadow-sm')}
+        >
+          <LayoutGrid className="size-4" aria-hidden />
+          کاشی
+        </button>
+      ) : null}
+      {views.includes('notebook') ? (
+        <button
+          type="button"
+          aria-pressed={value === 'notebook'}
+          onClick={() => onChange('notebook')}
+          className={cn(value === 'notebook' && 'shadow-sm')}
+        >
+          <NotebookTabs className="size-4" aria-hidden />
+          دفترچه
+        </button>
+      ) : null}
     </div>
   );
 }
