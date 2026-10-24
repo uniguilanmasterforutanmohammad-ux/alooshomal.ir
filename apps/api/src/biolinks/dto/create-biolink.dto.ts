@@ -101,10 +101,17 @@ export class CreateBiolinkDto {
   @IsHexColor()
   primaryColor?: string;
 
-  @ApiPropertyOptional({ example: 'classic' })
+  @ApiPropertyOptional({ example: 'sunny' })
   @IsOptional()
   @IsString()
+  @MaxLength(40)
   template?: string;
+
+  @ApiPropertyOptional({ example: 'aria' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  templateDark?: string;
 
   @ApiPropertyOptional({ description: 'شناسه شهر انتخاب‌شده' })
   @IsOptional()

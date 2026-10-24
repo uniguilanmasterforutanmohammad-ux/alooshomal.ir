@@ -126,6 +126,11 @@ export class ModeratorContentUpdateDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  templateDark?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   cityId?: string;
 
   @ApiPropertyOptional()

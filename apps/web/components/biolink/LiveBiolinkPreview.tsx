@@ -1,22 +1,9 @@
 'use client';
 
-import {
-  Globe,
-  Instagram,
-  Linkedin,
-  Mail,
-  MapPin,
-  MessageCircle,
-  Phone,
-  Send,
-  Smartphone,
-  Twitter,
-} from 'lucide-react';
-
-import { RecordCard, type RecordIconLink, type RecordRow } from '@/components/ui/RecordCard';
+import { BiolinkTemplateCard } from './BiolinkTemplateCard';
 import type { BiolinkFormValues } from './BiolinkForm';
+import { biolinkTemplate } from '@/lib/biolink-templates';
 import type { TaxonomyItem } from '@/lib/api';
-import { socialHref as socialNetworkHref } from '@/lib/social-fields';
 
 interface Props {
   values: BiolinkFormValues;
@@ -26,6 +13,15 @@ interface Props {
   cityOptions?: TaxonomyItem[];
   businessOptions?: TaxonomyItem[];
 }
+
+/** Short glyph per social network for the template card's icon row. */
+const SOCIAL_GLYPHS: Record<string, string> = {
+  whatsapp: '✆',
+  instagram: '◎',
+  telegram: '➤',
+  linkedin: 'in',
+  twitter: 'X',
+};
 
 function socialHref(value: string): string {
   return /^https?:\/\//i.test(value) ? value : `https://${value}`;
@@ -51,7 +47,7 @@ export function LiveBiolinkPreview({
   // Same order as the public page: نام کسب‌وکار → «به مدیریت …» → شرکت (chip).
   const subline = values.fullName.trim() ? `به مدیریت ${values.fullName.trim()}` : null;
 
-  const rows: RecordRow[] = [];
+  const rows: import('./BiolinkTemplateCard').TemplateRow[] = [];
   if (values.mobile.trim()) {
     rows.push({
       key: 'mobile',
@@ -59,7 +55,6 @@ export function LiveBiolinkPreview({
       value: values.mobile,
       href: `tel:${values.mobile}`,
       dir: 'ltr',
-      Icon: Smartphone,
     });
   }
   if (values.phone.trim()) {
@@ -69,7 +64,6 @@ export function LiveBiolinkPreview({
       value: values.phone,
       href: `tel:${values.phone}`,
       dir: 'ltr',
-      Icon: Phone,
     });
   }
   if (values.email.trim()) {
@@ -79,7 +73,6 @@ export function LiveBiolinkPreview({
       value: values.email,
       href: `mailto:${values.email}`,
       dir: 'ltr',
-      Icon: Mail,
     });
   }
   if (values.website.trim()) {
@@ -89,75 +82,54 @@ export function LiveBiolinkPreview({
       value: values.website,
       href: socialHref(values.website),
       dir: 'ltr',
-      Icon: Globe,
     });
   }
   if (values.address.trim()) {
-    rows.push({
-      key: 'address',
-      label: 'آدرس',
-      value: values.address,
-      Icon: MapPin,
+    rows.push({ key: 'address', label: 'آدرس', value: values.address });
+  }
+
+  const icons: import('./BiolinkTemplateCard').TemplateIcon[] = [];
+  const socials: Array<{ key: string; value: string }> = [
+    { key: 'whatsapp', value: values.whatsapp },
+    { key: 'instagram', value: values.instagram },
+    { key: 'telegram', value: values.telegram },
+    { key: 'linkedin', value: values.linkedin },
+    { key: 'twitter', value: values.twitter },
+  ];
+  for (const social of socials) {
+    if (!social.value.trim()) continue;
+    const href =
+      social.key === 'whatsapp'
+        ? `https://wa.me/${social.value.replace(/[^0-9]/g, '')}`
+        : socialHref(social.value);
+    icons.push({
+      key: social.key,
+      label: social.key,
+      href,
+      glyph: SOCIAL_GLYPHS[social.key] ?? '◎',
     });
   }
 
-  const iconLinks: RecordIconLink[] = [
-    values.whatsapp
-      ? {
-          key: 'whatsapp',
-          label: 'واتساپ',
-          href: `https://wa.me/${values.whatsapp.replace(/[^0-9]/g, '')}`,
-          Icon: MessageCircle,
-        }
-      : null,
-    values.instagram
-      ? {
-          key: 'instagram',
-          label: 'اینستاگرام',
-          href: socialNetworkHref('instagram', values.instagram),
-          Icon: Instagram,
-        }
-      : null,
-    values.telegram
-      ? {
-          key: 'telegram',
-          label: 'تلگرام',
-          href: socialNetworkHref('telegram', values.telegram),
-          Icon: Send,
-        }
-      : null,
-    values.linkedin
-      ? {
-          key: 'linkedin',
-          label: 'لینکدین',
-          href: socialNetworkHref('linkedin', values.linkedin),
-          Icon: Linkedin,
-        }
-      : null,
-    values.twitter
-      ? {
-          key: 'twitter',
-          label: 'ایکس',
-          href: socialNetworkHref('twitter', values.twitter),
-          Icon: Twitter,
-        }
-      : null,
-  ].filter((entry): entry is RecordIconLink => Boolean(entry));
+  const template =
+    biolinkTemplate(values.template) ??
+    biolinkTemplate(values.templateDark) ??
+    biolinkTemplate('sunny')!;
 
   return (
-    <RecordCard
+    <BiolinkTemplateCard
+      template={template}
       fullName={values.fullName || 'نام و نام خانوادگی'}
       headline={headline}
       subline={subline}
       bio={values.bio}
-      companyName={values.company || null}
       cityName={cityName}
       businessName={businessName}
       avatarUrl={values.avatarUrl || null}
       rows={rows}
-      iconLinks={iconLinks}
+      icons={icons}
       accent={values.primaryColor}
-      compact={compact}
+      website={values.website.trim() || null}
+      headingLevel="h2"
     />
   );
 }

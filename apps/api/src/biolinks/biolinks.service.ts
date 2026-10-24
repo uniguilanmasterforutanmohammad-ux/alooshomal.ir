@@ -24,7 +24,10 @@ import {
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { SettingsService } from '../settings/settings.service';
+import {
+  BIOLINK_TEMPLATE_KEYS,
+  SettingsService,
+} from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { CreateBiolinkDto } from './dto/create-biolink.dto';
 import { PublicBiolinkQueryDto } from './dto/public-biolink-query.dto';
@@ -123,6 +126,7 @@ export class BiolinksService {
     // `draft` is a transport-only flag: it decides the initial status and
     // whether the moderators get pinged, and must never reach Prisma.
     const { draft, ...fields } = dto;
+    this.sanitizeTemplateFields(fields);
     // Global kill-switch: the admin can pause creation while load-testing.
     const locks = await this.settings.getCreationLocks();
     if (!locks.allowBiolinkCreation) {
@@ -346,6 +350,7 @@ export class BiolinksService {
   async update(userId: string, id: string, dto: UpdateBiolinkDto) {
     const existing = await this.findMineById(userId, id);
     const { draft, ...fields } = dto;
+    this.sanitizeTemplateFields(fields);
     if (dto.cityId) {
       const city = await this.prisma.city.findUnique({ where: { id: dto.cityId } });
       if (!city || !city.isActive) {
@@ -416,6 +421,31 @@ export class BiolinksService {
 
     this.facetsCache.invalidateDirectory('biolink');
     return biolink;
+  }
+
+  /**
+   * Drops an unknown display-template key (or the empty-string "clear" value)
+   * so a stale/legacy payload can never store a template the public page does
+   * not know how to render. `templateDark` is allowed to be cleared back to
+   * `null` (the owner then inherits the admin dark default).
+   */
+  private sanitizeTemplateFields(fields: Record<string, unknown>): void {
+    const known = BIOLINK_TEMPLATE_KEYS as readonly string[];
+    if (fields.template !== undefined) {
+      if (typeof fields.template !== 'string' || !known.includes(fields.template)) {
+        delete fields.template;
+      }
+    }
+    if (fields.templateDark !== undefined) {
+      if (fields.templateDark === '') {
+        fields.templateDark = null;
+      } else if (
+        typeof fields.templateDark !== 'string' ||
+        !known.includes(fields.templateDark)
+      ) {
+        delete fields.templateDark;
+      }
+    }
   }
 
   async remove(userId: string, id: string) {

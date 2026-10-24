@@ -20,7 +20,51 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.97.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.98.0**.
+
+## ۱۴۰۵/۰۸/۰۴ — حالت‌های نمایش بیولینک (۱۴ طرح + کنترل ادمین + سوییچ بازدیدکننده) — نسخه `v2.98.0`
+
+**هدف:** کاربر خواست صفحه‌ی بیولینک امکان انتخاب «حالت نمایش» داشته باشد: ادمین
+طرح‌ها را فعال/غیرفعال کند و پیش‌فرض را تعیین کند، بازدیدکننده بتواند بین حالت‌ها
+جابه‌جا شود، و کاربر هنگام ساخت هم تم روشن و هم تم تاریک خود را انتخاب کند (با
+پیش‌فرض جدا برای هر تم). منبع طرح‌ها فایل ارسالی `biolinks.html` است.
+
+**تغییرات:**
+- `apps/web/lib/biolink-templates.ts` (جدید): رجیستری ۱۴ طرح (کلید ثابت، نام فارسی،
+  پرچم تاریک/روشن، سواچ پیش‌نمایش) + هلپرهای `biolinkTemplate`/`enabledTemplates`.
+- `apps/api/prisma/schema.prisma`: ستون جدید `Biolink.templateDark` (پیش‌فرض
+  `template` به `sunny` تغییر کرد)؛ با `prisma db push` اعمال شد.
+- `apps/api/src/settings/settings.service.ts`: کلیدهای تنظیمات
+  `biolinkTemplatesEnabled`/`biolinkTemplateDefaultLight`/`biolinkTemplateDefaultDark`
+  و رجیستری `BIOLINK_TEMPLATE_KEYS`/`BIOLINK_DARK_TEMPLATE_KEYS` + متدهای خواندن/نوشتن.
+- `apps/api/src/settings/settings.controller.ts`: افزودن این تنظیمات به payload
+  عمومی و ادمین و DTO/handler ویرایش.
+- `apps/api/src/biolinks/biolinks.service.ts`: `sanitizeTemplateFields` برای حذف
+  کلید ناشناخته و اجازه‌ی پاک‌کردن `templateDark`؛ `apps/api/src/biolinks/dto/create-biolink.dto.ts`
+  و `apps/api/src/moderator/dto/moderator-content.dto.ts`: فیلد `templateDark`.
+- `apps/web/components/biolink/BiolinkTemplateCard.tsx` (جدید): رندر بیولینک در یکی از
+  ۱۴ طرح؛ `apps/web/app/globals.css`: بلوک‌های `.blt-*` برای هر طرح + سوییچ بازدیدکننده.
+- `apps/web/components/biolink/BiolinkTemplateStage.tsx` (جدید): سوییچ زنده‌ی
+  بازدیدکننده بین طرح‌های فعال (حافظه‌ی `localStorage`) و انتخاب طرح اولیه بر اساس تم
+  روشن/تاریک و انتخاب مالک/پیش‌فرض ادمین.
+- `apps/web/components/biolink/BiolinkTemplatePicker.tsx` (جدید): انتخاب طرح روشن و
+  تاریک در فرم ساخت/ویرایش؛ `BiolinkForm`/`LiveBiolinkPreview` به آن وصل شدند.
+- `apps/web/components/biolink/PublicBiolinkView.tsx` + `apps/web/app/biolinks/[slug]/page.tsx`:
+  نمایش کارت طرح‌محور و خواندن تنظیمات عمومی طرح‌ها.
+- `apps/web/components/admin/AdminBiolinkTemplates.tsx` (جدید): پنل ادمین برای
+  فعال/غیرفعال‌کردن طرح‌ها و تعیین پیش‌فرض روشن/تاریک، متصل در `apps/web/app/admin/page.tsx`.
+- `apps/web/lib/api.ts`/`use-form-autosave.ts`/صفحات `dashboard/biolinks/new` و `edit`
+  و `components/admin/BiolinkLiveEditor.tsx`: هم‌گام‌سازی با `templateDark`.
+
+**تأیید/تست:**
+- `tsc --noEmit` وب و API: هر دو `TSC=0`؛ `check_api_docs.py` خروجی ۰ (۲۳ کنترلر/۲۳۵ مسیر).
+- API زنده: `PATCH /admin/settings` با سه طرح فعال + پیش‌فرض‌ها ذخیره شد و
+  `GET /settings/public` همان را برگرداند؛ `PATCH /biolinks/:id` کلید ناشناخته را
+  دور انداخت و `templateDark` معتبر را ذخیره/پاک کرد.
+- Playwright (کروم هدلس): `/biolinks/sample-full-biolink` → کارت `blt-sunny` با ۳
+  چیپ سوییچ؛ کلیک روی «موج اقیانوس» → `blt-ocean`، و پس از reload همان ماند؛ در حالت
+  تم تاریک (`theme=dark`) کارت پیش‌فرض ادمین `blt-ocean` نمایش داده شد.
+- تنظیمات ادمین پس از تست به حالت کامل (هر ۱۴ طرح) بازگردانده شد.
 
 ## ۱۴۰۵/۰۸/۰۴ — بخش بلاگ با ویدیوی مستقیم آپارات — نسخه `v2.97.0`
 

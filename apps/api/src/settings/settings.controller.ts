@@ -1,6 +1,15 @@
 import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { IsBoolean, IsIn, IsInt, IsOptional, Max, Min } from 'class-validator';
+import {
+  IsArray,
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 import { Public } from '../common/decorators/public.decorator';
@@ -9,6 +18,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import {
   ADMIN_NOTIFY_CATEGORIES,
   AdminNotifyCategory,
+  BIOLINK_TEMPLATE_KEYS,
   DIRECTORY_DISPLAY_MODES,
   DirectoryDisplayMode,
   FEATURE_FLAGS,
@@ -42,6 +52,18 @@ class UpdateSettingsDto {
   @Min(1)
   @Max(100)
   myListPageSize?: number;
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  biolinkTemplatesEnabled?: string[];
+
+  @IsOptional()
+  @IsString()
+  biolinkTemplateDefaultLight?: string;
+
+  @IsOptional()
+  @IsString()
+  biolinkTemplateDefaultDark?: string;
 
   @IsOptional()
   adminNotifications?: Partial<Record<AdminNotifyCategory, boolean>>;
@@ -184,6 +206,12 @@ export class SettingsController {
       emailLoginEnabled: await this.settingsService.getEmailLoginEnabled(),
       feedMaxImages: await this.settingsService.getFeedMaxImages(),
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
+      biolinkTemplatesEnabled:
+        await this.settingsService.getBiolinkTemplatesEnabled(),
+      biolinkTemplateDefaultLight:
+        await this.settingsService.getBiolinkTemplateDefaultLight(),
+      biolinkTemplateDefaultDark:
+        await this.settingsService.getBiolinkTemplateDefaultDark(),
       features: await this.settingsService.getFeatureFlags(),
       featureVisibility: await this.settingsService.getFeatureVisibility(),
       hiddenNavHrefs: await this.settingsService.getHiddenNavHrefs(),
@@ -230,6 +258,13 @@ export class AdminSettingsController {
       pointsPerNews: await this.settingsService.getPointsPerNews(),
       feedMaxImages: await this.settingsService.getFeedMaxImages(),
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
+      biolinkTemplatesEnabled:
+        await this.settingsService.getBiolinkTemplatesEnabled(),
+      biolinkTemplateDefaultLight:
+        await this.settingsService.getBiolinkTemplateDefaultLight(),
+      biolinkTemplateDefaultDark:
+        await this.settingsService.getBiolinkTemplateDefaultDark(),
+      biolinkTemplateKeys: [...BIOLINK_TEMPLATE_KEYS],
       features: await this.settingsService.getFeatureFlags(),
       featureVisibility: await this.settingsService.getFeatureVisibility(),
       stoppedSections: await this.settingsService.getStoppedSections(),
@@ -247,6 +282,9 @@ export class AdminSettingsController {
       directoryDisplayMode?: DirectoryDisplayMode;
       adminListPageSize?: number;
       myListPageSize?: number;
+      biolinkTemplatesEnabled?: string[];
+      biolinkTemplateDefaultLight?: string;
+      biolinkTemplateDefaultDark?: string;
       adminNotifications?: Record<AdminNotifyCategory, boolean>;
       allowBiolinkCreation?: boolean;
       allowBusinessCardCreation?: boolean;
@@ -288,6 +326,24 @@ export class AdminSettingsController {
       result.myListPageSize = await this.settingsService.setMyListPageSize(
         dto.myListPageSize,
       );
+    }
+    if (dto.biolinkTemplatesEnabled !== undefined) {
+      result.biolinkTemplatesEnabled =
+        await this.settingsService.setBiolinkTemplatesEnabled(
+          dto.biolinkTemplatesEnabled,
+        );
+    }
+    if (dto.biolinkTemplateDefaultLight !== undefined) {
+      result.biolinkTemplateDefaultLight =
+        await this.settingsService.setBiolinkTemplateDefaultLight(
+          dto.biolinkTemplateDefaultLight,
+        );
+    }
+    if (dto.biolinkTemplateDefaultDark !== undefined) {
+      result.biolinkTemplateDefaultDark =
+        await this.settingsService.setBiolinkTemplateDefaultDark(
+          dto.biolinkTemplateDefaultDark,
+        );
     }
     if (dto.adminNotifications !== undefined) {
       const clean: Partial<Record<AdminNotifyCategory, boolean>> = {};

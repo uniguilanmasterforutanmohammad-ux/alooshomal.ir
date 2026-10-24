@@ -1,20 +1,5 @@
 import Link from 'next/link';
-import {
-  ArrowRight,
-  Briefcase,
-  Crown,
-  Globe,
-  Home,
-  Instagram,
-  Linkedin,
-  Mail,
-  MapPin,
-  MessageCircle,
-  Phone,
-  Send,
-  Smartphone,
-  Twitter,
-} from 'lucide-react';
+import { ArrowRight, Briefcase, Crown, Home } from 'lucide-react';
 
 import { CardFit } from '@/components/ui/CardFit';
 import { LikeButton } from '@/components/ui/LikeButton';
@@ -22,130 +7,42 @@ import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
 import { SaveButton } from '@/components/ui/SaveButton';
 import { ShareButton } from '@/components/ui/ShareButton';
+import { BiolinkTemplateStage } from '@/components/biolink/BiolinkTemplateStage';
 import {
-  RecordCard,
-  type RecordIconLink,
-  type RecordRow,
-} from '@/components/ui/RecordCard';
+  DEFAULT_DARK_TEMPLATE_KEY,
+  DEFAULT_LIGHT_TEMPLATE_KEY,
+} from '@/lib/biolink-templates';
 import type { Biolink } from '@/lib/api';
-import { socialHref as socialNetworkHref } from '@/lib/social-fields';
 
 interface Props {
   biolink: Biolink;
   qr: string;
   link: string;
   like?: { liked: boolean; likeCount: number };
-}
-
-function socialHref(value: string): string {
-  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+  /** admin-enabled display templates (falls back to all when empty) */
+  enabledTemplates?: string[];
+  /** admin default template for light-mode pages */
+  defaultTemplateLight?: string;
+  /** admin default template for dark-mode pages */
+  defaultTemplateDark?: string;
 }
 
 /**
- * Full public biolink page, rendered in the site's own vintage «record» style —
- * the same calm, readable layout as the /biolinks detail panel (cream paper,
- * dashed accent frame, labelled icon rows, circled social icons). The owner's
- * chosen colour is kept as the record accent so «طیفی» biolinks still look
- * like themselves, but the chrome (header, share block) stays on-brand paper.
+ * Full public biolink page. The biolink body is rendered by
+ * {@link BiolinkTemplateStage} in one of the ready-made «حالت نمایش» designs;
+ * the visitor can switch between the templates the admin enabled, while the
+ * surrounding chrome (header, share block) stays on-brand paper.
  */
-export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
-  // The record header reads like a business card, in this order:
-  //   نام کسب‌وکار (عنوان شغل) → «به مدیریت …» → شرکت.
+export function PublicBiolinkView({
+  biolink,
+  qr,
+  link,
+  like,
+  enabledTemplates,
+  defaultTemplateLight,
+  defaultTemplateDark,
+}: Props) {
   const headline = biolink.jobTitle || biolink.company || biolink.fullName || 'بیولینک';
-  const subline = biolink.fullName ? `به مدیریت ${biolink.fullName}` : null;
-
-  const rows: RecordRow[] = [];
-  if (biolink.mobile) {
-    rows.push({
-      key: 'mobile',
-      label: 'تلفن همراه',
-      value: biolink.mobile,
-      href: `tel:${biolink.mobile}`,
-      dir: 'ltr',
-      Icon: Smartphone,
-    });
-  }
-  if (biolink.phone) {
-    rows.push({
-      key: 'phone',
-      label: 'تلفن ثابت',
-      value: biolink.phone,
-      href: `tel:${biolink.phone}`,
-      dir: 'ltr',
-      Icon: Phone,
-    });
-  }
-  if (biolink.email) {
-    rows.push({
-      key: 'email',
-      label: 'ایمیل',
-      value: biolink.email,
-      href: `mailto:${biolink.email}`,
-      dir: 'ltr',
-      Icon: Mail,
-    });
-  }
-  if (biolink.website) {
-    rows.push({
-      key: 'website',
-      label: 'وب‌سایت',
-      value: biolink.website,
-      href: socialHref(biolink.website),
-      dir: 'ltr',
-      Icon: Globe,
-    });
-  }
-  if (biolink.address) {
-    rows.push({
-      key: 'address',
-      label: 'آدرس',
-      value: biolink.address,
-      Icon: MapPin,
-    });
-  }
-
-  const iconLinks: RecordIconLink[] = [
-    biolink.whatsapp
-      ? {
-          key: 'whatsapp',
-          label: 'واتساپ',
-          href: `https://wa.me/${biolink.whatsapp.replace(/[^0-9]/g, '')}`,
-          Icon: MessageCircle,
-        }
-      : null,
-    biolink.instagram
-      ? {
-          key: 'instagram',
-          label: 'اینستاگرام',
-          href: socialNetworkHref('instagram', biolink.instagram),
-          Icon: Instagram,
-        }
-      : null,
-    biolink.telegram
-      ? {
-          key: 'telegram',
-          label: 'تلگرام',
-          href: socialNetworkHref('telegram', biolink.telegram),
-          Icon: Send,
-        }
-      : null,
-    biolink.linkedin
-      ? {
-          key: 'linkedin',
-          label: 'لینکدین',
-          href: socialNetworkHref('linkedin', biolink.linkedin),
-          Icon: Linkedin,
-        }
-      : null,
-    biolink.twitter
-      ? {
-          key: 'twitter',
-          label: 'ایکس',
-          href: socialNetworkHref('twitter', biolink.twitter),
-          Icon: Twitter,
-        }
-      : null,
-  ].filter((entry): entry is RecordIconLink => Boolean(entry));
 
   return (
     <div className="card-public-page record-page">
@@ -184,33 +81,14 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
           </div>
 
           {/* The chrome above and below stays put; this region shrinks the
-              record to fit one screen (falling back to scrolling only when even
+              card to fit one screen (falling back to scrolling only when even
               the minimum scale cannot fit). */}
           <CardFit>
-            <RecordCard
-              fullName={biolink.fullName}
-              headline={headline}
-              subline={subline}
-              bio={biolink.bio}
-              companyName={biolink.company}
-              cityName={biolink.city?.name}
-              businessName={biolink.business?.name}
-              avatarUrl={biolink.avatarUrl}
-              rows={rows}
-              iconLinks={iconLinks}
-              accent={biolink.primaryColor}
-              headingLevel="h1"
-              footer={
-                biolink.linkedBusinessCard ? (
-                  <Link
-                    href={`/business-cards/${biolink.linkedBusinessCard.slug}`}
-                    className="indeed-btn indeed-btn-secondary w-full"
-                  >
-                    <Briefcase className="size-4" aria-hidden />
-                    مشاهده کارت ویزیت این بیولینک
-                  </Link>
-                ) : null
-              }
+            <BiolinkTemplateStage
+              biolink={biolink}
+              enabledKeys={enabledTemplates ?? []}
+              defaultLight={defaultTemplateLight ?? DEFAULT_LIGHT_TEMPLATE_KEY}
+              defaultDark={defaultTemplateDark ?? DEFAULT_DARK_TEMPLATE_KEY}
             />
           </CardFit>
 
@@ -255,6 +133,16 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
               </div>
             </div>
           </div>
+
+          {biolink.linkedBusinessCard ? (
+            <Link
+              href={`/business-cards/${biolink.linkedBusinessCard.slug}`}
+              className="indeed-btn indeed-btn-secondary mt-3 w-full shrink-0"
+            >
+              <Briefcase className="size-4" aria-hidden />
+              مشاهده کارت ویزیت این بیولینک
+            </Link>
+          ) : null}
 
           <p className="mt-3 shrink-0 text-center text-xs text-muted">
             ساخته‌شده با{' '}

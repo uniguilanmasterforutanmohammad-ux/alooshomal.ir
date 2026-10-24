@@ -10,6 +10,7 @@ import { BiolinkStatusBadge } from '@/components/biolink/BiolinkStatusBadge';
 import { BusinessCardStatusBadge } from '@/components/businesscard/BusinessCardStatusBadge';
 import { TaxonomyManager } from '@/components/admin/TaxonomyManager';
 import { AdminDirectorySettings } from '@/components/admin/AdminDirectorySettings';
+import { AdminBiolinkTemplates } from '@/components/admin/AdminBiolinkTemplates';
 import { AdminAuthSettings } from '@/components/admin/AdminAuthSettings';
 import { AdminFeatureFlags } from '@/components/admin/AdminFeatureFlags';
 import { AdminSubscriptions } from '@/components/admin/AdminSubscriptions';
@@ -852,6 +853,7 @@ function AdminContent() {
       {section === 'settings' ? (
         <div className="grid gap-4 lg:grid-cols-2">
           <AdminFeatureFlags />
+          <AdminBiolinkTemplates />
           <AdminDirectorySettings />
           <AdminAuthSettings />
           <AdminNotificationSettings />

@@ -221,6 +221,8 @@ export interface Biolink {
   whatsapp: string | null;
   primaryColor: string;
   template: string;
+  /** template key used in dark mode (null = inherit the admin default) */
+  templateDark?: string | null;
   isPublished: boolean;
   status: 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'UNPUBLISHED';
   rejectionReason: string | null;

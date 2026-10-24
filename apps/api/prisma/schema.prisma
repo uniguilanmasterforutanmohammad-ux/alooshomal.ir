@@ -699,7 +699,13 @@ model Biolink {
   // appearance
   theme          String  @default("light")
   primaryColor   String  @default("#8B3A1A")
-  template       String  @default("classic")
+  /// «حالت نمایش» light — the chosen biolink display template (see
+  /// `apps/web/lib/biolink-templates.ts`). Legacy values («classic»,
+  /// «vintage», «spectrum») keep rendering through the shared record card.
+  template       String  @default("sunny")
+  /// «حالت نمایش» dark — the template shown when the page is in dark mode.
+  /// Empty/null means the light template's dark sibling / the admin default.
+  templateDark   String?
 
   // visibility & moderation
   isPublished     Boolean    @default(false)

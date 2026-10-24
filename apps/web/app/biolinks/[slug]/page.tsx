@@ -32,6 +32,41 @@ async function getBiolink(slug: string): Promise<BiolinkPayload | null> {
   }
 }
 
+/**
+ * The admin-enabled biolink display templates + the two defaults, read from the
+ * public settings endpoint (cached briefly; it only changes when the admin
+ * flips a switch). Falls back to the built-in defaults on failure so the page
+ * always renders something.
+ */
+async function getTemplateSettings(): Promise<{
+  enabled: string[];
+  defaultLight: string;
+  defaultDark: string;
+} | null> {
+  try {
+    const response = await fetch(`${SERVER_API_URL}/settings/public`, {
+      next: { revalidate: 10 },
+    });
+    if (!response.ok) return null;
+    const payload = (await response.json()) as {
+      data: {
+        biolinkTemplatesEnabled?: string[];
+        biolinkTemplateDefaultLight?: string;
+        biolinkTemplateDefaultDark?: string;
+      } | null;
+    };
+    const data = payload.data;
+    if (!data) return null;
+    return {
+      enabled: data.biolinkTemplatesEnabled ?? [],
+      defaultLight: data.biolinkTemplateDefaultLight ?? 'sunny',
+      defaultDark: data.biolinkTemplateDefaultDark ?? 'aria',
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Server-rendered SEO metadata for a public biolink page. */
 export async function generateMetadata({
   params,
@@ -134,7 +169,10 @@ export default async function PublicBiolinkPage({
       </>
     );
   }
-  const data = await getBiolink(slug);
+  const [data, templates] = await Promise.all([
+    getBiolink(slug),
+    getTemplateSettings(),
+  ]);
   if (!data) {
     notFound();
   }
@@ -150,6 +188,9 @@ export default async function PublicBiolinkPage({
         qr={data.qr}
         link={data.link}
         like={data.like}
+        enabledTemplates={templates?.enabled}
+        defaultTemplateLight={templates?.defaultLight}
+        defaultTemplateDark={templates?.defaultDark}
       />
     </>
   );

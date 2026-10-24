@@ -2393,3 +2393,325 @@ html.dark .notebook-paper mark {
   background: #7a5a1e;
   color: #f7ecd9;
 }
+
+/* =====================================================================
+   «حالت‌های نمایش» بیولینک — the 14 ready-made designs from the reference
+   file `biolinks.html`, adapted to the Persian/RTL data shape of a biolink.
+   Each `.blt-<key>` block paints one design; the shared `.blt-*` classes
+   carry the structure (top/avatar, body, rows, icons, actions, brand).
+   The owner's chosen colour is kept as `--blt-accent` for the designs that
+   look best tinted, while the fixed reference palettes stay intact.
+   ===================================================================== */
+.blt {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 22px;
+  background: var(--vintage-surface);
+  color: var(--vintage-ink);
+  box-shadow: 0 12px 34px rgba(58, 40, 28, 0.18);
+  text-align: center;
+}
+
+.blt-top {
+  display: flex;
+  justify-content: center;
+  padding-top: 26px;
+}
+
+.blt-avatar {
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 4px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  background: linear-gradient(135deg, #7d8fa3, #3c4a5a);
+  color: #fff;
+  font-size: 30px;
+  font-weight: 800;
+}
+.blt-avatar-img { width: 100%; height: 100%; object-fit: cover; }
+
+.blt-photo {
+  height: 168px;
+  width: 100%;
+  background: linear-gradient(180deg, #7c8a94 0%, #dfe6ea 70%, #ffffff 100%);
+  overflow: hidden;
+}
+.blt-photo-img { width: 100%; height: 100%; object-fit: cover; }
+
+.blt-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 22px 22px;
+}
+
+.blt-name { margin: 0; font-size: 22px; font-weight: 800; line-height: 1.3; }
+.blt-tagline { margin: 0; font-size: 13px; opacity: 0.85; line-height: 1.7; }
+
+.blt-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.blt-chip {
+  padding: 3px 10px;
+  border-radius: 9999px;
+  border: 1px solid currentColor;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.blt-icons { display: flex; gap: 10px; justify-content: center; }
+.blt-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.7);
+  text-decoration: none;
+  transition: transform 0.15s;
+}
+.blt-icon:hover { transform: translateY(-2px); }
+
+.blt-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.blt-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  text-decoration: none;
+  color: inherit;
+  background: rgba(0, 0, 0, 0.04);
+}
+.blt-row-label { font-weight: 700; opacity: 0.8; }
+.blt-row-value { direction: ltr; font-weight: 600; }
+
+.blt-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 2px; }
+.blt-btn {
+  display: block;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  transition: transform 0.15s;
+  border: none;
+}
+.blt-btn:hover { transform: translateY(-2px); }
+.blt-btn-primary { background: var(--blt-accent); color: #fff; }
+
+.blt-brand {
+  padding: 10px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  opacity: 0.55;
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* 1. Studio Nord */
+.blt-studio-nord { background: #e5391f; color: #1b1b1b; text-align: left; }
+.blt-studio-nord .blt-body { text-align: left; }
+.blt-studio-nord .blt-avatar { border-radius: 6px; background: linear-gradient(160deg, #3a0d05, #1a0502); }
+.blt-studio-nord .blt-name { font-family: 'Montserrat', sans-serif; font-weight: 800; }
+.blt-studio-nord .blt-icons,
+.blt-studio-nord .blt-chips { justify-content: flex-start; }
+.blt-studio-nord .blt-icon { background: #1b1b1b; }
+.blt-studio-nord .blt-row { background: transparent; border-top: 1.5px solid #1b1b1b; border-radius: 0; }
+.blt-studio-nord .blt-rows { border-radius: 0; }
+.blt-studio-nord .blt-rows > li:last-child .blt-row { border-bottom: 1.5px solid #1b1b1b; }
+.blt-studio-nord .blt-btn-primary { background: #1b1b1b; color: #fff; }
+
+/* 2. Mark Tyler */
+.blt-mark-tyler { background: linear-gradient(170deg, #1e5a6b 0%, #2e4f9a 30%, #c8384c 60%, #3c1b3c 100%); color: #fff; }
+.blt-mark-tyler .blt-avatar { background: linear-gradient(135deg, #8b7a68, #3d3026); }
+.blt-mark-tyler .blt-name { font-family: 'Montserrat', sans-serif; font-weight: 800; }
+.blt-mark-tyler .blt-icon { background: #fff; color: #c8384c; }
+.blt-mark-tyler .blt-row { background: rgba(255, 255, 255, 0.12); }
+.blt-mark-tyler .blt-btn-primary { background: transparent; border: 1.5px solid #fff; color: #fff; border-radius: 14px; }
+
+/* 3. Sunny Side Records */
+.blt-sunny { background: #f6efd6; color: #4a2410; }
+.blt-sunny .blt-avatar { border-radius: 50%; background: radial-gradient(circle, #f0ad2a, #e0622a 60%, #7a3a12); }
+.blt-sunny .blt-name { font-family: 'Playfair Display', serif; font-weight: 900; text-shadow: 1px 1px 0 #e7d9b0; }
+.blt-sunny .blt-icon { background: #5c2e0c; }
+.blt-sunny .blt-row { background: rgba(92, 46, 12, 0.08); }
+.blt-sunny .blt-btn-primary { background: #b8430e; color: #fff; }
+
+/* 4. Nails by Lulu */
+.blt-nails { background: linear-gradient(180deg, #f9b7d3 0%, #e8c6f5 55%, #bcd6f9 100%); color: #4b2b57; }
+.blt-nails .blt-avatar { background: linear-gradient(135deg, #d9d2d7, #a5c9b5); }
+.blt-nails .blt-name { font-family: 'Fredoka', sans-serif; font-weight: 700; }
+.blt-nails .blt-icon { background: #3b1e4a; }
+.blt-nails .blt-row { background: rgba(75, 43, 87, 0.08); }
+.blt-nails .blt-btn-primary { background: linear-gradient(90deg, #ff6fa5, #ff9ec5); color: #fff; border-radius: 14px; }
+
+/* 5. Kai Nakamura */
+.blt-kai { background: #0f0f0f; color: #9ea79f; text-align: left; }
+.blt-kai .blt-body { text-align: left; }
+.blt-kai .blt-avatar { border-radius: 6px; background: linear-gradient(135deg, #4dff7a, #1fa84a); }
+.blt-kai .blt-name { font-family: 'Courier Prime', monospace; color: #a9b1aa; }
+.blt-kai .blt-icons,
+.blt-kai .blt-chips { justify-content: flex-start; }
+.blt-kai .blt-icon { background: transparent; color: #4dff7a; }
+.blt-kai .blt-row { background: transparent; }
+.blt-kai .blt-row-label::before { content: '> '; color: #4dff7a; }
+.blt-kai .blt-btn-primary { background: #4dff7a; color: #0f0f0f; }
+
+/* 6. Law Office */
+.blt-law { background: #ffffff; color: #1d2a7a; border: 1px solid #ddd; }
+.blt-law .blt-avatar { background: linear-gradient(135deg, #b9bec6, #5d6470); }
+.blt-law .blt-name { font-family: 'Playfair Display', serif; font-weight: 900; }
+.blt-law .blt-icon { background: transparent; color: #1d2a7a; }
+.blt-law .blt-row { background: transparent; border-bottom: 1px solid #e2e2ea; border-radius: 0; }
+.blt-law .blt-rows { border-radius: 0; }
+.blt-law .blt-btn-primary { background: transparent; border: 1.5px solid #1d2a7a; color: #1d2a7a; border-radius: 0; }
+
+/* 7. Razorwitch */
+.blt-razor { background: #141414; color: #fff; overflow: hidden; }
+.blt-razor::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 150px;
+  background: linear-gradient(90deg, #d6192f, #222 40%, #f0c020);
+  border-radius: 0 0 40% 40% / 0 0 20px 20px;
+}
+.blt-razor .blt-top { position: relative; }
+.blt-razor .blt-avatar { background: linear-gradient(135deg, #2b2b2b, #6b1b25); }
+.blt-razor .blt-body { position: relative; }
+.blt-razor .blt-name { font-family: 'Quicksand', sans-serif; }
+.blt-razor .blt-icon { background: #1db954; }
+.blt-razor .blt-row { background: rgba(255, 255, 255, 0.1); }
+.blt-razor .blt-btn-primary { background: linear-gradient(90deg, #8e2de2, #f0427a); color: #fff; }
+
+/* 8. Emily Rose */
+.blt-emily { background: #1f1f1f; color: #fff; }
+.blt-emily .blt-avatar { border-color: #fff; background: linear-gradient(135deg, #c7a58a, #6a4a3a); }
+.blt-emily .blt-name { font-family: 'Quicksand', sans-serif; color: #8fd3f4; }
+.blt-emily .blt-icon { background: transparent; }
+.blt-emily .blt-row { background: transparent; }
+.blt-emily .blt-btn-primary { background: transparent; border: 1.5px solid #5fc8ff; color: #bfe9ff; border-radius: 0; }
+
+/* 9. Aria Chen */
+.blt-aria { background: linear-gradient(160deg, #1e1f5e 0%, #155f7a 60%, #0d8c7e 100%); color: #fff; }
+.blt-aria .blt-avatar { background: radial-gradient(circle, #6b3a2a, #1b1b1b); border-color: rgba(255, 255, 255, 0.5); }
+.blt-aria .blt-name { font-family: 'Montserrat', sans-serif; font-weight: 700; }
+.blt-aria .blt-icon { background: #fff; color: #155f7a; }
+.blt-aria .blt-row { background: rgba(255, 255, 255, 0.12); }
+.blt-aria .blt-btn-primary { background: rgba(255, 255, 255, 0.18); color: #fff; }
+
+/* 10. Fitness with Sarah */
+.blt-fitness { background: #f4955b; color: #3f3a36; }
+.blt-fitness .blt-avatar { background: rgba(255, 255, 255, 0.35); color: #3f3a36; }
+.blt-fitness .blt-name { font-family: 'Fredoka', sans-serif; font-weight: 500; }
+.blt-fitness .blt-icon { background: #fff; color: #f4955b; }
+.blt-fitness .blt-row { background: rgba(255, 255, 255, 0.35); }
+.blt-fitness .blt-btn-primary { background: transparent; border: 1.5px solid #fff; color: #fff; border-radius: 30px; }
+
+/* 11. Handmade by Jessica */
+.blt-handmade { background: linear-gradient(180deg, #8f8f8f, #6f6f6f); color: #222; }
+.blt-handmade .blt-avatar { background: linear-gradient(135deg, #e8d88a, #7fa86a); }
+.blt-handmade .blt-name { font-family: 'Lobster', cursive; font-weight: 400; }
+.blt-handmade .blt-icon { background: #fff; color: #222; }
+.blt-handmade .blt-row { background: rgba(170, 210, 235, 0.6); }
+.blt-handmade .blt-btn-primary { background: #fff; color: #222; }
+
+/* 12. Fern & Folly */
+.blt-fern { background: linear-gradient(180deg, #e8dcb4 0%, #d9ead2 40%, #e7f2e1 100%); color: #2e4a2e; }
+.blt-fern .blt-avatar { border-radius: 50%; background: radial-gradient(circle, #6f8a6a, #4f6b4c); }
+.blt-fern .blt-name { font-family: 'Playfair Display', serif; font-weight: 700; }
+.blt-fern .blt-icon { background: #2e4a2e; }
+.blt-fern .blt-row { background: rgba(46, 74, 46, 0.08); }
+.blt-fern .blt-btn-primary { background: #2e4a2e; color: #fff; border-radius: 4px; }
+
+/* 13. Ocean Wave */
+.blt-ocean { background: linear-gradient(180deg, #3d0f7a 0%, #7b1aa8 50%, #c91fa3 100%); color: #fff; }
+.blt-ocean .blt-avatar { background: rgba(255, 255, 255, 0.2); }
+.blt-ocean .blt-name { font-family: 'Montserrat', sans-serif; font-weight: 600; }
+.blt-ocean .blt-icon { background: #fff; color: #7b1aa8; }
+.blt-ocean .blt-row { background: rgba(255, 255, 255, 0.14); }
+.blt-ocean .blt-btn-primary { background: #fff; color: #7b1aa8; border-radius: 6px; }
+
+/* 14. Bradley Smith */
+.blt-bradley { background: linear-gradient(180deg, #f5f5f5, #ffffff); color: #111; }
+.blt-bradley .blt-name { font-family: 'Playfair Display', serif; font-weight: 700; }
+.blt-bradley .blt-icons { justify-content: center; }
+.blt-bradley .blt-icon { background: #111; }
+.blt-bradley .blt-row {
+  border-bottom: 1px solid #ccc;
+  border-radius: 0;
+  background: transparent;
+  font-family: 'Montserrat', sans-serif;
+  letter-spacing: 1px;
+}
+.blt-bradley .blt-rows { border-radius: 0; }
+.blt-bradley .blt-btn-primary { background: #111; color: #fff; border-radius: 0; }
+
+/* Dark-mode chrome: when the site is in dark theme the page surface turns
+   dark, but each template keeps its own palette so the design still reads. */
+html.dark .blt { box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); }
+
+/* Visitor «حالت نمایش» switcher shown above the biolink card. */
+.blt-switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 9999px;
+  border: 1px dashed var(--vintage-border);
+  background: var(--vintage-surface);
+}
+.blt-switch-label { font-size: 11px; font-weight: 700; color: var(--vintage-ink-soft); }
+.blt-switch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 9999px;
+  border: 1px solid var(--vintage-border);
+  background: transparent;
+  color: var(--vintage-ink);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.blt-switch-chip:hover { border-color: var(--vintage-accent); }
+.blt-switch-chip.is-active {
+  border-color: var(--vintage-accent);
+  background: var(--vintage-accent);
+  color: #fff;
+}
+.blt-switch-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  flex: 0 0 auto;
+}

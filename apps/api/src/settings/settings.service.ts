@@ -130,6 +130,50 @@ export interface CreationLocks {
 }
 
 // ---------------------------------------------------------------------------
+//  «حالت نمایش» بیولینک (biolink display templates)
+// ---------------------------------------------------------------------------
+
+/**
+ * The display templates a biolink can use, mirroring
+ * `apps/web/lib/biolink-templates.ts` (the reference `biolinks.html` designs).
+ * Stored per-biolink in `Biolink.template` / `Biolink.templateDark`.
+ */
+export const BIOLINK_TEMPLATE_KEYS = [
+  'studio-nord',
+  'mark-tyler',
+  'sunny',
+  'nails',
+  'kai',
+  'law',
+  'razor',
+  'emily',
+  'aria',
+  'fitness',
+  'handmade',
+  'fern',
+  'ocean',
+  'bradley',
+] as const;
+
+/** Templates that are inherently dark (used to pick each group's default). */
+export const BIOLINK_DARK_TEMPLATE_KEYS = [
+  'mark-tyler',
+  'kai',
+  'razor',
+  'emily',
+  'aria',
+  'ocean',
+] as const;
+
+export const BIOLINK_TEMPLATES_ENABLED_KEY = 'biolinkTemplatesEnabled';
+export const BIOLINK_TEMPLATE_DEFAULT_LIGHT_KEY = 'biolinkTemplateDefaultLight';
+export const BIOLINK_TEMPLATE_DEFAULT_DARK_KEY = 'biolinkTemplateDefaultDark';
+
+export const DEFAULT_BIOLINK_TEMPLATES_ENABLED: string[] = [...BIOLINK_TEMPLATE_KEYS];
+export const DEFAULT_BIOLINK_TEMPLATE_LIGHT = 'sunny';
+export const DEFAULT_BIOLINK_TEMPLATE_DARK = 'aria';
+
+// ---------------------------------------------------------------------------
 //  Unified user-facing feature switches («کلیدهای ویژگی»)
 // ---------------------------------------------------------------------------
 
@@ -603,6 +647,89 @@ export class SettingsService implements OnModuleInit {
       where: { key: DIRECTORY_DISPLAY_MODE_KEY },
       update: { value: clean },
       create: { key: DIRECTORY_DISPLAY_MODE_KEY, value: clean },
+    });
+    return clean;
+  }
+
+  // ---- «حالت نمایش» بیولینک ----
+
+  /** The template keys the admin currently allows (order follows the registry). */
+  async getBiolinkTemplatesEnabled(): Promise<string[]> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: BIOLINK_TEMPLATES_ENABLED_KEY },
+    });
+    if (!setting) return [...DEFAULT_BIOLINK_TEMPLATES_ENABLED];
+    const stored = setting.value
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter((entry) =>
+        (BIOLINK_TEMPLATE_KEYS as readonly string[]).includes(entry),
+      );
+    // Preserve the registry order and never return an empty set (the public
+    // page must always have something to render).
+    const ordered = (BIOLINK_TEMPLATE_KEYS as readonly string[]).filter((key) =>
+      stored.includes(key),
+    );
+    return ordered.length > 0 ? ordered : [...DEFAULT_BIOLINK_TEMPLATES_ENABLED];
+  }
+
+  async setBiolinkTemplatesEnabled(keys: string[]): Promise<string[]> {
+    const clean = (BIOLINK_TEMPLATE_KEYS as readonly string[]).filter((key) =>
+      keys.includes(key),
+    );
+    const value = (clean.length > 0 ? clean : [...DEFAULT_BIOLINK_TEMPLATES_ENABLED]).join(
+      ',',
+    );
+    await this.prisma.setting.upsert({
+      where: { key: BIOLINK_TEMPLATES_ENABLED_KEY },
+      update: { value },
+      create: { key: BIOLINK_TEMPLATES_ENABLED_KEY, value },
+    });
+    return this.getBiolinkTemplatesEnabled();
+  }
+
+  /** The default template offered first, for light-mode pages. */
+  async getBiolinkTemplateDefaultLight(): Promise<string> {
+    return this.readTemplateDefault(
+      BIOLINK_TEMPLATE_DEFAULT_LIGHT_KEY,
+      DEFAULT_BIOLINK_TEMPLATE_LIGHT,
+    );
+  }
+
+  /** The default template offered first, for dark-mode pages. */
+  async getBiolinkTemplateDefaultDark(): Promise<string> {
+    return this.readTemplateDefault(
+      BIOLINK_TEMPLATE_DEFAULT_DARK_KEY,
+      DEFAULT_BIOLINK_TEMPLATE_DARK,
+    );
+  }
+
+  private async readTemplateDefault(key: string, fallback: string): Promise<string> {
+    const setting = await this.prisma.setting.findUnique({ where: { key } });
+    return setting && (BIOLINK_TEMPLATE_KEYS as readonly string[]).includes(setting.value)
+      ? setting.value
+      : fallback;
+  }
+
+  async setBiolinkTemplateDefaultLight(key: string): Promise<string> {
+    return this.writeTemplateDefault(BIOLINK_TEMPLATE_DEFAULT_LIGHT_KEY, key);
+  }
+
+  async setBiolinkTemplateDefaultDark(key: string): Promise<string> {
+    return this.writeTemplateDefault(BIOLINK_TEMPLATE_DEFAULT_DARK_KEY, key);
+  }
+
+  private async writeTemplateDefault(
+    settingKey: string,
+    key: string,
+  ): Promise<string> {
+    const clean = (BIOLINK_TEMPLATE_KEYS as readonly string[]).includes(key)
+      ? key
+      : DEFAULT_BIOLINK_TEMPLATE_LIGHT;
+    await this.prisma.setting.upsert({
+      where: { key: settingKey },
+      update: { value: clean },
+      create: { key: settingKey, value: clean },
     });
     return clean;
   }

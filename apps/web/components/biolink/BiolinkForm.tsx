@@ -5,15 +5,14 @@ import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/Input';
 import { ImageUpload } from '@/components/ui/ImageUpload';
 import { SocialInput } from '@/components/ui/SocialInput';
-import { SpectrumColorPicker } from '@/components/ui/SpectrumColorPicker';
 import { LinkSelector } from '@/components/link/LinkSelector';
 import { LiveBiolinkPreview } from '@/components/biolink/LiveBiolinkPreview';
+import { BiolinkTemplatePicker } from '@/components/biolink/BiolinkTemplatePicker';
 import { api, type TaxonomyItem } from '@/lib/api';
 import {
-  SELECTABLE_BIOLINK_THEMES,
-  DEFAULT_THEME_KEY,
-} from '@/lib/themes';
-import { SPECTRUM_COLORS, SPECTRUM_THEME_KEY, spectrumColorByBg } from '@/lib/card-spectrum';
+  DEFAULT_DARK_TEMPLATE_KEY,
+  DEFAULT_LIGHT_TEMPLATE_KEY,
+} from '@/lib/biolink-templates';
 import { SOCIAL_FIELDS } from '@/lib/social-fields';
 import { hasAnyValue, useFormAutosave } from '@/lib/use-form-autosave';
 
@@ -34,6 +33,7 @@ export interface BiolinkFormValues {
   whatsapp: string;
   primaryColor: string;
   template: string;
+  templateDark: string;
   cityId: string;
   businessId: string;
   /** one-to-one link to one of the owner's business cards (`''` = none) */
@@ -58,7 +58,8 @@ const emptyValues: BiolinkFormValues = {
   twitter: '',
   whatsapp: '',
   primaryColor: '#8B3A1A',
-  template: DEFAULT_THEME_KEY,
+  template: DEFAULT_LIGHT_TEMPLATE_KEY,
+  templateDark: DEFAULT_DARK_TEMPLATE_KEY,
   cityId: '',
   businessId: '',
   businessCardId: '',
@@ -107,6 +108,7 @@ export function BiolinkForm({
   });
   const [cities, setCities] = useState<TaxonomyItem[]>([]);
   const [businesses, setBusinesses] = useState<TaxonomyItem[]>([]);
+  const [enabledTemplates, setEnabledTemplates] = useState<string[]>([]);
   const [showRestore, setShowRestore] = useState(false);
 
   const autosave = useFormAutosave(autosaveKey ?? '', values, {
@@ -135,22 +137,14 @@ export function BiolinkForm({
       .get<TaxonomyItem[]>('/businesses')
       .then(setBusinesses)
       .catch(() => setBusinesses([]));
+    api
+      .get<{ biolinkTemplatesEnabled?: string[] }>('/settings/public')
+      .then((result) => setEnabledTemplates(result.biolinkTemplatesEnabled ?? []))
+      .catch(() => setEnabledTemplates([]));
   }, []);
 
   function setField<K extends keyof BiolinkFormValues>(key: K, value: BiolinkFormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }));
-  }
-
-  /** Selecting the «طیفی» theme seeds a palette colour when none is set yet. */
-  function selectTheme(themeKey: string) {
-    setValues((prev) => ({
-      ...prev,
-      template: themeKey,
-      primaryColor:
-        themeKey === SPECTRUM_THEME_KEY && !spectrumColorByBg(prev.primaryColor)
-          ? SPECTRUM_COLORS[0].bg
-          : prev.primaryColor,
-    }));
   }
 
   function updateField(key: string, value: string) {
@@ -357,46 +351,21 @@ export function BiolinkForm({
           </div>
 
           <div className="indeed-panel p-6">
-            <h2 className="text-lg font-extrabold text-ink">تصویر و تم</h2>
+            <h2 className="text-lg font-extrabold text-ink">حالت نمایش و تصویر</h2>
             <p className="mt-1 text-xs text-muted">
-              تم و رنگ بیولینک را انتخاب کنید؛ پیش‌نمایش بلافاصله به‌روز می‌شود.
+              برای تم روشن و تم تاریک سایت یک «حالت نمایش» جدا انتخاب کنید؛
+              پیش‌نمایش بلافاصله به‌روز می‌شود.
             </p>
 
-            <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {SELECTABLE_BIOLINK_THEMES.map((theme) => (
-                <button
-                  key={theme.key}
-                  type="button"
-                  onClick={() => selectTheme(theme.key)}
-                  title={theme.name}
-                  aria-pressed={values.template === theme.key}
-                  className={
-                    values.template === theme.key
-                      ? 'rounded-lg border-2 border-brand p-1.5'
-                      : 'rounded-lg border-2 border-transparent p-1.5 hover:border-[var(--vintage-border)]'
-                  }
-                >
-                  <span
-                    className="block h-8 w-full rounded-md border border-[var(--vintage-border)]"
-                    style={{
-                      background: `linear-gradient(135deg, ${theme.swatch[0]} 0 34%, ${theme.swatch[1]} 34% 67%, ${theme.swatch[2]} 67% 100%)`,
-                    }}
-                  />
-                  <span className="mt-1 block truncate text-[10px] text-muted">
-                    {theme.name}
-                  </span>
-                </button>
-              ))}
+            <div className="mt-4">
+              <BiolinkTemplatePicker
+                light={values.template}
+                dark={values.templateDark}
+                enabledKeys={enabledTemplates}
+                onLight={(key) => setField('template', key)}
+                onDark={(key) => setField('templateDark', key)}
+              />
             </div>
-
-            {values.template === SPECTRUM_THEME_KEY ? (
-              <div className="mt-4 rounded-lg border border-[var(--vintage-border)] p-3">
-                <SpectrumColorPicker
-                  value={values.primaryColor}
-                  onChange={(color) => setField('primaryColor', color)}
-                />
-              </div>
-            ) : null}
 
             <div className="mt-5">
               <ImageUpload
@@ -598,70 +567,30 @@ export function BiolinkForm({
 
         <div className="indeed-panel p-6">
           <h2 className="text-lg font-extrabold text-ink">ظاهر بیولینک</h2>
+          <p className="mt-1 text-xs text-muted">
+            برای تم روشن و تم تاریک سایت یک «حالت نمایش» جدا انتخاب کنید. کاربران
+            بازدیدکننده هم می‌توانند بین حالت‌های نمایشِ فعال‌شده جابه‌جا شوند.
+          </p>
 
-          <label className="mt-4 flex flex-col gap-1.5">
-            <span className="text-sm font-bold text-ink">تم آماده</span>
-            <select
-              className="indeed-input"
-              value={values.template}
-              onChange={(event) => selectTheme(event.target.value)}
-            >
-              {SELECTABLE_BIOLINK_THEMES.map((theme) => (
-                <option key={theme.key} value={theme.key}>
-                  {theme.name}
-                </option>
-              ))}
-            </select>
-            <span className="text-xs text-muted">
-              با انتخاب هر تم، پیش‌نمایش زندهٔ کنار فرم بلافاصله تغییر می‌کند.
-            </span>
-          </label>
-
-          <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-6">
-            {SELECTABLE_BIOLINK_THEMES.map((theme) => (
-              <button
-                key={theme.key}
-                type="button"
-                onClick={() => selectTheme(theme.key)}
-                title={theme.name}
-                aria-pressed={values.template === theme.key}
-                className={
-                  values.template === theme.key
-                    ? 'rounded-lg border-2 border-brand p-1.5'
-                    : 'rounded-lg border-2 border-transparent p-1.5 hover:border-[var(--vintage-border)]'
-                }
-              >
-                <span
-                  className="block h-8 w-full rounded-md border border-[var(--vintage-border)]"
-                  style={{
-                    background: `linear-gradient(135deg, ${theme.swatch[0]} 0 34%, ${theme.swatch[1]} 34% 67%, ${theme.swatch[2]} 67% 100%)`,
-                  }}
-                />
-                <span className="mt-1 block truncate text-[10px] text-muted">
-                  {theme.name}
-                </span>
-              </button>
-            ))}
+          <div className="mt-4">
+            <BiolinkTemplatePicker
+              light={values.template}
+              dark={values.templateDark}
+              enabledKeys={enabledTemplates}
+              onLight={(key) => setField('template', key)}
+              onDark={(key) => setField('templateDark', key)}
+            />
           </div>
 
-          {values.template === SPECTRUM_THEME_KEY ? (
-            <div className="mt-4 rounded-lg border border-[var(--vintage-border)] p-3">
-              <SpectrumColorPicker
-                value={values.primaryColor}
-                onChange={(color) => setField('primaryColor', color)}
-              />
-            </div>
-          ) : (
-            <label className="mt-4 flex items-center gap-3">
-              <span className="text-sm font-bold text-ink">رنگ اصلی (تم وینتیج)</span>
-              <input
-                type="color"
-                value={values.primaryColor}
-                onChange={(event) => setField('primaryColor', event.target.value)}
-                className="h-10 w-16 cursor-pointer rounded-lg border border-[var(--indeed-border)]"
-              />
-            </label>
-          )}
+          <label className="mt-4 flex items-center gap-3">
+            <span className="text-sm font-bold text-ink">رنگ اصلی</span>
+            <input
+              type="color"
+              value={values.primaryColor}
+              onChange={(event) => setField('primaryColor', event.target.value)}
+              className="h-10 w-16 cursor-pointer rounded-lg border border-[var(--indeed-border)]"
+            />
+          </label>
 
           <div className="mt-5">
             <ImageUpload

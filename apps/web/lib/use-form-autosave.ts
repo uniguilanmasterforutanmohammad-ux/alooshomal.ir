@@ -102,7 +102,8 @@ export function useFormAutosave<T>(
 export function hasAnyValue(values: Record<string, unknown>): boolean {
   return Object.entries(values).some(([key, value]) => {
     // Colour/theme always have defaults; they are not "user input" by themselves.
-    if (key === 'primaryColor' || key === 'template') return false;
+    if (key === 'primaryColor' || key === 'template' || key === 'templateDark')
+      return false;
     return typeof value === 'string' ? value.trim() !== '' : value != null;
   });
 }

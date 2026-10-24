@@ -127,6 +127,7 @@ export default function NewBiolinkPage() {
                     whatsapp: draft.whatsapp ?? '',
                     primaryColor: draft.primaryColor,
                     template: draft.template ?? undefined,
+                    templateDark: draft.templateDark ?? undefined,
                     cityId: draft.cityId ?? '',
                     businessId: draft.businessId ?? '',
                     businessCardId: draft.businessCard?.id ?? '',
