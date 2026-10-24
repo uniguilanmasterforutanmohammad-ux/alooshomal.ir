@@ -5,7 +5,7 @@ import { Header } from '@/components/layout/Header';
 import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { PublicBiolinkView } from '@/components/biolink/PublicBiolinkView';
 import { RecordView } from '@/components/ui/RecordView';
-import { absoluteUrl, metaDescription, SERVER_API_URL } from '@/lib/site';
+import { absoluteUrl, metaDescription, SERVER_API_URL, decodeSlugParam } from '@/lib/site';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
 import { type Biolink } from '@/lib/api';
 
@@ -19,7 +19,7 @@ interface BiolinkPayload {
 async function getBiolink(slug: string): Promise<BiolinkPayload | null> {
   try {
     const response = await fetch(
-      `${SERVER_API_URL}/biolinks/public/${encodeURIComponent(slug)}`,
+      `${SERVER_API_URL}/biolinks/public/${encodeURIComponent(decodeSlugParam(slug))}`,
       { cache: 'no-store' },
     );
     if (!response.ok) {

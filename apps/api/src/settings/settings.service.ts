@@ -243,6 +243,15 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     default: true,
   },
   {
+    key: 'featureBlog',
+    label: 'بلاگ سایت',
+    description:
+      'اگر خاموش باشد، بخش «بلاگ» سایت نمایش داده نمی‌شود (صفحه، لینک منو و بخش صفحه اصلی). خاموش‌کردن «نمایش» صفحه‌ی بلاگ را متوقف می‌کند.',
+    group: 'ساخت محتوا',
+    default: true,
+    publicSection: { name: 'بلاگ', routes: ['/blog'] },
+  },
+  {
     key: 'featureBoostRequests',
     label: 'درخواست پله (ارتقای جایگاه)',
     description: 'اگر خاموش باشد، کاربران نمی‌توانند درخواست پله ثبت کنند.',

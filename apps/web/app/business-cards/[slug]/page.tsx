@@ -5,7 +5,7 @@ import { Header } from '@/components/layout/Header';
 import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { PublicBusinessCardView } from '@/components/businesscard/PublicBusinessCardView';
 import { RecordView } from '@/components/ui/RecordView';
-import { absoluteUrl, metaDescription, SERVER_API_URL } from '@/lib/site';
+import { absoluteUrl, metaDescription, SERVER_API_URL, decodeSlugParam } from '@/lib/site';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
 import { type BusinessCard } from '@/lib/api';
 
@@ -19,7 +19,7 @@ interface BusinessCardPayload {
 async function getBusinessCard(slug: string): Promise<BusinessCardPayload | null> {
   try {
     const response = await fetch(
-      `${SERVER_API_URL}/business-cards/public/${encodeURIComponent(slug)}`,
+      `${SERVER_API_URL}/business-cards/public/${encodeURIComponent(decodeSlugParam(slug))}`,
       { cache: 'no-store' },
     );
     if (!response.ok) {

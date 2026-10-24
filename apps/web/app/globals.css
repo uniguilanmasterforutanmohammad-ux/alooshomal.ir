@@ -531,6 +531,55 @@ select {
   border-inline-start: 3px solid var(--vintage-accent-hover);
 }
 
+/* Blog article body — a slightly larger, more spacious version of `.feed-rich`
+   so long-form posts read comfortably. */
+.blog-rich {
+  font-size: 16px;
+  line-height: 2.1;
+  color: var(--vintage-ink-soft);
+}
+.blog-rich p {
+  margin: 0 0 14px;
+}
+.blog-rich h2,
+.blog-rich h3 {
+  margin: 22px 0 10px;
+  color: var(--vintage-ink);
+  font-weight: 800;
+  line-height: 1.7;
+}
+.blog-rich h2 {
+  font-size: 20px;
+}
+.blog-rich h3 {
+  font-size: 17px;
+}
+.blog-rich ul,
+.blog-rich ol {
+  margin: 10px 0;
+  padding-inline-start: 24px;
+}
+.blog-rich ul {
+  list-style: disc;
+}
+.blog-rich ol {
+  list-style: decimal;
+}
+.blog-rich a {
+  color: var(--vintage-accent);
+  text-decoration: underline;
+}
+.blog-rich blockquote {
+  margin: 14px 0;
+  padding: 8px 14px;
+  border-inline-start: 4px solid var(--vintage-accent-hover);
+  background: color-mix(in srgb, var(--vintage-accent) 7%, transparent);
+  border-radius: 8px;
+}
+.blog-rich img {
+  border-radius: 12px;
+}
+
 /* ---- surfaces ---- */
 .indeed-panel {
   background: var(--vintage-surface);

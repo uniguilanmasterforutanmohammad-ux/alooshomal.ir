@@ -4,6 +4,7 @@ import './site-bg-pattern.css';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { PulseSection } from '@/components/news/PulseSection';
+import { BlogSection } from '@/components/blog/BlogSection';
 import { ReporterCtaButton } from '@/components/news/ReporterCtaButton';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
 import { HomeSearchBox } from '@/components/home/HomeSearchBox';
@@ -75,6 +76,7 @@ export default async function HomePage() {
   const showCards = !isRouteStopped(stopped, '/business-cards');
   const showBiolinks = !isRouteStopped(stopped, '/biolinks');
   const showNews = !isRouteStopped(stopped, '/pulse');
+  const showBlog = !isRouteStopped(stopped, '/blog');
   const showHomeAds = !stopped.some((section) => section.homeBox);
   // Both sliders are fetched in parallel; a failed fetch just hides its slider.
   const [latestCards, latestBiolinks] = await Promise.all([
@@ -169,6 +171,8 @@ export default async function HomePage() {
         ) : null}
 
         {showNews ? <PulseSection /> : null}
+
+        {showBlog ? <BlogSection /> : null}
 
         <section className="container-page mt-10 sm:mt-16">
           {/* لایه رنگی پشت شیشه تا افکت Liquid Glass دیده شود */}

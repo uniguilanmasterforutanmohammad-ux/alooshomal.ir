@@ -20,7 +20,55 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.96.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.97.0**.
+
+## ۱۴۰۵/۰۸/۰۴ — بخش بلاگ با ویدیوی مستقیم آپارات — نسخه `v2.97.0`
+
+**هدف:** کاربر خواست یک بخش بلاگ اختصاصی با قابلیت قراردادن ویدیوی مستقیم از
+آپارات، با طراحی جذاب و کاربرپسند، اضافه شود.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل‌های `BlogPost` (نامک یکتا، متن، جلد، دسته،
+  برچسب‌ها، ارائه‌دهنده/شناسه‌ی ویدیو، وضعیت `NewsStatus`، انتشار، شاخص، بازدید) و
+  `BlogCategory`؛ relationها روی `User`. با `prisma db push` اعمال شد.
+- `apps/api/src/blog/dto/blog.dto.ts` (جدید): DTOها و `normalizeAparatId` (تجزیه‌ی
+  `aparat.com/v/<id>`، `?v=` یا شناسه‌ی خام) و `slugifyTitle`.
+- `apps/api/src/blog/blog.service.ts` (جدید): `publicList`/`publicBySlug`/
+  `publicCategories`/`publicLatest` و CRUD مدیریتی مطلب و دسته‌بندی، نامک خودکار یکتا.
+- `apps/api/src/blog/blog.controller.ts` (جدید): `BlogPublicController`
+  (`GET /blog/public`, `/public/latest`, `/public/categories`, `/public/:slug`) و
+  `AdminBlogController` (`GET/POST/PATCH/DELETE /admin/blog...`).
+- `apps/api/src/blog/blog.module.ts` (جدید) و ثبت در `app.module.ts`.
+- `apps/api/src/settings/settings.service.ts`: ویژگی `featureBlog` با
+  `publicSection` (مسیر `/blog`).
+- `apps/web/lib/blog.ts` (جدید): `aparatEmbedUrl`/`aparatWatchUrl`/`blogAccent`/
+  `blogReadMinutes`.
+- `apps/web/lib/api.ts`: تایپ‌های بلاگ.
+- `apps/web/components/blog/BlogVideoPlayer.tsx` (جدید): پخش‌کننده‌ی کلیک‌به‌بارگذاری
+  آپارات (iframe امبد) + `AparatLink`.
+- `apps/web/components/blog/BlogIndex.tsx` / `BlogPostView.tsx` / `BlogSection.tsx`
+  (جدید): فهرست با جست‌وجو/دسته/صفحه‌بندی و مطلب شاخص، صفحه‌ی جزئیات با هیرو/ویدیو/
+  متن، و نوار بلاگ در صفحه‌ی اصلی.
+- `apps/web/app/blog/page.tsx` و `apps/web/app/blog/[slug]/page.tsx` (جدید): صفحات
+  سرور با متادیتای SEO + JSON-LD + گارد بخش متوقف‌شده.
+- `apps/web/components/admin/AdminBlogPanel.tsx` (جدید): CRUD مطالب، تغییر وضعیت
+  انتشار، و مدیریت دسته‌بندی‌ها.
+- اتصال‌ها: `apps/web/lib/nav.ts` (لینک «بلاگ»)، `apps/web/app/page.tsx`
+  (`showBlog` + `<BlogSection/>`)، `apps/web/components/admin/AdminShell.tsx`
+  (سکشن و آیکن)، `apps/web/app/admin/page.tsx`، و استایل `.blog-rich` در
+  `apps/web/app/globals.css`.
+- `apps/web/lib/site.ts`: هلپر `decodeSlugParam` و استفاده در صفحات جزئیات
+  `blog`/`biolinks`/`business-cards` برای رفع باگ ۴۰۴ نامک‌های فارسی (Next گاهی
+  سگمنت را از پیش percent-encoded تحویل می‌دهد و `encodeURIComponent` دوباره آن را
+  کد می‌کرد).
+
+**تأیید/تست:**
+- `tsc --noEmit` وب: `TSC=0`؛ `check_api_docs.py`: خروجی ۰ (۲۳ کنترلر، ۲۳۵ مسیر).
+- API زنده: ساخت مطلب آزمایشی با نامک فارسی و `videoId` آپارات → `GET /blog/public`
+  داده را برگرداند؛ سپس مطلب آزمایشی حذف شد.
+- Playwright (کروم هدلس): `/blog` → ۲۰۰، صفحه‌ی جزئیات `/blog/<slug>` → ۲۰۰ با
+  نمایش «پخش از آپارات»، صفحه‌ی اصلی → ۲۰۰؛ پنل `/admin?section=blog` → ۲۰۰ با فرم
+  و بخش دسته‌بندی‌ها. (پیش از اصلاح، جزئیات نامک فارسی ۴۰۴ می‌داد.)
 
 ## ۱۴۰۵/۰۸/۰۴ — سیستم کامنت کاربران روی پست‌های فید با تأیید مدیر — نسخه `v2.96.0`
 

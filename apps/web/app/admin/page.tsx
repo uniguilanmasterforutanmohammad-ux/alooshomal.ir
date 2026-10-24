@@ -21,6 +21,7 @@ import { AdminFeeds } from '@/components/admin/AdminFeeds';
 import { AdminNotificationSettings } from '@/components/admin/AdminNotificationSettings';
 import { NotificationsInbox } from '@/components/ui/NotificationsInbox';
 import { AdminNewsPanel } from '@/components/admin/AdminNewsPanel';
+import { AdminBlogPanel } from '@/components/admin/AdminBlogPanel';
 import { AdminProfileRequests } from '@/components/admin/AdminProfileRequests';
 import { AdminPermissionsMatrix } from '@/components/admin/AdminPermissionsMatrix';
 import { AdminModerators } from '@/components/admin/AdminModerators';
@@ -101,6 +102,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'users',
   'tickets',
   'news',
+  'blog',
   'permissions',
   'moderators',
   'storage',
@@ -513,6 +515,10 @@ function AdminContent() {
       title: 'شهروند خبرنگار',
       sub: 'بررسی خبرهای شهروند خبرنگارها، درخواست‌ها و دسته‌بندی‌ها',
     },
+    blog: {
+      title: 'بلاگ',
+      sub: 'نوشتن و انتشار مطالب بلاگ همراه با ویدیوی آپارات',
+    },
     permissions: {
       title: 'سطوح دسترسی',
       sub: 'تعیین دسترسی هر نقش به امکانات پلتفرم',
@@ -830,6 +836,8 @@ function AdminContent() {
       {section === 'reports' ? <ActivityLogPanel /> : null}
 
       {section === 'news' ? <AdminNewsPanel /> : null}
+
+      {section === 'blog' ? <AdminBlogPanel /> : null}
 
       {section === 'permissions' ? <AdminPermissionsMatrix /> : null}
 

@@ -13,6 +13,7 @@ export const PUBLIC_NAV: PublicNavItem[] = [
   { href: '/business-cards?view=notebook&sort=alpha', label: 'دفترچه تلفن' },
   { href: '/feeds', label: 'پست کاربران' },
   { href: '/pulse', label: 'اخبار شهر' },
+  { href: '/blog', label: 'بلاگ' },
   { href: '/services', label: 'لیست خدمات' },
   { href: '/guide', label: 'راهنما' },
   { href: '/rules', label: 'قوانین' },

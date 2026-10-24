@@ -418,6 +418,8 @@ model User {
   feedComments      FeedComment[]
   feedCommentDecisions FeedComment[] @relation("FeedCommentDecisions")
   feedTagDecisions  FeedPost[]   @relation("FeedTagDecisions")
+  blogPosts         BlogPost[]   @relation("BlogCreatedBy")
+  authoredBlogPosts BlogPost[]   @relation("BlogAuthor")
   contentDecisions  ContentDecision[] @relation("ContentDecisions")
 
   @@index([email])
@@ -452,6 +454,59 @@ model Session {
   @@index([userId])
   @@index([expiresAt])
   @@map("sessions")
+}
+
+/// «بلاگ» — long-form articles written by the admin team, optionally carrying
+/// a directly-embedded Aparat video. A post is a draft until `isPublished` is
+/// set; only published posts are public. `videoProvider` is reserved so other
+/// providers (Youtube, …) can be added later without a schema change.
+model BlogPost {
+  id           String    @id @default(cuid())
+  slug         String    @unique
+  title        String
+  excerpt      String?
+  /// Body text; may contain the same safe rich-text subset as feed posts.
+  content      String?
+  coverImageUrl String?
+  categoryId   String?
+  tags         String[]  @default([])
+  /// Direct video embed: `videoProvider` + `videoId` (for Aparat the id is the
+  /// hash in `aparat.com/v/<id>`), so the player is embedded without extras.
+  videoProvider String?  @default("APARAT")
+  videoId      String?
+  videoUrl     String?
+  status       NewsStatus @default(PENDING)
+  isPublished  Boolean   @default(false)
+  isFeatured   Boolean   @default(false)
+  viewCount    Int       @default(0)
+  publishedAt  DateTime?
+  authorId     String?
+  createdById  String
+  reason       String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  category  BlogCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  author    User?         @relation("BlogAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  createdBy User          @relation("BlogCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([isPublished, publishedAt])
+  @@index([categoryId])
+  @@index([status])
+  @@map("blog_posts")
+}
+
+model BlogCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  posts BlogPost[]
+
+  @@map("blog_categories")
 }
 
 // A user asks an admin to change profile fields (name, ...). The change is

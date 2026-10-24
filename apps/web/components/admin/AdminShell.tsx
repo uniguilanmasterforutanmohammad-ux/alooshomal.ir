@@ -6,6 +6,7 @@ import { useState } from 'react';
 import {
   Banknote,
   BarChart3,
+  BookOpen,
   Coins,
   Crown,
   HardDrive,
@@ -47,6 +48,7 @@ export type AdminSection =
   | 'reports'
   | 'tools'
   | 'news'
+  | 'blog'
   | 'permissions'
   | 'moderators'
   | 'storage'
@@ -72,6 +74,7 @@ const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboar
   { key: 'users', label: 'کاربران', icon: Users },
   { key: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
   { key: 'news', label: 'شهروند خبرنگار', icon: Newspaper },
+  { key: 'blog', label: 'بلاگ', icon: BookOpen },
   { key: 'permissions', label: 'سطوح دسترسی', icon: ShieldCheck },
   { key: 'moderators', label: 'کاربران ادمین', icon: UserCog },
   { key: 'storage', label: 'فضای سرور', icon: HardDrive },

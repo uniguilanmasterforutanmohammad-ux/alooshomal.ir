@@ -28,6 +28,24 @@ export const SERVER_API_URL =
   process.env.NEXT_PUBLIC_API_URL ??
   'http://localhost:4000/api';
 
+/**
+ * Normalises a dynamic route segment for use in an API URL.
+ *
+ * Next.js may hand a segment over already percent-encoded (a Persian slug like
+ * `راهنما-...` can arrive as `%D8%B1...`), so blindly calling
+ * `encodeURIComponent` on it double-encodes the value and the API returns 404.
+ * Decode first when the value looks encoded, then let the caller (or `URL`)
+ * encode once.
+ */
+export function decodeSlugParam(slug: string): string {
+  if (!slug.includes('%')) return slug;
+  try {
+    return decodeURIComponent(slug);
+  } catch {
+    return slug;
+  }
+}
+
 /** Strips tags/control chars and trims a string to a meta-description length. */
 export function metaDescription(text: string | null | undefined, fallback: string): string {
   if (!text) return fallback;

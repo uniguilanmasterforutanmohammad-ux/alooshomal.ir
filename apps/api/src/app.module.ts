@@ -12,6 +12,7 @@ import { ActivityModule } from './activity/activity.module';
 import { AdsModule } from './ads/ads.module';
 import { AuthModule } from './auth/auth.module';
 import { BiolinksModule } from './biolinks/biolinks.module';
+import { BlogModule } from './blog/blog.module';
 import { BoostsModule } from './boosts/boosts.module';
 import { BusinessCardsModule } from './businesscards/business-cards.module';
 import { FeedsModule } from './feeds/feeds.module';
@@ -45,6 +46,7 @@ import { UsersModule } from './users/users.module';
     BiolinksModule,
     BusinessCardsModule,
     FeedsModule,
+    BlogModule,
     SubscriptionsModule,
     BoostsModule,
     AdsModule,
