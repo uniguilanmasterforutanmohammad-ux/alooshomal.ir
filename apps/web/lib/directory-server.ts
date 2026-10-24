@@ -18,6 +18,7 @@ import type {
   DirectoryBiolink,
   FeedPost,
   FeedTopic,
+  PhonebookEntry,
 } from './api';
 import { SERVER_API_URL } from './site';
 
@@ -91,4 +92,23 @@ export function fetchFeedsDirectory(params: { q?: string; topicId?: string }) {
     ...params,
     page: '1',
   });
+}
+
+/**
+ * Server-side (RSC) fetch of the whole «دفترچه تلفن» list. The endpoint is not
+ * paginated — the page searches and flips its leaves entirely on the client —
+ * so this seeds the first paint with the real contact rows for crawlers and
+ * for a flash-free first render.
+ */
+export async function fetchPhonebook(): Promise<PhonebookEntry[]> {
+  try {
+    const response = await fetch(`${SERVER_API_URL}/business-cards/public/phonebook`, {
+      next: { revalidate: 60 },
+    });
+    if (!response.ok) return [];
+    const payload = (await response.json()) as { data: PhonebookEntry[] | null };
+    return payload.data ?? [];
+  } catch {
+    return [];
+  }
 }

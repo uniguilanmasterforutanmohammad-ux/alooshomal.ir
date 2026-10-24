@@ -49,6 +49,14 @@ const DIRECTORY_CACHE_TTL_MS = (() => {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 15_000;
 })();
 
+/**
+ * Upper bound on how many rows the public «دفترچه تلفن» returns in one payload.
+ * The page groups and searches entirely on the client, so it wants the whole
+ * list at once; the cap keeps a runaway directory from turning one request into
+ * an unbounded transfer.
+ */
+const PHONEBOOK_MAX_ROWS = 2_000;
+
 @Injectable()
 export class BusinessCardsService {
   constructor(
@@ -532,6 +540,53 @@ export class BusinessCardsService {
     });
     // Hide the fields the owner's plan masks (e.g. contact details on «رایگان»)
     // and drop the `user` relation from the public payload.
+    return rows.map((row) => {
+      const { user: _user, ...rest } = this.applyPlanVisibility(row);
+      return rest;
+    });
+  }
+
+  /**
+   * Flat contact list for the public «دفترچه تلفن» page.
+   *
+   * Only rows that actually carry a reachable number move out of the database —
+   * a phonebook entry with no phone is useless — and only the contact fields the
+   * list shows are selected, so the payload stays small even though the client
+   * receives the entire list in one shot (it searches and paginates locally).
+   *
+   * Like every other public projection, the owner's plan mask is applied: a
+   * free-plan card has its e-mail blanked here just as it is on its own page.
+   */
+  async findPublicPhonebook() {
+    const rows = await this.prisma.businessCard.findMany({
+      where: {
+        status: BiolinkStatus.APPROVED,
+        isPublished: true,
+        OR: [{ phone: { not: null } }, { mobile: { not: null } }],
+      },
+      select: {
+        id: true,
+        slug: true,
+        fullName: true,
+        jobTitle: true,
+        company: true,
+        phone: true,
+        mobile: true,
+        email: true,
+        whatsapp: true,
+        website: true,
+        address: true,
+        avatarUrl: true,
+        logoUrl: true,
+        primaryColor: true,
+        publishedAt: true,
+        city: { select: { id: true, name: true } },
+        business: { select: { id: true, name: true } },
+        user: { select: { plan: true } },
+      },
+      orderBy: [{ pinnedAt: 'desc' }, { id: 'desc' }],
+      take: PHONEBOOK_MAX_ROWS,
+    });
     return rows.map((row) => {
       const { user: _user, ...rest } = this.applyPlanVisibility(row);
       return rest;

@@ -135,6 +135,15 @@ export class BusinessCardsController {
   }
 
   @Public()
+  @Get('public/phonebook')
+  @ApiOperation({
+    summary: 'دفترچه تلفن عمومی: فهرست تماس کارت ویزیت‌های منتشرشده‌ای که شماره دارند',
+  })
+  phonebook() {
+    return this.businessCardsService.findPublicPhonebook();
+  }
+
+  @Public()
   @Get('public/:slug')
   @ApiOperation({ summary: 'مشاهده عمومی کارت ویزیت با slug' })
   async public(@Param('slug') slug: string, @Req() request: Request) {

@@ -59,6 +59,15 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 - DTOهای به‌روزرسانی با `PartialType` از DTO ساخت ارث‌بری می‌کنند، پس متادیتای
   Swagger را خودکار به ارث می‌برند.
 
+### مسیرهای عمومی مرتبط با دفترچه تلفن
+
+صفحه‌ی عمومی `/phonebook` روی دو مسیر public بنا شده است:
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET` | `/business-cards/public/phonebook` | فهرست تخت تماس کارت‌ویزیت‌های منتشرشده‌ای که شماره دارند (بدون صفحه‌بندی؛ سقف ۲۰۰۰ ردیف). |
+| `GET` | `/business-cards/public/:slug` | جزئیات کامل هر مخاطب (مقصد لینک «مشاهدهٔ کارت ویزیت کامل»). |
+
 ### بررسی سریع کامل‌بودن
 
 ```bash

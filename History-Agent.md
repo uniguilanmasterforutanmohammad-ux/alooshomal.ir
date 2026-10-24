@@ -20,7 +20,49 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.87.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.88.0**.
+
+## ۱۴۰۵/۰۸/۰۲ — صفحه‌ی «دفترچه تلفن» با استایل دفترچه‌ی کاغذی — نسخه `v2.88.0`
+
+**هدف:** ساخت یک صفحه‌ی عمومی جدید `/phonebook` («دفترچه تلفن») که شماره‌ی تماس
+کارت ویزیت‌های منتشرشده را در قالب نمونه‌ی ارسالی کاربر
+(`phonebook-classic-v3.html`) نشان دهد: دفترچه‌ی کاغذی با خط‌کشی، جلد چرمی،
+صفحه‌زنی و «ذخیره‌های من».
+
+**تغییرات:**
+- `apps/api/src/businesscards/business-cards.service.ts`: متد جدید
+  `findPublicPhonebook()` — فهرست تخت تماسِ کارت‌های ویزیت منتشرشده‌ای که شماره
+  دارند (`OR: phone/mobile not null`)، با انتخاب حداقلی فیلدها، ماسک پلن
+  (`applyPlanVisibility`) و سقف `PHONEBOOK_MAX_ROWS = 2000`.
+- `apps/api/src/businesscards/business-cards.controller.ts`: مسیر عمومی جدید
+  `GET /business-cards/public/phonebook` با `@Public()` و `@ApiOperation` (قبل از
+  `public/:slug` ثبت شد تا با آن تعارض نکند).
+- `apps/api/src/seo/seo.service.ts`: افزودن `/phonebook` به صفحات ثابتِ سایت‌مپ
+  (daily، priority ۰.۸).
+- `apps/web/lib/api.ts`: اینترفیس `PhonebookEntry`.
+- `apps/web/lib/directory-server.ts`: فچر SSR `fetchPhonebook()`.
+- `apps/web/app/phonebook/page.tsx`: صفحه‌ی سرور با متادیتای SEO، `Header`/`Footer`
+  و رندر SSR فهرست مخاطبین.
+- `apps/web/app/phonebook/PhonebookNotebook.tsx`: کامپوننت کلاینت (جستجو با
+  نرمال‌سازی ارقام فارسی/عربی، هایلایت، ذخیره در `localStorage`، تب «ذخیره‌های من»
+  و انیمیشن ورق‌زدن با React state).
+- `apps/web/app/phonebook/phonebook.css`: استایل دفترچه‌ی کاغذی (اسکرول/خط‌کشی/جلد
+  چرمی) با پیشوند `.pb-` و اسکوپ‌شده زیر `.pb-page`.
+- `apps/web/lib/nav.ts` و `apps/web/components/layout/MobileNav.tsx`: افزودن
+  «دفترچه تلفن»/«دفترچه» به ناوبری دسکتاپ و موبایل (grid موبایل ۷→۸ ستون).
+- `install.sh`: همگام‌سازی خودکار بلوک‌های جدید/تغییریافته.
+
+**تأیید/تست:**
+- `python3 scripts/check_api_docs.py` → exit 0 (۲۲ کنترلر / ۲۱۴ مسیر) و
+  `docs-json` مسیر جدید را با `summary` نشان می‌دهد.
+- `docker exec alooshomal-web ./node_modules/.bin/tsc --noEmit` و
+  `docker exec alooshomal-api ./node_modules/.bin/tsc --noEmit` → هر دو exit 0.
+- `python3 scripts/sync_install.py` و سپس `--check` → «تغییر معلق» صفر (exit 0).
+- Playwright (`/usr/bin/google-chrome`) روی `http://localhost:3000/phonebook`:
+  ۷ ردیف مخاطب، جستجوی «آرش» → ۱ ردیف با `<mark>`، ذخیره‌ی چند مخاطب و تب
+  «ذخیره‌های من (۷)»، ورق‌زدن ۲ صفحه‌ای (صفحه ۱↔۲ با `.pb-leaf`)، حذف ذخیره،
+  و پایداری ذخیره‌ها پس از reload؛ بدون خطای کنسول. ناوبری موبایل در ۳۲۰px و
+  ۳۹۰px تک‌ردیفه و بدون اسکرول افقی ماند.
 
 ## ۱۴۰۵/۰۷/۲۸ — صورتی‌کردن رنگ فوتر — نسخه `v2.87.1`
 

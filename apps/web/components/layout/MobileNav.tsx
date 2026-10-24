@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LogIn,
   Newspaper,
+  NotebookTabs,
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
@@ -40,6 +41,7 @@ export function MobileNav() {
     { href: '/', label: 'خانه', icon: Home, exact: true },
     { href: '/business-cards', label: 'کارت ویزیت‌ها', icon: BadgeCheck },
     { href: '/biolinks', label: 'بیولینک‌ها', icon: IdCard },
+    { href: '/phonebook', label: 'دفترچه', icon: NotebookTabs },
     { href: '/pulse', label: 'اخبار شهر', icon: Newspaper },
     { href: '/feeds', label: 'پست کاربران', icon: ImagePlus },
     hydrated && token
@@ -55,7 +57,7 @@ export function MobileNav() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-label="ناوبری پایین"
     >
-      <ul className="grid grid-cols-7">
+      <ul className="grid grid-cols-8">
         {items.map((item) => {
           const active = item.exact
             ? pathname === item.href

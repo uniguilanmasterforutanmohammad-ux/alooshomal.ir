@@ -304,6 +304,27 @@ export interface DirectoryFacet {
   name: string;
 }
 
+/** One row of the public «دفترچه تلفن» (flat contact list). */
+export interface PhonebookEntry {
+  id: string;
+  slug: string;
+  fullName: string;
+  jobTitle: string | null;
+  company: string | null;
+  phone: string | null;
+  mobile: string | null;
+  email: string | null;
+  whatsapp: string | null;
+  website: string | null;
+  address: string | null;
+  avatarUrl: string | null;
+  logoUrl: string | null;
+  primaryColor: string;
+  publishedAt: string | null;
+  city?: { id: string; name: string } | null;
+  business?: { id: string; name: string } | null;
+}
+
 /** The linked counterpart of a biolink / business card, when it is published. */
 export interface LinkedCounterpart {
   slug: string;

@@ -1,0 +1,313 @@
+/* دفترچه تلفن — classic paper notebook look for the public /phonebook page.
+   The wood-and-cream palette matches the site's vintage tokens so the page
+   feels native while keeping the ruled-paper / spiral-binding identity of the
+   reference design. Scoped under `.pb-page` so nothing leaks into other pages. */
+
+.pb-page {
+  min-height: 100vh;
+  padding: 30px 12px 90px;
+  background: #6b4f32 radial-gradient(circle at 30% 20%, #8a6843, #4a3520);
+}
+
+/* Ruled paper: red margin line, blue rules and a warm cream fade. */
+.pb-paper {
+  background:
+    linear-gradient(90deg, transparent 0 58px, #e0566a 58px 60px, transparent 60px),
+    repeating-linear-gradient(180deg, transparent 0 31px, #9cc3e6 31px 32px),
+    linear-gradient(#fbf6e4, #f4ead0);
+}
+
+.pb-book {
+  position: relative;
+  max-width: 480px;
+  margin: 0 auto;
+  border-radius: 6px 14px 14px 6px;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45), inset -8px 0 12px rgba(0, 0, 0, 0.08);
+  padding-top: 26px;
+  overflow: hidden;
+  background-clip: padding-box;
+}
+
+/* Spiral binding across the top edge. */
+.pb-book::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 22px;
+  background: radial-gradient(circle, #444 0 4px, #bbb 5px, transparent 6px) center 4px /
+    26px 22px repeat-x;
+  border-bottom: 2px solid #777;
+  z-index: 2;
+}
+
+.pb-head {
+  padding: 22px 70px 12px 20px;
+  border-bottom: 3px double #6b4f32;
+  color: #3b2a16;
+}
+
+.pb-head h1 {
+  font-size: 1.6rem;
+  margin-bottom: 12px;
+  font-weight: 700;
+}
+
+.pb-search {
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 2px dashed #6b4f32;
+  background: transparent;
+  font-family: inherit;
+  font-size: 1rem;
+  color: #3b2a16;
+  outline: none;
+}
+
+.pb-search::placeholder {
+  color: #9a8566;
+}
+
+.pb-tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pb-tab {
+  font-family: inherit;
+  font-size: 0.85rem;
+  padding: 4px 12px;
+  border: 1.5px solid #6b4f32;
+  border-radius: 6px 6px 0 0;
+  background: rgba(255, 255, 255, 0.5);
+  color: #3b2a16;
+  cursor: pointer;
+}
+
+.pb-tab.on {
+  background: #6b4f32;
+  color: #fff;
+}
+
+.pb-count {
+  font-size: 0.85rem;
+  padding: 6px 20px 6px 70px;
+  color: #7a6248;
+  font-style: italic;
+}
+
+.pb-foot {
+  padding-block-end: 14px;
+}
+
+.pb-foot a {
+  color: #6b4f32;
+  text-decoration: underline;
+}
+
+.pb-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 62vh;
+  overflow-y: auto;
+}
+
+.pb-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  padding: 0 16px 0 70px;
+}
+
+.pb-row:hover {
+  background: rgba(230, 150, 60, 0.12);
+}
+
+.pb-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+  border: 2px solid #6b4f32;
+  overflow: hidden;
+}
+
+.pb-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.pb-name {
+  font-weight: 700;
+  color: #2b1d0e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pb-phone {
+  font-size: 0.95rem;
+  color: #3b2a16;
+  direction: ltr;
+  font-family: 'Courier New', monospace;
+  white-space: nowrap;
+}
+
+.pb-call {
+  text-decoration: none;
+  font-size: 0.8rem;
+  color: #2e6b2e;
+  border: 1.5px solid #2e6b2e;
+  border-radius: 4px;
+  padding: 1px 8px;
+  transform: rotate(-3deg);
+  background: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+
+.pb-star {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.1rem;
+  color: #b08a2e;
+  line-height: 1;
+  padding: 0;
+}
+
+.pb-empty {
+  text-align: center;
+  padding: 30px;
+  color: #7a6248;
+  font-style: italic;
+}
+
+.pb-page mark {
+  background: #ffe27a;
+  color: inherit;
+  padding: 0 2px;
+}
+
+/* ===== نمای ذخیره‌ها: ورق زدن ===== */
+.pb-flipper {
+  padding: 14px 20px 6px 70px;
+}
+
+.pb-sheet {
+  position: relative;
+  height: 330px;
+  perspective: 1600px;
+}
+
+.pb-sheet-content,
+.pb-leaf .pb-face {
+  position: absolute;
+  inset: 0;
+  padding: 6px 4px 10px 0;
+  border-radius: 6px;
+  backface-visibility: hidden;
+}
+
+.pb-leaf {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  transition: transform 0.6s ease-in-out;
+}
+
+.pb-leaf .pb-face.back {
+  transform: rotateY(180deg);
+}
+
+.pb-leaf.fwd {
+  transform-origin: right center;
+}
+
+.pb-leaf.fwd.go {
+  transform: rotateY(-180deg);
+}
+
+.pb-leaf.bwd {
+  transform-origin: left center;
+  transform: rotateY(-180deg);
+}
+
+.pb-leaf.bwd.go {
+  transform: rotateY(0);
+}
+
+.pb-leaf .pb-face {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.15);
+}
+
+.pb-saved-row {
+  height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pb-saved-row .pb-info {
+  flex: 1;
+}
+
+.pb-pgbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 20px 14px 70px;
+  font-size: 0.85rem;
+  color: #5a4628;
+}
+
+.pb-pgbar button {
+  font-family: inherit;
+  padding: 4px 12px;
+  cursor: pointer;
+  border: 1.5px solid #6b4f32;
+  background: #fff;
+  border-radius: 6px;
+  color: #3b2a16;
+}
+
+.pb-pgbar button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.pb-unsave {
+  background: none;
+  border: none;
+  color: #a33;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: inherit;
+  padding: 0;
+}
+
+.pb-pgno {
+  font-size: 0.8rem;
+  color: #7a6248;
+  text-align: left;
+  direction: ltr;
+}
+
+@media (max-width: 520px) {
+  .pb-book {
+    max-width: 100%;
+  }
+}

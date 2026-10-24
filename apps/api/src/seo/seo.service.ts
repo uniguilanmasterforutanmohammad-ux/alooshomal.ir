@@ -61,6 +61,7 @@ export class SeoService {
       { path: '/', lastModified: '', changeFrequency: 'daily', priority: 1 },
       { path: '/business-cards', lastModified: '', changeFrequency: 'daily', priority: 0.9 },
       { path: '/biolinks', lastModified: '', changeFrequency: 'daily', priority: 0.9 },
+      { path: '/phonebook', lastModified: '', changeFrequency: 'daily', priority: 0.8 },
       { path: '/feeds', lastModified: '', changeFrequency: 'daily', priority: 0.8 },
       { path: '/pulse', lastModified: '', changeFrequency: 'daily', priority: 0.7 },
       { path: '/services', lastModified: '', changeFrequency: 'weekly', priority: 0.7 },
