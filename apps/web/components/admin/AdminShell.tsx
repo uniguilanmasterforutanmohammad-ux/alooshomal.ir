@@ -152,7 +152,7 @@ export function AdminShell({ section, onSection, children }: Props) {
       ) : null}
 
       <div className="lg:mr-56">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[color-mix(in_srgb,var(--vintage-surface)_95%,transparent)] px-4 py-3 backdrop-blur">
+        <header className="sticky top-[var(--feature-notice-h)] z-30 flex items-center gap-3 border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[color-mix(in_srgb,var(--vintage-surface)_95%,transparent)] px-4 py-3 backdrop-blur">
           <button
             onClick={() => setOpen((value) => !value)}
             className="flex size-10 items-center justify-center rounded-lg border border-[var(--vintage-border)] lg:hidden"

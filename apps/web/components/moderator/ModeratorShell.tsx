@@ -42,7 +42,7 @@ export function ModeratorShell({ tabs, active, onTab, children }: Props) {
 
   return (
     <div className="min-h-screen bg-[#fbf3e9]">
-      <header className="sticky top-0 z-30 border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[#fbf3e9]/95 px-4 py-3 backdrop-blur">
+      <header className="sticky top-[var(--feature-notice-h)] z-30 border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[#fbf3e9]/95 px-4 py-3 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center gap-3">
           <span className="vintage-avatar flex size-11 items-center justify-center">
             <ShieldCheck className="size-5" aria-hidden />

@@ -169,36 +169,70 @@ export interface FeatureFlag {
   default: boolean;
   /** *visible* value used when the admin never touched this switch. */
   visibleDefault?: boolean;
+  /**
+   * Set when this feature *owns* a public area (a page or the home-page ad
+   * box). Turning its «نمایش» switch off then stops that area entirely (the
+   * pages render a «موقتاً غیرفعال» screen) and raises the site-wide notice bar.
+   * `routes` are the public route prefixes that belong to the section and are
+   * also the nav hrefs hidden while the section is not visible.
+   */
+  publicSection?: FeaturePublicSection;
+}
+
+/** One stopped public area, as returned by `getStoppedSections`. */
+export interface StoppedSection {
+  key: string;
+  name: string;
+  routes: string[];
+  homeBox: boolean;
+}
+
+/** A public page/area owned by one feature (see `FeatureFlag.publicSection`). */
+export interface FeaturePublicSection {
+  /** user-facing section name shown in the site-wide notice. */
+  name: string;
+  /** public route prefixes stopped while the section is hidden. */
+  routes?: string[];
+  /** the home-page ad box belongs to this section (no dedicated route). */
+  homeBox?: boolean;
 }
 
 export const FEATURE_FLAGS: FeatureFlag[] = [
   {
     key: ALLOW_BIOLINK_CREATION_KEY,
     label: 'ساخت بیولینک توسط کاربران',
-    description: 'اگر خاموش باشد، کاربران نمی‌توانند بیولینک جدید بسازند.',
+    description:
+      'اگر خاموش باشد، کاربران نمی‌توانند بیولینک جدید بسازند. خاموش‌کردن «نمایش» صفحه‌ی «بیولینک‌ها» را هم متوقف می‌کند.',
     group: 'ساخت محتوا',
     default: true,
+    publicSection: { name: 'بیولینک‌ها', routes: ['/biolinks'] },
   },
   {
     key: ALLOW_CARD_CREATION_KEY,
     label: 'ساخت کارت ویزیت توسط کاربران',
-    description: 'اگر خاموش باشد، کاربران نمی‌توانند کارت ویزیت جدید بسازند.',
+    description:
+      'اگر خاموش باشد، کاربران نمی‌توانند کارت ویزیت جدید بسازند. خاموش‌کردن «نمایش» صفحه‌ی «کارت‌های ویزیت» را هم متوقف می‌کند.',
     group: 'ساخت محتوا',
     default: true,
+    publicSection: { name: 'کارت‌های ویزیت', routes: ['/business-cards'] },
   },
   {
     key: 'featureFeedPosts',
     label: 'پست کاربران (فید)',
-    description: 'اگر خاموش باشد، کاربران نمی‌توانند پست تازه منتشر کنند.',
+    description:
+      'اگر خاموش باشد، کاربران نمی‌توانند پست تازه منتشر کنند. خاموش‌کردن «نمایش» صفحه‌ی «پست‌های کاربران» را هم متوقف می‌کند.',
     group: 'ساخت محتوا',
     default: true,
+    publicSection: { name: 'پست‌های کاربران', routes: ['/feeds'] },
   },
   {
     key: 'featureNews',
-    label: 'خبر شهروند خبرنگار (نبض شهر)',
-    description: 'اگر خاموش باشد، ثبت خبر جدید در «نبض شهر» ممکن نیست.',
+    label: 'شهروند خبرنگار (ثبت خبر)',
+    description:
+      'اگر خاموش باشد، ثبت خبر جدید ممکن نیست. خاموش‌کردن «نمایش» صفحه‌ی «اخبار شهر» را هم متوقف می‌کند.',
     group: 'ساخت محتوا',
     default: true,
+    publicSection: { name: 'اخبار شهر', routes: ['/pulse'] },
   },
   {
     key: 'featureBoostRequests',
@@ -210,9 +244,11 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
   {
     key: 'featureAdRequests',
     label: 'درخواست تبلیغ (صفحه‌ی اصلی)',
-    description: 'اگر خاموش باشد، ثبت درخواست تبلیغ برای جعبه‌ی تبلیغ صفحه‌ی اصلی ممکن نیست.',
+    description:
+      'اگر خاموش باشد، ثبت درخواست تبلیغ برای تبلیغات صفحه‌ی اصلی ممکن نیست. خاموش‌کردن «نمایش» جعبه‌ی تبلیغات صفحه‌ی اصلی را هم پنهان می‌کند.',
     group: 'بازاریابی و تبلیغات',
     default: true,
+    publicSection: { name: 'تبلیغات صفحه‌ی اصلی', homeBox: true },
   },
   {
     key: 'featureAdDirectoryRequests',
@@ -227,13 +263,6 @@ export const FEATURE_FLAG_KEYS = FEATURE_FLAGS.map((flag) => flag.key);
 
 /** Suffix appended to a flag key to build its *visibility* setting key. */
 export const FEATURE_VISIBLE_SUFFIX = 'Visible';
-
-/** Whether the feature is advertised in the site chrome (nav/CTA/links). */
-export const FEATURE_NAV_ITEMS: Record<string, string[]> = {
-  // Public nav hrefs hidden when the matching feature is not visible.
-  featureFeedPosts: ['/feeds'],
-  featureNews: ['/pulse'],
-};
 
 // ---------------------------------------------------------------------------
 //  Authentication settings
@@ -733,11 +762,34 @@ export class SettingsService implements OnModuleInit {
 
   /** Which public nav hrefs should be hidden given the current visibility flags. */
   async getHiddenNavHrefs(): Promise<string[]> {
-    const hidden: string[] = [];
-    for (const [key, hrefs] of Object.entries(FEATURE_NAV_ITEMS)) {
-      if (!(await this.isFeatureVisible(key))) hidden.push(...hrefs);
+    const hidden = new Set<string>();
+    for (const flag of FEATURE_FLAGS) {
+      const routes = flag.publicSection?.routes;
+      if (!routes?.length) continue;
+      if (await this.isFeatureVisible(flag.key)) continue;
+      routes.forEach((route) => hidden.add(route));
     }
-    return hidden;
+    return [...hidden];
+  }
+
+  /**
+   * Public areas whose display the admin has *stopped* (their feature is not
+   * visible). The public pages use this to render a «موقتاً غیرفعال» screen and
+   * the notice bar uses the names to warn visitors site-wide.
+   */
+  async getStoppedSections(): Promise<StoppedSection[]> {
+    const stopped: StoppedSection[] = [];
+    for (const flag of FEATURE_FLAGS) {
+      if (!flag.publicSection) continue;
+      if (await this.isFeatureVisible(flag.key)) continue;
+      stopped.push({
+        key: flag.key,
+        name: flag.publicSection.name,
+        routes: flag.publicSection.routes ?? [],
+        homeBox: Boolean(flag.publicSection.homeBox),
+      });
+    }
+    return stopped;
   }
 
   /**

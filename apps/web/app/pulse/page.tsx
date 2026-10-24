@@ -7,9 +7,11 @@ import { CalendarDays, ChevronLeft, ChevronRight, Newspaper, UserRound } from 'l
 
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { PulseFilters, type PulseFilterState } from '@/components/news/PulseFilters';
 import { ReporterCtaButton } from '@/components/news/ReporterCtaButton';
 import { api, type NewsCategory, type NewsListResponse } from '@/lib/api';
+import { useFeatures } from '@/lib/features';
 
 function faDate(value: string | null) {
   if (!value) return '';
@@ -19,6 +21,7 @@ function faDate(value: string | null) {
 function PulseContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isSectionStopped } = useFeatures();
 
   const [filters, setFilters] = useState<PulseFilterState>({
     q: searchParams.get('q') ?? '',
@@ -79,6 +82,15 @@ function PulseContent() {
 
   const meta = data?.meta;
   const items = data?.items ?? [];
+
+  if (isSectionStopped('/pulse')) {
+    return (
+      <>
+        <Header />
+        <StoppedSectionScreen title="اخبار شهر" />
+      </>
+    );
+  }
 
   return (
     <main className="container-page py-6">

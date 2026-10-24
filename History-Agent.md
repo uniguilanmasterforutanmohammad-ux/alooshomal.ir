@@ -20,7 +20,51 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.92.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.93.0**.
+
+## ۱۴۰۵/۰۸/۰۳ — توقف نمایش بخش‌های عمومی از پنل ادمین + نوار هشدار سراسری — نسخه `v2.93.0`
+
+**هدف:** کاربر خواست ادمین بتواند نمایش کارت‌ویزیت‌ها، بیولینک‌ها، پست‌های کاربران،
+اخبار شهر و تبلیغات صفحه‌ی اصلی را متوقف کند؛ صفحه‌های مربوطه (`/biolinks`،
+`/business-cards`، `/pulse`، `/feeds` و صفحه‌های جزئیات) «موقتاً غیرفعال» شوند،
+جعبه‌ی تبلیغات صفحه‌ی اصلی پنهان شود و یک اخطار دائمی بالای هدر در همه‌ی صفحه‌ها
+نمایش داده شود تا زمان عادی‌شدن. این رفتار باید برای هر ویژگی آینده‌ای که بخش
+عمومی دارد خودکار باشد.
+
+**تغییرات:**
+- `apps/api/src/settings/settings.service.ts`: افزودن `FeaturePublicSection` و
+  `publicSection` به رجیستری `FEATURE_FLAGS` (برای چهار بخش + تبلیغات صفحه‌ی اصلی
+  با `homeBox`). `getHiddenNavHrefs` بازنویسی شد و `getStoppedSections` اضافه شد؛
+  `FEATURE_NAV_ITEMS` حذف و مسیرها از `publicSection` گرفته می‌شوند.
+- `apps/api/src/settings/settings.controller.ts`: افزودن `stoppedSections` به
+  `GET /settings/public` و `GET /admin/settings`.
+- `apps/web/lib/features.ts`: افزودن `stoppedSections` و `isSectionStopped` و
+  بازنویسی `showNav` تا واریانت‌های مسیر (مثل `?view=notebook`) را نیز پنهان کند.
+- `apps/web/lib/sections-server.ts` (جدید): خواندن سرور-side فهرست بخش‌های متوقف.
+- `apps/web/components/layout/FeatureNoticeBar.tsx` (جدید): نوار هشدار سراسری؛
+  ارتفاع اندازه‌گیری‌شده را در `--feature-notice-h` می‌گذارد.
+- `apps/web/components/layout/StoppedSectionScreen.tsx` (جدید): صفحه‌ی «موقتاً
+  متوقف شده» با پوسته‌ی سایت.
+- `apps/web/app/(biolinks|business-cards|pulse|feeds)/**` و `[slug]`/`[id]`:
+  نمایش صفحه‌ی توقف به‌جای محتوا وقتی بخش متوقف است.
+- `apps/web/app/page.tsx`: پنهان‌کردن اسلایدرها، دکمه‌های hero، جعبه‌ی تبلیغات و
+  بخش اخبار صفحه‌ی اصلی وقتی بخش مربوطه متوقف است.
+- `apps/web/components/layout/FooterCta.tsx` (جدید) و `Footer.tsx`: دکمه‌ی
+  «ساخت بیولینک رایگان» هم سوئیچ نمایش را رعایت می‌کند.
+- `apps/web/app/layout.tsx`، `globals.css` و هدرهای sticky (Header/UserShell/
+  AdminShell/ModeratorShell/…): جای‌گیری نوار هشدار و ارتفاع دایرکتوری.
+- `AGENTS.md` (قانون ۹): مستندسازی `publicSection` برای ویژگی‌های آینده.
+
+**تأیید/تست:**
+- `tsc --noEmit` وب و API: هر دو `TSC=0`.
+- API زنده: با `PATCH /admin/settings` خاموش‌کردن «نمایش» چهار بخش + تبلیغات،
+  `GET /settings/public` مقدار `stoppedSections` و `hiddenNavHrefs` درست برگرداند.
+- Playwright: `/feeds`، `/pulse`، `/feeds/<id>`، `/pulse/<id>`، `/biolinks`،
+  `/business-cards` و صفحه‌های `[slug]` صفحه‌ی توقف را نشان دادند؛ نوار هشدار در
+  همه‌ی صفحه‌ها دیده شد؛ در صفحه‌ی اصلی اسلایدر/دکمه/تبلیغ/جدول خبر مربوطه حذف
+  شد. پس از بازگردانی، همه‌چیز به حالت عادی برگشت و هیچ نوار هشداری نماند.
+- بررسی ارتفاع: در `/business-cards` با نوار هشدار، `document.scrollHeight ==
+  innerHeight` (بدون اسکرول صفحه) و `--feature-notice-h=43px` مطابق ارتفاع نوار.
 
 ## ۱۴۰۵/۰۸/۰۲ — افزودن کلید «عدم نمایش» برای هر ویژگی در پنل ادمین — نسخه `v2.92.0`
 

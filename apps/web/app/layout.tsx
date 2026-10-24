@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
+import { FeatureNoticeBar } from '@/components/layout/FeatureNoticeBar';
 import { ToastViewport } from '@/components/ui/ToastViewport';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { SessionWatcher } from '@/components/ui/SessionWatcher';
@@ -71,6 +72,7 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <OfflineBanner />
+        <FeatureNoticeBar />
         {children}
         <SessionWatcher />
         <MobileNav />

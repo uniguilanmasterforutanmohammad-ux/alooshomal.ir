@@ -1,9 +1,12 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 
+import { Header } from '@/components/layout/Header';
+import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { PublicBiolinkView } from '@/components/biolink/PublicBiolinkView';
 import { RecordView } from '@/components/ui/RecordView';
 import { absoluteUrl, metaDescription, SERVER_API_URL } from '@/lib/site';
+import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
 import { type Biolink } from '@/lib/api';
 
 interface BiolinkPayload {
@@ -122,6 +125,15 @@ export default async function PublicBiolinkPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const stopped = await getStoppedSections();
+  if (isRouteStopped(stopped, '/biolinks')) {
+    return (
+      <>
+        <Header />
+        <StoppedSectionScreen title="بیولینک‌ها" />
+      </>
+    );
+  }
   const data = await getBiolink(slug);
   if (!data) {
     notFound();

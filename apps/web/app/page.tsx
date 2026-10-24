@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { PulseSection } from '@/components/news/PulseSection';
 import { ReporterCtaButton } from '@/components/news/ReporterCtaButton';
+import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
 import { HomeSearchBox } from '@/components/home/HomeSearchBox';
 import { HomeAdBox } from '@/components/home/HomeAdBox';
 import { HomeHeadline } from '@/components/home/HomeHeadline';
@@ -67,10 +68,18 @@ const features = [
 ];
 
 export default async function HomePage() {
+  // The admin can stop any public section; each one then drops out of the home
+  // page too (sliders, hero buttons, ad banner, news table) and the site-wide
+  // notice bar explains why.
+  const stopped = await getStoppedSections();
+  const showCards = !isRouteStopped(stopped, '/business-cards');
+  const showBiolinks = !isRouteStopped(stopped, '/biolinks');
+  const showNews = !isRouteStopped(stopped, '/pulse');
+  const showHomeAds = !stopped.some((section) => section.homeBox);
   // Both sliders are fetched in parallel; a failed fetch just hides its slider.
   const [latestCards, latestBiolinks] = await Promise.all([
-    getLatest('/business-cards/public/latest?limit=6'),
-    getLatest('/biolinks/public/latest?limit=6'),
+    showCards ? getLatest('/business-cards/public/latest?limit=6') : Promise.resolve([]),
+    showBiolinks ? getLatest('/biolinks/public/latest?limit=6') : Promise.resolve([]),
   ]);
 
   return (
@@ -94,20 +103,24 @@ export default async function HomePage() {
             </p>
             <HomeSearchBox />
             <div className="mt-6 flex flex-wrap items-center justify-center gap-3 sm:mt-8">
-              <Link
-                href="/business-cards"
-                className="indeed-btn border-white text-white hover:bg-white/10"
-              >
-                <BadgeCheck className="size-4" aria-hidden />
-                لیست کارت ویزیت‌ها
-              </Link>
-              <Link
-                href="/biolinks"
-                className="indeed-btn border-white text-white hover:bg-white/10"
-              >
-                <Smartphone className="size-4" aria-hidden />
-                لیست بیولینک‌ها
-              </Link>
+              {showCards ? (
+                <Link
+                  href="/business-cards"
+                  className="indeed-btn border-white text-white hover:bg-white/10"
+                >
+                  <BadgeCheck className="size-4" aria-hidden />
+                  لیست کارت ویزیت‌ها
+                </Link>
+              ) : null}
+              {showBiolinks ? (
+                <Link
+                  href="/biolinks"
+                  className="indeed-btn border-white text-white hover:bg-white/10"
+                >
+                  <Smartphone className="size-4" aria-hidden />
+                  لیست بیولینک‌ها
+                </Link>
+              ) : null}
             </div>
           </div>
         </section>
@@ -115,22 +128,27 @@ export default async function HomePage() {
         {/* Order requested for the home page, right below the search box and its
             two buttons: ads → latest business cards → latest biolinks → city
             news → the rest of the page. */}
-        <HomeAdBox />
+        {showHomeAds ? <HomeAdBox /> : null}
 
-        <HomeItemSlider
-          kind="business-cards"
-          items={latestCards}
-          moreHref="/business-cards"
-        />
+        {showCards ? (
+          <HomeItemSlider
+            kind="business-cards"
+            items={latestCards}
+            moreHref="/business-cards"
+          />
+        ) : null}
 
-        <HomeItemSlider
-          kind="biolinks"
-          items={latestBiolinks}
-          moreHref="/biolinks"
-        />
+        {showBiolinks ? (
+          <HomeItemSlider
+            kind="biolinks"
+            items={latestBiolinks}
+            moreHref="/biolinks"
+          />
+        ) : null}
 
         {/* «شهروند خبرنگار شوید» sits directly above «اخبار شهر» so the
             invitation to file news leads straight into the news table. */}
+        {showNews ? (
         <section className="container-page mt-10 sm:mt-16">
           <div className="indeed-panel flex flex-wrap items-center justify-between gap-3 p-5">
             <div>
@@ -148,8 +166,9 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+        ) : null}
 
-        <PulseSection />
+        {showNews ? <PulseSection /> : null}
 
         <section className="container-page mt-10 sm:mt-16">
           {/* لایه رنگی پشت شیشه تا افکت Liquid Glass دیده شود */}

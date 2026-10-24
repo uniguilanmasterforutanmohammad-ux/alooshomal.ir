@@ -1,6 +1,6 @@
 import Link from 'next/link';
-import { ArrowUpLeft } from 'lucide-react';
 import { FooterNav } from '@/components/layout/FooterNav';
+import { FooterCta } from '@/components/layout/FooterCta';
 import { APP_VERSION } from '@/lib/version';
 
 const LEGAL_LINKS = [
@@ -33,14 +33,7 @@ export function Footer() {
             </p>
           </div>
 
-          <Link
-            href="/biolinks"
-            prefetch={false}
-            className="site-footer-cta group inline-flex w-fit items-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-bold text-brand shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:shadow-xl"
-          >
-            ساخت بیولینک رایگان
-            <ArrowUpLeft className="size-4 transition group-hover:-translate-x-0.5 group-hover:-translate-y-0.5" aria-hidden />
-          </Link>
+          <FooterCta />
         </div>
 
         {/* لینک‌ها */}

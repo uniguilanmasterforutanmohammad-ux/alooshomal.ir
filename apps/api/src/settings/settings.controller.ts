@@ -187,6 +187,8 @@ export class SettingsController {
       features: await this.settingsService.getFeatureFlags(),
       featureVisibility: await this.settingsService.getFeatureVisibility(),
       hiddenNavHrefs: await this.settingsService.getHiddenNavHrefs(),
+      // Public areas whose display the admin stopped (drives the notice bar).
+      stoppedSections: await this.settingsService.getStoppedSections(),
       ...locks,
     };
   }
@@ -230,6 +232,7 @@ export class AdminSettingsController {
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
       features: await this.settingsService.getFeatureFlags(),
       featureVisibility: await this.settingsService.getFeatureVisibility(),
+      stoppedSections: await this.settingsService.getStoppedSections(),
       // The registry drives the single admin panel (labels/groups/defaults).
       featureFlags: FEATURE_FLAGS,
       ...locks,

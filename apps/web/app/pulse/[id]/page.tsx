@@ -4,6 +4,8 @@ import { ArrowRight, CalendarDays, UserRound } from 'lucide-react';
 
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
+import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
 import { type NewsItem } from '@/lib/api';
 
 async function getNews(id: string): Promise<NewsItem | null> {
@@ -27,6 +29,15 @@ export default async function NewsDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const stopped = await getStoppedSections();
+  if (isRouteStopped(stopped, '/pulse')) {
+    return (
+      <>
+        <Header />
+        <StoppedSectionScreen title="اخبار شهر" />
+      </>
+    );
+  }
   const news = await getNews(id);
   if (!news) {
     notFound();

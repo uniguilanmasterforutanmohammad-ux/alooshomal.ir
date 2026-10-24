@@ -1,12 +1,17 @@
 import { Suspense } from 'react';
 import { Header } from '@/components/layout/Header';
+import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { DirectoryBusinessCardContent } from '@/components/businesscard/DirectoryBusinessCardContent';
 import { fetchBusinessCardsDirectory } from '@/lib/directory-server';
+import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
 
 /**
  * Server entry: renders the first directory page as real HTML (crawlable links
  * + content) and hands it to the interactive client list, which keeps infinite
  * scroll, filtering and the split detail view.
+ *
+ * When the admin stops the «کارت‌های ویزیت» section the page renders the
+ * «موقتاً متوقف» screen instead of the directory.
  */
 export default async function DirectoryPage({
   searchParams,
@@ -19,6 +24,15 @@ export default async function DirectoryPage({
   }>;
 }) {
   const sp = await searchParams;
+  const stopped = await getStoppedSections();
+  if (isRouteStopped(stopped, '/business-cards')) {
+    return (
+      <>
+        <Header />
+        <StoppedSectionScreen title="کارت‌های ویزیت" />
+      </>
+    );
+  }
   const initialData = await fetchBusinessCardsDirectory({
     q: sp.q,
     cityId: sp.cityId,

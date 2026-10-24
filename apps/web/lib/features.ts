@@ -4,18 +4,29 @@ import { useEffect, useState } from 'react';
 
 import { api } from './api';
 
+/** One public area whose display the admin has stopped. */
+export interface StoppedSection {
+  key: string;
+  name: string;
+  routes: string[];
+  homeBox: boolean;
+}
+
 /** The public feature payload returned by `GET /settings/public`. */
 export interface PublicFeatures {
   features: Record<string, boolean>;
   featureVisibility: Record<string, boolean>;
   /** public nav hrefs the admin has hidden (their feature is not visible). */
   hiddenNavHrefs: string[];
+  /** public areas whose display is stopped right now. */
+  stoppedSections: StoppedSection[];
 }
 
 const EMPTY: PublicFeatures = {
   features: {},
   featureVisibility: {},
   hiddenNavHrefs: [],
+  stoppedSections: [],
 };
 
 /**
@@ -27,6 +38,9 @@ const EMPTY: PublicFeatures = {
  *   - *visible*  (`featureVisibility[key]`) — it is advertised in the chrome.
  * `isFeatureVisible` returns true only when the feature is both enabled and
  * visible, and `showNav` also hides any nav entry the API flagged.
+ *
+ * `stoppedSections` lists the public pages/areas the admin stopped; the
+ * `FeatureNoticeBar` turns that into the site-wide «توقف موقت» strip.
  */
 let cached: PublicFeatures | null = null;
 let inflight: Promise<PublicFeatures> | null = null;
@@ -42,6 +56,7 @@ async function load(): Promise<PublicFeatures> {
           features: result.features ?? {},
           featureVisibility: result.featureVisibility ?? {},
           hiddenNavHrefs: result.hiddenNavHrefs ?? [],
+          stoppedSections: result.stoppedSections ?? [],
         };
         subscribers.forEach((notify) => notify(cached as PublicFeatures));
         return cached;
@@ -55,11 +70,14 @@ export interface UseFeatures {
   features: Record<string, boolean>;
   featureVisibility: Record<string, boolean>;
   hiddenNavHrefs: string[];
+  stoppedSections: StoppedSection[];
   loaded: boolean;
   /** enabled *and* visible */
   isFeatureVisible: (key: string) => boolean;
   /** whether a public nav href should be shown */
   showNav: (href: string) => boolean;
+  /** whether a public area (by route) has its display stopped */
+  isSectionStopped: (route: string) => boolean;
 }
 
 /**
@@ -97,15 +115,29 @@ export function useFeatures(): UseFeatures {
   }
 
   function showNav(href: string): boolean {
-    return !value.hiddenNavHrefs.includes(href);
+    // A hidden route prefix also hides its variants (e.g. the notebook deep
+    // link `/business-cards?view=notebook&sort=alpha` when `/business-cards` is
+    // stopped), so one switch removes every link into that section.
+    return !value.hiddenNavHrefs.some(
+      (route) =>
+        href === route ||
+        href.startsWith(`${route}/`) ||
+        href.startsWith(`${route}?`),
+    );
+  }
+
+  function isSectionStopped(route: string): boolean {
+    return value.stoppedSections.some((section) => section.routes.includes(route));
   }
 
   return {
     features: value.features,
     featureVisibility: value.featureVisibility,
     hiddenNavHrefs: value.hiddenNavHrefs,
+    stoppedSections: value.stoppedSections,
     loaded,
     isFeatureVisible,
     showNav,
+    isSectionStopped,
   };
 }

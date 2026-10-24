@@ -8,10 +8,12 @@ import { ArrowRight, CalendarDays, UserRound } from 'lucide-react';
 
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { FeedTagCard } from '@/components/feed/FeedTagCard';
 import { api, type FeedPost } from '@/lib/api';
 import { bodyToHtml, richTextPreview } from '@/lib/rich-text';
 import { cn } from '@/lib/utils';
+import { useFeatures } from '@/lib/features';
 
 /**
  * Single feed post. Loads the post client-side (so the like/save buttons can
@@ -21,6 +23,7 @@ import { cn } from '@/lib/utils';
 export default function FeedPostPage() {
   const params = useParams<{ id: string }>();
   const id = params?.id;
+  const { isSectionStopped } = useFeatures();
   const [post, setPost] = useState<FeedPost | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +83,15 @@ export default function FeedPostPage() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (isSectionStopped('/feeds')) {
+    return (
+      <>
+        <Header />
+        <StoppedSectionScreen title="پست‌های کاربران" />
+      </>
+    );
   }
 
   return (

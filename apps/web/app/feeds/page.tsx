@@ -6,9 +6,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Info, PenLine, Search, SlidersHorizontal } from 'lucide-react';
 
 import { Header } from '@/components/layout/Header';
+import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { FeedCard } from '@/components/feed/FeedCard';
 import type { FeedPost, FeedTopic } from '@/lib/api';
 import { useDirectoryResults, useInfiniteScroll } from '@/lib/directory';
+import { useFeatures } from '@/lib/features';
 
 interface FeedFilters {
   q: string;
@@ -72,6 +74,7 @@ function Filters({
 function FeedsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isSectionStopped } = useFeatures();
 
   const [filters, setFilters] = useState<FeedFilters>({
     q: searchParams.get('q') ?? '',
@@ -105,6 +108,15 @@ function FeedsContent() {
     const query = params.toString();
     router.replace(query ? `/feeds?${query}` : '/feeds', { scroll: false });
   }, [filters, router]);
+
+  if (isSectionStopped('/feeds')) {
+    return (
+      <>
+        <Header />
+        <StoppedSectionScreen title="پست‌های کاربران" />
+      </>
+    );
+  }
 
   return (
     <>

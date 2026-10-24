@@ -154,6 +154,14 @@ body {
   background-position: 0 0, 11px 11px;
 }
 
+/* Height of the site-wide «توقف موقت» notice strip (see `FeatureNoticeBar`).
+   It is `0px` while no section is stopped; `FeatureNoticeBar` sets it on
+   `<html>` when it renders so the sticky header and the directory shells can
+   offset themselves without a layout jump in the normal (notice-free) state. */
+:root {
+  --feature-notice-h: 0px;
+}
+
 /* Phone + tablet: leave room for the fixed bottom navigation so the last
    content is never hidden behind it (plus the device safe-area inset). The
    header/top-nav is hidden up to `lg` (1024px), so the bottom bar covers
@@ -187,7 +195,7 @@ body {
    instead of the bottom nav. */
 @media (min-width: 1024px) {
   .directory-shell {
-    --dir-top: 66px;
+    --dir-top: calc(66px + var(--feature-notice-h));
     --dir-bottom: 0px;
   }
 }
