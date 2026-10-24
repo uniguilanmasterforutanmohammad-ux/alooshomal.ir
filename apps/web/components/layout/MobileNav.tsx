@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   LogIn,
   Newspaper,
-  NotebookTabs,
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
@@ -43,7 +42,6 @@ export function MobileNav() {
     { href: '/', label: 'خانه', icon: Home, exact: true },
     { href: '/business-cards', label: 'کارت ویزیت‌ها', icon: BadgeCheck },
     { href: '/biolinks', label: 'بیولینک‌ها', icon: IdCard },
-    { href: '/business-cards?view=notebook&sort=alpha', label: 'دفترچه', icon: NotebookTabs },
     { href: '/pulse', label: 'اخبار شهر', icon: Newspaper },
     { href: '/feeds', label: 'پست کاربران', icon: ImagePlus },
     hydrated && token
