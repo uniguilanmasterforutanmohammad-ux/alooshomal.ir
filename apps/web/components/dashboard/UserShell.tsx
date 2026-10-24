@@ -22,6 +22,7 @@ import {
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { NotificationBell } from '@/components/ui/NotificationBell';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { cn } from '@/lib/utils';
 import { APP_VERSION } from '@/lib/version';
 
@@ -179,6 +180,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
           </Link>
 
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <NotificationBell scope="user" />
             <div className="hidden text-left sm:block">
               <p className="text-sm font-extrabold text-ink">

@@ -29,6 +29,7 @@ import {
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { NotificationBell } from '@/components/ui/NotificationBell';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { cn } from '@/lib/utils';
 
 export type AdminSection =
@@ -176,6 +177,7 @@ export function AdminShell({ section, onSection, children }: Props) {
           </Link>
 
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <NotificationBell scope="admin" />
             <div className="hidden text-left sm:block">
               <p className="text-sm font-extrabold text-ink">{user?.fullName ?? 'مدیر'}</p>
