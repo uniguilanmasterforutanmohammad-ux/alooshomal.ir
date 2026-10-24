@@ -154,7 +154,7 @@ export function DirectoryBusinessCardContent({
           {loading && items.length === 0 ? (
             <div className="directory-tiles-grid">
               {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="indeed-panel h-64 animate-pulse bg-soft" />
+                <div key={index} className="indeed-panel h-[200px] animate-pulse bg-soft" />
               ))}
             </div>
           ) : items.length > 0 ? (

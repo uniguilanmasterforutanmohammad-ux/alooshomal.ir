@@ -151,7 +151,7 @@ export function DirectoryBiolinkContent({
           {loading && items.length === 0 ? (
             <div className="directory-tiles-grid">
               {Array.from({ length: 6 }).map((_, index) => (
-                <div key={index} className="indeed-panel h-72 animate-pulse bg-soft" />
+                <div key={index} className="indeed-panel h-[200px] animate-pulse bg-soft" />
               ))}
             </div>
           ) : items.length > 0 ? (

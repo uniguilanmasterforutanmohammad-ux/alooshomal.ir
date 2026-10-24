@@ -812,8 +812,9 @@ header.bg-white {
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   align-items: start;
 }
-/* Every tile renders the owner's real themed card at tile size, so the whole
-   directory previews at a glance. */
+/* Every tile shows the same contact information as the «دفترچه تلفن» rows —
+   name, role · company, city · business and both numbers — inside a fixed-size
+   card. Long values truncate with an ellipsis so the tile never reflows. */
 .directory-tile {
   position: relative;
   display: block;
@@ -825,16 +826,106 @@ header.bg-white {
   transform: translateY(-3px);
   box-shadow: 0 14px 30px rgba(58, 40, 28, 0.18);
 }
-.directory-tile .bizcard {
-  pointer-events: none;
+
+.directory-tile-card {
+  --tile-accent: var(--vintage-accent);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 200px;
+  overflow: hidden;
+  padding: 14px 14px 46px;
+  border: 2px dashed color-mix(in srgb, var(--tile-accent) 55%, var(--vintage-border));
+  border-radius: 14px;
+  background-color: var(--vintage-surface);
+  background-image: repeating-linear-gradient(
+    180deg,
+    transparent 0 27px,
+    color-mix(in srgb, var(--vintage-border) 55%, transparent) 27px 28px
+  );
+}
+.directory-tile-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.directory-tile-initial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: 2px dashed var(--tile-accent);
+  border-radius: 9999px;
+  box-shadow: 0 0 0 2px var(--vintage-ring);
+  background: var(--tile-accent);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
+}
+.directory-tile-headtext {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.directory-tile-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--vintage-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.directory-tile-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.72rem;
+  color: var(--vintage-ink-soft);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.directory-tile-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--tile-accent);
+}
+.directory-tile-phones {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: auto;
+  min-width: 0;
+}
+.directory-tile-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  font-size: 0.8rem;
+  color: var(--vintage-ink);
+  white-space: nowrap;
+}
+.directory-tile-phone-label {
+  font-size: 0.68rem;
+  color: var(--vintage-ink-soft);
+}
+.directory-tile-phone-num {
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .directory-tile-badges {
-  position: absolute;
-  inset-inline-end: 10px;
-  top: 10px;
-  z-index: 3;
   display: flex;
   gap: 6px;
+  flex-shrink: 0;
 }
 .directory-tile-actions {
   position: absolute;
