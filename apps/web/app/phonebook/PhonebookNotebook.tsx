@@ -2,10 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { Star } from 'lucide-react';
+import { ArrowUpLeft, NotebookTabs, Phone, Search, Star } from 'lucide-react';
 
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
 import type { PhonebookEntry } from '@/lib/api';
 
 /** Rows per flipped leaf in the «ذخیره‌های من» view. */
@@ -87,15 +85,18 @@ function ContactRow({
   trailing: React.ReactNode;
 }) {
   const number = entry.mobile || entry.phone || '';
+  const meta = [entry.jobTitle, entry.company].filter(Boolean).join(' · ');
   return (
     <div className="pb-row">
       <Avatar entry={entry} index={index} />
       <div className="pb-info">
         <span className="pb-name">{highlight(entry.fullName, query)}</span>
+        {meta ? <span className="pb-meta">{highlight(meta, query)}</span> : null}
         <span className="pb-phone">{highlight(number, query.replace(/\s/g, ''))}</span>
       </div>
       {trailing}
-      <a className="pb-call" href={`tel:${number}`}>
+      <a className="pb-call" href={`tel:${number}`} aria-label={`تماس با ${entry.fullName}`}>
+        <Phone className="size-3.5" aria-hidden />
         تماس
       </a>
     </div>
@@ -256,22 +257,45 @@ export function PhonebookNotebook({ initialEntries }: { initialEntries: Phoneboo
   );
 
   return (
-    <div className="pb-page" dir="rtl">
+    <div className="container-page pb-page" dir="rtl">
+      <div className="pb-hero">
+        <span className="pb-badge">
+          <NotebookTabs className="size-4" aria-hidden />
+          دفترچه تلفن شهر
+        </span>
+        <h1 className="pb-title">دفترچه تلفن</h1>
+        <p className="pb-sub">
+          شماره تماس کارت ویزیت‌های منتشرشده در یک دفترچه‌ی مرتب؛ جستجو کنید،
+          مخاطب را ذخیره کنید و با یک لمس تماس بگیرید.
+        </p>
+      </div>
+
       <div className="pb-book pb-paper">
         <header className="pb-head">
-          <h1>دفترچه تلفن</h1>
-          <input
-            className="pb-search"
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="جستجو در نام یا شماره ..."
-            aria-label="جستجو در نام یا شماره"
-          />
-          <div className="pb-tabs">
+          <div className="pb-head-top">
+            <h2 className="text-lg font-extrabold text-ink">مخاطبین</h2>
+            <span className="pb-head-note">
+              {`${sorted.length.toLocaleString('fa-IR')} شماره`}
+            </span>
+          </div>
+
+          <div className="pb-search-wrap">
+            <Search className="pb-search-icon" aria-hidden />
+            <input
+              className="pb-search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="جستجو در نام، شماره یا شغل ..."
+              aria-label="جستجو در نام، شماره یا شغل"
+            />
+          </div>
+
+          <div className="pb-tabs" role="group" aria-label="حالت نمایش">
             <button
               type="button"
               className={`pb-tab${view === 'all' ? ' on' : ''}`}
+              aria-pressed={view === 'all'}
               onClick={() => setView('all')}
             >
               همه مخاطبین
@@ -279,8 +303,14 @@ export function PhonebookNotebook({ initialEntries }: { initialEntries: Phoneboo
             <button
               type="button"
               className={`pb-tab${view === 'saved' ? ' on' : ''}`}
+              aria-pressed={view === 'saved'}
               onClick={() => setView('saved')}
             >
+              <Star
+                className="size-3.5"
+                aria-hidden
+                fill={view === 'saved' ? 'currentColor' : 'none'}
+              />
               {`ذخیره‌های من (${hydrated ? saved.length.toLocaleString('fa-IR') : '۰'})`}
             </button>
           </div>
@@ -291,40 +321,41 @@ export function PhonebookNotebook({ initialEntries }: { initialEntries: Phoneboo
             <div className="pb-count">
               {`${filtered.length.toLocaleString('fa-IR')} از ${sorted.length.toLocaleString('fa-IR')} مخاطب`}
             </div>
-            <ul className="pb-list">
-              {filtered.map((entry, index) => {
-                const marked = isSaved(entry.slug);
-                return (
-                  <li key={entry.id}>
-                    <ContactRow
-                      entry={entry}
-                      index={index}
-                      query={query.trim()}
-                      trailing={
-                        <button
-                          type="button"
-                          className="pb-star"
-                          data-phone={entry.slug}
-                          title={marked ? 'حذف از ذخیره' : 'ذخیره'}
-                          aria-pressed={marked}
-                          aria-label={marked ? 'حذف از ذخیره' : 'ذخیره'}
-                          onClick={() => toggleSave(entry.slug)}
-                        >
-                          <Star
-                            className="size-4"
-                            aria-hidden
-                            fill={marked ? 'currentColor' : 'none'}
-                          />
-                        </button>
-                      }
-                    />
-                  </li>
-                );
-              })}
-            </ul>
             {filtered.length === 0 ? (
               <div className="pb-empty">مخاطبی پیدا نشد</div>
-            ) : null}
+            ) : (
+              <ul className="pb-list">
+                {filtered.map((entry, index) => {
+                  const marked = isSaved(entry.slug);
+                  return (
+                    <li key={entry.id}>
+                      <ContactRow
+                        entry={entry}
+                        index={index}
+                        query={query.trim()}
+                        trailing={
+                          <button
+                            type="button"
+                            className="pb-star"
+                            data-phone={entry.slug}
+                            title={marked ? 'حذف از ذخیره' : 'ذخیره'}
+                            aria-pressed={marked}
+                            aria-label={marked ? 'حذف از ذخیره' : 'ذخیره'}
+                            onClick={() => toggleSave(entry.slug)}
+                          >
+                            <Star
+                              className="size-4"
+                              aria-hidden
+                              fill={marked ? 'currentColor' : 'none'}
+                            />
+                          </button>
+                        }
+                      />
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
         ) : (
           <div>
@@ -356,7 +387,11 @@ export function PhonebookNotebook({ initialEntries }: { initialEntries: Phoneboo
                   </div>
                 </div>
                 <div className="pb-pgbar">
-                  <button type="button" disabled={page <= 0 || Boolean(flip)} onClick={() => startFlip(-1)}>
+                  <button
+                    type="button"
+                    disabled={page <= 0 || Boolean(flip)}
+                    onClick={() => startFlip(-1)}
+                  >
                     ◀ قبلی
                   </button>
                   <span>
@@ -378,7 +413,11 @@ export function PhonebookNotebook({ initialEntries }: { initialEntries: Phoneboo
         )}
 
         <div className="pb-count pb-foot">
-          <Link href="/business-cards">مشاهدهٔ کارت ویزیت کامل هر مخاطب</Link>
+          <span>کارت ویزیت کامل هر مخاطب را ببینید</span>
+          <Link href="/business-cards" prefetch={false}>
+            مشاهدهٔ دایرکتوری
+            <ArrowUpLeft className="size-4" aria-hidden />
+          </Link>
         </div>
       </div>
     </div>
