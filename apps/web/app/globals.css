@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* Enable the `.dark` class as the dark-mode variant for `dark:` utilities. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @keyframes toast-in {
   from {
     opacity: 0;
@@ -3027,107 +3030,13 @@ a.bizcard-row:hover {
 
 
 
-@custom-variant dark (&:where(.dark, .dark *));
 /* ---- Dark mode ----
-   Add these lines to globals.css:
-   - the @custom-variant line directly under @import 'tailwindcss';
-   - the rest at the END of the file (so they override :root). */
-
-@custom-variant dark (&:where(.dark, .dark *));
-
-html.dark {
-  color-scheme: dark;
-
-  --vintage-paper: #1a120d;
-  --vintage-surface: #241914;
-  --vintage-ring: #3a2a20;
-  --vintage-accent: #e08a5c;
-  --vintage-accent-dark: #f0a27a;
-  --vintage-accent-hover: #c97a4f;
-  --vintage-ink: #f3e6d6;
-  --vintage-ink-soft: #cdb8a3;
-  --vintage-border: #4a3628;
-  --indeed-blue-light: #3a2519;
-}
-
-html.dark body {
-  background-color: var(--vintage-paper);
-  background-image:
-    radial-gradient(rgba(243, 230, 214, 0.04) 1px, transparent 1px),
-    radial-gradient(rgba(243, 230, 214, 0.03) 1px, transparent 1px);
-}
-
-/* ---- Dark mode ----
-   Add these lines to globals.css:
-   - the @custom-variant line directly under @import 'tailwindcss';
-   - the rest at the END of the file (so they override :root). */
-
-@custom-variant dark (&:where(.dark, .dark *));
-
-html.dark {
-  color-scheme: dark;
-
-  --vintage-paper: #1a120d;
-  --vintage-surface: #241914;
-  --vintage-ring: #3a2a20;
-  --vintage-accent: #e08a5c;
-  --vintage-accent-dark: #f0a27a;
-  --vintage-accent-hover: #c97a4f;
-  --vintage-ink: #f3e6d6;
-  --vintage-ink-soft: #cdb8a3;
-  --vintage-border: #4a3628;
-  --indeed-blue-light: #3a2519;
-}
-
-html.dark body {
-  background-color: var(--vintage-paper);
-  background-image:
-    radial-gradient(rgba(243, 230, 214, 0.04) 1px, transparent 1px),
-    radial-gradient(rgba(243, 230, 214, 0.03) 1px, transparent 1px);
-}
-
-/* ---- Dark fixes (round 2) ---- */
-
-/* header buttons: always one line */
+   The `@custom-variant` (so Tailwind's `dark:` utilities work) lives next to
+   the Tailwind import; the token overrides and component fix-ups live at the
+   END of this file so they win over `:root`. Both used to be duplicated four
+   times; this is the single canonical copy of the dark theme. */
 .indeed-btn { white-space: nowrap; }
 
-html.dark header.sticky { background-color: rgba(26, 18, 13, 0.95); }
-html.dark .indeed-btn-secondary { background: var(--vintage-surface); }
-html.dark .indeed-btn-secondary:hover { background: var(--indeed-blue-light); }
-
-/* hero + footer: dark brown instead of the (now light) accent */
-html.dark .home-hero,
-html.dark footer.site-footer {
-  background-color: #2a1a12;
-}
-
-/* search bars / form controls (home + directory pages) */
-html.dark .bg-white,
-html.dark .indeed-input,
-html.dark .rich-editor {
-  background-color: var(--vintage-surface);
-  color: var(--vintage-ink);
-}
-html.dark input,
-html.dark select,
-html.dark textarea {
-  color: var(--vintage-ink);
-}
-html.dark input::placeholder,
-html.dark textarea::placeholder {
-  color: var(--vintage-ink-soft);
-  opacity: 0.8;
-}
-html.dark select option { background: var(--vintage-surface); color: var(--vintage-ink); }
-
-
-/* ---- Dark mode ----
-   Add these lines to globals.css:
-   - the @custom-variant line directly under @import 'tailwindcss';
-   - the rest at the END of the file (so they override :root). */
-
-@custom-variant dark (&:where(.dark, .dark *));
-
 html.dark {
   color-scheme: dark;
 
@@ -3141,6 +3050,76 @@ html.dark {
   --vintage-ink-soft: #cdb8a3;
   --vintage-border: #4a3628;
   --indeed-blue-light: #3a2519;
+
+  /* header + hero + footer: dark warm browns instead of the light accents */
+  header.sticky { background-color: rgba(26, 18, 13, 0.95); }
+  .home-hero,
+  footer.site-footer {
+    background-color: #2a1a12;
+  }
+
+  /* secondary buttons */
+  .indeed-btn-secondary { background: var(--vintage-surface); }
+  .indeed-btn-secondary:hover { background: var(--indeed-blue-light); }
+
+  /* search bars / form controls (home + directory pages) */
+  .bg-white,
+  .indeed-input,
+  .rich-editor {
+    background-color: var(--vintage-surface);
+    color: var(--vintage-ink);
+  }
+  input,
+  select,
+  textarea {
+    color: var(--vintage-ink);
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--vintage-ink-soft);
+    opacity: 0.8;
+  }
+  select option { background: var(--vintage-surface); color: var(--vintage-ink); }
+
+  /* primary buttons: deeper, calmer terracotta instead of bright orange */
+  .indeed-btn-primary,
+  button[type="submit"].indeed-btn-primary,
+  .home-hero button[type="submit"],
+  form button[type="submit"].indeed-btn {
+    color: #fff3e6;
+    border-color: #b8693a;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+    background-color: #9a4a22;
+    background-image: repeating-linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.04) 0 2px,
+        transparent 2px 5px
+      ),
+      linear-gradient(#a8532a, #8a4020);
+  }
+  .indeed-btn-primary:hover { filter: brightness(1.1); }
+
+  /* footer: warm burnt-umber gradient */
+  footer.site-footer {
+    background-color: #4a2414;
+    background-image: linear-gradient(to bottom, #5e2f18 0%, #3f1f10 100%);
+  }
+
+  /* ad box (minimal version): dark warm card instead of cream */
+  #ads a[class*="bg-[#fbf6ea]"] {
+    background-color: #241410;
+    border-color: rgba(243, 230, 214, 0.12);
+  }
+  #ads a[class*="bg-[#fbf6ea]"] .bg-white\/60 {
+    background-color: rgba(255, 255, 255, 0.06);
+  }
+  #ads a[class*="bg-[#fbf6ea]"] .text-ink,
+  #ads a[class*="bg-[#fbf6ea]"] h3 { color: #f3e6d6; }
+  #ads a[class*="bg-[#fbf6ea]"] .text-muted { color: #c9b39c; }
+  #ads a[class*="bg-[#fbf6ea]"] [class*="bg-brand"][class*="rounded-full"] {
+    background-color: #9a4a22;
+    color: #fff3e6;
+  }
 }
 
 html.dark body {
@@ -3150,294 +3129,7 @@ html.dark body {
     radial-gradient(rgba(243, 230, 214, 0.03) 1px, transparent 1px);
 }
 
-/* ---- Dark fixes (round 2) ---- */
-
-/* header buttons: always one line */
-.indeed-btn { white-space: nowrap; }
-
-html.dark header.sticky { background-color: rgba(26, 18, 13, 0.95); }
-html.dark .indeed-btn-secondary { background: var(--vintage-surface); }
-html.dark .indeed-btn-secondary:hover { background: var(--indeed-blue-light); }
-
-/* hero + footer: dark brown instead of the (now light) accent */
-html.dark .home-hero,
-html.dark footer.site-footer {
-  background-color: #2a1a12;
-}
-
-/* search bars / form controls (home + directory pages) */
-html.dark .bg-white,
-html.dark .indeed-input,
-html.dark .rich-editor {
-  background-color: var(--vintage-surface);
-  color: var(--vintage-ink);
-}
-html.dark input,
-html.dark select,
-html.dark textarea {
-  color: var(--vintage-ink);
-}
-html.dark input::placeholder,
-html.dark textarea::placeholder {
-  color: var(--vintage-ink-soft);
-  opacity: 0.8;
-}
-html.dark select option { background: var(--vintage-surface); color: var(--vintage-ink); }
-
-/* ---- Dark fixes (round 3) ---- */
-
-/* primary buttons: deeper, calmer terracotta instead of bright orange */
-html.dark .indeed-btn-primary {
-  color: #fff3e6;
-  border-color: #b8693a;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
-  background-color: #9a4a22;
-  background-image: repeating-linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.04) 0 2px,
-      transparent 2px 5px
-    ),
-    linear-gradient(#a8532a, #8a4020);
-}
-html.dark .indeed-btn-primary:hover { filter: brightness(1.1); }
-
-/* footer: warm burnt-umber gradient */
-html.dark footer.site-footer {
-  background-color: #4a2414;
-  background-image: linear-gradient(to bottom, #5e2f18 0%, #3f1f10 100%);
-}
-
-
-/* ---- Dark mode ----
-   Add these lines to globals.css:
-   - the @custom-variant line directly under @import 'tailwindcss';
-   - the rest at the END of the file (so they override :root). */
-
-@custom-variant dark (&:where(.dark, .dark *));
-
-html.dark {
-  color-scheme: dark;
-
-  --vintage-paper: #1a120d;
-  --vintage-surface: #241914;
-  --vintage-ring: #3a2a20;
-  --vintage-accent: #e08a5c;
-  --vintage-accent-dark: #f0a27a;
-  --vintage-accent-hover: #c97a4f;
-  --vintage-ink: #f3e6d6;
-  --vintage-ink-soft: #cdb8a3;
-  --vintage-border: #4a3628;
-  --indeed-blue-light: #3a2519;
-}
-
-html.dark body {
-  background-color: var(--vintage-paper);
-  background-image:
-    radial-gradient(rgba(243, 230, 214, 0.04) 1px, transparent 1px),
-    radial-gradient(rgba(243, 230, 214, 0.03) 1px, transparent 1px);
-}
-
-/* ---- Dark fixes (round 2) ---- */
-
-/* header buttons: always one line */
-.indeed-btn { white-space: nowrap; }
-
-html.dark header.sticky { background-color: rgba(26, 18, 13, 0.95); }
-html.dark .indeed-btn-secondary { background: var(--vintage-surface); }
-html.dark .indeed-btn-secondary:hover { background: var(--indeed-blue-light); }
-
-/* hero + footer: dark brown instead of the (now light) accent */
-html.dark .home-hero,
-html.dark footer.site-footer {
-  background-color: #2a1a12;
-}
-
-/* search bars / form controls (home + directory pages) */
-html.dark .bg-white,
-html.dark .indeed-input,
-html.dark .rich-editor {
-  background-color: var(--vintage-surface);
-  color: var(--vintage-ink);
-}
-html.dark input,
-html.dark select,
-html.dark textarea {
-  color: var(--vintage-ink);
-}
-html.dark input::placeholder,
-html.dark textarea::placeholder {
-  color: var(--vintage-ink-soft);
-  opacity: 0.8;
-}
-html.dark select option { background: var(--vintage-surface); color: var(--vintage-ink); }
-
-/* ---- Dark fixes (round 3) ---- */
-
-/* primary buttons: deeper, calmer terracotta instead of bright orange */
-html.dark .indeed-btn-primary {
-  color: #fff3e6;
-  border-color: #b8693a;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
-  background-color: #9a4a22;
-  background-image: repeating-linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.04) 0 2px,
-      transparent 2px 5px
-    ),
-    linear-gradient(#a8532a, #8a4020);
-}
-html.dark .indeed-btn-primary:hover { filter: brightness(1.1); }
-
-/* footer: warm burnt-umber gradient */
-html.dark footer.site-footer {
-  background-color: #4a2414;
-  background-image: linear-gradient(to bottom, #5e2f18 0%, #3f1f10 100%);
-}
-
-/* ---- Dark fixes (round 4) ---- */
-
-/* search submit buttons (hero + directory) */
-html.dark button[type="submit"].indeed-btn-primary,
-html.dark .home-hero button[type="submit"],
-html.dark form button[type="submit"].indeed-btn {
-  color: #fff3e6;
-  background-color: #9a4a22;
-  background-image: linear-gradient(#a8532a, #8a4020);
-  border-color: #b8693a;
-}
-
-/* ad box (minimal version): dark warm card instead of cream */
-html.dark #ads a[class*="bg-[#fbf6ea]"] {
-  background-color: #241410;
-  border-color: rgba(243, 230, 214, 0.12);
-}
-html.dark #ads a[class*="bg-[#fbf6ea]"] .bg-white\/60 {
-  background-color: rgba(255, 255, 255, 0.06);
-}
-html.dark #ads a[class*="bg-[#fbf6ea]"] .text-ink,
-html.dark #ads a[class*="bg-[#fbf6ea]"] h3 { color: #f3e6d6; }
-html.dark #ads a[class*="bg-[#fbf6ea]"] .text-muted { color: #c9b39c; }
-html.dark #ads a[class*="bg-[#fbf6ea]"] [class*="bg-brand"][class*="rounded-full"] {
-  background-color: #9a4a22;
-  color: #fff3e6;
-}
-
-
-/* ---- Dark mode ----
-   Add these lines to globals.css:
-   - the @custom-variant line directly under @import 'tailwindcss';
-   - the rest at the END of the file (so they override :root). */
-
-@custom-variant dark (&:where(.dark, .dark *));
-
-html.dark {
-  color-scheme: dark;
-
-  --vintage-paper: #1a120d;
-  --vintage-surface: #241914;
-  --vintage-ring: #3a2a20;
-  --vintage-accent: #e08a5c;
-  --vintage-accent-dark: #f0a27a;
-  --vintage-accent-hover: #c97a4f;
-  --vintage-ink: #f3e6d6;
-  --vintage-ink-soft: #cdb8a3;
-  --vintage-border: #4a3628;
-  --indeed-blue-light: #3a2519;
-}
-
-html.dark body {
-  background-color: var(--vintage-paper);
-  background-image:
-    radial-gradient(rgba(243, 230, 214, 0.04) 1px, transparent 1px),
-    radial-gradient(rgba(243, 230, 214, 0.03) 1px, transparent 1px);
-}
-
-/* ---- Dark fixes (round 2) ---- */
-
-/* header buttons: always one line */
-.indeed-btn { white-space: nowrap; }
-
-html.dark header.sticky { background-color: rgba(26, 18, 13, 0.95); }
-html.dark .indeed-btn-secondary { background: var(--vintage-surface); }
-html.dark .indeed-btn-secondary:hover { background: var(--indeed-blue-light); }
-
-/* hero + footer: dark brown instead of the (now light) accent */
-html.dark .home-hero,
-html.dark footer.site-footer {
-  background-color: #2a1a12;
-}
-
-/* search bars / form controls (home + directory pages) */
-html.dark .bg-white,
-html.dark .indeed-input,
-html.dark .rich-editor {
-  background-color: var(--vintage-surface);
-  color: var(--vintage-ink);
-}
-html.dark input,
-html.dark select,
-html.dark textarea {
-  color: var(--vintage-ink);
-}
-html.dark input::placeholder,
-html.dark textarea::placeholder {
-  color: var(--vintage-ink-soft);
-  opacity: 0.8;
-}
-html.dark select option { background: var(--vintage-surface); color: var(--vintage-ink); }
-
-/* ---- Dark fixes (round 3) ---- */
-
-/* primary buttons: deeper, calmer terracotta instead of bright orange */
-html.dark .indeed-btn-primary {
-  color: #fff3e6;
-  border-color: #b8693a;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
-  background-color: #9a4a22;
-  background-image: repeating-linear-gradient(
-      135deg,
-      rgba(255, 255, 255, 0.04) 0 2px,
-      transparent 2px 5px
-    ),
-    linear-gradient(#a8532a, #8a4020);
-}
-html.dark .indeed-btn-primary:hover { filter: brightness(1.1); }
-
-/* footer: warm burnt-umber gradient */
-html.dark footer.site-footer {
-  background-color: #4a2414;
-  background-image: linear-gradient(to bottom, #5e2f18 0%, #3f1f10 100%);
-}
-
-/* ---- Dark fixes (round 4) ---- */
-
-/* search submit buttons (hero + directory) */
-html.dark button[type="submit"].indeed-btn-primary,
-html.dark .home-hero button[type="submit"],
-html.dark form button[type="submit"].indeed-btn {
-  color: #fff3e6;
-  background-color: #9a4a22;
-  background-image: linear-gradient(#a8532a, #8a4020);
-  border-color: #b8693a;
-}
-
-/* ad box (minimal version): dark warm card instead of cream */
-html.dark #ads a[class*="bg-[#fbf6ea]"] {
-  background-color: #241410;
-  border-color: rgba(243, 230, 214, 0.12);
-}
-html.dark #ads a[class*="bg-[#fbf6ea]"] .bg-white\/60 {
-  background-color: rgba(255, 255, 255, 0.06);
-}
-html.dark #ads a[class*="bg-[#fbf6ea]"] .text-ink,
-html.dark #ads a[class*="bg-[#fbf6ea]"] h3 { color: #f3e6d6; }
-html.dark #ads a[class*="bg-[#fbf6ea]"] .text-muted { color: #c9b39c; }
-html.dark #ads a[class*="bg-[#fbf6ea]"] [class*="bg-brand"][class*="rounded-full"] {
-  background-color: #9a4a22;
-  color: #fff3e6;
-}
-
-/* ---- Dark fixes (round 5): footer warm, no light parts ---- */
+/* footer: warm, no light parts */
 html.dark footer.site-footer .bg-white {
   background-color: #f3d9bf;
   color: #4a2414;
