@@ -86,6 +86,8 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
     ) : null;
 
   // ---- ready-made design mode: only the box, on a themed background ----
+  // On phones/tablets the box fills the whole screen (see `.blt-page` in
+  // `globals.css`); on desktop it stays centred at a comfortable width.
   if (design) {
     return (
       <div
@@ -95,10 +97,12 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
         }}
       >
         <div className="blt-page-inner">
-          {switcher}
-          <CardFit>
+          <div className="blt-page-switch">{switcher}</div>
+          {/* No fit-to-one-screen here: the design box fills the screen on
+              phones/tablets and scrolls if it is taller than the viewport. */}
+          <div className="blt-page-scroll">
             <BiolinkTemplateStage biolink={biolink} mode={mode} />
-          </CardFit>
+          </div>
         </div>
       </div>
     );

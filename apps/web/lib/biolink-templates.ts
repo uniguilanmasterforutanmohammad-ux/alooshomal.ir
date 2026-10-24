@@ -88,6 +88,13 @@ export const LEGACY_TEMPLATE_KEYS = [
 export const DEFAULT_TEMPLATE_KEY = RECORD_TEMPLATE_KEY;
 
 /**
+ * The ready-made design used as the *second* view mode whenever the owner has
+ * not chosen one. Every biolink therefore always exposes two modes: the classic
+ * «رکورد» plus this default design (or the owner's own choice).
+ */
+export const DEFAULT_DESIGN_KEY = 'sunny';
+
+/**
  * Look up a ready-made design. Returns `null` for the classic record key and
  * for any legacy/unknown value (both render as the classic record).
  */
@@ -97,12 +104,12 @@ export function biolinkTemplate(key: string | null | undefined): BiolinkTemplate
 }
 
 /**
- * The view modes a published biolink exposes to visitors: the classic record
- * plus the owner's chosen design (when it is a ready-made one). Deduplicated.
+ * The view modes a published biolink exposes to visitors: the classic «رکورد»
+ * (always) plus a second design. The second slot is the owner's chosen design
+ * when valid, otherwise the built-in {@link DEFAULT_DESIGN_KEY} — so every
+ * biolink always has exactly these two modes.
  */
 export function biolinkViewModes(template: string | null | undefined): BiolinkTemplate[] {
-  const modes: BiolinkTemplate[] = [RECORD_TEMPLATE];
-  const chosen = biolinkTemplate(template);
-  if (chosen) modes.push(chosen);
-  return modes;
+  const chosen = biolinkTemplate(template) ?? biolinkTemplate(DEFAULT_DESIGN_KEY);
+  return chosen ? [RECORD_TEMPLATE, chosen] : [RECORD_TEMPLATE];
 }

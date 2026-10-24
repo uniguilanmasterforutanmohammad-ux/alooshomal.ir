@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import type { LucideIcon } from 'lucide-react';
 
 import { readableAccent } from '@/lib/card-spectrum';
 import { cn } from '@/lib/utils';
@@ -10,6 +11,8 @@ export interface TemplateRow {
   value: string;
   href?: string;
   dir?: 'ltr' | 'rtl';
+  /** icon rendered inside the contact chip (phone, mail, globe, …) */
+  Icon?: LucideIcon;
 }
 
 export interface TemplateIcon {
@@ -121,6 +124,47 @@ export function BiolinkTemplateCard({
           </div>
         ) : null}
 
+        {rows.length > 0 ? (
+          <ul className="blt-rows">
+            {rows.map((row) => {
+              const RowIcon = row.Icon;
+              const rowContent = (
+                <>
+                  <span className="blt-row-ico" aria-hidden>
+                    {RowIcon ? (
+                      <RowIcon className="size-4" />
+                    ) : (
+                      <span className="blt-row-dot" />
+                    )}
+                  </span>
+                  <span className="blt-row-text">
+                    <span className="blt-row-label">{row.label}</span>
+                    <span dir={row.dir ?? 'rtl'} className="blt-row-value">
+                      {row.value}
+                    </span>
+                  </span>
+                </>
+              );
+              return (
+                <li key={row.key}>
+                  {row.href ? (
+                    <a
+                      href={row.href}
+                      className="blt-row"
+                      target={row.href.startsWith('http') ? '_blank' : undefined}
+                      rel={row.href.startsWith('http') ? 'noreferrer' : undefined}
+                    >
+                      {rowContent}
+                    </a>
+                  ) : (
+                    <span className="blt-row">{rowContent}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+
         {icons.length > 0 ? (
           <nav className="blt-icons" aria-label="شبکه‌های اجتماعی">
             {icons.map((icon) => (
@@ -137,35 +181,6 @@ export function BiolinkTemplateCard({
               </a>
             ))}
           </nav>
-        ) : null}
-
-        {rows.length > 0 ? (
-          <ul className="blt-rows">
-            {rows.map((row) => (
-              <li key={row.key}>
-                {row.href ? (
-                  <a
-                    href={row.href}
-                    className="blt-row"
-                    target={row.href.startsWith('http') ? '_blank' : undefined}
-                    rel={row.href.startsWith('http') ? 'noreferrer' : undefined}
-                  >
-                    <span className="blt-row-label">{row.label}</span>
-                    <span dir={row.dir ?? 'rtl'} className="blt-row-value">
-                      {row.value}
-                    </span>
-                  </a>
-                ) : (
-                  <span className="blt-row">
-                    <span className="blt-row-label">{row.label}</span>
-                    <span dir={row.dir ?? 'rtl'} className="blt-row-value">
-                      {row.value}
-                    </span>
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
         ) : null}
 
         {website || footer ? (

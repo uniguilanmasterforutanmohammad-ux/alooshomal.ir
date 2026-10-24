@@ -2739,3 +2739,88 @@ html.dark .blt { box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); }
   width: 100%;
   max-width: 520px;
 }
+
+/* ---- Ready-made design mode: full-screen box on phones/tablets ---- */
+/* Phones and tablets reserve the fixed bottom nav (56px). */
+@media (max-width: 1023px) {
+  .blt-page {
+    padding: 0;
+    min-height: calc(100dvh - 56px - env(safe-area-inset-bottom));
+    align-items: stretch;
+  }
+  .blt-page-inner {
+    max-width: none;
+    align-items: stretch;
+  }
+  /* The card fills the screen; the inner scroll handles overflow. */
+  .blt-page-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    overscroll-behavior: contain;
+  }
+  .blt-page .blt {
+    max-width: none;
+    width: 100%;
+    min-height: 100%;
+    flex: 1 1 auto;
+    border-radius: 0;
+    box-shadow: none;
+  }
+  .blt-page .blt-brand {
+    margin-top: auto;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+}
+/* The mode switcher floats above the full-screen card on mobile. */
+@media (max-width: 1023px) {
+  .blt-page-switch {
+    position: absolute;
+    top: 8px;
+    inset-inline: 8px;
+    z-index: 5;
+    display: flex;
+    justify-content: center;
+  }
+  .blt-page-switch .blt-switch {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(6px);
+  }
+}
+
+/* Contact rows now show an icon chip beside the label/value. */
+.blt-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-align: start;
+}
+.blt-row-ico {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.blt-row-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0.6;
+}
+.blt-row-text {
+  min-width: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+}
+.blt-row-value {
+  overflow-wrap: anywhere;
+}

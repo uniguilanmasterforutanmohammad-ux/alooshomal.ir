@@ -194,6 +194,7 @@ export function BiolinkTemplateStage({
         value: row.value,
         href: row.href,
         dir: row.dir,
+        Icon: row.Icon,
       }))}
       icons={iconLinks.map((link) => ({
         key: link.key,
