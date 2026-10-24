@@ -87,7 +87,7 @@ export function Footer() {
             dir="ltr"
             className="rounded-full border border-white/20 bg-white/10 px-3 py-1 font-medium text-white/80"
           >
-            v{APP_VERSION}
+            {APP_VERSION}
           </span>
         </div>
       </div>
