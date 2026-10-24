@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
 interface Props {
-  kind: 'biolinks' | 'business-cards';
+  kind: 'biolinks' | 'business-cards' | 'feeds';
   slug: string;
   initialCount: number;
   initialLiked?: boolean;

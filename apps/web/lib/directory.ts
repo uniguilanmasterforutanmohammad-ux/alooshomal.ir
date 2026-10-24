@@ -156,7 +156,9 @@ export function useDirectoryResults<T, F = DirectoryFacets>({
           replace ? result.items : [...previous, ...result.items],
         );
         setMeta(result.meta);
-        setFacets(result.filters);
+        // Some endpoints (e.g. the public news list) return no `filters` bag;
+        // keep the facets we already have instead of wiping them.
+        if (result.filters) setFacets(result.filters);
       })
       .catch((err) => {
         if (!controller.signal.aborted) {
