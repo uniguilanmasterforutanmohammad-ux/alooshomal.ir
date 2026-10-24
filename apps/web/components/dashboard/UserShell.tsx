@@ -67,7 +67,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen">
       <aside
         className={cn(
-          'fixed inset-y-0 right-0 z-50 flex w-56 flex-col border-l-2 border-dashed border-[var(--vintage-accent-hover)] bg-[#fbf3e9] p-4 transition-transform lg:translate-x-0',
+          'fixed inset-y-0 right-0 z-50 flex w-56 flex-col border-l-2 border-dashed border-[var(--vintage-accent-hover)] bg-[var(--vintage-surface)] p-4 transition-transform lg:translate-x-0',
           open ? 'translate-x-0' : 'translate-x-full lg:translate-x-0',
         )}
       >
@@ -99,7 +99,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
                 'flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm font-semibold transition',
                 isActive(item.href, item.exact)
                   ? 'border-brand bg-brand-light text-brand'
-                  : 'border-transparent text-muted hover:border-[var(--vintage-border)] hover:bg-white',
+                  : 'border-transparent text-muted hover:border-[var(--vintage-border)] hover:bg-[var(--vintage-paper)]',
               )}
             >
               <item.icon className="size-4" aria-hidden />
@@ -111,7 +111,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
             <Link
               href="/admin"
               prefetch={false}
-              className="flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-semibold text-muted transition hover:border-[var(--vintage-border)] hover:bg-white"
+              className="flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-semibold text-muted transition hover:border-[var(--vintage-border)] hover:bg-[var(--vintage-paper)]"
             >
               <ShieldCheck className="size-4" aria-hidden />
               پنل مدیر
@@ -122,7 +122,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
             <Link
               href="/moderator"
               prefetch={false}
-              className="flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-semibold text-muted transition hover:border-[var(--vintage-border)] hover:bg-white"
+              className="flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-semibold text-muted transition hover:border-[var(--vintage-border)] hover:bg-[var(--vintage-paper)]"
             >
               <ShieldCheck className="size-4" aria-hidden />
               پنل بررسی محتوا
@@ -154,7 +154,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
       ) : null}
 
       <div className="lg:mr-56">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[#fbf3e9]/95 px-4 py-3 backdrop-blur">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[var(--vintage-surface)]/95 px-4 py-3 backdrop-blur">
           <button
             onClick={() => setOpen((value) => !value)}
             className="flex size-10 items-center justify-center rounded-lg border border-[var(--vintage-border)] lg:hidden"
@@ -163,7 +163,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
             <Menu className="size-5" aria-hidden />
           </button>
 
-          <label className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2">
+          <label className="flex flex-1 items-center gap-2 rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-paper)] px-3 py-2">
             <span className="text-muted">⌕</span>
             <input
               className="w-full bg-transparent text-sm outline-none"
