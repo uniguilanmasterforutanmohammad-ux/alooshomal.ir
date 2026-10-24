@@ -59,7 +59,7 @@ const SCOPE_LABELS: Record<ModeratorScope, string> = {
   BIOLINK: 'بیولینک‌ها',
   BUSINESS_CARD: 'کارت‌های ویزیت',
   FEED: 'فیدها',
-  NEWS: 'نبض شهر',
+  NEWS: 'شهروند خبرنگار',
   SUBSCRIPTION_REQUESTS: 'اشتراک‌ها',
   AD_REQUESTS: 'تبلیغ صفحه اصلی',
   DIRECTORY_AD_REQUESTS: 'تبلیغ دایرکتوری',

@@ -19,8 +19,8 @@ const ACCESS_LABELS: Record<NewsAccessLevel, string> = {
 };
 
 /**
- * «نبض شهر» settings: how many headlines the home page shows and who is
- * allowed to file news once the access level is enforced in the API.
+ * «شهروند خبرنگار» settings: how many headlines the home page shows and who
+ * is allowed to file news once the access level is enforced in the API.
  */
 export function AdminNewsSettings() {
   const [count, setCount] = useState('');
@@ -65,7 +65,7 @@ export function AdminNewsSettings() {
       });
       setCount(String(result.newsHeadlineCount));
       setLevel(result.newsAccessLevel);
-      setMessage('تنظیمات نبض شهر ذخیره شد.');
+      setMessage('تنظیمات شهروند خبرنگار ذخیره شد.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره تنظیمات ناموفق بود');
     } finally {
@@ -77,7 +77,7 @@ export function AdminNewsSettings() {
     <div className="indeed-panel p-5 lg:col-span-2">
       <div className="flex items-center gap-2">
         <Newspaper className="size-5 text-brand" aria-hidden />
-        <h3 className="text-sm font-extrabold text-ink">نبض شهر</h3>
+        <h3 className="text-sm font-extrabold text-ink">شهروند خبرنگار</h3>
       </div>
       <p className="mt-1 text-xs text-muted">
         تعداد تیترهای نمایش‌داده‌شده در جدول خبری صفحه اصلی و سطح دسترسی ثبت خبر.

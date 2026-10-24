@@ -71,7 +71,7 @@ const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboar
   { key: 'feeds', label: 'فیدها', icon: ImagePlus },
   { key: 'users', label: 'کاربران', icon: Users },
   { key: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
-  { key: 'news', label: 'نبض شهر', icon: Newspaper },
+  { key: 'news', label: 'شهروند خبرنگار', icon: Newspaper },
   { key: 'permissions', label: 'سطوح دسترسی', icon: ShieldCheck },
   { key: 'moderators', label: 'کاربران ادمین', icon: UserCog },
   { key: 'storage', label: 'فضای سرور', icon: HardDrive },

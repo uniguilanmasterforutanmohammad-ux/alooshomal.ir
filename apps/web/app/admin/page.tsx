@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Download, Plus, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 
 import { AdminShell, type AdminSection } from '@/components/admin/AdminShell';
 import { AdminTicketPanel } from '@/components/admin/AdminTicketPanel';
@@ -508,7 +508,7 @@ function AdminContent() {
     users: { title: 'کاربران', sub: 'لیست کاربران پلتفرم' },
     tickets: { title: 'تیکت‌ها', sub: 'مدیریت تیکت‌های پشتیبانی' },
     news: {
-      title: 'نبض شهر',
+      title: 'شهروند خبرنگار',
       sub: 'بررسی خبرهای شهروند خبرنگارها، درخواست‌ها و دسته‌بندی‌ها',
     },
     permissions: {
@@ -537,21 +537,9 @@ function AdminContent() {
 
   return (
     <AdminShell section={section} onSection={setSection}>
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-extrabold text-ink">{pageHead[section].title}</h2>
-          <p className="text-sm text-muted">{pageHead[section].sub}</p>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <button className="indeed-btn indeed-btn-secondary py-2 text-sm">
-            <Download className="size-4" aria-hidden />
-            دانلود گزارش
-          </button>
-          <button className="indeed-btn indeed-btn-primary py-2 text-sm">
-            <Plus className="size-4" aria-hidden />
-            کاربر جدید
-          </button>
-        </div>
+      <div className="mb-5">
+        <h2 className="text-xl font-extrabold text-ink">{pageHead[section].title}</h2>
+        <p className="text-sm text-muted">{pageHead[section].sub}</p>
       </div>
 
       {error ? (
