@@ -1,10 +1,30 @@
-import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowLeft, Building2, MapPin, Megaphone } from 'lucide-react';
+import { ArrowLeft, Megaphone, MapPin, Phone } from 'lucide-react';
 
 import type { ActiveAd } from '@/lib/api';
+import { RecordCard } from '@/components/ui/RecordCard';
+import { BusinessCardFace, type BizCardRow } from '@/components/businesscard/BusinessCardFace';
 
-async function getActiveAds(): Promise<ActiveAd[]> {
+/** Same optional fields the business-card slider uses; the API may omit them. */
+type AdItem = ActiveAd & {
+  company?: string | null;
+  primaryColor?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+};
+
+function buildRows(ad: AdItem): BizCardRow[] {
+  const rows: BizCardRow[] = [];
+  const cityName = ad.city?.name ?? '';
+  const phone = ad.mobile || ad.phone || '';
+  if (cityName) rows.push({ key: 'city', label: 'شهر', value: cityName, Icon: MapPin });
+  if (phone) {
+    rows.push({ key: 'phone', label: 'تلفن همراه', value: phone, dir: 'ltr', Icon: Phone });
+  }
+  return rows;
+}
+
+async function getActiveAds(): Promise<AdItem[]> {
   const apiUrl =
     process.env.INTERNAL_API_URL ??
     process.env.NEXT_PUBLIC_API_URL ??
@@ -15,7 +35,7 @@ async function getActiveAds(): Promise<ActiveAd[]> {
     });
     if (!response.ok) return [];
     const payload = (await response.json()) as {
-      data: { items: ActiveAd[] } | null;
+      data: { items: AdItem[] } | null;
     };
     return payload.data?.items ?? [];
   } catch {
@@ -24,8 +44,9 @@ async function getActiveAds(): Promise<ActiveAd[]> {
 }
 
 /**
- * «تبلیغات» — home-page ad slot in the site theme: cream paper card,
- * brand-colored accents and a soft shadow. Returns nothing while no ad runs.
+ * «تبلیغات» — home-page ad slot. Each ad is rendered with the exact same
+ * business-card face used on the site, so ads look like the cards themselves.
+ * Returns nothing while no ad runs.
  */
 export async function HomeAdBox() {
   const ads = await getActiveAds();
@@ -48,60 +69,43 @@ export async function HomeAdBox() {
           <Link
             key={ad.id}
             href={ad.href}
-            className="group relative block w-full overflow-hidden rounded-3xl border border-ink/10 bg-[#fbf6ea] p-6 shadow-[0_18px_40px_-24px_rgba(0,0,0,0.25)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-24px_rgba(0,0,0,0.3)] sm:p-8"
+            className="group block w-full transition duration-300 hover:-translate-y-0.5"
           >
-            <span aria-hidden className="absolute inset-y-0 start-0 w-1.5 bg-brand" />
-
-            <div className="flex items-center gap-6">
-              <div className="flex size-24 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-brand/10 text-3xl font-black text-brand sm:size-28">
-                {ad.avatarUrl ? (
-                  <Image
-                    src={ad.avatarUrl}
-                    alt={ad.fullName}
-                    width={128}
-                    height={128}
-                    className="size-full object-cover"
-                    unoptimized
-                  />
-                ) : (
-                  ad.fullName.trim().slice(0, 1)
-                )}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold text-brand">
-                  <Megaphone className="size-3.5" aria-hidden />
-                  تبلیغ ویژه
+            {ad.href.includes('/biolinks/') ? (
+              <RecordCard
+                fullName={ad.fullName}
+                headline={ad.company || ad.jobTitle || ad.fullName || 'بیولینک'}
+                subline={
+                  ad.company
+                    ? [ad.fullName, ad.jobTitle].filter(Boolean).join(' — ') || null
+                    : ad.jobTitle
+                      ? ad.fullName
+                      : null
+                }
+                bio={ad.bio}
+                cityName={ad.city?.name}
+                businessName={ad.business?.name}
+                avatarUrl={ad.avatarUrl}
+                rows={buildRows(ad)}
+                accent={ad.primaryColor}
+              />
+            ) : (
+            <BusinessCardFace
+              fullName={ad.fullName}
+              jobTitle={ad.jobTitle}
+              cityName={ad.city?.name ?? null}
+              businessName={ad.company || ad.business?.name || null}
+              avatarUrl={ad.avatarUrl}
+              rows={buildRows(ad)}
+              accent={ad.primaryColor}
+              footer={
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-brand px-3.5 py-1.5 text-xs font-bold text-white">
+                  مشاهده
+                  <ArrowLeft className="size-3.5" aria-hidden />
                 </span>
-                <h3 className="mt-2 truncate text-2xl font-black text-ink sm:text-3xl">
-                  {ad.fullName}
-                </h3>
-                {ad.jobTitle ? (
-                  <p className="mt-1 truncate text-base font-semibold text-muted">
-                    {ad.jobTitle}
-                  </p>
-                ) : null}
-                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-ink/70">
-                  {ad.city ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-white/60 px-3 py-1">
-                      <MapPin className="size-4 text-brand" aria-hidden />
-                      {ad.city.name}
-                    </span>
-                  ) : null}
-                  {ad.business ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full border border-ink/10 bg-white/60 px-3 py-1">
-                      <Building2 className="size-4 text-brand" aria-hidden />
-                      {ad.business.name}
-                    </span>
-                  ) : null}
-                </div>
-              </div>
-
-              <span className="hidden shrink-0 items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-sm font-bold text-white transition group-hover:opacity-90 sm:flex">
-                مشاهده
-                <ArrowLeft className="size-4" aria-hidden />
-              </span>
-            </div>
+              }
+            />
+            )}
           </Link>
         ))}
       </div>
