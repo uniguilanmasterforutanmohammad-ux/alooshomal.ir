@@ -7,8 +7,9 @@
  *  - `swatch`   preview colours for the picker
  *  - `className`root class applied to the live preview / public biolink
  *
- * The actual colours live in `globals.css` under `.theme-<key>` so themes
- * stay declarative and easy to extend.
+ * The keys are still stored on existing records; the public pages now render
+ * the shared «رکورد» presentation (`RecordCard`) and use the owner's colour,
+ * so the old per-theme `.theme-<key>` CSS is no longer applied.
  */
 import {
   SPECTRUM_COLORS,
@@ -127,8 +128,8 @@ export const SELECTABLE_BIOLINK_THEMES: BiolinkTheme[] = BIOLINK_THEMES.filter(
 /**
  * Ready-made business-card themes.
  *
- * Mirrors {@link BIOLINK_THEMES} but for the `businesscard` feature: each entry
- * maps to a `.bc-theme-<key>` block in `globals.css`.
+ * Mirrors {@link BIOLINK_THEMES} but for the `businesscard` feature. The keys
+ * are kept for existing records; rendering goes through `BusinessCardFace`.
  */
 export const BUSINESS_CARD_THEMES: BiolinkTheme[] = [
   {
