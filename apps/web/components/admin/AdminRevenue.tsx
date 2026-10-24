@@ -6,6 +6,12 @@ import { Banknote, Coins, Save, Tag } from 'lucide-react';
 import { api } from '@/lib/api';
 import { AdminDataTable, type AdminColumn } from './AdminDataTable';
 import { ActivityLogPanel } from './ActivityLogPanel';
+import {
+  RevenueBreakdown,
+  type RevenueMonth,
+  type RevenueSummary,
+  type RevenueYear,
+} from './RevenueBreakdown';
 
 interface RevenueItem {
   model: string;
@@ -19,6 +25,9 @@ interface RevenueReport {
   items: RevenueItem[];
   totalRevenue: number;
   totalCount: number;
+  monthly: RevenueMonth[];
+  yearly: RevenueYear[];
+  summary: RevenueSummary;
 }
 
 interface PriceSettings {
@@ -193,6 +202,14 @@ export function AdminRevenue() {
         مدل ضرب می‌شود و عدد حاصل برآوردی است. قیمت اشتراک‌ها از خودِ تعریف پلن/بسته
         خوانده می‌شود.
       </p>
+
+      {report ? (
+        <RevenueBreakdown
+          monthly={report.monthly ?? []}
+          yearly={report.yearly ?? []}
+          summary={report.summary}
+        />
+      ) : null}
 
       {loading ? (
         <p className="text-muted">در حال بارگذاری گزارش...</p>

@@ -1130,32 +1130,56 @@ export class AdminService {
     ]);
 
     const [
-      boostApproved,
-      homeAdApproved,
-      directoryAdApproved,
+      boosts,
+      homeAds,
+      directoryAds,
       paidFeedTags,
       planSubscriptions,
       feedSubscriptions,
+      pendingBoosts,
+      pendingAds,
+      pendingSubscriptions,
+      activeFeedSubscriptions,
     ] = await Promise.all([
-      this.prisma.boostRequest.count({
+      this.prisma.boostRequest.findMany({
         where: { status: BoostStatus.APPROVED },
+        select: { requestedAt: true, decidedAt: true },
       }),
-      this.prisma.adRequest.count({
+      this.prisma.adRequest.findMany({
         where: { status: BoostStatus.APPROVED, placement: 'HOME' },
+        select: { requestedAt: true, decidedAt: true },
       }),
-      this.prisma.adRequest.count({
+      this.prisma.adRequest.findMany({
         where: { status: BoostStatus.APPROVED, placement: 'DIRECTORY' },
+        select: { requestedAt: true, decidedAt: true },
       }),
-      this.prisma.feedPost.count({
+      this.prisma.feedPost.findMany({
         where: { tagPaid: true, tagKind: { not: null } },
+        select: { tagPrice: true, tagDecidedAt: true, createdAt: true },
       }),
       this.prisma.userSubscription.findMany({
         where: { status: SubscriptionStatus.ACTIVE },
-        select: { plan: { select: { name: true, price: true } } },
+        select: {
+          decidedAt: true,
+          requestedAt: true,
+          plan: { select: { name: true, price: true } },
+        },
       }),
       this.prisma.userFeedSubscription.findMany({
         where: { status: SubscriptionStatus.ACTIVE },
-        select: { package: { select: { name: true, price: true } } },
+        select: {
+          decidedAt: true,
+          requestedAt: true,
+          package: { select: { name: true, price: true } },
+        },
+      }),
+      this.prisma.boostRequest.count({ where: { status: BoostStatus.PENDING } }),
+      this.prisma.adRequest.count({ where: { status: BoostStatus.PENDING } }),
+      this.prisma.userSubscription.count({
+        where: { status: SubscriptionStatus.PENDING },
+      }),
+      this.prisma.userFeedSubscription.count({
+        where: { status: SubscriptionStatus.ACTIVE },
       }),
     ]);
 
@@ -1201,36 +1225,146 @@ export class AdminService {
       {
         model: 'پله',
         label: 'افزایش بازدید (پله)',
-        count: boostApproved,
+        count: boosts.length,
         unitPrice: boostPrice,
-        revenue: boostApproved * boostPrice,
+        revenue: boosts.length * boostPrice,
       },
       {
         model: 'تبلیغ در دایرکتوری',
         label: 'تبلیغ هدفمند در دایرکتوری',
-        count: directoryAdApproved,
+        count: directoryAds.length,
         unitPrice: adDirectoryPrice,
-        revenue: directoryAdApproved * adDirectoryPrice,
+        revenue: directoryAds.length * adDirectoryPrice,
       },
       {
         model: 'تبلیغ در صفحه اصلی',
         label: 'تبلیغ در کادر صفحه اصلی',
-        count: homeAdApproved,
+        count: homeAds.length,
         unitPrice: adHomePrice,
-        revenue: homeAdApproved * adHomePrice,
+        revenue: homeAds.length * adHomePrice,
       },
       {
         model: 'تگ فید',
         label: 'تگ کارت/بیولینک روی پست فید',
-        count: paidFeedTags,
+        count: paidFeedTags.length,
         unitPrice: feedTagPrice,
-        revenue: paidFeedTags * feedTagPrice,
+        revenue: paidFeedTags.length * feedTagPrice,
       },
     ];
 
     const totalRevenue = items.reduce((sum, item) => sum + item.revenue, 0);
     const totalCount = items.reduce((sum, item) => sum + item.count, 0);
-    return { items, totalRevenue, totalCount };
+
+    // ---- Time breakdown (Jalali month / year) ----------------------------
+    // Each approved transaction is one revenue event stamped with the date the
+    // money is attributed to: the decision date for requests, the settlement
+    // date for feed tags. Buckets are keyed on the Persian calendar so the
+    // panel's breakdown lines up with everything else in the admin.
+    interface RevenueEvent {
+      model: string;
+      revenue: number;
+      at: Date;
+    }
+    const events: RevenueEvent[] = [];
+    const pushEvents = (
+      rows: Array<{ requestedAt: Date; decidedAt: Date | null }>,
+      model: string,
+      unitPrice: number,
+    ) => {
+      for (const row of rows) {
+        events.push({
+          model,
+          revenue: unitPrice,
+          at: row.decidedAt ?? row.requestedAt,
+        });
+      }
+    };
+    pushEvents(boosts, 'پله', boostPrice);
+    pushEvents(directoryAds, 'تبلیغ در دایرکتوری', adDirectoryPrice);
+    pushEvents(homeAds, 'تبلیغ در صفحه اصلی', adHomePrice);
+    for (const post of paidFeedTags) {
+      events.push({
+        model: 'تگ فید',
+        revenue: post.tagPrice ?? feedTagPrice,
+        at: post.tagDecidedAt ?? post.createdAt,
+      });
+    }
+    for (const sub of planSubscriptions) {
+      events.push({
+        model: 'اشتراک پلن',
+        revenue: sub.plan?.price ?? 0,
+        at: sub.decidedAt ?? sub.requestedAt,
+      });
+    }
+    for (const sub of feedSubscriptions) {
+      events.push({
+        model: 'اشتراک فید',
+        revenue: sub.package?.price ?? 0,
+        at: sub.decidedAt ?? sub.requestedAt,
+      });
+    }
+
+    const monthAgg = new Map<
+      string,
+      { year: number; month: number; revenue: number; count: number }
+    >();
+    const yearAgg = new Map<number, { year: number; revenue: number; count: number }>();
+    for (const event of events) {
+      const { year, month } = jalaliParts(event.at);
+      const monthKey = `${year}-${month}`;
+      const monthRow = monthAgg.get(monthKey) ?? { year, month, revenue: 0, count: 0 };
+      monthRow.revenue += event.revenue;
+      monthRow.count += 1;
+      monthAgg.set(monthKey, monthRow);
+
+      const yearRow = yearAgg.get(year) ?? { year, revenue: 0, count: 0 };
+      yearRow.revenue += event.revenue;
+      yearRow.count += 1;
+      yearAgg.set(year, yearRow);
+    }
+
+    const now = new Date();
+    const today = jalaliParts(now);
+    const monthly: Array<{
+      year: number;
+      month: number;
+      revenue: number;
+      count: number;
+    }> = [];
+    for (let offset = 11; offset >= 0; offset -= 1) {
+      const { year, month } = addJalaliMonths(today.year, today.month, -offset);
+      const row = monthAgg.get(`${year}-${month}`);
+      monthly.push({ year, month, revenue: row?.revenue ?? 0, count: row?.count ?? 0 });
+    }
+    const yearly = Array.from(yearAgg.values()).sort((a, b) => b.year - a.year);
+
+    const thisMonth =
+      monthAgg.get(`${today.year}-${today.month}`)?.revenue ?? 0;
+    const thisYear = yearAgg.get(today.year)?.revenue ?? 0;
+    const lastMonthParts = addJalaliMonths(today.year, today.month, -1);
+    const lastMonth =
+      monthAgg.get(`${lastMonthParts.year}-${lastMonthParts.month}`)?.revenue ?? 0;
+    const activeMonths = monthly.filter((row) => row.count > 0).length;
+    const averageMonthly = activeMonths ? Math.round(thisYear / activeMonths) : 0;
+
+    return {
+      items,
+      totalRevenue,
+      totalCount,
+      monthly,
+      yearly,
+      summary: {
+        thisMonth,
+        lastMonth,
+        thisYear,
+        averageMonthly,
+        pendingBoosts,
+        pendingAds,
+        pendingSubscriptions,
+        activeFeedSubscriptions,
+        approvedCount: events.length,
+      },
+    };
   }
 
 }
