@@ -2,11 +2,12 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Globe, Images, Tag } from 'lucide-react';
+import { Globe, Images } from 'lucide-react';
 
 import { BoostBadge } from '@/components/ui/BoostBadge';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { SaveButton } from '@/components/ui/SaveButton';
+import { FeedTagCard } from '@/components/feed/FeedTagCard';
 import { bodyToHtml, richTextPreview } from '@/lib/rich-text';
 import { cn } from '@/lib/utils';
 import type { FeedPost } from '@/lib/api';
@@ -142,18 +143,15 @@ export function FeedCard({ post, compact = false }: Props) {
         </div>
       ) : null}
 
-      {/* Topic + paid tag chips. */}
-      {post.topic || post.tag || post.images.length ? (
+      {/* Paid tag: a proper card (author's own card/biolink) rather than a chip. */}
+      {post.tag ? <FeedTagCard tag={post.tag} compact /> : null}
+
+      {/* Topic + image-count chips. */}
+      {post.topic || post.images.length ? (
         <div className="mt-3 flex flex-wrap items-center gap-2 text-[11px] text-muted">
           {post.topic ? (
             <span className="rounded-full bg-brand-light px-2.5 py-0.5 font-bold text-brand">
               {post.topic.name}
-            </span>
-          ) : null}
-          {post.tag ? (
-            <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-[var(--vintage-border)] px-2.5 py-0.5">
-              <Tag className="size-3.5 shrink-0 text-brand" aria-hidden />
-              <span className="truncate">{post.tag.company || post.tag.fullName}</span>
             </span>
           ) : null}
           {post.images.length ? (

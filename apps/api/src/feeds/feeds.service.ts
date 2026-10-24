@@ -38,9 +38,43 @@ const feedPostInclude = {
  * same way.
  */
 const feedTagInclude = {
-  tagBiolink: { select: { slug: true, fullName: true, company: true } },
-  tagBusinessCard: { select: { slug: true, fullName: true, company: true } },
+  tagBiolink: {
+    select: {
+      slug: true,
+      fullName: true,
+      company: true,
+      jobTitle: true,
+      bio: true,
+      avatarUrl: true,
+      city: { select: { name: true } },
+      business: { select: { name: true } },
+    },
+  },
+  tagBusinessCard: {
+    select: {
+      slug: true,
+      fullName: true,
+      company: true,
+      jobTitle: true,
+      bio: true,
+      avatarUrl: true,
+      city: { select: { name: true } },
+      business: { select: { name: true } },
+    },
+  },
 } satisfies Prisma.FeedPostInclude;
+
+/** Shape of a joined tag target (the author's own biolink or business card). */
+interface FeedTagTarget {
+  slug: string;
+  fullName: string;
+  company: string | null;
+  jobTitle: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+  city: { name: string } | null;
+  business: { name: string } | null;
+}
 
 /**
  * «فیدها» — an Instagram-style feed. Users buy a monthly package (a post
@@ -197,8 +231,8 @@ export class FeedsService implements OnModuleInit {
     T extends {
       tagKind?: FeedTagKind | null;
       tagPaid?: boolean;
-      tagBiolink?: { slug: string; fullName: string; company: string | null } | null;
-      tagBusinessCard?: { slug: string; fullName: string; company: string | null } | null;
+      tagBiolink?: FeedTagTarget | null;
+      tagBusinessCard?: FeedTagTarget | null;
     },
   >(post: T) {
     const { tagBiolink, tagBusinessCard, ...rest } = post;
@@ -210,6 +244,11 @@ export class FeedsService implements OnModuleInit {
             slug: target.slug,
             fullName: target.fullName,
             company: target.company,
+            jobTitle: target.jobTitle,
+            bio: target.bio,
+            avatarUrl: target.avatarUrl,
+            cityName: target.city?.name ?? null,
+            businessName: target.business?.name ?? null,
             href:
               post.tagKind === FeedTagKind.BIOLINK
                 ? `/biolinks/${target.slug}`

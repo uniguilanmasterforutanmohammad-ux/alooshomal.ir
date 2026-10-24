@@ -5,7 +5,6 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   BadgeCheck,
-  Crown,
   ImagePlus,
   Loader2,
   Send,
@@ -16,10 +15,10 @@ import {
 } from 'lucide-react';
 
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { FeedTagCard } from '@/components/feed/FeedTagCard';
 import {
   api,
   type FeedMineOverview,
-  type FeedPackage,
   type FeedPost,
   type UploadResult,
 } from '@/lib/api';
@@ -92,21 +91,6 @@ export default function DashboardFeedsPage() {
     }
     void load();
   }, [hydrated, token, router, load]);
-
-  async function requestPackage(pkg: FeedPackage) {
-    setBusy(true);
-    setError(null);
-    setMessage(null);
-    try {
-      await api.post('/feeds/mine/subscriptions/request', { packageId: pkg.id });
-      setMessage('درخواست اشتراک فید ثبت شد. پس از تأیید مدیر فعال می‌شود.');
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ثبت درخواست ناموفق بود');
-    } finally {
-      setBusy(false);
-    }
-  }
 
   /**
    * Kick off image uploads in the *background*: each file gets an optimistic
@@ -270,13 +254,10 @@ export default function DashboardFeedsPage() {
     return <p className="text-muted">در حال بارگذاری...</p>;
   }
 
-  const active = data?.active ?? null;
-  const pendingSub = data?.subscriptions.find((s) => s.status === 'PENDING');
-
   return (
     <div className="flex flex-col gap-5">
       <div>
-        <h2 className="text-xl font-extrabold text-ink">فید من</h2>
+        <h2 className="text-xl font-extrabold text-ink">پست‌های من</h2>
         <p className="text-sm text-muted">
           انتشار پست (متن + عکس) رایگان است. هر پست پس از تأیید مدیر در دایرکتوری
           فیدها نمایش داده می‌شود. تنها قابلیت پرداختی، تگ‌کردن کارت ویزیت یا بیولینک
@@ -303,45 +284,7 @@ export default function DashboardFeedsPage() {
             : ''}
           . پس از تأیید پرداخت توسط مدیر، لینک نمایش داده می‌شود.
         </span>
-        {pendingSub ? (
-          <span className="ms-auto text-amber-700">
-            درخواست اشتراک فید شما در انتظار تأیید مدیر است.
-          </span>
-        ) : (
-          <span className="ms-auto inline-flex items-center gap-1.5 text-muted">
-            <Crown className="size-4 text-brand" aria-hidden />
-            اشتراک فید اختیاری است و برای شمارش پست شماست.
-          </span>
-        )}
       </div>
-
-      {!active && !pendingSub ? (
-        <div className="flex flex-col gap-3">
-          <h3 className="text-sm font-extrabold text-ink">اشتراک فید (اختیاری)</h3>
-          <div className="grid gap-3 md:grid-cols-2">
-            {data?.packages.map((pkg) => (
-              <div key={pkg.id} className="indeed-panel flex flex-col gap-2 p-4">
-                <h4 className="font-extrabold text-ink">{pkg.name}</h4>
-                {pkg.description ? (
-                  <p className="text-xs leading-6 text-muted">{pkg.description}</p>
-                ) : null}
-                <p className="text-xs text-muted">
-                  {pkg.postsQuota.toLocaleString('fa-IR')} پست •{' '}
-                  {pkg.durationDays.toLocaleString('fa-IR')} روز
-                </p>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => requestPackage(pkg)}
-                  className="indeed-btn indeed-btn-primary mt-auto py-2 text-sm disabled:opacity-60"
-                >
-                  درخواست اشتراک
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : null}
 
       <form onSubmit={submit} className="indeed-panel flex flex-col gap-3 p-5">
           <h3 className="flex items-center gap-2 text-sm font-extrabold text-ink">
@@ -533,21 +476,17 @@ export default function DashboardFeedsPage() {
                   {post.reason ? (
                     <p className="mt-1 text-xs text-red-600">دلیل رد: {post.reason}</p>
                   ) : null}
-                  {post.tagKind ? (
-                    <p className="mt-1 flex items-center gap-1.5 text-xs">
+                  {/* A confirmed tag shows the full author card; a pending one
+                      keeps a short status line until an admin settles the fee. */}
+                  {post.tagPaid && post.tag ? (
+                    <FeedTagCard tag={post.tag} compact />
+                  ) : post.tagKind ? (
+                    <p className="mt-1 flex items-center gap-1.5 text-xs text-amber-700">
                       <Tag className="size-3.5 text-brand" aria-hidden />
-                      {post.tagPaid ? (
-                        <span className="text-green-700">
-                          تگ تأییدشده: {post.tag?.company || post.tag?.fullName || 'لینک شما'}
-                        </span>
-                      ) : (
-                        <span className="text-amber-700">
-                          تگ در انتظار تأیید پرداخت
-                          {post.tagPrice
-                            ? ` (${post.tagPrice.toLocaleString('fa-IR')} تومان)`
-                            : ''}
-                        </span>
-                      )}
+                      تگ در انتظار تأیید پرداخت
+                      {post.tagPrice
+                        ? ` (${post.tagPrice.toLocaleString('fa-IR')} تومان)`
+                        : ''}
                     </p>
                   ) : null}
                 </div>

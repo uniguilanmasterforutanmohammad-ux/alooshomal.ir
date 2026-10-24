@@ -81,7 +81,7 @@ const STEPS: GuideStep[] = [
     title: '۷. فیدها (پست تصویری)',
     desc: 'با خرید یک بسته‌ی فید می‌توانید پست تصویری منتشر کنید و در فید عمومی شهر دیده شوید.',
     href: '/dashboard/feeds',
-    cta: 'فید من',
+    cta: 'پست‌های من',
   },
   {
     icon: Newspaper,

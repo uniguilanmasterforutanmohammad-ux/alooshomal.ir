@@ -29,7 +29,7 @@ const NAV = [
   { href: '/dashboard', label: 'داشبورد', icon: LayoutDashboard, exact: true },
   { href: '/dashboard/business-cards', label: 'کارت‌های ویزیت من', icon: BadgeCheck, exact: false },
   { href: '/dashboard/biolinks', label: 'بیولینک‌های من', icon: IdCard, exact: false },
-  { href: '/dashboard/feeds', label: 'فید من', icon: ImagePlus, exact: false },
+  { href: '/dashboard/feeds', label: 'پست‌های من', icon: ImagePlus, exact: false },
   { href: '/dashboard/saved', label: 'ذخیره‌شده‌های من', icon: Bookmark, exact: false },
   { href: '/dashboard/subscriptions', label: 'اشتراک', icon: Crown, exact: false },
   { href: '/dashboard/boost', label: 'افزایش بازدید و تبلیغات', icon: TrendingUp, exact: false },

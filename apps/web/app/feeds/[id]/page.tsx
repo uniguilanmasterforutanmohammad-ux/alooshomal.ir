@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowRight, CalendarDays, Tag, UserRound } from 'lucide-react';
+import { ArrowRight, CalendarDays, UserRound } from 'lucide-react';
 
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { FeedTagCard } from '@/components/feed/FeedTagCard';
 import { api, type FeedPost } from '@/lib/api';
 import { bodyToHtml, richTextPreview } from '@/lib/rich-text';
 import { cn } from '@/lib/utils';
@@ -161,25 +162,7 @@ export default function FeedPostPage() {
                 />
               ) : null}
 
-              {post.tag ? (
-                <Link
-                  href={post.tag.href}
-                  className="mt-4 flex items-center gap-2 rounded-xl border border-[var(--vintage-border)] bg-white p-3 transition hover:border-brand"
-                >
-                  <span className="vintage-avatar flex size-9 items-center justify-center">
-                    <Tag className="size-4" aria-hidden />
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block text-xs text-muted">
-                      {post.tag.kind === 'BIOLINK' ? 'بیولینک نویسنده' : 'کارت ویزیت نویسنده'}
-                    </span>
-                    <span className="block truncate text-sm font-extrabold text-ink">
-                      {post.tag.company || post.tag.fullName}
-                    </span>
-                  </span>
-                  <ArrowRight className="ms-auto size-4 rotate-180 text-brand" aria-hidden />
-                </Link>
-              ) : null}
+              {post.tag ? <FeedTagCard tag={post.tag} /> : null}
 
               <div className="mt-5 flex items-center gap-2">
                 <button

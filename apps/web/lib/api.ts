@@ -922,6 +922,12 @@ export interface FeedTag {
   slug: string;
   fullName: string;
   company: string | null;
+  /** optional details surfaced when the tag is shown as a fuller card */
+  jobTitle?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  cityName?: string | null;
+  businessName?: string | null;
   href: string;
 }
 
