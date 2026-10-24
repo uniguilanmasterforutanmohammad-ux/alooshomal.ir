@@ -297,7 +297,7 @@ body {
   .dash-table td[data-label]::before {
     content: attr(data-label);
     font-size: 11px;
-    color: var(--ink-soft, #6b6b6b);
+    color: var(--vintage-ink-soft);
   }
   /* the six action buttons drop to their own full-width row */
   .dash-table td.dash-actions {
@@ -438,12 +438,12 @@ select {
   padding: 10px 12px;
   font-size: 14px;
   line-height: 1.9;
-  color: var(--ink, #3a281c);
+  color: var(--vintage-ink);
   outline: none;
 }
 .rich-editor-surface:empty::before {
   content: attr(data-placeholder);
-  color: var(--muted, #8a8a8a);
+  color: var(--vintage-ink-soft);
   pointer-events: none;
 }
 .rich-editor-surface ul,
@@ -465,14 +465,14 @@ select {
   margin: 6px 0;
   padding-inline-start: 10px;
   border-inline-start: 3px solid var(--vintage-accent-hover);
-  color: var(--muted, #6b6b6b);
+  color: var(--vintage-ink-soft);
 }
 
 /* ---- rendered rich-text post body ---- */
 .feed-rich {
   font-size: 14px;
   line-height: 1.9;
-  color: var(--ink, #3a281c);
+  color: var(--vintage-ink);
 }
 .feed-rich p {
   margin: 0 0 6px;
