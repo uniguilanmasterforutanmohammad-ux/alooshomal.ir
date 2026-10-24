@@ -5,7 +5,7 @@ import { IdCard, LayoutDashboard, LogIn } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useAuth } from '@/lib/auth';
-import { PUBLIC_NAV } from '@/lib/nav';
+import { HEADER_NAV } from '@/lib/nav';
 
 /**
  * Public top navigation (desktop only; phones/tablets use `MobileNav`).
@@ -33,7 +33,7 @@ export function Header() {
         </Link>
 
         <nav className="hidden items-center gap-6 text-sm font-medium text-muted lg:flex">
-          {PUBLIC_NAV.map((item) => (
+          {HEADER_NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
