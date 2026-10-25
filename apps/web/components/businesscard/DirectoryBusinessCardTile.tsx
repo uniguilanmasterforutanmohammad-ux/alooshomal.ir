@@ -36,6 +36,7 @@ export function DirectoryBusinessCardTile({ businessCard }: Props) {
       mobile={businessCard.mobile}
       landline={businessCard.phone}
       accent={businessCard.primaryColor}
+      mobileOrder="role"
       likeCount={businessCard.likeCount ?? 0}
       liked={businessCard.liked ?? false}
       saved={businessCard.saved ?? false}

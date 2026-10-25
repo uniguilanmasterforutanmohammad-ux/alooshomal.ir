@@ -118,12 +118,14 @@ export function DirectoryBusinessCardContent({
 
   return (
     <main className="container-page py-6 directory-shell">
-      <div className="mb-5 flex shrink-0 flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="directory-head mb-5 flex shrink-0 flex-wrap items-center justify-between gap-3">
+        <div className="directory-head-text flex items-center gap-3">
           <Users className="size-7 text-brand" aria-hidden />
-          <div>
-            <h1 className="text-xl font-extrabold text-ink">دایرکتوری کارت‌های ویزیت</h1>
-            <p className="text-sm text-muted">
+          <div className="min-w-0">
+            <h1 className="directory-head-title text-xl font-extrabold text-ink">
+              دایرکتوری کارت‌های ویزیت
+            </h1>
+            <p className="directory-head-sub text-sm text-muted">
               {meta
                 ? `${meta.total.toLocaleString('fa-IR')} کارت ویزیت منتشرشده — نمایش ${items.length.toLocaleString('fa-IR')} مورد`
                 : 'در حال بارگذاری...'}
@@ -220,7 +222,7 @@ export function DirectoryBusinessCardContent({
           column so the list keeps enough room; phones show the list only and
           open the detail in a bottom sheet. */
       <div className="directory-grid mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(320px,44%)] lg:grid-cols-[1fr_420px]">
-        <section className="order-2 flex min-h-0 flex-col md:order-1">
+        <section className="order-2 flex min-h-0 min-w-0 flex-col md:order-1">
           <div className="directory-list min-h-0 flex-1">
             {loading && items.length === 0 ? (
               <div className="space-y-3">

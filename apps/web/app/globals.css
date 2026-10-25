@@ -1006,6 +1006,14 @@ header.bg-white {
   gap: 6px;
   flex-shrink: 0;
 }
+
+/* The split «نام کسب‌وکار» / «شرکت» tile lines are a phones-only refinement;
+   wider screens keep the classic one-line «نقش · شرکت» (`.directory-tile-meta`),
+   so these two stay hidden until the phone breakpoint turns them on. */
+.directory-tile-role,
+.directory-tile-company {
+  display: none;
+}
 .directory-tile-actions {
   position: absolute;
   inset-inline-end: 10px;
@@ -2307,6 +2315,14 @@ html.dark nav[aria-label="ناوبری پایین"] {
   text-overflow: ellipsis;
 }
 
+/* The split «نام کسب‌وکار» / «شرکت» lines are a phones-only refinement; on
+   wider screens the classic one-line «نقش · شرکت» (`.notebook-meta-line`) is
+   used instead, so these two never show. */
+.notebook-role,
+.notebook-company {
+  display: none;
+}
+
 .notebook-place {
   display: inline-flex;
   align-items: center;
@@ -2823,4 +2839,292 @@ html.dark .blt { box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); }
 }
 .blt-row-value {
   overflow-wrap: anywhere;
+}
+
+/* =====================================================================
+   «دایرکتوری کارت‌های ویزیت» — phones-only polish (≤ 767px).
+
+   Everything below is scoped to the phone breakpoint; tablet and desktop keep
+   the classic look untouched. The business-card directory asks for three
+   things on phones: the view switch next to the heading, a fixed and even card
+   height in every look, and larger, more legible contact text.
+   ===================================================================== */
+@media (max-width: 767px) {
+  /* (1a) Heading row: the title and the view switch share one line — the
+     switch sits at the row's far (left, in RTL) edge, next to the text. */
+  .directory-head {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .directory-head-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    align-items: center;
+    gap: 8px;
+  }
+  /* The heading icon shrinks on phones so the title keeps more room next to
+     the view switch. */
+  .directory-head-text > svg {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+  }
+  .directory-head-title {
+    font-size: 1rem;
+    line-height: 1.45;
+  }
+  .directory-head-sub {
+    font-size: 0.68rem;
+    line-height: 1.4;
+  }
+  .directory-head .directory-view-switch {
+    flex: 0 0 auto;
+  }
+  .directory-head .directory-view-switch button {
+    padding: 4px 8px;
+    gap: 4px;
+    font-size: 11px;
+  }
+  .directory-head .directory-view-switch button svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  /* (1b-i, 1b-iv) List rows: a fixed, uniform height with the avatar as a
+     rounded square matching that height, inset from the card's edges. */
+  .directory-card {
+    height: 158px;
+    padding: 9px 12px;
+    overflow: hidden;
+  }
+  .directory-card-avatar {
+    width: auto;
+    height: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: 12px;
+  }
+  .directory-card-avatar img {
+    width: 100%;
+    height: 100%;
+  }
+  /* The text column becomes a small grid so the fixed card height is spent
+     exactly the same on every row: the boost/ad badge shares the first line
+     with «نام کسب‌وکار» instead of adding a line of its own, and the actions
+     always sit on the last line. */
+  .directory-card-text {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    /* Rows 1-4 size to their content, the last row takes the slack so the
+       actions sit on the card's bottom edge while the fields stay top-aligned
+       (identical line positions on every row). */
+    grid-template-rows: repeat(4, auto) minmax(0, 1fr);
+    align-content: start;
+    gap: 1px 8px;
+  }
+  .directory-card-text > * {
+    min-width: 0;
+    margin: 0;
+  }
+  .directory-card-role {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .directory-card-badge {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+    justify-self: end;
+  }
+  .directory-card-name {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .directory-card-company {
+    grid-column: 1 / -1;
+    grid-row: 3;
+  }
+  .directory-card-phones {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    align-self: end;
+  }
+  .directory-card-actions {
+    grid-column: 1 / -1;
+    grid-row: 5;
+    align-self: end;
+  }
+  /* (1b-iii) Phone order: business name → manager name → company. */
+  .directory-card-role {
+    font-size: 0.95rem;
+    line-height: 1.35;
+    font-weight: 700;
+    color: var(--vintage-ink);
+  }
+  .directory-card-company {
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+  .directory-card-name {
+    font-size: 0.95rem;
+    line-height: 1.35;
+  }
+  /* (1b-ii) Numbers: bigger, readable, and moved under the text. */
+  .directory-card-phones {
+    flex-wrap: wrap;
+    gap: 1px 14px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+  .directory-card-phones span[dir='ltr'] {
+    font-size: 0.9rem;
+    letter-spacing: 0.01em;
+  }
+
+  /* (1c) Tiles: rectangular (taller than wide), fixed equal height, readable
+     type and an accent border inherited from the owner's theme colour. */
+  .directory-tiles-grid {
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+    gap: 12px;
+  }
+  .directory-tile-card {
+    /* Portrait tile with a fixed, uniform height. The narrow phone columns
+       (min 132px) keep the width well under this height, so every tile stays
+       rectangular (taller than wide) across phone widths. */
+    height: 216px;
+    padding: 12px 12px 46px;
+    border-style: solid;
+    border-width: 2px;
+    border-color: color-mix(in srgb, var(--tile-accent) 70%, var(--vintage-border));
+    box-shadow: 0 2px 0 color-mix(in srgb, var(--tile-accent) 22%, transparent);
+  }
+  .directory-tile-name {
+    font-size: 0.95rem;
+  }
+  .directory-tile-line {
+    font-size: 0.78rem;
+  }
+  .directory-tile-phone {
+    font-size: 0.86rem;
+  }
+  .directory-tile-phone-label {
+    font-size: 0.72rem;
+  }
+  /* (1c-i) Phone order in tiles: business name → manager name → company. */
+  .directory-tile-card[data-mobile-order='role'] .directory-tile-meta {
+    display: none;
+  }
+  .directory-tile-card[data-mobile-order='role'] .directory-tile-role,
+  .directory-tile-card[data-mobile-order='role'] .directory-tile-company {
+    display: inline-flex;
+  }
+  .directory-tile-card[data-mobile-order='role'] .directory-tile-role {
+    order: -2;
+    font-weight: 700;
+    color: var(--vintage-ink);
+    font-size: 0.82rem;
+  }
+  .directory-tile-card[data-mobile-order='role'] .directory-tile-headtext {
+    gap: 2px;
+  }
+  .directory-tile-card[data-mobile-order='role'] .directory-tile-company {
+    font-size: 0.78rem;
+  }
+
+  /* (1d) Notebook: readable type, same field order, and the book stretched to
+     fill the remaining viewport height. */
+  .notebook-scroll {
+    display: flex;
+    flex-direction: column;
+  }
+  .notebook-paper {
+    /* Grow to fill the scroll region (so a short list still reaches the bottom
+       of the viewport) but never shrink below the content height. */
+    flex: 1 0 auto;
+    min-height: 100%;
+  }
+  /* Phones lead with «نام کسب‌وکار» (role), then «به مدیریت» (the name) and
+     finally the company — the same order as the list and tile looks. */
+  .notebook-meta-line {
+    display: none;
+  }
+  .notebook-role,
+  .notebook-company {
+    display: block;
+  }
+  .notebook-role {
+    order: -1;
+    font-weight: 700;
+    color: var(--vintage-ink);
+  }
+  .notebook-name {
+    font-size: 1rem;
+  }
+  .notebook-meta {
+    font-size: 0.8rem;
+  }
+  .notebook-place {
+    font-size: 0.76rem;
+  }
+  .notebook-phone {
+    font-size: 0.92rem;
+  }
+  .notebook-phone-label {
+    font-size: 0.74rem;
+  }
+  /* The notebook already shows «نام کسب‌وکار · شرکت» on one meta line; on
+     phones the manager name follows the business name, matching the other
+     looks. */
+  .notebook-row {
+    gap: 12px;
+  }
+  .notebook-initial {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+  /* (1d-iv) Extra notebook decorations: punched holes down the binding edge
+     and a coiled wire loop, so the sheet reads like an old phone book. */
+  .notebook-paper::after {
+    content: '';
+    position: absolute;
+    inset-block: 16px;
+    inset-inline-end: -9px;
+    width: 22px;
+    /* A punched hole (dark centre) ringed by the metallic wire, so the spine
+       reads as a spiral-bound phone book. */
+    background-image: radial-gradient(
+      circle at 50% 50%,
+      color-mix(in srgb, var(--vintage-ink) 70%, #000) 0 3px,
+      #f6ead8 3px 4.6px,
+      #b9a184 4.6px 5.6px,
+      #8a7458 5.6px 6.1px,
+      transparent 6.1px 100%
+    );
+    background-size: 22px 28px;
+    background-repeat: repeat-y;
+    filter: drop-shadow(1px 1px 1px rgba(92, 53, 29, 0.3));
+    pointer-events: none;
+  }
+  /* The wire itself: a repeating coil over the punched holes, plus a stitched
+     spine so the binding edge reads like a spiral-bound book. */
+  .notebook-paper {
+    box-shadow:
+      0 12px 30px rgba(92, 53, 29, 0.12),
+      inset -3px 0 0 color-mix(in srgb, var(--vintage-accent) 30%, transparent);
+  }
+  .notebook-paper::before {
+    width: 12px;
+    background: repeating-linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--vintage-accent) 85%, #000) 0 7px,
+      transparent 7px 14px
+    );
+    opacity: 0.5;
+  }
+  /* A soft ruled margin line, echoing the reference notebook paper. */
+  .notebook-row {
+    background-image: none;
+  }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Phone, Smartphone, UserRound } from 'lucide-react';
+import { Building2, MapPin, Phone, Smartphone, UserRound } from 'lucide-react';
 
 import { LikeButton } from '@/components/ui/LikeButton';
 import { SaveButton } from '@/components/ui/SaveButton';
@@ -28,6 +28,14 @@ interface Props {
   saved: boolean;
   /** boost/ad badge, absolutely positioned in the tile's top corner */
   badge?: React.ReactNode;
+  /**
+   * Phones-only field order for the tile's text block. `'name'` (default) keeps
+   * the classic person-first layout at every width; `'role'` leads with «نام
+   * کسب‌وکار» (`jobTitle`), then the person (`fullName`) and the company —
+   * the order the business-card directory asks for on phones. Desktop is
+   * untouched either way.
+   */
+  mobileOrder?: 'name' | 'role';
 }
 
 /** The first letter of the name — never a logo, matching the «دفترچه تلفن». */
@@ -61,15 +69,25 @@ export function DirectoryContactTile({
   liked,
   saved,
   badge,
+  mobileOrder = 'name',
 }: Props) {
   const meta = [jobTitle, company].filter(Boolean).join(' · ');
   const place = [cityName, businessName].filter(Boolean).join(' · ');
   const mobileNum = mobile?.trim() || '';
   const landlineNum = landline?.trim() || '';
+  // On phones the business-card tiles reorder the head to «نام کسب‌وکار →
+  // به مدیریت → شرکت»; the classic meta line (role · company) is hidden there
+  // and the two fields are shown as their own lines instead.
+  const roleFirst = mobileOrder === 'role';
 
   return (
     <div className="directory-tile">
-      <div className="directory-tile-card" style={{ ['--tile-accent' as string]: readableAccent(accent) }}>
+      <div
+        className="directory-tile-card"
+        data-kind={kind}
+        data-mobile-order={roleFirst ? 'role' : undefined}
+        style={{ ['--tile-accent' as string]: readableAccent(accent) }}
+      >
         {badge ? <div className="directory-tile-badges">{badge}</div> : null}
 
         <div className="directory-tile-head">
@@ -79,9 +97,21 @@ export function DirectoryContactTile({
           <div className="directory-tile-headtext">
             <span className="directory-tile-name">{fullName}</span>
             {meta ? (
-              <span className="directory-tile-line">
+              <span className="directory-tile-line directory-tile-meta">
                 <UserRound className="directory-tile-icon" aria-hidden />
                 {meta}
+              </span>
+            ) : null}
+            {roleFirst && jobTitle ? (
+              <span className="directory-tile-line directory-tile-role">
+                <UserRound className="directory-tile-icon" aria-hidden />
+                {jobTitle}
+              </span>
+            ) : null}
+            {roleFirst && company ? (
+              <span className="directory-tile-line directory-tile-company">
+                <Building2 className="directory-tile-icon" aria-hidden />
+                {company}
               </span>
             ) : null}
           </div>

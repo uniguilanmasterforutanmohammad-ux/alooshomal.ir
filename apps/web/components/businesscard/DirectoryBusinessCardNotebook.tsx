@@ -88,7 +88,9 @@ export function DirectoryBusinessCardNotebook({
           const mobile = card.mobile?.trim() || '';
           const landline = card.phone?.trim() || '';
           const primary = mobile || landline;
-          const meta = [card.jobTitle, card.company].filter(Boolean).join(' · ');
+          const role = card.jobTitle?.trim() || '';
+          const company = card.company?.trim() || '';
+          const meta = [role, company].filter(Boolean).join(' · ');
           const place = [card.city?.name, card.business?.name].filter(Boolean).join(' · ');
 
           return (
@@ -116,8 +118,23 @@ export function DirectoryBusinessCardNotebook({
                   >
                     {highlight(card.fullName, trimmedQuery)}
                   </Link>
+                  {/* Desktop keeps the classic one-line «نقش · شرکت»; on phones
+                      it is replaced by two separate lines so the business name
+                      leads (same order as the list and tile looks). */}
                   {meta ? (
-                    <span className="notebook-meta">{highlight(meta, trimmedQuery)}</span>
+                    <span className="notebook-meta notebook-meta-line">
+                      {highlight(meta, trimmedQuery)}
+                    </span>
+                  ) : null}
+                  {role ? (
+                    <span className="notebook-meta notebook-role">
+                      {highlight(role, trimmedQuery)}
+                    </span>
+                  ) : null}
+                  {company ? (
+                    <span className="notebook-meta notebook-company">
+                      {highlight(company, trimmedQuery)}
+                    </span>
                   ) : null}
                   {place ? (
                     <span className="notebook-place">
