@@ -3046,6 +3046,38 @@ html.dark .blt { box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); }
   .directory-tile-card[data-mobile-order='role'] .directory-tile-company {
     font-size: 0.78rem;
   }
+  /* (1c-vi) Business-card tiles: exactly two columns on phones so each card is
+     wide enough to show its full content (name, role, company and both
+     numbers) without the ellipsis cutting long values off. */
+  .directory-tiles-grid-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+  .directory-tiles-grid-cards .directory-tile {
+    display: flex;
+  }
+  .directory-tiles-grid-cards .directory-tile-card {
+    /* Let the card grow past the base 216px when a wrapped value needs more
+       room, so nothing is clipped. */
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 216px;
+    overflow: visible;
+  }
+  /* The wider two-column tile can afford to wrap instead of truncating. */
+  .directory-tiles-grid-cards .directory-tile-name,
+  .directory-tiles-grid-cards .directory-tile-line,
+  .directory-tiles-grid-cards .directory-tile-phone,
+  .directory-tiles-grid-cards .directory-tile-phone-num {
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+  }
+  .directory-tiles-grid-cards .directory-tile-phone-num {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
 
   /* (1d) Notebook: readable type, same field order, and the book stretched to
      fill the remaining viewport height. */
