@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Phone,
   Send,
+  Smartphone,
   Twitter,
   UserRound,
   X,
@@ -70,8 +71,19 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
 
   const initials = businessCard.fullName.trim().slice(0, 1);
 
-  const rows: Array<{ Icon: typeof Phone; label: string; value: string; href: string }> = [];
+  const rows: Array<{
+    Icon: typeof Phone;
+    label: string;
+    value: string;
+    href: string;
+    /** phones-only row (hidden from `md` up) */
+    mobileOnly?: boolean;
+  }> = [];
   if (businessCard.phone) rows.push({ Icon: Phone, label: 'تلفن', value: businessCard.phone, href: `tel:${businessCard.phone}` });
+  /* The mobile number is a phones-only addition: the desktop aside already
+     mirrors the list's phone column, so this row is hidden from `md` up (see
+     `.dir-detail-mobile-row` in globals.css). */
+  if (businessCard.mobile) rows.push({ Icon: Smartphone, label: 'همراه', value: businessCard.mobile, href: `tel:${businessCard.mobile}`, mobileOnly: true });
   if (businessCard.email) rows.push({ Icon: Mail, label: 'ایمیل', value: businessCard.email, href: `mailto:${businessCard.email}` });
   if (businessCard.website) rows.push({ Icon: Globe, label: 'وب‌سایت', value: businessCard.website, href: businessCard.website });
   if (businessCard.address) rows.push({ Icon: MapPin, label: 'آدرس', value: businessCard.address, href: '' });
@@ -101,8 +113,8 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
       )}
 
       <FitContent className="dir-detail-scroll flex-1 overflow-y-auto px-5 py-5" minScale={0.7}>
-        <div className="flex items-center gap-4">
-          <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--vintage-border)] bg-soft text-xl font-extrabold text-brand">
+        <div className="dir-detail-head flex items-center gap-4">
+          <div className="dir-detail-avatar flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--vintage-border)] bg-soft text-xl font-extrabold text-brand">
             {businessCard.avatarUrl ? (
               <Image
                 src={businessCard.avatarUrl}
@@ -116,16 +128,22 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
               initials
             )}
           </div>
-          <div className="min-w-0">
-            <h2 className="truncate text-lg font-extrabold text-ink">{businessCard.fullName}</h2>
+          {/* On phones the head follows the list/tile order — «نام کسب‌وکار» →
+              «به مدیریت» (the name) → «شرکت» — via `order` (see
+              `.dir-detail-head` in globals.css); wider screens keep the classic
+              person-first order. */}
+          <div className="dir-detail-headtext min-w-0">
             {businessCard.jobTitle ? (
-              <p className="flex items-center gap-1.5 text-sm text-muted">
+              <p className="dir-detail-role flex items-center gap-1.5 text-sm text-muted">
                 <UserRound className="size-3.5 shrink-0" aria-hidden />
                 {businessCard.jobTitle}
               </p>
             ) : null}
+            <h2 className="dir-detail-name truncate text-lg font-extrabold text-ink">
+              {businessCard.fullName}
+            </h2>
             {businessCard.company ? (
-              <p className="flex items-center gap-1.5 text-sm text-muted">
+              <p className="dir-detail-company flex items-center gap-1.5 text-sm text-muted">
                 <Building2 className="size-3.5 shrink-0" aria-hidden />
                 {businessCard.company}
               </p>
@@ -155,7 +173,10 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
                 </span>
               );
               return (
-                <li key={row.label}>
+                <li
+                  key={row.label}
+                  className={row.mobileOnly ? 'dir-detail-mobile-row' : undefined}
+                >
                   {row.href ? (
                     <a
                       href={row.href}

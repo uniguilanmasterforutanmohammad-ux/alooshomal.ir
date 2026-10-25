@@ -149,14 +149,14 @@ export function DirectoryBiolinkContent({
            tiled next to each other. The switch above returns to the list. */
         <div className="directory-tiles mt-5">
           {loading && items.length === 0 ? (
-            <div className="directory-tiles-grid">
+            <div className="directory-tiles-grid directory-tiles-grid-biolinks">
               {Array.from({ length: 6 }).map((_, index) => (
                 <div key={index} className="indeed-panel h-[200px] animate-pulse bg-soft" />
               ))}
             </div>
           ) : items.length > 0 ? (
             <>
-              <div className="directory-tiles-grid">
+              <div className="directory-tiles-grid directory-tiles-grid-biolinks">
                 {items.map((biolink) => (
                   <DirectoryBiolinkTile
                     key={biolink.id}

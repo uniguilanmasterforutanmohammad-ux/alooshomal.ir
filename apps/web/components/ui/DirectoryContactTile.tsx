@@ -81,7 +81,7 @@ export function DirectoryContactTile({
   const roleFirst = mobileOrder === 'role';
 
   return (
-    <div className="directory-tile">
+    <div className="directory-tile" data-kind={kind}>
       <div
         className="directory-tile-card"
         data-kind={kind}
@@ -118,7 +118,7 @@ export function DirectoryContactTile({
         </div>
 
         {place ? (
-          <span className="directory-tile-line">
+          <span className="directory-tile-line directory-tile-place">
             <MapPin className="directory-tile-icon" aria-hidden />
             {place}
           </span>

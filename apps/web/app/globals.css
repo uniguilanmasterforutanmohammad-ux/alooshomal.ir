@@ -1168,6 +1168,21 @@ header.bg-white {
 .dir-detail-scroll[data-compact] .mt-4 {
   margin-top: 10px;
 }
+/* The directory detail head keeps the classic person-first order on wide
+   screens (name → role → company); phones reorder it to match the list rows
+   (see the phone block at the end of this file). */
+.dir-detail-headtext {
+  display: flex;
+  flex-direction: column;
+}
+.dir-detail-name {
+  order: -1;
+}
+/* The «همراه» number is a phones-only row in the detail panel: the desktop
+   aside already carries the same phone column the list rows show. */
+.dir-detail-mobile-row {
+  display: none;
+}
 /* =====================================================================
    «رکورد» — the shared vintage record presentation
    ---------------------------------------------------------------------
@@ -3126,5 +3141,199 @@ html.dark .blt { box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); }
   /* A soft ruled margin line, echoing the reference notebook paper. */
   .notebook-row {
     background-image: none;
+  }
+
+  /* ===================================================================
+     «دایرکتوری بیولینک‌ها» — phones-only polish (≤ 767px).
+
+     The biolink directory asks for two things on phones: list rows that carry
+     a biolink feel (owner-coloured frame, the same field order and legible
+     type as the business-card rows) and tiles that look like real biolink
+     cards (centred text, each field on its own themed button-like row).
+     =================================================================== */
+
+  /* (2a) List rows: a biolink feel with a coloured frame inherited from the
+     owner's theme, and the business-card field order/typography. */
+  .directory-biolink-card {
+    border-width: 2px;
+    border-inline-start-width: 2px;
+    border-radius: 14px;
+    border-color: color-mix(in srgb, var(--card-accent) 55%, var(--vintage-border));
+    background-image: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--card-accent) 7%, var(--vintage-surface)) 0%,
+      var(--vintage-surface) 46%
+    );
+    box-shadow: 0 6px 18px color-mix(in srgb, var(--card-accent) 12%, transparent);
+  }
+  .directory-biolink-card[data-selected='1'] {
+    border-color: var(--card-accent);
+    box-shadow: 0 8px 22px color-mix(in srgb, var(--card-accent) 22%, transparent);
+  }
+  /* The avatar becomes the biolink's circular photo, ringed in the theme
+     colour — the visual hook of a real biolink card. */
+  .directory-biolink-avatar {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--card-accent) 55%, transparent);
+  }
+  /* Let the text grid fill the fixed row height so the actions pin to the
+     card's bottom edge exactly like the business-card rows. */
+  .directory-biolink-card .directory-card-inner {
+    height: 100%;
+    align-items: stretch;
+  }
+  /* Same readable typography/order as the business-card list rows. */
+  .directory-biolink-card .directory-card-role {
+    font-size: 0.95rem;
+    line-height: 1.35;
+    font-weight: 700;
+    color: var(--vintage-ink);
+  }
+  .directory-biolink-card .directory-card-company {
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+  .directory-biolink-card .directory-card-name {
+    font-size: 0.95rem;
+    line-height: 1.35;
+  }
+  .directory-biolink-card .directory-card-phones {
+    flex-wrap: wrap;
+    gap: 1px 14px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.45;
+  }
+  .directory-biolink-card .directory-card-phones span[dir='ltr'] {
+    font-size: 0.9rem;
+    letter-spacing: 0.01em;
+  }
+
+  /* (2b) Tiles: a real biolink card look — centred text, larger type, and
+     each field on its own themed row. */
+  .directory-tiles-grid-biolinks {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    /* Stretch every tile in a row to the same height so the grid reads as a
+       neat wall of cards rather than a ragged staircase. */
+    align-items: stretch;
+  }
+  .directory-tile[data-kind='biolinks'] {
+    display: flex;
+  }
+  .directory-tile[data-kind='biolinks'] .directory-tile-card {
+    flex: 1 1 auto;
+    height: auto;
+    min-height: 232px;
+    /* Bottom padding reserves room for the absolutely-positioned like/save
+       buttons, exactly like the base tile. */
+    padding: 18px 14px 48px;
+    gap: 10px;
+    align-items: center;
+    text-align: center;
+    border-style: solid;
+    border-width: 2px;
+    border-color: color-mix(in srgb, var(--tile-accent) 60%, var(--vintage-border));
+    background-image: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--tile-accent) 8%, var(--vintage-surface)) 0%,
+      var(--vintage-surface) 52%
+    );
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--tile-accent) 14%, transparent);
+  }
+  /* A biolink-style avatar on top: the initial, ringed in the theme colour. */
+  .directory-tile[data-kind='biolinks'] .directory-tile-initial {
+    width: 52px;
+    height: 52px;
+    font-size: 1.15rem;
+    border-style: solid;
+    box-shadow: 0 0 0 3px var(--vintage-surface),
+      0 0 0 5px color-mix(in srgb, var(--tile-accent) 45%, transparent);
+  }
+  .directory-tile[data-kind='biolinks'] .directory-tile-head {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+  .directory-tile[data-kind='biolinks'] .directory-tile-headtext {
+    align-items: center;
+    width: 100%;
+    gap: 3px;
+  }
+  .directory-tile[data-kind='biolinks'] .directory-tile-name {
+    font-size: 1.02rem;
+    font-weight: 800;
+    width: 100%;
+  }
+  .directory-tile[data-kind='biolinks'] .directory-tile-line {
+    font-size: 0.84rem;
+    justify-content: center;
+    width: 100%;
+  }
+  /* (2b-i/2b-ii) Every field on its own row, centred, tinted with the theme. */
+  .directory-tile[data-kind='biolinks'] .directory-tile-role,
+  .directory-tile[data-kind='biolinks'] .directory-tile-company,
+  .directory-tile[data-kind='biolinks'] .directory-tile-place {
+    display: flex;
+    justify-content: center;
+    padding: 5px 10px;
+    border-radius: 9999px;
+    background: color-mix(in srgb, var(--tile-accent) 12%, var(--vintage-surface));
+    border: 1px solid color-mix(in srgb, var(--tile-accent) 32%, transparent);
+    color: var(--vintage-ink);
+    font-weight: 700;
+  }
+  .directory-tile[data-kind='biolinks'] .directory-tile-role {
+    order: -2;
+  }
+  .directory-tile[data-kind='biolinks'] .directory-tile-phones {
+    width: 100%;
+    gap: 6px;
+    margin-top: 4px;
+  }
+  .directory-tile[data-kind='biolinks'] .directory-tile-phone {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 10px;
+    background: var(--tile-accent);
+    color: #fff;
+    font-size: 0.92rem;
+    font-weight: 700;
+  }
+  .directory-tile[data-kind='biolinks'] .directory-tile-phone .directory-tile-icon {
+    color: #fff;
+  }
+  .directory-tile[data-kind='biolinks'] .directory-tile-phone-label {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.72rem;
+  }
+
+  /* (2a-detail) Clicking a business-card row on phones: the detail head follows
+     the list order («نام کسب‌وکار» → «به مدیریت» → «شرکت») and the mobile
+     number is added to the contact rows. */
+  .dir-detail-head {
+    align-items: flex-start;
+  }
+  .dir-detail-headtext {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .dir-detail-role {
+    order: -2;
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--vintage-ink);
+  }
+  .dir-detail-name {
+    order: -1;
+    font-size: 1.05rem;
+  }
+  .dir-detail-company {
+    font-size: 0.85rem;
+  }
+  .dir-detail-mobile-row {
+    display: block;
   }
 }

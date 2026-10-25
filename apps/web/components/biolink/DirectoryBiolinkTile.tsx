@@ -36,6 +36,7 @@ export function DirectoryBiolinkTile({ biolink }: Props) {
       mobile={biolink.mobile}
       landline={biolink.phone}
       accent={biolink.primaryColor}
+      mobileOrder="role"
       likeCount={biolink.likeCount ?? 0}
       liked={biolink.liked ?? false}
       saved={biolink.saved ?? false}
