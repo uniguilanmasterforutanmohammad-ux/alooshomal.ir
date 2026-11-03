@@ -44,7 +44,8 @@ export async function generateViewport(): Promise<Viewport> {
   // Match the browser chrome to the active site theme.
   const theme = await getSiteTheme();
   return {
-    themeColor: theme === 'modern' ? '#F4F6FB' : '#F2E8D9',
+    themeColor:
+      theme === 'modern' ? '#F4F6FB' : theme === 'bazaar' ? '#FFFAF0' : '#F2E8D9',
     width: 'device-width',
     initialScale: 1,
   };

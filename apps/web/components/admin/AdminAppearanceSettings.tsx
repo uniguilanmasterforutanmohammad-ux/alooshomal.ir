@@ -85,7 +85,9 @@ export function AdminAppearanceSettings() {
       setMessage(
         applied === 'modern'
           ? 'تم نوین برای همه‌ی صفحات فعال شد.'
-          : 'تم کلاسیک (وینتیج) فعال شد.',
+          : applied === 'bazaar'
+            ? 'تم بازارچه (شاد و کودکانه) برای همه‌ی صفحات فعال شد.'
+            : 'تم کلاسیک (وینتیج) فعال شد.',
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره‌ی تم ناموفق بود');
@@ -117,7 +119,7 @@ export function AdminAppearanceSettings() {
         </p>
       ) : null}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {SITE_THEME_OPTIONS.map((option) => {
           const active = theme === option.key;
           return (
@@ -169,6 +171,33 @@ export function AdminAppearanceSettings() {
 
 /** Tiny in-place mockups so the admin can compare the two looks at a glance. */
 function ThemePreview({ variant }: { variant: SiteTheme }) {
+  if (variant === 'bazaar') {
+    return (
+      <div className="overflow-hidden rounded-xl border-2 border-emerald-900/10 bg-[#fffaf0] p-2">
+        <div className="flex items-center gap-1.5 rounded-lg bg-[#062b21] px-2 py-1.5">
+          <span className="size-2 rounded-full bg-amber-400" />
+          <span className="h-1.5 w-10 rounded-full bg-emerald-200/40" />
+          <span className="ms-auto h-3 w-8 rounded-md bg-emerald-500" />
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-1.5">
+          <div className="rounded-xl border-2 border-emerald-900/10 bg-white p-2 shadow-[0_3px_0_rgba(6,78,59,0.08)]">
+            <span className="block size-5 rounded-full bg-gradient-to-br from-emerald-500 to-sky-400" />
+            <span className="mt-1.5 block h-1.5 w-12 rounded-full bg-emerald-900/20" />
+            <span className="mt-1 block h-1.5 w-9 rounded-full bg-amber-300" />
+          </div>
+          <div className="flex flex-col items-center justify-center gap-1 rounded-xl border-2 border-emerald-900/10 bg-emerald-50 p-2">
+            <span className="text-[14px] leading-none">🦉</span>
+            <span className="h-1.5 w-8 rounded-full bg-emerald-900/20" />
+          </div>
+        </div>
+        <div className="mt-1.5 flex items-center gap-1 px-1">
+          <span className="size-2 rounded-full bg-[#16a34a]" />
+          <span className="text-[8px] font-bold text-emerald-900/70">سبز، نعنایی و آفتابی</span>
+        </div>
+      </div>
+    );
+  }
+
   if (variant === 'modern') {
     return (
       <div className="overflow-hidden rounded-xl border border-slate-200 bg-[#f4f6fb] p-2">

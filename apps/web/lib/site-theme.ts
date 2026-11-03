@@ -11,7 +11,7 @@
 
 import { SERVER_API_URL } from './site';
 
-export const SITE_THEMES = ['vintage', 'modern'] as const;
+export const SITE_THEMES = ['vintage', 'modern', 'bazaar'] as const;
 export type SiteTheme = (typeof SITE_THEMES)[number];
 export const DEFAULT_SITE_THEME: SiteTheme = 'vintage';
 
@@ -30,10 +30,15 @@ export const SITE_THEME_OPTIONS: Array<{
     name: 'نوین (مدرن)',
     description: 'ظاهر تمیز و کارت‌محور با گوشه‌های نرم، سایه‌های ملایم و رنگ نیلی.',
   },
+  {
+    key: 'bazaar',
+    name: 'بازارچه (شاد و کودکانه)',
+    description: 'الهام‌گرفته از بازارچه‌ی کودکان؛ سبز جنگلی، نعنایی و زرد آفتابی با کارت‌های گرد.',
+  },
 ];
 
 export function isSiteTheme(value: unknown): value is SiteTheme {
-  return value === 'vintage' || value === 'modern';
+  return value === 'vintage' || value === 'modern' || value === 'bazaar';
 }
 
 /**
