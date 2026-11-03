@@ -39,7 +39,7 @@ export function AdminDataTable<T>({
     <div className="indeed-panel overflow-x-auto">
       <table className={cn('w-full text-right text-sm', minWidthClass)}>
         <thead>
-          <tr className="bg-[#fbf3e9] text-xs text-muted">
+          <tr className="bg-[var(--vintage-surface)] text-xs text-muted">
             {columns.map((column) => (
               <th
                 key={column.key}

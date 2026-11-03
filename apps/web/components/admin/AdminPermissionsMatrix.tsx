@@ -122,7 +122,7 @@ export function AdminPermissionsMatrix() {
       <div className="indeed-panel overflow-x-auto">
         <table className="w-full min-w-[640px] text-right text-sm">
           <thead>
-            <tr className="bg-[#fbf3e9] text-xs text-muted">
+            <tr className="bg-[var(--vintage-surface)] text-xs text-muted">
               <th className="px-4 py-2.5 font-bold">موضوع / دسترسی</th>
               {payload.roles.map((role) => (
                 <th key={role.role} className="px-4 py-2.5 text-center font-bold">

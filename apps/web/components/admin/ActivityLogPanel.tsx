@@ -284,7 +284,7 @@ export function ActivityLogPanel({ scope }: { scope?: 'revenue' } = {}) {
         <div className="overflow-x-auto">
           <table className="w-full text-right text-sm">
             <thead>
-              <tr className="bg-[#fbf3e9] text-xs text-muted">
+              <tr className="bg-[var(--vintage-surface)] text-xs text-muted">
                 <th className="px-4 py-2.5 font-bold">کاربر</th>
                 <th className="px-4 py-2.5 font-bold">رویداد</th>
                 <th className="px-4 py-2.5 font-bold">تاریخ و ساعت</th>

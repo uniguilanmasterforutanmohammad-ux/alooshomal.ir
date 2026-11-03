@@ -1,5 +1,10 @@
 import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiPropertyOptional,
+  ApiTags,
+} from '@nestjs/swagger';
 import {
   IsArray,
   IsBoolean,
@@ -24,6 +29,8 @@ import {
   FEATURE_FLAGS,
   NEWS_ACCESS_LEVELS,
   NewsAccessLevel,
+  SITE_THEMES,
+  SiteTheme,
   SettingsService,
 } from './settings.service';
 
@@ -56,6 +63,15 @@ class UpdateSettingsDto {
   @IsArray()
   @IsString({ each: true })
   biolinkTemplatesEnabled?: string[];
+
+  /** Site-wide visual theme (`vintage` | `modern`). */
+  @ApiPropertyOptional({
+    enum: SITE_THEMES,
+    description: 'تم سراسری سایت؛ روی همه‌ی صفحات عمومی و پنل‌ها اعمال می‌شود.',
+  })
+  @IsOptional()
+  @IsIn(SITE_THEMES as unknown as string[])
+  siteTheme?: SiteTheme;
 
 
   @IsOptional()
@@ -201,6 +217,7 @@ export class SettingsController {
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
       biolinkTemplatesEnabled:
         await this.settingsService.getBiolinkTemplatesEnabled(),
+      siteTheme: await this.settingsService.getSiteTheme(),
       features: await this.settingsService.getFeatureFlags(),
       featureVisibility: await this.settingsService.getFeatureVisibility(),
       hiddenNavHrefs: await this.settingsService.getHiddenNavHrefs(),
@@ -249,6 +266,7 @@ export class AdminSettingsController {
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
       biolinkTemplatesEnabled:
         await this.settingsService.getBiolinkTemplatesEnabled(),
+      siteTheme: await this.settingsService.getSiteTheme(),
       biolinkTemplateKeys: [...BIOLINK_TEMPLATE_KEYS],
       features: await this.settingsService.getFeatureFlags(),
       featureVisibility: await this.settingsService.getFeatureVisibility(),
@@ -268,6 +286,7 @@ export class AdminSettingsController {
       adminListPageSize?: number;
       myListPageSize?: number;
       biolinkTemplatesEnabled?: string[];
+      siteTheme?: SiteTheme;
       adminNotifications?: Record<AdminNotifyCategory, boolean>;
       allowBiolinkCreation?: boolean;
       allowBusinessCardCreation?: boolean;
@@ -289,6 +308,9 @@ export class AdminSettingsController {
       feedMaxImages?: number;
       feedMaxImageKb?: number;
     } = {};
+    if (dto.siteTheme !== undefined) {
+      result.siteTheme = await this.settingsService.setSiteTheme(dto.siteTheme);
+    }
     if (dto.directoryPageSize !== undefined) {
       result.directoryPageSize = await this.settingsService.setDirectoryPageSize(
         dto.directoryPageSize,

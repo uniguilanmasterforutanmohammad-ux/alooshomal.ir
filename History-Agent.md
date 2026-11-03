@@ -20,7 +20,59 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.99.4**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.100.0**.
+
+## ۱۴۰۵/۰۸/۱۲ — تم نوین سراسری + سوئیچ ظاهر در پنل مدیر — نسخه `v2.100.0`
+
+**هدف:** افزودن یک تم مدرن و استاندارد در کنار تم وینتیج فعلی، با امکان انتخاب
+سراسری از «تنظیمات ← ظاهر سایت»؛ اعمال روی همه‌ی صفحات عمومی، دایرکتوری‌ها،
+کارت ویزیت، بیولینک، داشبورد و پنل مدیر، با پشتیبانی کامل از حالت روشن/تیره و
+نمایش موبایل و تبلت.
+
+**تغییرات:**
+- `apps/api/src/settings/settings.service.ts`: افزودن ثابت‌های `SITE_THEME_KEY`،
+  `SITE_THEMES` و متدهای `getSiteTheme`/`setSiteTheme` (پیش‌فرض `vintage`).
+- `apps/api/src/settings/settings.controller.ts`: افزودن `siteTheme` به DTO با
+  `@ApiPropertyOptional`، خروجی عمومی `GET /settings/public`، خروجی مدیر و
+  `PATCH /admin/settings`.
+- `apps/web/lib/site-theme.ts`: نوع/گزینه‌های تم و خواندن سروری تم با
+  `revalidate` و tag.
+- `apps/web/app/layout.tsx`: نوشتن `data-theme` روی `<html>` از تنظیم سراسری و
+  `generateViewport` برای هم‌رنگ‌کردن نوار مرورگر.
+- `apps/web/components/admin/AdminAppearanceSettings.tsx`: کارت «ظاهر سایت» با
+  پیش‌نمایش دو تم و اعمال فوری.
+- `apps/web/app/admin/page.tsx`: قراردادن کارت ظاهر در تب «تنظیمات».
+- `apps/web/app/api/site-theme/route.ts`: پروکسی مدیر برای PATCH تم و باطل‌کردن
+  کش لایه‌ی ریشه (`revalidatePath`) تا تغییر فوری دیده شود.
+- `apps/web/app/globals.css`: لایه‌ی کامل تم «نوین» (توکن‌های نیلی، کارت‌های
+  سفید با گوشه‌ی نرم و سایه‌ی ملایم، هدر/فوتر/ناوبری موبایل، دکمه‌ها، فرم‌ها،
+  هیرو، اسلایدرها، کارت رکورد، کارت ویزیت، بنر تبلیغ، دفترچه تلفن، جدول‌ها و
+  حالت تیره)؛ همه با پیشوند `html[data-theme='modern']` تا تم وینتیج دست‌نخورده
+  بماند.
+- `apps/web/components/layout/Header.tsx`، `apps/web/components/layout/MobileNav.tsx`
+  و ۹ فایل دیگر دارای رنگ ثابت `#fbf3e9`: جایگزینی با `var(--vintage-surface)`
+  تا هر دو تم پوشش بگیرند.
+- `apps/web/components/ui/SocialInput.tsx`: پس‌زمینه‌ی ثابت ورودی شبکه‌های
+  اجتماعی به توکن تم تبدیل شد.
+- `docs/API.md`: مستندسازی `siteTheme` در قرارداد عمومی و مدیر.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web npm run typecheck` → بدون خطا.
+- `docker exec alooshomal-api npx tsc --noEmit` → بدون خطا.
+- `python3 scripts/check_api_docs.py` → «همه‌ی مسیرها summary دارند» (۲۳ کنترلر،
+  ۲۳۵ مسیر).
+- سوئیچ واقعی: ورود مدیر، `PATCH /admin/settings` با `{"siteTheme":"modern"}`،
+  سپس `GET /settings/public` و `GET /` هر دو `modern` را نشان دادند؛ بازگشت به
+  `vintage` هم بلافاصله در رندر سروری اعمال شد (بدون رگرسیون: پس‌زمینه‌ی کرم و
+  قاب‌های خط‌چین وینتیج حفظ شدند).
+- Playwright با `/usr/bin/google-chrome`: ۶۰ بارگذاری از ۱۰ صفحه‌ی کلیدی در
+  عرض‌های ۳۹۰/۷۶۸/۱۴۴۰ و هر دو حالت روشن/تیره → همه ۲۰۰، بدون سرریز افقی،
+  `data-theme="modern"`، قاب‌های solid؛ همچنین `/dashboard`، `/dashboard/profile`
+  و `/admin` در همان سه عرض و دو حالت → همه پاس.
+- جابه‌جایی تم از داخل پنل ادمین با Playwright: پیام موفقیت و تغییر فوری
+  `data-theme` به `modern`/`vintage` تأیید شد.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق (`patched: 0`,
+  `added: 0`).
 
 ## ۱۴۰۵/۰۸/۰۳ — دو ستونه‌کردن کاشی‌های کارت ویزیت در موبایل — نسخه `v2.99.4`
 

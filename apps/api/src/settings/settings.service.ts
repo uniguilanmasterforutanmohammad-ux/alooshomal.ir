@@ -192,6 +192,24 @@ export const BIOLINK_TEMPLATES_ENABLED_KEY = 'biolinkTemplatesEnabled';
 export const DEFAULT_BIOLINK_TEMPLATES_ENABLED: string[] = [...BIOLINK_TEMPLATE_KEYS];
 
 // ---------------------------------------------------------------------------
+//  Site-wide visual theme («تم سایت»)
+// ---------------------------------------------------------------------------
+
+/**
+ * Which site-wide design the public web app renders:
+ *   - `vintage` — the original cream/terracotta «record» look (default);
+ *   - `modern`  — the clean, card-based «نوین» look with light/dark modes.
+ *
+ * This is a global setting (not per-visitor): the admin switches it once from
+ * «تنظیمات ← ظاهر سایت» and every page follows. Dark/light stays a per-visitor
+ * preference handled client-side.
+ */
+export const SITE_THEME_KEY = 'siteTheme';
+export const SITE_THEMES = ['vintage', 'modern'] as const;
+export type SiteTheme = (typeof SITE_THEMES)[number];
+export const DEFAULT_SITE_THEME: SiteTheme = 'vintage';
+
+// ---------------------------------------------------------------------------
 //  Unified user-facing feature switches («کلیدهای ویژگی»)
 // ---------------------------------------------------------------------------
 
@@ -704,6 +722,29 @@ export class SettingsService implements OnModuleInit {
       create: { key: BIOLINK_TEMPLATES_ENABLED_KEY, value },
     });
     return this.getBiolinkTemplatesEnabled();
+  }
+
+  /** The site-wide visual theme the admin picked (see `SITE_THEMES`). */
+  async getSiteTheme(): Promise<SiteTheme> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: SITE_THEME_KEY },
+    });
+    const value = setting?.value as SiteTheme | undefined;
+    return value && (SITE_THEMES as readonly string[]).includes(value)
+      ? value
+      : DEFAULT_SITE_THEME;
+  }
+
+  async setSiteTheme(theme: SiteTheme): Promise<SiteTheme> {
+    const value = (SITE_THEMES as readonly string[]).includes(theme)
+      ? theme
+      : DEFAULT_SITE_THEME;
+    await this.prisma.setting.upsert({
+      where: { key: SITE_THEME_KEY },
+      update: { value },
+      create: { key: SITE_THEME_KEY, value },
+    });
+    return value as SiteTheme;
   }
 
   async getAdminListPageSize(): Promise<number> {

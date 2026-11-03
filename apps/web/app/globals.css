@@ -3369,3 +3369,758 @@ html.dark .blt { box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); }
     display: block;
   }
 }
+
+/* =====================================================================
+   «نوین» — the modern site theme
+   ---------------------------------------------------------------------
+   Selected by the admin (`siteTheme`) and written on
+   `<html data-theme="modern">` by the root layout. Everything here is scoped
+   to that attribute, so the original «وینتیج» design is untouched.
+
+   Design language: a calm slate canvas, white cards with one-pixel borders,
+   soft tinted shadows, generous 12–20px radii, an indigo→violet accent and
+   gradient identity panels. Dark mode reuses the same structure with a deep
+   navy canvas. Mobile and tablet keep the same primitives at smaller scale.
+   ===================================================================== */
+
+html[data-theme='modern'] {
+  color-scheme: light;
+  --vintage-paper: #f4f6fb;
+  --vintage-surface: #ffffff;
+  --vintage-ring: #e0e7ff;
+  --vintage-accent: #4f46e5;
+  --vintage-accent-dark: #4338ca;
+  --vintage-accent-hover: #6366f1;
+  --vintage-ink: #0f172a;
+  --vintage-ink-soft: #64748b;
+  --vintage-border: #e2e8f0;
+  --vintage-radius: 16px;
+  --indeed-blue-light: #eef2ff;
+  --modern-shadow: 0 1px 2px rgba(15, 23, 42, 0.04),
+    0 18px 40px -28px rgba(30, 41, 59, 0.35);
+  --modern-shadow-lg: 0 2px 4px rgba(15, 23, 42, 0.04),
+    0 30px 60px -30px rgba(30, 41, 59, 0.42);
+}
+
+html[data-theme='modern'].dark {
+  color-scheme: dark;
+  --vintage-paper: #070b16;
+  --vintage-surface: #0e1729;
+  --vintage-ring: #1e293b;
+  --vintage-accent: #818cf8;
+  --vintage-accent-dark: #a5b4fc;
+  --vintage-accent-hover: #6366f1;
+  --vintage-ink: #e6ecf7;
+  --vintage-ink-soft: #94a3b8;
+  --vintage-border: #1e293b;
+  --indeed-blue-light: #131f38;
+  --modern-shadow: 0 1px 2px rgba(0, 0, 0, 0.3),
+    0 18px 40px -28px rgba(0, 0, 0, 0.65);
+  --modern-shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.35),
+    0 34px 64px -32px rgba(0, 0, 0, 0.8);
+}
+
+/* ---- canvas + typography ---- */
+html[data-theme='modern'] body {
+  font-family: 'Shabnam', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color: var(--vintage-ink);
+  line-height: 1.8;
+  background-color: var(--vintage-paper);
+  background-image:
+    radial-gradient(58rem 38rem at 100% -12%, rgba(99, 102, 241, 0.13), transparent 62%),
+    radial-gradient(46rem 30rem at -8% 12%, rgba(14, 165, 233, 0.1), transparent 60%);
+  background-attachment: fixed;
+}
+
+html[data-theme='modern'].dark body {
+  background-image:
+    radial-gradient(58rem 38rem at 100% -12%, rgba(99, 102, 241, 0.2), transparent 62%),
+    radial-gradient(46rem 30rem at -8% 12%, rgba(56, 189, 248, 0.08), transparent 60%);
+}
+
+/* Hide the brick-wall texture of the classic theme. */
+html[data-theme='modern'] body::before {
+  display: none;
+}
+
+html[data-theme='modern'] ::selection {
+  background: rgba(99, 102, 241, 0.24);
+}
+
+html[data-theme='modern'] h1,
+html[data-theme='modern'] h2,
+html[data-theme='modern'] h3 {
+  letter-spacing: -0.01em;
+}
+
+/* The classic skin draws dashed 2px rules everywhere. Normalise them to the
+   modern system's thin solid hairlines without touching each component. */
+html[data-theme='modern'] [class*='border-dashed'] {
+  border-style: solid;
+}
+
+html[data-theme='modern'] [class*='border-b-2'] {
+  border-bottom-width: 1px;
+}
+
+html[data-theme='modern'] [class*='border-t-2'] {
+  border-top-width: 1px;
+}
+
+html[data-theme='modern'] [class*='border-l-2'] {
+  border-left-width: 1px;
+}
+
+/* ---- top chrome ---- */
+html[data-theme='modern'] header.sticky {
+  background-color: color-mix(in srgb, var(--vintage-surface) 88%, transparent);
+  border-bottom: 1px solid var(--vintage-border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+html[data-theme='modern'].dark header.sticky {
+  background-color: color-mix(in srgb, var(--vintage-surface) 86%, transparent);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+html[data-theme='modern'] header.bg-white {
+  background-color: var(--vintage-surface);
+}
+
+html[data-theme='modern'] nav[aria-label='ناوبری پایین'] {
+  background-color: color-mix(in srgb, var(--vintage-surface) 90%, transparent);
+  border-top: 1px solid var(--vintage-border);
+  box-shadow: 0 -10px 30px -22px rgba(15, 23, 42, 0.45);
+}
+
+html[data-theme='modern'].dark nav[aria-label='ناوبری پایین'] {
+  background-color: color-mix(in srgb, var(--vintage-surface) 92%, transparent);
+  border-top-color: var(--vintage-border);
+}
+
+/* ---- footer: deep navy → indigo panel ---- */
+html[data-theme='modern'] footer.site-footer {
+  margin-top: 3rem;
+  border-radius: 28px 28px 0 0;
+  background-color: #0f172a;
+  background-image:
+    radial-gradient(40rem 20rem at 85% 0%, rgba(99, 102, 241, 0.4), transparent 60%),
+    linear-gradient(135deg, #111c33 0%, #1e1b4b 55%, #172554 100%);
+  box-shadow: 0 -30px 60px -48px rgba(15, 23, 42, 0.9);
+}
+
+html[data-theme='modern'].dark footer.site-footer {
+  background-image:
+    radial-gradient(40rem 20rem at 85% 0%, rgba(99, 102, 241, 0.28), transparent 60%),
+    linear-gradient(135deg, #0b1222 0%, #171436 55%, #101c36 100%);
+}
+
+html[data-theme='modern'] footer.site-footer .bg-white {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #c7d2fe;
+}
+
+html[data-theme='modern'] footer.site-footer a.bg-white,
+html[data-theme='modern'] footer.site-footer .bg-white.text-brand {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #e0e7ff;
+}
+
+html[data-theme='modern'].dark footer.site-footer .bg-white {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #c7d2fe;
+}
+
+/* ---- form controls ---- */
+html[data-theme='modern'] .indeed-input,
+html[data-theme='modern'] .rich-editor {
+  border: 1px solid var(--vintage-border);
+  border-radius: 12px;
+  background: var(--vintage-surface);
+  color: var(--vintage-ink);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+html[data-theme='modern'] .indeed-input::placeholder {
+  color: var(--vintage-ink-soft);
+  opacity: 0.75;
+}
+
+html[data-theme='modern'] .indeed-input:focus {
+  border-color: var(--vintage-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--vintage-accent) 18%, transparent);
+}
+
+html[data-theme='modern'] input,
+html[data-theme='modern'] select,
+html[data-theme='modern'] textarea {
+  color: var(--vintage-ink);
+}
+
+/* ---- buttons: solid gradient primary, soft surface secondary ---- */
+html[data-theme='modern'] .indeed-btn {
+  gap: 8px;
+  border-radius: 12px;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+html[data-theme='modern'] .indeed-btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--vintage-accent) 45%, transparent);
+  outline-offset: 2px;
+}
+
+html[data-theme='modern'] .indeed-btn-primary,
+html[data-theme='modern'] button[type='submit'].indeed-btn-primary,
+html[data-theme='modern'] form button[type='submit'].indeed-btn,
+html[data-theme='modern'] .home-hero button[type='submit'] {
+  color: #ffffff;
+  border-color: transparent;
+  background-color: var(--vintage-accent);
+  background-image: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #4f46e5 100%);
+  box-shadow: 0 10px 24px -14px rgba(79, 70, 229, 0.85);
+}
+
+html[data-theme='modern'] .indeed-btn-primary:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px -14px rgba(79, 70, 229, 0.9);
+}
+
+html[data-theme='modern'] .indeed-btn-secondary {
+  background: var(--vintage-surface);
+  color: var(--vintage-ink);
+  border-color: var(--vintage-border);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+html[data-theme='modern'] .indeed-btn-secondary:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 8%, var(--vintage-surface));
+  border-color: color-mix(in srgb, var(--vintage-accent) 45%, var(--vintage-border));
+  color: var(--vintage-accent-dark);
+  transform: translateY(-1px);
+}
+
+html[data-theme='modern'] .indeed-btn:disabled {
+  background: var(--vintage-paper);
+  background-image: none;
+  border-color: var(--vintage-border);
+  color: color-mix(in srgb, var(--vintage-ink-soft) 75%, transparent);
+  box-shadow: none;
+}
+
+html[data-theme='modern'].dark .indeed-btn-primary,
+html[data-theme='modern'].dark button[type='submit'].indeed-btn-primary,
+html[data-theme='modern'].dark form button[type='submit'].indeed-btn,
+html[data-theme='modern'].dark .home-hero button[type='submit'] {
+  color: #0b1020;
+  border-color: transparent;
+  background-color: #818cf8;
+  background-image: linear-gradient(135deg, #818cf8 0%, #a78bfa 55%, #818cf8 100%);
+  box-shadow: 0 12px 28px -16px rgba(129, 140, 248, 0.7);
+}
+
+html[data-theme='modern'].dark .indeed-btn-secondary {
+  background: color-mix(in srgb, var(--vintage-surface) 82%, #ffffff);
+  color: var(--vintage-ink);
+  border-color: var(--vintage-border);
+}
+
+html[data-theme='modern'].dark .indeed-btn-secondary:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 16%, var(--vintage-surface));
+  color: var(--vintage-accent-dark);
+}
+
+/* ---- surfaces ---- */
+html[data-theme='modern'] .indeed-panel {
+  background: var(--vintage-surface);
+  border: 1px solid var(--vintage-border);
+  border-radius: 18px;
+  box-shadow: var(--modern-shadow);
+}
+
+html[data-theme='modern'] .vintage-frame {
+  border: 1px solid var(--vintage-border);
+  border-radius: var(--vintage-radius);
+}
+
+html[data-theme='modern'] .vintage-avatar {
+  border: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6 55%, #06b6d4);
+  box-shadow: 0 8px 20px -12px rgba(79, 70, 229, 0.9);
+  color: #fff;
+}
+
+html[data-theme='modern'] .inline-edit:hover {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--vintage-accent) 30%, transparent);
+}
+
+html[data-theme='modern'] .inline-edit:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--vintage-accent) 45%, transparent);
+}
+
+/* ---- status badges ---- */
+html[data-theme='modern'] .badge-open {
+  color: #047857;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+html[data-theme='modern'] .badge-progress {
+  color: #b45309;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+html[data-theme='modern'] .badge-closed {
+  color: #be123c;
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+html[data-theme='modern'].dark .badge-open {
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+html[data-theme='modern'].dark .badge-progress {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+html[data-theme='modern'].dark .badge-closed {
+  color: #fda4af;
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.35);
+}
+
+/* ---- home hero ---- */
+html[data-theme='modern'] .home-hero {
+  border-radius: 0 0 36px 36px;
+  background-color: #4338ca;
+  background-image:
+    radial-gradient(60% 80% at 12% 18%, rgba(56, 189, 248, 0.32), transparent 62%),
+    radial-gradient(52% 72% at 88% 4%, rgba(167, 139, 250, 0.5), transparent 60%),
+    linear-gradient(150deg, #4338ca 0%, #5b21b6 52%, #1e3a8a 100%);
+  box-shadow: 0 34px 70px -46px rgba(49, 46, 129, 0.9);
+}
+
+html[data-theme='modern'] .home-hero-brick::before,
+html[data-theme='modern'] .home-hero-brick::after {
+  display: none;
+}
+
+html[data-theme='modern'] .home-hero form[role='search'] {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 26px 50px -26px rgba(15, 23, 42, 0.65);
+}
+
+html[data-theme='modern'].dark .home-hero form[role='search'] {
+  background: rgba(14, 23, 41, 0.94);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-theme='modern'] .home-hero .indeed-btn {
+  border-radius: 9999px;
+  border-color: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  backdrop-filter: blur(8px);
+}
+
+html[data-theme='modern'] .home-hero .indeed-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+html[data-theme='modern'] .home-section-frame {
+  padding: 20px;
+  border: 1px solid var(--vintage-border);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--vintage-surface) 92%, transparent);
+  box-shadow: var(--modern-shadow);
+}
+
+html[data-theme='modern'] .home-section-frame::before {
+  display: none;
+}
+
+html[data-theme='modern'] .spectrum-arrow {
+  width: 38px;
+  height: 38px;
+  border-radius: 9999px;
+  background: var(--vintage-surface);
+  border: 1px solid var(--vintage-border);
+  color: var(--vintage-accent);
+  box-shadow: var(--modern-shadow);
+}
+
+html[data-theme='modern'] .spectrum-dot {
+  background: color-mix(in srgb, var(--vintage-ink-soft) 30%, transparent);
+}
+
+html[data-theme='modern'] .spectrum-dot[aria-current='true'] {
+  background: var(--vintage-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--vintage-accent) 18%, transparent);
+}
+
+/* ---- directory view switch ---- */
+html[data-theme='modern'] .directory-view-switch {
+  padding: 4px;
+  border: 1px solid var(--vintage-border);
+  border-radius: 12px;
+  background: var(--vintage-surface);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+html[data-theme='modern'] .directory-view-switch button {
+  border-radius: 9px;
+  padding: 7px 13px;
+}
+
+html[data-theme='modern'] .directory-view-switch button[aria-pressed='true'] {
+  background: var(--vintage-accent);
+  color: #ffffff;
+  box-shadow: 0 6px 14px -8px rgba(79, 70, 229, 0.9);
+}
+
+/* ---- public record card (biolink / business card classic view) ---- */
+html[data-theme='modern'] .record-page {
+  color: var(--vintage-ink);
+}
+
+html[data-theme='modern'] .record-card {
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid var(--vintage-border);
+  border-radius: 22px;
+  background: var(--vintage-surface);
+  box-shadow: var(--modern-shadow-lg);
+}
+
+html[data-theme='modern'] .record-head {
+  gap: 16px;
+  padding: 18px;
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--record-accent) 92%, #000000) 0%,
+    var(--record-accent) 55%,
+    color-mix(in srgb, var(--record-accent) 55%, #7c3aed) 100%
+  );
+  box-shadow: 0 18px 36px -24px color-mix(in srgb, var(--record-accent) 85%, transparent);
+}
+
+html[data-theme='modern'] .record-head::after {
+  display: none;
+}
+
+html[data-theme='modern'] .record-avatar {
+  border: 3px solid rgba(255, 255, 255, 0.55);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.7);
+}
+
+html[data-theme='modern'] .record-name {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme='modern'] .record-chip {
+  padding: 6px 13px;
+  border: 1px solid var(--vintage-border);
+  background: color-mix(in srgb, var(--record-accent) 6%, var(--vintage-surface));
+  font-size: 11.5px;
+}
+
+html[data-theme='modern'] .record-bio {
+  font-size: 13.5px;
+  line-height: 1.95;
+  color: var(--vintage-ink-soft);
+}
+
+html[data-theme='modern'] .record-rows {
+  border-top: 1px solid var(--vintage-border);
+  border-bottom: 0;
+}
+
+html[data-theme='modern'] .record-rows > li + li {
+  border-top: 1px solid var(--vintage-border);
+}
+
+html[data-theme='modern'] .record-row {
+  gap: 12px;
+  padding: 11px 8px;
+  border-radius: 10px;
+}
+
+html[data-theme='modern'] a.record-row:hover {
+  background: color-mix(in srgb, var(--record-accent) 7%, transparent);
+}
+
+html[data-theme='modern'] .record-row-icon {
+  width: 30px;
+  height: 30px;
+  padding: 7px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--record-accent) 10%, transparent);
+  color: var(--record-accent);
+}
+
+html[data-theme='modern'] .record-row-label {
+  min-width: 70px;
+  font-size: 11.5px;
+  color: var(--vintage-ink-soft);
+}
+
+html[data-theme='modern'] .record-social {
+  border-radius: 12px;
+  border: 1px solid var(--vintage-border);
+  background: var(--vintage-paper);
+  font-weight: 700;
+}
+
+html[data-theme='modern'] .record-social:hover {
+  border-color: color-mix(in srgb, var(--record-accent) 55%, var(--vintage-border));
+  background: color-mix(in srgb, var(--record-accent) 8%, var(--vintage-surface));
+  color: var(--record-accent);
+}
+
+html[data-theme='modern'] .record-pill {
+  border: 1px solid var(--vintage-border);
+  background: var(--vintage-surface);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+html[data-theme='modern'] .record-panel {
+  border: 1px solid var(--vintage-border);
+  background: var(--vintage-surface);
+  border-radius: 16px;
+  box-shadow: var(--modern-shadow);
+}
+
+/* ---- public business-card face ---- */
+html[data-theme='modern'] .bizcard {
+  border: 1px solid var(--vintage-border);
+  border-radius: 24px;
+  background: var(--vintage-surface);
+  box-shadow: var(--modern-shadow-lg);
+}
+
+html[data-theme='modern'] .bizcard-side {
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(255, 255, 255, 0.22), transparent 55%),
+    linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--bizcard-accent) 90%, #000000) 0%,
+      var(--bizcard-accent) 55%,
+      color-mix(in srgb, var(--bizcard-accent) 55%, #6d28d9) 100%
+    );
+}
+
+html[data-theme='modern'] .bizcard-side::after {
+  display: none;
+}
+
+html[data-theme='modern'] .bizcard-avatar {
+  border: 3px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 14px 30px -16px rgba(0, 0, 0, 0.8);
+}
+
+html[data-theme='modern'] .bizcard-tag {
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(6px);
+}
+
+html[data-theme='modern'] .bizcard-main {
+  background: var(--vintage-surface);
+}
+
+html[data-theme='modern'] .bizcard-rows > li + li {
+  border-top: 1px solid var(--vintage-border);
+}
+
+html[data-theme='modern'] .bizcard-row {
+  padding: 10px 8px;
+  border-radius: 10px;
+}
+
+html[data-theme='modern'] a.bizcard-row:hover {
+  background: color-mix(in srgb, var(--bizcard-accent) 7%, transparent);
+}
+
+html[data-theme='modern'] .bizcard-row-icon {
+  width: 30px;
+  height: 30px;
+  padding: 7px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bizcard-accent) 10%, transparent);
+  color: var(--bizcard-accent);
+}
+
+html[data-theme='modern'] .bizcard-bio {
+  color: var(--vintage-ink-soft);
+}
+
+html[data-theme='modern'] .bizcard-social {
+  border: 1px solid var(--vintage-border);
+  background: var(--vintage-paper);
+  color: var(--bizcard-accent);
+}
+
+html[data-theme='modern'] .bizcard-social:hover {
+  border-color: color-mix(in srgb, var(--bizcard-accent) 55%, var(--vintage-border));
+  background: color-mix(in srgb, var(--bizcard-accent) 10%, var(--vintage-surface));
+  transform: translateY(-2px);
+}
+
+/* ---- home ad banner ---- */
+html[data-theme='modern'] .ad-banner {
+  border: 1px solid var(--vintage-border);
+  border-inline-start: 4px solid var(--ad-accent);
+  border-radius: 18px;
+  background-color: var(--vintage-surface);
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ad-accent) 7%, transparent),
+    transparent 55%
+  );
+  box-shadow: var(--modern-shadow);
+}
+
+html[data-theme='modern'] .ad-banner:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--modern-shadow-lg);
+}
+
+html[data-theme='modern'] .ad-banner-media {
+  border: 0;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ad-accent) 15%, transparent);
+}
+
+html[data-theme='modern'] .ad-banner-cta {
+  border-radius: 12px;
+  box-shadow: 0 10px 22px -14px color-mix(in srgb, var(--ad-accent) 85%, transparent);
+}
+
+/* ---- admin / dashboard chrome ---- */
+html[data-theme='modern'] .admin-sidebar,
+html[data-theme='modern'] aside[class*='border-l-2'] {
+  border-left: 1px solid var(--vintage-border);
+  background: var(--vintage-surface);
+  box-shadow: -10px 0 40px -34px rgba(15, 23, 42, 0.55);
+}
+
+html[data-theme='modern'] aside a[class*='border-brand'],
+html[data-theme='modern'] aside button[class*='border-brand'] {
+  border-radius: 10px;
+}
+
+html[data-theme='modern'] .dash-table thead tr,
+html[data-theme='modern'] table thead tr {
+  border-color: var(--vintage-border);
+}
+
+html[data-theme='modern'] .dash-table tbody tr:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 5%, transparent);
+}
+
+/* ---- feed / blog / rich text ---- */
+html[data-theme='modern'] .rich-editor-toolbar {
+  border-bottom: 1px solid var(--vintage-border);
+  background: var(--vintage-paper);
+  border-radius: 12px 12px 0 0;
+}
+
+html[data-theme='modern'] .rich-editor-btn {
+  border-radius: 8px;
+}
+
+html[data-theme='modern'] .feed-rich a,
+html[data-theme='modern'] .blog-rich a {
+  color: var(--vintage-accent);
+}
+
+html[data-theme='modern'] .blog-rich blockquote,
+html[data-theme='modern'] .feed-rich blockquote {
+  border-inline-start: 3px solid var(--vintage-accent);
+  background: color-mix(in srgb, var(--vintage-accent) 5%, transparent);
+  border-radius: 0 12px 12px 0;
+}
+
+/* ---- phonebook («دفترچه تلفن») keeps its ruled-sheet metaphor, modernised ---- */
+html[data-theme='modern'] .notebook-paper {
+  border: 1px solid var(--vintage-border);
+  border-radius: 18px;
+  background-color: var(--vintage-surface);
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent 0 46px,
+      color-mix(in srgb, var(--vintage-accent) 28%, transparent) 46px 47px,
+      transparent 47px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0 47px,
+      color-mix(in srgb, var(--vintage-border) 75%, transparent) 47px 48px
+    );
+  box-shadow: var(--modern-shadow);
+}
+
+html[data-theme='modern'] .notebook-paper::before {
+  display: none;
+}
+
+html[data-theme='modern'] .notebook-tab {
+  border-radius: 8px;
+}
+
+/* ---- scrollbars ---- */
+html[data-theme='modern'] .card-public-scroll,
+html[data-theme='modern'] .directory-shell .directory-list {
+  scrollbar-color: var(--vintage-border) transparent;
+}
+
+/* ---- touch comfort on phones/tablets ---- */
+@media (max-width: 1023px) {
+  html[data-theme='modern'] .indeed-btn {
+    min-height: 42px;
+  }
+
+  html[data-theme='modern'] .record-card {
+    padding: 16px;
+    gap: 14px;
+  }
+
+  html[data-theme='modern'] .record-head {
+    padding: 15px;
+  }
+
+  html[data-theme='modern'] .record-social {
+    min-height: 44px;
+  }
+
+  html[data-theme='modern'] .bizcard-compact .bizcard-main,
+  html[data-theme='modern'] .bizcard-main {
+    padding: 18px;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  html[data-theme='modern'] .record-card {
+    padding: 24px;
+  }
+
+  html[data-theme='modern'] .home-section-frame {
+    padding: 22px;
+  }
+}

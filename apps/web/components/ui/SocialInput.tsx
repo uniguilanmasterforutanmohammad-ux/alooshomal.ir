@@ -23,7 +23,7 @@ export function SocialInput({ field, value, onChange }: Props) {
   return (
     <label className="flex flex-col gap-1.5">
       <span className="text-sm font-bold text-ink">{spec.label}</span>
-      <span className="flex items-stretch overflow-hidden rounded-[var(--vintage-radius)] border border-[var(--vintage-border)] bg-[#fffaf2] transition focus-within:border-brand focus-within:shadow-[0_0_0_3px_rgba(139,58,26,0.15)]">
+      <span className="flex items-stretch overflow-hidden rounded-[var(--vintage-radius)] border border-[var(--vintage-border)] bg-[var(--vintage-surface)] transition focus-within:border-brand focus-within:shadow-[0_0_0_3px_rgba(139,58,26,0.15)]">
         <span
           dir="ltr"
           className="flex select-none items-center whitespace-nowrap border-e border-[var(--vintage-border)] bg-[var(--vintage-paper)] px-2.5 text-xs font-bold text-muted"

@@ -139,7 +139,7 @@ export function UsersTable({
       <div className="overflow-x-auto">
         <table className="w-full text-right text-sm">
           <thead>
-            <tr className="bg-[#fbf3e9] text-xs text-muted">
+            <tr className="bg-[var(--vintage-surface)] text-xs text-muted">
               <th className="px-4 py-2.5 font-bold">نام</th>
               <th className="px-4 py-2.5 font-bold">ایمیل</th>
               <th className="px-4 py-2.5 font-bold">نقش</th>
@@ -330,7 +330,7 @@ export function TicketsTable({
       <div className="overflow-x-auto">
         <table className="w-full text-right text-sm">
           <thead>
-            <tr className="bg-[#fbf3e9] text-xs text-muted">
+            <tr className="bg-[var(--vintage-surface)] text-xs text-muted">
               <th className="px-4 py-2.5 font-bold">موضوع</th>
               <th className="px-4 py-2.5 font-bold">کاربر</th>
               <th className="px-4 py-2.5 font-bold">وضعیت</th>
@@ -427,7 +427,7 @@ export function ReportsTable({
       <div className="overflow-x-auto">
         <table className="w-full text-right text-sm">
           <thead>
-            <tr className="bg-[#fbf3e9] text-xs text-muted">
+            <tr className="bg-[var(--vintage-surface)] text-xs text-muted">
               <th className="px-4 py-2.5 font-bold">عنوان گزارش</th>
               <th className="px-4 py-2.5 font-bold">تاریخ تولید</th>
               <th className="px-4 py-2.5 font-bold">وضعیت</th>

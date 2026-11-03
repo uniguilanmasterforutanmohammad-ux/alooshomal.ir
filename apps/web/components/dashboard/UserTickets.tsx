@@ -113,7 +113,7 @@ export function CreateTicketDialog({ open, onClose, onCreated }: CreateProps) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <form
         onSubmit={submit}
-        className="indeed-panel w-full max-w-lg overflow-hidden bg-[#fbf3e9]"
+        className="indeed-panel w-full max-w-lg overflow-hidden bg-[var(--vintage-surface)]"
       >
         <div className="flex items-center justify-between border-b-2 border-dashed border-[var(--vintage-accent-hover)] p-4">
           <div className="flex items-center gap-2">

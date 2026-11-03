@@ -161,7 +161,7 @@ export function BiolinkLiveEditor({
         />
       </div>
 
-      <div className="sticky bottom-0 flex flex-wrap gap-3 border-t-2 border-dashed border-[var(--vintage-accent-hover)] bg-[#fbf3e9] p-4">
+      <div className="sticky bottom-0 flex flex-wrap gap-3 border-t-2 border-dashed border-[var(--vintage-accent-hover)] bg-[var(--vintage-surface)] p-4">
         <button
           onClick={() => moderate('APPROVED')}
           disabled={moderating}
