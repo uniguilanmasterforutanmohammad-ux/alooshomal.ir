@@ -82,7 +82,9 @@ export function HomeHeadline() {
       className="flex flex-wrap items-center justify-center gap-x-2 text-3xl font-extrabold leading-snug md:text-4xl"
       aria-label="با شمالی کارت کارت ویزیت دیجیتال یا بیولینک حرفه‌ای بساز"
     >
-      <span aria-hidden>{PREFIX}</span>
+      <span aria-hidden className="home-hero-prefix">
+        {PREFIX}
+      </span>
       <span aria-hidden className="inline-grid text-start">
         {/* Invisible spacer: reserves the width of the longest phrase (+caret). */}
         <span className="invisible col-start-1 row-start-1 whitespace-nowrap">

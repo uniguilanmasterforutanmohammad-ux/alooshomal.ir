@@ -672,23 +672,51 @@ header.bg-white {
   display: none;
 }
 
-/* ---- Home hero: fills the first viewport on every device ----
-   Phones/tablets have the fixed bottom nav (56px) instead of the top header;
-   desktop shows the 66px sticky header. The hero reserves exactly that chrome
-   so only the coloured background, the city line, the search box and its two
-   buttons are visible before any scrolling. */
+/* ---- Home hero ----
+   The home page is a one-screen flex column (`home-shell` in `app/page.tsx`):
+   the shell reserves exactly the height left by the fixed bottom nav
+   (phones/tablets) or the sticky 66px header (desktop), and the hero grows into
+   the leftover height after the invitation box and the footer. So the whole
+   page lands in a single viewport instead of the hero pushing it past it. */
 .home-hero {
-  min-height: calc(100dvh - 56px - env(safe-area-inset-bottom));
+  /* `flex-shrink: 0` keeps the hero at least as tall as its own content —
+     `overflow: hidden` otherwise zeroes its automatic minimum size and the
+     search box could be clipped on very short screens. */
+  flex: 1 0 auto;
   display: flex;
   align-items: center;
   position: relative;
   overflow: hidden;
 }
 
-@media (min-width: 1024px) {
-  .home-hero {
-    min-height: calc(100dvh - 66px);
-  }
+/* «با شمالی کارت» — the fixed half of the animated home headline, marked with a
+   soft highlight so it reads as the brand wrapper around the typing phrase. */
+.home-hero-prefix {
+  padding-inline: 0.5rem;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+
+html[data-theme='modern'] .home-hero-prefix {
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+/* Bazaar's hero is a cream canvas with forest ink, so the highlight borrows the
+   theme's sun-yellow (the same colour as its search button) for contrast. */
+html[data-theme='bazaar'] .home-hero-prefix {
+  background: #fbbf24;
+  color: #422006;
+  box-shadow: 0 3px 0 rgba(180, 83, 9, 0.4);
+}
+
+/* The themed footers carry a 3rem breathing gap; the one-screen home page has
+   no room for it (it would push the page just past the viewport on phones), so
+   the home shell keeps the footer tight. */
+html[data-theme] .home-shell footer.site-footer,
+.home-shell footer.site-footer {
+  margin-top: 0.5rem;
 }
 
 /* ---- Home «آخرین کارت‌ها/بیولینک‌ها» rail ----
@@ -4513,14 +4541,20 @@ html[data-theme='bazaar'] .home-hero form[role='search'] {
 }
 
 html[data-theme='bazaar'] .home-hero form[role='search'] button[type='submit'] {
-  margin: 4px;
-  height: calc(100% - 8px);
-  border-radius: 14px;
+  /* Same height as the search box: the button fills its row edge to edge and
+     the form's `overflow: hidden` + radius clip the outer corner. A percentage
+     height broke this (it resolved against a content-sized flex row → a ~16px
+     button), and the old 4px inset made it visibly shorter than the input. */
+  align-self: stretch;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  border-radius: 0;
   background-color: var(--bazaar-sun);
   color: #422006;
   font-weight: 800;
-  box-shadow: 0 4px 0 #b45309;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  box-shadow: none;
+  transition: background-color 0.12s ease;
 }
 
 html[data-theme='bazaar'] .home-hero form[role='search'] button[type='submit']:hover {
@@ -4528,8 +4562,7 @@ html[data-theme='bazaar'] .home-hero form[role='search'] button[type='submit']:h
 }
 
 html[data-theme='bazaar'] .home-hero form[role='search'] button[type='submit']:active {
-  transform: translateY(2px);
-  box-shadow: 0 2px 0 #b45309;
+  filter: brightness(0.94);
 }
 
 html[data-theme='bazaar'] .home-hero .indeed-btn {

@@ -1,6 +1,8 @@
 /**
- * Primary public navigation shown in the desktop header (horizontally) and the
- * footer (as a stacked column), so both stay in sync from one source.
+ * Primary public navigation. The desktop header renders it horizontally (minus
+ * the «دفترچه تلفن» deep-link, which is a second look of the business-card
+ * directory) and the mobile bottom bar mirrors its main destinations; the footer
+ * intentionally stays quiet and only carries the legal/support links.
  */
 export interface PublicNavItem {
   href: string;
