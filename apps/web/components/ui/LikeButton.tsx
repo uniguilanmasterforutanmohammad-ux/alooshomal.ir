@@ -20,6 +20,8 @@ interface Props {
   initialLiked?: boolean;
   /** compact pill used inside directory rows; large pill for public pages */
   size?: 'sm' | 'md';
+  /** `twitter` renders a borderless icon + count, like a social timeline */
+  variant?: 'pill' | 'twitter';
   /**
    * When the parent already has the *real* per-visitor liked state (e.g. a
    * directory row whose API response included `liked`), set this to `false` to
@@ -37,6 +39,7 @@ export function LikeButton({
   initialCount,
   initialLiked = false,
   size = 'sm',
+  variant = 'pill',
   reconcile = true,
 }: Props) {
   const router = useRouter();
@@ -121,17 +124,24 @@ export function LikeButton({
       disabled={busy}
       aria-pressed={liked}
       aria-label={liked ? 'برداشتن لایک' : 'لایک'}
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border font-bold transition',
-        size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-4 py-2 text-sm',
-        liked
-          ? 'border-red-200 bg-red-50 text-red-600'
-          : 'border-[var(--vintage-border)] text-muted hover:border-red-200 hover:text-red-500',
-        busy && 'opacity-70',
-      )}
+      className={
+        variant === 'twitter'
+          ? cn('tw-action', liked && 'tw-action-liked', busy && 'opacity-70')
+          : cn(
+              'inline-flex items-center gap-1.5 rounded-full border font-bold transition',
+              size === 'sm' ? 'px-2.5 py-1 text-xs' : 'px-4 py-2 text-sm',
+              liked
+                ? 'border-red-200 bg-red-50 text-red-600'
+                : 'border-[var(--vintage-border)] text-muted hover:border-red-200 hover:text-red-500',
+              busy && 'opacity-70',
+            )
+      }
     >
       <Heart
-        className={cn(size === 'sm' ? 'size-3.5' : 'size-4', liked && 'fill-current')}
+        className={cn(
+          variant === 'twitter' ? 'size-[18px]' : size === 'sm' ? 'size-3.5' : 'size-4',
+          liked && 'fill-current',
+        )}
         aria-hidden
       />
       <span>{count.toLocaleString('fa-IR')}</span>

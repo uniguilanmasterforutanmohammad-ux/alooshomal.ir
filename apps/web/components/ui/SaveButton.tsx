@@ -19,6 +19,8 @@ interface Props {
   initialSaved?: boolean;
   /** compact pill used inside directory rows; large pill for public pages */
   size?: 'sm' | 'md';
+  /** `twitter` renders a borderless icon button, like a social timeline */
+  variant?: 'pill' | 'twitter';
   /** optional callback so a parent list can remove the item from "saved" views */
   onToggled?: (saved: boolean) => void;
   /** render as a plain icon-only button (public pages) */
@@ -41,6 +43,7 @@ export function SaveButton({
   slug,
   initialSaved = false,
   size = 'sm',
+  variant = 'pill',
   onToggled,
   iconOnly,
   reconcile = false,
@@ -113,26 +116,39 @@ export function SaveButton({
       disabled={busy}
       aria-pressed={saved}
       aria-label={saved ? 'حذف از ذخیره‌شده‌ها' : 'ذخیره'}
-      className={cn(
-        'inline-flex items-center justify-center gap-1.5 rounded-full border font-bold transition',
-        iconOnly
-          ? size === 'sm'
-            ? 'size-8'
-            : 'size-10'
-          : size === 'sm'
-            ? 'px-2.5 py-1 text-xs'
-            : 'px-4 py-2 text-sm',
-        saved
-          ? 'border-amber-200 bg-amber-50 text-amber-600'
-          : 'border-[var(--vintage-border)] text-muted hover:border-amber-200 hover:text-amber-500',
-        busy && 'opacity-70',
-      )}
+      className={
+        variant === 'twitter'
+          ? cn('tw-action', saved && 'tw-action-saved', busy && 'opacity-70')
+          : cn(
+              'inline-flex items-center justify-center gap-1.5 rounded-full border font-bold transition',
+              iconOnly
+                ? size === 'sm'
+                  ? 'size-8'
+                  : 'size-10'
+                : size === 'sm'
+                  ? 'px-2.5 py-1 text-xs'
+                  : 'px-4 py-2 text-sm',
+              saved
+                ? 'border-amber-200 bg-amber-50 text-amber-600'
+                : 'border-[var(--vintage-border)] text-muted hover:border-amber-200 hover:text-amber-500',
+              busy && 'opacity-70',
+            )
+      }
     >
       <Bookmark
-        className={cn(size === 'sm' ? 'size-3.5' : 'size-4', saved && 'fill-current')}
+        className={cn(
+          variant === 'twitter'
+            ? 'size-[18px]'
+            : size === 'sm'
+              ? 'size-3.5'
+              : 'size-4',
+          saved && 'fill-current',
+        )}
         aria-hidden
       />
-      {iconOnly ? null : <span>{saved ? 'ذخیره شد' : 'ذخیره'}</span>}
+      {variant === 'twitter' || iconOnly ? null : (
+        <span>{saved ? 'ذخیره شد' : 'ذخیره'}</span>
+      )}
     </button>
   );
 }

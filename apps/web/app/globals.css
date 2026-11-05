@@ -5027,3 +5027,383 @@ html[data-theme='bazaar'] .bizcard-avatar {
     padding: 22px;
   }
 }
+
+/* =====================================================================
+   Twitter/X-style public feed (/feeds)
+   ---------------------------------------------------------------------
+   Desktop gets the familiar three columns (nav rail · 600px timeline ·
+   sidebar). Phones keep the site's fixed bottom bar and get a full-bleed
+   timeline with a sticky header whose search collapses into an icon.
+   All colours come from the theme tokens, so vintage / modern / bazaar and
+   dark mode keep working without per-theme overrides.
+   ===================================================================== */
+.tw-page {
+  max-width: 1260px;
+  margin-inline: auto;
+  padding-inline: 16px;
+}
+
+.tw-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.tw-rail,
+.tw-sidebar {
+  display: none;
+}
+
+.tw-main {
+  min-width: 0;
+  min-height: 100dvh;
+  border-inline: 1px solid var(--vintage-border);
+  background: var(--vintage-surface);
+}
+
+@media (max-width: 1023px) {
+  .tw-page {
+    max-width: none;
+    padding-inline: 0;
+  }
+
+  .tw-main {
+    min-height: 0;
+    border-inline: 0;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tw-page {
+    padding-inline: 24px;
+  }
+
+  .tw-layout {
+    grid-template-columns: 275px minmax(0, 600px) 350px;
+    justify-content: center;
+  }
+
+  .tw-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    position: sticky;
+    top: var(--feature-notice-h);
+    height: calc(100dvh - var(--feature-notice-h));
+    padding: 10px 8px 20px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+
+  .tw-sidebar {
+    display: block;
+    position: sticky;
+    top: var(--feature-notice-h);
+    height: calc(100dvh - var(--feature-notice-h));
+    overflow-y: auto;
+    padding: 12px 0 24px;
+    padding-inline-start: 24px;
+    scrollbar-width: thin;
+  }
+}
+
+/* Compact icon-only rail on smaller desktops, widening into labels later. */
+@media (min-width: 1024px) and (max-width: 1199px) {
+  .tw-layout {
+    grid-template-columns: 88px minmax(0, 600px) 320px;
+  }
+
+  .tw-rail-link {
+    justify-content: center;
+  }
+
+  .tw-rail-label,
+  .tw-rail-brand-text {
+    display: none;
+  }
+}
+
+.tw-rail-link {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 11px 14px;
+  border-radius: 9999px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--vintage-ink);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tw-rail-link:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 10%, transparent);
+}
+
+.tw-rail-link[aria-current='page'] {
+  color: var(--vintage-accent);
+}
+
+.tw-rail-link svg {
+  flex: none;
+}
+
+.tw-rail-cta {
+  align-self: stretch;
+}
+
+.tw-header {
+  position: sticky;
+  top: var(--feature-notice-h);
+  z-index: 30;
+  background: color-mix(in srgb, var(--vintage-surface) 88%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--vintage-border);
+}
+
+.tw-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 0 16px;
+}
+
+.tw-topic-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 0 16px 10px;
+  scrollbar-width: none;
+}
+
+.tw-topic-row::-webkit-scrollbar {
+  display: none;
+}
+
+.tw-topic-chip {
+  flex: none;
+  padding: 6px 14px;
+  border: 1px solid var(--vintage-border);
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--vintage-ink-soft);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.tw-topic-chip:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 10%, transparent);
+  color: var(--vintage-accent);
+}
+
+.tw-topic-chip[data-active='true'] {
+  background: var(--vintage-accent);
+  border-color: var(--vintage-accent);
+  color: #fff;
+}
+
+.tw-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 9999px;
+  color: var(--vintage-ink-soft);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tw-icon-btn:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 10%, transparent);
+  color: var(--vintage-accent);
+}
+
+.tw-composer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--vintage-border);
+}
+
+.tw-composer-prompt {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 18px;
+  border-radius: 9999px;
+  background: var(--vintage-paper);
+  color: var(--vintage-ink-soft);
+  font-size: 14px;
+  transition: background 0.15s ease;
+}
+
+.tw-composer-prompt:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 8%, var(--vintage-paper));
+}
+
+.tw-post {
+  display: flex;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--vintage-border);
+  transition: background 0.15s ease;
+}
+
+.tw-post:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 4%, transparent);
+}
+
+.tw-post-compact {
+  padding: 10px 12px;
+}
+
+.tw-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 9999px;
+  font-size: 17px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.tw-avatar-sm {
+  width: 40px;
+  height: 40px;
+  font-size: 15px;
+}
+
+.tw-avatar-me {
+  background: color-mix(in srgb, var(--vintage-accent) 14%, var(--vintage-surface));
+  color: var(--vintage-accent);
+}
+
+.tw-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 420px;
+  margin-top: 8px;
+}
+
+.tw-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--vintage-ink-soft);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tw-action:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 12%, transparent);
+  color: var(--vintage-accent);
+}
+
+.tw-action-liked,
+.tw-action-liked:hover {
+  color: #dc2626;
+}
+
+.tw-action-liked:hover {
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.tw-action-saved,
+.tw-action-saved:hover {
+  color: #d97706;
+}
+
+.tw-action-saved:hover {
+  background: rgba(217, 119, 6, 0.12);
+}
+
+.tw-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
+  background: var(--vintage-paper);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.tw-search:focus-within {
+  border-color: var(--vintage-accent);
+  background: var(--vintage-surface);
+}
+
+.tw-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+}
+
+.tw-search-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 9999px;
+  color: var(--vintage-ink-soft);
+}
+
+.tw-search-clear:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 12%, transparent);
+  color: var(--vintage-accent);
+}
+
+.tw-card {
+  overflow: hidden;
+  border: 1px solid var(--vintage-border);
+  border-radius: 16px;
+  background: var(--vintage-surface);
+}
+
+.tw-trend {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  width: 100%;
+  padding: 9px 16px;
+  text-align: start;
+  transition: background 0.15s ease;
+}
+
+.tw-trend:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 6%, transparent);
+}
+
+.tw-trend[data-active='true'] {
+  background: color-mix(in srgb, var(--vintage-accent) 9%, transparent);
+}
+
+.tw-card-more {
+  width: 100%;
+  padding: 12px 16px;
+  text-align: start;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--vintage-accent);
+  transition: background 0.15s ease;
+}
+
+.tw-card-more:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 6%, transparent);
+}
