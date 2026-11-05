@@ -11,15 +11,15 @@ interface Props {
 }
 
 /**
- * Pill-shaped search field used by the Twitter-style feed: once in the right
- * sidebar on desktop and once in the collapsible mobile header panel. It keeps
- * a local draft so typing does not fire a request per keystroke; the query is
- * applied on submit (Enter) or when the clear button is pressed.
+ * Pill-shaped search field used by the Twitter-style public pages: once in the
+ * right sidebar on desktop and once in the collapsible mobile header panel. It
+ * keeps a local draft so typing does not fire a request per keystroke; the
+ * query is applied on submit (Enter) or when the clear button is pressed.
  */
-export function FeedSearch({
+export function TwitterSearch({
   value,
   onSubmit,
-  placeholder = 'جستجو در پست‌ها',
+  placeholder = 'جستجو',
   autoFocus = false,
 }: Props) {
   const [draft, setDraft] = useState(value);
@@ -39,7 +39,7 @@ export function FeedSearch({
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         placeholder={placeholder}
-        aria-label="جستجوی پست‌ها"
+        aria-label={placeholder}
         autoFocus={autoFocus}
       />
       {draft ? (

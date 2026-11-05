@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 
 import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
 import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { BlogIndex } from '@/components/blog/BlogIndex';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
@@ -27,11 +26,5 @@ export default async function BlogPage() {
       </>
     );
   }
-  return (
-    <>
-      <Header />
-      <BlogIndex />
-      <Footer />
-    </>
-  );
+  return <BlogIndex />;
 }

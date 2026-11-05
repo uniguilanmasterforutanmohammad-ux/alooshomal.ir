@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -33,13 +34,21 @@ const ICONS: Record<string, typeof Home> = {
   '/rules': ScrollText,
 };
 
+interface Props {
+  /**
+   * Page-specific call-to-action rendered under the nav (the feed's «ثبت پست»,
+   * the news' reporter button, …). `TwitterShell` passes it through.
+   */
+  action?: ReactNode;
+}
+
 /**
- * Desktop navigation rail for the Twitter-style `/feeds` page. It replaces the
- * site header on this page (phones keep the fixed bottom bar), so the visitor
- * still has the brand, primary destinations, the composer shortcut and the
- * theme/auth controls — all in the familiar left-hand column.
+ * Desktop navigation rail for the Twitter-style public pages. It replaces the
+ * site header on those pages (phones keep the fixed bottom bar), so the visitor
+ * still has the brand, primary destinations, a call-to-action and the
+ * theme/auth controls in the familiar left-hand column.
  */
-export function FeedRail() {
+export function TwitterRail({ action }: Props) {
   const pathname = usePathname();
   const { token, hydrated } = useAuth();
   const { showNav } = useFeatures();
@@ -47,7 +56,7 @@ export function FeedRail() {
   const items = HEADER_NAV.filter((item) => showNav(item.href));
 
   return (
-    <aside className="tw-rail" aria-label="ناوبری فید">
+    <aside className="tw-rail" aria-label="ناوبری اصلی">
       <Link href="/" className="tw-rail-link tw-rail-brand">
         <span className="vintage-avatar flex size-11 shrink-0 items-center justify-center">
           <IdCard className="size-5" aria-hidden />
@@ -77,13 +86,7 @@ export function FeedRail() {
         })}
       </nav>
 
-      <Link
-        href="/dashboard/feeds"
-        className="indeed-btn indeed-btn-primary tw-rail-cta mt-4 justify-center rounded-full py-3 text-sm"
-      >
-        <PenLine className="size-5" aria-hidden />
-        <span className="tw-rail-label">ثبت پست</span>
-      </Link>
+      {action ? <div className="tw-rail-action">{action}</div> : null}
 
       <div className="mt-auto flex flex-col gap-1 pt-8">
         <Link

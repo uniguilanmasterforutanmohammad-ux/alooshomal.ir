@@ -5151,6 +5151,10 @@ html[data-theme='bazaar'] .bizcard-avatar {
   align-self: stretch;
 }
 
+.tw-rail-action {
+  margin-top: 12px;
+}
+
 .tw-header {
   position: sticky;
   top: var(--feature-notice-h);
@@ -5289,6 +5293,31 @@ html[data-theme='bazaar'] .bizcard-avatar {
   justify-content: space-between;
   max-width: 420px;
   margin-top: 8px;
+}
+
+/* News rows carry two actions (open · share); keep them together instead of
+   spreading them across the whole row like the feed's four-icon bar. */
+.tw-actions-start {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+/* Pagination / «بیشتر» footer of the list pages. */
+.tw-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px 16px;
+}
+
+/* Rounded media block used by the blog link cards. */
+.tw-media {
+  margin-top: 12px;
+  overflow: hidden;
+  border: 1px solid var(--vintage-border);
+  border-radius: 16px;
+  background: var(--vintage-paper);
 }
 
 .tw-action {

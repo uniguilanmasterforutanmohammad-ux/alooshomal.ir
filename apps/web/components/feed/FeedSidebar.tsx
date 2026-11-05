@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Hash, PenLine, TrendingUp } from 'lucide-react';
 
-import { FeedSearch } from '@/components/feed/FeedSearch';
+import { TwitterSearch } from '@/components/layout/TwitterSearch';
 import type { FeedTopic } from '@/lib/api';
 
 interface Props {
@@ -28,8 +28,12 @@ export function FeedSidebar({
   onSelectTopic,
 }: Props) {
   return (
-    <aside className="tw-sidebar" aria-label="جستجو و موضوع‌ها">
-      <FeedSearch value={searchValue} onSubmit={onSearch} />
+    <>
+      <TwitterSearch
+        value={searchValue}
+        onSubmit={onSearch}
+        placeholder="جستجو در پست‌ها"
+      />
 
       <section className="tw-card mt-4" aria-labelledby="tw-trends-title">
         <h2
@@ -98,6 +102,6 @@ export function FeedSidebar({
           خانه
         </Link>
       </nav>
-    </aside>
+    </>
   );
 }

@@ -9,44 +9,15 @@ import { LikeButton } from '@/components/ui/LikeButton';
 import { SaveButton } from '@/components/ui/SaveButton';
 import { FeedTagCard } from '@/components/feed/FeedTagCard';
 import { bodyToHtml, richTextPreview } from '@/lib/rich-text';
+import { faDateTime, faRelativeTime } from '@/lib/time';
 import { toast } from '@/lib/toast';
-import { cn } from '@/lib/utils';
+import { accentColor, cn } from '@/lib/utils';
 import type { FeedPost } from '@/lib/api';
 
 interface Props {
   post: FeedPost;
   /** tighter paddings/sizes for the saved-list or aside variants */
   compact?: boolean;
-}
-
-function faWhen(value: string) {
-  const date = new Date(value);
-  const minutes = Math.floor((Date.now() - date.getTime()) / 60_000);
-  if (minutes < 1) return 'همین حالا';
-  if (minutes < 60) return `${minutes.toLocaleString('fa-IR')} دقیقه`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours.toLocaleString('fa-IR')} ساعت`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days.toLocaleString('fa-IR')} روز`;
-  return date.toLocaleDateString('fa-IR');
-}
-
-/** Deterministic accent for the author chip, keyed off the user id. */
-const AVATAR_COLORS = [
-  '#ef4444',
-  '#f97316',
-  '#eab308',
-  '#22c55e',
-  '#14b8a6',
-  '#3b82f6',
-  '#8b5cf6',
-  '#ec4899',
-];
-
-function authorColor(seed: string): string {
-  let hash = 0;
-  for (let i = 0; i < seed.length; i += 1) hash = (hash * 31 + seed.charCodeAt(i)) | 0;
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
 /**
@@ -80,7 +51,7 @@ export function FeedCard({ post, compact = false }: Props) {
       <Link href={href} className="shrink-0" aria-label={`پست ${authorName}`}>
         <span
           className="tw-avatar"
-          style={{ background: authorColor(post.userId) }}
+          style={{ background: accentColor(post.userId) }}
           aria-hidden
         >
           {authorName.trim().charAt(0)}
@@ -102,9 +73,9 @@ export function FeedCard({ post, compact = false }: Props) {
           <Link
             href={href}
             className="shrink-0 text-xs text-muted hover:underline"
-            title={new Date(post.publishedAt ?? post.createdAt).toLocaleString('fa-IR')}
+            title={faDateTime(post.publishedAt ?? post.createdAt)}
           >
-            {faWhen(post.publishedAt ?? post.createdAt)}
+            {faRelativeTime(post.publishedAt ?? post.createdAt)}
           </Link>
           <Globe className="size-3 shrink-0 text-muted" aria-hidden />
           {directoryAd ? (
