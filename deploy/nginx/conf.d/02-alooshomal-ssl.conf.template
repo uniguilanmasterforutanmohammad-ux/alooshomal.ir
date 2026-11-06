@@ -13,7 +13,6 @@ server {
     listen      [::]:443 ssl;
     http2       on;
     server_name alooshomal.ir www.alooshomal.ir;
-    server_tokens off;
 
     # Defence in depth: Next.js also sends these, but nginx covers static
     # assets and error responses that never reach the app.

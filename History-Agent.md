@@ -20,7 +20,27 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.105.3**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.105.4**.
+
+## ۱۴۰۵/۰۸/۱۶ — رفع خطای `server_tokens` تکراری در nginx — نسخه `v2.105.4`
+
+**هدف:** دیپلوی پس از سالم‌شدن api/web در مرحله‌ی `nginx -t` شکست می‌خورد:
+`"server_tokens" directive is duplicate in alooshomal-locations.inc:8`.
+
+**تغییرات:**
+- `deploy/nginx/conf.d/01-alooshomal.conf`: حذف `server_tokens off;` از بلوک
+  HTTP؛ این دایرکتیو از قبل در فایل مشترک `alooshomal-locations.inc` (که داخل
+  همان server بلاک include می‌شود) وجود دارد.
+- `deploy/nginx/conf.d/02-alooshomal-ssl.conf.template`: حذف همان دایرکتیو
+  تکراری از بلوک HTTPS؛ نسخه‌ی تک‌نسخه‌ای در فایل include باقی می‌ماند و هر دو
+  بلوک را پوشش می‌دهد.
+
+**تأیید/تست:**
+- `docker run nginx:alpine nginx -t` با mount پوشه‌ی `deploy/nginx/conf.d`
+  (بلوک HTTP) → `syntax is ok` و `test is successful`.
+- همان تست با ساخت موقت بلوک HTTPS از تمپلیت و گواهی self-signed → موفق.
+- `grep -rn server_tokens deploy/` → فقط یک مورد در `alooshomal-locations.inc`.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۶ — رفع شکست دیپلوی با تولید خودکار secretهای گمشده — نسخه `v2.105.3`
 
