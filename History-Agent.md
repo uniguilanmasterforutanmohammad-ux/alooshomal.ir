@@ -20,7 +20,32 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.105.4**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.105.5**.
+
+## ۱۴۰۵/۰۸/۱۶ — رفع `Cannot POST /api/site-theme` در پروداکشن — نسخه `v2.105.5`
+
+**هدف:** تغییر تم از «تنظیمات ← ظاهر سایت» در سایت مستقر با خطای
+`Cannot POST /api/site-theme` شکست می‌خورد.
+
+**علت:** هندلر Next.js روی `/api/site-theme` بود، اما nginx در پروداکشن فقط
+مسیرهای `/api/proxy/*` را به کانتینر `web` می‌فرستد و بقیهٔ `/api/*` را به
+NestJS. بنابراین درخواست به API می‌رسید و ۴۰۴ می‌گرفت (در لوکال چون فقط Next
+پاسخ می‌داد، مشکل دیده نمی‌شد).
+
+**تغییرات:**
+- `apps/web/app/api/site-theme/route.ts` → `apps/web/app/api/proxy/site-theme/route.ts`
+  (انتقال به قرارداد `/api/proxy/`).
+- `apps/web/components/admin/AdminAppearanceSettings.tsx`: تغییر آدرس fetch به
+  `/api/proxy/site-theme` با توضیح دلیل.
+
+**تأیید/تست:**
+- `POST /api/proxy/site-theme` بدون توکن → ۴۰۱ با پیام «دسترسی غیرمجاز».
+- `POST /api/site-theme` (مسیر قدیمی) → ۴۰۴.
+- تست end-to-end با ورود ادمین لوکال و توکن معتبر → ۲۰۰ و
+  `{"success":true,"data":{"siteTheme":"twitter"}}` (سپس تم به `modern`
+  بازگردانده شد).
+- `docker exec alooshomal-web npm run typecheck` → بدون خطا.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۶ — رفع خطای `server_tokens` تکراری در nginx — نسخه `v2.105.4`
 

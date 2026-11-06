@@ -61,7 +61,9 @@ export function AdminAppearanceSettings() {
       // Go through the Next route so it can purge the cached root layout;
       // otherwise the new theme would only appear after the revalidation
       // window even though the API had already saved it.
-      const response = await fetch('/api/site-theme', {
+      // Must stay under `/api/proxy/`: production nginx sends only that prefix
+      // to the web app and routes every other `/api/*` path to NestJS.
+      const response = await fetch('/api/proxy/site-theme', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
