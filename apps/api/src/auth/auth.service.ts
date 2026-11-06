@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { createHash } from 'node:crypto';
 
 import { NotificationsService } from '../notifications/notifications.service';
 import { RATE_LIMITS, RateLimitService } from '../common/rate-limit.service';
@@ -81,11 +82,10 @@ export class AuthService {
     await this.rateLimit.hit(RATE_LIMITS.otpRequestPhone, phone);
     if (ip) await this.rateLimit.hit(RATE_LIMITS.otpRequestIp, ip);
     const issued = await this.otp.issue(phone);
-    // Tell the client whether this number is a returning user (login) or a new
-    // one (sign-up), so a single form can drive both flows. This is only a UX
-    // hint — no secret is revealed beyond "an account exists for this phone".
-    const existing = await this.prisma.user.findUnique({ where: { phone } });
-    return { phone, ...issued, registered: Boolean(existing) };
+    // Do not reveal whether the number already has an account: the response is
+    // identical for new and returning users (the verify step asks for the
+    // profile fields only when it actually needs them).
+    return { phone, ...issued };
   }
 
   /**
@@ -228,6 +228,13 @@ export class AuthService {
     await this.assertEmailLoginEnabled();
     if (context.ip) await this.rateLimit.hit(RATE_LIMITS.login, context.ip);
     const email = dto.email.toLowerCase().trim();
+    // Per-account bucket on top of the per-IP one: a botnet spreading attempts
+    // across many addresses still cannot hammer a single account.
+    // Hash the email so raw addresses do not end up in Redis keys/logs.
+    await this.rateLimit.hit(
+      RATE_LIMITS.loginEmail,
+      createHash('sha256').update(email).digest('hex'),
+    );
     const user = await this.prisma.user.findUnique({ where: { email } });
     // Always run a bcrypt comparison — against the real hash when the account
     // exists, otherwise a dummy — so response time does not reveal whether the
@@ -341,6 +348,7 @@ export class AuthService {
    * refresh token in the process. The user must still be active.
    */
   async refresh(rawRefreshToken: string, context: SessionContext = {}) {
+    if (context.ip) await this.rateLimit.hit(RATE_LIMITS.refresh, context.ip);
     const rotated = await this.sessions.rotateRefresh(rawRefreshToken);
     if (!rotated) {
       throw new UnauthorizedException('نشست منقضی شده است؛ دوباره وارد شوید');

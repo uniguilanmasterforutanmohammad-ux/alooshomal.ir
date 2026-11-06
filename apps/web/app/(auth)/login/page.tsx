@@ -9,13 +9,8 @@ import { AuthForm } from '@/components/auth/AuthForm';
 import { api, type AuthResponse } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useAuthMethods } from '@/lib/auth-settings';
+import { safeInternalPath } from '@/lib/safe-next';
 import { cn } from '@/lib/utils';
-
-/** Only accept same-origin absolute paths, never `//evil.com` open redirects. */
-function safeNext(next: string | null): string {
-  if (next && next.startsWith('/') && !next.startsWith('//')) return next;
-  return '/dashboard';
-}
 
 /**
  * The single entry point for both sign-in and sign-up. Mobile + OTP is the
@@ -25,7 +20,7 @@ function safeNext(next: string | null): string {
 function AuthPageContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const next = safeNext(params.get('next'));
+  const next = safeInternalPath(params.get('next'));
   const setSession = useAuth((state) => state.setSession);
   const { token, user, hydrated } = useAuth();
   const { phoneLoginEnabled, emailLoginEnabled, loaded: methodsLoaded } =

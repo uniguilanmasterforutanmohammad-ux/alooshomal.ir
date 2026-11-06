@@ -18,7 +18,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-alooshomal}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me_in_production}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in production}
       POSTGRES_DB: ${POSTGRES_DB:-alooshomal}
     volumes:
       - db_data:/var/lib/postgresql/data
@@ -55,7 +55,7 @@ services:
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-alooshomal}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change_me_in_production}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in production}
     volumes:
       - minio_data:/data
     healthcheck:
@@ -79,14 +79,20 @@ services:
         condition: service_started
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://alooshomal:change_me_in_production@db:5432/alooshomal?schema=public}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL must be set in production}
       API_PORT: "4000"
-      JWT_SECRET: ${JWT_SECRET:-please_change_me}
+      # Fail closed: a missing/known default signing key would let anyone forge
+      # access tokens, so production refuses to start without a real secret.
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set to a strong random value}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@alooshomal.local}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin@12345}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set in production}
       ENABLE_SWAGGER: ${ENABLE_SWAGGER:-false}
+      # Trust exactly one reverse-proxy hop (nginx) so `req.ip` is the real
+      # visitor instead of the container address. Without this, X-Forwarded-For
+      # would be attacker-controlled and per-IP rate limits could be bypassed.
+      TRUST_PROXY: ${TRUST_PROXY:-1}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       BACKUP_DIR: ${BACKUP_DIR:-/usr/src/app/backups}
       BACKUP_KEEP: ${BACKUP_KEEP:-20}
@@ -95,7 +101,7 @@ services:
       MINIO_PORT: ${MINIO_PORT:-9000}
       MINIO_USE_SSL: ${MINIO_USE_SSL:-false}
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-alooshomal}
-      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change_me_in_production}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in production}
       MINIO_BUCKET: ${MINIO_BUCKET:-alooshomal}
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-https://alooshomal.ir/media}
       # Melipayamak OTP endpoint path (embeds the sender line + token). Set it

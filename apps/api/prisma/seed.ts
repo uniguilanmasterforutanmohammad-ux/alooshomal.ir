@@ -12,13 +12,22 @@ import * as bcrypt from 'bcrypt';
 const prisma = new PrismaClient();
 
 async function main() {
+  const isProduction = process.env.NODE_ENV === 'production';
   const adminEmail = process.env.ADMIN_EMAIL ?? 'admin@alooshomal.local';
-  const adminPassword = process.env.ADMIN_PASSWORD ?? 'Admin@12345';
-  const passwordHash = await bcrypt.hash(adminPassword, 12);
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (isProduction && (!adminPassword || adminPassword === 'Admin@12345')) {
+    throw new Error(
+      'ADMIN_PASSWORD must be set to a strong, non-default value when seeding production',
+    );
+  }
+  const effectiveAdminPassword = adminPassword ?? 'Admin@12345';
+  const passwordHash = await bcrypt.hash(effectiveAdminPassword, 12);
 
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
-    update: { role: Role.ADMIN, passwordHash },
+    // Never reset an existing admin's password on a re-seed; only ensure the
+    // role. The initial password is set once, at creation time.
+    update: { role: Role.ADMIN },
     create: {
       email: adminEmail,
       passwordHash,
@@ -26,6 +35,13 @@ async function main() {
       role: Role.ADMIN,
     },
   });
+
+  // Everything below is demo content (known password, sample rows). It must
+  // never be written to a production database.
+  if (isProduction) {
+    console.log(`  Admin: ${admin.email} (production seed: demo data skipped)`);
+    return;
+  }
 
   const demoEmail = 'demo@alooshomal.local';
   const demoUser = await prisma.user.upsert({

@@ -6,6 +6,7 @@ import {
 
 import { ImageService } from './image.service';
 import { StorageService } from './storage.service';
+import { RATE_LIMITS, RateLimitService } from '../common/rate-limit.service';
 import {
   UPLOAD_CATEGORIES,
   MAX_UPLOAD_BYTES,
@@ -26,6 +27,7 @@ export class UploadsService {
   constructor(
     private readonly storage: StorageService,
     private readonly images: ImageService,
+    private readonly rateLimit: RateLimitService,
   ) {}
 
   /**
@@ -44,6 +46,9 @@ export class UploadsService {
     if (!file?.buffer) {
       throw new BadRequestException('فایلی آپلود نشده است');
     }
+    // Every upload is decoded in memory and written to object storage; cap the
+    // rate per account so a signed-in user cannot exhaust memory/disk.
+    await this.rateLimit.hit(RATE_LIMITS.upload, ownerId);
     const limitBytes = maxBytes ?? MAX_UPLOAD_BYTES;
     if (file.size > limitBytes) {
       const kb = Math.floor(limitBytes / 1024).toLocaleString('fa-IR');

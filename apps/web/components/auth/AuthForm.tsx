@@ -6,24 +6,17 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
 import { api, ApiError, type AuthResponse } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { safeInternalPath } from '@/lib/safe-next';
 
 interface RequestCodeResult {
   phone: string;
   sent: boolean;
   resendAfter: number;
-  /** Whether a returning account already exists for this phone (login). */
-  registered: boolean;
   /** Present only when SMS is disabled (local dev) so the code is visible. */
   devCode?: string;
 }
 
 type Step = 'phone' | 'code' | 'profile' | 'password';
-
-/** Only accept same-origin absolute paths, never `//evil.com` open redirects. */
-function safeNext(next?: string): string {
-  if (next && next.startsWith('/') && !next.startsWith('//')) return next;
-  return '/dashboard';
-}
 
 /**
  * Unified sign-in / sign-up flow (single form, one page).
@@ -48,7 +41,7 @@ export function AuthForm({
 }) {
   const router = useRouter();
   const setSession = useAuth((state) => state.setSession);
-  const target = safeNext(next);
+  const target = safeInternalPath(next);
 
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');

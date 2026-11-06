@@ -24,16 +24,32 @@ export const DEFAULT_ACCESS_TTL = '15m';
 
 const DEV_FALLBACK_SECRET = 'dev_secret_only_for_local_development';
 
+/**
+ * Values that have shipped in examples/compose files. They are long enough to
+ * pass a naive length check, so a production deploy that forgot to override
+ * them would boot with a publicly known signing key. Reject them explicitly.
+ */
+const INSECURE_SECRET_PATTERN =
+  /^(please[_-]?change[_-]?me|change[_-]?me|changeme|secret|password|jwt[_-]?secret|replace[_-]?with[_-]?a[_-]?long[_-]?random[_-]?string|dev[_-]?secret.*)$/i;
+
+function isInsecureSecret(secret: string): boolean {
+  return (
+    INSECURE_SECRET_PATTERN.test(secret) ||
+    // A single repeated character (e.g. "aaaaaaaaaaaaaaaa") has no entropy.
+    /^(.)\1+$/.test(secret)
+  );
+}
+
 export function resolveJwtSecret(config: ConfigService): string {
   const secret = config.get<string>('JWT_SECRET')?.trim();
   const isProd = config.get<string>('NODE_ENV') === 'production';
-  if (secret && secret.length >= 16) {
+  if (secret && secret.length >= 16 && !isInsecureSecret(secret)) {
     return secret;
   }
   if (isProd) {
     // Fail closed: never sign tokens with a guessable secret in production.
     throw new Error(
-      'JWT_SECRET must be set to a strong value (≥۱۶ کاراکتر) in production',
+      'JWT_SECRET must be set to a strong, non-default value (≥۱۶ کاراکتر) in production',
     );
   }
   new Logger('JwtConfig').warn(

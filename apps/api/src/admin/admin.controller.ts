@@ -323,7 +323,9 @@ export class AdminController {
   }
 
   @Post('bulk/import')
-  @UseInterceptors(FileInterceptor('file'))
+  // Admin-only, but still cap the in-memory parse so a huge workbook cannot
+  // exhaust memory or hold the event loop for minutes.
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
   @ApiOperation({ summary: 'ایمپورت گروهی بیولینک/کارت ویزیت از فایل اکسل یا CSV' })
   bulkImport(
     @UploadedFile() file: Express.Multer.File,

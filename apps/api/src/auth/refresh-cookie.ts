@@ -49,7 +49,13 @@ export function readRefreshCookie(req: Request, name = REFRESH_COOKIE): string |
     const idx = part.indexOf('=');
     if (idx === -1) continue;
     if (part.slice(0, idx).trim() === name) {
-      return decodeURIComponent(part.slice(idx + 1).trim()) || null;
+      const raw = part.slice(idx + 1).trim();
+      try {
+        return decodeURIComponent(raw) || null;
+      } catch {
+        // A malformed percent-escape must not turn a bad cookie into a 500.
+        return raw || null;
+      }
     }
   }
   return null;

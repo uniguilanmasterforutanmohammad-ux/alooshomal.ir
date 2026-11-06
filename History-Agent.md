@@ -20,7 +20,83 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.105.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.105.1**.
+
+## ۱۴۰۵/۰۸/۱۶ — ممیزی و سخت‌سازی امنیتی کد و معماری — نسخه `v2.105.1`
+
+**هدف:** بازبینی امنیتی سراسری (XSS، open redirect، SSRF، path/header
+injection، دور زدن rate-limit با جعل IP، افشای اطلاعات در پاسخ/لاگ،
+اجرای پیش‌فرض‌های ناامن در production و سطح حمله‌ی سرویس‌های زیرساخت) و
+اصلاح موارد قابل‌اثبات بدون تغییر رفتار کاربری.
+
+**تغییرات:**
+- `apps/web/lib/json-ld.ts` (جدید): تابع `jsonLdHtml()` برای escape کاراکترهای
+  `<`/`>`/`&` و U+2028/2029 پیش از تزریق JSON-LD.
+- `apps/web/app/blog/[slug]/page.tsx`، `apps/web/app/biolinks/[slug]/page.tsx`،
+  `apps/web/app/business-cards/[slug]/page.tsx`: استفاده از `jsonLdHtml` به‌جای
+  `JSON.stringify` خام (رفع stored XSS از طریق بستن تگ `<script>`).
+- `apps/web/lib/safe-next.ts` (جدید): اعتبارسنجی مقصد `?next=` (رد `//`،
+  بک‌اسلش، کاراکتر کنترلی و `/%2f`/`/%5c`) برای جلوگیری از open redirect.
+- `apps/web/app/(auth)/login/page.tsx`، `apps/web/components/auth/AuthForm.tsx`:
+  جایگزینی تابع محلی `safeNext` با `safeInternalPath` مشترک.
+- `apps/web/next.config.ts`: جایگزینی `hostname:'**'` با allowlist دامنه‌ها و
+  میزبان MinIO؛ غیرفعال‌کردن SVG در optimizer؛ فعال‌کردن
+  `dangerouslyAllowLocalIP` فقط در توسعه (SSRF در `/_next/image`).
+- `apps/web/app/api/proxy/biolinks/public/[slug]/vcard/route.ts` و
+  `apps/web/app/api/proxy/business-cards/public/[slug]/vcard/route.ts`:
+  `encodeURIComponent` روی slug و پاک‌سازی نام فایل `Content-Disposition`
+  (path traversal و header injection).
+- `apps/api/src/auth/jwt.config.ts`: رد `JWT_SECRET`های پیش‌فرض/کم‌آنتروپی در
+  production.
+- `apps/api/src/main.ts`: پشتیبانی `TRUST_PROXY` برای `req.ip` صحیح؛ ممنوعیت
+  CORS wildcard در production و محدودسازی متدها/`maxAge`.
+- `apps/api/src/sessions/request-context.ts`، `apps/api/src/common/visitor-key.ts`:
+  حذف خواندن خام `X-Forwarded-For` و استفاده از `req.ip` (جلوگیری از دور زدن
+  rate-limit با جعل IP).
+- `apps/api/src/common/rate-limit.service.ts`: افزودن سطل‌های `loginEmail`،
+  `refresh` و `upload`.
+- `apps/api/src/auth/auth.service.ts`: rate-limit ورود بر اساس ایمیل (هش SHA-256)،
+  rate-limit `refresh`، و حذف فیلد `registered` از پاسخ درخواست کد (جلوگیری از
+  شمارش شماره‌ها).
+- `apps/api/src/auth/refresh-cookie.ts`: try/catch روی `decodeURIComponent`
+  (کوکی بدشکل دیگر ۵۰۰ نمی‌دهد).
+- `apps/api/src/auth/sms.service.ts`: ماسک شماره تلفن در لاگ‌ها و حذف بدنه‌ی
+  پاسخ سرویس پیامک از لاگ خطا.
+- `apps/api/src/uploads/media-url.ts` (جدید): `assertOwnedMediaUrls` برای
+  اجبار تصاویر به میزبان رسانه‌ی خودی (جلوگیری از pixel tracking/SSRF).
+- `apps/api/src/feeds/feeds.service.ts`، `apps/api/src/biolinks/biolinks.service.ts`،
+  `apps/api/src/businesscards/business-cards.service.ts`: اعتبارسنجی URL تصاویر
+  در ساخت و ویرایش.
+- `apps/api/src/uploads/uploads.service.ts`: rate-limit آپلود به‌ازای مالک.
+- `apps/api/src/uploads/image.service.ts`: `limitInputPixels` در sharp
+  (ضد decompression bomb).
+- `apps/api/src/admin/admin.controller.ts`: سقف ۵ مگابایت برای ایمپورت اکسل/CSV.
+- `apps/api/prisma/seed.ts`: الزام `ADMIN_PASSWORD` قوی در production، عدم
+  بازنشانی رمز ادمین موجود در re-seed و حذف داده‌های دمو از production.
+- `docker-compose.prod.yml`: الزام‌کردن `JWT_SECRET`، `ADMIN_PASSWORD`،
+  `DATABASE_URL`، `POSTGRES_PASSWORD` و `MINIO_ROOT_PASSWORD` (بدون پیش‌فرض
+  ناامن) و افزودن `TRUST_PROXY`.
+- `docker-compose.yml`: محدودکردن پورت‌های Postgres/MinIO به `127.0.0.1`.
+- `deploy/nginx/conf.d/01-alooshomal.conf` و
+  `deploy/nginx/conf.d/02-alooshomal-ssl.conf.template`: `server_tokens off` و
+  هدرهای HSTS/nosniff/X-Frame-Options/Referrer-Policy.
+- `docs/DEPLOY.md`: مستندسازی `TRUST_PROXY`.
+- `.gitignore`: لنگرکردن قاعده‌ی `uploads/` به ریشه تا فایل‌های جدید
+  `apps/api/src/uploads/` نادیده گرفته نشوند.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npm run build` → بدون خطا.
+- `docker exec alooshomal-web npm run typecheck` → بدون خطا.
+- `python3 scripts/check_api_docs.py` → exit 0 (۲۳ کنترلر / ۲۳۵ مسیر).
+- `/_next/image` با `169.254.169.254`، `minio:9000` و `localhost:9010` →
+  رد شد؛ لاگ Next تأیید کرد hostname خصوصی بلاک می‌شود.
+- `GET /api/proxy/biolinks/public/..%2F..%2Fadmin%2Fsettings/vcard` و slug
+  حاوی `%22%0D%0ASet-Cookie` → هر دو ۴۰۴ بدون هدر/نشت داده.
+- `POST /api/auth/phone/request-code` → پاسخ دیگر فیلد `registered` ندارد.
+- Playwright روی `/`، `/feeds`، `/blog` و `/biolinks` → پاسخ ۲۰۰ بدون خطای
+  JS و بدون ۵xx (تصاویر محلی به‌دلیل ناهم‌خوانی پورت `MINIO_PUBLIC_URL`
+  شکسته‌اند که پیش‌موجود و نامرتبط با این تغییر است).
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۵ — افزودن تم «توییتر» (روشن/تیره) — نسخه `v2.105.0`
 

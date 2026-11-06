@@ -7,6 +7,7 @@ import { PublicBiolinkView } from '@/components/biolink/PublicBiolinkView';
 import { RecordView } from '@/components/ui/RecordView';
 import { absoluteUrl, metaDescription, SERVER_API_URL, decodeSlugParam } from '@/lib/site';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
+import { jsonLdHtml } from '@/lib/json-ld';
 import { type Biolink } from '@/lib/api';
 
 interface BiolinkPayload {
@@ -142,7 +143,7 @@ export default async function PublicBiolinkPage({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildJsonLd(data)) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdHtml(buildJsonLd(data)) }}
       />
       <RecordView kind="biolinks" slug={slug} />
       <PublicBiolinkView

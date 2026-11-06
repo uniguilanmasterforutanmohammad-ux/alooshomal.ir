@@ -6,6 +6,7 @@ import { Footer } from '@/components/layout/Footer';
 import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { BlogPostView } from '@/components/blog/BlogPostView';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
+import { jsonLdHtml } from '@/lib/json-ld';
 import {
   absoluteUrl,
   decodeSlugParam,
@@ -94,7 +95,7 @@ export default async function BlogPostPage({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdHtml(jsonLd) }}
       />
       <Header />
       <BlogPostView post={post} />

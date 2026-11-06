@@ -5,13 +5,18 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params;
+  // Keep the value inside a single path segment: without encoding, a slug like
+  // `../../admin/...` would be normalised by fetch and could reach another API
+  // route (path traversal), and quotes/newlines would break the header below.
+  const safeSlug = encodeURIComponent(slug);
+  const downloadName = slug.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80) || 'biolink';
   const apiUrl =
     process.env.INTERNAL_API_URL ??
     process.env.NEXT_PUBLIC_API_URL ??
     'http://localhost:4000/api';
 
   try {
-    const response = await fetch(`${apiUrl}/biolinks/public/${slug}/vcard`, {
+    const response = await fetch(`${apiUrl}/biolinks/public/${safeSlug}/vcard`, {
       cache: 'no-store',
     });
     if (!response.ok) {
@@ -30,7 +35,7 @@ export async function GET(
     return new NextResponse(vcard, {
       headers: {
         'Content-Type': 'text/vcard; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${slug}.vcf"`,
+        'Content-Disposition': `attachment; filename="${downloadName}.vcf"`,
       },
     });
   } catch {

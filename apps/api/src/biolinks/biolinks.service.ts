@@ -30,6 +30,7 @@ import {
   SettingsService,
 } from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { assertOwnedMediaUrls } from '../uploads/media-url';
 import { CreateBiolinkDto } from './dto/create-biolink.dto';
 import { PublicBiolinkQueryDto } from './dto/public-biolink-query.dto';
 import { UpdateBiolinkDto } from './dto/update-biolink.dto';
@@ -128,6 +129,7 @@ export class BiolinksService {
     // whether the moderators get pinged, and must never reach Prisma.
     const { draft, ...fields } = dto;
     this.sanitizeTemplateFields(fields);
+    assertOwnedMediaUrls([fields.avatarUrl, fields.logoUrl], 'تصویر بیولینک');
     // Global kill-switch: the admin can pause creation while load-testing.
     const locks = await this.settings.getCreationLocks();
     if (!locks.allowBiolinkCreation) {
@@ -352,6 +354,7 @@ export class BiolinksService {
     const existing = await this.findMineById(userId, id);
     const { draft, ...fields } = dto;
     this.sanitizeTemplateFields(fields);
+    assertOwnedMediaUrls([fields.avatarUrl, fields.logoUrl], 'تصویر بیولینک');
     if (dto.cityId) {
       const city = await this.prisma.city.findUnique({ where: { id: dto.cityId } });
       if (!city || !city.isActive) {

@@ -26,6 +26,7 @@ import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { assertOwnedMediaUrls } from '../uploads/media-url';
 import { CreateBusinessCardDto } from './dto/create-business-card.dto';
 import { PublicBusinessCardQueryDto } from './dto/public-business-card-query.dto';
 import { PublicPhonebookQueryDto } from './dto/public-phonebook-query.dto';
@@ -137,6 +138,7 @@ export class BusinessCardsService {
     // `draft` is a transport-only flag: it decides the initial status and
     // whether the moderators get pinged, and must never reach Prisma.
     const { draft, ...fields } = dto;
+    assertOwnedMediaUrls([fields.avatarUrl, fields.logoUrl], 'تصویر کارت ویزیت');
     // Global kill-switch: the admin can pause creation while load-testing.
     const locks = await this.settings.getCreationLocks();
     if (!locks.allowBusinessCardCreation) {
@@ -367,6 +369,7 @@ export class BusinessCardsService {
   async update(userId: string, id: string, dto: UpdateBusinessCardDto) {
     const existing = await this.findMineById(userId, id);
     const { draft, ...fields } = dto;
+    assertOwnedMediaUrls([fields.avatarUrl, fields.logoUrl], 'تصویر کارت ویزیت');
     if (dto.cityId) {
       const city = await this.prisma.city.findUnique({ where: { id: dto.cityId } });
       if (!city || !city.isActive) {

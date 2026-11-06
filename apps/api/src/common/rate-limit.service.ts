@@ -71,6 +71,8 @@ export class RateLimitService {
 export const RATE_LIMITS = {
   /** Password login: 10 tries per IP per 15 minutes. */
   login: { bucket: 'login', limit: 10, windowSeconds: 900 } as RateLimitRule,
+  /** Password login: 10 tries per email per 15 minutes (distributed attacks). */
+  loginEmail: { bucket: 'login-email', limit: 10, windowSeconds: 900 } as RateLimitRule,
   /** OTP request: 5 SMS per phone per 15 minutes (cost + spam guard). */
   otpRequestPhone: { bucket: 'otp-req-phone', limit: 5, windowSeconds: 900 } as RateLimitRule,
   /** OTP request per IP: 20 per 15 minutes. */
@@ -79,4 +81,8 @@ export const RATE_LIMITS = {
   otpVerify: { bucket: 'otp-verify', limit: 10, windowSeconds: 900 } as RateLimitRule,
   /** Sign-up: 5 accounts per IP per hour. */
   register: { bucket: 'register', limit: 5, windowSeconds: 3600 } as RateLimitRule,
+  /** Token refresh: 60 rotations per IP per 5 minutes (DB-load guard). */
+  refresh: { bucket: 'refresh', limit: 60, windowSeconds: 300 } as RateLimitRule,
+  /** Image uploads: 60 per user per hour (memory/disk-abuse guard). */
+  upload: { bucket: 'upload', limit: 60, windowSeconds: 3600 } as RateLimitRule,
 } as const;

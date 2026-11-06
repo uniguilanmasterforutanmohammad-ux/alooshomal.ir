@@ -22,14 +22,43 @@ async function bootstrap(): Promise<void> {
   const port = config.get<number>('API_PORT', 4000);
   const corsOrigin = config.get<string>('CORS_ORIGIN', 'http://localhost:3000');
   const enableSwagger = config.get<string>('ENABLE_SWAGGER', 'true') === 'true';
+  const isProd = config.get<string>('NODE_ENV') === 'production';
 
   app.setGlobalPrefix('api');
 
+  // Behind nginx the socket address is the proxy, so Express must be told how
+  // many hops to trust before it derives `req.ip` from X-Forwarded-For.
+  // Leaving this unset makes `req.ip` the proxy address (all visitors share
+  // one rate-limit bucket); trusting it blindly lets clients spoof the header.
+  const trustProxy = config.get<string>('TRUST_PROXY', '0').trim();
+  if (trustProxy && trustProxy !== '0' && trustProxy.toLowerCase() !== 'false') {
+    const hops = Number(trustProxy);
+    app
+      .getHttpAdapter()
+      .getInstance()
+      .set('trust proxy', Number.isFinite(hops) ? hops : trustProxy);
+  }
+
   app.use(helmet());
-  app.enableCors({
-    origin: corsOrigin.split(',').map((origin) => origin.trim()),
-    credentials: true,
-  });
+  const allowedOrigins = corsOrigin
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+  if (allowedOrigins.includes('*')) {
+    if (isProd) {
+      throw new Error(
+        'CORS_ORIGIN must list explicit origins in production (wildcard + credentials is unsafe)',
+      );
+    }
+    app.enableCors({ origin: true, credentials: true });
+  } else {
+    app.enableCors({
+      origin: allowedOrigins,
+      credentials: true,
+      methods: ['GET', 'HEAD', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+      maxAge: 600,
+    });
+  }
 
   app.useGlobalPipes(
     new ValidationPipe({

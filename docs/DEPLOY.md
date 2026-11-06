@@ -69,6 +69,9 @@ JWT_SECRET=<یک-رشته-تصادفی-بلند>
 # انجام می‌شود که در کوکی HttpOnly است و تا ۷ روز بی‌فعالیتی معتبر می‌ماند.
 JWT_EXPIRES_IN=15m
 CORS_ORIGIN=https://alooshomal.ir
+# تعداد هاپ‌های پروکسی مورد اعتماد برای استخراج IP واقعی (پشت nginx = 1).
+# اگر 0 بماند، محدودیت نرخ بر اساس IP پراکسی اعمال می‌شود.
+TRUST_PROXY=1
 ADMIN_EMAIL=admin@alooshomal.ir
 ADMIN_PASSWORD=<رمز-ادمین>
 ENABLE_SWAGGER=false

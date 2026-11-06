@@ -15,10 +15,9 @@ export function visitorKeyFrom(request: Request): string {
   if (value && value.trim()) {
     return `v:${createHash('sha256').update(value.trim()).digest('hex').slice(0, 32)}`;
   }
-  const rawIp =
-    (request.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ??
-    request.socket.remoteAddress ??
-    'unknown';
+  // `request.ip` already honours the configured `trust proxy` hop count; using
+  // the raw header here would let a client choose a fresh identity per request.
+  const rawIp = request.ip ?? request.socket.remoteAddress ?? 'unknown';
   const ua = request.headers['user-agent'] ?? '';
   return `i:${createHash('sha256').update(`${rawIp}|${ua}`).digest('hex').slice(0, 32)}`;
 }

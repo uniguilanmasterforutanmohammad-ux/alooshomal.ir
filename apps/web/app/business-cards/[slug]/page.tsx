@@ -7,6 +7,7 @@ import { PublicBusinessCardView } from '@/components/businesscard/PublicBusiness
 import { RecordView } from '@/components/ui/RecordView';
 import { absoluteUrl, metaDescription, SERVER_API_URL, decodeSlugParam } from '@/lib/site';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
+import { jsonLdHtml } from '@/lib/json-ld';
 import { type BusinessCard } from '@/lib/api';
 
 interface BusinessCardPayload {
@@ -148,7 +149,7 @@ export default async function PublicBusinessCardPage({
       <script
         type="application/ld+json"
         // JSON-LD for rich results; must live in the server HTML (see SEO guide).
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(buildJsonLd(data)) }}
+        dangerouslySetInnerHTML={{ __html: jsonLdHtml(buildJsonLd(data)) }}
       />
       <RecordView kind="business-cards" slug={slug} />
       <PublicBusinessCardView

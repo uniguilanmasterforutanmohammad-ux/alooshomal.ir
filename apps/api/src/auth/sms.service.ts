@@ -16,6 +16,12 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
 
+  /** Keep phone numbers out of logs: 0912***4567. */
+  private static maskPhone(phone: string): string {
+    if (phone.length <= 6) return '***';
+    return `${phone.slice(0, 4)}***${phone.slice(-3)}`;
+  }
+
   /** True when a Melipayamak OTP path is configured. */
   get enabled(): boolean {
     return Boolean(process.env.MELIPAYAMAK_OTP_PATH?.trim());
@@ -30,7 +36,7 @@ export class SmsService {
     const path = process.env.MELIPAYAMAK_OTP_PATH?.trim();
     if (!path) {
       this.logger.warn(
-        `MELIPAYAMAK_OTP_PATH is not set — OTP for ${phone} was not sent (dev bypass).`,
+        `MELIPAYAMAK_OTP_PATH is not set — OTP for ${SmsService.maskPhone(phone)} was not sent (dev bypass).`,
       );
       return null;
     }
@@ -51,7 +57,7 @@ export class SmsService {
 
       if (!response.ok) {
         this.logger.error(
-          `Melipayamak returned ${response.status} for ${phone}: ${JSON.stringify(payload)}`,
+          `Melipayamak returned ${response.status} for ${SmsService.maskPhone(phone)}`,
         );
         throw new ServiceUnavailableException('ارسال پیامک ناموفق بود');
       }
@@ -61,7 +67,7 @@ export class SmsService {
       const code = typeof payload?.code === 'string' ? payload.code.trim() : '';
       if (!code) {
         this.logger.error(
-          `Melipayamak did not return a code for ${phone}: ${JSON.stringify(payload)}`,
+          `Melipayamak did not return a code for ${SmsService.maskPhone(phone)}`,
         );
         throw new ServiceUnavailableException(
           payload?.status?.trim() || 'ارسال پیامک ناموفق بود',
@@ -73,7 +79,7 @@ export class SmsService {
         throw error;
       }
       this.logger.error(
-        `Melipayamak request failed for ${phone}: ${
+        `Melipayamak request failed for ${SmsService.maskPhone(phone)}: ${
           error instanceof Error ? error.message : 'unknown error'
         }`,
       );

@@ -78,7 +78,7 @@ apps/api/backups/
 *.bak
 
 # ---------- Uploads & generated runtime data ----------
-uploads/
+/uploads/
 apps/api/uploads/
 apps/web/public/uploads/
 test-data/

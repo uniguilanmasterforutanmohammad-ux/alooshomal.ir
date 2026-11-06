@@ -27,7 +27,12 @@ export class ImageService {
   async toWebp(input: Buffer, category: UploadCategoryKey): Promise<ProcessedImage> {
     const config = UPLOAD_CATEGORIES[category];
 
-    const pipeline = sharp(input, { failOn: 'error' }).rotate();
+    // `limitInputPixels` blocks decompression bombs: a small file can decode to
+    // a gigantic bitmap and exhaust memory before the resize runs.
+    const pipeline = sharp(input, {
+      failOn: 'error',
+      limitInputPixels: 40_000_000,
+    }).rotate();
     const meta = await pipeline.metadata().catch(() => null);
     if (!meta || !meta.format || !ALLOWED_IMAGE_MIME.includes(`image/${meta.format}`)) {
       throw new BadRequestException('فرمت تصویر پشتیبانی نمی‌شود');

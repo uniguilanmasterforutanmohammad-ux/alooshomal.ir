@@ -1,10 +1,15 @@
 import type { Request } from 'express';
 
-/** Extracts the client IP, honouring the reverse proxy in front of the API. */
+/**
+ * Extracts the client IP.
+ *
+ * Express derives `req.ip` from the socket and only consults
+ * `X-Forwarded-For` when `trust proxy` is configured (see `main.ts`). Parsing
+ * the header here instead would let any client spoof its address and bypass
+ * the per-IP rate limits on login/OTP/registration.
+ */
 export function clientIp(req: Request): string | null {
-  const forwarded = req.headers['x-forwarded-for'];
-  const first = Array.isArray(forwarded) ? forwarded[0] : forwarded?.split(',')[0];
-  return (first?.trim() || req.ip || null) ?? null;
+  return req.ip ?? null;
 }
 
 /** Extracts the raw User-Agent header (best-effort device hint). */

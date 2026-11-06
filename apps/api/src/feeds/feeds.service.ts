@@ -18,6 +18,7 @@ import { FacetsCacheService } from '../common/facets-cache.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
+import { assertOwnedMediaUrls } from '../uploads/media-url';
 import {
   CreateFeedCommentDto,
   CreateFeedPostDto,
@@ -875,6 +876,7 @@ export class FeedsService implements OnModuleInit {
         `حداکثر ${maxImages} تصویر برای هر پست مجاز است`,
       );
     }
+    assertOwnedMediaUrls(dto.images, 'تصویر پست');
     if (!dto.body?.trim() && dto.images.length === 0) {
       throw new BadRequestException('پست باید متن یا تصویر داشته باشد');
     }
@@ -973,6 +975,7 @@ export class FeedsService implements OnModuleInit {
     if (dto.images.length > maxImages) {
       throw new BadRequestException(`حداکثر ${maxImages} تصویر مجاز است`);
     }
+    assertOwnedMediaUrls(dto.images, 'تصویر پست');
     // Re-resolve the tag. If the tag target changed, the fee has to be settled
     // again; keeping the same target preserves a already-paid tag.
     const tag = await this.resolveTagTarget(userId, dto);
