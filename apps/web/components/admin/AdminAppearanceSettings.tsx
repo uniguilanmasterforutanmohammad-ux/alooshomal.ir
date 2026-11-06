@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/auth';
 import {
   SITE_THEME_OPTIONS,
   isSiteTheme,
+  siteThemeDocumentAttrs,
   type SiteTheme,
 } from '@/lib/site-theme';
 import { cn } from '@/lib/utils';
@@ -78,8 +79,14 @@ export function AdminAppearanceSettings() {
       const applied = isSiteTheme(savedTheme) ? savedTheme : next;
       setTheme(applied);
       // `router.refresh()` re-renders the RSC tree but Next does not re-apply
-      // attributes on <html>, so set it here for instant visual feedback.
-      document.documentElement.dataset.theme = applied;
+      // attributes on <html>, so set them here for instant visual feedback.
+      const attrs = siteThemeDocumentAttrs(applied);
+      document.documentElement.dataset.theme = attrs.theme;
+      if (attrs.skin) {
+        document.documentElement.dataset.skin = attrs.skin;
+      } else {
+        delete document.documentElement.dataset.skin;
+      }
       // Re-render the server layout so `data-theme` updates immediately.
       router.refresh();
       setMessage(
@@ -87,7 +94,9 @@ export function AdminAppearanceSettings() {
           ? 'تم نوین برای همه‌ی صفحات فعال شد.'
           : applied === 'bazaar'
             ? 'تم بازارچه (شاد و کودکانه) برای همه‌ی صفحات فعال شد.'
-            : 'تم کلاسیک (وینتیج) فعال شد.',
+            : applied === 'twitter'
+              ? 'تم توییتر (روشن/تیره) برای همه‌ی صفحات فعال شد.'
+              : 'تم کلاسیک (وینتیج) فعال شد.',
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره‌ی تم ناموفق بود');
@@ -119,7 +128,7 @@ export function AdminAppearanceSettings() {
         </p>
       ) : null}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {SITE_THEME_OPTIONS.map((option) => {
           const active = theme === option.key;
           return (
@@ -220,6 +229,39 @@ function ThemePreview({ variant }: { variant: SiteTheme }) {
         <div className="mt-1.5 flex items-center gap-1 px-1">
           <Sun className="size-2.5 text-indigo-500" aria-hidden />
           <span className="text-[8px] font-bold text-slate-500">روشن / تیره</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (variant === 'twitter') {
+    return (
+      <div className="overflow-hidden rounded-xl border border-[#eff3f4] bg-white p-2">
+        <div className="flex items-center gap-1.5 border-b border-[#eff3f4] px-1 pb-1.5">
+          <span className="flex size-4 items-center justify-center rounded-full bg-[#1d9bf0] text-[8px] font-black text-white">
+            X
+          </span>
+          <span className="h-1.5 w-10 rounded-full bg-[#cfd9de]" />
+          <span className="ms-auto h-3 w-8 rounded-full bg-[#1d9bf0]" />
+        </div>
+        <div className="mt-2 space-y-1.5">
+          <div className="flex items-start gap-1.5 rounded-lg px-1 py-1">
+            <span className="size-4 shrink-0 rounded-full bg-gradient-to-br from-[#1d9bf0] to-[#0ea5e9]" />
+            <div className="min-w-0 flex-1">
+              <span className="block h-1.5 w-12 rounded-full bg-[#0f1419]/70" />
+              <span className="mt-1 block h-1.5 w-full rounded-full bg-[#cfd9de]" />
+              <span className="mt-1 block h-1.5 w-2/3 rounded-full bg-[#cfd9de]" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 rounded-lg bg-[#0f1419] px-2 py-1.5">
+            <span className="size-3 rounded-full bg-[#1d9bf0]" />
+            <span className="h-1.5 w-10 rounded-full bg-[#536471]" />
+            <span className="ms-auto h-1.5 w-6 rounded-full bg-[#71767b]" />
+          </div>
+        </div>
+        <div className="mt-1.5 flex items-center gap-1 px-1">
+          <span className="size-2 rounded-full bg-[#1d9bf0]" />
+          <span className="text-[8px] font-bold text-[#536471]">سفید / مشکی · آبی X</span>
         </div>
       </div>
     );

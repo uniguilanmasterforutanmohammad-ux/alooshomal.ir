@@ -4163,6 +4163,196 @@ html[data-theme='modern'] .directory-shell .directory-list {
 }
 
 /* =====================================================================
+   «توییتر» — flat Twitter/X skin on top of the «نوین» layout
+   ---------------------------------------------------------------------
+   The root layout writes `data-theme="modern"` + `data-skin="twitter"` for
+   this option, so every structural rule of the modern theme still applies and
+   only the palette/accents below change. Design language: flat white (or pure
+   black) canvas, hairline #eff3f4/#2f3336 dividers, pill controls and the
+   signature #1d9bf0 blue.
+   ===================================================================== */
+
+html[data-skin='twitter'] {
+  color-scheme: light;
+  --vintage-paper: #f7f9f9;
+  --vintage-surface: #ffffff;
+  --vintage-ring: #e1e8ed;
+  --vintage-accent: #1d9bf0;
+  --vintage-accent-dark: #1a8cd8;
+  --vintage-accent-hover: #1a8cd8;
+  --vintage-ink: #0f1419;
+  --vintage-ink-soft: #536471;
+  --vintage-border: #eff3f4;
+  --vintage-radius: 16px;
+  --indeed-blue-light: #e8f5fd;
+  --modern-shadow: 0 1px 2px rgba(15, 20, 25, 0.04),
+    0 10px 30px -24px rgba(15, 20, 25, 0.35);
+  --modern-shadow-lg: 0 2px 4px rgba(15, 20, 25, 0.05),
+    0 24px 50px -30px rgba(15, 20, 25, 0.4);
+}
+
+html[data-skin='twitter'].dark {
+  color-scheme: dark;
+  --vintage-paper: #000000;
+  --vintage-surface: #16181c;
+  --vintage-ring: #2f3336;
+  --vintage-accent: #1d9bf0;
+  --vintage-accent-dark: #4db5f5;
+  --vintage-accent-hover: #1a8cd8;
+  --vintage-ink: #e7e9ea;
+  --vintage-ink-soft: #71767b;
+  --vintage-border: #2f3336;
+  --indeed-blue-light: #0a2739;
+  --modern-shadow: 0 1px 2px rgba(0, 0, 0, 0.4),
+    0 16px 36px -26px rgba(0, 0, 0, 0.8);
+  --modern-shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.45),
+    0 30px 60px -32px rgba(0, 0, 0, 0.9);
+}
+
+/* ---- flat canvas ---- */
+html[data-skin='twitter'] body {
+  background-image: none;
+}
+
+html[data-skin='twitter'] ::selection {
+  background: rgba(29, 155, 240, 0.3);
+  color: var(--vintage-ink);
+}
+
+/* ---- top chrome: translucent white/black with a hairline ---- */
+html[data-skin='twitter'] header.sticky {
+  background-color: color-mix(in srgb, var(--vintage-surface) 82%, transparent);
+  border-bottom: 1px solid var(--vintage-border);
+  box-shadow: none;
+  backdrop-filter: blur(12px);
+}
+
+html[data-skin='twitter'].dark header.sticky {
+  box-shadow: none;
+}
+
+html[data-skin='twitter'] nav[aria-label='ناوبری پایین'] {
+  background-color: color-mix(in srgb, var(--vintage-surface) 92%, transparent);
+  border-top: 1px solid var(--vintage-border);
+  box-shadow: none;
+  backdrop-filter: blur(12px);
+}
+
+/* ---- footer: black panel with a soft blue glow ---- */
+html[data-skin='twitter'] footer.site-footer {
+  background-color: #0f1419;
+  background-image:
+    radial-gradient(42rem 22rem at 85% 0%, rgba(29, 155, 240, 0.28), transparent 62%),
+    linear-gradient(135deg, #000000 0%, #0f1419 60%, #06131c 100%);
+  box-shadow: 0 -20px 50px -40px rgba(0, 0, 0, 0.9);
+}
+
+html[data-skin='twitter'].dark footer.site-footer {
+  background-image:
+    radial-gradient(42rem 22rem at 85% 0%, rgba(29, 155, 240, 0.22), transparent 62%),
+    linear-gradient(135deg, #000000 0%, #0b0e11 60%, #04121b 100%);
+}
+
+html[data-skin='twitter'] footer.site-footer .bg-white {
+  background-color: #1d9bf0;
+  color: #ffffff;
+}
+
+html[data-skin='twitter'] footer.site-footer a.bg-white,
+html[data-skin='twitter'] footer.site-footer .bg-white.text-brand {
+  background-color: #1d9bf0;
+  color: #ffffff;
+}
+
+/* ---- controls: solid blue pills, no gradients ---- */
+html[data-skin='twitter'] .indeed-btn-primary,
+html[data-skin='twitter'] button[type='submit'].indeed-btn-primary,
+html[data-skin='twitter'] form button[type='submit'].indeed-btn,
+html[data-skin='twitter'] .home-hero button[type='submit'] {
+  color: #ffffff;
+  border-color: transparent;
+  background-color: var(--vintage-accent);
+  background-image: none;
+  box-shadow: 0 8px 20px -14px rgba(29, 155, 240, 0.8);
+}
+
+html[data-skin='twitter'] .indeed-btn-primary:hover {
+  filter: brightness(1.06);
+  box-shadow: 0 10px 24px -14px rgba(29, 155, 240, 0.9);
+}
+
+html[data-skin='twitter'].dark .indeed-btn-primary,
+html[data-skin='twitter'].dark button[type='submit'].indeed-btn-primary,
+html[data-skin='twitter'].dark form button[type='submit'].indeed-btn,
+html[data-skin='twitter'].dark .home-hero button[type='submit'] {
+  color: #ffffff;
+  background-color: #1d9bf0;
+  background-image: none;
+  box-shadow: 0 10px 24px -16px rgba(29, 155, 240, 0.7);
+}
+
+html[data-skin='twitter'] .vintage-avatar {
+  border-radius: 9999px;
+  background: linear-gradient(135deg, #1d9bf0, #0ea5e9 60%, #1a8cd8);
+  box-shadow: 0 6px 16px -10px rgba(29, 155, 240, 0.8);
+}
+
+/* ---- home hero: the X blue instead of indigo ---- */
+html[data-skin='twitter'] .home-hero {
+  background-color: #1d9bf0;
+  background-image:
+    radial-gradient(60% 80% at 12% 18%, rgba(255, 255, 255, 0.22), transparent 62%),
+    radial-gradient(52% 72% at 88% 4%, rgba(29, 155, 240, 0.55), transparent 60%),
+    linear-gradient(150deg, #1d9bf0 0%, #0c7abf 55%, #0b5c8f 100%);
+  box-shadow: 0 30px 60px -46px rgba(29, 155, 240, 0.9);
+}
+
+html[data-skin='twitter'] .home-hero form[role='search'] {
+  border-radius: 9999px;
+  border-color: transparent;
+  background: var(--vintage-surface);
+  box-shadow: 0 18px 40px -24px rgba(15, 20, 25, 0.5);
+}
+
+html[data-skin='twitter'].dark .home-hero form[role='search'] {
+  background: #16181c;
+  border-color: #2f3336;
+}
+
+html[data-skin='twitter'] .home-hero .indeed-btn {
+  border-radius: 9999px;
+}
+
+/* ---- flatter cards: Twitter relies on borders, not drop shadows ---- */
+html[data-skin='twitter'] .indeed-panel,
+html[data-skin='twitter'] .home-section-frame,
+html[data-skin='twitter'] .record-card,
+html[data-skin='twitter'] .record-panel,
+html[data-skin='twitter'] .bizcard {
+  box-shadow: none;
+}
+
+html[data-skin='twitter'] .record-head {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--record-accent) 92%, #000000) 0%,
+    var(--record-accent) 55%,
+    color-mix(in srgb, var(--record-accent) 55%, #1d9bf0) 100%
+  );
+}
+
+html[data-skin='twitter'] .bizcard-side {
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(255, 255, 255, 0.22), transparent 55%),
+    linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--bizcard-accent) 90%, #000000) 0%,
+      var(--bizcard-accent) 55%,
+      color-mix(in srgb, var(--bizcard-accent) 55%, #1d9bf0) 100%
+    );
+}
+
+/* =====================================================================
    «بازارچه» — playful emerald / amber theme
    ---------------------------------------------------------------------
    Inspired by the Javaneh Bazaar project (`~/Desktop/bazarekodak`):

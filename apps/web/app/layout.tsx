@@ -5,7 +5,7 @@ import { ToastViewport } from '@/components/ui/ToastViewport';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { SessionWatcher } from '@/components/ui/SessionWatcher';
 import { SITE_URL } from '@/lib/site';
-import { getSiteTheme } from '@/lib/site-theme';
+import { getSiteTheme, siteThemeDocumentAttrs } from '@/lib/site-theme';
 import './globals.css';
 
 import { ThemeScript } from '@/components/ui/ThemeScript';
@@ -43,9 +43,16 @@ export const metadata: Metadata = {
 export async function generateViewport(): Promise<Viewport> {
   // Match the browser chrome to the active site theme.
   const theme = await getSiteTheme();
+  const themeColor =
+    theme === 'twitter'
+      ? '#FFFFFF'
+      : theme === 'modern'
+        ? '#F4F6FB'
+        : theme === 'bazaar'
+          ? '#FFFAF0'
+          : '#F2E8D9';
   return {
-    themeColor:
-      theme === 'modern' ? '#F4F6FB' : theme === 'bazaar' ? '#FFFAF0' : '#F2E8D9',
+    themeColor,
     width: 'device-width',
     initialScale: 1,
   };
@@ -56,9 +63,16 @@ export default async function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   // Admin-chosen site-wide design; written on <html> so it applies before paint.
   const siteTheme = await getSiteTheme();
+  const { theme: layoutTheme, skin } = siteThemeDocumentAttrs(siteTheme);
 
   return (
-    <html lang="fa" dir="rtl" data-theme={siteTheme} suppressHydrationWarning>
+    <html
+      lang="fa"
+      dir="rtl"
+      data-theme={layoutTheme}
+      data-skin={skin ?? undefined}
+      suppressHydrationWarning
+    >
       <body>
         <ThemeScript />
         {/* The hero text (the LCP element) is painted in Shabnam, which is

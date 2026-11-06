@@ -20,7 +20,41 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.104.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.105.0**.
+
+## ۱۴۰۵/۰۸/۱۵ — افزودن تم «توییتر» (روشن/تیره) — نسخه `v2.105.0`
+
+**هدف:** افزودن چهارمین تم سراسری با ظاهر تخت و مینیمال توییتر/X (زمینه‌ی
+سفید/مشکی، خطوط نازک و آبی `#1d9bf0`) که از پنل «تنظیمات ← ظاهر سایت» قابل
+انتخاب باشد و حالت روشن/تیره‌ی هر بازدیدکننده را هم پشتیبانی کند.
+
+**تغییرات:**
+- `apps/web/lib/site-theme.ts`: افزودن `twitter` به `SITE_THEMES` و به گزینه‌های
+  پنل، به‌همراه تابع `siteThemeDocumentAttrs` که این گزینه را به
+  `data-theme="modern"` + `data-skin="twitter"` نگاشت می‌کند.
+- `apps/api/src/settings/settings.service.ts`: افزودن `twitter` به `SITE_THEMES`
+  و مستندسازی آن.
+- `apps/api/src/settings/settings.controller.ts`: به‌روزرسانی توضیح DTO تم.
+- `apps/web/app/layout.tsx`: نوشتن `data-skin` روی `<html>` و `themeColor`
+  سفید برای تم توییتر.
+- `apps/web/components/admin/AdminAppearanceSettings.tsx`: پیش‌نمایش کارت تم
+  توییتر، اعمال فوری `data-skin` پس از ذخیره و چیدمان دوستونه‌ی کارت‌ها برای
+  چهار تم.
+- `apps/web/app/globals.css`: بلوک پوسته‌ی `html[data-skin='twitter']` شامل پالت
+  آبی X، زمینه‌ی `#f7f9f9`/سفید (روشن) و `#000`/`#16181c` (تیره)، هدر شیشه‌ای،
+  فوتر مشکی با هاله‌ی آبی، دکمه‌های پیل، هیروی آبی و کارت‌های تخت بدون سایه.
+- `docs/API.md`: افزودن `twitter` به قرارداد `siteTheme` و توضیح نگاشت
+  `data-theme`/`data-skin`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web npm run typecheck` → بدون خطا.
+- `docker exec alooshomal-api npm run build` → بدون خطا.
+- با تنظیم موقت `siteTheme=twitter` در دیتابیس، HTML دارای
+  `data-theme="modern" data-skin="twitter"` شد (سپس به `modern` بازگردانده شد).
+- Playwright روی `/`، `/feeds`، `/pulse` و `/blog` در روشن/تیره و عرض‌های
+  ۱۴۴۰ و ۳۹۰: بدون خطای JS، `overflow=0`، accent=`#1d9bf0`، بدنه‌ی
+  `#f7f9f9`/`#000`، پنل `#fff`/`#16181c`، هدر شیشه‌ای و فوتر/دکمه‌های آبی درست.
+- `python3 scripts/check_api_docs.py` → exit 0.
 
 ## ۱۴۰۵/۰۸/۱۵ — بازطراحی `/pulse` و `/blog` با چیدمان توییتری — نسخه `v2.104.0`
 

@@ -200,14 +200,16 @@ export const DEFAULT_BIOLINK_TEMPLATES_ENABLED: string[] = [...BIOLINK_TEMPLATE_
  *   - `vintage` — the original cream/terracotta «record» look (default);
  *   - `modern`  — the clean, card-based «نوین» look with light/dark modes;
  *   - `bazaar`  — the playful emerald/amber «بازارچه» look inspired by
- *                 Javaneh Bazaar (kids marketplace).
+ *                 Javaneh Bazaar (kids marketplace);
+ *   - `twitter` — the flat Twitter/X skin (white/black canvas, #1d9bf0 accent)
+ *                 layered on the «نوین» layout.
  *
  * This is a global setting (not per-visitor): the admin switches it once from
  * «تنظیمات ← ظاهر سایت» and every page follows. Dark/light stays a per-visitor
  * preference handled client-side.
  */
 export const SITE_THEME_KEY = 'siteTheme';
-export const SITE_THEMES = ['vintage', 'modern', 'bazaar'] as const;
+export const SITE_THEMES = ['vintage', 'modern', 'bazaar', 'twitter'] as const;
 export type SiteTheme = (typeof SITE_THEMES)[number];
 export const DEFAULT_SITE_THEME: SiteTheme = 'vintage';
 

@@ -64,7 +64,7 @@ class UpdateSettingsDto {
   @IsString({ each: true })
   biolinkTemplatesEnabled?: string[];
 
-  /** Site-wide visual theme (`vintage` | `modern`). */
+  /** Site-wide visual theme (`vintage` | `modern` | `bazaar` | `twitter`). */
   @ApiPropertyOptional({
     enum: SITE_THEMES,
     description: 'تم سراسری سایت؛ روی همه‌ی صفحات عمومی و پنل‌ها اعمال می‌شود.',

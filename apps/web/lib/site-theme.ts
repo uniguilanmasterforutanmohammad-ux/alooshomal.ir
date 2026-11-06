@@ -11,9 +11,25 @@
 
 import { SERVER_API_URL } from './site';
 
-export const SITE_THEMES = ['vintage', 'modern', 'bazaar'] as const;
+export const SITE_THEMES = ['vintage', 'modern', 'bazaar', 'twitter'] as const;
 export type SiteTheme = (typeof SITE_THEMES)[number];
 export const DEFAULT_SITE_THEME: SiteTheme = 'vintage';
+
+/**
+ * The «توییتر» option is a skin of the «نوین» layout: it reuses every
+ * structural rule of `data-theme="modern"` and only swaps the palette, so the
+ * root layout writes `data-theme="modern"` plus `data-skin="twitter"` for it.
+ * Keeping this mapping in one place keeps the server render and the admin's
+ * instant preview in sync.
+ */
+export function siteThemeDocumentAttrs(theme: SiteTheme): {
+  theme: Exclude<SiteTheme, 'twitter'>;
+  skin: 'twitter' | null;
+} {
+  return theme === 'twitter'
+    ? { theme: 'modern', skin: 'twitter' }
+    : { theme, skin: null };
+}
 
 export const SITE_THEME_OPTIONS: Array<{
   key: SiteTheme;
@@ -35,10 +51,20 @@ export const SITE_THEME_OPTIONS: Array<{
     name: 'بازارچه (شاد و کودکانه)',
     description: 'الهام‌گرفته از بازارچه‌ی کودکان؛ سبز جنگلی، نعنایی و زرد آفتابی با کارت‌های گرد.',
   },
+  {
+    key: 'twitter',
+    name: 'توییتر (روشن/تیره)',
+    description: 'ظاهر تخت و مینیمال توییتر/X؛ زمینه‌ی سفید یا مشکی، خطوط نازک و آبی #1d9bf0.',
+  },
 ];
 
 export function isSiteTheme(value: unknown): value is SiteTheme {
-  return value === 'vintage' || value === 'modern' || value === 'bazaar';
+  return (
+    value === 'vintage' ||
+    value === 'modern' ||
+    value === 'bazaar' ||
+    value === 'twitter'
+  );
 }
 
 /**
