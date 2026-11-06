@@ -162,6 +162,25 @@ jobs:
             set -e
             cd ${{ vars.DEPLOY_PATH || '/var/www/alooshomal.ir' }}
 
+            # The production compose file fails closed when a critical secret is
+            # missing (no insecure defaults). Older servers predate some of
+            # those keys, so bootstrap the ones that are safe to generate
+            # (MinIO root password and JWT signing key) exactly once and keep
+            # them in `.env` for subsequent deploys. Never overwrite an
+            # existing value.
+            touch .env
+            ensure_secret() {
+              key="$1"
+              current="$(sed -n "s/^${key}=//p" .env | tail -n1 | tr -d '\"' | tr -d "'")"
+              if [ -z "$current" ]; then
+                sed -i "/^${key}=/d" .env
+                printf '%s=%s\n' "$key" "$(openssl rand -hex 24)" >> .env
+                echo "generated a new ${key} in .env"
+              fi
+            }
+            ensure_secret MINIO_ROOT_PASSWORD
+            ensure_secret JWT_SECRET
+
             # Pull from GHCR. Works without credentials if the packages are
             # public; otherwise set a GHCR_PAT secret with read:packages.
             if [ -n "${{ secrets.GHCR_PAT }}" ]; then
