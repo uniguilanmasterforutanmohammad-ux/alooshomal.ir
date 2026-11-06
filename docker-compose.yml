@@ -49,8 +49,13 @@ services:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-alooshomal}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-change_me_in_production}
     ports:
-      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
-      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
+      # `MINIO_PORT` is the port inside the compose network (the S3 client uses
+      # it), while `MINIO_HOST_PORT` is what the browser reaches on the host.
+      # They must stay separate: a host-port conflict (e.g. port 9000 already
+      # taken by another container) used to break object storage because both
+      # were driven by the same variable.
+      - "127.0.0.1:${MINIO_HOST_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_HOST_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
     healthcheck:
@@ -94,7 +99,7 @@ services:
       MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:-alooshomal}
       MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:-change_me_in_production}
       MINIO_BUCKET: ${MINIO_BUCKET:-alooshomal}
-      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:${MINIO_HOST_PORT:-9000}}
       # Melipayamak OTP endpoint path (embeds the sender line + token). When
       # empty, local dev uses the fixed dev code (123456) but production
       # refuses the phone flow (503) instead of leaking it — set it on servers.
@@ -123,7 +128,7 @@ services:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
       # Browser-facing media origin; used by the web CSP `img-src`.
-      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:${MINIO_HOST_PORT:-9000}}
       INTERNAL_API_URL: http://api:4000/api
     ports:
       - "${WEB_PORT:-3000}:3000"

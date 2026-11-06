@@ -238,16 +238,20 @@ MINIO_PUBLIC_URL=https://media.alooshomal.ir
 | `MINIO_ROOT_USER` | `alooshomal` | نام کاربری ریشه/کنسول |
 | `MINIO_ROOT_PASSWORD` | `change_me_in_production` | رمز ریشه/کنسول (در پروداکشن عوض شود) |
 | `MINIO_ENDPOINT` | `minio` | هاست آبجکت‌استوریج از دید API |
-| `MINIO_PORT` | `9000` | پورت S3 API |
+| `MINIO_PORT` | `9000` | پورت S3 API داخل شبکه‌ی compose (برای کلاینت API) |
+| `MINIO_HOST_PORT` | `9000` | پورت publish شده روی هاست؛ اگر ۹۰۰۰ اشغال است عوضش کنید |
+| `MINIO_CONSOLE_HOST_PORT` | `9001` | پورت کنسول MinIO روی هاست |
 | `MINIO_USE_SSL` | `false` | استفاده از TLS در اتصال API |
 | `MINIO_BUCKET` | `alooshomal` | نام باکت |
-| `MINIO_PUBLIC_URL` | `http://localhost:9000` (لوکال) / `https://alooshomal.ir/media` (پروداکشن) | مبنای URL عمومی تصاویر |
+| `MINIO_PUBLIC_URL` | `http://localhost:<MINIO_HOST_PORT>` (لوکال) / `https://alooshomal.ir/media` (پروداکشن) | مبنای URL عمومی تصاویر |
 | `MINIO_IMAGE` | ایمیج آینه‌شده در GHCR (پروداکشن) / `pgsty/silo:…` (لوکال) | ایمیج سرویس `minio` |
 | `MINIO_ENABLED` | `true` | اگر `false` شود، ذخیره‌سازی غیرفعال می‌شود |
 | `MINIO_DATA_DIR` | `/var/lib/docker/volumes/alooshomal_minio_data/_data` | مسیر فیزیکی باکت روی هاست؛ فقط برای نمایش در پنل «فضای سرور» استفاده می‌شود |
 
 پورت‌های کنسول و API فقط در حالت **توسعه** به هاست publish می‌شوند
-(`MINIO_PORT`/`MINIO_CONSOLE_PORT` در `docker-compose.yml`).
+(`MINIO_HOST_PORT`/`MINIO_CONSOLE_HOST_PORT` در `docker-compose.yml`). پورت
+داخلی `MINIO_PORT` همیشه `9000` است و نباید با پورت هاست قاطی شود؛
+`MINIO_PUBLIC_URL` را با `MINIO_HOST_PORT` هم‌تراز نگه دارید.
 
 ---
 
