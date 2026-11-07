@@ -38,7 +38,11 @@ export function Header() {
           <span>شمالی کارت</span>
         </Link>
 
-        <nav className="hidden min-w-0 items-center gap-3 text-[13px] font-medium text-muted lg:flex xl:gap-6 xl:text-sm">
+        {/* The nav is the flexible middle column. Its gap/type scale is tuned so
+            the row fits inside the 1200px page container at every desktop width
+            — with `xl:gap-6` the links were ~23px wider than their box and
+            «قوانین» spilled under the theme toggle. */}
+        <nav className="hidden min-w-0 items-center gap-3 text-[13px] font-medium text-muted lg:flex xl:gap-4 xl:text-sm">
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -57,22 +61,29 @@ export function Header() {
 
         <div className="flex shrink-0 items-center gap-2">
           <ThemeToggle />
-          <Link
-            href={signedIn ? '/dashboard' : '/login'}
-            className="indeed-btn indeed-btn-secondary hidden xl:inline-flex"
-          >
-            {signedIn ? (
-              <>
-                <LayoutDashboard className="size-4" aria-hidden />
-                پنل کاربری
-              </>
-            ) : (
-              <>
-                <LogIn className="size-4" aria-hidden />
-                ورود/ثبت‌نام
-              </>
-            )}
-          </Link>
+          {/* The secondary button only fits from `xl` up. It is wrapped rather
+              than given Tailwind's `hidden` directly: the unlayered
+              `.indeed-btn { display: inline-flex }` rule outranks the `hidden`
+              utility, so a bare `hidden xl:inline-flex` silently stayed visible
+              and pushed «قوانین» under the theme toggle at 1024–1279px. */}
+          <div className="hidden xl:flex">
+            <Link
+              href={signedIn ? '/dashboard' : '/login'}
+              className="indeed-btn indeed-btn-secondary"
+            >
+              {signedIn ? (
+                <>
+                  <LayoutDashboard className="size-4" aria-hidden />
+                  پنل کاربری
+                </>
+              ) : (
+                <>
+                  <LogIn className="size-4" aria-hidden />
+                  ورود/ثبت‌نام
+                </>
+              )}
+            </Link>
+          </div>
           <Link
             href={signedIn ? '/dashboard/business-cards' : '/login?next=/dashboard/business-cards'}
             className="indeed-btn indeed-btn-primary"
