@@ -617,6 +617,52 @@ export class AdminService {
     };
   }
 
+  /**
+   * Paginated log of transactional emails sent to users (the «ایمیل‌های
+   * ارسالی» admin page). Codes are never stored; only the redacted subject.
+   */
+  async listEmails(
+    pagination: PaginationDto,
+    search?: string,
+    status?: string,
+  ) {
+    const page = pagination.page ?? 1;
+    const limit = pagination.limit ?? (await this.settings.getAdminListPageSize());
+    const where: Prisma.SentEmailWhereInput = {
+      ...(search
+        ? {
+            OR: [
+              { to: { contains: search, mode: 'insensitive' } },
+              { subject: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+      ...(status ? { status } : {}),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.sentEmail.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      this.prisma.sentEmail.count({ where }),
+    ]);
+
+    return {
+      items,
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
   /** Enable / disable a user account, recording the admin's reason. */
   async setUserActive(adminId: string, userId: string, isActive: boolean, reason?: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });

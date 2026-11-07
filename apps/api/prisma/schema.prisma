@@ -636,6 +636,27 @@ model ActivityLog {
   @@map("activity_logs")
 }
 
+// One row per transactional email the platform tried to deliver. Used by the
+// admin «ایمیل‌های ارسالی» page. The OTP code itself is never stored: `subject`
+// is the redacted label (e.g. «کد تغییر ایمیل»), not the message that was sent.
+model SentEmail {
+  id        String   @id @default(cuid())
+  to        String
+  subject   String
+  /// Flow that triggered the email: login / phone-change / email-change / password-reset
+  purpose   String?
+  /// SENT or FAILED
+  status    String   @default("SENT")
+  error     String?
+  /// Recipient user, when known (OTP flows are tied to an account).
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([to])
+  @@map("sent_emails")
+}
+
 model City {
   id        String   @id @default(cuid())
   name      String   @unique

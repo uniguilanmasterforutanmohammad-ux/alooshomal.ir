@@ -41,6 +41,7 @@ import { AdminService } from './admin.service';
 import { BulkKind, BulkService } from './bulk.service';
 import { ListBiolinksDto } from './dto/list-biolinks.dto';
 import { ListBusinessCardsDto } from './dto/list-business-cards.dto';
+import { ListEmailsDto } from './dto/list-emails.dto';
 import { ListUsersDto } from './dto/list-users.dto';
 import {
   SetUserActiveDto,
@@ -107,6 +108,14 @@ export class AdminController {
   @ApiOperation({ summary: 'لیست کاربران با صفحه‌بندی و جستجو' })
   users(@Query() query: ListUsersDto) {
     return this.adminService.listUsers(query, query.search);
+  }
+
+  @Get('emails')
+  @ApiOperation({
+    summary: 'ایمیل‌های ارسالی به کاربران (با صفحه‌بندی، جستجو و وضعیت)',
+  })
+  emails(@Query() query: ListEmailsDto) {
+    return this.adminService.listEmails(query, query.search, query.status);
   }
 
   @Patch('users/:id/active')

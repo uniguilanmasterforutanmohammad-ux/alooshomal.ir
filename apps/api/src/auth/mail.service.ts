@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import nodemailer, { type Transporter } from 'nodemailer';
 
+import { PrismaService } from '../prisma/prisma.service';
+
 /**
  * Sends transactional email — currently the sign-in one-time code — through
  * the SMTP account configured in the environment.
@@ -15,6 +17,8 @@ import nodemailer, { type Transporter } from 'nodemailer';
 export class MailService {
   private readonly logger = new Logger(MailService.name);
   private transporter: Transporter | null = null;
+
+  constructor(private readonly prisma: PrismaService) {}
 
   /** True when SMTP credentials are present. */
   get enabled(): boolean {
@@ -62,6 +66,28 @@ export class MailService {
   }
 
   /**
+   * Persists one delivery attempt for the admin «ایمیل‌های ارسالی» page.
+   * Never throws: a logging failure must not break the actual send.
+   */
+  private async logEmail(entry: {
+    to: string;
+    subject: string;
+    purpose: string;
+    status: 'SENT' | 'FAILED';
+    error?: string;
+  }): Promise<void> {
+    try {
+      await this.prisma.sentEmail.create({ data: entry });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to record sent email: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
+  }
+
+  /**
    * Sends the one-time code. Returns `false` when SMTP is not configured and
    * throws on a transport error, so the caller can decide how to react.
    */
@@ -97,14 +123,33 @@ export class MailService {
         </div>
       </div>`;
 
-    await this.getTransporter().sendMail({
-      from: `"${fromName}" <${fromAddress}>`,
-      to,
-      subject: `کد ${label}: ${code}`,
-      text,
-      html,
-    });
-    this.logger.log(`OTP email sent to ${MailService.maskEmail(to)}`);
-    return true;
+    // The stored subject is redacted (no code) so the admin log never leaks a
+    // one-time code; the delivered subject still carries it for convenience.
+    const logSubject = `کد ${label}`;
+    try {
+      await this.getTransporter().sendMail({
+        from: `"${fromName}" <${fromAddress}>`,
+        to,
+        subject: `کد ${label}: ${code}`,
+        text,
+        html,
+      });
+      this.logger.log(`OTP email sent to ${MailService.maskEmail(to)}`);
+      await this.logEmail({ to, subject: logSubject, purpose, status: 'SENT' });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      this.logger.error(
+        `OTP email to ${MailService.maskEmail(to)} failed: ${message}`,
+      );
+      await this.logEmail({
+        to,
+        subject: logSubject,
+        purpose,
+        status: 'FAILED',
+        error: message,
+      });
+      throw error;
+    }
   }
 }

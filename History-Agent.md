@@ -20,7 +20,37 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.109.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.110.0**.
+
+## ۱۴۰۵/۰۸/۱۷ — صفحه‌ی «ایمیل‌های ارسالی» در پنل مدیر — نسخه `v2.110.0`
+
+**هدف:** در پنل مدیر بخش اختصاصی برای ایمیل‌های ارسالی به کاربران اضافه شود تا
+گیرنده، موضوع، نوع و وضعیت هر ارسال دیده شود.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل `SentEmail` (`to`، `subject`، `purpose`،
+  `status`، `error`، `createdAt`) با ایندکس تاریخ/گیرنده.
+- `apps/api/src/auth/mail.service.ts`: تزریق `PrismaService` و ثبت هر تلاش ارسال
+  (موفق/ناموفق)؛ موضوع ذخیره‌شده فاقد کد یکبارمصرف است تا کد لو نرود.
+- `apps/api/src/admin/dto/list-emails.dto.ts`: DTO صفحه‌بندی + جستجو + وضعیت.
+- `apps/api/src/admin/admin.service.ts`: `listEmails` با صفحه‌بندی و جستجو.
+- `apps/api/src/admin/admin.controller.ts`: `GET /admin/emails` با
+  `@ApiOperation`.
+- `apps/web/components/admin/AdminEmails.tsx`: صفحه‌ی اختصاصی جدول ایمیل‌ها با
+  جستجو، فیلتر وضعیت و صفحه‌بندی.
+- `apps/web/components/admin/AdminShell.tsx` و `apps/web/app/admin/page.tsx`:
+  افزودن بخش `emails` («ایمیل‌های ارسالی») به منو و رندر صفحه.
+- `apps/web/lib/version.ts`: نسخه به `v2.110.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx prisma db push --skip-generate` + `prisma generate`
+  روی دیتابیس dev → جدول `sent_emails` ساخته شد.
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` و
+  `docker exec alooshomal-web npx tsc --noEmit` → بدون خطا.
+- ارسال واقعی یک ایمیل (تغییر ایمیل به `auth@shomalicard.ir`) → ردیف `SENT` در
+  `sent_emails` ثبت شد و `GET /api/admin/emails` آن را با `meta` برگرداند.
+- `python3 scripts/check_api_docs.py` → exit 0 (۲۳ کنترلر، ۲۳۸ مسیر).
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۷ — اعمال فوری تغییر ایمیل بدون تأیید مدیر — نسخه `v2.109.2`
 

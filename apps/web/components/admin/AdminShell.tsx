@@ -14,6 +14,7 @@ import {
   LifeBuoy,
   LayoutDashboard,
   LogOut,
+  Mail,
   Megaphone,
   ImagePlus,
   Menu,
@@ -44,6 +45,7 @@ export type AdminSection =
   | 'revenue'
   | 'feeds'
   | 'users'
+  | 'emails'
   | 'tickets'
   | 'reports'
   | 'tools'
@@ -72,6 +74,7 @@ const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboar
   { key: 'points', label: 'امتیازها', icon: Coins },
   { key: 'feeds', label: 'فیدها', icon: ImagePlus },
   { key: 'users', label: 'کاربران', icon: Users },
+  { key: 'emails', label: 'ایمیل‌های ارسالی', icon: Mail },
   { key: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
   { key: 'news', label: 'شهروند خبرنگار', icon: Newspaper },
   { key: 'blog', label: 'بلاگ', icon: BookOpen },

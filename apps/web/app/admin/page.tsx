@@ -25,6 +25,7 @@ import { NotificationsInbox } from '@/components/ui/NotificationsInbox';
 import { AdminNewsPanel } from '@/components/admin/AdminNewsPanel';
 import { AdminBlogPanel } from '@/components/admin/AdminBlogPanel';
 import { AdminProfileRequests } from '@/components/admin/AdminProfileRequests';
+import { AdminEmails } from '@/components/admin/AdminEmails';
 import { AdminPermissionsMatrix } from '@/components/admin/AdminPermissionsMatrix';
 import { AdminModerators } from '@/components/admin/AdminModerators';
 import { AdminNewsSettings } from '@/components/admin/AdminNewsSettings';
@@ -102,6 +103,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'revenue',
   'feeds',
   'users',
+  'emails',
   'tickets',
   'news',
   'blog',
@@ -512,6 +514,7 @@ function AdminContent() {
     },
     feeds: { title: 'فیدها', sub: 'بررسی پست‌ها، اشتراک‌ها، بسته‌ها و تنظیمات' },
     users: { title: 'کاربران', sub: 'لیست کاربران پلتفرم' },
+    emails: { title: 'ایمیل‌های ارسالی', sub: 'ایمیل‌های تراکنشی ارسال‌شده به کاربران' },
     tickets: { title: 'تیکت‌ها', sub: 'مدیریت تیکت‌های پشتیبانی' },
     news: {
       title: 'شهروند خبرنگار',
@@ -801,6 +804,8 @@ function AdminContent() {
           ) : null}
         </div>
       ) : null}
+
+      {section === 'emails' ? <AdminEmails /> : null}
 
       {section === 'subscriptions' ? <AdminSubscriptions /> : null}
 
