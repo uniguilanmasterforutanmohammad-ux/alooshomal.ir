@@ -1,12 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { IdCard, LayoutDashboard, LogIn } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useAuth } from '@/lib/auth';
 import { useFeatures } from '@/lib/features';
 import { HEADER_NAV } from '@/lib/nav';
+import { cn } from '@/lib/utils';
 
 /**
  * Public top navigation (desktop only; phones/tablets use `MobileNav`).
@@ -20,6 +22,7 @@ import { HEADER_NAV } from '@/lib/nav';
  * those destinations now live inside the dashboard and the footer.
  */
 export function Header() {
+  const pathname = usePathname();
   const { token, hydrated } = useAuth();
   const { showNav } = useFeatures();
   const signedIn = hydrated && Boolean(token);
@@ -38,25 +41,36 @@ export function Header() {
           <span>شمالی کارت</span>
         </Link>
 
-        {/* The nav is the flexible middle column. Its gap/type scale is tuned so
-            all nine links (including «تماس با ما») fit inside the 1200px page
-            container at every desktop width — wider gaps made the row overflow
-            and «قوانین»/«تماس با ما» spilled under the theme toggle. */}
-        <nav className="hidden min-w-0 items-center gap-3 text-[13px] font-medium text-muted lg:flex xl:gap-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              // These repeat on every page; eager prefetching fired ~10 extra
-              // RSC requests during the initial load and competed with the
-              // render-blocking CSS/fonts (see the Lighthouse report). The
-              // footer and mobile bar already disable it for the same reason.
-              prefetch={false}
-              className="whitespace-nowrap hover:text-brand"
-            >
-              {item.label}
-            </Link>
-          ))}
+        {/* The nav is the flexible middle column. Each link is a standard
+            padded pill (hover background + active state) so the row reads as
+            proper navigation rather than cramped text. The type scale and
+            horizontal padding grow only from `xl` up, where the secondary
+            button also appears; at `lg` the tighter padding keeps all nine
+            links inside the 1200px container without spilling under the
+            theme toggle. */}
+        <nav className="hidden min-w-0 items-center gap-0 text-[12px] font-medium text-muted lg:flex xl:text-[13px]">
+          {navItems.map((item) => {
+            const active =
+              pathname === item.href || pathname.startsWith(`${item.href}/`);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                // These repeat on every page; eager prefetching fired ~10 extra
+                // RSC requests during the initial load and competed with the
+                // render-blocking CSS/fonts (see the Lighthouse report). The
+                // footer and mobile bar already disable it for the same reason.
+                prefetch={false}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'whitespace-nowrap rounded-lg px-0.5 py-1.5 transition hover:bg-soft hover:text-brand xl:px-1',
+                  active && 'bg-brand-light font-bold text-brand',
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
