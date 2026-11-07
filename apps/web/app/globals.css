@@ -2894,6 +2894,32 @@ html.dark .blt { box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); }
 }
 
 /* =====================================================================
+   Directory avatars — square photo box at every width.
+
+   The card row is a flex line whose height is set by the text column; the
+   avatar stretches to that full height and `aspect-ratio` makes it a square
+   with a soft radius, so the photo reads as a proper framed thumbnail instead
+   of a small circle. (The phone breakpoint below re-asserts the same look for
+   the fixed-height rows.)
+   ===================================================================== */
+.directory-card-avatar,
+.directory-biolink-avatar {
+  align-self: stretch;
+  width: auto;
+  height: auto;
+  /* Cap the square so `aspect-ratio` cannot feed back into the flex line and
+     blow the row up; 6.5rem matches the text column's height on desktop. */
+  max-width: 6.5rem;
+  aspect-ratio: 1 / 1;
+  border-radius: 12px;
+}
+.directory-card-avatar img,
+.directory-biolink-avatar img {
+  width: 100%;
+  height: 100%;
+}
+
+/* =====================================================================
    «دایرکتوری کارت‌های ویزیت» — phones-only polish (≤ 767px).
 
    Everything below is scoped to the phone breakpoint; tablet and desktop keep
@@ -2950,13 +2976,16 @@ html.dark .blt { box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); }
     padding: 9px 12px;
     overflow: hidden;
   }
-  .directory-card-avatar {
+  .directory-card-avatar,
+  .directory-biolink-avatar {
+    max-width: none;
     width: auto;
     height: 100%;
     aspect-ratio: 1 / 1;
     border-radius: 12px;
   }
-  .directory-card-avatar img {
+  .directory-card-avatar img,
+  .directory-biolink-avatar img {
     width: 100%;
     height: 100%;
   }

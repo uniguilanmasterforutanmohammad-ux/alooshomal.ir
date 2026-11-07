@@ -66,15 +66,15 @@ export function DirectoryBiolinkItem({ biolink, selected, onSelect }: Props) {
           : 'border-s-transparent hover:border-s-brand/50 hover:shadow-sm',
       )}
     >
-      <div className="directory-card-inner flex items-start gap-3">
-        <div className="directory-biolink-avatar flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-light text-lg font-extrabold text-brand">
+      <div className="directory-card-inner flex items-stretch gap-3">
+        <div className="directory-biolink-avatar flex shrink-0 items-center justify-center overflow-hidden bg-brand-light text-lg font-extrabold text-brand">
           {biolink.avatarUrl ? (
             <Image
               src={biolink.avatarUrl}
               alt={biolink.fullName}
               width={48}
               height={48}
-              className="size-12 object-cover"
+              className="h-full w-full object-cover"
               unoptimized
             />
           ) : (

@@ -20,7 +20,30 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.105.10**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.105.11**.
+
+## ۱۴۰۵/۰۸/۱۶ — کادر مربعی عکس در دایرکتوری کارت و بیولینک — نسخه `v2.105.11`
+
+**هدف:** در `/business-cards` و `/biolinks` عکس هر ردیف یک کادر مربعی با ردیوس
+مناسب باشد؛ در دسکتاپ به ارتفاع ردیف کشیده شود و عرضش متناسب بماند.
+
+**تغییرات:**
+- `apps/web/app/globals.css`: قاعده‌ی پایه برای `.directory-card-avatar` و
+  `.directory-biolink-avatar` (مربع با `aspect-ratio: 1/1`، `border-radius:12px`،
+  `align-self:stretch` و `max-width:6.5rem` تا `aspect-ratio` ردیف را بزرگ نکند)؛
+  در بریک‌پوینت موبایل `max-width:none` و `height:100%` تا مربع به ارتفاع کامل
+  ردیف برسد. تصویر داخل کادر `width/height:100%`.
+- `apps/web/components/businesscard/DirectoryBusinessCardItem.tsx`: حذف
+  `size-12 rounded-full` از کادر عکس و `size-12` از تصویر.
+- `apps/web/components/biolink/DirectoryBiolinkItem.tsx`: همان تغییرها + تبدیل
+  `items-start` به `items-stretch` تا کادر عکس به ارتفاع ردیف کشیده شود.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web npm run typecheck` → بدون خطا.
+- Playwright: `/business-cards` و `/biolinks` در ۱۴۴۰ → کادر عکس ۱۰۴×۱۰۴ با
+  `border-radius:12px` و ارتفاع کارت ۱۳۸px؛ در ۳۹۰ → کادر ۱۳۸×۱۳۸ (مربع و
+  هم‌ارتفاع ردیف ۱۵۸px).
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۶ — صفحه‌ی «تماس با ما» و افزودن آن به هدر و فوتر — نسخه `v2.105.10`
 

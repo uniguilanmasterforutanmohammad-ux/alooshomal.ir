@@ -68,14 +68,14 @@ export function DirectoryBusinessCardItem({ businessCard, selected, onSelect }: 
       )}
     >
       <div className="directory-card-inner flex h-full items-stretch gap-3">
-        <div className="directory-card-avatar flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand-light text-lg font-extrabold text-brand">
+        <div className="directory-card-avatar flex shrink-0 items-center justify-center overflow-hidden bg-brand-light text-lg font-extrabold text-brand">
           {businessCard.avatarUrl ? (
             <Image
               src={businessCard.avatarUrl}
               alt={businessCard.fullName}
               width={48}
               height={48}
-              className="size-12 object-cover"
+              className="h-full w-full object-cover"
               unoptimized
             />
           ) : (
