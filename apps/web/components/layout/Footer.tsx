@@ -17,21 +17,26 @@ const FOOTER_LINKS = [
  * (desktop) and the bottom bar (phones/tablets), so the footer stays quiet and
  * still keeps «حریم خصوصی» / «قوانین و مقررات» / «ارتباط با ما» reachable.
  *
- * It is desktop-only: phones and tablets rely on the fixed bottom navigation
- * instead, so they deliberately render no footer (avoids a second, redundant
- * block of links under the thumb and keeps the one-screen home page truly one
- * screen).
+ * The link row is desktop-only: phones and tablets rely on the fixed bottom
+ * navigation instead, so they deliberately render no link row (avoids a second,
+ * redundant block of links under the thumb). The optional `showEnamad` seal is
+ * the exception — it must stay visible on the home page on every device, so it
+ * lives in its own row that renders at all breakpoints.
  */
 export function Footer({ showEnamad = false }: { showEnamad?: boolean }) {
   const currentYear = new Date().getFullYear();
 
   return (
-    <footer className="site-footer relative mt-4 hidden overflow-hidden bg-brand text-white sm:mt-12 lg:block">
+    <footer
+      className={`site-footer relative mt-4 overflow-hidden bg-brand text-white sm:mt-12 ${
+        showEnamad ? 'block' : 'hidden lg:block'
+      }`}
+    >
       {/* لایه گرادیان و نور ملایم برای عمق بصری */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-black/20" />
       <div className="pointer-events-none absolute -top-32 left-1/2 h-64 w-[32rem] -translate-x-1/2 rounded-full bg-white/10 blur-3xl" />
 
-      <div className="container-page relative z-10 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 py-2 text-xs text-white/75 sm:py-3 lg:justify-between">
+      <div className="container-page relative z-10 hidden flex-wrap items-center justify-center gap-x-5 gap-y-1 py-2 text-xs text-white/75 sm:py-3 lg:flex lg:justify-between">
         <Link
           href="/"
           prefetch={false}
@@ -67,11 +72,16 @@ export function Footer({ showEnamad = false }: { showEnamad?: boolean }) {
         >
           {APP_VERSION}
         </span>
-
-        {/* Official e-namad trust seal, shown on the home page as the
-            verification requires. The markup is fixed by enamad.ir. */}
-        {showEnamad ? <EnamadBadge className="shrink-0" /> : null}
       </div>
+
+      {/* Official e-namad trust seal, shown on the home page as the verification
+          requires. The markup is fixed by enamad.ir. It renders on every device
+          because enamad expects the seal on the main page. */}
+      {showEnamad ? (
+        <div className="container-page relative z-10 flex justify-center py-3">
+          <EnamadBadge className="shrink-0" />
+        </div>
+      ) : null}
     </footer>
   );
 }
