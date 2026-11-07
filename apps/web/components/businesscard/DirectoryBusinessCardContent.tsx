@@ -20,7 +20,7 @@ import {
   useInfiniteScroll,
 } from '@/lib/directory';
 import { primeDirectoryDetails } from '@/lib/directory-detail';
-import { DIRECTORY_VIEWS_ALL, useDirectoryView } from '@/lib/directory-view';
+import { useDirectoryView, useDirectoryViews } from '@/lib/directory-view';
 import type { DirectoryView } from '@/lib/directory-view';
 import type { ServerDirectoryResult } from '@/lib/directory-server';
 
@@ -45,12 +45,13 @@ export function DirectoryBusinessCardContent({
   // A `?view=` deep-link (e.g. the «دفترچه تلفن» link) wins over the stored
   // preference so shared links open in the intended look.
   const requestedView = searchParams.get('view') as DirectoryView | null;
+  const allowedViews = useDirectoryViews('business-cards');
   const { view, setView } = useDirectoryView({
     preferred:
       requestedView === 'list' || requestedView === 'tiles' || requestedView === 'notebook'
         ? requestedView
         : null,
-    allowed: DIRECTORY_VIEWS_ALL,
+    allowed: allowedViews,
   });
   const [selectedSlug, setSelectedSlug] = useState<string | null>(
     searchParams.get('card'),
@@ -132,7 +133,7 @@ export function DirectoryBusinessCardContent({
             </p>
           </div>
         </div>
-        <DirectoryViewSwitch value={view} onChange={setView} />
+        <DirectoryViewSwitch value={view} onChange={setView} views={allowedViews} />
       </div>
 
       <div className="shrink-0">

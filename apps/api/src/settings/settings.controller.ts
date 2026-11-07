@@ -24,6 +24,7 @@ import {
   ADMIN_NOTIFY_CATEGORIES,
   AdminNotifyCategory,
   BIOLINK_TEMPLATE_KEYS,
+  DIRECTORY_VIEW_KEYS,
   DIRECTORY_DISPLAY_MODES,
   DirectoryDisplayMode,
   FEATURE_FLAGS,
@@ -63,6 +64,20 @@ class UpdateSettingsDto {
   @IsArray()
   @IsString({ each: true })
   biolinkTemplatesEnabled?: string[];
+
+  /** Looks enabled for the business-card directory (list/tiles/notebook). */
+  @ApiPropertyOptional({ enum: DIRECTORY_VIEW_KEYS, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  businessCardDirectoryViews?: string[];
+
+  /** Looks enabled for the biolink directory (list/tiles). */
+  @ApiPropertyOptional({ enum: DIRECTORY_VIEW_KEYS, isArray: true })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  biolinkDirectoryViews?: string[];
 
   /** Site-wide visual theme (`vintage` | `modern` | `bazaar` | `twitter`). */
   @ApiPropertyOptional({
@@ -222,6 +237,10 @@ export class SettingsController {
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
       biolinkTemplatesEnabled:
         await this.settingsService.getBiolinkTemplatesEnabled(),
+      businessCardDirectoryViews:
+        await this.settingsService.getBusinessCardDirectoryViews(),
+      biolinkDirectoryViews:
+        await this.settingsService.getBiolinkDirectoryViews(),
       siteTheme: await this.settingsService.getSiteTheme(),
       features: await this.settingsService.getFeatureFlags(),
       featureVisibility: await this.settingsService.getFeatureVisibility(),
@@ -273,6 +292,10 @@ export class AdminSettingsController {
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
       biolinkTemplatesEnabled:
         await this.settingsService.getBiolinkTemplatesEnabled(),
+      businessCardDirectoryViews:
+        await this.settingsService.getBusinessCardDirectoryViews(),
+      biolinkDirectoryViews:
+        await this.settingsService.getBiolinkDirectoryViews(),
       siteTheme: await this.settingsService.getSiteTheme(),
       biolinkTemplateKeys: [...BIOLINK_TEMPLATE_KEYS],
       features: await this.settingsService.getFeatureFlags(),
@@ -295,6 +318,8 @@ export class AdminSettingsController {
       adminListPageSize?: number;
       myListPageSize?: number;
       biolinkTemplatesEnabled?: string[];
+      businessCardDirectoryViews?: string[];
+      biolinkDirectoryViews?: string[];
       siteTheme?: SiteTheme;
       adminNotifications?: Record<AdminNotifyCategory, boolean>;
       allowBiolinkCreation?: boolean;
@@ -346,6 +371,18 @@ export class AdminSettingsController {
       result.biolinkTemplatesEnabled =
         await this.settingsService.setBiolinkTemplatesEnabled(
           dto.biolinkTemplatesEnabled,
+        );
+    }
+    if (dto.businessCardDirectoryViews !== undefined) {
+      result.businessCardDirectoryViews =
+        await this.settingsService.setBusinessCardDirectoryViews(
+          dto.businessCardDirectoryViews,
+        );
+    }
+    if (dto.biolinkDirectoryViews !== undefined) {
+      result.biolinkDirectoryViews =
+        await this.settingsService.setBiolinkDirectoryViews(
+          dto.biolinkDirectoryViews,
         );
     }
     if (dto.adminNotifications !== undefined) {

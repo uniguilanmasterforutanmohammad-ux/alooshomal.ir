@@ -19,7 +19,7 @@ import {
   useInfiniteScroll,
 } from '@/lib/directory';
 import { primeDirectoryDetails } from '@/lib/directory-detail';
-import { DIRECTORY_VIEWS_NO_NOTEBOOK, useDirectoryView } from '@/lib/directory-view';
+import { useDirectoryView, useDirectoryViews } from '@/lib/directory-view';
 import type { ServerDirectoryResult } from '@/lib/directory-server';
 
 export function DirectoryBiolinkContent({
@@ -41,8 +41,9 @@ export function DirectoryBiolinkContent({
   };
   const [filters, setFilters] = useState<DirectoryFilterState>(initial);
   // The «دفترچه» notebook is a business-card-only look; biolinks keep list+tiles.
+  const allowedViews = useDirectoryViews('biolinks');
   const { view, setView } = useDirectoryView({
-    allowed: DIRECTORY_VIEWS_NO_NOTEBOOK,
+    allowed: allowedViews,
   });
   const [selectedSlug, setSelectedSlug] = useState<string | null>(
     searchParams.get('biolink'),
@@ -122,7 +123,7 @@ export function DirectoryBiolinkContent({
         <DirectoryViewSwitch
           value={view}
           onChange={setView}
-          views={DIRECTORY_VIEWS_NO_NOTEBOOK}
+          views={allowedViews}
         />
       </div>
 

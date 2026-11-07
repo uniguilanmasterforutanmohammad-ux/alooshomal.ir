@@ -13,6 +13,22 @@ export const DIRECTORY_DISPLAY_MODE_KEY = 'directoryDisplayMode';
 export const DIRECTORY_DISPLAY_MODES = ['PAGINATION', 'INFINITE'] as const;
 export type DirectoryDisplayMode = (typeof DIRECTORY_DISPLAY_MODES)[number];
 export const DEFAULT_DIRECTORY_DISPLAY_MODE: DirectoryDisplayMode = 'PAGINATION';
+
+/**
+ * The looks each public directory can render in (mirrors `DirectoryView` on the
+ * web side). The admin may enable/disable each one per directory.
+ */
+export const DIRECTORY_VIEW_KEYS = ['list', 'tiles', 'notebook'] as const;
+export type DirectoryViewKey = (typeof DIRECTORY_VIEW_KEYS)[number];
+export const BUSINESS_CARD_VIEWS_KEY = 'businessCardDirectoryViews';
+export const DEFAULT_BUSINESS_CARD_VIEWS: DirectoryViewKey[] = [
+  'list',
+  'tiles',
+  'notebook',
+];
+export const BIOLINK_VIEWS_KEY = 'biolinkDirectoryViews';
+export const DEFAULT_BIOLINK_VIEWS: DirectoryViewKey[] = ['list', 'tiles'];
+
 export const ADMIN_LIST_PAGE_SIZE_KEY = 'adminListPageSize';
 export const DEFAULT_ADMIN_LIST_PAGE_SIZE = 10;
 /** Page size for the user's own lists (my biolinks / cards / saved / boost). */
@@ -698,6 +714,77 @@ export class SettingsService implements OnModuleInit {
       create: { key: DIRECTORY_DISPLAY_MODE_KEY, value: clean },
     });
     return clean;
+  }
+
+  // ---- «حالت نمایش» دایرکتوری‌ها (لیست / کاشی / دفترچه) ----
+
+  /**
+   * Reads one directory's enabled view list. Unknown values are dropped, the
+   * registry order is preserved, and an empty result falls back to the default
+   * so a directory always has at least one look to render.
+   */
+  private async getDirectoryViews(
+    key: string,
+    fallback: DirectoryViewKey[],
+  ): Promise<DirectoryViewKey[]> {
+    const setting = await this.prisma.setting.findUnique({ where: { key } });
+    if (!setting) return [...fallback];
+    const stored = setting.value
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter((entry): entry is DirectoryViewKey =>
+        (DIRECTORY_VIEW_KEYS as readonly string[]).includes(entry),
+      );
+    const ordered = (DIRECTORY_VIEW_KEYS as readonly DirectoryViewKey[]).filter(
+      (view) => stored.includes(view),
+    );
+    return ordered.length > 0 ? ordered : [...fallback];
+  }
+
+  private async setDirectoryViews(
+    key: string,
+    fallback: DirectoryViewKey[],
+    views: string[],
+  ): Promise<DirectoryViewKey[]> {
+    const clean = (DIRECTORY_VIEW_KEYS as readonly DirectoryViewKey[]).filter(
+      (view) => views.includes(view),
+    );
+    const value = (clean.length > 0 ? clean : fallback).join(',');
+    await this.prisma.setting.upsert({
+      where: { key },
+      update: { value },
+      create: { key, value },
+    });
+    return this.getDirectoryViews(key, fallback);
+  }
+
+  /** Looks enabled for the business-card directory. */
+  getBusinessCardDirectoryViews(): Promise<DirectoryViewKey[]> {
+    return this.getDirectoryViews(
+      BUSINESS_CARD_VIEWS_KEY,
+      DEFAULT_BUSINESS_CARD_VIEWS,
+    );
+  }
+
+  setBusinessCardDirectoryViews(views: string[]): Promise<DirectoryViewKey[]> {
+    return this.setDirectoryViews(
+      BUSINESS_CARD_VIEWS_KEY,
+      DEFAULT_BUSINESS_CARD_VIEWS,
+      views,
+    );
+  }
+
+  /** Looks enabled for the biolink directory (notebook is not offered here). */
+  getBiolinkDirectoryViews(): Promise<DirectoryViewKey[]> {
+    return this.getDirectoryViews(BIOLINK_VIEWS_KEY, DEFAULT_BIOLINK_VIEWS);
+  }
+
+  setBiolinkDirectoryViews(views: string[]): Promise<DirectoryViewKey[]> {
+    return this.setDirectoryViews(
+      BIOLINK_VIEWS_KEY,
+      DEFAULT_BIOLINK_VIEWS,
+      views,
+    );
   }
 
   // ---- «حالت نمایش» بیولینک ----

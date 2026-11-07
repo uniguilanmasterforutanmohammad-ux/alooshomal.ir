@@ -6,6 +6,15 @@ import { LayoutGrid, List, Save } from 'lucide-react';
 import { api } from '@/lib/api';
 
 type DisplayMode = 'PAGINATION' | 'INFINITE';
+type ViewKey = 'list' | 'tiles' | 'notebook';
+
+const VIEW_LABELS: Record<ViewKey, string> = {
+  list: 'لیست',
+  tiles: 'کاشی',
+  notebook: 'دفترچه',
+};
+const CARD_VIEWS: ViewKey[] = ['list', 'tiles', 'notebook'];
+const BIOLINK_VIEWS: ViewKey[] = ['list', 'tiles'];
 
 interface SettingsPayload {
   directoryPageSize: number;
@@ -13,6 +22,8 @@ interface SettingsPayload {
   adminListPageSize: number;
   myListPageSize: number;
   boostDurationDays: number;
+  businessCardDirectoryViews?: ViewKey[];
+  biolinkDirectoryViews?: ViewKey[];
 }
 
 /**
@@ -26,6 +37,8 @@ export function AdminDirectorySettings() {
   const [adminValue, setAdminValue] = useState('');
   const [myValue, setMyValue] = useState('');
   const [boostDays, setBoostDays] = useState('');
+  const [cardViews, setCardViews] = useState<ViewKey[]>(CARD_VIEWS);
+  const [biolinkViews, setBiolinkViews] = useState<ViewKey[]>(BIOLINK_VIEWS);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +56,16 @@ export function AdminDirectorySettings() {
       setAdminValue(String(result.adminListPageSize));
       setMyValue(String(result.myListPageSize));
       setBoostDays(String(result.boostDurationDays));
+      setCardViews(
+        (result.businessCardDirectoryViews ?? CARD_VIEWS).filter((view) =>
+          CARD_VIEWS.includes(view),
+        ),
+      );
+      setBiolinkViews(
+        (result.biolinkDirectoryViews ?? BIOLINK_VIEWS).filter((view) =>
+          BIOLINK_VIEWS.includes(view),
+        ),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری تنظیمات');
     } finally {
@@ -53,6 +76,16 @@ export function AdminDirectorySettings() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  function toggleView(
+    list: ViewKey[],
+    setList: (value: ViewKey[]) => void,
+    key: ViewKey,
+  ) {
+    setList(
+      list.includes(key) ? list.filter((view) => view !== key) : [...list, key],
+    );
+  }
 
   async function save(event: React.FormEvent) {
     event.preventDefault();
@@ -86,6 +119,8 @@ export function AdminDirectorySettings() {
         adminListPageSize: parsedAdmin,
         myListPageSize: parsedMy,
         boostDurationDays: parsedBoost,
+        businessCardDirectoryViews: cardViews.length ? cardViews : ['list'],
+        biolinkDirectoryViews: biolinkViews.length ? biolinkViews : ['list'],
       });
       setValue(String(result.directoryPageSize));
       setDisplayMode(
@@ -94,6 +129,16 @@ export function AdminDirectorySettings() {
       setAdminValue(String(result.adminListPageSize));
       setMyValue(String(result.myListPageSize));
       setBoostDays(String(result.boostDurationDays));
+      setCardViews(
+        (result.businessCardDirectoryViews ?? CARD_VIEWS).filter((view) =>
+          CARD_VIEWS.includes(view),
+        ),
+      );
+      setBiolinkViews(
+        (result.biolinkDirectoryViews ?? BIOLINK_VIEWS).filter((view) =>
+          BIOLINK_VIEWS.includes(view),
+        ),
+      );
       setMessage('تنظیمات ذخیره شد.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره تنظیمات ناموفق بود');
@@ -146,6 +191,51 @@ export function AdminDirectorySettings() {
           بارگذاری می‌شوند؛ در حالت صفحه‌بندی، دکمه‌های قبلی/بعدی نمایش داده می‌شوند.
         </p>
       </div>
+
+      <div className="mt-4 grid gap-4 border-t border-[var(--vintage-border)] pt-4 sm:grid-cols-2">
+        <div>
+          <p className="text-xs font-bold text-muted">حالت‌های نمایش کارت ویزیت</p>
+          <div className="mt-2 flex flex-wrap gap-4">
+            {CARD_VIEWS.map((key) => (
+              <label
+                key={key}
+                className="flex items-center gap-2 text-xs font-bold text-muted"
+              >
+                <input
+                  type="checkbox"
+                  checked={cardViews.includes(key)}
+                  onChange={() => toggleView(cardViews, setCardViews, key)}
+                  className="size-4 accent-[var(--vintage-accent)]"
+                />
+                {VIEW_LABELS[key]}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div>
+          <p className="text-xs font-bold text-muted">حالت‌های نمایش بیولینک</p>
+          <div className="mt-2 flex flex-wrap gap-4">
+            {BIOLINK_VIEWS.map((key) => (
+              <label
+                key={key}
+                className="flex items-center gap-2 text-xs font-bold text-muted"
+              >
+                <input
+                  type="checkbox"
+                  checked={biolinkViews.includes(key)}
+                  onChange={() => toggleView(biolinkViews, setBiolinkViews, key)}
+                  className="size-4 accent-[var(--vintage-accent)]"
+                />
+                {VIEW_LABELS[key]}
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+      <p className="mt-1 text-xs text-muted">
+        هر حالت خاموش‌شده از کلید «حالت نمایش» در دایرکتوری عمومی پنهان می‌شود؛
+        حداقل یک حالت باید فعال بماند.
+      </p>
 
       {loading ? (
         <p className="mt-4 text-sm text-muted">در حال بارگذاری...</p>

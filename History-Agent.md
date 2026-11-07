@@ -20,7 +20,39 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.110.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.111.0**.
+
+## ۱۴۰۵/۰۸/۱۷ — فعال/غیرفعال‌کردن حالت‌های نمایش دایرکتوری توسط مدیر — نسخه `v2.111.0`
+
+**هدف:** ادمین بتواند حالت‌های نمایش «لیست / کاشی / دفترچه» را برای کارت‌های
+ویزیت و بیولینک‌ها جداگانه فعال یا غیرفعال کند و کلید «حالت نمایش» در دایرکتوری
+عمومی فقط حالت‌های مجاز را نشان دهد.
+
+**تغییرات:**
+- `apps/api/src/settings/settings.service.ts`: کلیدهای
+  `businessCardDirectoryViews`/`biolinkDirectoryViews` با getter/setter و
+  پیش‌فرض‌های `list,tiles,notebook` (کارت) و `list,tiles` (بیولینک).
+- `apps/api/src/settings/settings.controller.ts`: افزودن فیلدهای DTO، نمایش در
+  `GET /settings/public` و `GET /admin/settings`، و ذخیره در `PATCH /admin/settings`.
+- `apps/web/lib/directory-view.ts`: هوک `useDirectoryViews(kind)` برای خواندن
+  حالت‌های مجاز از تنظیمات عمومی و بازگشت خودکار به اولین حالت مجاز اگر حالت
+  فعلی غیرفعال شود.
+- `apps/web/components/businesscard/DirectoryBusinessCardContent.tsx` و
+  `apps/web/components/biolink/DirectoryBiolinkContent.tsx`: استفاده از حالت‌های
+  مجاز در کلید نمایش.
+- `apps/web/components/admin/AdminDirectorySettings.tsx`: چک‌باکس‌های فعال/غیرفعال
+  برای هر حالت و هر دایرکتوری.
+- `apps/web/lib/version.ts`: نسخه به `v2.111.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` و
+  `docker exec alooshomal-web npx tsc --noEmit` → بدون خطا.
+- `PATCH /api/admin/settings` با `cards=[list,tiles]` و `biolinks=[tiles]` →
+  `GET /api/settings/public` همان مقادیر را برگرداند.
+- Playwright: `/business-cards` فقط «لیست/کاشی» و `/biolinks` فقط «کاشی» (و
+  پیش‌فرض کاشی) را نشان داد. سپس تنظیمات به پیش‌فرض بازگردانده شد.
+- `python3 scripts/check_api_docs.py` → exit 0؛
+  `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۷ — مربعی‌شدن عکس پنل جزئیات دایرکتوری‌ها — نسخه `v2.110.2`
 
