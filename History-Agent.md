@@ -20,7 +20,39 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.106.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.107.0**.
+
+## ۱۴۰۵/۰۸/۱۷ — ارسال همان کد OTP هم با پیامک و هم با ایمیل — نسخه `v2.107.0`
+
+**هدف:** کاربر خواست کد یکبارمصرف هم پیامک شود و هم ایمیل، تا هر کدام راحت‌تر
+بود دریافت کند.
+
+**تغییرات:**
+- `apps/api/src/auth/mail.service.ts`: سرویس SMTP با `nodemailer` (STARTTLS روی
+  پورت ۵۸۷، قالب HTML راست‌به‌چپ و متن ساده، ماسک آدرس در لاگ).
+- `apps/api/src/auth/otp.service.ts`: `issue()` گزینه‌ی `email` گرفت و همان کد
+  پیامکی را با ایمیل هم می‌فرستد؛ خطای ایمیل باعث شکست پیامک نمی‌شود و
+  `emailSent` در پاسخ برگردانده می‌شود.
+- `apps/api/src/auth/auth.service.ts`: برای کاربر موجود ایمیل حساب و برای شماره‌ی
+  جدید ایمیل اختیاری ورودی استفاده می‌شود.
+- `apps/api/src/auth/dto/request-code.dto.ts`: فیلد اختیاری `email` با
+  `@ApiPropertyOptional`.
+- `apps/api/src/common/rate-limit.service.ts`: سقف ۵ ارسال ایمیل به هر آدرس در
+  ۱۵ دقیقه (`otpRequestEmail`).
+- `apps/api/src/auth/auth.module.ts`: ثبت `MailService`.
+- `apps/web/components/auth/AuthForm.tsx`: فیلد اختیاری ایمیل در مرحله‌ی شماره و
+  پیام «کد به موبایل و ایمیل ارسال شد».
+- `docker-compose.yml`، `docker-compose.prod.yml`، `.env.example`،
+  `apps/api/.env.example`: متغیرهای `MAIL_*`.
+- `docs/API.md`: توضیح فیلد اختیاری `email` در `request-code`.
+- `apps/web/lib/version.ts`: نسخه به `v2.107.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` → بدون خطا.
+- ارسال واقعی SMTP از کانتینر به `auth@shomalicard.ir` → `OK` با `messageId`.
+- `POST /api/auth/phone/request-code` با `{"phone":"09120000000","email":"auth@shomalicard.ir"}`
+  → `200`، `emailSent: true` (در dev کد `123456`).
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۶ — نمایش اینماد روی موبایل در فوتر صفحه‌ی اول — نسخه `v2.106.2`
 

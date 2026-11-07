@@ -104,6 +104,15 @@ services:
       # empty, local dev uses the fixed dev code (123456) but production
       # refuses the phone flow (503) instead of leaking it — set it on servers.
       MELIPAYAMAK_OTP_PATH: ${MELIPAYAMAK_OTP_PATH:-}
+      # SMTP account used to deliver the same OTP by email. Leave empty to
+      # keep the flow SMS-only; see MAIL_* in .env.example.
+      MAIL_HOST: ${MAIL_HOST:-}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_SECURE: ${MAIL_SECURE:-false}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-شمالی کارت}
     ports:
       - "${API_PORT:-4000}:4000"
     volumes:

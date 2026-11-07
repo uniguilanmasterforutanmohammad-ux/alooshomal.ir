@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 
 import { RedisService } from '../redis/redis.service';
+import { MailService } from './mail.service';
 import { SmsService } from './sms.service';
 
 /**
@@ -56,6 +57,8 @@ export interface IssuedOtp {
   resendAfter: number;
   /** True when the code was actually sent by SMS. */
   sent: boolean;
+  /** True when the same code was also delivered to the account's email. */
+  emailSent?: boolean;
 }
 
 @Injectable()
@@ -80,6 +83,7 @@ export class OtpService {
   constructor(
     private readonly redis: RedisService,
     private readonly sms: SmsService,
+    private readonly mail: MailService,
   ) {}
 
   /**
@@ -193,7 +197,11 @@ export class OtpService {
    * Sends (or, in dev, mints) a fresh code for `phone` and stores its hash.
    * Returns dev-only metadata so the UI can help the developer.
    */
-  async issue(phone: string, purpose: OtpPurpose = 'login'): Promise<IssuedOtp> {
+  async issue(
+    phone: string,
+    purpose: OtpPurpose = 'login',
+    options: { email?: string | null } = {},
+  ): Promise<IssuedOtp> {
     if (await this.recentlyIssued(purpose, phone)) {
       throw new BadRequestException(
         'کد قبلی هنوز معتبر است؛ لطفاً کمی بعد دوباره تلاش کنید',
@@ -231,9 +239,27 @@ export class OtpService {
     await this.write(purpose, phone, { hash: this.hash(code), attempts: 0 });
     await this.markIssued(purpose, phone);
 
+    // Deliver the same code by email as well, so the user can pick whichever
+    // channel is easier. A mail failure must not break an SMS that already
+    // went out, so it is logged and swallowed.
+    let emailSent = false;
+    const email = options.email?.trim();
+    if (email && this.mail.enabled) {
+      try {
+        emailSent = await this.mail.sendOtp(email, code, purpose);
+      } catch (error) {
+        this.logger.error(
+          `OTP email to ${email} failed: ${
+            error instanceof Error ? error.message : 'unknown error'
+          }`,
+        );
+      }
+    }
+
     return {
       resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
       sent,
+      emailSent,
       ...(sent ? {} : { devCode: code }),
     };
   }

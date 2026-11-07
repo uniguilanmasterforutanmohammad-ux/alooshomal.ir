@@ -11,6 +11,7 @@ import { safeInternalPath } from '@/lib/safe-next';
 interface RequestCodeResult {
   phone: string;
   sent: boolean;
+  emailSent?: boolean;
   resendAfter: number;
   /** Present only when SMS is disabled (local dev) so the code is visible. */
   devCode?: string;
@@ -51,6 +52,7 @@ export function AuthForm({
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [devCode, setDevCode] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -65,9 +67,11 @@ export function AuthForm({
     try {
       const result = await api.post<RequestCodeResult>('/auth/phone/request-code', {
         phone,
+        ...(email.trim() ? { email: email.trim() } : {}),
       });
       setPhone(result.phone);
       setDevCode(result.devCode ?? null);
+      setEmailSent(Boolean(result.emailSent));
       setStep('code');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ارسال کد ناموفق بود');
@@ -157,6 +161,15 @@ export function AuthForm({
           placeholder="09123456789"
           hint="برای ورود یا ثبت‌نام، شماره موبایل خود را وارد کنید."
         />
+        <Input
+          label="ایمیل (اختیاری)"
+          type="email"
+          dir="ltr"
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="you@example.com"
+          hint="اگر پر شود، کد یکبارمصرف به ایمیل هم ارسال می‌شود."
+        />
         {error ? (
           <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
         ) : null}
@@ -184,8 +197,14 @@ export function AuthForm({
     return (
       <form onSubmit={verifyCode} className="flex flex-col gap-4">
         <p className="text-sm text-muted">
-          کد ارسال‌شده به <span dir="ltr" className="font-bold text-ink">{phone}</span> را
-          وارد کنید.
+          کد ارسال‌شده به <span dir="ltr" className="font-bold text-ink">{phone}</span>
+          {emailSent && email.trim() ? (
+            <>
+              {' و ایمیل '}
+              <span dir="ltr" className="font-bold text-ink">{email.trim()}</span>
+            </>
+          ) : null}{' '}
+          را وارد کنید.
         </p>
         {devCode ? (
           <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">

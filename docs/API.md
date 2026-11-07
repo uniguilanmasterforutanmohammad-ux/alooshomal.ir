@@ -32,6 +32,9 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 
 1. با `POST /api/auth/login` (ایمیل/گذرواژه) یا `POST /api/auth/verify-otp`
    (شماره/کد پیامکی) توکن دسترسی بگیرید.
+   در جریان `POST /api/auth/phone/request-code` می‌توانید فیلد اختیاری `email`
+   را هم بفرستید؛ همان کد یکبارمصرف علاوه بر پیامک به آن ایمیل هم ارسال می‌شود
+   (برای کاربران موجود، ایمیل حساب ملاک است).
 2. در بالای صفحه‌ی Swagger روی **Authorize** بزنید و توکن را در قالب
    `Bearer <token>` وارد کنید.
 3. گزینه‌ی `persistAuthorization` فعال است، پس توکن بین رفرش‌ها حفظ می‌شود.

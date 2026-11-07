@@ -6,6 +6,7 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { jwtSignOptions, resolveJwtSecret } from './jwt.config';
+import { MailService } from './mail.service';
 import { OtpService } from './otp.service';
 import { PermissionsGuard } from './permissions.guard';
 import { SmsService } from './sms.service';
@@ -32,7 +33,7 @@ import { CommonModule } from '../common/common.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, PermissionsGuard, OtpService, SmsService],
+  providers: [AuthService, JwtStrategy, PermissionsGuard, OtpService, SmsService, MailService],
   exports: [AuthService, OtpService],
 })
 export class AuthModule {}

@@ -81,7 +81,25 @@ export class AuthService {
     // Guard against SMS-cost abuse and enumeration: cap per phone and per IP.
     await this.rateLimit.hit(RATE_LIMITS.otpRequestPhone, phone);
     if (ip) await this.rateLimit.hit(RATE_LIMITS.otpRequestIp, ip);
-    const issued = await this.otp.issue(phone);
+    // The code is delivered by SMS and, when we know an address, by email too.
+    // For an existing account the email on file wins; a new number may pass an
+    // address so the sign-up code reaches both channels. That address is
+    // rate-limited on its own to keep the endpoint from being used as an open
+    // email relay.
+    const requestedEmail = dto.email?.toLowerCase().trim();
+    if (requestedEmail) {
+      await this.rateLimit.hit(
+        RATE_LIMITS.otpRequestEmail,
+        createHash('sha256').update(requestedEmail).digest('hex'),
+      );
+    }
+    const existing = await this.prisma.user.findUnique({
+      where: { phone },
+      select: { email: true },
+    });
+    const issued = await this.otp.issue(phone, 'login', {
+      email: existing?.email ?? requestedEmail,
+    });
     // Do not reveal whether the number already has an account: the response is
     // identical for new and returning users (the verify step asks for the
     // profile fields only when it actually needs them).
