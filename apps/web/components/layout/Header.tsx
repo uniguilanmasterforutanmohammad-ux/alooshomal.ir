@@ -26,16 +26,19 @@ export function Header() {
   const navItems = HEADER_NAV.filter((item) => showNav(item.href));
 
   return (
-    <header className="sticky top-[var(--feature-notice-h)] z-50 hidden border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[var(--vintage-surface)]/95 whitespace-nowrap backdrop-blur lg:block">
-      <div className="container-page flex h-16 items-center justify-between gap-4">
-        <Link href="/" className="flex items-center gap-2 text-xl font-extrabold text-brand">
+    <header className="sticky top-[var(--feature-notice-h)] z-50 hidden border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[var(--vintage-surface)]/95 backdrop-blur lg:block">
+      <div className="container-page flex h-16 items-center justify-between gap-2 xl:gap-4">
+        <Link
+          href="/"
+          className="flex shrink-0 items-center gap-2 text-lg font-extrabold text-brand xl:text-xl"
+        >
           <span className="vintage-avatar flex size-9 items-center justify-center">
             <IdCard className="size-5" aria-hidden />
           </span>
           <span>شمالی کارت</span>
         </Link>
 
-        <nav className="hidden items-center gap-6 text-sm font-medium text-muted lg:flex">
+        <nav className="hidden min-w-0 items-center gap-3 text-[13px] font-medium text-muted lg:flex xl:gap-6 xl:text-sm">
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -45,18 +48,18 @@ export function Header() {
               // render-blocking CSS/fonts (see the Lighthouse report). The
               // footer and mobile bar already disable it for the same reason.
               prefetch={false}
-              className="hover:text-brand"
+              className="whitespace-nowrap hover:text-brand"
             >
               {item.label}
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           <ThemeToggle />
           <Link
             href={signedIn ? '/dashboard' : '/login'}
-            className="indeed-btn indeed-btn-secondary"
+            className="indeed-btn indeed-btn-secondary hidden xl:inline-flex"
           >
             {signedIn ? (
               <>
@@ -75,7 +78,8 @@ export function Header() {
             className="indeed-btn indeed-btn-primary"
           >
             <LayoutDashboard className="size-4" aria-hidden />
-            رایگان شروع کنید
+            <span className="hidden xl:inline">رایگان شروع کنید</span>
+            <span className="xl:hidden">شروع کنید</span>
           </Link>
         </div>
       </div>

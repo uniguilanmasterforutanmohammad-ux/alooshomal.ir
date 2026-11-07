@@ -40,10 +40,13 @@ export function MobileNav() {
 
   const allItems: Item[] = [
     { href: '/', label: 'خانه', icon: Home, exact: true },
-    { href: '/business-cards', label: 'کارت ویزیت‌ها', icon: BadgeCheck },
-    { href: '/biolinks', label: 'بیولینک‌ها', icon: IdCard },
-    { href: '/pulse', label: 'اخبار شهر', icon: Newspaper },
-    { href: '/feeds', label: 'پست کاربران', icon: ImagePlus },
+    // Short, single-word labels so the bar stays one compact row on narrow
+    // phones (the bar is height-reserved by `body` at 56px; a wrapped two-line
+    // label would push it taller and hide the last slice of the page).
+    { href: '/business-cards', label: 'کارت‌ها', icon: BadgeCheck },
+    { href: '/biolinks', label: 'بیولینک', icon: IdCard },
+    { href: '/pulse', label: 'اخبار', icon: Newspaper },
+    { href: '/feeds', label: 'پست‌ها', icon: ImagePlus },
     hydrated && token
       ? { href: '/dashboard', label: 'داشبورد', icon: LayoutDashboard }
       : { href: '/login', label: 'ورود', icon: LogIn },
@@ -76,7 +79,7 @@ export function MobileNav() {
                 // plenty and the network stays calm.
                 prefetch={false}
                 className={cn(
-                  'flex flex-col items-center gap-0.5 px-0.5 py-2 text-[10px] font-bold transition',
+                  'flex flex-col items-center gap-0.5 whitespace-nowrap px-0.5 py-2 text-[10px] font-bold transition',
                   active ? 'text-brand' : 'text-muted',
                 )}
               >

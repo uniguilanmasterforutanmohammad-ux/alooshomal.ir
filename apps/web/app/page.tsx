@@ -3,18 +3,18 @@ import './hero-brick.css';
 import './site-bg-pattern.css';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import { ReporterCtaButton } from '@/components/news/ReporterCtaButton';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
 import { HomeSearchBox } from '@/components/home/HomeSearchBox';
 import { HomeHeadline } from '@/components/home/HomeHeadline';
 import { BadgeCheck, Smartphone } from 'lucide-react';
 
 /**
- * Public home page. It is deliberately minimal: the hero (headline, city line,
- * search box and the two directory buttons) plus the «شهروند خبرنگار شوید»
- * invitation. The ads box, the latest business-cards/biolinks sliders, the city
- * news table, the blog picks and the «چطور کار می‌کند؟» / feature guide cards
- * were removed on request.
+ * Public home page. It is deliberately minimal and single-screen: only the
+ * hero — headline, city line, search box and the two directory buttons. The
+ * ads box, the latest business-cards/biolinks sliders, the city news table,
+ * the blog picks, the «چطور کار می‌کند؟» / feature guide cards and the
+ * «شهروند خبرنگار شوید» invitation were all removed on request so the whole
+ * page lands in one viewport on every device without scrolling.
  */
 export default async function HomePage() {
   // The admin can stop any public section; the hero buttons then drop out too
@@ -25,11 +25,13 @@ export default async function HomePage() {
 
   return (
     /* The home page is a one-screen column: the shell reserves the height left
-       by the chrome (66px sticky header on desktop, 56px fixed bottom nav on
-       phones/tablets — the latter already padded by `body`), and the hero takes
-       whatever is left after the invitation box and the footer, so the page
-       never scrolls. */
-    <div className="home-shell flex min-h-[calc(100dvh-56px)] flex-col lg:min-h-[calc(100dvh-66px)]">
+       by the chrome — the 56px fixed bottom nav on phones/tablets (already
+       padded by `body`) or the 66px sticky header on desktop — plus the height
+       of the sticky «توقف موقت» notice strip when one is showing
+       (`--feature-notice-h`), so the hero takes the remaining room and the page
+       never scrolls. The footer is desktop-only (see `Footer`), so on
+       phones/tablets the hero is the entire page. */
+    <div className="home-shell flex min-h-[calc(100dvh-56px-var(--feature-notice-h))] flex-col lg:min-h-[calc(100dvh-66px-var(--feature-notice-h))]">
       <Header />
 
       <main className="flex flex-1 flex-col">
@@ -67,26 +69,6 @@ export default async function HomePage() {
                   لیست بیولینک‌ها
                 </Link>
               ) : null}
-            </div>
-          </div>
-        </section>
-
-        <section className="container-page mt-4 sm:mt-16">
-          {/* Stacked on phones (the buttons row needs the full width) and a
-              single spread row from `sm` up. */}
-          <div className="indeed-panel flex flex-col gap-3 p-2.5 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-            <div className="min-w-0">
-              <h2 className="text-base font-extrabold text-ink">شهروند خبرنگار شوید</h2>
-              <p className="mt-1 text-sm text-muted">
-                خبرهای شهر خود را ثبت کنید تا پس از تأیید مدیر منتشر شود.
-                {' '}با تأیید هر خبر، امتیاز بگیرید و آن را صرف اشتراک و تبلیغ کنید.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <ReporterCtaButton variant="primary" />
-              <Link href="/dashboard/points" className="indeed-btn indeed-btn-secondary py-2 text-sm">
-                مشاهده امتیازها
-              </Link>
             </div>
           </div>
         </section>
