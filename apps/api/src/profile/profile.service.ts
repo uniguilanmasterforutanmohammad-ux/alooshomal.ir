@@ -201,35 +201,37 @@ export class ProfileService {
     return { email, sentTo: email, ...issued };
   }
 
-  /** Step 2 of an email change: check the OTP sent to the new email. */
+  /**
+   * Step 2 of an email change: check the OTP sent to the new email and apply
+   * the change immediately. The code already proves control of the mailbox, so
+   * no admin approval is required (unlike phone changes).
+   */
   async verifyEmailChange(userId: string, rawEmail: string, code: string) {
     const email = rawEmail.toLowerCase().trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestException('ایمیل معتبر نیست');
+    }
     const me = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!me) {
       throw new NotFoundException('کاربر یافت نشد');
+    }
+    if (me.email === email) {
+      throw new BadRequestException('این ایمیل همان ایمیل فعلی شماست');
     }
     const owner = await this.prisma.user.findUnique({ where: { email } });
     if (owner && owner.id !== userId) {
       throw new ConflictException('این ایمیل قبلاً ثبت شده است');
     }
     await this.otp.verifyEmailChange(userId, code);
-    const request = await this.fileChangeRequest(userId, { email });
-    await this.notifications.notifyAdmins({
-      category: 'SECURITY',
-      type: NotificationType.INFO,
-      title: 'درخواست تغییر ایمیل',
-      body: `${me.fullName ?? me.phone ?? 'کاربر'} درخواست تغییر ایمیل از ${me.email ?? '—'} به ${email} دارد (کد تأیید شده).`,
-      link: '/admin?section=users',
-      actorId: userId,
-    });
+    await this.prisma.user.update({ where: { id: userId }, data: { email } });
     await this.activity.log({
-      actor: { id: userId, email: me.email },
-      action: 'PROFILE_EMAIL_CHANGE_REQUESTED',
-      summary: `درخواست تغییر ایمیل به ${email}`,
+      actor: { id: userId, email },
+      action: 'PROFILE_EMAIL_CHANGED',
+      summary: `تغییر ایمیل از ${me.email ?? '—'} به ${email}`,
       entityType: 'USER',
       entityId: userId,
     });
-    return { ...request, applied: false };
+    return { applied: true, email };
   }
 
   /**

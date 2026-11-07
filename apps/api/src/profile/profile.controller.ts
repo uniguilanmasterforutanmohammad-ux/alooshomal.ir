@@ -71,7 +71,7 @@ export class ProfileController {
   }
 
   @Post('email/verify')
-  @ApiOperation({ summary: 'تأیید کد و تغییر ایمیل' })
+  @ApiOperation({ summary: 'تأیید کد و اعمال فوری تغییر ایمیل' })
   verifyEmailChange(
     @CurrentUser() user: AuthUser,
     @Body() dto: VerifyContactChangeDto,

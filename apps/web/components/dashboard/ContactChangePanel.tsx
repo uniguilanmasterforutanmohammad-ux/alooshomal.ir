@@ -95,9 +95,13 @@ export function ContactChangePanel({
         [copy.field]: value.trim(),
         code: code.trim(),
       });
-      // The value is not applied yet: it waits for admin approval, so the
-      // cached session user must stay untouched (it would show a wrong value).
-      toast.success('کد تأیید شد؛ درخواست برای تأیید مدیر ثبت شد.');
+      // Email changes are applied immediately (the code proved control of the
+      // new mailbox); phone changes still wait for admin approval.
+      toast.success(
+        kind === 'email'
+          ? 'کد تأیید شد و ایمیل شما با موفقیت تغییر کرد.'
+          : 'کد تأیید شد؛ درخواست برای تأیید مدیر ثبت شد.',
+      );
       setValue('');
       setCode('');
       setStep('input');

@@ -47,7 +47,7 @@ const ROLE_LABEL: Record<string, string> = {
 
 /** User profile page: shows account info and requests admin-approved changes. */
 export function ProfilePanel() {
-  const { user, hydrated } = useAuth();
+  const { user, hydrated, setUser } = useAuth();
   const [profile, setProfile] = useState<ProfilePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState('');
@@ -66,10 +66,19 @@ export function ProfilePanel() {
       const data = await api.get<ProfilePayload>('/profile/me');
       setProfile(data);
       setFullName((current) => current || data.fullName || '');
+      // Keep the cached session user in sync (e.g. after an immediate email
+      // change), so the header and other panels show the new address.
+      setUser({
+        id: data.id,
+        email: data.email,
+        phone: data.phone,
+        fullName: data.fullName,
+        role: data.role as 'USER' | 'CITIZEN_REPORTER' | 'MODERATOR' | 'ADMIN',
+      });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setUser]);
 
   useEffect(() => {
     if (hydrated) void load();
