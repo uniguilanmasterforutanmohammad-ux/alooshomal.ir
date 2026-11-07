@@ -177,13 +177,15 @@ export class ProfileService {
   }
 
   /**
-   * Step 1 of an email change. SMS is the only verification channel, so the
-   * code is sent to the user's current phone (which proves control of the
-   * account). The new email is validated for uniqueness up-front.
+   * Step 1 of an email change: validate the new address for uniqueness and send
+   * the OTP to *that* address, so the user proves control of the mailbox they
+   * want to add. No verified phone is required.
    */
   async requestEmailChange(userId: string, rawEmail: string) {
-    await this.assertOtpAvailable();
     const email = rawEmail.toLowerCase().trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestException('ایمیل معتبر نیست');
+    }
     const me = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!me) {
       throw new NotFoundException('کاربر یافت نشد');
@@ -195,34 +197,22 @@ export class ProfileService {
     if (owner && owner.id !== userId) {
       throw new ConflictException('این ایمیل قبلاً ثبت شده است');
     }
-    if (!me.phone) {
-      throw new BadRequestException(
-        'برای تغییر ایمیل ابتدا باید شماره موبایل ثبت شده باشد',
-      );
-    }
-    const issued = await this.otp.issue(me.phone, 'email-change');
-    // The code goes to the current phone, so echo the masked target back.
-    return { email, sentTo: me.phone, ...issued };
+    const issued = await this.otp.issueEmailChange(userId, email);
+    return { email, sentTo: email, ...issued };
   }
 
-  /** Step 2 of an email change: check the OTP sent to the current phone. */
+  /** Step 2 of an email change: check the OTP sent to the new email. */
   async verifyEmailChange(userId: string, rawEmail: string, code: string) {
-    await this.assertOtpAvailable();
     const email = rawEmail.toLowerCase().trim();
     const me = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!me) {
       throw new NotFoundException('کاربر یافت نشد');
     }
-    if (!me.phone) {
-      throw new BadRequestException(
-        'برای تغییر ایمیل ابتدا باید شماره موبایل ثبت شده باشد',
-      );
-    }
     const owner = await this.prisma.user.findUnique({ where: { email } });
     if (owner && owner.id !== userId) {
       throw new ConflictException('این ایمیل قبلاً ثبت شده است');
     }
-    await this.otp.verify(me.phone, code, 'email-change');
+    await this.otp.verifyEmailChange(userId, code);
     const request = await this.fileChangeRequest(userId, { email });
     await this.notifications.notifyAdmins({
       category: 'SECURITY',

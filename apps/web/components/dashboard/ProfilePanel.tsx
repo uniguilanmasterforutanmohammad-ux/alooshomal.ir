@@ -233,7 +233,6 @@ export function ProfilePanel() {
       />
       <ContactChangePanel
         kind="email"
-        disabled={!profile.phone}
         pendingValue={pending?.changes.email}
         onChanged={load}
       />

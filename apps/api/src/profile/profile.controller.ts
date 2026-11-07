@@ -62,7 +62,7 @@ export class ProfileController {
   // --- verified email change ---
 
   @Post('email/request-code')
-  @ApiOperation({ summary: 'ارسال کد تأیید (به موبایل فعلی) برای تغییر ایمیل' })
+  @ApiOperation({ summary: 'ارسال کد تأیید به ایمیل جدید برای تغییر ایمیل' })
   requestEmailChange(
     @CurrentUser() user: AuthUser,
     @Body() dto: RequestContactOtpDto,

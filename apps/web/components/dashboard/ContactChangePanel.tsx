@@ -10,6 +10,8 @@ interface Issued {
   /** Dev-only code shown when SMS is disabled (local). */
   devCode?: string;
   sent: boolean;
+  /** True when the code was delivered by email. */
+  emailSent?: boolean;
 }
 
 type Kind = 'phone' | 'email';
@@ -29,7 +31,7 @@ const COPY = {
   email: {
     icon: Mail,
     title: 'تغییر ایمیل',
-    hint: 'برای تأیید، یک کد به شماره موبایل فعلی شما ارسال می‌شود؛ سپس تغییر برای تأیید مدیر ثبت می‌شود.',
+    hint: 'کد تأیید به ایمیل جدید ارسال می‌شود؛ پس از واردکردن کد، تغییر برای تأیید مدیر ثبت می‌شود.',
     label: 'ایمیل جدید',
     placeholder: 'you@example.com',
     inputType: 'email' as const,
@@ -41,7 +43,7 @@ const COPY = {
 
 /**
  * Two-step verification for changing the account phone (OTP to the *new*
- * number) or email (OTP to the *current* phone). Both reuse the same OTP
+ * number) or email (OTP to the *new* address). Both reuse the same OTP
  * infrastructure as sign-in, but in their own namespaces so a login code can
  * never be replayed here.
  */
@@ -52,7 +54,7 @@ export function ContactChangePanel({
   onChanged,
 }: {
   kind: Kind;
-  /** True when the account has no verified phone (email change needs one). */
+  /** True when the change is not available for this account. */
   disabled?: boolean;
   /** A value already verified and waiting for admin approval. */
   pendingValue?: string;
@@ -124,7 +126,7 @@ export function ContactChangePanel({
         </p>
       ) : disabled ? (
         <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-          برای تغییر ایمیل ابتدا باید شماره موبایل ثبت و تأیید شده باشد.
+          این تغییر در حال حاضر برای حساب شما در دسترس نیست.
         </p>
       ) : step === 'input' ? (
         <form onSubmit={request} className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end">

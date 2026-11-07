@@ -45,6 +45,7 @@ export type OtpPurpose = 'login' | 'phone-change' | 'email-change';
 
 const keyPrefix = (purpose: OtpPurpose) => `otp:${purpose}:phone:`;
 const passwordResetKey = (userId: string) => `otp:password-reset:user:${userId}`;
+const emailChangeKey = (userId: string) => `otp:email-change:user:${userId}`;
 
 interface OtpRecord {
   hash: string;
@@ -380,6 +381,79 @@ export class OtpService {
   /** Verifies a password-reset code for `userId`; clears it on success. */
   async verifyPasswordReset(userId: string, code: string): Promise<void> {
     const key = passwordResetKey(userId);
+    const record = await this.readKey(key);
+    if (!record) {
+      throw new BadRequestException('کد منقضی شده است؛ دوباره درخواست کنید');
+    }
+    if (record.attempts >= OTP_MAX_ATTEMPTS) {
+      await this.clearKey(key);
+      throw new BadRequestException('تعداد تلاش‌ها بیش از حد مجاز است');
+    }
+    if (record.hash !== this.hash(code.trim())) {
+      await this.writeKey(key, {
+        hash: record.hash,
+        attempts: record.attempts + 1,
+      });
+      throw new BadRequestException('کد وارد‌شده صحیح نیست');
+    }
+    await this.clearKey(key);
+  }
+
+  /**
+   * Issues a code to the *new* email address for an email change.
+   *
+   * Keyed by user id (not phone) so the account does not need a verified phone
+   * to change its email. The code is delivered only by email — proving control
+   * of the new address is the whole point of this step.
+   */
+  async issueEmailChange(userId: string, email: string): Promise<IssuedOtp> {
+    const key = emailChangeKey(userId);
+    if (await this.recentlyIssuedKey(`${key}:issued`)) {
+      throw new BadRequestException(
+        'کد قبلی هنوز معتبر است؛ لطفاً کمی بعد دوباره تلاش کنید',
+      );
+    }
+
+    let code: string;
+    let emailSent = false;
+    if (this.mail.enabled) {
+      code = String(randomInt(100_000, 1_000_000));
+      try {
+        emailSent = await this.mail.sendOtp(email, code, 'email-change');
+      } catch (error) {
+        this.logger.error(
+          `Email-change OTP to ${email} failed: ${
+            error instanceof Error ? error.message : 'unknown error'
+          }`,
+        );
+      }
+      if (!emailSent) {
+        throw new ServiceUnavailableException('ارسال کد تأیید ناموفق بود');
+      }
+    } else if (this.isDev) {
+      // Local dev without SMTP: same fixed-code bypass as the other flows.
+      code = DEV_OTP_CODE;
+      this.logger.log(`[dev] email-change OTP for ${userId} is ${code}`);
+    } else {
+      throw new ServiceUnavailableException(
+        'ارسال ایمیل در حال حاضر در دسترس نیست',
+      );
+    }
+
+    await this.writeKey(key, { hash: this.hash(code), attempts: 0 });
+    await this.markIssuedKey(`${key}:issued`);
+
+    return {
+      resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
+      sent: false,
+      emailSent,
+      ...(this.isDev && !emailSent ? { devCode: code } : {}),
+    };
+  }
+
+  /** Verifies an email-change code for `userId`; clears it on success. */
+  async verifyEmailChange(userId: string, code: string): Promise<void> {
+    const key = emailChangeKey(userId);
     const record = await this.readKey(key);
     if (!record) {
       throw new BadRequestException('کد منقضی شده است؛ دوباره درخواست کنید');

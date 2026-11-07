@@ -20,7 +20,39 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.109.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.109.1**.
+
+## ۱۴۰۵/۰۸/۱۷ — ارسال کد تغییر ایمیل به ایمیل جدید (نه موبایل) — نسخه `v2.109.1`
+
+**هدف:** در `/dashboard/profile` هنگام تغییر ایمیل، کد تأیید به ایمیل جدید
+ارسال شود؛ پیش‌تر کد به شماره موبایل فعلی می‌رفت و کاربر روی ایمیل جدید کدی
+نمی‌دید.
+
+**تغییرات:**
+- `apps/api/src/auth/otp.service.ts`: افزودن `issueEmailChange` و
+  `verifyEmailChange` با فضای کلید `otp:email-change:user:<id>` که کد را فقط با
+  ایمیل به آدرس جدید می‌فرستد (بدون نیاز به موبایل تأییدشده).
+- `apps/api/src/profile/profile.service.ts`: `requestEmailChange` و
+  `verifyEmailChange` از جریان جدید استفاده می‌کنند، اعتبارسنجی ایمیل افزوده شد
+  و الزام «داشتن موبایل» حذف شد.
+- `apps/api/src/profile/profile.controller.ts`: به‌روزرسانی `summary` مسیر
+  `email/request-code` («ارسال کد به ایمیل جدید»).
+- `apps/web/components/dashboard/ContactChangePanel.tsx`: متن راهنما برای ارسال
+  کد به ایمیل جدید و افزودن `emailSent` به نوع پاسخ.
+- `apps/web/components/dashboard/ProfilePanel.tsx`: حذف غیرفعال‌بودن پنل تغییر
+  ایمیل وابسته به وجود موبایل.
+- `apps/web/lib/version.ts`: نسخه به `v2.109.1`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` → بدون خطا.
+- `docker exec alooshomal-web npx tsc --noEmit` → بدون خطا.
+- جریان روی dev (با بایپس کد در حالت بدون SMTP):
+  `POST /api/profile/email/request-code` → `201` با
+  `sentTo: reset-new@example.com` و `devCode: 123456`؛
+  `POST /api/profile/email/verify` با کد اشتباه → `400`، با کد درست → `201`
+  (ثبت درخواست PENDING)، استفاده‌ی دوباره از کد → `400`.
+- `python3 scripts/check_api_docs.py` → exit 0؛
+  `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۷ — تغییر رمز با کد یکبارمصرف و بهبود ناوبری ورود/پنل — نسخه `v2.109.0`
 
