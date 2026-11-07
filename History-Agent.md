@@ -53,6 +53,16 @@
 - `docker exec alooshomal-web npx tsc --noEmit` → بدون خطا.
 - `nginx -t` در کانتینر موقت `nginx:1.27-alpine` با گواهی ساختگی → syntax ok.
 - `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
+- **استقرار زنده روی سرور (`95.38.186.227`):** گواهی با
+  `DOMAINS="alooshomal.ir shomalicard.ir" deploy/nginx/enable-ssl.sh` تمدید/بزرگ شد؛
+  SAN گواهی = `DNS:alooshomal.ir, DNS:shomalicard.ir`.
+- `https://shomalicard.ir/55648695.txt` → `200`، صفر بایت، `text/plain`.
+- کد `trustseal.enamad.ir/logo.aspx?id=8569817&Code=...` در HTML صفحه‌ی اول هر دو
+  دامنه (`shomalicard.ir` و `alooshomal.ir`) دیده شد.
+- `CORS_ORIGIN` سرور به هر دو دامنه به‌روزرسانی شد؛ preflight از
+  `Origin: https://shomalicard.ir` → `access-control-allow-origin: https://shomalicard.ir`.
+- ایمیج وب با تغییرات روی سرور جایگزین شد؛ `alooshomal-web` و `alooshomal-api`
+  هر دو `healthy` و `nginx -t` موفق.
 
 ## ۱۴۰۵/۰۸/۱۶ — چسبیدن فوتر به انتهای صفحه در همه‌ی صفحات — نسخه `v2.105.12`
 
