@@ -39,10 +39,10 @@ export function Header() {
         </Link>
 
         {/* The nav is the flexible middle column. Its gap/type scale is tuned so
-            the row fits inside the 1200px page container at every desktop width
-            — with `xl:gap-6` the links were ~23px wider than their box and
-            «قوانین» spilled under the theme toggle. */}
-        <nav className="hidden min-w-0 items-center gap-3 text-[13px] font-medium text-muted lg:flex xl:gap-4 xl:text-sm">
+            all nine links (including «تماس با ما») fit inside the 1200px page
+            container at every desktop width — wider gaps made the row overflow
+            and «قوانین»/«تماس با ما» spilled under the theme toggle. */}
+        <nav className="hidden min-w-0 items-center gap-3 text-[13px] font-medium text-muted lg:flex xl:gap-2">
           {navItems.map((item) => (
             <Link
               key={item.href}

@@ -19,6 +19,7 @@ export const PUBLIC_NAV: PublicNavItem[] = [
   { href: '/services', label: 'لیست خدمات' },
   { href: '/guide', label: 'راهنما' },
   { href: '/rules', label: 'قوانین' },
+  { href: '/contact', label: 'تماس با ما' },
 ];
 
 /** The «دفترچه تلفن» deep-link's href, so the header can hide just this item. */

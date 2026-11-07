@@ -2,11 +2,11 @@ import Link from 'next/link';
 
 import { APP_VERSION } from '@/lib/version';
 
-/** Live destinations only: `/privacy`, `/terms` and `/contact` never existed in
- *  this app (the old footer linked to three 404s). */
+/** Live destinations only (the old footer linked to `/privacy`/`/terms` 404s). */
 const FOOTER_LINKS = [
   { href: '/guide', label: 'راهنما' },
   { href: '/rules', label: 'قوانین و مقررات' },
+  { href: '/contact', label: 'تماس با ما' },
   { href: '/dashboard/tickets', label: 'پشتیبانی' },
 ];
 

@@ -11,6 +11,7 @@ import {
   IdCard,
   LayoutDashboard,
   LogIn,
+  Mail,
   Newspaper,
   PenLine,
   ScrollText,
@@ -32,6 +33,7 @@ const ICONS: Record<string, typeof Home> = {
   '/services': Wrench,
   '/guide': HelpCircle,
   '/rules': ScrollText,
+  '/contact': Mail,
 };
 
 interface Props {
