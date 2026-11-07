@@ -48,7 +48,7 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
   if (loading) {
     return (
       <div className="space-y-4 p-6">
-        <div className="h-16 w-16 animate-pulse rounded-full bg-soft" />
+        <div className="h-16 w-16 animate-pulse rounded-[12px] bg-soft" />
         <div className="h-6 w-2/3 animate-pulse rounded bg-soft" />
         <div className="h-4 w-1/2 animate-pulse rounded bg-soft" />
         <div className="h-24 animate-pulse rounded-lg bg-soft" />
@@ -114,7 +114,10 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
 
       <FitContent className="dir-detail-scroll flex-1 overflow-y-auto px-5 py-5" minScale={0.7}>
         <div className="dir-detail-head flex items-center gap-4">
-          <div className="dir-detail-avatar flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full border border-[var(--vintage-border)] bg-soft text-xl font-extrabold text-brand">
+          {/* Square avatar, matching the directory rows on the right: a photo
+              fills the box; without one the first letter of the name sits in
+              the same square. */}
+          <div className="dir-detail-avatar flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-[12px] border border-[var(--vintage-border)] bg-soft text-2xl font-extrabold leading-none text-brand">
             {businessCard.avatarUrl ? (
               <Image
                 src={businessCard.avatarUrl}
