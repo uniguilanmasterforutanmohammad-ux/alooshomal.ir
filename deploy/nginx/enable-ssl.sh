@@ -10,7 +10,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONF_DIR="$SCRIPT_DIR/conf.d"
-DOMAIN="${DOMAIN:-alooshomal.ir}"
+# Every public domain served by this origin. The first one is the certificate's
+# primary name, and therefore the /etc/letsencrypt/live/<name> path referenced
+# by 02-alooshomal-ssl.conf.template. Add a domain here once its DNS points at
+# this server and it is listed in the nginx `server_name`s, then re-run the
+# script: `--expand` grows the existing certificate instead of issuing a second
+# one, so the nginx config never has to change.
+DOMAINS="${DOMAINS:-alooshomal.ir shomalicard.ir}"
+DOMAIN="${DOMAIN:-${DOMAINS%% *}}"
 EMAIL="${EMAIL:-admin@alooshomal.ir}"
 WEBROOT="$SCRIPT_DIR/certbot/www"
 
@@ -27,30 +34,37 @@ if ! command -v certbot >/dev/null 2>&1; then
   apt-get install -y -qq certbot
 fi
 
-echo "== 2/4 Requesting certificate for $DOMAIN =="
-# Only ask for www.* when it actually resolves, otherwise LE rejects the
-# whole request with an NXDOMAIN error for that name.
-DOMAIN_ARGS=(-d "$DOMAIN")
-if getent hosts "www.$DOMAIN" >/dev/null 2>&1; then
-  DOMAIN_ARGS+=(-d "www.$DOMAIN")
-else
-  echo "note: www.$DOMAIN does not resolve; requesting $DOMAIN only."
-fi
+echo "== 2/4 Requesting certificate for: $DOMAINS =="
+# Only ask for www.* when it actually resolves, otherwise LE rejects the whole
+# request with an NXDOMAIN error for that name.
+DOMAIN_ARGS=()
+for domain in $DOMAINS; do
+  DOMAIN_ARGS+=(-d "$domain")
+  if getent hosts "www.$domain" >/dev/null 2>&1; then
+    DOMAIN_ARGS+=(-d "www.$domain")
+  else
+    echo "note: www.$domain does not resolve; requesting $domain only."
+  fi
+done
 
 certbot certonly \
   --webroot -w "$WEBROOT" \
+  --cert-name "$DOMAIN" \
+  --expand \
   "${DOMAIN_ARGS[@]}" \
   --email "$EMAIL" --agree-tos --no-eff-email \
   --keep-until-expiring --non-interactive
 
 echo "== 3/4 Enabling the HTTPS server block =="
-if [ ! -f "$CONF_DIR/02-alooshomal-ssl.conf" ]; then
-  cp "$CONF_DIR/02-alooshomal-ssl.conf.template" "$CONF_DIR/02-alooshomal-ssl.conf"
-fi
+# The template is the source of truth for this generated file; refresh it on
+# every run so a newly added `server_name` (e.g. a second domain) takes effect
+# even when the HTTPS block already exists.
+cp "$CONF_DIR/02-alooshomal-ssl.conf.template" "$CONF_DIR/02-alooshomal-ssl.conf"
 
 echo "== 4/4 Restarting nginx container =="
 cd "$SCRIPT_DIR/../.."
 docker compose -f docker-compose.prod.yml up -d nginx
 docker exec alooshomal-nginx nginx -t
+docker exec alooshomal-nginx nginx -s reload
 
-echo "Done. https://$DOMAIN should now answer directly from the origin."
+echo "Done. https://$DOMAIN (and the other names in DOMAINS) should now answer directly from the origin."

@@ -181,6 +181,30 @@ sudo deploy/nginx/enable-ssl.sh
 گواهی روی هاست در `/etc/letsencrypt` ذخیره و به‌صورت read-only داخل کانتینر
 mount می‌شود؛ مسیر `/.well-known/acme-challenge/` هم برای تمدید خودکار سرو می‌شود.
 
+#### افزودن دامنه‌ی جدید به همین سایت
+
+همه‌ی دامنه‌ها یک اپلیکیشن مشترک را سرو می‌کنند و یک گواهی چندنامی (SAN) دارند.
+برای اضافه‌کردن دامنه‌ی تازه (مثلاً `shomalicard.ir`):
+
+1. رکورد `A`/`AAAA` دامنه را به همین سرور بدهید و منتظر انتشار DNS بمانید.
+2. نام دامنه را در `deploy/nginx/conf.d/01-alooshomal.conf` و
+   `deploy/nginx/conf.d/02-alooshomal-ssl.conf.template` به `server_name` اضافه کنید.
+3. روی سرور اسکریپت را با فهرست کامل دامنه‌ها اجرا کنید (گواهی موجود با
+   `--expand` بزرگ می‌شود و مسیر `live/alooshomal.ir` ثابت می‌ماند):
+
+   ```bash
+   sudo DOMAINS="alooshomal.ir shomalicard.ir" deploy/nginx/enable-ssl.sh
+   ```
+
+4. در `.env` سرور، دامنه‌ی جدید را به `CORS_ORIGIN` (با کاما جدا) اضافه کنید:
+
+   ```bash
+   CORS_ORIGIN=https://alooshomal.ir,https://www.alooshomal.ir,https://shomalicard.ir,https://www.shomalicard.ir
+   ```
+
+5. `docker compose -f docker-compose.prod.yml up -d api` و سپس
+   `docker compose -f docker-compose.prod.yml exec -T nginx nginx -s reload`.
+
 > در پنل آروان، پس از آنکه پورت ۴۴۳ مبدأ پاسخ داد، پروتکل اتصال به مبدأ را روی
 > **HTTPS** بگذارید. تا وقتی روی HTTP است، ترافیک ورودی آروان روی پورت ۸۰ می‌آید.
 >

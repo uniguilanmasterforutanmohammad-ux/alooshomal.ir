@@ -20,7 +20,39 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.105.12**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.106.0**.
+
+## ۱۴۰۵/۰۸/۱۶ — افزودن دامنه‌ی `shomalicard.ir` و نماد اعتماد (اینماد) — نسخه `v2.106.0`
+
+**هدف:** دامنه‌ی تازه‌ی `shomalicard.ir` روی همین سرور و همان اپلیکیشن سرو شود و
+مراحل اینماد (فایل تأیید مالکیت در ریشه‌ی سایت + کد رسمی نماد در صفحه‌ی اول) کامل شود.
+
+**تغییرات:**
+- `deploy/nginx/conf.d/01-alooshomal.conf`: افزودن `shomalicard.ir` و
+  `www.shomalicard.ir` به `server_name` بلاک HTTP.
+- `deploy/nginx/conf.d/02-alooshomal-ssl.conf.template`: همان دامنه‌ها به
+  `server_name` بلاک HTTPS اضافه شدند (یک گواهی SAN برای همه).
+- `deploy/nginx/enable-ssl.sh`: پشتیبانی از چند دامنه با `DOMAINS`، صدور/بزرگ‌کردن
+  گواهی موجود با `--cert-name` + `--expand`، افزودن خودکار `www` فقط وقتی رزولو شود،
+  بازتولید `02-alooshomal-ssl.conf` از تمپلیت و `nginx -s reload` پس از تست.
+- `docs/DEPLOY.md`: بخش «افزودن دامنه‌ی جدید» شامل DNS، `server_name`، اجرای
+  certbot و به‌روزرسانی `CORS_ORIGIN`.
+- `.env.example`: توضیح قالب کاماپایین `CORS_ORIGIN` برای چند دامنه.
+- `apps/web/public/55648695.txt`: فایل خالی تأیید مالکیت برای اینماد (سرو در
+  `https://shomalicard.ir/55648695.txt`).
+- `apps/web/components/layout/EnamadBadge.tsx`: کد رسمی اینماد به‌صورت
+  دست‌نخورده با `dangerouslySetInnerHTML` (بدون بازنویسی به JSX).
+- `apps/web/app/page.tsx`: نمایش نماد اینماد در صفحه‌ی اول زیر دکمه‌های جست‌وجو.
+- `apps/web/lib/version.ts`: نسخه به `v2.106.0`.
+
+**تأیید/تست:**
+- `curl -I http://127.0.0.1:3000/55648695.txt` → `200`؛ خروجی HTML صفحه‌ی اول
+  شامل `trustseal.enamad.ir/?id=8569817&Code=...` و تصویر لوگو شد.
+- Playwright در `390×844`، `360×740` و `1440×900`: صفحه‌ی اول همچنان تک‌صفحه‌ای
+  ماند (`scrollHeight == innerHeight`).
+- `docker exec alooshomal-web npx tsc --noEmit` → بدون خطا.
+- `nginx -t` در کانتینر موقت `nginx:1.27-alpine` با گواهی ساختگی → syntax ok.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۶ — چسبیدن فوتر به انتهای صفحه در همه‌ی صفحات — نسخه `v2.105.12`
 

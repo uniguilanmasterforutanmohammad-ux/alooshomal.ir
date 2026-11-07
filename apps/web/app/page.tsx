@@ -3,6 +3,7 @@ import './hero-brick.css';
 import './site-bg-pattern.css';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { EnamadBadge } from '@/components/layout/EnamadBadge';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
 import { HomeSearchBox } from '@/components/home/HomeSearchBox';
 import { HomeHeadline } from '@/components/home/HomeHeadline';
@@ -69,6 +70,11 @@ export default async function HomePage() {
                   لیست بیولینک‌ها
                 </Link>
               ) : null}
+            </div>
+            {/* Official e-namad trust seal. The markup is fixed by enamad.ir;
+                it is rendered on the first page as the verification requires. */}
+            <div className="mt-4 flex justify-center sm:mt-6">
+              <EnamadBadge />
             </div>
           </div>
         </section>
