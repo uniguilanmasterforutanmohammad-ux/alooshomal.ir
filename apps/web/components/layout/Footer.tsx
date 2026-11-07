@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+import { EnamadBadge } from '@/components/layout/EnamadBadge';
 import { APP_VERSION } from '@/lib/version';
 
 /** Live destinations only (the old footer linked to `/privacy`/`/terms` 404s). */
@@ -21,7 +22,7 @@ const FOOTER_LINKS = [
  * block of links under the thumb and keeps the one-screen home page truly one
  * screen).
  */
-export function Footer() {
+export function Footer({ showEnamad = false }: { showEnamad?: boolean }) {
   const currentYear = new Date().getFullYear();
 
   return (
@@ -66,6 +67,10 @@ export function Footer() {
         >
           {APP_VERSION}
         </span>
+
+        {/* Official e-namad trust seal, shown on the home page as the
+            verification requires. The markup is fixed by enamad.ir. */}
+        {showEnamad ? <EnamadBadge className="shrink-0" /> : null}
       </div>
     </footer>
   );
