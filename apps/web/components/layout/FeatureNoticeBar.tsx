@@ -19,13 +19,16 @@ import { useFeatures } from '@/lib/features';
  * can subtract it and keep the page itself from scrolling.
  */
 export function FeatureNoticeBar() {
-  const { stoppedSections, loaded } = useFeatures();
+  const { stoppedSections, loaded, featureNoticeEnabled } = useFeatures();
   // Avoid a hydration flash: only show after the client read has settled.
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
   const ref = useRef<HTMLDivElement | null>(null);
-  const visible = mounted && loaded && stoppedSections.length > 0;
+  // The admin can silence the strip while keeping the section stopped; the
+  // pages themselves still show their «موقتاً غیرفعال» screen.
+  const visible =
+    mounted && loaded && featureNoticeEnabled && stoppedSections.length > 0;
 
   useEffect(() => {
     if (typeof document === 'undefined') return;

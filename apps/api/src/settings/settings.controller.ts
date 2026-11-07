@@ -99,6 +99,11 @@ class UpdateSettingsDto {
   @IsOptional()
   featureVisibility?: Record<string, boolean>;
 
+  /** Whether the site-wide «توقف موقت» notice bar may be shown. */
+  @IsOptional()
+  @IsBoolean()
+  featureNoticeEnabled?: boolean;
+
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -220,6 +225,8 @@ export class SettingsController {
       siteTheme: await this.settingsService.getSiteTheme(),
       features: await this.settingsService.getFeatureFlags(),
       featureVisibility: await this.settingsService.getFeatureVisibility(),
+      featureNoticeEnabled:
+        await this.settingsService.getFeatureNoticeEnabled(),
       hiddenNavHrefs: await this.settingsService.getHiddenNavHrefs(),
       // Public areas whose display the admin stopped (drives the notice bar).
       stoppedSections: await this.settingsService.getStoppedSections(),
@@ -270,6 +277,8 @@ export class AdminSettingsController {
       biolinkTemplateKeys: [...BIOLINK_TEMPLATE_KEYS],
       features: await this.settingsService.getFeatureFlags(),
       featureVisibility: await this.settingsService.getFeatureVisibility(),
+      featureNoticeEnabled:
+        await this.settingsService.getFeatureNoticeEnabled(),
       stoppedSections: await this.settingsService.getStoppedSections(),
       // The registry drives the single admin panel (labels/groups/defaults).
       featureFlags: FEATURE_FLAGS,
@@ -292,6 +301,7 @@ export class AdminSettingsController {
       allowBusinessCardCreation?: boolean;
       features?: Record<string, boolean>;
       featureVisibility?: Record<string, boolean>;
+      featureNoticeEnabled?: boolean;
       newsHeadlineCount?: number;
       newsAccessLevel?: NewsAccessLevel;
       phoneLoginEnabled?: boolean;
@@ -372,6 +382,12 @@ export class AdminSettingsController {
       result.featureVisibility = await this.settingsService.setFeatureVisibility(
         dto.featureVisibility,
       );
+    }
+    if (dto.featureNoticeEnabled !== undefined) {
+      result.featureNoticeEnabled =
+        await this.settingsService.setFeatureNoticeEnabled(
+          dto.featureNoticeEnabled,
+        );
     }
     if (dto.newsHeadlineCount !== undefined) {
       result.newsHeadlineCount = await this.settingsService.setNewsHeadlineCount(

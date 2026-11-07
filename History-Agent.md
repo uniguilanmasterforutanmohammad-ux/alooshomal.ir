@@ -20,7 +20,34 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.105.8**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.105.9**.
+
+## ۱۴۰۵/۰۸/۱۶ — کلید مدیر برای خاموش‌کردن نوار اعلان «توقف موقت» — نسخه `v2.105.9`
+
+**هدف:** مدیر بتواند بدون فعال‌کردن دوباره‌ی بخش‌ها، نوار زرد «نمایش … موقتاً توسط
+مدیر متوقف شده است» را از همه‌ی صفحات بردارد (صفحه‌ی «موقتاً غیرفعال» باقی بماند).
+
+**تغییرات:**
+- `apps/api/src/settings/settings.service.ts`: افزودن کلید `featureNoticeEnabled`
+  (پیش‌فرض `true`) به‌همراه `getFeatureNoticeEnabled`/`setFeatureNoticeEnabled`.
+- `apps/api/src/settings/settings.controller.ts`: افزودن فیلد به DTO، پاسخ
+  `GET /settings/public`، پاسخ `GET /admin/settings` و پردازش `PATCH /admin/settings`.
+- `apps/web/lib/features-store.ts` و `apps/web/lib/features.ts`: افزودن
+  `featureNoticeEnabled` به اسنپ‌شات و `useFeatures`.
+- `apps/web/lib/sections-server.ts`: خواندن همان فیلد در اسنپ‌شات سروری.
+- `apps/web/components/layout/FeatureNoticeBar.tsx`: نوار فقط وقتی نمایش داده
+  می‌شود که `featureNoticeEnabled` روشن باشد.
+- `apps/web/components/admin/AdminFeatureFlags.tsx`: ردیف «نوار اعلان توقف موقت»
+  با سوئیچ در پنل «ویژگی‌ها و دسترسی‌ها».
+- `docs/API.md`: به‌روزرسانی توضیح `GET /settings/public`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web npm run typecheck` و `docker exec alooshomal-api npx tsc --noEmit` → بدون خطا.
+- `python3 scripts/check_api_docs.py` → exit 0 (۲۳ کنترلر / ۲۳۵ مسیر).
+- با `featureBlog=false`: نوار «نمایش «بلاگ» موقتاً توسط مدیر متوقف شده است.»
+  در Playwright دیده شد؛ با `featureNoticeEnabled=false` همان صفحه نوار را نشان
+  نداد ولی لینک بلاگ همچنان از هدر پنهان بود. سپس هر دو به `true` بازگشتند.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۶ — پنهان‌شدن کامل بخش‌های غیرفعال از هدر (بدون فلش) — نسخه `v2.105.8`
 

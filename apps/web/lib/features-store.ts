@@ -23,6 +23,8 @@ export interface PublicFeatures {
   hiddenNavHrefs: string[];
   /** public areas whose display is stopped right now. */
   stoppedSections: StoppedSection[];
+  /** whether the site-wide «توقف موقت» notice bar may be shown. */
+  featureNoticeEnabled: boolean;
 }
 
 export const EMPTY_FEATURES: PublicFeatures = {
@@ -30,6 +32,7 @@ export const EMPTY_FEATURES: PublicFeatures = {
   featureVisibility: {},
   hiddenNavHrefs: [],
   stoppedSections: [],
+  featureNoticeEnabled: true,
 };
 
 let cached: PublicFeatures | null = null;

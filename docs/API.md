@@ -72,7 +72,7 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 
 | متد | مسیر | توضیح |
 | --- | --- | --- |
-| `GET` | `/settings/public` | در کنار سایر تنظیمات عمومی، فیلد `siteTheme` (`vintage` \| `modern` \| `bazaar` \| `twitter`) را برمی‌گرداند؛ لایه‌ی ریشه‌ی وب آن را روی `<html data-theme>` می‌نویسد (برای `twitter` به‌صورت `data-theme="modern"` + `data-skin="twitter"`). |
+| `GET` | `/settings/public` | در کنار سایر تنظیمات عمومی، فیلد `siteTheme` (`vintage` \| `modern` \| `bazaar` \| `twitter`) را برمی‌گرداند؛ لایه‌ی ریشه‌ی وب آن را روی `<html data-theme>` می‌نویسد (برای `twitter` به‌صورت `data-theme="modern"` + `data-skin="twitter"`). همچنین `hiddenNavHrefs`/`stoppedSections` (بخش‌های پنهان/متوقف) و `featureNoticeEnabled` (نمایش نوار اعلان «توقف موقت») را برمی‌گرداند. |
 | `PATCH` | `/admin/settings` | با بدنه‌ی `{ "siteTheme": "modern" }` (یا `vintage`/`bazaar`/`twitter`) تم سراسری را عوض می‌کند. فقط مدیر. |
 
 تغییر تم، همه‌ی صفحات عمومی، کارت ویزیت، بیولینک، داشبورد و پنل مدیر را هم‌زمان

@@ -44,6 +44,7 @@ async function load(): Promise<PublicFeatures> {
           featureVisibility: result.featureVisibility ?? {},
           hiddenNavHrefs: result.hiddenNavHrefs ?? [],
           stoppedSections: result.stoppedSections ?? [],
+          featureNoticeEnabled: result.featureNoticeEnabled !== false,
         };
         setFeaturesCache(next);
         subscribers.forEach((notify) => notify(next));
@@ -59,6 +60,7 @@ export interface UseFeatures {
   featureVisibility: Record<string, boolean>;
   hiddenNavHrefs: string[];
   stoppedSections: StoppedSection[];
+  featureNoticeEnabled: boolean;
   loaded: boolean;
   /** enabled *and* visible */
   isFeatureVisible: (key: string) => boolean;
@@ -134,6 +136,7 @@ export function useFeatures(): UseFeatures {
     featureVisibility: value.featureVisibility,
     hiddenNavHrefs: value.hiddenNavHrefs,
     stoppedSections: value.stoppedSections,
+    featureNoticeEnabled: value.featureNoticeEnabled,
     loaded,
     isFeatureVisible,
     showNav,

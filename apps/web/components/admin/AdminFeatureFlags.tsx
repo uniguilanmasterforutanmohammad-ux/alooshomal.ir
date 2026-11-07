@@ -20,6 +20,7 @@ interface SettingsPayload {
   features: Record<string, boolean>;
   featureVisibility: Record<string, boolean>;
   featureFlags: FeatureFlag[];
+  featureNoticeEnabled?: boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ export function AdminFeatureFlags() {
   const [flags, setFlags] = useState<FeatureFlag[]>([]);
   const [values, setValues] = useState<Record<string, boolean>>({});
   const [visible, setVisible] = useState<Record<string, boolean>>({});
+  const [noticeEnabled, setNoticeEnabled] = useState(true);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +55,7 @@ export function AdminFeatureFlags() {
       setFlags(result.featureFlags ?? []);
       setValues(result.features ?? {});
       setVisible(result.featureVisibility ?? {});
+      setNoticeEnabled(result.featureNoticeEnabled !== false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری ویژگی‌ها');
     } finally {
@@ -105,6 +108,23 @@ export function AdminFeatureFlags() {
     }
   }
 
+  async function toggleNotice(next: boolean) {
+    const previous = noticeEnabled;
+    setNoticeEnabled(next);
+    setBusy(true);
+    setError(null);
+    setMessage(null);
+    try {
+      await api.patch('/admin/settings', { featureNoticeEnabled: next });
+      setMessage('وضعیت نوار اعلان ذخیره شد.');
+    } catch (err) {
+      setNoticeEnabled(previous);
+      setError(err instanceof Error ? err.message : 'ذخیره وضعیت نوار اعلان ناموفق بود');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   // Preserve the registry order and split into its declared groups.
   const groups: Array<{ name: string; items: FeatureFlag[] }> = [];
   for (const flag of flags) {
@@ -132,6 +152,26 @@ export function AdminFeatureFlags() {
         <p className="mt-4 text-sm text-muted">ویژگی‌ای ثبت نشده است.</p>
       ) : (
         <div className="mt-4 flex flex-col gap-4">
+          {/* The site-wide «توقف موقت» strip is separate from the section
+              switches: the admin can keep a section stopped (its page shows the
+              disabled screen) but silence the yellow bar on every page. */}
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-[var(--vintage-border)] bg-soft/40 px-3 py-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold text-ink">نوار اعلان «توقف موقت»</p>
+              <p className="mt-0.5 text-xs text-muted">
+                وقتی بخشی متوقف است، نوار زرد هشدار بالای همه‌ی صفحات نمایش داده
+                می‌شود. با خاموش‌کردن این گزینه، صفحه‌ی «موقتاً غیرفعال» باقی
+                می‌ماند اما نوار اعلان نمایش داده نمی‌شود.
+              </p>
+            </div>
+            <SwitchControl
+              label="نمایش نوار"
+              checked={noticeEnabled}
+              busy={busy}
+              onToggle={() => void toggleNotice(!noticeEnabled)}
+              Icon={noticeEnabled ? Eye : EyeOff}
+            />
+          </div>
           {groups.map((group) => (
             <div key={group.name}>
               <h4 className="mb-1 text-xs font-extrabold text-muted">{group.name}</h4>

@@ -365,6 +365,15 @@ export const FEATURE_FLAG_KEYS = FEATURE_FLAGS.map((flag) => flag.key);
 /** Suffix appended to a flag key to build its *visibility* setting key. */
 export const FEATURE_VISIBLE_SUFFIX = 'Visible';
 
+/**
+ * Whether the site-wide «توقف موقت» notice bar is shown. The bar itself is
+ * driven by `stoppedSections`; this switch lets the admin keep a section
+ * stopped (pages still show the disabled screen) while silencing the strip —
+ * e.g. once the warning has been up long enough.
+ */
+export const FEATURE_NOTICE_ENABLED_KEY = 'featureNoticeEnabled';
+export const DEFAULT_FEATURE_NOTICE_ENABLED = true;
+
 // ---------------------------------------------------------------------------
 //  Authentication settings
 // ---------------------------------------------------------------------------
@@ -999,6 +1008,23 @@ export class SettingsService implements OnModuleInit {
     }
     await Promise.all(writes);
     return this.getFeatureVisibility();
+  }
+
+  /** Whether the site-wide «توقف موقت» notice strip is allowed to show. */
+  async getFeatureNoticeEnabled(): Promise<boolean> {
+    const row = await this.prisma.setting.findUnique({
+      where: { key: FEATURE_NOTICE_ENABLED_KEY },
+    });
+    return row ? row.value !== 'false' : DEFAULT_FEATURE_NOTICE_ENABLED;
+  }
+
+  async setFeatureNoticeEnabled(value: boolean): Promise<boolean> {
+    await this.prisma.setting.upsert({
+      where: { key: FEATURE_NOTICE_ENABLED_KEY },
+      update: { value: value ? 'true' : 'false' },
+      create: { key: FEATURE_NOTICE_ENABLED_KEY, value: value ? 'true' : 'false' },
+    });
+    return value;
   }
 
   /**

@@ -38,6 +38,7 @@ export async function getPublicFeatureSnapshot(): Promise<PublicFeatures> {
       featureVisibility: data.featureVisibility ?? {},
       hiddenNavHrefs: data.hiddenNavHrefs ?? [],
       stoppedSections: data.stoppedSections ?? [],
+      featureNoticeEnabled: data.featureNoticeEnabled !== false,
     };
   } catch {
     return EMPTY_FEATURES;
