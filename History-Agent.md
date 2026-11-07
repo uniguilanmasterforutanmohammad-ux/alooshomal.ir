@@ -53,6 +53,12 @@
 - `POST /api/auth/phone/request-code` با `{"phone":"09120000000","email":"auth@shomalicard.ir"}`
   → `200`، `emailSent: true` (در dev کد `123456`).
 - `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
+- **استقرار زنده:** ایمیج‌های api/web روی سرور جایگزین شدند و هر دو `healthy`اند؛
+  ارسال واقعی SMTP از کانتینر api روی سرور به `auth@shomalicard.ir` → `OK`.
+  نسخه‌ی سایت `v2.107.0` و فیلد «ایمیل (اختیاری)» در `/login` دیده می‌شود.
+- **ریست رمز ادمین:** هش اولیه به‌خاطر expansion شدن `$` در شل خراب شده بود؛ با
+  Prisma دوباره ست شد و `POST /api/auth/login` با `admin@alooshomal.ir` → `200`
+  و نقش `ADMIN`. مقدار `ADMIN_PASSWORD` در `.env` سرور هم به‌روز شد.
 
 ## ۱۴۰۵/۰۸/۱۶ — نمایش اینماد روی موبایل در فوتر صفحه‌ی اول — نسخه `v2.106.2`
 
