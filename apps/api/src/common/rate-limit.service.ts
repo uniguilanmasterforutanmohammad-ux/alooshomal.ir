@@ -79,6 +79,10 @@ export const RATE_LIMITS = {
   otpRequestIp: { bucket: 'otp-req-ip', limit: 20, windowSeconds: 900 } as RateLimitRule,
   /** OTP email: 5 per address per 15 minutes (email-spam guard). */
   otpRequestEmail: { bucket: 'otp-req-email', limit: 5, windowSeconds: 900 } as RateLimitRule,
+  /** Password reset: 5 code requests per user per 15 minutes. */
+  passwordResetRequest: { bucket: 'pw-reset-req', limit: 5, windowSeconds: 900 } as RateLimitRule,
+  /** Password reset: 10 verify attempts per user per 15 minutes. */
+  passwordResetVerify: { bucket: 'pw-reset-verify', limit: 10, windowSeconds: 900 } as RateLimitRule,
   /** OTP verify: 10 attempts per phone per 15 minutes (on top of code attempts). */
   otpVerify: { bucket: 'otp-verify', limit: 10, windowSeconds: 900 } as RateLimitRule,
   /** Sign-up: 5 accounts per IP per hour. */

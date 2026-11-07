@@ -1,8 +1,9 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Mail, Smartphone } from 'lucide-react';
+import { ArrowRight, Mail, Smartphone } from 'lucide-react';
 
 import { Input } from '@/components/ui/Input';
 import { AuthForm } from '@/components/auth/AuthForm';
@@ -76,6 +77,13 @@ function AuthPageContent() {
   return (
     <div className="container-page flex min-h-screen items-center justify-center py-12">
       <div className="indeed-panel w-full max-w-md p-8">
+        <Link
+          href="/"
+          className="mb-4 inline-flex items-center gap-1 text-xs font-bold text-muted transition hover:text-brand"
+        >
+          <ArrowRight className="size-3.5" aria-hidden />
+          بازگشت به صفحه اصلی
+        </Link>
         <h1 className="text-2xl font-extrabold text-ink">ورود یا ثبت‌نام</h1>
         <p className="mt-1 text-sm text-muted">
           برای ساخت و مدیریت بیولینک و کارت ویزیت، شماره موبایل خود را وارد کنید.

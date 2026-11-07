@@ -323,6 +323,64 @@ export class AuthService {
     return { ok: true };
   }
 
+  /**
+   * Sends a password-reset code to the signed-in user's email and, on request,
+   * their phone. Used by the profile page so a password can be changed without
+   * knowing the old one — proving control of the account's contact channels
+   * replaces the old-password check.
+   */
+  async requestPasswordResetCode(userId: string, sendToPhone: boolean) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, phone: true },
+    });
+    if (!user) {
+      throw new UnauthorizedException('حساب کاربری معتبر نیست');
+    }
+    if (!user.email && !(sendToPhone && user.phone)) {
+      throw new BadRequestException(
+        'برای این حساب راهی برای دریافت کد تأیید ثبت نشده است',
+      );
+    }
+    await this.rateLimit.hit(RATE_LIMITS.passwordResetRequest, userId);
+    return this.otp.issuePasswordReset(
+      user.id,
+      user.email ?? '',
+      user.phone,
+      sendToPhone && Boolean(user.phone),
+    );
+  }
+
+  /**
+   * Replaces the password after the OTP check. Unlike `setPassword`, this does
+   * not ask for the current password: the OTP already proved account control.
+   */
+  async resetPasswordWithOtp(
+    userId: string,
+    code: string,
+    password: string,
+  ): Promise<{ ok: true }> {
+    await this.rateLimit.hit(RATE_LIMITS.passwordResetVerify, userId);
+    await this.otp.verifyPasswordReset(userId, code);
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('حساب کاربری معتبر نیست');
+    }
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+    await this.activity.log({
+      actor: { id: user.id, email: user.email, role: user.role },
+      action: 'USER_PASSWORD_SET',
+      summary: `تغییر رمز عبور با کد یکبارمصرف: ${user.fullName ?? user.email ?? user.phone}`,
+      entityType: 'USER',
+      entityId: user.id,
+    });
+    return { ok: true };
+  }
+
   private async buildAuthResponse(
     user: {
       id: string;

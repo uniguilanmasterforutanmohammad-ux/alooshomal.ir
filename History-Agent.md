@@ -20,7 +20,46 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.108.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v2.109.0**.
+
+## ۱۴۰۵/۰۸/۱۷ — تغییر رمز با کد یکبارمصرف و بهبود ناوبری ورود/پنل — نسخه `v2.109.0`
+
+**هدف:** کاربر بتواند در `/dashboard/profile` بدون دانستن رمز قبلی، رمز را
+تغییر دهد و صحت آن با کد یکبارمصرف تأیید شود؛ کد به ایمیل و (در صورت درخواست)
+با پیامک ارسال شود. همچنین دکمه‌ی بازگشت به صفحه‌ی اصلی در `/login` و تغییر
+دکمه‌ی «دایرکتوری» به «صفحه اصلی» در سربرگ پنل.
+
+**تغییرات:**
+- `apps/api/src/auth/otp.service.ts`: بازآرایی به کمکی‌های کلیدمحور
+  (`readKey`/`writeKey`/`clearKey`/`recentlyIssuedKey`/`markIssuedKey`) و افزودن
+  `issuePasswordReset` و `verifyPasswordReset` با فضای کلید
+  `otp:password-reset:user:<id>` (کلید نشانگر `:issued` جدا از کلید کد تا هش
+  بازنویسی نشود).
+- `apps/api/src/auth/auth.service.ts`: `requestPasswordResetCode` و
+  `resetPasswordWithOtp` (بدون نیاز به رمز فعلی، با ثبت فعالیت).
+- `apps/api/src/auth/mail.service.ts`: برچسب هدف `password-reset`
+  («تغییر رمز عبور»).
+- `apps/api/src/auth/auth.controller.ts`: مسیرهای
+  `POST /auth/password/request-code` و `POST /auth/password/reset` با
+  `@ApiBearerAuth` و `@ApiOperation`.
+- `apps/api/src/auth/dto/request-password-reset.dto.ts` و
+  `apps/api/src/auth/dto/reset-password.dto.ts`: DTOهای مستند با `@ApiProperty`.
+- `apps/api/src/common/rate-limit.service.ts`: سقف درخواست/تأیید تغییر رمز.
+- `apps/web/components/dashboard/ProfilePanel.tsx`: جریان جدید ارسال کد، ورود
+  کد و رمز جدید (به‌جای رمز فعلی)، با گزینه‌ی ارسال پیامک.
+- `apps/web/app/(auth)/login/page.tsx`: دکمه‌ی «بازگشت به صفحه اصلی».
+- `apps/web/components/dashboard/UserShell.tsx`: دکمه‌ی سربرگ «صفحه اصلی» با
+  لینک `/`.
+- `apps/web/lib/version.ts`: نسخه به `v2.109.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` → بدون خطا.
+- `docker exec alooshomal-web npx tsc --noEmit` → بدون خطا.
+- جریان کامل روی dev: `POST /api/auth/password/request-code` → `200`
+  (`devCode: 123456`)، `POST /api/auth/password/reset` → `200`، ورود با رمز
+  جدید → `200`، ورود با رمز قدیمی → `401`، استفاده‌ی دوباره از همان کد → `400`.
+- `python3 scripts/check_api_docs.py` → exit 0 (۲۳ کنترلر، ۲۳۷ مسیر).
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۷ — ممنوعیت استقرار مستقیم ایجنت روی سرور — نسخه `v2.108.0`
 

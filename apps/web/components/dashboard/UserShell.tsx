@@ -184,10 +184,10 @@ export function UserShell({ children }: { children: React.ReactNode }) {
           <div className="flex-1" />
 
           <Link
-            href="/biolinks"
+            href="/"
             className="hidden rounded-lg border border-[var(--vintage-border)] px-3 py-2 text-sm font-bold text-brand sm:block"
           >
-            دایرکتوری
+            صفحه اصلی
           </Link>
 
           <div className="flex items-center gap-2">

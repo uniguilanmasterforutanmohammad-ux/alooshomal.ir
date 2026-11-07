@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomInt } from 'node:crypto';
 import {
   BadRequestException,
   Injectable,
@@ -44,6 +44,7 @@ export const DEV_OTP_CODE = '123456';
 export type OtpPurpose = 'login' | 'phone-change' | 'email-change';
 
 const keyPrefix = (purpose: OtpPurpose) => `otp:${purpose}:phone:`;
+const passwordResetKey = (userId: string) => `otp:password-reset:user:${userId}`;
 
 interface OtpRecord {
   hash: string;
@@ -114,8 +115,7 @@ export class OtpService {
     return createHash('sha256').update(code).digest('hex');
   }
 
-  private async read(purpose: OtpPurpose, phone: string): Promise<OtpRecord | null> {
-    const key = keyPrefix(purpose) + phone;
+  private async readKey(key: string): Promise<OtpRecord | null> {
     const raw = await this.redis.get(key);
     if (raw) {
       try {
@@ -137,6 +137,10 @@ export class OtpService {
     return entry.record;
   }
 
+  private read(purpose: OtpPurpose, phone: string): Promise<OtpRecord | null> {
+    return this.readKey(keyPrefix(purpose) + phone);
+  }
+
   /** Drops expired entries (and, if still needed, the oldest ones). */
   private pruneMemory(): void {
     const now = Date.now();
@@ -150,12 +154,7 @@ export class OtpService {
     }
   }
 
-  private async write(
-    purpose: OtpPurpose,
-    phone: string,
-    record: OtpRecord,
-  ): Promise<void> {
-    const key = keyPrefix(purpose) + phone;
+  private async writeKey(key: string, record: OtpRecord): Promise<void> {
     const serialized = JSON.stringify(record);
     await this.redis.set(key, serialized, OTP_TTL_SECONDS);
     // Mirror to memory so an outage that starts right after issuing still has a
@@ -167,15 +166,21 @@ export class OtpService {
     });
   }
 
-  private async clear(purpose: OtpPurpose, phone: string): Promise<void> {
-    const key = keyPrefix(purpose) + phone;
+  private write(purpose: OtpPurpose, phone: string, record: OtpRecord): Promise<void> {
+    return this.writeKey(keyPrefix(purpose) + phone, record);
+  }
+
+  private async clearKey(key: string): Promise<void> {
     await this.redis.del(key);
     this.memory.delete(key);
   }
 
+  private clear(purpose: OtpPurpose, phone: string): Promise<void> {
+    return this.clearKey(keyPrefix(purpose) + phone);
+  }
+
   /** True when a code was issued within the resend cooldown window. */
-  private async recentlyIssued(purpose: OtpPurpose, phone: string): Promise<boolean> {
-    const key = `${keyPrefix(purpose)}${phone}:issued`;
+  private async recentlyIssuedKey(key: string): Promise<boolean> {
     const marker = await this.redis.get(key);
     if (marker) return true;
     // Same rule as `read`: the memory fallback is only trusted during an outage.
@@ -184,13 +189,20 @@ export class OtpService {
     return Boolean(entry && entry.expiresAt > Date.now());
   }
 
-  private async markIssued(purpose: OtpPurpose, phone: string): Promise<void> {
-    const key = `${keyPrefix(purpose)}${phone}:issued`;
+  private recentlyIssued(purpose: OtpPurpose, phone: string): Promise<boolean> {
+    return this.recentlyIssuedKey(`${keyPrefix(purpose)}${phone}:issued`);
+  }
+
+  private async markIssuedKey(key: string): Promise<void> {
     await this.redis.set(key, '1', OTP_RESEND_COOLDOWN_SECONDS);
     this.memory.set(key, {
       record: { hash: '1', attempts: 0 },
       expiresAt: Date.now() + OTP_RESEND_COOLDOWN_SECONDS * 1000,
     });
+  }
+
+  private markIssued(purpose: OtpPurpose, phone: string): Promise<void> {
+    return this.markIssuedKey(`${keyPrefix(purpose)}${phone}:issued`);
   }
 
   /**
@@ -289,5 +301,100 @@ export class OtpService {
       throw new BadRequestException('کد وارد‌شده صحیح نیست');
     }
     await this.clear(purpose, phone);
+  }
+
+  /**
+   * Issues a password-reset code for the signed-in user.
+   *
+   * The code always goes to the account email; when `sendToPhone` is true and a
+   * phone is on file, the same code is texted as well. It is keyed by user id
+   * (not phone) so an account without a phone — such as the admin — can still
+   * reset its password.
+   */
+  async issuePasswordReset(
+    userId: string,
+    email: string,
+    phone: string | null,
+    sendToPhone: boolean,
+  ): Promise<IssuedOtp> {
+    const key = passwordResetKey(userId);
+    if (await this.recentlyIssuedKey(`${key}:issued`)) {
+      throw new BadRequestException(
+        'کد قبلی هنوز معتبر است؛ لطفاً کمی بعد دوباره تلاش کنید',
+      );
+    }
+
+    let code: string;
+    let sent = false;
+    if (sendToPhone && phone && this.sms.enabled) {
+      const remote = await this.sms.sendOtp(phone);
+      if (!remote) {
+        throw new ServiceUnavailableException(
+          'ارسال پیامک در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
+        );
+      }
+      code = remote;
+      sent = true;
+    } else if (this.isDev && !this.mail.enabled) {
+      // Local dev without SMTP: same fixed-code bypass as the login flow.
+      code = DEV_OTP_CODE;
+      this.logger.log(`[dev] password-reset OTP for ${userId} is ${code}`);
+    } else {
+      code = String(randomInt(100_000, 1_000_000));
+    }
+
+    let emailSent = false;
+    if (email && this.mail.enabled) {
+      try {
+        emailSent = await this.mail.sendOtp(email, code, 'password-reset');
+      } catch (error) {
+        this.logger.error(
+          `Password-reset email to ${email} failed: ${
+            error instanceof Error ? error.message : 'unknown error'
+          }`,
+        );
+        // If SMS did not go out either, the user has no way to receive the code.
+        if (!sent) {
+          throw new ServiceUnavailableException('ارسال کد تأیید ناموفق بود');
+        }
+      }
+    }
+    // In dev the fixed code is returned to the caller, so no channel is fine.
+    if (!emailSent && !sent && !this.isDev) {
+      throw new ServiceUnavailableException(
+        'ارسال کد تأیید در حال حاضر در دسترس نیست',
+      );
+    }
+
+    await this.writeKey(key, { hash: this.hash(code), attempts: 0 });
+    await this.markIssuedKey(`${key}:issued`);
+
+    return {
+      resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
+      sent,
+      emailSent,
+      ...(this.isDev && !sent && !emailSent ? { devCode: code } : {}),
+    };
+  }
+
+  /** Verifies a password-reset code for `userId`; clears it on success. */
+  async verifyPasswordReset(userId: string, code: string): Promise<void> {
+    const key = passwordResetKey(userId);
+    const record = await this.readKey(key);
+    if (!record) {
+      throw new BadRequestException('کد منقضی شده است؛ دوباره درخواست کنید');
+    }
+    if (record.attempts >= OTP_MAX_ATTEMPTS) {
+      await this.clearKey(key);
+      throw new BadRequestException('تعداد تلاش‌ها بیش از حد مجاز است');
+    }
+    if (record.hash !== this.hash(code.trim())) {
+      await this.writeKey(key, {
+        hash: record.hash,
+        attempts: record.attempts + 1,
+      });
+      throw new BadRequestException('کد وارد‌شده صحیح نیست');
+    }
+    await this.clearKey(key);
   }
 }

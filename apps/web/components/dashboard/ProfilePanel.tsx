@@ -52,10 +52,14 @@ export function ProfilePanel() {
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState('');
   const [sending, setSending] = useState(false);
-  const [password, setPassword] = useState('');
-  const [passwordConfirm, setPasswordConfirm] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [savingPassword, setSavingPassword] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [sendToPhone, setSendToPhone] = useState(false);
+  const [resetCode, setResetCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [resetDevCode, setResetDevCode] = useState<string | null>(null);
+  const [sendingReset, setSendingReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -88,34 +92,62 @@ export function ProfilePanel() {
     }
   }
 
-  async function savePassword() {
-    if (password.length < 8) {
+  async function requestResetCode() {
+    setSendingReset(true);
+    try {
+      const result = await api.post<{
+        sent: boolean;
+        emailSent?: boolean;
+        devCode?: string;
+      }>('/auth/password/request-code', { sendToPhone });
+      setResetSent(true);
+      setResetDevCode(result.devCode ?? null);
+      if (result.emailSent && result.sent) {
+        toast.success('کد تأیید به ایمیل و پیامک ارسال شد.');
+      } else if (result.emailSent) {
+        toast.success('کد تأیید به ایمیل ارسال شد.');
+      } else if (result.sent) {
+        toast.success('کد تأیید با پیامک ارسال شد.');
+      } else {
+        toast.success('کد تأیید ارسال شد.');
+      }
+    } catch {
+      /* api layer surfaces the error */
+    } finally {
+      setSendingReset(false);
+    }
+  }
+
+  async function resetPassword() {
+    if (newPassword.length < 8) {
       toast.error('رمز عبور باید حداقل ۸ کاراکتر باشد.');
       return;
     }
-    if (password !== passwordConfirm) {
+    if (newPassword !== newPasswordConfirm) {
       toast.error('تکرار رمز عبور مطابقت ندارد.');
       return;
     }
-    if (profile?.hasPassword && !currentPassword) {
-      toast.error('برای تغییر رمز، رمز عبور فعلی را وارد کنید.');
+    if (!resetCode.trim()) {
+      toast.error('کد تأیید را وارد کنید.');
       return;
     }
-    setSavingPassword(true);
+    setResetting(true);
     try {
-      await api.post('/auth/set-password', {
-        password,
-        ...(profile?.hasPassword ? { currentPassword } : {}),
+      await api.post('/auth/password/reset', {
+        code: resetCode.trim(),
+        password: newPassword,
       });
-      toast.success('رمز عبور ثبت شد. از این پس با ایمیل و رمز هم می‌توانید وارد شوید.');
-      setPassword('');
-      setPasswordConfirm('');
-      setCurrentPassword('');
+      toast.success('رمز عبور تغییر کرد. از این پس با رمز جدید وارد شوید.');
+      setResetSent(false);
+      setResetCode('');
+      setNewPassword('');
+      setNewPasswordConfirm('');
+      setResetDevCode(null);
       await load();
     } catch {
       /* api layer surfaces the error */
     } finally {
-      setSavingPassword(false);
+      setResetting(false);
     }
   }
 
@@ -212,56 +244,91 @@ export function ProfilePanel() {
           {profile.hasPassword ? 'تغییر رمز عبور' : 'ثبت رمز عبور'}
         </h2>
         <p className="mt-1 text-xs leading-6 text-muted">
-          {profile.hasPassword
-            ? 'برای ورود با ایمیل و رمز عبور، می‌توانید رمز تازه‌ای تعیین کنید.'
-            : 'هنوز رمز عبوری ثبت نکرده‌اید و فقط با کد یکبار مصرف وارد می‌شوید. با ثبت رمز، ورود با ایمیل هم فعال می‌شود.'}
+          برای تغییر رمز نیازی به رمز قبلی نیست؛ کد تأیید به ایمیل شما ارسال
+          می‌شود و در صورت درخواست، با پیامک هم به شماره‌ی ثبت‌شده می‌آید.
         </p>
-        {profile.hasPassword ? (
-          <label className="mt-4 block text-xs font-bold text-muted">
-            رمز عبور فعلی
+
+        {profile.phone ? (
+          <label className="mt-4 flex items-center gap-2 text-xs font-bold text-muted">
             <input
-              type="password"
-              dir="ltr"
-              className="indeed-input mt-1"
-              value={currentPassword}
-              onChange={(event) => setCurrentPassword(event.target.value)}
-              placeholder="••••••••"
-              autoComplete="current-password"
+              type="checkbox"
+              checked={sendToPhone}
+              onChange={(event) => setSendToPhone(event.target.checked)}
+              className="size-4 accent-[var(--vintage-accent)]"
             />
+            ارسال کد به شماره موبایل هم ({profile.phone})
           </label>
         ) : null}
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
-          <label className="text-xs font-bold text-muted">
-            رمز عبور
-            <input
-              type="password"
-              dir="ltr"
-              className="indeed-input mt-1"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="••••••••"
-            />
-          </label>
-          <label className="text-xs font-bold text-muted">
-            تکرار رمز عبور
-            <input
-              type="password"
-              dir="ltr"
-              className="indeed-input mt-1"
-              value={passwordConfirm}
-              onChange={(event) => setPasswordConfirm(event.target.value)}
-              placeholder="••••••••"
-            />
-          </label>
-        </div>
+
         <button
-          onClick={savePassword}
-          disabled={savingPassword}
+          onClick={requestResetCode}
+          disabled={sendingReset}
           className="indeed-btn indeed-btn-primary mt-4"
         >
-          <KeyRound className="size-4" aria-hidden />
-          {savingPassword ? 'در حال ثبت...' : profile.hasPassword ? 'تغییر رمز' : 'ثبت رمز عبور'}
+          <Send className="size-4" aria-hidden />
+          {sendingReset
+            ? 'در حال ارسال...'
+            : resetSent
+              ? 'ارسال دوباره‌ی کد'
+              : 'ارسال کد تأیید'}
         </button>
+
+        {resetDevCode ? (
+          <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+            حالت توسعه: کد شما{' '}
+            <span dir="ltr" className="font-bold">{resetDevCode}</span> است.
+          </p>
+        ) : null}
+
+        {resetSent ? (
+          <>
+            <label className="mt-4 block text-xs font-bold text-muted">
+              کد تأیید
+              <input
+                inputMode="numeric"
+                dir="ltr"
+                className="indeed-input mt-1"
+                value={resetCode}
+                onChange={(event) => setResetCode(event.target.value)}
+                placeholder="------"
+              />
+            </label>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="text-xs font-bold text-muted">
+                رمز عبور جدید
+                <input
+                  type="password"
+                  dir="ltr"
+                  className="indeed-input mt-1"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                />
+              </label>
+              <label className="text-xs font-bold text-muted">
+                تکرار رمز عبور جدید
+                <input
+                  type="password"
+                  dir="ltr"
+                  className="indeed-input mt-1"
+                  value={newPasswordConfirm}
+                  onChange={(event) => setNewPasswordConfirm(event.target.value)}
+                  placeholder="••••••••"
+                  autoComplete="new-password"
+                />
+              </label>
+            </div>
+            <button
+              onClick={resetPassword}
+              disabled={resetting}
+              className="indeed-btn indeed-btn-primary mt-4"
+            >
+              <KeyRound className="size-4" aria-hidden />
+              {resetting ? 'در حال ثبت...' : 'تغییر رمز'}
+            </button>
+          </>
+        ) : null}
       </div>
 
       <SessionsPanel />

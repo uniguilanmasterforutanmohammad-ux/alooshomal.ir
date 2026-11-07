@@ -15,6 +15,8 @@ import {
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RequestCodeDto } from './dto/request-code.dto';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { VerifyPhoneDto } from './dto/verify-phone.dto';
 
@@ -122,6 +124,36 @@ export class AuthController {
   @ApiOperation({ summary: 'ثبت/تغییر رمز عبور کاربر جاری' })
   setPassword(@CurrentUser() user: AuthUser, @Body() dto: SetPasswordDto) {
     return this.authService.setPassword(user.id, dto.password, dto.currentPassword);
+  }
+
+  @Post('password/request-code')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'ارسال کد تأیید برای تغییر رمز (ایمیل و در صورت درخواست پیامک)',
+  })
+  requestPasswordResetCode(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: RequestPasswordResetDto,
+  ) {
+    return this.authService.requestPasswordResetCode(
+      user.id,
+      dto.sendToPhone === true,
+    );
+  }
+
+  @Post('password/reset')
+  @HttpCode(200)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'تغییر رمز عبور با کد یکبارمصرف (بدون نیاز به رمز قبلی)',
+  })
+  resetPassword(@CurrentUser() user: AuthUser, @Body() dto: ResetPasswordDto) {
+    return this.authService.resetPasswordWithOtp(
+      user.id,
+      dto.code,
+      dto.password,
+    );
   }
 
   @Get('me')

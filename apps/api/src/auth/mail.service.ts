@@ -57,6 +57,7 @@ export class MailService {
   private static purposeLabel(purpose: string): string {
     if (purpose === 'phone-change') return 'تغییر شماره موبایل';
     if (purpose === 'email-change') return 'تغییر ایمیل';
+    if (purpose === 'password-reset') return 'تغییر رمز عبور';
     return 'ورود به سایت';
   }
 
@@ -67,7 +68,7 @@ export class MailService {
   async sendOtp(
     to: string,
     code: string,
-    purpose: 'login' | 'phone-change' | 'email-change' = 'login',
+    purpose: 'login' | 'phone-change' | 'email-change' | 'password-reset' = 'login',
   ): Promise<boolean> {
     if (!this.enabled) {
       this.logger.warn(
