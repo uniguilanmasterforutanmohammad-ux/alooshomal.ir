@@ -6,6 +6,8 @@ import { MobileNav } from '@/components/layout/MobileNav';
 import { SessionWatcher } from '@/components/ui/SessionWatcher';
 import { SITE_URL } from '@/lib/site';
 import { getSiteTheme, siteThemeDocumentAttrs } from '@/lib/site-theme';
+import { getPublicFeatureSnapshot } from '@/lib/sections-server';
+import { FeaturesProvider } from '@/components/layout/FeaturesProvider';
 import './globals.css';
 
 import { ThemeScript } from '@/components/ui/ThemeScript';
@@ -64,6 +66,11 @@ export default async function RootLayout({
   // Admin-chosen site-wide design; written on <html> so it applies before paint.
   const siteTheme = await getSiteTheme();
   const { theme: layoutTheme, skin } = siteThemeDocumentAttrs(siteTheme);
+  // Public feature switches, read once on the server. Seeding the shared store
+  // lets the server-rendered header omit disabled sections from the very first
+  // paint; the same snapshot is serialized below so the client's first render
+  // matches (no hydration mismatch / flash).
+  const features = await getPublicFeatureSnapshot();
 
   return (
     <html
@@ -74,32 +81,35 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body>
-        <ThemeScript />
-        {/* The hero text (the LCP element) is painted in Shabnam, which is
-            otherwise only discovered after the render-blocking CSS arrives —
-            that discovery delay was ~76% of the LCP time on throttled desktop.
-            React hoists these into <head>, so the two faces used above the
-            fold download in parallel with the CSS instead of after it. */}
-        <link
-          rel="preload"
-          href="/fonts/shabnam/Shabnam.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="preload"
-          href="/fonts/shabnam/Shabnam-Bold.woff2"
-          as="font"
-          type="font/woff2"
-          crossOrigin="anonymous"
-        />
-        <OfflineBanner />
-        <FeatureNoticeBar />
-        {children}
-        <SessionWatcher />
-        <MobileNav />
-        <ToastViewport />
+        <FeaturesProvider initial={features}>
+          <ThemeScript />
+          {/* The hero text (the LCP element) is painted in Shabnam, which is
+              otherwise only discovered after the render-blocking CSS arrives —
+              that discovery delay was ~76% of the LCP time on throttled
+              desktop. React hoists these into <head>, so the two faces used
+              above the fold download in parallel with the CSS instead of after
+              it. */}
+          <link
+            rel="preload"
+            href="/fonts/shabnam/Shabnam.woff2"
+            as="font"
+            type="font/woff2"
+            crossOrigin="anonymous"
+          />
+          <link
+            rel="preload"
+            href="/fonts/shabnam/Shabnam-Bold.woff2"
+            as="font"
+            type="font/woff2"
+            crossOrigin="anonymous"
+          />
+          <OfflineBanner />
+          <FeatureNoticeBar />
+          {children}
+          <SessionWatcher />
+          <MobileNav />
+          <ToastViewport />
+        </FeaturesProvider>
       </body>
     </html>
   );

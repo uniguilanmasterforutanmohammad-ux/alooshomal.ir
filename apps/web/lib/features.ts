@@ -3,31 +3,16 @@
 import { useEffect, useState } from 'react';
 
 import { api } from './api';
+import { useFeaturesContext } from '@/components/layout/FeaturesProvider';
+import {
+  EMPTY_FEATURES as EMPTY,
+  getFeaturesCache,
+  setFeaturesCache,
+  type PublicFeatures,
+  type StoppedSection,
+} from './features-store';
 
-/** One public area whose display the admin has stopped. */
-export interface StoppedSection {
-  key: string;
-  name: string;
-  routes: string[];
-  homeBox: boolean;
-}
-
-/** The public feature payload returned by `GET /settings/public`. */
-export interface PublicFeatures {
-  features: Record<string, boolean>;
-  featureVisibility: Record<string, boolean>;
-  /** public nav hrefs the admin has hidden (their feature is not visible). */
-  hiddenNavHrefs: string[];
-  /** public areas whose display is stopped right now. */
-  stoppedSections: StoppedSection[];
-}
-
-const EMPTY: PublicFeatures = {
-  features: {},
-  featureVisibility: {},
-  hiddenNavHrefs: [],
-  stoppedSections: [],
-};
+export type { PublicFeatures, StoppedSection } from './features-store';
 
 /**
  * One shared, cached read of the public feature switches so the header, mobile
@@ -42,24 +27,27 @@ const EMPTY: PublicFeatures = {
  * `stoppedSections` lists the public pages/areas the admin stopped; the
  * `FeatureNoticeBar` turns that into the site-wide «توقف موقت» strip.
  */
-let cached: PublicFeatures | null = null;
 let inflight: Promise<PublicFeatures> | null = null;
 const subscribers = new Set<(value: PublicFeatures) => void>();
 
 async function load(): Promise<PublicFeatures> {
+  // The root layout seeds this on the client from an inline snapshot, so the
+  // first render already knows the hidden nav hrefs (no flash, no refetch).
+  const cached = getFeaturesCache();
   if (cached) return cached;
   if (!inflight) {
     inflight = api
       .get<Partial<PublicFeatures>>('/settings/public')
       .then((result) => {
-        cached = {
+        const next: PublicFeatures = {
           features: result.features ?? {},
           featureVisibility: result.featureVisibility ?? {},
           hiddenNavHrefs: result.hiddenNavHrefs ?? [],
           stoppedSections: result.stoppedSections ?? [],
         };
-        subscribers.forEach((notify) => notify(cached as PublicFeatures));
-        return cached;
+        setFeaturesCache(next);
+        subscribers.forEach((notify) => notify(next));
+        return next;
       })
       .catch(() => EMPTY);
   }
@@ -87,10 +75,21 @@ export interface UseFeatures {
  * remains the source of truth and still rejects a disabled action.
  */
 export function useFeatures(): UseFeatures {
-  const [value, setValue] = useState<PublicFeatures>(cached ?? EMPTY);
-  const [loaded, setLoaded] = useState(Boolean(cached));
+  // The root layout provides the server-fetched snapshot, so the first render
+  // (including SSR) already has the right hidden hrefs. Outside a provider we
+  // fall back to the shared cache / a client fetch.
+  const provided = useFeaturesContext();
+  const [value, setValue] = useState<PublicFeatures>(
+    provided ?? getFeaturesCache() ?? EMPTY,
+  );
+  const [loaded, setLoaded] = useState(Boolean(provided ?? getFeaturesCache()));
 
   useEffect(() => {
+    if (provided) {
+      setValue(provided);
+      setLoaded(true);
+      return;
+    }
     let active = true;
     const notify = (next: PublicFeatures) => {
       if (active) setValue(next);
@@ -106,7 +105,7 @@ export function useFeatures(): UseFeatures {
       active = false;
       subscribers.delete(notify);
     };
-  }, []);
+  }, [provided]);
 
   function isFeatureVisible(key: string): boolean {
     // Default to visible until we know otherwise.

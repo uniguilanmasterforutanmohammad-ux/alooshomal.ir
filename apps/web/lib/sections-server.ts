@@ -10,12 +10,38 @@
  */
 
 import { SERVER_API_URL } from './site';
+import {
+  EMPTY_FEATURES,
+  type PublicFeatures,
+  type StoppedSection,
+} from './features-store';
 
-export interface StoppedSection {
-  key: string;
-  name: string;
-  routes: string[];
-  homeBox: boolean;
+export type { StoppedSection } from './features-store';
+
+/**
+ * Server-side read of the whole public feature snapshot. The root layout seeds
+ * the shared feature store with it so the server-rendered header already hides
+ * the nav entries of disabled/stopped sections (no flash on first paint).
+ */
+export async function getPublicFeatureSnapshot(): Promise<PublicFeatures> {
+  try {
+    const response = await fetch(`${SERVER_API_URL}/settings/public`, {
+      next: { revalidate: 10, tags: ['public-features'] },
+    });
+    if (!response.ok) return EMPTY_FEATURES;
+    const payload = (await response.json()) as {
+      data?: Partial<PublicFeatures> | null;
+    };
+    const data = payload.data ?? {};
+    return {
+      features: data.features ?? {},
+      featureVisibility: data.featureVisibility ?? {},
+      hiddenNavHrefs: data.hiddenNavHrefs ?? [],
+      stoppedSections: data.stoppedSections ?? [],
+    };
+  } catch {
+    return EMPTY_FEATURES;
+  }
 }
 
 export async function getStoppedSections(): Promise<StoppedSection[]> {
