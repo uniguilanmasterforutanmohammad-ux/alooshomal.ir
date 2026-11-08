@@ -20,7 +20,36 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.16**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.17**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن `app/admin/page.tsx`: هوک کنسول + پنل‌های مستقل — نسخه `v3.8.17`
+
+**هدف:** `apps/web/app/admin/page.tsx` (۹۲۴ خط) هم‌زمان «داده/state/اکشن‌ها» و
+«JSX همه‌ی بخش‌ها» را در یک کامپوننت بزرگ داشت؛ به یک هوک متمرکز، یک ماژول
+ثابت‌ها/انواع و پنل‌های جداگانه شکسته شد تا هر بخش مستقل و ماژولار شود.
+
+**تغییرات:**
+- `apps/web/app/admin/admin-console.ts` (فایل تازه): نوع‌های `AdminBiolink`،
+  `AdminBusinessCard`، `OverviewPayload`، ثابت‌های `EMPTY_STATS`،
+  `isAdminSection` و نگاشت سرصفحه‌ی هر بخش (`PAGE_HEAD`).
+- `apps/web/app/admin/use-admin-console.tsx` (فایل تازه): هوک
+  `useAdminConsole()` شامل محافظ ورود مدیر، خواندن بخش از URL، بارگذاری‌ها
+  (نمای کلی/بیولینک/کارت/کاربران/تیکت) و اکشن‌ها (نقش/فعال‌سازی/کامنت/حذف/
+  خروج اجباری) و ستون‌های جدول بیولینک و کارت.
+- `apps/web/app/admin/sections.tsx` (فایل تازه): پنل‌های `OverviewSection`،
+  `BiolinksSection`، `BusinessCardsSection`، `UsersSection`، `TicketsSection`،
+  `SettingsSection` که JSX آن‌ها از صفحه‌ی قبلی منتقل شده است.
+- `apps/web/app/admin/page.tsx`: فقط نقشه‌برداری `?section=` به پنل‌ها و پوسته‌ی
+  `AdminShell` می‌ماند (اکنون ۹۸ خط).
+
+**تأیید/تست:**
+- `tsc --noEmit` و `eslint app/admin` → exit 0 (فقط هشدارهای از قبل موجود
+  `react-hooks/set-state-in-effect`).
+- اثبات برابری مکانیکی با نسخه‌ی قبلی: مقایسه‌ی نرمال‌شده‌ی (حذف `state.` و
+  فاصله‌ها) JSX شش پنل و منطق درونی (۸۴۳۹ کاراکتر) با نسخه‌ی پیش از تغییر →
+  دقیقاً یکسان.
+- اجرای واقعی Next.js: `/admin`, `/admin?section=overview|business-cards|users|tickets|settings`
+  → همه ۲۰۰ و کامپایل بدون خطا در لاگ کانتینر.
 
 ## ۱۴۰۵/۰۸/۱۷ — شکستن `lib/api.ts`: کلاینت و نوع‌های دامنه‌ای + barrel سازگار — نسخه `v3.8.16`
 
