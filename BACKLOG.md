@@ -58,14 +58,15 @@
 - **اثر/فوریت:** متوسط — نگه‌داشت‌پذیری و خوانایی؛ روی رفتار فعلی اثری ندارد.
 - **مرجع:** `docs/ARCHITECTURE.md`، ورودی‌های تاریخچه‌ی `v3.8.6` و `v3.8.7`.
 - **نتیجه (۱۴۰۵/۰۸/۱۷):** همه‌ی موارد فهرست بالا شکسته شد و هیچ فایلی ازاین‌پس
-  به‌تنهایی این حجم را ندارد:
-  `settings.service.ts` (۱۴۲۰→۱۰۷۲)، `admin.service.ts` (۱۴۱۶→۱۱۲۷)،
-  `feeds.service.ts` (۱۳۵۷→۱۱۱۶)، `business-cards.service.ts` (۱۲۱۶→۹۲۹)،
-  `biolinks.service.ts` (۱۱۰۰→۸۱۰)، `subscriptions.service.ts` (۹۹۷→۵۲۲)،
+  به‌تنهایی این حجم را ندارد. ادامه‌ی مرحله‌به‌مرحله تا `v3.8.24` کشیده شد و
+  اکنون کوچک‌ترین حالت این فایل‌ها برجاست:
+  `settings.service.ts` (۱۴۲۰→۸۹۲)، `admin.service.ts` (۱۴۱۶→۶۶۰)،
+  `feeds.service.ts` (۱۳۵۷→۴۸۶)، `business-cards.service.ts` (۱۲۱۶→۷۲۸)،
+  `biolinks.service.ts` (۱۱۰۰→۶۱۳)، `subscriptions.service.ts` (۹۹۷→۵۲۲)،
   `ads.service.ts` (۸۲۱→۵۰۶)، `boosts.service.ts` (۷۰۸→۴۳۰)،
   `AdminPaypingPanel.tsx` (۱۸۵۵→۱۴۹)، `lib/api.ts` (۱۱۰۵→۱۸ خط barrel)،
   `app/admin/page.tsx` (۹۲۴→۹۸)، `AdminFeeds.tsx` (۸۹۲→۵۹).
-  ثبت‌ها در `History-Agent.md` از `v3.8.6` تا `v3.8.18`.
+  ثبت‌ها در `History-Agent.md` از `v3.8.6` تا `v3.8.24`.
 
 ## مهاجرت به قواعد React Compiler (`react-hooks` v7) در وب — وضعیت: معوق
 
