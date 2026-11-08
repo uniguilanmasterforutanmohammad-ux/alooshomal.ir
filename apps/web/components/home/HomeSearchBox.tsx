@@ -53,7 +53,7 @@ export function HomeSearchBox() {
 
   return (
     <form
-      className="mx-auto mt-8 flex max-w-3xl flex-col overflow-hidden rounded-lg border border-[var(--indeed-border)] bg-white text-start shadow-lg md:flex-row"
+      className="mx-auto mt-8 flex max-w-3xl flex-col overflow-hidden rounded-md border border-[var(--indeed-border)] bg-white text-start shadow-lg md:flex-row"
       onSubmit={submit}
       role="search"
     >

@@ -17,20 +17,17 @@ const FOOTER_LINKS = [
  * (desktop) and the bottom bar (phones/tablets), so the footer stays quiet and
  * still keeps «حریم خصوصی» / «قوانین و مقررات» / «ارتباط با ما» reachable.
  *
- * The link row is desktop-only: phones and tablets rely on the fixed bottom
- * navigation instead, so they deliberately render no link row (avoids a second,
- * redundant block of links under the thumb). The optional `showEnamad` seal is
- * the exception — it must stay visible on the home page on every device, so it
- * lives in its own row that renders at all breakpoints.
+ * The whole footer is desktop-only: phones and tablets rely on the fixed bottom
+ * navigation instead, so they render no footer at all (avoids a redundant block
+ * under the thumb). The optional `showEnamad` seal lives in its own row and is
+ * shown on the home page at desktop widths.
  */
 export function Footer({ showEnamad = false }: { showEnamad?: boolean }) {
   const currentYear = new Date().getFullYear();
 
   return (
     <footer
-      className={`site-footer relative mt-4 overflow-hidden bg-brand text-white sm:mt-12 ${
-        showEnamad ? 'block' : 'hidden lg:block'
-      }`}
+      className="site-footer relative mt-4 hidden overflow-hidden bg-brand text-white sm:mt-12 lg:block"
     >
       {/* لایه گرادیان و نور ملایم برای عمق بصری */}
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/10 via-transparent to-black/20" />
@@ -74,9 +71,8 @@ export function Footer({ showEnamad = false }: { showEnamad?: boolean }) {
         </span>
       </div>
 
-      {/* Official e-namad trust seal, shown on the home page as the verification
-          requires. The markup is fixed by enamad.ir. It renders on every device
-          because enamad expects the seal on the main page. */}
+      {/* Official e-namad trust seal, shown on the home page (desktop) as the
+          verification requires. The markup is fixed by enamad.ir. */}
       {showEnamad ? (
         <div className="container-page relative z-10 flex justify-center py-3">
           <EnamadBadge className="shrink-0" />
