@@ -20,7 +20,29 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.10**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.11**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن `biolinks.service.ts`: جداسازی دایرکتوری عمومی — نسخه `v3.8.11`
+
+**هدف:** مانند کارت ویزیت، مسیر خواندنِ دایرکتوری عمومی بیولینک در
+`biolinks.service.ts` (۱۱۰۰ خط) یک بلوک مستقل بود و به سرویس جداگانه منتقل شد.
+
+**تغییرات:**
+- `apps/api/src/biolinks/biolinks-directory.service.ts` (فایل تازه):
+  `BiolinksDirectoryService` با `findPublicDirectory`، `loadDirectoryPage` و
+  `getDirectoryFacets`، به‌همراه ثابت `DIRECTORY_CACHE_TTL_MS` و اینترفیس
+  `DirectoryBiolinkItem` (۲۸۰ خط منتقل شد).
+- `apps/api/src/biolinks/biolinks.service.ts`: حذف بلوک دایرکتوری (اکنون ۸۱۸
+  خط) و ایمپورت‌های بی‌استفاده.
+- `apps/api/src/biolinks/biolinks.controller.ts`: تزریق `BiolinksDirectoryService`
+  و هدایت مسیر `GET /biolinks/public`.
+- `apps/api/src/biolinks/biolinks.module.ts`: افزودن سرویس جدید به `providers`.
+
+**تأیید/تست:**
+- `tsc --noEmit -p tsconfig.json` و `eslint src/biolinks` → exit 0.
+- اجرای واقعی API؛ `GET /api/health` → ۲۰۰ و `GET /api/biolinks/public?page=1`
+  → ۲۰۰ با داده‌ی واقعی.
+- `python3 scripts/check_modules.py` و `check_api_docs.py` سبز.
 
 ## ۱۴۰۵/۰۸/۱۷ — شکستن `business-cards.service.ts`: جداسازی دایرکتوری عمومی — نسخه `v3.8.10`
 

@@ -4,12 +4,13 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { SettingsModule } from '../settings/settings.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { BiolinksController } from './biolinks.controller';
+import { BiolinksDirectoryService } from './biolinks-directory.service';
 import { BiolinksService } from './biolinks.service';
 
 @Module({
   imports: [SubscriptionsModule, SettingsModule, NotificationsModule],
   controllers: [BiolinksController],
-  providers: [BiolinksService],
+  providers: [BiolinksService, BiolinksDirectoryService],
   exports: [BiolinksService],
 })
 export class BiolinksModule {}

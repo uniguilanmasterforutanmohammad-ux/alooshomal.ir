@@ -21,6 +21,7 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 import { RequirePermission } from '../auth/permissions.decorator';
 import { visitorKeyFrom } from '../common/visitor-key';
 import { BiolinksService } from './biolinks.service';
+import { BiolinksDirectoryService } from './biolinks-directory.service';
 import { CreateBiolinkDto } from './dto/create-biolink.dto';
 import { PublicBiolinkQueryDto } from './dto/public-biolink-query.dto';
 import { UpdateBiolinkDto } from './dto/update-biolink.dto';
@@ -28,7 +29,10 @@ import { UpdateBiolinkDto } from './dto/update-biolink.dto';
 @ApiTags('biolinks')
 @Controller('biolinks')
 export class BiolinksController {
-  constructor(private readonly biolinksService: BiolinksService) {}
+  constructor(
+    private readonly biolinksService: BiolinksService,
+    private readonly directoryService: BiolinksDirectoryService,
+  ) {}
 
   @Post()
   @ApiBearerAuth()
@@ -101,7 +105,7 @@ export class BiolinksController {
     @Req() request: Request,
     @CurrentUser() user?: AuthUser,
   ) {
-    return this.biolinksService.findPublicDirectory(
+    return this.directoryService.findPublicDirectory(
       query,
       visitorKeyFrom(request),
       user?.id,
