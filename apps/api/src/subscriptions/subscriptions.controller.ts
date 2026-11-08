@@ -18,12 +18,16 @@ import type { Response } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { SubscriptionsService } from './subscriptions.service';
+import { SubscriptionsPaymentService } from './subscriptions-payment.service';
 import { RequestSubscriptionDto } from './dto/request-subscription.dto';
 
 @ApiTags('subscriptions')
 @Controller('subscriptions')
 export class SubscriptionsController {
-  constructor(private readonly subscriptionsService: SubscriptionsService) {}
+  constructor(
+    private readonly subscriptionsService: SubscriptionsService,
+    private readonly payments: SubscriptionsPaymentService,
+  ) {}
 
   @Public()
   @Get('plans')
@@ -53,7 +57,7 @@ export class SubscriptionsController {
     @CurrentUser() user: AuthUser,
     @Param('planId') planId: string,
   ) {
-    return this.subscriptionsService.checkout(user.id, planId);
+    return this.payments.checkout(user.id, planId);
   }
 
   /**
@@ -77,7 +81,7 @@ export class SubscriptionsController {
     @Query('clientRefId') clientRefId: string | undefined,
     @Res() res: Response,
   ) {
-    const result = await this.subscriptionsService.handlePaymentCallback({
+    const result = await this.payments.handlePaymentCallback({
       paymentCode: paymentCode ?? code,
       refId: refId ?? paymentRefId ?? refid,
       clientRefId,

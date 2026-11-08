@@ -25,6 +25,7 @@ import { DecideBoostDto } from '../boosts/dto/decide-boost.dto';
 import { AdsService } from '../ads/ads.service';
 import { DecideAdDto } from '../ads/dto/decide-ad.dto';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { SubscriptionsPaymentService } from '../subscriptions/subscriptions-payment.service';
 import { CreatePlanDto } from '../subscriptions/dto/create-plan.dto';
 import { DecideSubscriptionDto } from '../subscriptions/dto/decide-subscription.dto';
 import { UpdatePlanDto } from '../subscriptions/dto/update-plan.dto';
@@ -66,6 +67,7 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly adminRevenue: AdminRevenueService,
     private readonly subscriptionsService: SubscriptionsService,
+    private readonly subscriptionsPayment: SubscriptionsPaymentService,
     private readonly boostsService: BoostsService,
     private readonly adsService: AdsService,
     private readonly bulkService: BulkService,
@@ -264,7 +266,7 @@ export class AdminController {
   @Post('plans/:id/payping-product')
   @ApiOperation({ summary: 'ساخت/همگام‌سازی محصول پی‌پینگ برای یک اشتراک' })
   syncPlanProduct(@Param('id') id: string) {
-    return this.subscriptionsService.syncPaypingProduct(id);
+    return this.subscriptionsPayment.syncPaypingProduct(id);
   }
 
   @Get('subscriptions')

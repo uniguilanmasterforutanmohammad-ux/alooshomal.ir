@@ -20,7 +20,35 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.11**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.12**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن `subscriptions.service.ts`: جداسازی جریان پرداخت پی‌پینگ — نسخه `v3.8.12`
+
+**هدف:** کل جریان پرداخت آنلاین اشتراک (ساخت محصول پی‌پینگ، `checkout`، کال‌بک و
+فعال‌سازی پلن پرداخت‌شده) بخشی متمایز از `subscriptions.service.ts` (۹۹۷ خط) بود
+و در یک سرویس مستقل جدا شد.
+
+**تغییرات:**
+- `apps/api/src/subscriptions/subscriptions-payment.service.ts` (فایل تازه):
+  `SubscriptionsPaymentService` با `appUrl`، `requirePlan`، `ensurePlanProduct`،
+  `syncPlanProductQuietly`، `syncPaypingProduct`، `checkout`،
+  `handlePaymentCallback`، `callbackResult`، `markPaymentFailed` و
+  `activatePaidSubscription` (۴۵۹ خط منتقل شد).
+- `apps/api/src/subscriptions/subscriptions.service.ts`: حذف جریان پرداخت (اکنون
+  ۵۳۷ خط)، حذف وابستگی‌های بی‌استفاده (`PaypingService`/`ConfigService`/`Logger`)
+  و واگذاری `syncPlanProductQuietly` به سرویس پرداخت.
+- `apps/api/src/subscriptions/subscriptions.controller.ts`: تزریق سرویس پرداخت
+  برای `checkout` و `paymentCallback`.
+- `apps/api/src/subscriptions/subscriptions.module.ts`: تأمین و صادرکردن
+  `SubscriptionsPaymentService`.
+- `apps/api/src/admin/admin.controller.ts`: استفاده از `SubscriptionsPaymentService`
+  برای `syncPaypingProduct`.
+
+**تأیید/تست:**
+- `tsc --noEmit -p tsconfig.json` و `eslint src/subscriptions src/admin` → exit 0.
+- اجرای واقعی API بدون خطای DI؛ `GET /api/health` → ۲۰۰ و
+  `GET /api/subscriptions/plans` → ۲۰۰.
+- `python3 scripts/check_modules.py` و `check_api_docs.py` سبز.
 
 ## ۱۴۰۵/۰۸/۱۷ — شکستن `biolinks.service.ts`: جداسازی دایرکتوری عمومی — نسخه `v3.8.11`
 
