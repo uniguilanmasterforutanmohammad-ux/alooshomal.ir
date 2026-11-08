@@ -20,7 +20,43 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.0.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.1.0**.
+
+## ۱۴۰۵/۰۸/۱۷ — ورود ایمیل/رمز فقط برای مدیران با تأیید کد یکبارمصرف — نسخه `v3.1.0`
+
+**هدف:** مسیر ورود با ایمیل و رمز عبور در `/login` فقط برای ادمین و مدیران باشد و
+حتی پس از رمز صحیح، ورود با کد یکبارمصرف (ایمیل و در صورت تنظیم پیامک) تأیید شود.
+
+**تغییرات:**
+- `apps/api/src/auth/auth.service.ts`: پس از اعتبارسنجی رمز، نقش‌های غیر از
+  `ADMIN`/`MODERATOR` با ۴۰۳ رد می‌شوند؛ برای مدیران کد یکبارمصرف صادر و
+  `{ requiresOtp: true, email, phone }` (بدون توکن) برگردانده می‌شود. متد
+  `verifyAdminLogin` کد را بررسی و سپس نشست را صادر می‌کند.
+- `apps/api/src/auth/otp.service.ts`: افزودن `issueAdminLogin`/`verifyAdminLogin`
+  با کلید مستقل `otp:admin-login:user:<id>` (تحویل ایمیل + پیامک اختیاری).
+- `apps/api/src/auth/mail.service.ts`: هدف `admin-login` برای متن/برچسب ایمیل.
+- `apps/api/src/auth/dto/verify-admin-login.dto.ts`: DTO جدید `{ email, code }`.
+- `apps/api/src/auth/auth.controller.ts`: مسیر `POST /api/auth/login/verify` با
+  `@ApiOperation`؛ `POST /api/auth/login` فقط مرحله‌ی اول را انجام می‌دهد.
+- `apps/api/src/common/rate-limit.service.ts`: سهمیه‌ی `adminLoginVerify`.
+- `apps/web/app/(auth)/login/page.tsx`: مرحله‌ی کد تأیید پس از ورود مدیران،
+  برچسب «ورود مدیران» و متن راهنما.
+- `apps/web/components/auth/AuthForm.tsx` و
+  `apps/web/components/admin/AdminAuthSettings.tsx`: به‌روزرسانی متن‌ها.
+- `docs/API.md`: مستندسازی جریان دو مرحله‌ای ورود مدیران.
+- `apps/web/lib/version.ts`: نسخه به `v3.1.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web npx tsc --noEmit` و
+  `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` → بدون خطا.
+- `python3 scripts/check_api_docs.py` → ۲۳ کنترلر / ۲۳۹ مسیر، همه دارای
+  `@ApiOperation`/`@ApiTags` (exit 0).
+- `POST /api/auth/login` با کاربر عادی و رمز صحیح → ۴۰۳ با پیام «فقط برای
+  مدیران». با ادمین → `requiresOtp: true` (بدون توکن).
+- `POST /api/auth/login/verify` با کد نادرست → ۴۰۰، با کد صحیح → توکن ادمین، و
+  با ایمیل کاربر عادی → ۴۰۱.
+- Playwright با پاسخ شبیه‌سازی‌شده: پس از ارسال فرم مدیران، فیلد «کد تأیید» و
+  ایمیل ماسک‌شده نمایش داده شد.
 
 ## ۱۴۰۵/۰۸/۱۷ — حذف فوتر در موبایل و کاهش گردی جستجوی صفحه‌ی اصلی — نسخه `v3.0.2`
 

@@ -13,10 +13,20 @@ import { useAuthMethods } from '@/lib/auth-settings';
 import { safeInternalPath } from '@/lib/safe-next';
 import { cn } from '@/lib/utils';
 
+interface AdminLoginStart {
+  requiresOtp: true;
+  email: string | null;
+  phone: string | null;
+  resendAfter: number;
+  sent: boolean;
+  emailSent?: boolean;
+  devCode?: string;
+}
+
 /**
  * The single entry point for both sign-in and sign-up. Mobile + OTP is the
- * default; email + password is offered as a fallback (also reachable from
- * inside the OTP step). `/register` simply redirects here.
+ * default; email + password is the admin/manager path and always requires a
+ * second one-time code. `/register` simply redirects here.
  */
 function AuthPageContent() {
   const router = useRouter();
@@ -30,6 +40,13 @@ function AuthPageContent() {
   const [mode, setMode] = useState<'phone' | 'email'>('phone');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [otpStep, setOtpStep] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpTarget, setOtpTarget] = useState<{
+    email: string | null;
+    phone: string | null;
+  }>({ email: null, phone: null });
+  const [devCode, setDevCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -60,7 +77,32 @@ function AuthPageContent() {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.post<AuthResponse>('/auth/login', { email, password });
+      const data = await api.post<AdminLoginStart>('/auth/login', {
+        email,
+        password,
+      });
+      // Email + password only passes the first step: the API sends a one-time
+      // code and withholds the tokens until it is verified.
+      setOtpTarget({ email: data.email, phone: data.phone });
+      setDevCode(data.devCode ?? null);
+      setOtpCode('');
+      setOtpStep(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ورود ناموفق بود');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleVerifyOtp(event: React.FormEvent) {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.post<AuthResponse>('/auth/login/verify', {
+        email,
+        code: otpCode,
+      });
       setSession(data.accessToken, data.user);
       // A limited admin has no dashboard of their own — land them on the
       // review panel directly (unless an explicit `next` was requested).
@@ -68,7 +110,7 @@ function AuthPageContent() {
         next === '/dashboard' && data.user.role === 'MODERATOR' ? '/moderator' : next,
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ورود ناموفق بود');
+      setError(err instanceof Error ? err.message : 'تأیید کد ناموفق بود');
     } finally {
       setLoading(false);
     }
@@ -86,7 +128,8 @@ function AuthPageContent() {
         </Link>
         <h1 className="text-2xl font-extrabold text-ink">ورود یا ثبت‌نام</h1>
         <p className="mt-1 text-sm text-muted">
-          برای ساخت و مدیریت بیولینک و کارت ویزیت، شماره موبایل خود را وارد کنید.
+          کاربران با شماره موبایل وارد می‌شوند؛ ورود با ایمیل و رمز عبور فقط برای
+          مدیران و ادمین‌هاست.
         </p>
 
         {phoneLoginEnabled && emailLoginEnabled ? (
@@ -94,13 +137,17 @@ function AuthPageContent() {
             {(
               [
                 ['phone', 'موبایل و کد', Smartphone],
-                ['email', 'ایمیل و رمز عبور', Mail],
+                ['email', 'ورود مدیران', Mail],
               ] as const
             ).map(([key, label, Icon]) => (
               <button
                 key={key}
                 type="button"
-                onClick={() => setMode(key)}
+                onClick={() => {
+                  setMode(key);
+                  setOtpStep(false);
+                  setError(null);
+                }}
                 className={cn(
                   'inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-bold',
                   mode === key ? 'bg-white text-brand shadow-sm' : 'text-muted',
@@ -125,8 +172,68 @@ function AuthPageContent() {
                 emailLoginEnabled ? () => setMode('email') : undefined
               }
             />
+          ) : otpStep ? (
+            <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
+              <p className="rounded-lg bg-black/5 p-3 text-xs leading-6 text-muted">
+                کد یکبارمصرف به
+                {otpTarget.email ? (
+                  <>
+                    {' '}ایمیل <span dir="ltr" className="font-bold text-ink">{otpTarget.email}</span>
+                  </>
+                ) : null}
+                {otpTarget.phone ? (
+                  <>
+                    {otpTarget.email ? ' و ' : ' '}شماره{' '}
+                    <span dir="ltr" className="font-bold text-ink">{otpTarget.phone}</span>
+                  </>
+                ) : null}{' '}
+                ارسال شد.
+              </p>
+              {devCode ? (
+                <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+                  حالت توسعه: کد شما{' '}
+                  <span dir="ltr" className="font-bold">{devCode}</span> است.
+                </p>
+              ) : null}
+              <Input
+                label="کد تأیید"
+                inputMode="numeric"
+                required
+                dir="ltr"
+                value={otpCode}
+                onChange={(event) => setOtpCode(event.target.value)}
+                placeholder="------"
+              />
+              {error ? (
+                <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
+                  {error}
+                </p>
+              ) : null}
+              <button
+                type="submit"
+                disabled={loading}
+                className="indeed-btn indeed-btn-primary w-full"
+              >
+                {loading ? 'در حال بررسی...' : 'تأیید و ورود'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOtpStep(false);
+                  setOtpCode('');
+                  setError(null);
+                }}
+                className="text-sm font-bold text-muted"
+              >
+                بازگشت
+              </button>
+            </form>
           ) : (
             <form onSubmit={handleEmailLogin} className="flex flex-col gap-4">
+              <p className="rounded-lg bg-black/5 p-3 text-xs leading-6 text-muted">
+                این روش ورود فقط برای مدیران و ادمین‌ها فعال است و پس از رمز عبور،
+                یک کد یکبارمصرف نیز لازم دارد.
+              </p>
               <Input
                 label="ایمیل"
                 type="email"
@@ -146,7 +253,9 @@ function AuthPageContent() {
                 placeholder="••••••••"
               />
               {error ? (
-                <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
+                <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
+                  {error}
+                </p>
               ) : null}
               <button
                 type="submit"

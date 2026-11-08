@@ -46,6 +46,7 @@ export type OtpPurpose = 'login' | 'phone-change' | 'email-change';
 const keyPrefix = (purpose: OtpPurpose) => `otp:${purpose}:phone:`;
 const passwordResetKey = (userId: string) => `otp:password-reset:user:${userId}`;
 const emailChangeKey = (userId: string) => `otp:email-change:user:${userId}`;
+const adminLoginKey = (userId: string) => `otp:admin-login:user:${userId}`;
 
 interface OtpRecord {
   hash: string;
@@ -454,6 +455,99 @@ export class OtpService {
   /** Verifies an email-change code for `userId`; clears it on success. */
   async verifyEmailChange(userId: string, code: string): Promise<void> {
     const key = emailChangeKey(userId);
+    const record = await this.readKey(key);
+    if (!record) {
+      throw new BadRequestException('کد منقضی شده است؛ دوباره درخواست کنید');
+    }
+    if (record.attempts >= OTP_MAX_ATTEMPTS) {
+      await this.clearKey(key);
+      throw new BadRequestException('تعداد تلاش‌ها بیش از حد مجاز است');
+    }
+    if (record.hash !== this.hash(code.trim())) {
+      await this.writeKey(key, {
+        hash: record.hash,
+        attempts: record.attempts + 1,
+      });
+      throw new BadRequestException('کد وارد‌شده صحیح نیست');
+    }
+    await this.clearKey(key);
+  }
+
+  /**
+   * Issues the second-factor code for an admin/manager who already passed the
+   * email + password check.
+   *
+   * Keyed by user id (not phone) so accounts without a verified phone still
+   * receive it by email. The code is delivered to the account email and, when
+   * Melipayamak is configured and a phone is on file, by SMS too.
+   */
+  async issueAdminLogin(
+    userId: string,
+    email: string | null,
+    phone: string | null,
+  ): Promise<IssuedOtp> {
+    const key = adminLoginKey(userId);
+    if (await this.recentlyIssuedKey(`${key}:issued`)) {
+      throw new BadRequestException(
+        'کد قبلی هنوز معتبر است؛ لطفاً کمی بعد دوباره تلاش کنید',
+      );
+    }
+
+    let code: string;
+    let sent = false;
+    if (phone && this.sms.enabled) {
+      const remote = await this.sms.sendOtp(phone);
+      if (!remote) {
+        throw new ServiceUnavailableException(
+          'ارسال پیامک در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
+        );
+      }
+      code = remote;
+      sent = true;
+    } else if (this.isDev && !this.mail.enabled) {
+      // Local dev without SMTP: same fixed-code bypass as the other flows.
+      code = DEV_OTP_CODE;
+      this.logger.log(`[dev] admin-login OTP for ${userId} is ${code}`);
+    } else {
+      code = String(randomInt(100_000, 1_000_000));
+    }
+
+    let emailSent = false;
+    if (email && this.mail.enabled) {
+      try {
+        emailSent = await this.mail.sendOtp(email, code, 'admin-login');
+      } catch (error) {
+        this.logger.error(
+          `Admin-login email to ${email} failed: ${
+            error instanceof Error ? error.message : 'unknown error'
+          }`,
+        );
+        if (!sent) {
+          throw new ServiceUnavailableException('ارسال کد تأیید ناموفق بود');
+        }
+      }
+    }
+    // In dev the fixed code is returned to the caller, so no channel is fine.
+    if (!emailSent && !sent && !this.isDev) {
+      throw new ServiceUnavailableException(
+        'ارسال کد تأیید در حال حاضر در دسترس نیست',
+      );
+    }
+
+    await this.writeKey(key, { hash: this.hash(code), attempts: 0 });
+    await this.markIssuedKey(`${key}:issued`);
+
+    return {
+      resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
+      sent,
+      emailSent,
+      ...(this.isDev && !sent && !emailSent ? { devCode: code } : {}),
+    };
+  }
+
+  /** Verifies an admin-login code for `userId`; clears it on success. */
+  async verifyAdminLogin(userId: string, code: string): Promise<void> {
+    const key = adminLoginKey(userId);
     const record = await this.readKey(key);
     if (!record) {
       throw new BadRequestException('کد منقضی شده است؛ دوباره درخواست کنید');

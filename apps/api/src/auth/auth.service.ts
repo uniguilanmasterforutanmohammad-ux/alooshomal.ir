@@ -20,6 +20,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RequestCodeDto } from './dto/request-code.dto';
 import { VerifyPhoneDto } from './dto/verify-phone.dto';
+import { VerifyAdminLoginDto } from './dto/verify-admin-login.dto';
 import { OtpService } from './otp.service';
 
 const SALT_ROUNDS = 12;
@@ -35,6 +36,23 @@ const DUMMY_BCRYPT_HASH = bcrypt.hashSync(
   `timing-${Math.random().toString(36)}`,
   SALT_ROUNDS,
 );
+
+/** Roles allowed to use the email + password sign-in path. */
+const ADMIN_LOGIN_ROLES = new Set(['ADMIN', 'MODERATOR']);
+
+/** `admin@example.com` → `ad***@example.com`, safe to echo to the client. */
+function maskEmail(email: string | null): string | null {
+  if (!email) return null;
+  const [local, domain] = email.split('@');
+  if (!domain) return null;
+  return `${local.slice(0, 2)}${'*'.repeat(Math.max(1, local.length - 2))}@${domain}`;
+}
+
+/** `09123456789` → `0912***789`. */
+function maskPhone(phone: string | null): string | null {
+  if (!phone || phone.length <= 6) return null;
+  return `${phone.slice(0, 4)}***${phone.slice(-3)}`;
+}
 
 /** Client hints captured at login, used for the session list. */
 export interface SessionContext {
@@ -263,10 +281,61 @@ export class AuthService {
       throw new UnauthorizedException('ایمیل یا رمز عبور اشتباه است');
     }
 
+    // Email + password is an admin/manager-only path. Regular users sign in
+    // with their phone + OTP, so a valid password on a normal account is not
+    // enough to open a session here.
+    if (!ADMIN_LOGIN_ROLES.has(user.role)) {
+      throw new ForbiddenException(
+        'ورود با ایمیل و رمز عبور فقط برای مدیران و ادمین‌ها فعال است؛ لطفاً از ورود با موبایل استفاده کنید',
+      );
+    }
+
+    // Second factor: even a correct password must be confirmed with a one-time
+    // code sent to the account's email (and phone, when configured). No token
+    // is issued until `verifyAdminLogin` succeeds.
+    const issued = await this.otp.issueAdminLogin(
+      user.id,
+      user.email,
+      user.phone,
+    );
+    return {
+      requiresOtp: true,
+      email: maskEmail(user.email),
+      phone: maskPhone(user.phone),
+      ...issued,
+    };
+  }
+
+  /**
+   * Step 2 of the admin email/password flow: verifies the one-time code issued
+   * by `login` and only then creates the session.
+   */
+  async verifyAdminLogin(
+    dto: VerifyAdminLoginDto,
+    context: SessionContext = {},
+  ) {
+    await this.assertEmailLoginEnabled();
+    if (context.ip) await this.rateLimit.hit(RATE_LIMITS.login, context.ip);
+    const email = dto.email.toLowerCase().trim();
+    await this.rateLimit.hit(
+      RATE_LIMITS.adminLoginVerify,
+      createHash('sha256').update(email).digest('hex'),
+    );
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (
+      !user ||
+      !user.isActive ||
+      !ADMIN_LOGIN_ROLES.has(user.role)
+    ) {
+      throw new UnauthorizedException('حساب مدیریتی معتبر نیست');
+    }
+
+    await this.otp.verifyAdminLogin(user.id, dto.code);
+
     await this.activity.log({
       actor: { id: user.id, email: user.email, role: user.role },
       action: 'USER_LOGIN',
-      summary: `ورود به حساب: ${user.fullName ?? user.email}`,
+      summary: `ورود مدیر با تأیید کد یکبارمصرف: ${user.fullName ?? user.email}`,
       entityType: 'USER',
       entityId: user.id,
     });

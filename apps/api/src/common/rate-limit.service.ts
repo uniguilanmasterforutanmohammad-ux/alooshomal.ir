@@ -83,6 +83,8 @@ export const RATE_LIMITS = {
   passwordResetRequest: { bucket: 'pw-reset-req', limit: 5, windowSeconds: 900 } as RateLimitRule,
   /** Password reset: 10 verify attempts per user per 15 minutes. */
   passwordResetVerify: { bucket: 'pw-reset-verify', limit: 10, windowSeconds: 900 } as RateLimitRule,
+  /** Admin email login: 10 OTP verify attempts per email per 15 minutes. */
+  adminLoginVerify: { bucket: 'admin-login-verify', limit: 10, windowSeconds: 900 } as RateLimitRule,
   /** OTP verify: 10 attempts per phone per 15 minutes (on top of code attempts). */
   otpVerify: { bucket: 'otp-verify', limit: 10, windowSeconds: 900 } as RateLimitRule,
   /** Sign-up: 5 accounts per IP per hour. */

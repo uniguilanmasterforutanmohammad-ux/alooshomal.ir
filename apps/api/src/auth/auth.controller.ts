@@ -19,6 +19,7 @@ import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { VerifyPhoneDto } from './dto/verify-phone.dto';
+import { VerifyAdminLoginDto } from './dto/verify-admin-login.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -54,9 +55,30 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
-  @ApiOperation({ summary: 'ورود با ایمیل و رمز عبور' })
-  async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const payload = await this.authService.login(dto, {
+  @ApiOperation({
+    summary: 'ورود مدیران با ایمیل و رمز عبور (مرحله ۱: ارسال کد یکبارمصرف)',
+  })
+  async login(@Body() dto: LoginDto, @Req() req: Request) {
+    // Step 1 issues the OTP only — there is no session (and no refresh token)
+    // to put in a cookie until `login/verify` succeeds.
+    return this.authService.login(dto, {
+      userAgent: clientUserAgent(req),
+      ip: clientIp(req),
+    });
+  }
+
+  @Public()
+  @Post('login/verify')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'تأیید کد یکبارمصرف ورود مدیران و صدور نشست',
+  })
+  async verifyAdminLogin(
+    @Body() dto: VerifyAdminLoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const payload = await this.authService.verifyAdminLogin(dto, {
       userAgent: clientUserAgent(req),
       ip: clientIp(req),
     });

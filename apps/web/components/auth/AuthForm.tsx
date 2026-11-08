@@ -186,7 +186,7 @@ export function AuthForm({
             onClick={onEmailLogin}
             className="text-sm font-bold text-brand"
           >
-            ورود با ایمیل و رمز عبور
+            ورود مدیران با ایمیل و رمز عبور
           </button>
         ) : null}
       </form>

@@ -62,6 +62,7 @@ export class MailService {
     if (purpose === 'phone-change') return 'تغییر شماره موبایل';
     if (purpose === 'email-change') return 'تغییر ایمیل';
     if (purpose === 'password-reset') return 'تغییر رمز عبور';
+    if (purpose === 'admin-login') return 'ورود مدیران';
     return 'ورود به سایت';
   }
 
@@ -94,7 +95,12 @@ export class MailService {
   async sendOtp(
     to: string,
     code: string,
-    purpose: 'login' | 'phone-change' | 'email-change' | 'password-reset' = 'login',
+    purpose:
+      | 'login'
+      | 'phone-change'
+      | 'email-change'
+      | 'password-reset'
+      | 'admin-login' = 'login',
   ): Promise<boolean> {
     if (!this.enabled) {
       this.logger.warn(
