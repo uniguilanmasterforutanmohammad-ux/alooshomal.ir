@@ -20,7 +20,31 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.14**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.15**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن پنل پی‌پینگ پنل مدیر به تب‌های مستقل — نسخه `v3.8.15`
+
+**هدف:** `AdminPaypingPanel.tsx` (۱۸۵۵ خط) یک فایل غول‌آسا با ۱۱ تب مستقل داشت؛
+هر تب به فایل خودش منتقل شد و بخش‌های مشترک (انواع، فرمت‌گرها و کامپوننت‌های
+پایه) در یک ماژول مشترک نشستند تا پنل ماژولار و قابل نگه‌داری شود.
+
+**تغییرات:**
+- `apps/web/components/admin/payping/shared.tsx` (فایل تازه): نوع‌های `Row`،
+  `PaypingStatus`، `OverviewPayload` و کمکی/پایه‌های `INPUT`، `toman`، `cell`،
+  `errorText`، `Panel`، `Banner`، `DataTable`، `Field`.
+- `apps/web/components/admin/payping/` (۱۱ فایل تازه): `OverviewTab`،
+  `TransactionsTab`، `WithdrawalsTab`، `CustomersTab`، `CouponsTab`،
+  `ProductsTab`، `InvoicesTab`، `BnplTab`، `PayTab`، `InquiryTab`، `UploadTab`.
+- `apps/web/components/admin/AdminPaypingPanel.tsx`: فقط پوسته‌ی تب‌ها و
+  بارگذاری وضعیت اتصال می‌ماند (اکنون ۱۴۹ خط) و تب‌ها از پوشه‌ی `payping`
+  وارد می‌شوند؛ مسیر واردکننده‌ی بیرونی (`@/components/admin/AdminPaypingPanel`)
+  بدون تغییر ماند.
+
+**تأیید/تست:**
+- `tsc --noEmit` و `eslint components/admin/AdminPaypingPanel.tsx components/admin/payping`
+  → exit 0 (فقط هشدارهای از قبل موجود `react-hooks/set-state-in-effect`).
+- اجرای واقعی Next.js؛ `GET /admin?section=payments` → ۲۰۰ و کامپایل بدون خطا
+  در لاگ کانتینر `alooshomal-web`.
 
 ## ۱۴۰۵/۰۸/۱۷ — شکستن `boosts.service.ts`: جداسازی گردش‌کار بازبینی مدیر — نسخه `v3.8.14`
 
