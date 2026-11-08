@@ -1,0 +1,62 @@
+name: CI
+
+# Fast feedback gate for pushes and pull requests: conventions, type-safety and
+# linting. Image builds and deployment live in deploy.yml (user-triggered push
+# to main). `install.sh` is gitignored, so `sync_install.py --check` runs only
+# locally, not here.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+# A newer push/PR run supersedes the in-flight one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conventions:
+    name: Repo conventions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Swagger coverage for every API route (AGENTS.md rule 8)
+        run: python3 scripts/check_api_docs.py
+      - name: Feature-module conventions and feature flags (rule 9)
+        run: python3 scripts/check_modules.py
+
+  api:
+    name: API typecheck & lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm install --no-audit --no-fund
+      - run: npx prisma generate
+      - run: npx tsc --noEmit -p tsconfig.json
+      - run: npx eslint src
+
+  web:
+    name: Web typecheck & lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - run: npm install --no-audit --no-fund
+      - run: npx tsc --noEmit
+      - run: npx eslint .

@@ -71,6 +71,10 @@ the `Dockerfile` or a build-time variable such as `NEXT_PUBLIC_*` changes.
 See `docs/DEVELOPMENT.md` for the full local-vs-production guide, the exact
 rebuild triggers, and common local issues.
 
+See `docs/ARCHITECTURE.md` for the monorepo layout, the feature-module
+conventions (one folder per API feature, feature flags, web component layout)
+and the step-by-step recipe for adding a new feature.
+
 ### Migrations and seed data
 
 ```bash
