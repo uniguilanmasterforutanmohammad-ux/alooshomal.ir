@@ -16,3 +16,4 @@ export * from './api/types/notifications';
 export * from './api/types/moderation';
 export * from './api/types/points';
 export * from './api/types/feeds';
+export * from './api/types/social';

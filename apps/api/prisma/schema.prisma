@@ -1288,3 +1288,34 @@ model ContentDecision {
   @@index([kind, approved])
   @@map("content_decisions")
 }
+
+// ---------------------------------------------------------------------------
+// Social accounts — the login credentials of the brand's accounts on
+// Instagram / Bale / Eitaa / Aparat (and any network added later, see
+// `SOCIAL_PLATFORMS`). The password is stored AES-256-GCM encrypted via
+// `common/secret-box.ts` and is never included in list responses; the admin
+// panel can reveal it only through an audited endpoint. `platform` is a plain
+// string (not an enum) so a new network is a code-only change.
+// ---------------------------------------------------------------------------
+model SocialAccount {
+  id            String    @id @default(cuid())
+  platform      String
+  title         String
+  username      String
+  /// AES-256-GCM payload produced by `encryptSecret()`; never returned raw.
+  passwordEnc   String
+  email         String?
+  phone         String?
+  url           String?
+  notes         String?
+  isActive      Boolean   @default(true)
+  /// When the stored password was last set/rotated (prompts future rotation).
+  lastRotatedAt DateTime?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@unique([platform, username])
+  @@index([platform])
+  @@map("social_accounts")
+}

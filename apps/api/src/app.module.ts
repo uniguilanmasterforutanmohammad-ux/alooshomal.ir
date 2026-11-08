@@ -31,6 +31,7 @@ import { RequestPaymentsModule } from './request-payments/request-payments.modul
 import { SessionsModule } from './sessions/sessions.module';
 import { SeoModule } from './seo/seo.module';
 import { SettingsModule } from './settings/settings.module';
+import { SocialAccountsModule } from './social-accounts/social-accounts.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { TaxonomyModule } from './taxonomy/taxonomy.module';
 import { TicketsModule } from './tickets/tickets.module';
@@ -56,6 +57,7 @@ import { UsersModule } from './users/users.module';
     AdsModule,
     RequestPaymentsModule,
     SettingsModule,
+    SocialAccountsModule,
     NotificationsModule,
     NewsModule,
     PointsModule,

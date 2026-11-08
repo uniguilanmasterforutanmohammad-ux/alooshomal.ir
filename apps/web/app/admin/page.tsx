@@ -18,6 +18,7 @@ import { AdminPaypingPanel } from '@/components/admin/AdminPaypingPanel';
 import { AdminPermissionsMatrix } from '@/components/admin/AdminPermissionsMatrix';
 import { AdminPoints } from '@/components/admin/AdminPoints';
 import { AdminRevenue } from '@/components/admin/AdminRevenue';
+import { AdminSocialAccounts } from '@/components/admin/AdminSocialAccounts';
 import { AdminStoragePanel } from '@/components/admin/AdminStoragePanel';
 import { AdminSubscriptions } from '@/components/admin/AdminSubscriptions';
 import { NotificationsInbox } from '@/components/ui/NotificationsInbox';
@@ -83,6 +84,7 @@ function AdminContent() {
       {section === 'notifications' ? <NotificationsInbox scope="admin" /> : null}
       {section === 'tools' ? <AdminBulkTools /> : null}
       {section === 'settings' ? <SettingsSection /> : null}
+      {section === 'social-accounts' ? <AdminSocialAccounts /> : null}
     </AdminShell>
   );
 }

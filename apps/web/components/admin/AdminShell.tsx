@@ -24,6 +24,7 @@ import {
   Newspaper,
   FlaskConical,
   Settings,
+  Share2,
   ShieldCheck,
   TrendingUp,
   UserCog,
@@ -57,6 +58,7 @@ export type AdminSection =
   | 'blog'
   | 'permissions'
   | 'moderators'
+  | 'social-accounts'
   | 'storage'
   | 'monitoring'
   | 'notifications'
@@ -121,6 +123,7 @@ const NAV_GROUPS: Array<{
     title: 'تنظیمات و سیستم',
     items: [
       { key: 'settings', label: 'تنظیمات', icon: Settings },
+      { key: 'social-accounts', label: 'شبکه‌های اجتماعی', icon: Share2 },
       { key: 'monitoring', label: 'پایش منابع', icon: Activity },
       { key: 'storage', label: 'فضای سرور', icon: HardDrive },
       { key: 'reports', label: 'گزارش‌های سیستم', icon: BarChart3 },

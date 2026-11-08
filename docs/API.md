@@ -68,7 +68,7 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 
 ## کامل‌بودن مستندات
 
-- هر کنترلر با `@ApiTags` یک گروه مشخص دارد (۲۴ کنترلر / ۲۳ برچسب).
+- هر کنترلر با `@ApiTags` یک گروه مشخص دارد (۲۸ کنترلر / ۲۷ برچسب).
 - هر مسیر باید `@ApiOperation({ summary })` و برای ورودی‌ها DTO با
   `@ApiProperty`/`@ApiPropertyOptional` داشته باشد.
 - DTOهای به‌روزرسانی با `PartialType` از DTO ساخت ارث‌بری می‌کنند، پس متادیتای
@@ -216,8 +216,26 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 تأیید با خطای ۴۰۰ رد می‌شود و درخواست‌های پرداخت‌نشده در صف «در انتظار»
 نمایش داده نمی‌شوند.
 
-### بررسی سریع کامل‌بودن
 
+### نگه‌داری حساب‌های شبکه‌های اجتماعی برند (`social-accounts`)
+
+بخش «شبکه‌های اجتماعی» پنل مدیر، اکانت/یوزر/پسورد حساب‌های برند «شمالی کارت» را
+روی اینستاگرام، بله، ایتا، آپارات (و هر شبکه‌ی دیگری در `SOCIAL_PLATFORMS`) نگه
+می‌دارد. رمز عبور با **AES-256-GCM** رمزنگاری و در ستون `passwordEnc` ذخیره
+می‌شود؛ کلید از `SOCIAL_CREDENTIALS_KEY` (۳۲ بایت) و در نبود آن با HKDF از
+`JWT_SECRET` مشتق می‌شود. رمز هرگز در فهرست برنمی‌گردد و تنها راه خواندن آن،
+مسیر بازبینی‌شده‌ی `reveal` است. همه‌ی مسیرها فقط برای نقش `ADMIN` در دسترس‌اند
+و زیر پیشوند `/api/admin/social-accounts` قرار دارند.
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET` | `/admin/social-accounts` | `{ items, platforms }`؛ `items` بدون رمز (`hasPassword` و `lastRotatedAt` به‌جای آن) و `platforms` رجیستری سکوها برای پرکردن فرم. |
+| `POST` | `/admin/social-accounts` | ساخت حساب؛ `platform` یکی از کلیدهای رجیستری، `title`/`username`/`password` الزامی. ترکیب (platform, username) یکتاست (تکرار → ۴۰۹). |
+| `PATCH` | `/admin/social-accounts/:id` | ویرایش؛ اگر `password` فرستاده شود رمز جایگزین و `lastRotatedAt` به‌روز می‌شود، در غیر این صورت رمز دست‌نخورده می‌ماند. |
+| `DELETE` | `/admin/social-accounts/:id` | حذف حساب. |
+| `POST` | `/admin/social-accounts/:id/reveal` | بازگرداندن `{ username, password }` رمزگشایی‌شده. `POST` است تا کش نشود؛ `reason` اختیاری در «گزارش‌های سیستم» (اکشن‌های `SOCIAL_ACCOUNT_*`) ثبت می‌شود. |
+
+### بررسی سریع کامل‌بودن
 ```bash
 # تعداد مسیرهای مستندشده
 curl -s http://localhost:3001/api/docs-json | python3 -c "import sys,json;print(len(json.load(sys.stdin)['paths']))"

@@ -70,6 +70,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'tools',
   'notifications',
   'settings',
+  'social-accounts',
 ];
 
 /** Validates the `?section=` query parameter before it is trusted. */
@@ -141,5 +142,9 @@ export function isAdminSection(value: string): value is AdminSection {
     settings: {
       title: 'تنظیمات',
       sub: 'ویژگی‌ها و دسترسی‌ها، شهرها، کسب‌وکارها و نمایش دایرکتوری',
+    },
+    'social-accounts': {
+      title: 'شبکه‌های اجتماعی شمالی کارت',
+      sub: 'نگه‌داری ایمن اکانت، نام کاربری و رمز عبور حساب‌های برند',
     },
   };

@@ -20,7 +20,63 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.27**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.9.0**.
+
+## ۱۴۰۵/۰۸/۱۸ — گاوصندوق اعتبارنامه‌ی شبکه‌های اجتماعی برند در پنل مدیر — نسخه `v3.9.0`
+
+**هدف:** بخشی در پنل مدیر برای نگه‌داری اکانت/نام‌کاربری/رمز عبور حساب‌های برند
+«شمالی کارت» روی اینستاگرام، بله، ایتا، آپارات (و شبکه‌های دیگر) به‌صورت **ایمن**.
+رمزها رمزنگاری‌شده ذخیره می‌شوند، در هیچ پاسخ فهرستی برنمی‌گردند و فقط با یک
+مسیر بازبینی‌شده و ثبت دلیل قابل مشاهده‌اند.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل `SocialAccount` (سکو، عنوان، نام کاربری،
+  `passwordEnc`، ایمیل/تلفن بازیابی، نشانی، نکات، فعال/غیرفعال، `lastRotatedAt`،
+  `createdById`) با یکتایی (platform, username) و ایندکس سکو.
+- `apps/api/src/common/secret-box.ts` (جدید): رمزنگاری متقارن **AES-256-GCM** با
+  قالب نسخه‌دار `v1.<iv>.<tag>.<ciphertext>`؛ کلید از `SOCIAL_CREDENTIALS_KEY`
+  (۳۲ بایت) و در نبود آن با HKDF-SHA256 از `JWT_SECRET` مشتق می‌شود.
+- `apps/api/src/social-accounts/` (ماژول تازه): `social-accounts.service.ts`
+  (CRUD + `reveal` رمزگشا + ثبت فعالیت)، `social-accounts.controller.ts`
+  (فقط `@Roles('ADMIN')` زیر `/admin/social-accounts`)،
+  `social-accounts.constants.ts` (رجیستری `SOCIAL_PLATFORMS`)، DTOهای
+  Create/Update/reveal و `social-accounts.module.ts`.
+- `apps/api/src/app.module.ts`: ثبت `SocialAccountsModule` (قانون ۹ ساختار ماژولار).
+- `apps/web/components/admin/AdminSocialAccounts.tsx` (جدید): فرم افزودن/ویرایش،
+  فهرست گروه‌بندی‌شده بر پایه‌ی سکوی برند، فیلتر سکو، کپی نام کاربری، «نمایش رمز»
+  با دلیلِ اجباری و پنهان‌شدن خودکار پس از ۳۰ ثانیه، فعال/غیرفعال‌کردن و حذف.
+- `apps/web/components/admin/AdminShell.tsx`، `apps/web/app/admin/admin-console.ts`،
+  `apps/web/app/admin/page.tsx`: افزودن بخش «شبکه‌های اجتماعی» به گروه
+  «تنظیمات و سیستم» با تیتر/زیرتیتر و مسیریابی `?section=social-accounts`.
+- `apps/web/lib/api/types/social.ts` + `apps/web/lib/api.ts`: نوع‌های `SocialAccount`
+  و `SocialPlatformMeta` در barrel مشترک.
+- `docker-compose.yml`، `docker-compose.prod.yml`، `.env.example`: عبور و مستندسازی
+  `SOCIAL_CREDENTIALS_KEY` (اختیاری؛ بدون آن از `JWT_SECRET` مشتق می‌شود).
+- `docs/API.md`: بخش تازه‌ی مسیرها + به‌روزرسانی شمارش (۲۸ کنترلر / ۲۷ برچسب).
+  `docs/SECURITY.md`: توضیح رمزنگاری، منبع کلید و مسیر audited `reveal`.
+
+**تأیید/تست:**
+- `prisma db push` + `prisma generate` در کانتینر API → بدون خطا؛ جدول
+  `social_accounts` ساخته شد.
+- `docker exec alooshomal-api … tsc --noEmit` و `eslint src` → بدون خطا؛
+  `docker exec alooshomal-web … tsc --noEmit` و `eslint .` → ۰ خطا.
+- `python3 scripts/check_modules.py` (۳۱ پوشه) و `python3 scripts/check_api_docs.py`
+  (۲۸ کنترلر/۳۲۷ مسیر، هر ۵ مسیر تازه `summary` دارند) → exit 0.
+- فراخوانی واقعی با JWT ادمین: ساخت/فهرست (بدون رمز)/ویرایش (چرخش رمز)/حذف →
+  موفق؛ تکرار (platform, username) → ۴۰۹؛ ورودی نامعتبر → ۴۰۰؛ شناسه‌ی ناموجود
+  → ۴۰۴؛ `reveal` رمز درست را برگرداند. در دیتابیس مقادیر
+  `v1.<iv>.<tag>.<ciphertext>` ذخیره شد و رشته‌ی خام رمز در هیچ ردیفی نبود.
+- مسیرهای محافظت‌نشده → ۴۰۱؛ `GET /api/admin/social-accounts` بدون توکن ۴۰۱.
+- بررسی UI با Playwright/Chrome و JWT واقعی: بخش در ناوبری «تنظیمات و سیستم»
+  دیده می‌شود، سه گروه سکو (اینستاگرام/بله/آپارات) و سه حساب رندر شدند، برچسب
+  «غیرفعال» درست بود، فیلتر سکو کار کرد، رمز در فهرست لو نرفت، «نمایش رمز» با
+  دلیل، رمز را نشان داد و در موبایل سرریز افقی نداشت؛ بدون خطای کنسول. اکشن‌های
+  `SOCIAL_ACCOUNT_CREATED/UPDATED/REVEALED/DELETED` در «گزارش‌های سیستم» ثبت شد.
+- داده‌های تستی (حساب‌ها، نشست و لاگ‌های فعالیت) پس از آزمون از دیتابیس dev پاک شدند.
+- `python3 scripts/sync_install.py` سپس `--check` → `patched: 0 / added: 0`.
+
+**یادداشت:** این قابلیت ابزار داخلی مدیر است (نه ویژگی کاربران)، پس طبق قانون ۹
+سوئیچ `FEATURE_FLAGS` نمی‌گیرد؛ دسترسی فقط با `@Roles('ADMIN')` محدود شده است.
 
 ## ۱۴۰۵/۰۸/۱۷ — ثبت کامپوننت‌های بی‌استفاده‌ی وب و سطح نمایش تبلیغ خانه در بک‌لاگ — نسخه `v3.8.27`
 

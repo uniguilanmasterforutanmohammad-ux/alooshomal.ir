@@ -117,6 +117,9 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-}
       MAIL_FROM_NAME: ${MAIL_FROM_NAME:-شمالی کارت}
+      # Optional dedicated key for encrypting the brand social-account
+      # passwords (admin «شبکه‌های اجتماعی»). Empty = derive from JWT_SECRET.
+      SOCIAL_CREDENTIALS_KEY: ${SOCIAL_CREDENTIALS_KEY:-}
       # PayPing merchant token used by the «درگاه پرداخت» admin panel; the
       # token stays server-side (never shipped to the browser).
       PAYPING_TOKEN: ${PAYPING_TOKEN:-}
