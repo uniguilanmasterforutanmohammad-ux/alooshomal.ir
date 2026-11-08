@@ -10,6 +10,7 @@ import {
   FeedsPublicController,
   FeedsUserController,
 } from './feeds.controller';
+import { FeedsDirectoryService } from './feeds-directory.service';
 import { FeedsService } from './feeds.service';
 import { FeedCommentsService } from './feed-comments.service';
 
@@ -22,7 +23,7 @@ import { FeedCommentsService } from './feed-comments.service';
     UploadsModule,
   ],
   controllers: [FeedsPublicController, FeedsUserController, AdminFeedsController],
-  providers: [FeedsService, FeedCommentsService],
-  exports: [FeedsService],
+  providers: [FeedsService, FeedsDirectoryService, FeedCommentsService],
+  exports: [FeedsService, FeedsDirectoryService],
 })
 export class FeedsModule {}

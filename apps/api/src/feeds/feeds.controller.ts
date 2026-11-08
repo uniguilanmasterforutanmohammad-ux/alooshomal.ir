@@ -38,6 +38,7 @@ import {
   ListFeedCommentsQueryDto,
   ListFeedQueryDto,
 } from './dto/feed.dto';
+import { FeedsDirectoryService } from './feeds-directory.service';
 import { FeedsService } from './feeds.service';
 import { FeedCommentsService } from './feed-comments.service';
 
@@ -50,6 +51,7 @@ import { FeedCommentsService } from './feed-comments.service';
 export class FeedsPublicController {
   constructor(
     private readonly feeds: FeedsService,
+    private readonly feedDirectory: FeedsDirectoryService,
     private readonly commentsService: FeedCommentsService,
   ) {}
 
@@ -57,14 +59,14 @@ export class FeedsPublicController {
   @Get('public')
   @ApiOperation({ summary: 'دایرکتوری عمومی فیدها با جستجو و فیلتر موضوع' })
   directory(@Query() query: ListFeedQueryDto) {
-    return this.feeds.publicDirectory(query);
+    return this.feedDirectory.publicDirectory(query);
   }
 
   @Public()
   @Get('public/topics')
   @ApiOperation({ summary: 'موضوع‌های فعال فید' })
   topics() {
-    return this.feeds.listTopics(true);
+    return this.feedDirectory.listTopics(true);
   }
 
   @OptionalAuth()
@@ -75,7 +77,7 @@ export class FeedsPublicController {
     @Req() request: Request,
     @CurrentUser() user?: AuthUser,
   ) {
-    return this.feeds.publicPost(id, visitorKeyFrom(request), user?.id);
+    return this.feedDirectory.publicPost(id, visitorKeyFrom(request), user?.id);
   }
 
   @OptionalAuth()
@@ -115,14 +117,14 @@ export class FeedsPublicController {
   @Post('public/:id/like')
   @ApiOperation({ summary: 'لایک/برداشتن لایک پست فید' })
   like(@Param('id') id: string, @Req() request: Request) {
-    return this.feeds.toggleLike(id, visitorKeyFrom(request));
+    return this.feedDirectory.toggleLike(id, visitorKeyFrom(request));
   }
 
   @Post('public/:id/save')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'ذخیره/حذف پست فید از ذخیره‌شده‌های من' })
   save(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.feeds.toggleSave(id, user.id);
+    return this.feedDirectory.toggleSave(id, user.id);
   }
 }
 
@@ -210,6 +212,7 @@ export class FeedsUserController {
 export class AdminFeedsController {
   constructor(
     private readonly feeds: FeedsService,
+    private readonly feedDirectory: FeedsDirectoryService,
     private readonly commentsService: FeedCommentsService,
   ) {}
 
@@ -335,7 +338,7 @@ export class AdminFeedsController {
   @Get('topics')
   @ApiOperation({ summary: 'مدیریت موضوع‌های فید' })
   topics() {
-    return this.feeds.listTopics(false);
+    return this.feedDirectory.listTopics(false);
   }
 
   @Post('topics')

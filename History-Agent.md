@@ -20,7 +20,36 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.19**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.20**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن `feeds.service.ts`: جداسازی مسیر خواندن عمومی دایرکتوری — نسخه `v3.8.20`
+
+**هدف:** `apps/api/src/feeds/feeds.service.ts` (۱۱۱۶ خط) هم مسیر خواندنِ عمومی
+دایرکتوری (فهرست کش‌شده، پست تکی، لایک/ذخیره، موضوع‌ها و رتبه‌ی دایرکتوری) و هم
+جریان‌های نوشتن/بازبینی/پنل کاربر را با هم داشت؛ مسیر خواندن عمومی جدا شد و
+پروژکتورهای مشترک به یک ماژول مشترک رفتند.
+
+**تغییرات:**
+- `apps/api/src/feeds/feeds-directory.service.ts` (فایل تازه):
+  `FeedsDirectoryService` با `publicDirectory`، `loadDirectoryPage`، `publicPost`،
+  `toggleLike`، `toggleSave`، `listTopics` و `directoryRank` (۲۳۲ خط).
+- `apps/api/src/feeds/feeds.shared.ts` (فایل تازه): `feedPostInclude`،
+  `feedTagInclude`، نوع `FeedTagTarget` و تابع خالص `projectFeedTag` (حذف
+  تکرار میان مسیر دایرکتوری و پنل کاربر).
+- `apps/api/src/feeds/feeds.service.ts`: فقط نوشتن/بازبینی/اشتراک/پنل کاربر
+  می‌ماند (اکنون ۸۳۵ خط).
+- `apps/api/src/feeds/feeds.module.ts` و `apps/api/src/feeds/feeds.controller.ts`:
+  تأمین/تزریق `FeedsDirectoryService` برای مسیرهای عمومی و مدیریتی موضوع‌ها.
+- `apps/api/src/moderator/moderator.service.ts` و `apps/api/src/boosts/boosts.service.ts`:
+  استفاده از `FeedsDirectoryService` برای `listTopics` و `directoryRank`.
+
+**تأیید/تست:**
+- `tsc --noEmit -p tsconfig.json` و `eslint src` → exit 0.
+- مقایسه‌ی نرمال‌شده‌ی هر ۷ متد منتقل‌شده با نسخه‌ی قبلی → یکسان (فقط
+  `this.projectFeedTag` به تابع مشترک تبدیل شده است).
+- اجرای واقعی API بدون خطای DI؛ `GET /api/health`، `GET /api/feeds/public?page=1`
+  و `GET /api/feeds/public/topics` → ۲۰۰ و `GET /api/admin/feeds/topics` → ۴۰۱.
+- `python3 scripts/check_modules.py` و `check_api_docs.py` سبز.
 
 ## ۱۴۰۵/۰۸/۱۷ — شکستن `admin.service.ts`: جداسازی مدیریت کاربران و ادمین‌ها — نسخه `v3.8.19`
 

@@ -19,7 +19,7 @@ import { FacetsCacheService } from '../common/facets-cache.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BiolinksService } from '../biolinks/biolinks.service';
 import { BusinessCardsService } from '../businesscards/business-cards.service';
-import { FeedsService } from '../feeds/feeds.service';
+import { FeedsDirectoryService } from '../feeds/feeds-directory.service';
 import { SettingsService } from '../settings/settings.service';
 import {
   RequestPaymentsService,
@@ -77,7 +77,7 @@ export class BoostsService {
     private readonly prisma: PrismaService,
     private readonly biolinks: BiolinksService,
     private readonly businessCards: BusinessCardsService,
-    private readonly feeds: FeedsService,
+    private readonly feeds: FeedsDirectoryService,
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
     private readonly facetsCache: FacetsCacheService,

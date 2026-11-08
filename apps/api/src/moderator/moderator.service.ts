@@ -21,6 +21,7 @@ import { UpdateBusinessCardDto } from '../businesscards/dto/update-business-card
 import { AdsReviewService } from '../ads/ads-review.service';
 import { BoostsReviewService } from '../boosts/boosts-review.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { FeedsDirectoryService } from '../feeds/feeds-directory.service';
 import { FeedsService } from '../feeds/feeds.service';
 import { UpdateNewsAdminDto } from '../news/dto/update-news-admin.dto';
 import { NewsService } from '../news/news.service';
@@ -67,6 +68,7 @@ export class ModeratorService {
     private readonly prisma: PrismaService,
     private readonly admin: AdminService,
     private readonly feeds: FeedsService,
+    private readonly feedsDirectory: FeedsDirectoryService,
     private readonly news: NewsService,
     private readonly subscriptions: SubscriptionsService,
     private readonly boostsReview: BoostsReviewService,
@@ -193,7 +195,7 @@ export class ModeratorService {
 
   /** Feed topics / news categories for the editors. */
   listTopics() {
-    return this.feeds.listTopics(false);
+    return this.feedsDirectory.listTopics(false);
   }
 
   listNewsCategories() {
