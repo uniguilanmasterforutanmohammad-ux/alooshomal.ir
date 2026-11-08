@@ -20,7 +20,33 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.22**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.23**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن `biolinks.service.ts`: جداسازی تعامل عمومی و دارایی‌های اشتراک‌گذاری — نسخه `v3.8.23`
+
+**هدف:** `apps/api/src/biolinks/biolinks.service.ts` (۸۱۰ خط) هم‌شکل کارت ویزیت،
+بلوک «تعامل عمومی + دارایی‌های اشتراک‌گذاری» را جدا کرد تا CRUD/بازبینی سبک بماند.
+
+**تغییرات:**
+- `apps/api/src/biolinks/biolinks-engagement.service.ts` (فایل تازه):
+  `BiolinksEngagementService` با `recordScan`، `toggleLike`، `likeSummary`،
+  `toggleSave`، `saveSummary`، `findMySaved`، `buildVCard`، `publicLink`،
+  `qrDataUrl` و `publicBiolinkWithAssets` (۲۱۱ خط).
+- `apps/api/src/biolinks/biolinks.service.ts`: حذف بلوک منتقل‌شده و کمکی‌های
+  تکراری (`paginationMeta` و getter `appUrl`) و استفاده از
+  `common/pagination-meta` و `common/app-url` (اکنون ۶۱۳ خط).
+- `apps/api/src/biolinks/biolinks.module.ts` و
+  `apps/api/src/biolinks/biolinks.controller.ts`: تأمین/تزریق
+  `BiolinksEngagementService` برای مسیرهای تعامل عمومی.
+
+**تأیید/تست:**
+- `tsc --noEmit -p tsconfig.json` و `eslint src` → exit 0.
+- مقایسه‌ی نرمال‌شده‌ی هر ۱۰ متد منتقل‌شده با نسخه‌ی قبلی → یکسان.
+- اجرای واقعی API: `GET /api/health`،
+  `GET /api/biolinks/public?page=1` → ۲۰۰ و روی بیولینک واقعی
+  `GET /api/biolinks/public/sample-full-biolink` (شامل QR و لینک)، `.../like` و
+  `.../vcard` → ۲۰۰.
+- `python3 scripts/check_modules.py` و `check_api_docs.py` سبز.
 
 ## ۱۴۰۵/۰۸/۱۷ — شکستن `business-cards.service.ts`: جداسازی تعامل عمومی و دارایی‌های اشتراک‌گذاری — نسخه `v3.8.22`
 

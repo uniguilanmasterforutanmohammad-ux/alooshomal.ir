@@ -20,6 +20,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { RequirePermission } from '../auth/permissions.decorator';
 import { visitorKeyFrom } from '../common/visitor-key';
+import { BiolinksEngagementService } from './biolinks-engagement.service';
 import { BiolinksService } from './biolinks.service';
 import { BiolinksDirectoryService } from './biolinks-directory.service';
 import { CreateBiolinkDto } from './dto/create-biolink.dto';
@@ -32,6 +33,7 @@ export class BiolinksController {
   constructor(
     private readonly biolinksService: BiolinksService,
     private readonly directoryService: BiolinksDirectoryService,
+    private readonly engagement: BiolinksEngagementService,
   ) {}
 
   @Post()
@@ -143,8 +145,8 @@ export class BiolinksController {
   @ApiOperation({ summary: 'مشاهده عمومی بیولینک با slug' })
   async public(@Param('slug') slug: string, @Req() request: Request) {
     const [payload, like] = await Promise.all([
-      this.biolinksService.publicBiolinkWithAssets(slug),
-      this.biolinksService.likeSummary(slug, visitorKeyFrom(request)),
+      this.engagement.publicBiolinkWithAssets(slug),
+      this.engagement.likeSummary(slug, visitorKeyFrom(request)),
     ]);
     return { ...payload, like };
   }
@@ -153,14 +155,14 @@ export class BiolinksController {
   @Post('public/:slug/like')
   @ApiOperation({ summary: 'لایک/برداشتن لایک بیولینک' })
   like(@Param('slug') slug: string, @Req() request: Request) {
-    return this.biolinksService.toggleLike(slug, visitorKeyFrom(request));
+    return this.engagement.toggleLike(slug, visitorKeyFrom(request));
   }
 
   @Public()
   @Get('public/:slug/like')
   @ApiOperation({ summary: 'وضعیت لایک بیولینک برای بازدیدکننده جاری' })
   likeState(@Param('slug') slug: string, @Req() request: Request) {
-    return this.biolinksService.likeSummary(slug, visitorKeyFrom(request));
+    return this.engagement.likeSummary(slug, visitorKeyFrom(request));
   }
 
   @OptionalAuth()
@@ -170,21 +172,21 @@ export class BiolinksController {
     @Param('slug') slug: string,
     @CurrentUser() user?: AuthUser,
   ) {
-    return this.biolinksService.saveSummary(slug, user?.id);
+    return this.engagement.saveSummary(slug, user?.id);
   }
 
   @Get('saved/mine')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'بیولینک‌های ذخیره‌شده من (صفحه‌بندی‌شده)' })
   savedMine(@CurrentUser() user: AuthUser, @Query() query: PaginationDto) {
-    return this.biolinksService.findMySaved(user.id, query.page, query.limit);
+    return this.engagement.findMySaved(user.id, query.page, query.limit);
   }
 
   @Post('public/:slug/save')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'ذخیره/حذف بیولینک از ذخیره‌شده‌های من' })
   save(@CurrentUser() user: AuthUser, @Param('slug') slug: string) {
-    return this.biolinksService.toggleSave(slug, user.id);
+    return this.engagement.toggleSave(slug, user.id);
   }
 
   @Public()
@@ -192,7 +194,7 @@ export class BiolinksController {
   @Header('Content-Type', 'text/vcard; charset=utf-8')
   @ApiOperation({ summary: 'دریافت فایل vCard' })
   async vcard(@Param('slug') slug: string) {
-    return this.biolinksService.buildVCard(slug);
+    return this.engagement.buildVCard(slug);
   }
 
   @Public()
@@ -207,7 +209,7 @@ export class BiolinksController {
     const ipHash = rawIp
       ? createHash('sha256').update(rawIp).digest('hex').slice(0, 32)
       : undefined;
-    await this.biolinksService.recordScan(biolink.id, {
+    await this.engagement.recordScan(biolink.id, {
       ipHash,
       userAgent: request.headers['user-agent'],
       referer: request.headers['referer'],
