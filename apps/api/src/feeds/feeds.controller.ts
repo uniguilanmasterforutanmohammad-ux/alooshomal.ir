@@ -39,6 +39,7 @@ import {
   ListFeedQueryDto,
 } from './dto/feed.dto';
 import { FeedsService } from './feeds.service';
+import { FeedCommentsService } from './feed-comments.service';
 
 // ---------------------------------------------------------------------------
 //  Public feed directory + engagement
@@ -47,7 +48,10 @@ import { FeedsService } from './feeds.service';
 @ApiTags('feeds')
 @Controller('feeds')
 export class FeedsPublicController {
-  constructor(private readonly feeds: FeedsService) {}
+  constructor(
+    private readonly feeds: FeedsService,
+    private readonly commentsService: FeedCommentsService,
+  ) {}
 
   @Public()
   @Get('public')
@@ -82,8 +86,8 @@ export class FeedsPublicController {
     @Query() query: PaginationDto,
     @CurrentUser() user?: AuthUser,
   ) {
-    if (user?.id) return this.feeds.listMyComments(id, user.id);
-    return this.feeds.listComments(id, query.page, query.limit);
+    if (user?.id) return this.commentsService.listMyComments(id, user.id);
+    return this.commentsService.listComments(id, query.page, query.limit);
   }
 
   @Post('public/:id/comments')
@@ -94,7 +98,7 @@ export class FeedsPublicController {
     @Param('id') id: string,
     @Body() dto: CreateFeedCommentDto,
   ) {
-    return this.feeds.createComment(user.id, id, dto);
+    return this.commentsService.createComment(user.id, id, dto);
   }
 
   @Delete('public/comments/:commentId')
@@ -104,7 +108,7 @@ export class FeedsPublicController {
     @CurrentUser() user: AuthUser,
     @Param('commentId') commentId: string,
   ) {
-    return this.feeds.removeComment(user.id, commentId);
+    return this.commentsService.removeComment(user.id, commentId);
   }
 
   @Public()
@@ -204,7 +208,10 @@ export class FeedsUserController {
 @Roles('ADMIN')
 @Controller('admin/feeds')
 export class AdminFeedsController {
-  constructor(private readonly feeds: FeedsService) {}
+  constructor(
+    private readonly feeds: FeedsService,
+    private readonly commentsService: FeedCommentsService,
+  ) {}
 
   @Get('posts')
   @ApiOperation({ summary: 'همه پست‌های فید (مدیر)' })
@@ -244,13 +251,13 @@ export class AdminFeedsController {
   @Get('comments')
   @ApiOperation({ summary: 'کامنت‌های فید برای بررسی (مدیر)' })
   comments(@Query() query: ListFeedCommentsQueryDto) {
-    return this.feeds.adminListComments(query.status, query.page, query.limit);
+    return this.commentsService.adminListComments(query.status, query.page, query.limit);
   }
 
   @Get('comments/stats')
   @ApiOperation({ summary: 'شمار کامنت‌ها بر اساس وضعیت (مدیر)' })
   commentStats() {
-    return this.feeds.commentCounts();
+    return this.commentsService.commentCounts();
   }
 
   @Patch('comments/:id/moderate')
@@ -261,13 +268,13 @@ export class AdminFeedsController {
     @Body('decision') decision: NewsStatus,
     @Body('reason') reason?: string,
   ) {
-    return this.feeds.moderateComment(admin.id, id, decision, reason);
+    return this.commentsService.moderateComment(admin.id, id, decision, reason);
   }
 
   @Delete('comments/:id')
   @ApiOperation({ summary: 'حذف کامنت فید (مدیر)' })
   removeComment(@Param('id') id: string) {
-    return this.feeds.adminRemoveComment(id);
+    return this.commentsService.adminRemoveComment(id);
   }
 
   @Get('packages')

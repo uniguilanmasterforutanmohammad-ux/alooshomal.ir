@@ -11,6 +11,7 @@ import {
   FeedsUserController,
 } from './feeds.controller';
 import { FeedsService } from './feeds.service';
+import { FeedCommentsService } from './feed-comments.service';
 
 @Module({
   imports: [
@@ -21,7 +22,7 @@ import { FeedsService } from './feeds.service';
     UploadsModule,
   ],
   controllers: [FeedsPublicController, FeedsUserController, AdminFeedsController],
-  providers: [FeedsService],
+  providers: [FeedsService, FeedCommentsService],
   exports: [FeedsService],
 })
 export class FeedsModule {}

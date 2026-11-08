@@ -20,7 +20,31 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.8**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.9**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن `feeds.service.ts`: جداسازی سرویس کامنت‌ها — نسخه `v3.8.9`
+
+**هدف:** `feeds.service.ts` (۱۳۵۷ خط) شامل یک بخش پیوسته و مستقل از کامنت‌های
+فید بود (فهرست عمومی، ثبت/حذف توسط کاربر، صف بررسی و آمار مدیر). این بخش به
+سرویس مستقل منتقل شد تا مرز کامنت‌ها در برابر پست/بسته روشن شود.
+
+**تغییرات:**
+- `apps/api/src/feeds/feed-comments.service.ts` (فایل تازه):
+  `FeedCommentsService` با متدهای `listComments`، `listMyComments`،
+  `createComment`، `removeComment`، `adminListComments`، `moderateComment`،
+  `adminRemoveComment` و `commentCounts` (۲۳۶ خط منتقل شد).
+- `apps/api/src/feeds/feeds.service.ts`: حذف بخش کامنت‌ها (اکنون ۱۰۹۰ خط) و
+  حذف ایمپورت بی‌استفاده‌ی `CreateFeedCommentDto`.
+- `apps/api/src/feeds/feeds.controller.ts`: تزریق `FeedCommentsService` در
+  کنترلرهای عمومی و مدیر و هدایت مسیرهای کامنت به آن (نام پراپرتی
+  `commentsService` برای جلوگیری از تداخل با متد روت `comments`).
+- `apps/api/src/feeds/feeds.module.ts`: افزودن `FeedCommentsService` به `providers`.
+
+**تأیید/تست:**
+- `tsc --noEmit -p tsconfig.json` و `eslint src/feeds` → exit 0.
+- اجرای واقعی API بدون خطای DI؛ `GET /api/health` → ۲۰۰ و
+  `GET /api/feeds/public/<idنامعتبر>/comments` → ۴۰۴ (رفتار درست).
+- `python3 scripts/check_modules.py` و `check_api_docs.py` سبز.
 
 ## ۱۴۰۵/۰۸/۱۷ — ثبت نقشه‌ی شکستن فایل‌های بزرگ در بک‌لاگ — نسخه `v3.8.8`
 
