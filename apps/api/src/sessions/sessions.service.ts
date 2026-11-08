@@ -189,7 +189,6 @@ export class SessionsService {
   async listForUser(userId: string, page = 1, limitOverride?: number) {
     const limit = limitOverride ?? 10;
     const currentPage = Math.max(1, page);
-    const idleCutoff = new Date(Date.now() - SESSION_IDLE_DAYS * 86400_000);
     const [rows, total] = await Promise.all([
       this.prisma.session.findMany({
         where: { userId },

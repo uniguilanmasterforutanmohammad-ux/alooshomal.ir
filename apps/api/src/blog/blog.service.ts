@@ -169,7 +169,6 @@ export class BlogService {
     const base = slugifyTitle(desired);
     let candidate = base;
     let counter = 1;
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const existing = await this.prisma.blogPost.findUnique({
         where: { slug: candidate },
@@ -352,7 +351,6 @@ export class BlogService {
     const base = slugifyTitle(desired);
     let candidate = base;
     let counter = 1;
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const existing = await this.prisma.blogCategory.findUnique({
         where: { slug: candidate },

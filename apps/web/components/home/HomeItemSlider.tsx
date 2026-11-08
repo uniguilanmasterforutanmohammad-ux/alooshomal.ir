@@ -51,6 +51,10 @@ export function HomeItemSlider({ kind, items, moreHref }: Props) {
   // the finger; `suppressClickUntil` swallows that click so swiping never
   // navigates into the card.
   const suppressClickUntil = useRef(0);
+  // Touch panning is native (`overflow-x: auto` + scroll-snap); this only
+  // tracks whether the finger moved, so the trailing click a swipe leaves
+  // behind is swallowed instead of opening a card.
+  const touchStartX = useRef<number | null>(null);
 
   const count = items.length;
 
@@ -124,11 +128,6 @@ export function HomeItemSlider({ kind, items, moreHref }: Props) {
   }, []);
 
   if (count === 0) return null;
-
-  // Touch panning is native (`overflow-x: auto` + scroll-snap); the handlers
-  // only track whether the finger moved, so the trailing click a swipe leaves
-  // behind is swallowed instead of opening a card.
-  const touchStartX = useRef<number | null>(null);
 
   function onTouchStart(event: React.TouchEvent) {
     touchStartX.current = event.touches[0].clientX;

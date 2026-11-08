@@ -20,7 +20,39 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.2**.
+
+## ۱۴۰۵/۰۸/۱۷ — فعال‌سازی ESLint و Prettier در دو اپ (و رفع باگ قلاب شرطی) — نسخه `v3.8.2`
+
+**هدف:** اسکریپت‌های `lint`/`format` در هر دو اپ شکسته بودند: در `apps/api` نه
+بسته‌ی `eslint`/`prettier` نصب بود و نه در هیچ‌کدام فایل تنظیمات وجود داشت
+(`next lint` هم در Next 16 حذف شده است). تنظیمات تخت (flat) اضافه شد تا این
+ابزارها واقعاً کار کنند و اعتبارسنجی استاندارد ممکن شود.
+
+**تغییرات:**
+- `apps/api/eslint.config.mjs` و `apps/api/.prettierrc.json`: تنظیمات تخت
+  ESLint + Prettier برپایه‌ی `typescript-eslint` (قواعدی مثل `no-explicit-any`
+  با سطح warn تا گیت سبز بماند).
+- `apps/api/package.json`: افزودن devDependencyهای `eslint`، `@eslint/js`،
+  `typescript-eslint`، `eslint-config-prettier` و `prettier`.
+- `apps/web/eslint.config.mjs`: تنظیمات تخت برپایه‌ی `eslint-config-next`؛
+  اسکریپت `lint` از `next lint` (حذف‌شده در Next 16) به `eslint .` تغییر کرد.
+- `apps/web/components/home/HomeItemSlider.tsx`: **رفع باگ واقعی** — `useRef`
+  پس از `return` شرطی صدا زده می‌شد (نقض قوانین قلاب‌ها)؛ به بالای کامپوننت
+  منتقل شد.
+- حذف دستورهای `eslint-disable` کهنه در `apps/api/src/blog/blog.service.ts`،
+  `apps/api/src/main.ts` و `apps/web/lib/use-form-autosave.ts`.
+- پاک‌سازی متغیر/ایمپورت بی‌استفاده در `apps/api/src/biolinks/biolinks.service.ts`،
+  `apps/api/src/businesscards/business-cards.service.ts` و
+  `apps/api/src/sessions/sessions.service.ts`.
+
+**تأیید/تست:**
+- `eslint src` در api → ۰ error / ۰ warning (exit 0).
+- `eslint .` در web → ۰ error (۱۱۸ warning که قواعد جدید `react-hooks` v7
+  هستند و عمداً در سطح warn نگه داشته شدند؛ مهاجرت در `BACKLOG.md` ثبت شد) → exit 0.
+- `tsc --noEmit` در هر دو اپ → exit 0.
+- `python3 scripts/sync_install.py` → ۹ پچ و ۳ افزودن، سپس `--check` تمیز.
+- `python3 scripts/check_api_docs.py` → بدون خطا (تغییری در روت‌های API نبود).
 
 ## ۱۴۰۵/۰۸/۱۷ — پاک‌سازی ریشه‌ی مخزن و یکدست‌سازی فایل‌های نادیده‌گرفتن — نسخه `v3.8.1`
 

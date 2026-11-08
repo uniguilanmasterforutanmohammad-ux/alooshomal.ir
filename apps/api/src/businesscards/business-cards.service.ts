@@ -17,7 +17,6 @@ import {
 import { FacetsCacheService } from '../common/facets-cache.service';
 import {
   applyContactFieldMask,
-  applyHiddenFields,
   hiddenFieldsFrom,
   planLimitsFrom,
 } from '../common/plans';
@@ -705,7 +704,7 @@ export class BusinessCardsService {
             link: this.linkedBiolinkLink(linked.slug),
           }
         : null;
-    const { user, linkedBiolinks: _linkedBiolinks, ...rest } =
+    const { user: _user, linkedBiolinks: _linkedBiolinks, ...rest } =
       this.applyPlanVisibility(businessCard);
     return {
       ...rest,

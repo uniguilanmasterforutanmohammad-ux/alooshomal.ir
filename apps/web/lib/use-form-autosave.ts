@@ -60,7 +60,6 @@ export function useFormAutosave<T>(
     } finally {
       hydrated.current = true;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [storageKey, enabled]);
 
   // Debounced write on change.
