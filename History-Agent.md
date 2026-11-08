@@ -20,7 +20,32 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.12**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.13**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن `ads.service.ts`: جداسازی گردش‌کار بازبینی مدیر — نسخه `v3.8.13`
+
+**هدف:** مسیر بازبینی/تصمیم مدیر روی درخواست‌های تبلیغ (فهرست‌ها، شمارش‌ها و
+تأیید/رد) و کمکی‌های مشترک هدف‌ها بخشی مستقل از `ads.service.ts` (۸۲۱ خط) بودند
+و به یک سرویس و یک ماژول کمکی جدا شدند تا جریان کاربر/عمومی سبک بماند.
+
+**تغییرات:**
+- `apps/api/src/ads/ads-review.service.ts` (فایل تازه): `AdsReviewService` با
+  `listRequests`، `listRequestQueueByPlacement`، `requestQueueCounts` و `decide`
+  (زمان‌بندی پنجره‌ی نمایش، اطلاع‌رسانی مالک و ثبت فعالیت).
+- `apps/api/src/ads/ads-targets.ts` (فایل تازه): کمکی‌های مشترک و بدون وابستگی
+  سرویس — `AdDisplayState`، `AdTargetLabel`، `reviewableWhere`، `displayStateOf`
+  و `resolveAdTargetLabels` (برچسب‌گذاری دسته‌ای کارت/بیولینک/فید).
+- `apps/api/src/ads/ads.service.ts`: حذف گردش‌کار بازبینی و تابع محلی برچسب‌گذاری
+  (اکنون ۵۰۶ خط) و استفاده از کمکی‌های مشترک.
+- `apps/api/src/ads/ads.module.ts`: تأمین و صادرکردن `AdsReviewService`.
+- `apps/api/src/admin/admin.controller.ts` و `apps/api/src/moderator/moderator.service.ts`:
+  تزریق و استفاده از `AdsReviewService`.
+
+**تأیید/تست:**
+- `tsc --noEmit -p tsconfig.json` و `eslint src/ads src/admin src/moderator` → exit 0.
+- اجرای واقعی API بدون خطای DI؛ `GET /api/health`، `GET /api/ads/public/active`
+  و `GET /api/biolinks/public?page=1` → ۲۰۰.
+- `python3 scripts/check_modules.py` و `check_api_docs.py` سبز.
 
 ## ۱۴۰۵/۰۸/۱۷ — شکستن `subscriptions.service.ts`: جداسازی جریان پرداخت پی‌پینگ — نسخه `v3.8.12`
 

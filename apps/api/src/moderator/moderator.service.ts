@@ -18,7 +18,7 @@ import { AdminService } from '../admin/admin.service';
 import { ModerateBiolinkDto } from '../admin/dto/moderate-biolink.dto';
 import { UpdateBiolinkDto } from '../biolinks/dto/update-biolink.dto';
 import { UpdateBusinessCardDto } from '../businesscards/dto/update-business-card.dto';
-import { AdsService } from '../ads/ads.service';
+import { AdsReviewService } from '../ads/ads-review.service';
 import { BoostsService } from '../boosts/boosts.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { FeedsService } from '../feeds/feeds.service';
@@ -70,7 +70,7 @@ export class ModeratorService {
     private readonly news: NewsService,
     private readonly subscriptions: SubscriptionsService,
     private readonly boosts: BoostsService,
-    private readonly ads: AdsService,
+    private readonly adsReview: AdsReviewService,
     private readonly decisions: ContentDecisionService,
   ) {}
 
@@ -141,10 +141,10 @@ export class ModeratorService {
         ? this.subscriptions.requestQueueCounts(context.id)
         : empty,
       can('AD_REQUESTS')
-        ? this.ads.requestQueueCounts(context.id, AdPlacement.HOME)
+        ? this.adsReview.requestQueueCounts(context.id, AdPlacement.HOME)
         : empty,
       can('DIRECTORY_AD_REQUESTS')
-        ? this.ads.requestQueueCounts(context.id, AdPlacement.DIRECTORY)
+        ? this.adsReview.requestQueueCounts(context.id, AdPlacement.DIRECTORY)
         : empty,
       can('BOOST_REQUESTS') ? this.boosts.requestQueueCounts(context.id) : empty,
     ]);
@@ -236,7 +236,7 @@ export class ModeratorService {
       case 'DIRECTORY_AD_REQUESTS': {
         const placement =
           scope === 'AD_REQUESTS' ? AdPlacement.HOME : AdPlacement.DIRECTORY;
-        const result = await this.ads.listRequestQueueByPlacement({
+        const result = await this.adsReview.listRequestQueueByPlacement({
           placement,
           status: toBoostStatus(status),
           decidedById: decidedOnly ? context.id : undefined,
@@ -466,7 +466,7 @@ export class ModeratorService {
         } as never);
       case 'AD_REQUESTS':
       case 'DIRECTORY_AD_REQUESTS':
-        return this.ads.decide(actorId, id, {
+        return this.adsReview.decide(actorId, id, {
           status: approved ? BoostStatus.APPROVED : BoostStatus.REJECTED,
           adminNote: reason,
         } as never);

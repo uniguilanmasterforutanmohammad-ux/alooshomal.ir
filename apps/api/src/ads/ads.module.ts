@@ -6,6 +6,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { RequestPaymentsModule } from '../request-payments/request-payments.module';
 import { SettingsModule } from '../settings/settings.module';
 import { AdsController } from './ads.controller';
+import { AdsReviewService } from './ads-review.service';
 import { AdsService } from './ads.service';
 
 @Module({
@@ -17,7 +18,7 @@ import { AdsService } from './ads.service';
     RequestPaymentsModule,
   ],
   controllers: [AdsController],
-  providers: [AdsService],
-  exports: [AdsService],
+  providers: [AdsService, AdsReviewService],
+  exports: [AdsService, AdsReviewService],
 })
 export class AdsModule {}

@@ -22,7 +22,7 @@ import { UpdateBiolinkDto } from '../biolinks/dto/update-biolink.dto';
 import { UpdateBusinessCardDto } from '../businesscards/dto/update-business-card.dto';
 import { BoostsService } from '../boosts/boosts.service';
 import { DecideBoostDto } from '../boosts/dto/decide-boost.dto';
-import { AdsService } from '../ads/ads.service';
+import { AdsReviewService } from '../ads/ads-review.service';
 import { DecideAdDto } from '../ads/dto/decide-ad.dto';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { SubscriptionsPaymentService } from '../subscriptions/subscriptions-payment.service';
@@ -69,7 +69,7 @@ export class AdminController {
     private readonly subscriptionsService: SubscriptionsService,
     private readonly subscriptionsPayment: SubscriptionsPaymentService,
     private readonly boostsService: BoostsService,
-    private readonly adsService: AdsService,
+    private readonly adsReview: AdsReviewService,
     private readonly bulkService: BulkService,
     private readonly permissions: PermissionsService,
   ) {}
@@ -320,7 +320,7 @@ export class AdminController {
     @Query('status') status?: BoostStatus,
     @Query('placement') placement?: AdPlacement,
   ) {
-    return this.adsService.listRequests(status, placement);
+    return this.adsReview.listRequests(status, placement);
   }
 
   @Patch('ads/:id')
@@ -330,7 +330,7 @@ export class AdminController {
     @Param('id') id: string,
     @Body() dto: DecideAdDto,
   ) {
-    return this.adsService.decide(admin.id, id, dto);
+    return this.adsReview.decide(admin.id, id, dto);
   }
 
   // ----- Bulk import / delete (load-testing) -----
