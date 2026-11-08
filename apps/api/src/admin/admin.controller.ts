@@ -39,6 +39,7 @@ import {
 } from '../auth/permissions';
 import { MODERATOR_SCOPE_META, normalizeScopes } from '../auth/moderator-scopes';
 import { AdminService } from './admin.service';
+import { AdminUsersService } from './admin-users.service';
 import { AdminRevenueService } from './admin-revenue.service';
 import { BulkKind, BulkService } from './bulk.service';
 import { ListBiolinksDto } from './dto/list-biolinks.dto';
@@ -65,6 +66,7 @@ import {
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
+    private readonly adminUsers: AdminUsersService,
     private readonly adminRevenue: AdminRevenueService,
     private readonly subscriptionsService: SubscriptionsService,
     private readonly subscriptionsPayment: SubscriptionsPaymentService,
@@ -111,7 +113,7 @@ export class AdminController {
   @Get('users')
   @ApiOperation({ summary: 'لیست کاربران با صفحه‌بندی و جستجو' })
   users(@Query() query: ListUsersDto) {
-    return this.adminService.listUsers(query, query.search);
+    return this.adminUsers.listUsers(query, query.search);
   }
 
   @Get('emails')
@@ -129,13 +131,13 @@ export class AdminController {
     @Param('id') id: string,
     @Body() dto: SetUserActiveDto,
   ) {
-    return this.adminService.setUserActive(admin.id, id, dto.isActive, dto.reason);
+    return this.adminUsers.setUserActive(admin.id, id, dto.isActive, dto.reason);
   }
 
   @Patch('users/:id/comment')
   @ApiOperation({ summary: 'ثبت کامنت مدیر درباره کاربر' })
   setUserComment(@Param('id') id: string, @Body() dto: SetUserCommentDto) {
-    return this.adminService.setUserComment(id, dto.comment ?? null);
+    return this.adminUsers.setUserComment(id, dto.comment ?? null);
   }
 
   @Patch('users/:id/role')
@@ -145,25 +147,25 @@ export class AdminController {
     @Param('id') id: string,
     @Body() dto: SetUserRoleDto,
   ) {
-    return this.adminService.setUserRole(admin.id, id, dto.role);
+    return this.adminUsers.setUserRole(admin.id, id, dto.role);
   }
 
   @Delete('users/:id')
   @ApiOperation({ summary: 'حذف کاربر' })
   deleteUser(@CurrentUser() admin: AuthUser, @Param('id') id: string) {
-    return this.adminService.deleteUser(admin.id, id);
+    return this.adminUsers.deleteUser(admin.id, id);
   }
 
   @Get('users/:id/sessions')
   @ApiOperation({ summary: 'نشست‌های فعال یک کاربر' })
   userSessions(@Param('id') id: string) {
-    return this.adminService.listUserSessions(id);
+    return this.adminUsers.listUserSessions(id);
   }
 
   @Delete('users/:id/sessions')
   @ApiOperation({ summary: 'خروج اجباری کاربر از همه‌ی دستگاه‌ها' })
   revokeUserSessions(@CurrentUser() admin: AuthUser, @Param('id') id: string) {
-    return this.adminService.revokeUserSessions(admin.id, id);
+    return this.adminUsers.revokeUserSessions(admin.id, id);
   }
 
   @Get('reports')
@@ -376,7 +378,7 @@ export class AdminController {
   @Get('moderators')
   @ApiOperation({ summary: 'فهرست کاربران ادمین محدود' })
   async listModerators() {
-    const items = await this.adminService.listModerators();
+    const items = await this.adminUsers.listModerators();
     return {
       items,
       scopeMeta: MODERATOR_SCOPE_META,
@@ -389,7 +391,7 @@ export class AdminController {
     @CurrentUser() admin: AuthUser,
     @Body() dto: CreateModeratorDto,
   ) {
-    return this.adminService.createModerator(admin.id, {
+    return this.adminUsers.createModerator(admin.id, {
       email: dto.email,
       password: dto.password,
       fullName: dto.fullName,
@@ -404,7 +406,7 @@ export class AdminController {
     @Param('id') id: string,
     @Body() dto: UpdateModeratorDto,
   ) {
-    return this.adminService.updateModerator(admin.id, id, {
+    return this.adminUsers.updateModerator(admin.id, id, {
       scopes: dto.scopes ? normalizeScopes(dto.scopes) : undefined,
       isActive: dto.isActive,
       fullName: dto.fullName,
@@ -415,7 +417,7 @@ export class AdminController {
   @Delete('moderators/:id')
   @ApiOperation({ summary: 'حذف کاربر ادمین محدود' })
   deleteModerator(@CurrentUser() admin: AuthUser, @Param('id') id: string) {
-    return this.adminService.deleteModerator(admin.id, id);
+    return this.adminUsers.deleteModerator(admin.id, id);
   }
 
   @Get('permissions')

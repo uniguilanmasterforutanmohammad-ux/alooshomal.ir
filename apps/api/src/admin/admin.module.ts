@@ -10,6 +10,7 @@ import { SessionsModule } from '../sessions/sessions.module';
 import { AdminController } from './admin.controller';
 import { AdminRevenueService } from './admin-revenue.service';
 import { AdminService } from './admin.service';
+import { AdminUsersService } from './admin-users.service';
 import { BulkService } from './bulk.service';
 
 @Module({
@@ -23,7 +24,7 @@ import { BulkService } from './bulk.service';
     SessionsModule,
   ],
   controllers: [AdminController],
-  providers: [AdminService, AdminRevenueService, BulkService],
-  exports: [AdminService],
+  providers: [AdminService, AdminRevenueService, AdminUsersService, BulkService],
+  exports: [AdminService, AdminUsersService],
 })
 export class AdminModule {}

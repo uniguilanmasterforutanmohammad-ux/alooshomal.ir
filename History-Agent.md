@@ -20,7 +20,35 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.18**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.19**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن `admin.service.ts`: جداسازی مدیریت کاربران و ادمین‌ها — نسخه `v3.8.19`
+
+**هدف:** `apps/api/src/admin/admin.service.ts` (۱۱۲۷ خط) دو مسئولیت جدا را با هم
+داشت: «بازبینی محتوا + گزارش‌های پلتفرم» و «مدیریت حساب کاربران و ادمین‌های
+محدود». بخش دوم به سرویس مستقل منتقل شد.
+
+**تغییرات:**
+- `apps/api/src/admin/admin-users.service.ts` (فایل تازه): `AdminUsersService` با
+  `listUsers`، `setUserActive`، `listUserSessions`، `revokeUserSessions`،
+  `setUserComment`، `setUserRole`، `listModerators`، `createModerator`،
+  `updateModerator`، `deleteModerator`، `deleteUser` و کمکی‌های
+  `assertNotLastAdmin`.
+- `apps/api/src/admin/admin-notify.ts` (فایل تازه): کمکی مشترک `notifyUser` تا
+  هر دو سرویس ادمین دقیقاً یک پیش‌فرض اطلاع‌رسانی داشته باشند (حذف کد تکراری).
+- `apps/api/src/admin/admin.service.ts`: فقط بازبینی محتوا (بیولینک/کارت ویزیت)،
+  آمار، فضای سرور، ایمیل‌های ارسالی و گزارش‌های اخیر می‌ماند (اکنون ۶۶۰ خط).
+- `apps/api/src/admin/admin.module.ts` و `apps/api/src/admin/admin.controller.ts`:
+  تأمین/تزریق `AdminUsersService` و هدایت مسیرهای کاربران و ادمین‌های محدود به آن.
+
+**تأیید/تست:**
+- `tsc --noEmit -p tsconfig.json` و `eslint src/admin src/moderator` → exit 0.
+- مقایسه‌ی نرمال‌شده‌ی متن هر ۱۲ متد منتقل‌شده با نسخه‌ی قبلی → یکسان (فقط
+  فراخوانی `this.notifyUser(` به کمکی مشترک تغییر کرده است).
+- اجرای واقعی API بدون خطای DI؛ `GET /api/health` → ۲۰۰ و
+  `/api/admin/users`، `/api/admin/moderators`، `/api/admin/emails` → ۴۰۱
+  (مسیرهای محافظت‌شده، نشانه‌ی بارگذاری درست تزریق وابستگی).
+- `python3 scripts/check_modules.py` و `check_api_docs.py` سبز.
 
 ## ۱۴۰۵/۰۸/۱۷ — شکستن `AdminFeeds.tsx` و بستن برنامه‌ی ماژولاریزاسیون — نسخه `v3.8.18`
 
