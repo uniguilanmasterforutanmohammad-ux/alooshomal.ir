@@ -38,6 +38,7 @@ import {
   ListFeedCommentsQueryDto,
   ListFeedQueryDto,
 } from './dto/feed.dto';
+import { FeedsAdminService } from './feeds-admin.service';
 import { FeedsDirectoryService } from './feeds-directory.service';
 import { FeedsService } from './feeds.service';
 import { FeedCommentsService } from './feed-comments.service';
@@ -213,13 +214,14 @@ export class AdminFeedsController {
   constructor(
     private readonly feeds: FeedsService,
     private readonly feedDirectory: FeedsDirectoryService,
+    private readonly feedsAdmin: FeedsAdminService,
     private readonly commentsService: FeedCommentsService,
   ) {}
 
   @Get('posts')
   @ApiOperation({ summary: 'همه پست‌های فید (مدیر)' })
   posts(@Query('status') status?: NewsStatus) {
-    return this.feeds.adminListPosts(status);
+    return this.feedsAdmin.adminListPosts(status);
   }
 
   @Patch('posts/:id/moderate')
@@ -230,7 +232,7 @@ export class AdminFeedsController {
     @Body('decision') decision: NewsStatus,
     @Body('reason') reason?: string,
   ) {
-    return this.feeds.moderatePost(admin.id, id, decision, reason);
+    return this.feedsAdmin.moderatePost(admin.id, id, decision, reason);
   }
 
   @Patch('posts/:id/tag-payment')
@@ -242,13 +244,13 @@ export class AdminFeedsController {
     @Param('id') id: string,
     @Body('decision') decision: 'CONFIRM' | 'REJECT',
   ) {
-    return this.feeds.decideTagPayment(admin.id, id, decision);
+    return this.feedsAdmin.decideTagPayment(admin.id, id, decision);
   }
 
   @Delete('posts/:id')
   @ApiOperation({ summary: 'حذف پست فید (مدیر)' })
   removePost(@Param('id') id: string) {
-    return this.feeds.adminRemovePost(id);
+    return this.feedsAdmin.adminRemovePost(id);
   }
 
   @Get('comments')
@@ -283,7 +285,7 @@ export class AdminFeedsController {
   @Get('packages')
   @ApiOperation({ summary: 'همه بسته‌های فید (مدیر)' })
   packages() {
-    return this.feeds.listPackages(false);
+    return this.feedsAdmin.listPackages(false);
   }
 
   @Post('packages')
@@ -300,7 +302,7 @@ export class AdminFeedsController {
       sortOrder?: number;
     },
   ) {
-    return this.feeds.createPackage(body);
+    return this.feedsAdmin.createPackage(body);
   }
 
   @Patch('packages/:id')
@@ -309,19 +311,19 @@ export class AdminFeedsController {
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
   ) {
-    return this.feeds.updatePackage(id, body);
+    return this.feedsAdmin.updatePackage(id, body);
   }
 
   @Delete('packages/:id')
   @ApiOperation({ summary: 'حذف بسته فید' })
   removePackage(@Param('id') id: string) {
-    return this.feeds.removePackage(id);
+    return this.feedsAdmin.removePackage(id);
   }
 
   @Get('subscriptions')
   @ApiOperation({ summary: 'اشتراک‌های فید کاربران (مدیر)' })
   subscriptions(@Query('status') status?: SubscriptionStatus) {
-    return this.feeds.listSubscriptions(status);
+    return this.feedsAdmin.listSubscriptions(status);
   }
 
   @Patch('subscriptions/:id')
@@ -332,7 +334,7 @@ export class AdminFeedsController {
     @Body('decision') decision: SubscriptionStatus,
     @Body('adminNote') adminNote?: string,
   ) {
-    return this.feeds.decideSubscription(admin.id, id, decision, adminNote);
+    return this.feedsAdmin.decideSubscription(admin.id, id, decision, adminNote);
   }
 
   @Get('topics')
@@ -344,7 +346,7 @@ export class AdminFeedsController {
   @Post('topics')
   @ApiOperation({ summary: 'افزودن موضوع فید' })
   createTopic(@Body('name') name: string) {
-    return this.feeds.createTopic(name);
+    return this.feedsAdmin.createTopic(name);
   }
 
   @Patch('topics/:id')
@@ -353,12 +355,12 @@ export class AdminFeedsController {
     @Param('id') id: string,
     @Body() body: { name?: string; isActive?: boolean },
   ) {
-    return this.feeds.updateTopic(id, body);
+    return this.feedsAdmin.updateTopic(id, body);
   }
 
   @Delete('topics/:id')
   @ApiOperation({ summary: 'حذف موضوع فید' })
   removeTopic(@Param('id') id: string) {
-    return this.feeds.removeTopic(id);
+    return this.feedsAdmin.removeTopic(id);
   }
 }

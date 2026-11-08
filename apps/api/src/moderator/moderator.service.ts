@@ -21,6 +21,7 @@ import { UpdateBusinessCardDto } from '../businesscards/dto/update-business-card
 import { AdsReviewService } from '../ads/ads-review.service';
 import { BoostsReviewService } from '../boosts/boosts-review.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { FeedsAdminService } from '../feeds/feeds-admin.service';
 import { FeedsDirectoryService } from '../feeds/feeds-directory.service';
 import { FeedsService } from '../feeds/feeds.service';
 import { UpdateNewsAdminDto } from '../news/dto/update-news-admin.dto';
@@ -69,6 +70,7 @@ export class ModeratorService {
     private readonly admin: AdminService,
     private readonly feeds: FeedsService,
     private readonly feedsDirectory: FeedsDirectoryService,
+    private readonly feedsAdmin: FeedsAdminService,
     private readonly news: NewsService,
     private readonly subscriptions: SubscriptionsService,
     private readonly boostsReview: BoostsReviewService,
@@ -432,7 +434,7 @@ export class ModeratorService {
         return result;
       }
       case 'FEED': {
-        const result = await this.feeds.moderatePost(
+        const result = await this.feedsAdmin.moderatePost(
           actorId,
           id,
           approved ? NewsStatus.APPROVED : NewsStatus.REJECTED,

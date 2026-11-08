@@ -20,7 +20,36 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.23**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.24**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن `feeds.service.ts`: جداسازی سمت مدیر (بازبینی، بسته‌ها، تاپیک‌ها) — نسخه `v3.8.24`
+
+**هدف:** `apps/api/src/feeds/feeds.service.ts` پس از جداسازی دایرکتوری عمومی هنوز
+ترکیبی از «بازبینی/مدیریت» و «سمت کاربر» بود؛ بلوک admin (بازبینی پست‌ها، حکم
+برچسب‌های پرداختی، و کاتالوگ بسته/تاپیک همراه با seed اولیه) به سرویس مستقل
+منتقل شد تا هر بخش مسئولیت واحد داشته باشد و `feeds.service.ts` سبک بماند.
+
+**تغییرات:**
+- `apps/api/src/feeds/feeds-admin.service.ts`: فایل تازه‌ی `FeedsAdminService`
+  شامل `ensureDefaultPackages`، `listPackages`، `createPackage`، `updatePackage`،
+  `removePackage`، `listSubscriptions`، `decideSubscription`، `createTopic`،
+  `updateTopic`، `removeTopic`، `adminListPosts`، `moderatePost`،
+  `adminRemovePost` و `decideTagPayment`.
+- `apps/api/src/feeds/feeds.service.ts`: حذف همان متدها و واگذاری فراخوانی‌های
+  داخلی به `this.admin` (از ۸۳۵ به حدود ۴۸۶ خط).
+- `apps/api/src/feeds/feeds.module.ts`: تأمین و صادرکردن `FeedsAdminService`.
+- `apps/api/src/feeds/feeds.controller.ts`: تزریق `feedsAdmin` در کنترلر مدیر.
+- `apps/api/src/moderator/moderator.service.ts`: استفاده از `feedsAdmin.moderatePost`
+  در مسیر تأیید/رد پست فید.
+
+**تأیید/تست:**
+- مقایسه‌ی متنی ۱۴ متد منتقل‌شده با نسخه‌ی قبل (`git show HEAD:...`) پس از
+  نرمال‌سازی فاصله‌ها → همه یکسان (`OK`).
+- `docker exec alooshomal-api ... tsc --noEmit` و `eslint src` → بدون خطا.
+- `python3 scripts/check_modules.py` و `python3 scripts/check_api_docs.py` → exit 0.
+- اجرای مجدد کانتینر API و بررسی مسیرها: `/api/health`، `/api/feeds/public` و
+  `/api/feeds/public/topics` → ۲۰۰؛ `/api/admin/feeds/posts` → ۴۰۱ (محافظت‌شده).
+- `python3 scripts/sync_install.py` سپس `--check` → `patched: 0 / added: 0`.
 
 ## ۱۴۰۵/۰۸/۱۷ — شکستن `biolinks.service.ts`: جداسازی تعامل عمومی و دارایی‌های اشتراک‌گذاری — نسخه `v3.8.23`
 
