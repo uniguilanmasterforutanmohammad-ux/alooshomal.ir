@@ -20,6 +20,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { RequirePermission } from '../auth/permissions.decorator';
 import { visitorKeyFrom } from '../common/visitor-key';
+import { BusinessCardsEngagementService } from './business-cards-engagement.service';
 import { BusinessCardsService } from './business-cards.service';
 import { BusinessCardsDirectoryService } from './business-cards-directory.service';
 import { CreateBusinessCardDto } from './dto/create-business-card.dto';
@@ -33,6 +34,7 @@ export class BusinessCardsController {
   constructor(
     private readonly businessCardsService: BusinessCardsService,
     private readonly directoryService: BusinessCardsDirectoryService,
+    private readonly engagement: BusinessCardsEngagementService,
   ) {}
 
   @Post()
@@ -154,8 +156,8 @@ export class BusinessCardsController {
   @ApiOperation({ summary: 'مشاهده عمومی کارت ویزیت با slug' })
   async public(@Param('slug') slug: string, @Req() request: Request) {
     const [payload, like] = await Promise.all([
-      this.businessCardsService.publicBusinessCardWithAssets(slug),
-      this.businessCardsService.likeSummary(slug, visitorKeyFrom(request)),
+      this.engagement.publicBusinessCardWithAssets(slug),
+      this.engagement.likeSummary(slug, visitorKeyFrom(request)),
     ]);
     return { ...payload, like };
   }
@@ -164,14 +166,14 @@ export class BusinessCardsController {
   @Post('public/:slug/like')
   @ApiOperation({ summary: 'لایک/برداشتن لایک کارت ویزیت' })
   like(@Param('slug') slug: string, @Req() request: Request) {
-    return this.businessCardsService.toggleLike(slug, visitorKeyFrom(request));
+    return this.engagement.toggleLike(slug, visitorKeyFrom(request));
   }
 
   @Public()
   @Get('public/:slug/like')
   @ApiOperation({ summary: 'وضعیت لایک کارت ویزیت برای بازدیدکننده جاری' })
   likeState(@Param('slug') slug: string, @Req() request: Request) {
-    return this.businessCardsService.likeSummary(slug, visitorKeyFrom(request));
+    return this.engagement.likeSummary(slug, visitorKeyFrom(request));
   }
 
   @OptionalAuth()
@@ -181,21 +183,21 @@ export class BusinessCardsController {
     @Param('slug') slug: string,
     @CurrentUser() user?: AuthUser,
   ) {
-    return this.businessCardsService.saveSummary(slug, user?.id);
+    return this.engagement.saveSummary(slug, user?.id);
   }
 
   @Get('saved/mine')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'کارت‌های ویزیت ذخیره‌شده من (صفحه‌بندی‌شده)' })
   savedMine(@CurrentUser() user: AuthUser, @Query() query: PaginationDto) {
-    return this.businessCardsService.findMySaved(user.id, query.page, query.limit);
+    return this.engagement.findMySaved(user.id, query.page, query.limit);
   }
 
   @Post('public/:slug/save')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'ذخیره/حذف کارت ویزیت از ذخیره‌شده‌های من' })
   save(@CurrentUser() user: AuthUser, @Param('slug') slug: string) {
-    return this.businessCardsService.toggleSave(slug, user.id);
+    return this.engagement.toggleSave(slug, user.id);
   }
 
   @Public()
@@ -203,7 +205,7 @@ export class BusinessCardsController {
   @Header('Content-Type', 'text/vcard; charset=utf-8')
   @ApiOperation({ summary: 'دریافت فایل vCard' })
   async vcard(@Param('slug') slug: string) {
-    return this.businessCardsService.buildVCard(slug);
+    return this.engagement.buildVCard(slug);
   }
 
   @Public()
@@ -218,7 +220,7 @@ export class BusinessCardsController {
     const ipHash = rawIp
       ? createHash('sha256').update(rawIp).digest('hex').slice(0, 32)
       : undefined;
-    await this.businessCardsService.recordScan(businessCard.id, {
+    await this.engagement.recordScan(businessCard.id, {
       ipHash,
       userAgent: request.headers['user-agent'],
       referer: request.headers['referer'],

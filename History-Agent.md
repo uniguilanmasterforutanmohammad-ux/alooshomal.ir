@@ -20,7 +20,40 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.21**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.22**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن `business-cards.service.ts`: جداسازی تعامل عمومی و دارایی‌های اشتراک‌گذاری — نسخه `v3.8.22`
+
+**هدف:** `apps/api/src/businesscards/business-cards.service.ts` (۷۱۲ خط پیش از این
+تغییر) علاوه‌بر CRUD/بازبینی، بلوک «تعامل عمومی + دارایی‌های اشتراک‌گذاری» (شمارش
+بازدید، لایک/ذخیره، لیست ذخیره‌شده‌ها، vCard و QR) را داشت؛ آن بلوک جدا شد و دو
+کمکی تکراری هم به ماژول‌های مشترک رفتند.
+
+**تغییرات:**
+- `apps/api/src/businesscards/business-cards-engagement.service.ts` (فایل تازه):
+  `BusinessCardsEngagementService` با `recordScan`، `toggleLike`، `likeSummary`،
+  `toggleSave`، `saveSummary`، `findMySaved`، `buildVCard`، `publicLink`،
+  `qrDataUrl` و `publicBusinessCardWithAssets` (۲۱۴ خط).
+- `apps/api/src/common/pagination-meta.ts` (فایل تازه): نوع `PaginationMeta` و
+  تابع مشترک `paginationMeta(page, limit, total)` (حذف پیاده‌سازی تکراری در
+  سرویس کارت ویزیت و بیولینک).
+- `apps/api/src/common/app-url.ts` (فایل تازه): تابع مشترک `appUrl()` برای ساخت
+  لینک/QR به‌جای getter تکراری در دو سرویس.
+- `apps/api/src/businesscards/business-cards.service.ts`: حذف بلوک منتقل‌شده و
+  کمکی‌های تکراری (اکنون ۷۲۸ خط) و استفاده از ماژول‌های مشترک جدید.
+- `apps/api/src/businesscards/business-cards.module.ts` و
+  `apps/api/src/businesscards/business-cards.controller.ts`: تأمین/تزریق
+  `BusinessCardsEngagementService` برای مسیرهای تعامل عمومی.
+
+**تأیید/تست:**
+- `tsc --noEmit -p tsconfig.json` و `eslint src` → exit 0.
+- مقایسه‌ی نرمال‌شده‌ی هر ۱۰ متد منتقل‌شده و تابع مشترک `paginationMeta` با
+  نسخه‌ی قبلی → یکسان.
+- اجرای واقعی API: `GET /api/health`، `GET /api/business-cards/public?page=1`،
+  `GET /api/business-cards/public/phonebook?page=1` → ۲۰۰ و روی یک کارت واقعی
+  `GET /api/business-cards/public/sample-full-card` (شامل تولید QR و لینک)،
+  `.../like` و `.../vcard` → ۲۰۰.
+- `python3 scripts/check_modules.py` و `check_api_docs.py` سبز.
 
 ## ۱۴۰۵/۰۸/۱۷ — شکستن `settings.service.ts`: جداسازی بذرپاشی پیش‌فرض‌ها — نسخه `v3.8.21`
 
