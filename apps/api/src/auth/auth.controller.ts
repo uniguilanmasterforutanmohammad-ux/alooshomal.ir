@@ -19,7 +19,7 @@ import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { VerifyPhoneDto } from './dto/verify-phone.dto';
-import { VerifyAdminLoginDto } from './dto/verify-admin-login.dto';
+import { VerifyEmailLoginDto } from './dto/verify-email-login.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -43,9 +43,30 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  @ApiOperation({ summary: 'ثبت‌نام کاربر جدید' })
-  async register(@Body() dto: RegisterDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const payload = await this.authService.register(dto, {
+  @ApiOperation({
+    summary: 'ثبت‌نام کاربر با ایمیل و رمز عبور (مرحله ۱: ارسال کد یکبارمصرف)',
+  })
+  async register(@Body() dto: RegisterDto, @Req() req: Request) {
+    // Step 1 creates the pending account and issues the code; the session is
+    // only created by `register/verify`.
+    return this.authService.register(dto, {
+      userAgent: clientUserAgent(req),
+      ip: clientIp(req),
+    });
+  }
+
+  @Public()
+  @Post('register/verify')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'تأیید کد یکبارمصرف ثبت‌نام و صدور نشست',
+  })
+  async verifyRegister(
+    @Body() dto: VerifyEmailLoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const payload = await this.authService.verifyRegister(dto, {
       userAgent: clientUserAgent(req),
       ip: clientIp(req),
     });
@@ -56,7 +77,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(200)
   @ApiOperation({
-    summary: 'ورود مدیران با ایمیل و رمز عبور (مرحله ۱: ارسال کد یکبارمصرف)',
+    summary: 'ورود کاربران با ایمیل و رمز عبور (مرحله ۱: ارسال کد یکبارمصرف)',
   })
   async login(@Body() dto: LoginDto, @Req() req: Request) {
     // Step 1 issues the OTP only — there is no session (and no refresh token)
@@ -71,14 +92,73 @@ export class AuthController {
   @Post('login/verify')
   @HttpCode(200)
   @ApiOperation({
-    summary: 'تأیید کد یکبارمصرف ورود مدیران و صدور نشست',
+    summary: 'تأیید کد یکبارمصرف ورود کاربران و صدور نشست',
   })
+  async verifyEmailLogin(
+    @Body() dto: VerifyEmailLoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const payload = await this.authService.verifyEmailLogin(dto, {
+      userAgent: clientUserAgent(req),
+      ip: clientIp(req),
+    });
+    return this.withRefreshCookie(res, payload);
+  }
+
+  // -------------------------------------------------------------------------
+  //  Admin / manager sign-in — a separate page (`/admin/login`)
+  // -------------------------------------------------------------------------
+
+  @Public()
+  @Post('admin/login')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'ورود مدیران با ایمیل و رمز عبور (مرحله ۱: ارسال کد یکبارمصرف)',
+  })
+  adminLogin(@Body() dto: LoginDto, @Req() req: Request) {
+    return this.authService.adminLogin(dto, {
+      userAgent: clientUserAgent(req),
+      ip: clientIp(req),
+    });
+  }
+
+  @Public()
+  @Post('admin/login/verify')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'تأیید کد یکبارمصرف ورود مدیران و صدور نشست' })
   async verifyAdminLogin(
-    @Body() dto: VerifyAdminLoginDto,
+    @Body() dto: VerifyEmailLoginDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const payload = await this.authService.verifyAdminLogin(dto, {
+      userAgent: clientUserAgent(req),
+      ip: clientIp(req),
+    });
+    return this.withRefreshCookie(res, payload);
+  }
+
+  @Public()
+  @Post('admin/phone/request-code')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'ارسال کد یکبارمصرف به موبایل مدیر (فقط حساب‌های مدیریتی)',
+  })
+  requestAdminPhoneCode(@Body() dto: RequestCodeDto, @Req() req: Request) {
+    return this.authService.requestAdminPhoneCode(dto, clientIp(req));
+  }
+
+  @Public()
+  @Post('admin/phone/verify')
+  @HttpCode(200)
+  @ApiOperation({ summary: 'تأیید کد موبایل مدیر و صدور نشست' })
+  async verifyAdminPhone(
+    @Body() dto: VerifyPhoneDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const payload = await this.authService.verifyAdminPhoneCode(dto, {
       userAgent: clientUserAgent(req),
       ip: clientIp(req),
     });

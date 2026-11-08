@@ -37,7 +37,7 @@ export function ModeratorShell({ tabs, active, onTab, children }: Props) {
   function logout() {
     void api.post('/auth/logout').catch(() => undefined);
     clear();
-    router.push('/login');
+    router.push('/admin/login');
   }
 
   return (

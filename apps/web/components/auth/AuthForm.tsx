@@ -31,7 +31,7 @@ type Step = 'phone' | 'code' | 'profile' | 'password';
  *                 the user may set a password now or skip with «بعداً».
  *
  * An «ورود با ایمیل و رمز عبور» escape hatch is available from the code step
- * (and via the `onEmailLogin` prop) for existing password accounts.
+ * (and via the `onEmailLogin` prop) for accounts that prefer email sign-in.
  */
 export function AuthForm({
   next,
@@ -186,7 +186,7 @@ export function AuthForm({
             onClick={onEmailLogin}
             className="text-sm font-bold text-brand"
           >
-            ورود مدیران با ایمیل و رمز عبور
+            ورود با ایمیل و رمز عبور
           </button>
         ) : null}
       </form>

@@ -20,7 +20,59 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.2.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.3.0**.
+
+## ۱۴۰۵/۰۸/۱۷ — جداسازی ورود کاربران و مدیران و فعال‌شدن ثبت‌نام ایمیلی — نسخه `v3.3.0`
+
+**هدف:** صفحه‌ی `/login` فقط برای ورود و ثبت‌نام کاربران عادی باشد؛ ورود و
+ثبت‌نام با ایمیل و رمز برای کاربران هم فعال شود و هر دو روش (موبایل و ایمیل) با
+کد یکبارمصرف تأیید شوند. ورود ادمین و مدیران به یک صفحه‌ی مجزا منتقل شود که
+ورود با ایمیل/رمز و موبایل/کد را با کد یکبارمصرف ارائه می‌دهد.
+
+**تغییرات:**
+- `apps/api/src/auth/auth.service.ts`: حذف محدودیت نقش از `login`/`verifyEmailLogin`
+  (و رد حساب‌های مدیریتی در `/login`)، دو مرحله‌ای‌کردن `register` با
+  `verifyRegister`، و افزودن `adminLogin`/`verifyAdminLogin`/
+  `requestAdminPhoneCode`/`verifyAdminPhoneCode` با بررسی نقش.
+- `apps/api/src/auth/auth.controller.ts`: مسیرهای `register/verify` و
+  `admin/login`، `admin/login/verify`، `admin/phone/request-code`،
+  `admin/phone/verify` با مستندات Swagger.
+- `apps/api/src/auth/otp.service.ts`: تغییر کلید به `otp:email-login:user:<id>`،
+  پشتیبانی از هدف `register` و بازگشت کد توسعه در صورت شکست SMTP در محیط لوکال.
+- `apps/api/src/auth/mail.service.ts`: هدف/برچسب ایمیل `register`.
+- `apps/api/src/auth/dto/verify-email-login.dto.ts`: DTO مشترک تأیید ایمیل
+  (جایگزین `verify-admin-login.dto.ts`).
+- `apps/api/src/common/rate-limit.service.ts`: سهمیه‌ی `registerVerify`.
+- `apps/web/components/auth/UserEmailAuth.tsx`: فرم ورود/ثبت‌نام ایمیلی کاربران
+  با مرحله‌ی کد یکبارمصرف.
+- `apps/web/app/(auth)/login/page.tsx`: فقط ورود/ثبت‌نام کاربران (موبایل یا ایمیل)
+  و لینک به صفحه‌ی مدیران.
+- `apps/web/app/(auth)/admin/login/page.tsx`: صفحه‌ی مجزای `/admin/login` با دو
+  روش ایمیل/رمز و موبایل/کد.
+- `apps/web/components/auth/AuthForm.tsx`،
+  `apps/web/components/admin/AdminAuthSettings.tsx`،
+  `apps/web/components/admin/AdminShell.tsx`،
+  `apps/web/components/moderator/ModeratorShell.tsx`،
+  `apps/web/components/moderator/ModeratorPanel.tsx`،
+  `apps/web/app/moderator/notifications/page.tsx`،
+  `apps/web/components/ui/SessionWatcher.tsx` و
+  `apps/web/components/layout/MobileNav.tsx`: به‌روزرسانی متن‌ها و هدایت خروج/انقضای
+  نشست مدیران به `/admin/login`.
+- `docs/API.md`: مستندسازی جریان جدید ورود/ثبت‌نام و مسیرهای مدیریتی.
+- `apps/web/lib/version.ts`: نسخه به `v3.3.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- `python3 scripts/check_api_docs.py` → «کنترلرها: ۲۴ | مسیرها: ۲۴۷».
+- با curl: ثبت‌نام ایمیلی (`/auth/register` → `register/verify`) نشست USER داد؛
+  ورود ایمیلی کاربر (`/auth/login` → `login/verify`) موفق شد؛ ورود ایمیلی مدیر
+  (`/auth/admin/login` → `admin/login/verify`) نقش ADMIN داد؛ درخواست/تأیید کد
+  موبایل مدیر (`/auth/admin/phone/*`) موفق شد؛ حساب USER در مسیر مدیران ۴۰۳ و
+  حساب مدیر در `/login` هم ۴۰۳ گرفت؛ شماره‌ی غیرمدیر ۴۰۱.
+- Playwright: تب‌های «موبایل و کد»/«ایمیل و رمز»، فرم ورود/ثبت‌نام ایمیلی و لینک
+  «ورود مدیران و ادمین‌ها» در `/login`؛ صفحه‌ی `/admin/login` با دو روش و لینک
+  «ورود کاربران عادی»؛ `/register` به `/login` هدایت شد.
 
 ## ۱۴۰۵/۰۸/۱۷ — عرض ثابت پنل جزئیات و آواتار مربعی یکسان در دایرکتوری‌ها — نسخه `v3.2.1`
 

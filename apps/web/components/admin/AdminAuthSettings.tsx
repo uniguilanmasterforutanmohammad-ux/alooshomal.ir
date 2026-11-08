@@ -105,11 +105,12 @@ export function AdminAuthSettings() {
             <span>
               <span className="flex items-center gap-1.5 text-sm font-bold text-ink">
                 <Mail className="size-4 text-brand" aria-hidden />
-                ورود مدیران با ایمیل و رمز عبور
+                ورود با ایمیل و رمز عبور
               </span>
               <span className="block text-xs text-muted">
-                فقط برای ادمین و مدیران؛ پس از رمز عبور، کد یکبارمصرف هم لازم است.
-                اگر خاموش باشد، این مسیر ورود کار نمی‌کند.
+                برای کاربران (صفحه‌ی ورود) و مدیران (صفحه‌ی مجزای ورود مدیران)؛
+                پس از رمز عبور، کد یکبارمصرف هم لازم است. اگر خاموش باشد، این
+                مسیر ورود کار نمی‌کند.
               </span>
             </span>
           </label>

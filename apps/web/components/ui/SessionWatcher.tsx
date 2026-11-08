@@ -18,8 +18,13 @@ export function SessionWatcher() {
     function onExpired() {
       const path = window.location.pathname + window.location.search;
       clear();
-      if (!path.startsWith('/login')) {
-        router.replace(`/login?next=${encodeURIComponent(path)}`);
+      if (!path.startsWith('/login') && !path.startsWith('/admin/login')) {
+        // Admin/manager areas return to their own sign-in page.
+        const base =
+          path.startsWith('/admin') || path.startsWith('/moderator')
+            ? '/admin/login'
+            : '/login';
+        router.replace(`${base}?next=${encodeURIComponent(path)}`);
       }
     }
     window.addEventListener('alooshomal:session-expired', onExpired);

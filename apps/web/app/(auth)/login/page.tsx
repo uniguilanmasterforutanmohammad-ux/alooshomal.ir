@@ -3,52 +3,29 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowRight, Mail, Smartphone } from 'lucide-react';
+import { ArrowRight, Mail, ShieldCheck, Smartphone } from 'lucide-react';
 
-import { Input } from '@/components/ui/Input';
 import { AuthForm } from '@/components/auth/AuthForm';
-import { api, type AuthResponse } from '@/lib/api';
+import { UserEmailAuth } from '@/components/auth/UserEmailAuth';
 import { useAuth } from '@/lib/auth';
 import { useAuthMethods } from '@/lib/auth-settings';
 import { safeInternalPath } from '@/lib/safe-next';
 import { cn } from '@/lib/utils';
 
-interface AdminLoginStart {
-  requiresOtp: true;
-  email: string | null;
-  phone: string | null;
-  resendAfter: number;
-  sent: boolean;
-  emailSent?: boolean;
-  devCode?: string;
-}
-
 /**
- * The single entry point for both sign-in and sign-up. Mobile + OTP is the
- * default; email + password is the admin/manager path and always requires a
- * second one-time code. `/register` simply redirects here.
+ * Public sign-in / sign-up for regular users. Both methods (mobile + OTP and
+ * email + password) finish with a one-time code. Admins and managers use the
+ * separate `/admin/login` page.
  */
 function AuthPageContent() {
   const router = useRouter();
   const params = useSearchParams();
   const next = safeInternalPath(params.get('next'));
-  const setSession = useAuth((state) => state.setSession);
   const { token, user, hydrated } = useAuth();
   const { phoneLoginEnabled, emailLoginEnabled, loaded: methodsLoaded } =
     useAuthMethods();
 
   const [mode, setMode] = useState<'phone' | 'email'>('phone');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [otpStep, setOtpStep] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [otpTarget, setOtpTarget] = useState<{
-    email: string | null;
-    phone: string | null;
-  }>({ email: null, phone: null });
-  const [devCode, setDevCode] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
 
   // An already signed-in visitor has no reason to see the login form: send them
   // straight to their panel (a limited admin has no dashboard, so it gets the
@@ -57,7 +34,11 @@ function AuthPageContent() {
   useEffect(() => {
     if (!hydrated || !token) return;
     const target =
-      next === '/dashboard' && user?.role === 'MODERATOR' ? '/moderator' : next;
+      next === '/dashboard' && user?.role === 'MODERATOR'
+        ? '/moderator'
+        : next === '/dashboard' && user?.role === 'ADMIN'
+          ? '/admin'
+          : next;
     router.replace(target);
   }, [hydrated, token, user?.role, next, router]);
 
@@ -72,50 +53,6 @@ function AuthPageContent() {
     }
   }, [methodsLoaded, phoneLoginEnabled, emailLoginEnabled, mode]);
 
-  async function handleEmailLogin(event: React.FormEvent) {
-    event.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.post<AdminLoginStart>('/auth/login', {
-        email,
-        password,
-      });
-      // Email + password only passes the first step: the API sends a one-time
-      // code and withholds the tokens until it is verified.
-      setOtpTarget({ email: data.email, phone: data.phone });
-      setDevCode(data.devCode ?? null);
-      setOtpCode('');
-      setOtpStep(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'ورود ناموفق بود');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleVerifyOtp(event: React.FormEvent) {
-    event.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.post<AuthResponse>('/auth/login/verify', {
-        email,
-        code: otpCode,
-      });
-      setSession(data.accessToken, data.user);
-      // A limited admin has no dashboard of their own — land them on the
-      // review panel directly (unless an explicit `next` was requested).
-      router.replace(
-        next === '/dashboard' && data.user.role === 'MODERATOR' ? '/moderator' : next,
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'تأیید کد ناموفق بود');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <div className="container-page flex min-h-screen items-center justify-center py-12">
       <div className="indeed-panel w-full max-w-md p-8">
@@ -128,8 +65,8 @@ function AuthPageContent() {
         </Link>
         <h1 className="text-2xl font-extrabold text-ink">ورود یا ثبت‌نام</h1>
         <p className="mt-1 text-sm text-muted">
-          کاربران با شماره موبایل وارد می‌شوند؛ ورود با ایمیل و رمز عبور فقط برای
-          مدیران و ادمین‌هاست.
+          با شماره موبایل یا ایمیل و رمز عبور وارد شوید یا حساب بسازید؛ هر دو روش
+          با کد یکبارمصرف تأیید می‌شوند.
         </p>
 
         {phoneLoginEnabled && emailLoginEnabled ? (
@@ -137,7 +74,7 @@ function AuthPageContent() {
             {(
               [
                 ['phone', 'موبایل و کد', Smartphone],
-                ['email', 'ورود مدیران', Mail],
+                ['email', 'ایمیل و رمز', Mail],
               ] as const
             ).map(([key, label, Icon]) => (
               <button
@@ -145,8 +82,6 @@ function AuthPageContent() {
                 type="button"
                 onClick={() => {
                   setMode(key);
-                  setOtpStep(false);
-                  setError(null);
                 }}
                 className={cn(
                   'inline-flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-bold',
@@ -172,110 +107,18 @@ function AuthPageContent() {
                 emailLoginEnabled ? () => setMode('email') : undefined
               }
             />
-          ) : otpStep ? (
-            <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4">
-              <p className="rounded-lg bg-black/5 p-3 text-xs leading-6 text-muted">
-                کد یکبارمصرف به
-                {otpTarget.email ? (
-                  <>
-                    {' '}ایمیل <span dir="ltr" className="font-bold text-ink">{otpTarget.email}</span>
-                  </>
-                ) : null}
-                {otpTarget.phone ? (
-                  <>
-                    {otpTarget.email ? ' و ' : ' '}شماره{' '}
-                    <span dir="ltr" className="font-bold text-ink">{otpTarget.phone}</span>
-                  </>
-                ) : null}{' '}
-                ارسال شد.
-              </p>
-              {devCode ? (
-                <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-                  حالت توسعه: کد شما{' '}
-                  <span dir="ltr" className="font-bold">{devCode}</span> است.
-                </p>
-              ) : null}
-              <Input
-                label="کد تأیید"
-                inputMode="numeric"
-                required
-                dir="ltr"
-                value={otpCode}
-                onChange={(event) => setOtpCode(event.target.value)}
-                placeholder="------"
-              />
-              {error ? (
-                <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
-                  {error}
-                </p>
-              ) : null}
-              <button
-                type="submit"
-                disabled={loading}
-                className="indeed-btn indeed-btn-primary w-full"
-              >
-                {loading ? 'در حال بررسی...' : 'تأیید و ورود'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOtpStep(false);
-                  setOtpCode('');
-                  setError(null);
-                }}
-                className="text-sm font-bold text-muted"
-              >
-                بازگشت
-              </button>
-            </form>
           ) : (
-            <form onSubmit={handleEmailLogin} className="flex flex-col gap-4">
-              <p className="rounded-lg bg-black/5 p-3 text-xs leading-6 text-muted">
-                این روش ورود فقط برای مدیران و ادمین‌ها فعال است و پس از رمز عبور،
-                یک کد یکبارمصرف نیز لازم دارد.
-              </p>
-              <Input
-                label="ایمیل"
-                type="email"
-                required
-                dir="ltr"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                placeholder="you@example.com"
-              />
-              <Input
-                label="رمز عبور"
-                type="password"
-                required
-                dir="ltr"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="••••••••"
-              />
-              {error ? (
-                <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
-                  {error}
-                </p>
-              ) : null}
-              <button
-                type="submit"
-                disabled={loading}
-                className="indeed-btn indeed-btn-primary w-full"
-              >
-                {loading ? 'در حال ورود...' : 'ورود'}
-              </button>
-              {phoneLoginEnabled ? (
-                <button
-                  type="button"
-                  onClick={() => setMode('phone')}
-                  className="text-sm font-bold text-brand"
-                >
-                  ورود با موبایل و کد یکبار مصرف
-                </button>
-              ) : null}
-            </form>
+            <UserEmailAuth next={next} />
           )}
         </div>
+
+        <Link
+          href="/admin/login"
+          className="mt-6 flex items-center justify-center gap-1.5 text-xs font-bold text-muted transition hover:text-brand"
+        >
+          <ShieldCheck className="size-3.5" aria-hidden />
+          ورود مدیران و ادمین‌ها
+        </Link>
       </div>
     </div>
   );

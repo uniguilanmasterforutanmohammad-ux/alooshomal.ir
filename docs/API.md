@@ -32,11 +32,18 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 
 1. با `POST /api/auth/login` (ایمیل/گذرواژه) یا `POST /api/auth/phone/verify`
    (شماره/کد پیامکی) توکن دسترسی بگیرید.
-   مسیر ایمیل/گذرواژه فقط برای نقش‌های `ADMIN` و `MODERATOR` است و دو مرحله‌ای
-   شده: `POST /api/auth/login` پس از تأیید گذرواژه، کد یکبارمصرف را به ایمیل
+   مسیر ایمیل/گذرواژه برای **همه‌ی کاربران** فعال و دو مرحله‌ای است:
+   `POST /api/auth/login` پس از تأیید گذرواژه، کد یکبارمصرف را به ایمیل
    (و در صورت تنظیم، موبایل) حساب می‌فرستد و `requiresOtp: true` برمی‌گرداند
    (بدون توکن). سپس `POST /api/auth/login/verify` با `{ email, code }` نشست را
-   صادر می‌کند. کاربران عادی از مسیر موبایل + کد یکبارمصرف وارد می‌شوند.
+   صادر می‌کند. ثبت‌نام با ایمیل هم همین دو مرحله را دارد:
+   `POST /api/auth/register` → `POST /api/auth/register/verify`.
+   ورود ادمین و مدیران صفحه‌ی مجزای `/admin/login` دارد و از این مسیرها
+   استفاده می‌کند: `POST /api/auth/admin/login` و
+   `POST /api/auth/admin/login/verify` (ایمیل/رمز + کد)، و
+   `POST /api/auth/admin/phone/request-code` و
+   `POST /api/auth/admin/phone/verify` (موبایل + کد). این مسیرها فقط
+   حساب‌های `ADMIN`/`MODERATOR` را می‌پذیرند و هرگز حساب جدید نمی‌سازند.
    در جریان `POST /api/auth/phone/request-code` می‌توانید فیلد اختیاری `email`
    را هم بفرستید؛ همان کد یکبارمصرف علاوه بر پیامک به آن ایمیل هم ارسال می‌شود
    (برای کاربران موجود، ایمیل حساب ملاک است).

@@ -1,8 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, IsString, MaxLength, MinLength } from 'class-validator';
 
-export class VerifyAdminLoginDto {
-  @ApiProperty({ example: 'admin@example.com' })
+/** Second step of an email sign-in or email sign-up: email + one-time code. */
+export class VerifyEmailLoginDto {
+  @ApiProperty({ example: 'user@example.com' })
   @IsEmail({}, { message: 'ایمیل معتبر نیست' })
   email!: string;
 

@@ -16,7 +16,7 @@ export default function ModeratorNotificationsPage() {
   useEffect(() => {
     if (!hydrated) return;
     if (!token) {
-      router.replace('/login?next=/moderator/notifications');
+      router.replace('/admin/login');
       return;
     }
     if (user && user.role !== 'MODERATOR' && user.role !== 'ADMIN') {

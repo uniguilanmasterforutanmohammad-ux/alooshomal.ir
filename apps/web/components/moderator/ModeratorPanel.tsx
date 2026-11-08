@@ -113,7 +113,7 @@ export function ModeratorPanel() {
   useEffect(() => {
     if (!hydrated) return;
     if (!token) {
-      router.replace('/login?next=/moderator');
+      router.replace('/admin/login');
       return;
     }
     if (user && user.role !== 'MODERATOR' && user.role !== 'ADMIN') {

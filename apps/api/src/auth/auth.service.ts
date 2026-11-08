@@ -20,7 +20,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RequestCodeDto } from './dto/request-code.dto';
 import { VerifyPhoneDto } from './dto/verify-phone.dto';
-import { VerifyAdminLoginDto } from './dto/verify-admin-login.dto';
+import { VerifyEmailLoginDto } from './dto/verify-email-login.dto';
 import { OtpService } from './otp.service';
 
 const SALT_ROUNDS = 12;
@@ -234,8 +234,47 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
     const user = await this.prisma.user.create({
       data: { email, passwordHash, fullName: dto.fullName },
-      select: { id: true, email: true, fullName: true, role: true },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        fullName: true,
+        role: true,
+      },
     });
+
+    // Sign-up is confirmed with the same one-time code as sign-in. The plan,
+    // the admin notification and the session all wait for `verifyRegister`,
+    // so an abandoned form never creates a "real" account.
+    const issued = await this.otp.issueEmailLogin(
+      user.id,
+      user.email,
+      user.phone,
+      'register',
+    );
+    return {
+      requiresOtp: true,
+      email: maskEmail(user.email),
+      phone: maskPhone(user.phone),
+      ...issued,
+    };
+  }
+
+  /** Step 2 of the email sign-up flow: verifies the code and opens a session. */
+  async verifyRegister(
+    dto: VerifyEmailLoginDto,
+    context: SessionContext = {},
+  ) {
+    await this.assertEmailLoginEnabled();
+    if (context.ip) {
+      await this.rateLimit.hit(RATE_LIMITS.registerVerify, context.ip);
+    }
+    const email = dto.email.toLowerCase().trim();
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('حساب کاربری معتبر نیست');
+    }
+    await this.otp.verifyEmailLogin(user.id, dto.code);
 
     // Brand-new accounts start on the free plan so the panel shows
     // «اشتراک فعلی شما» instead of an «درخواست اشتراک» button.
@@ -280,20 +319,17 @@ export class AuthService {
     if (!user || !user.isActive || !user.passwordHash || !valid) {
       throw new UnauthorizedException('ایمیل یا رمز عبور اشتباه است');
     }
-
-    // Email + password is an admin/manager-only path. Regular users sign in
-    // with their phone + OTP, so a valid password on a normal account is not
-    // enough to open a session here.
-    if (!ADMIN_LOGIN_ROLES.has(user.role)) {
+    // `/login` is the public user page; managers have their own `/admin/login`.
+    if (ADMIN_LOGIN_ROLES.has(user.role)) {
       throw new ForbiddenException(
-        'ورود با ایمیل و رمز عبور فقط برای مدیران و ادمین‌ها فعال است؛ لطفاً از ورود با موبایل استفاده کنید',
+        'این حساب مدیریتی است؛ لطفاً از صفحه‌ی ورود مدیران استفاده کنید',
       );
     }
 
     // Second factor: even a correct password must be confirmed with a one-time
     // code sent to the account's email (and phone, when configured). No token
-    // is issued until `verifyAdminLogin` succeeds.
-    const issued = await this.otp.issueAdminLogin(
+    // is issued until `verifyEmailLogin` succeeds.
+    const issued = await this.otp.issueEmailLogin(
       user.id,
       user.email,
       user.phone,
@@ -307,11 +343,11 @@ export class AuthService {
   }
 
   /**
-   * Step 2 of the admin email/password flow: verifies the one-time code issued
-   * by `login` and only then creates the session.
+   * Step 2 of the email/password flow: verifies the one-time code issued by
+   * `login` and only then creates the session.
    */
-  async verifyAdminLogin(
-    dto: VerifyAdminLoginDto,
+  async verifyEmailLogin(
+    dto: VerifyEmailLoginDto,
     context: SessionContext = {},
   ) {
     await this.assertEmailLoginEnabled();
@@ -322,16 +358,83 @@ export class AuthService {
       createHash('sha256').update(email).digest('hex'),
     );
     const user = await this.prisma.user.findUnique({ where: { email } });
-    if (
-      !user ||
-      !user.isActive ||
-      !ADMIN_LOGIN_ROLES.has(user.role)
-    ) {
-      throw new UnauthorizedException('حساب مدیریتی معتبر نیست');
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('حساب کاربری معتبر نیست');
+    }
+    if (ADMIN_LOGIN_ROLES.has(user.role)) {
+      throw new ForbiddenException(
+        'این حساب مدیریتی است؛ لطفاً از صفحه‌ی ورود مدیران استفاده کنید',
+      );
     }
 
-    await this.otp.verifyAdminLogin(user.id, dto.code);
+    await this.otp.verifyEmailLogin(user.id, dto.code);
 
+    await this.activity.log({
+      actor: { id: user.id, email: user.email, role: user.role },
+      action: 'USER_LOGIN',
+      summary: `ورود با ایمیل و تأیید کد یکبارمصرف: ${user.fullName ?? user.email}`,
+      entityType: 'USER',
+      entityId: user.id,
+    });
+
+    return this.buildAuthResponse(user, context);
+  }
+
+  // -------------------------------------------------------------------------
+  //  Admin / manager sign-in (`/admin/login`)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Step 1 of the admin email/password flow. Identical to `login` except the
+   * account must belong to an admin or manager.
+   */
+  async adminLogin(dto: LoginDto, context: SessionContext = {}) {
+    await this.assertEmailLoginEnabled();
+    if (context.ip) await this.rateLimit.hit(RATE_LIMITS.login, context.ip);
+    const email = dto.email.toLowerCase().trim();
+    await this.rateLimit.hit(
+      RATE_LIMITS.loginEmail,
+      createHash('sha256').update(email).digest('hex'),
+    );
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    const hash = user?.passwordHash ?? DUMMY_BCRYPT_HASH;
+    const valid = await bcrypt.compare(dto.password, hash);
+    if (!user || !user.isActive || !user.passwordHash || !valid) {
+      throw new UnauthorizedException('ایمیل یا رمز عبور اشتباه است');
+    }
+    if (!ADMIN_LOGIN_ROLES.has(user.role)) {
+      throw new ForbiddenException('این حساب دسترسی مدیریتی ندارد');
+    }
+    const issued = await this.otp.issueEmailLogin(
+      user.id,
+      user.email,
+      user.phone,
+    );
+    return {
+      requiresOtp: true,
+      email: maskEmail(user.email),
+      phone: maskPhone(user.phone),
+      ...issued,
+    };
+  }
+
+  /** Step 2 of the admin email/password flow (role-checked). */
+  async verifyAdminLogin(
+    dto: VerifyEmailLoginDto,
+    context: SessionContext = {},
+  ) {
+    await this.assertEmailLoginEnabled();
+    if (context.ip) await this.rateLimit.hit(RATE_LIMITS.login, context.ip);
+    const email = dto.email.toLowerCase().trim();
+    await this.rateLimit.hit(
+      RATE_LIMITS.adminLoginVerify,
+      createHash('sha256').update(email).digest('hex'),
+    );
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || !user.isActive || !ADMIN_LOGIN_ROLES.has(user.role)) {
+      throw new UnauthorizedException('حساب مدیریتی معتبر نیست');
+    }
+    await this.otp.verifyEmailLogin(user.id, dto.code);
     await this.activity.log({
       actor: { id: user.id, email: user.email, role: user.role },
       action: 'USER_LOGIN',
@@ -339,17 +442,50 @@ export class AuthService {
       entityType: 'USER',
       entityId: user.id,
     });
+    return this.buildAuthResponse(user, context);
+  }
 
-    return this.buildAuthResponse(
-      {
-        id: user.id,
-        email: user.email,
-        phone: user.phone,
-        fullName: user.fullName,
-        role: user.role,
-      },
-      context,
-    );
+  /**
+   * Step 1 of the admin phone flow: only an existing, active admin/manager
+   * number receives a code. Unlike the public phone flow this never creates an
+   * account.
+   */
+  async requestAdminPhoneCode(dto: RequestCodeDto, ip?: string | null) {
+    await this.assertPhoneLoginEnabled();
+    const phone = OtpService.normalizePhone(dto.phone);
+    await this.rateLimit.hit(RATE_LIMITS.otpRequestPhone, phone);
+    if (ip) await this.rateLimit.hit(RATE_LIMITS.otpRequestIp, ip);
+    const user = await this.prisma.user.findUnique({ where: { phone } });
+    if (!user || !user.isActive || !ADMIN_LOGIN_ROLES.has(user.role)) {
+      throw new UnauthorizedException('حساب مدیریتی با این شماره یافت نشد');
+    }
+    const issued = await this.otp.issue(phone, 'login', {
+      email: user.email,
+    });
+    return { phone: maskPhone(phone), ...issued };
+  }
+
+  /** Step 2 of the admin phone flow (role-checked, never signs up). */
+  async verifyAdminPhoneCode(
+    dto: VerifyPhoneDto,
+    context: SessionContext = {},
+  ) {
+    await this.assertPhoneLoginEnabled();
+    const phone = OtpService.normalizePhone(dto.phone);
+    await this.rateLimit.hit(RATE_LIMITS.otpVerify, phone);
+    const user = await this.prisma.user.findUnique({ where: { phone } });
+    if (!user || !user.isActive || !ADMIN_LOGIN_ROLES.has(user.role)) {
+      throw new UnauthorizedException('حساب مدیریتی معتبر نیست');
+    }
+    await this.otp.verify(phone, dto.code);
+    await this.activity.log({
+      actor: { id: user.id, email: user.email, role: user.role },
+      action: 'USER_LOGIN',
+      summary: `ورود مدیر با موبایل: ${user.fullName ?? user.email ?? phone}`,
+      entityType: 'USER',
+      entityId: user.id,
+    });
+    return this.buildAuthResponse(user, context);
   }
 
   /**

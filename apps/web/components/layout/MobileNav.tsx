@@ -36,7 +36,10 @@ export function MobileNav() {
   const { showNav } = useFeatures();
 
   // Hide on the auth screens: they are a focused, full-screen flow.
-  const hideOnAuth = pathname === '/login' || pathname === '/register';
+  const hideOnAuth =
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/admin/login';
 
   const allItems: Item[] = [
     { href: '/', label: 'خانه', icon: Home, exact: true },
