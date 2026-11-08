@@ -1,6 +1,15 @@
+# Docker build context is ./apps/api (docker-compose*.yml and the deploy workflow).
+# Keep the API image context minimal: source + prisma + manifests only.
 node_modules
 dist
-.env
-*.log
+backups
+uploads
 coverage
 .git
+*.log
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+Dockerfile*
+.dockerignore

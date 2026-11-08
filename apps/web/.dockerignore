@@ -1,5 +1,16 @@
+# Docker build context is ./apps/web (docker-compose*.yml and the deploy workflow).
+# Keep the web image context minimal: source + public assets + manifests only.
 node_modules
 .next
-.env
-*.log
+out
+build
+coverage
+public/uploads
 .git
+*.log
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+Dockerfile*
+.dockerignore

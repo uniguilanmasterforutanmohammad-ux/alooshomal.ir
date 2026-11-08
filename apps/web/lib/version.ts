@@ -1,5 +1,5 @@
 /**
- * Application version â€” single source of truth.
+ * Application version — single source of truth.
  *
  * Semantic versioning (`vMAJOR.MINOR.PATCH`), bumped automatically by the
  * agent after each completed & tested change:
@@ -9,4 +9,4 @@
  *
  * The value is surfaced in the app footer (user panel + public pages).
  */
-export const APP_VERSION = 'v3.8.0';
+export const APP_VERSION = 'v3.8.1';
