@@ -18,6 +18,12 @@ interface Props {
    * whole region (instead of packing it tight at its natural height).
    */
   fill?: boolean;
+  /**
+   * never apply the proportional shrink transform. Used by the directory
+   * detail panels, where a scaled-down record would also get narrower and the
+   * panel width would visibly jump between cards; those panels scroll instead.
+   */
+  noShrink?: boolean;
 }
 
 /**
@@ -41,6 +47,7 @@ export function FitContent({
   minScale = 0.75,
   mirrorCompactToParent,
   fill,
+  noShrink,
 }: Props) {
   const outerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
@@ -91,7 +98,7 @@ export function FitContent({
     }
 
     if (natural > available + 1) {
-      const scale = Math.max(minScale, available / natural);
+      const scale = noShrink ? 1 : Math.max(minScale, available / natural);
       const fits = natural * scale <= available + 1;
       // Reserve a fixed height only when the content truly fits at that scale;
       // otherwise keep it scrollable (height null -> content-driven). The fixed
@@ -127,7 +134,7 @@ export function FitContent({
           : next,
       );
     }
-  }, [compact, minScale, fill]);
+  }, [compact, minScale, fill, noShrink]);
 
   useEffect(() => {
     measure();

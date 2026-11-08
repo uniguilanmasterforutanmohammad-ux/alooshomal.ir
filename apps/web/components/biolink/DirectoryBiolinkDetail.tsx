@@ -100,7 +100,14 @@ export function DirectoryBiolinkDetail({ slug, onClose, hideHeader }: Props) {
         </div>
       )}
 
-      <FitContent className="dir-detail-scroll flex-1 overflow-y-auto px-5 py-5" minScale={0.7}>
+      {/* `noShrink` keeps the panel's content width constant between records:
+          a scaled-down record would also render narrower, so taller biolinks
+          scroll instead of shrinking. */}
+      <FitContent
+        className="dir-detail-scroll flex-1 overflow-y-auto px-5 py-5"
+        minScale={0.7}
+        noShrink
+      >
         <div className="flex items-center gap-4">
           {/* Square avatar, matching the directory rows on the right: a photo
               fills the box; without one the first letter of the name sits in

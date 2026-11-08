@@ -369,6 +369,10 @@ select {
 }
 
 .container-page {
+  /* `body` is a flex column and `margin-inline: auto` would otherwise make
+     this a shrink-to-fit flex item, so the whole page width changed with the
+     selected record's content. Pin it to the available width instead. */
+  width: 100%;
   max-width: var(--indeed-max);
   margin-inline: auto;
   padding-inline: 16px;
@@ -1187,20 +1191,23 @@ html[data-theme] .home-shell footer.site-footer,
    `FitContent` adds `data-compact` to `.dir-detail-scroll` when the record is
    taller than the space left under the panel header, then scales it down so the
    left column never needs its own scrollbar. */
+/* Reserve the scrollbar's width even when a record fits, so the content column
+   is exactly the same width whether or not the selected card scrolls. */
+.dir-detail-scroll {
+  scrollbar-gutter: stable;
+}
+/* Compact mode only tightens the vertical rhythm. Horizontal padding stays
+   identical to the normal layout so the record's content width never jumps
+   between cards (with/without a bio). */
 .dir-detail-scroll[data-compact] {
-  padding: 12px 14px;
+  padding-top: 12px;
+  padding-bottom: 12px;
 }
 .dir-detail-scroll[data-fits] {
   overflow: hidden;
 }
-.dir-detail-scroll[data-compact] .size-16 {
-  width: 52px;
-  height: 52px;
-}
-.dir-detail-scroll[data-compact] .size-16 img {
-  width: 52px;
-  height: 52px;
-}
+/* The avatar keeps its 64px square in compact mode too: shrinking it made the
+   photo size differ from card to card. */
 .dir-detail-scroll[data-compact] h2 {
   font-size: 16px;
 }
@@ -2925,12 +2932,13 @@ html.dark .blt { box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); }
    ===================================================================== */
 .directory-card-avatar,
 .directory-biolink-avatar {
-  align-self: stretch;
-  width: auto;
-  height: auto;
-  /* Cap the square so `aspect-ratio` cannot feed back into the flex line and
-     blow the row up; 6.5rem matches the text column's height on desktop. */
-  max-width: 6.5rem;
+  align-self: center;
+  /* A fixed square for every row: stretching to the row's content height made
+     rows with a photo 104px wide but rows without one collapse to the width of
+     the initial letter (e.g. 11×102). 6.5rem matches the text column. */
+  flex: 0 0 6.5rem;
+  width: 6.5rem;
+  height: 6.5rem;
   aspect-ratio: 1 / 1;
   border-radius: 12px;
 }
@@ -2999,6 +3007,7 @@ html.dark .blt { box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); }
   }
   .directory-card-avatar,
   .directory-biolink-avatar {
+    flex: 0 0 auto;
     max-width: none;
     width: auto;
     height: 100%;

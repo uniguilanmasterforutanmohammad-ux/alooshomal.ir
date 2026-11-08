@@ -112,7 +112,14 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
         </div>
       )}
 
-      <FitContent className="dir-detail-scroll flex-1 overflow-y-auto px-5 py-5" minScale={0.7}>
+      {/* `noShrink` keeps the panel's content width constant between cards:
+          a scaled-down record would also render narrower, so taller cards
+          scroll instead of shrinking. */}
+      <FitContent
+        className="dir-detail-scroll flex-1 overflow-y-auto px-5 py-5"
+        minScale={0.7}
+        noShrink
+      >
         <div className="dir-detail-head flex items-center gap-4">
           {/* Square avatar, matching the directory rows on the right: a photo
               fills the box; without one the first letter of the name sits in
