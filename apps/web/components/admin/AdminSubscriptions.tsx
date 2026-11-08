@@ -59,6 +59,7 @@ export function AdminSubscriptions() {
   const [requests, setRequests] = useState<UserSubscription[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -186,6 +187,27 @@ export function AdminSubscriptions() {
     }
   }
 
+  async function syncProduct(plan: SubscriptionPlan) {
+    setBusyId(plan.id);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await api.post<{ paypingProductCode: string }>(
+        `/admin/plans/${plan.id}/payping-product`,
+      );
+      setNotice(
+        `محصول پی‌پینگ بسته «${plan.name}» ساخته/همگام شد (کد: ${result.paypingProductCode}).`,
+      );
+      await loadPlans();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'همگام‌سازی محصول پی‌پینگ ناموفق بود',
+      );
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   const fieldsByKey = useMemo(
     () => new Map(fields.map((field) => [field.key, field.label])),
     [fields],
@@ -238,6 +260,29 @@ export function AdminSubscriptions() {
       label: 'قیمت (تومان)',
       render: (plan) => (
         <span className="text-xs text-muted">{plan.price.toLocaleString('fa-IR')}</span>
+      ),
+    },
+    {
+      key: 'payping',
+      label: 'محصول پی‌پینگ',
+      render: (plan) => (
+        <div className="flex flex-col items-start gap-1">
+          <span className="text-xs text-muted">
+            {plan.paypingProductCode
+              ? `کد: ${plan.paypingProductCode}`
+              : 'ساخته نشده'}
+          </span>
+          {plan.price >= 1000 ? (
+            <button
+              type="button"
+              disabled={busyId === plan.id}
+              onClick={() => syncProduct(plan)}
+              className="indeed-btn indeed-btn-secondary px-2 py-1 text-[11px] disabled:opacity-60"
+            >
+              {busyId === plan.id ? 'در حال همگام‌سازی...' : 'همگام‌سازی'}
+            </button>
+          ) : null}
+        </div>
       ),
     },
     {
@@ -339,6 +384,9 @@ export function AdminSubscriptions() {
     <div className="flex flex-col gap-5">
       {error ? (
         <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
+      ) : null}
+      {notice ? (
+        <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700">{notice}</p>
       ) : null}
 
       <div className="flex flex-wrap gap-2">

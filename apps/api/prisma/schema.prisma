@@ -87,6 +87,14 @@ enum SubscriptionStatus {
   CANCELLED
 }
 
+/// Lifecycle of one online payment attempt for a subscription plan.
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELED
+}
+
 enum BoostTargetKind {
   BIOLINK
   BUSINESS_CARD
@@ -399,6 +407,7 @@ model User {
   plan              SubscriptionPlan?  @relation(fields: [planId], references: [id], onDelete: SetNull)
   subscriptions     UserSubscription[] @relation("UserSubscriptions")
   subscriptionDecisions UserSubscription[] @relation("SubscriptionDecisions")
+  subscriptionPayments SubscriptionPayment[] @relation("UserSubscriptionPayments")
   boostRequests     BoostRequest[]      @relation("UserBoostRequests")
   boostDecisions    BoostRequest[]      @relation("BoostDecisions")
   adRequests        AdRequest[]         @relation("UserAdRequests")
@@ -990,6 +999,9 @@ model SubscriptionPlan {
   userSubscriptions UserSubscription[]
   planUsers         User[]
   rewards           Reward[]
+  /// PayPing «آیتم مالی» code mirrored from this plan (`POST /v1/product`).
+  paypingProductCode String? @unique
+  payments           SubscriptionPayment[]
 
   @@index([isActive, sortOrder])
   @@map("subscription_plans")
@@ -1009,11 +1021,47 @@ model UserSubscription {
   user    User              @relation("UserSubscriptions", fields: [userId], references: [id], onDelete: Cascade)
   plan    SubscriptionPlan  @relation(fields: [planId], references: [id], onDelete: Cascade)
   decidedBy User?           @relation("SubscriptionDecisions", fields: [decidedById], references: [id], onDelete: SetNull)
+  payment SubscriptionPayment?
 
   @@index([userId])
   @@index([planId])
   @@index([status])
   @@map("user_subscriptions")
+}
+
+/// One online payment attempt for a subscription plan via PayPing `/v3/pay`.
+/// Created at checkout, verified on the public callback, then linked to the
+/// `UserSubscription` row it activated. `clientRefId` is the idempotency key
+/// sent to PayPing and echoed back on the return URL.
+model SubscriptionPayment {
+  id            String        @id @default(cuid())
+  userId        String
+  planId        String
+  /// Amount in Toman, snapshotted from the plan at checkout time.
+  amount        Int
+  status        PaymentStatus @default(PENDING)
+  clientRefId   String        @unique
+  /// PayPing payment code returned by `POST /v3/pay`.
+  paymentCode   String?       @unique
+  /// PayPing tracking id (`paymentRefId`) returned on the callback.
+  refId         String?
+  gatewayUrl    String?
+  payerName     String?
+  paidAt        DateTime?
+  verifiedAt    DateTime?
+  failureReason String?
+  subscriptionId String?      @unique
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user         User              @relation("UserSubscriptionPayments", fields: [userId], references: [id], onDelete: Cascade)
+  plan         SubscriptionPlan  @relation(fields: [planId], references: [id], onDelete: Restrict)
+  subscription UserSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([planId])
+  @@index([status])
+  @@map("subscription_payments")
 }
 
 // ---------------------------------------------------------------------------

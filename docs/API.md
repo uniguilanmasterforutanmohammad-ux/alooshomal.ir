@@ -169,6 +169,28 @@ scopeهای `profile`، `email`، `phone`، `offline_access` و همه‌ی `inq
 این کلاینت **مجاز نیستند** (خطای صفحه‌ی مجوزدهی). چون `offline_access` مجاز نیست،
 refresh token صادر نمی‌شود و پس از انقضای توکن دسترسی باید دوباره «اتصال» زده شود.
 
+### اشتراک‌ها و پرداخت آنلاین (`subscriptions`)
+
+بسته‌های اشتراک قیمت واقعی (تومان) دارند و هر بسته‌ی پولی به‌صورت یک «آیتم مالی»
+در حساب پذیرنده‌ی پی‌پینگ ساخته می‌شود؛ کد محصول در
+`SubscriptionPlan.paypingProductCode` نگه داشته می‌شود. پرداخت با `POST /v3/pay`
+و تأیید با `POST /v3/pay/verify` انجام می‌شود و فعال‌سازی بسته فقط پس از تأیید
+موفق و مطابقت مبلغ/شناسه‌ی ارجاع است.
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET` | `/subscriptions/plans` | فهرست بسته‌های فعال (عمومی). |
+| `GET` | `/subscriptions/me` | بسته‌ی فعلی، درخواست‌ها و ۲۰ پرداخت آخر کاربر. |
+| `POST` | `/subscriptions/request` | درخواست اشتراک رایگان/بدون پرداخت (در انتظار تأیید مدیر). |
+| `POST` | `/subscriptions/:planId/checkout` | شروع پرداخت آنلاین؛ خروجی `{ paymentId, amount, url, paymentCode, paypingProductCode }`. کاربر باید به `url` هدایت شود. |
+| `GET` | `/subscriptions/payments/callback` | آدرس بازگشت عمومی پی‌پینگ (`paymentCode`، `refId`، `clientRefId`)؛ تراکنش را تأیید و سپس به `/dashboard/subscriptions?payment=...` هدایت می‌کند. |
+| `POST` | `/admin/plans/:id/payping-product` | ساخت/همگام‌سازی محصول پی‌پینگ یک بسته (فقط مدیر). |
+
+**آدرس بازگشت:** `${NEXT_PUBLIC_APP_URL}/api/subscriptions/payments/callback`
+است؛ پس دامنه‌ی عمومی سایت باید در `NEXT_PUBLIC_APP_URL` سرور درست تنظیم شده
+باشد (مثلاً `https://shomalicard.ir`). اگر `PAYPING_TOKEN` تنظیم نشده باشد،
+`checkout` با خطای ۵۰۳ و پیام راهنما پاسخ می‌دهد.
+
 ### بررسی سریع کامل‌بودن
 
 ```bash

@@ -4,7 +4,13 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BadgeCheck, Check, Crown, Sparkles } from 'lucide-react';
 
-import { api, type MySubscriptions, type SubscriptionPlan } from '@/lib/api';
+import {
+  api,
+  type MySubscriptions,
+  type SubscriptionCheckout,
+  type SubscriptionPayment,
+  type SubscriptionPlan,
+} from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
@@ -14,6 +20,18 @@ const STATUS_LABELS: Record<string, string> = {
   REJECTED: 'ردشده',
   CANCELLED: 'لغو شده',
 };
+
+const PAYMENT_LABELS: Record<string, string> = {
+  PENDING: 'در انتظار پرداخت',
+  PAID: 'پرداخت موفق',
+  FAILED: 'پرداخت ناموفق',
+  CANCELED: 'لغو شده',
+};
+
+function faPrice(amount: number): string {
+  if (amount <= 0) return 'رایگان';
+  return `${amount.toLocaleString('fa-IR')} تومان`;
+}
 
 function faDateTime(date: string | null | undefined): string {
   if (!date) return '—';
@@ -57,16 +75,55 @@ export default function SubscriptionsPage() {
     void load();
   }, [hydrated, token, router, load]);
 
-  async function requestPlan(plan: SubscriptionPlan) {
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get('payment');
+    if (!payment) return;
+    const planName = params.get('plan');
+    if (payment === 'success') {
+      setMessage(
+        `پرداخت با موفقیت انجام شد${planName ? ` و اشتراک «${planName}»` : ''} فعال شد.`,
+      );
+    } else if (payment === 'pending') {
+      setMessage(
+        'تأیید پرداخت در حال پردازش است؛ چند لحظه بعد این صفحه را دوباره باز کنید.',
+      );
+    } else {
+      setError(
+        'پرداخت ناموفق بود یا لغو شد. در صورت کسر وجه، با پشتیبانی تماس بگیرید.',
+      );
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.delete('payment');
+    url.searchParams.delete('plan');
+    window.history.replaceState({}, '', url.toString());
+  }, []);
+
+  async function startPlan(plan: SubscriptionPlan) {
     setBusyPlanId(plan.id);
     setMessage(null);
     setError(null);
     try {
+      if (plan.price >= 1000) {
+        const checkout = await api.post<SubscriptionCheckout>(
+          `/subscriptions/${plan.id}/checkout`,
+        );
+        if (!checkout?.url) {
+          throw new Error('لینک پرداخت از درگاه دریافت نشد');
+        }
+        window.location.href = checkout.url;
+        return;
+      }
       await api.post('/subscriptions/request', { planId: plan.id });
-      setMessage('درخواست شما ثبت شد. پس از تأیید مدیر، اشتراک شما فعال می‌شود.');
+      setMessage(
+        'درخواست شما ثبت شد. پس از تأیید مدیر، اشتراک شما فعال می‌شود.',
+      );
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ثبت درخواست ناموفق بود');
+      setError(
+        err instanceof Error ? err.message : 'شروع پرداخت ناموفق بود',
+      );
     } finally {
       setBusyPlanId(null);
     }
@@ -85,7 +142,8 @@ export default function SubscriptionsPage() {
       <div>
         <h2 className="text-xl font-extrabold text-ink">اشتراک من</h2>
         <p className="text-sm text-muted">
-          بسته مناسب خود را انتخاب کنید؛ پس از تأیید مدیر، اشتراک فعال می‌شود.
+          بسته مناسب خود را انتخاب کنید؛ بسته‌های پولی با پرداخت آنلاین بلافاصله
+          فعال می‌شوند و بسته‌ی رایگان پس از تأیید مدیر.
         </p>
       </div>
 
@@ -134,6 +192,10 @@ export default function SubscriptionsPage() {
                 <p className="mt-2 text-sm text-muted">{plan.description}</p>
               ) : null}
 
+              <p className="mt-3 text-2xl font-extrabold text-brand">
+                {faPrice(plan.price)}
+              </p>
+
               <ul className="mt-4 flex flex-1 flex-col gap-2 text-sm">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-2 text-ink">
@@ -146,7 +208,7 @@ export default function SubscriptionsPage() {
               <button
                 type="button"
                 disabled={isCurrent || isPending || busyPlanId === plan.id}
-                onClick={() => requestPlan(plan)}
+                onClick={() => startPlan(plan)}
                 className={cn(
                   'indeed-btn mt-5 w-full py-2 text-sm',
                   isCurrent
@@ -160,8 +222,12 @@ export default function SubscriptionsPage() {
                   : isPending
                     ? 'در انتظار تأیید مدیر'
                     : busyPlanId === plan.id
-                      ? 'در حال ثبت...'
-                      : 'درخواست اشتراک'}
+                      ? plan.price >= 1000
+                        ? 'در حال انتقال به درگاه...'
+                        : 'در حال ثبت...'
+                      : plan.price >= 1000
+                        ? 'پرداخت و فعال‌سازی'
+                        : 'درخواست اشتراک'}
               </button>
             </div>
           );
@@ -207,6 +273,53 @@ export default function SubscriptionsPage() {
                 {request.adminNote ? (
                   <span className="w-full text-xs text-muted">
                     یادداشت مدیر: {request.adminNote}
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {mine?.payments && mine.payments.length > 0 ? (
+        <div className="indeed-panel overflow-hidden">
+          <div className="border-b border-dashed border-[var(--vintage-border)] px-5 py-3">
+            <h3 className="flex items-center gap-2 text-sm font-extrabold text-ink">
+              <Sparkles className="size-4 text-brand" aria-hidden />
+              تاریخچه پرداخت‌ها
+            </h3>
+          </div>
+          <ul className="divide-y divide-[var(--vintage-border)]">
+            {mine.payments.map((payment: SubscriptionPayment) => (
+              <li
+                key={payment.id}
+                className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm"
+              >
+                <span className="font-bold text-ink">
+                  {payment.plan?.name ?? '—'}
+                </span>
+                <span className="text-xs text-muted">
+                  {faPrice(payment.amount)}
+                </span>
+                <span
+                  className={cn(
+                    'rounded-full px-2 py-0.5 text-[11px] font-bold',
+                    payment.status === 'PAID'
+                      ? 'bg-green-50 text-green-700'
+                      : payment.status === 'FAILED'
+                        ? 'bg-red-50 text-red-700'
+                        : 'bg-amber-50 text-amber-700',
+                  )}
+                >
+                  {PAYMENT_LABELS[payment.status] ?? payment.status}
+                </span>
+                <span className="w-full text-xs text-muted">
+                  تاریخ: {faDateTime(payment.createdAt)}
+                  {payment.refId ? ` · کد رهگیری: ${payment.refId}` : ''}
+                </span>
+                {payment.failureReason ? (
+                  <span className="w-full text-xs text-red-600">
+                    {payment.failureReason}
                   </span>
                 ) : null}
               </li>

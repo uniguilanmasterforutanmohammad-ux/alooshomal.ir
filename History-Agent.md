@@ -20,7 +20,55 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.5.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.6.0**.
+
+## ۱۴۰۵/۰۸/۱۷ — پرداخت واقعی اشتراک‌ها با کال‌بک پی‌پینگ — نسخه `v3.6.0`
+
+**هدف:** اشتراک‌های پولی به‌جای «درخواست در انتظار تأیید مدیر» با پرداخت
+آنلاین واقعی فعال شوند. هر بسته‌ی اشتراک به یک «آیتم مالی» (محصول) در حساب
+پذیرنده‌ی پی‌پینگ نگاشت می‌شود و فعال‌سازی فقط پس از تأیید موفق تراکنش انجام
+می‌شود.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `PaymentStatus`، مدل
+  `SubscriptionPayment` (وضعیت، `clientRefId` یکتا، `paymentCode`، `refId`،
+  لینک به `UserSubscription`) و فیلد `paypingProductCode` روی
+  `SubscriptionPlan`.
+- `apps/api/src/common/plans.ts`: قیمت واقعی بسته‌ها؛ اکو ۹۹٬۰۰۰ تومان و
+  بلاس ۱۹۹٬۰۰۰ تومان (رایگان صفر).
+- `apps/api/src/subscriptions/subscriptions.service.ts`: بک‌فیل یک‌باره‌ی
+  قیمت بسته‌های قدیمی (با نشانگر در `settings`)، ساخت/همگام‌سازی محصول
+  پی‌پینگ، `checkout` برای ساخت پرداخت، `handlePaymentCallback` برای تأیید
+  تراکنش، فعال‌سازی اتمیک اشتراک، بررسی مبلغ و `clientRefId`، و
+  اعلان/لاگ.
+- `apps/api/src/subscriptions/subscriptions.controller.ts`: مسیرهای
+  `POST /subscriptions/:planId/checkout` و کال‌بک عمومی
+  `GET /subscriptions/payments/callback` با هدایت به داشبورد.
+- `apps/api/src/subscriptions/subscriptions.module.ts`: واردکردن
+  `PaypingModule`.
+- `apps/api/src/payping/payping.service.ts`: حفظ وضعیت HTTP واقعی پی‌پینگ
+  روی خطا تا کال‌بک بتواند پاسخ ۴۰۹ («قبلاً تأیید شده») را موفق تلقی کند.
+- `apps/api/src/admin/admin.controller.ts`: مسیر
+  `POST /admin/plans/:id/payping-product` برای ساخت/همگام‌سازی محصول.
+- `apps/web/lib/api.ts`: نوع‌های `SubscriptionPayment`،
+  `SubscriptionCheckout` و فیلد `paypingProductCode`.
+- `apps/web/app/dashboard/subscriptions/page.tsx`: نمایش قیمت، دکمه‌ی
+  «پرداخت و فعال‌سازی» و هدایت به درگاه، پیام نتیجه‌ی کال‌بک و تاریخچه‌ی
+  پرداخت‌ها.
+- `apps/web/components/admin/AdminSubscriptions.tsx`: ستون محصول پی‌پینگ و
+  دکمه‌ی همگام‌سازی.
+- `docs/API.md`: مستندسازی مسیرهای اشتراک/پرداخت و آدرس بازگشت.
+- `apps/web/lib/version.ts`: ارتقای نسخه به `v3.6.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` → بدون خطا.
+- `docker exec alooshomal-web npx tsc --noEmit` → بدون خطا.
+- `python3 scripts/check_api_docs.py` → ۳۲۱ مسیر، همه با `@ApiOperation`.
+- `docker exec alooshomal-api npx prisma db push --skip-generate --accept-data-loss`
+  روی دیتابیس توسعه → همگام شد.
+- `GET /api/subscriptions/plans` → اکو ۹۹٬۰۰۰ و بلاس ۱۹۹٬۰۰۰.
+- کال‌بک با کد ناموجود → `302` به `...?payment=failed`؛ `checkout` بدون
+  توکن → `401`.
 
 ## ۱۴۰۵/۰۸/۱۷ — انتقال متغیرهای پی‌پینگ به compose پروداکشن — نسخه `v3.5.1`
 

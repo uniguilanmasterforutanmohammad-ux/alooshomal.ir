@@ -259,6 +259,12 @@ export class AdminController {
     return this.subscriptionsService.removePlan(id);
   }
 
+  @Post('plans/:id/payping-product')
+  @ApiOperation({ summary: 'ساخت/همگام‌سازی محصول پی‌پینگ برای یک اشتراک' })
+  syncPlanProduct(@Param('id') id: string) {
+    return this.subscriptionsService.syncPaypingProduct(id);
+  }
+
   @Get('subscriptions')
   @ApiOperation({ summary: 'درخواست‌های اشتراک کاربران' })
   subscriptions(@Query('status') status?: SubscriptionStatus) {

@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   BadRequestException,
+  HttpException,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -118,7 +119,13 @@ export class PaypingService {
       );
       const Exception =
         response.status >= 500 ? BadGatewayException : BadRequestException;
-      throw new Exception(message);
+      const exception = new Exception(message) as HttpException & {
+        paypingStatus?: number;
+      };
+      // Keep the upstream status (409 = already verified, 429 = rate limited,
+      // …) so callers can react instead of only seeing a generic 400.
+      exception.paypingStatus = response.status;
+      throw exception;
     }
 
     return payload as T;

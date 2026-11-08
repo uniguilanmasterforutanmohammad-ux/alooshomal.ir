@@ -456,6 +456,8 @@ export interface SubscriptionPlan {
   features: string[];
   isActive: boolean;
   sortOrder: number;
+  /** PayPing «آیتم مالی» code mirrored from this plan, when synced. */
+  paypingProductCode?: string | null;
 }
 
 export type SubscriptionStatus =
@@ -480,6 +482,39 @@ export interface UserSubscription {
 export interface MySubscriptions {
   plan: SubscriptionPlan | null;
   requests: UserSubscription[];
+  payments?: SubscriptionPayment[];
+}
+
+export type SubscriptionPaymentStatus =
+  | 'PENDING'
+  | 'PAID'
+  | 'FAILED'
+  | 'CANCELED';
+
+export interface SubscriptionPayment {
+  id: string;
+  userId: string;
+  planId: string;
+  amount: number;
+  status: SubscriptionPaymentStatus;
+  clientRefId: string;
+  paymentCode: string | null;
+  refId: string | null;
+  gatewayUrl: string | null;
+  paidAt: string | null;
+  verifiedAt: string | null;
+  failureReason: string | null;
+  createdAt: string;
+  plan?: SubscriptionPlan;
+}
+
+export interface SubscriptionCheckout {
+  paymentId: string;
+  amount: number;
+  paymentCode: string | null;
+  url: string | null;
+  paypingProductCode?: string | null;
+  plan: { id: string; name: string };
 }
 
 export type BoostTargetKind = 'BIOLINK' | 'BUSINESS_CARD' | 'FEED';
