@@ -38,6 +38,7 @@ import {
 } from '../auth/permissions';
 import { MODERATOR_SCOPE_META, normalizeScopes } from '../auth/moderator-scopes';
 import { AdminService } from './admin.service';
+import { AdminRevenueService } from './admin-revenue.service';
 import { BulkKind, BulkService } from './bulk.service';
 import { ListBiolinksDto } from './dto/list-biolinks.dto';
 import { ListBusinessCardsDto } from './dto/list-business-cards.dto';
@@ -63,6 +64,7 @@ import {
 export class AdminController {
   constructor(
     private readonly adminService: AdminService,
+    private readonly adminRevenue: AdminRevenueService,
     private readonly subscriptionsService: SubscriptionsService,
     private readonly boostsService: BoostsService,
     private readonly adsService: AdsService,
@@ -79,7 +81,7 @@ export class AdminController {
   @Get('revenue')
   @ApiOperation({ summary: 'گزارش درآمد تخمینی هر مدل درآمدی' })
   revenue() {
-    return this.adminService.revenueReport();
+    return this.adminRevenue.revenueReport();
   }
 
   @Get('storage')

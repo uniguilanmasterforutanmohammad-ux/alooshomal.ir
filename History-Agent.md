@@ -20,7 +20,34 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.6**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.7**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن `admin.service.ts`: جداسازی گزارش درآمد و توابع تقویم جلالی — نسخه `v3.8.7`
+
+**هدف:** `admin.service.ts` پس از سرویس تنظیمات، بزرگ‌ترین فایل بک‌اند بود (۱۴۱۶
+خط) و متد ~۲۵۰ خطیِ `revenueReport` به‌همراه توابع تقویم جلالی داخل آن قرار داشت.
+گزارش درآمد به سرویس مستقل منتقل و توابع تقویم جلالی به `common/` منتقل شد تا
+هم `signupSeries` و هم گزارش درآمد از یک منبع مشترک استفاده کنند.
+
+**تغییرات:**
+- `apps/api/src/admin/admin-revenue.service.ts` (فایل تازه): کلاس
+  `AdminRevenueService` با متد `revenueReport` (و JSDoc مربوطه) از `AdminService`
+  جدا شد.
+- `apps/api/src/common/jalali.ts` (فایل تازه): توابع مشترک `jalaliParts` و
+  `addJalaliMonths` از `admin.service.ts` استخراج و صادر شدند.
+- `apps/api/src/admin/admin.service.ts`: حذف متد درآمد (اکنون ۱۱۲۷ خط) و
+  توابع جلالی؛ ایمپورت enumهای بی‌استفاده حذف و از `common/jalali` استفاده شد.
+- `apps/api/src/admin/admin.controller.ts`: تزریق `AdminRevenueService` و
+  استفاده از آن در مسیر `GET /admin/revenue`.
+- `apps/api/src/admin/admin.module.ts`: افزودن `AdminRevenueService` به
+  `providers`.
+
+**تأیید/تست:**
+- `tsc --noEmit -p tsconfig.json` و `eslint src` در api → exit 0.
+- راه‌اندازی مجدد واقعی API بدون خطای DI؛ `GET /api/health` → ۲۰۰ و
+  `GET /api/admin/revenue` → ۴۰۱ (یعنی مسیر و وابستگی‌ها درست سیم‌کشی شده‌اند).
+- `python3 scripts/check_modules.py`، `check_api_docs.py` (۳۲۲ مسیر) و
+  `sync_install.py --check` سبز.
 
 ## ۱۴۰۵/۰۸/۱۷ — شکستن ماژول تنظیمات: جداسازی ثابت‌ها و رجیستری ویژگی‌ها — نسخه `v3.8.6`
 

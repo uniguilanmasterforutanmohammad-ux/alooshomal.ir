@@ -8,6 +8,7 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { UploadsModule } from '../uploads/uploads.module';
 import { SessionsModule } from '../sessions/sessions.module';
 import { AdminController } from './admin.controller';
+import { AdminRevenueService } from './admin-revenue.service';
 import { AdminService } from './admin.service';
 import { BulkService } from './bulk.service';
 
@@ -22,7 +23,7 @@ import { BulkService } from './bulk.service';
     SessionsModule,
   ],
   controllers: [AdminController],
-  providers: [AdminService, BulkService],
+  providers: [AdminService, AdminRevenueService, BulkService],
   exports: [AdminService],
 })
 export class AdminModule {}
