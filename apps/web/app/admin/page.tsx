@@ -39,6 +39,7 @@ import { AdminDataTable, type AdminColumn } from '@/components/admin/AdminDataTa
 import { BiolinkLiveEditor } from '@/components/admin/BiolinkLiveEditor';
 import { BusinessCardLiveEditor } from '@/components/admin/BusinessCardLiveEditor';
 import {
+  QuickActions,
   SignupChart,
   StatsGrid,
   EMPTY_SIGNUP_SERIES,
@@ -554,7 +555,10 @@ function AdminContent() {
       title: 'درگاه پرداخت پی‌پینگ (OAuth)',
       sub: 'اتصال با ClientId/ClientSecret و آزمایش دسترسی‌های واقعی این توکن',
     },
-    reports: { title: 'گزارش‌ها', sub: 'گزارش‌های سیستم' },
+    reports: {
+      title: 'گزارش‌های سیستم',
+      sub: 'تاریخچه‌ی رویدادها و اقدامات ثبت‌شده در پلتفرم',
+    },
     tools: { title: 'ابزار تست', sub: 'ایمپورت گروهی، حذف داده‌های تستی و قفل ساخت' },
     notifications: {
       title: 'اعلانات',
@@ -580,6 +584,8 @@ function AdminContent() {
       {section === 'overview' ? (
         <div className="flex flex-col gap-5">
           <StatsGrid stats={stats} />
+
+          <QuickActions stats={stats} onSection={setSection} />
 
           <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
             <SignupChart series={overview?.signupSeries ?? EMPTY_SIGNUP_SERIES} />

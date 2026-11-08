@@ -4,12 +4,17 @@ import { useState } from 'react';
 import {
   BadgeCheck,
   BarChart3,
+  Crown,
   IdCard,
   LifeBuoy,
+  Megaphone,
+  Settings,
   TrendingDown,
   TrendingUp,
   Users,
 } from 'lucide-react';
+
+import type { AdminSection } from './AdminShell';
 
 export interface OverviewStats {
   pending: number;
@@ -96,6 +101,63 @@ export function StatsGrid({ stats }: { stats: OverviewStats }) {
         trend={`${stats.rejected.toLocaleString('fa-IR')} ردشده`}
         trendUp={stats.pending === 0}
       />
+    </section>
+  );
+}
+
+/**
+ * The most actionable destinations (review queues + key panels) surfaced right
+ * on the overview so an admin does not have to hunt through the sidebar.
+ */
+export function QuickActions({
+  stats,
+  onSection,
+}: {
+  stats: OverviewStats;
+  onSection: (section: AdminSection) => void;
+}) {
+  const actions: Array<{
+    key: AdminSection;
+    label: string;
+    icon: typeof Users;
+    badge?: number;
+  }> = [
+    { key: 'biolinks', label: 'بررسی بیولینک‌ها', icon: IdCard, badge: stats.pending },
+    { key: 'tickets', label: 'تیکت‌های باز', icon: LifeBuoy, badge: stats.openTickets },
+    { key: 'ads', label: 'تبلیغات', icon: Megaphone },
+    { key: 'boosts', label: 'افزایش بازدید', icon: TrendingUp },
+    { key: 'subscriptions', label: 'اشتراک‌ها', icon: Crown },
+    { key: 'users', label: 'کاربران', icon: Users },
+    { key: 'revenue', label: 'گزارش درآمد', icon: BarChart3 },
+    { key: 'settings', label: 'تنظیمات', icon: Settings },
+  ];
+
+  return (
+    <section className="indeed-panel p-5">
+      <h3 className="text-sm font-extrabold text-ink">دسترسی سریع</h3>
+      <p className="mt-1 text-xs text-muted">
+        صف‌های بررسی و بخش‌های پرکاربرد، بدون گشتن در منو.
+      </p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {actions.map((action) => (
+          <button
+            key={action.key}
+            type="button"
+            onClick={() => onSection(action.key)}
+            className="flex items-center justify-between gap-2 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2.5 text-sm font-bold text-ink transition hover:border-brand hover:text-brand"
+          >
+            <span className="flex items-center gap-2">
+              <action.icon className="size-4" aria-hidden />
+              {action.label}
+            </span>
+            {action.badge ? (
+              <span className="rounded-full bg-brand-light px-2 py-0.5 text-[11px] font-extrabold text-brand">
+                {action.badge.toLocaleString('fa-IR')}
+              </span>
+            ) : null}
+          </button>
+        ))}
+      </div>
     </section>
   );
 }

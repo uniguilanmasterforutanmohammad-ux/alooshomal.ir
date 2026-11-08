@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import {
   BadgeCheck,
   Bookmark,
+  Coins,
   Crown,
   IdCard,
   LayoutDashboard,
@@ -32,24 +33,84 @@ import { APP_VERSION } from '@/lib/version';
  * not visible (disabled or hidden by the admin) the entry is dropped, so the
  * admin's «عدم نمایش» switch also cleans up the user panel navigation.
  */
-const NAV: Array<{
+interface NavItem {
   href: string;
   label: string;
   icon: typeof LayoutDashboard;
   exact: boolean;
   feature?: string;
-}> = [
-  { href: '/dashboard', label: 'داشبورد', icon: LayoutDashboard, exact: true },
-  { href: '/dashboard/business-cards', label: 'کارت‌های ویزیت من', icon: BadgeCheck, exact: false },
-  { href: '/dashboard/biolinks', label: 'بیولینک‌های من', icon: IdCard, exact: false },
-  { href: '/dashboard/feeds', label: 'پست‌های من', icon: ImagePlus, exact: false, feature: 'featureFeedPosts' },
-  { href: '/dashboard/saved', label: 'ذخیره‌شده‌های من', icon: Bookmark, exact: false },
-  { href: '/dashboard/subscriptions', label: 'اشتراک', icon: Crown, exact: false },
-  { href: '/dashboard/boost', label: 'افزایش بازدید و تبلیغات', icon: TrendingUp, exact: false, feature: 'featureBoostRequests' },
-  { href: '/dashboard/reporter', label: 'شهروند خبرنگار', icon: Newspaper, exact: false, feature: 'featureNews' },
-  { href: '/dashboard/tickets', label: 'تیکت‌های پشتیبانی', icon: LifeBuoy, exact: false },
-  { href: '/dashboard/profile', label: 'پروفایل کاربری', icon: UserRound, exact: false },
+}
+
+/** The single most-used entry, kept above the groups. */
+const NAV_PRIMARY: NavItem = {
+  href: '/dashboard',
+  label: 'داشبورد',
+  icon: LayoutDashboard,
+  exact: true,
+};
+
+/**
+ * Grouped navigation: the user's own content, then the growth/subscription
+ * products, then account & support. Related panels sit together so a growing
+ * feature set stays scannable.
+ */
+const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
+  {
+    title: 'محتوا و علاقه‌مندی‌ها',
+    items: [
+      { href: '/dashboard/business-cards', label: 'کارت‌های ویزیت من', icon: BadgeCheck, exact: false },
+      { href: '/dashboard/biolinks', label: 'بیولینک‌های من', icon: IdCard, exact: false },
+      { href: '/dashboard/feeds', label: 'پست‌های من', icon: ImagePlus, exact: false, feature: 'featureFeedPosts' },
+      { href: '/dashboard/saved', label: 'ذخیره‌شده‌های من', icon: Bookmark, exact: false },
+    ],
+  },
+  {
+    title: 'رشد و اشتراک',
+    items: [
+      { href: '/dashboard/subscriptions', label: 'اشتراک من', icon: Crown, exact: false },
+      { href: '/dashboard/boost', label: 'افزایش بازدید و تبلیغات', icon: TrendingUp, exact: false, feature: 'featureBoostRequests' },
+      { href: '/dashboard/points', label: 'امتیاز من', icon: Coins, exact: false },
+      { href: '/dashboard/reporter', label: 'شهروند خبرنگار', icon: Newspaper, exact: false, feature: 'featureNews' },
+    ],
+  },
+  {
+    title: 'حساب و پشتیبانی',
+    items: [
+      { href: '/dashboard/tickets', label: 'تیکت‌های پشتیبانی', icon: LifeBuoy, exact: false },
+      { href: '/dashboard/profile', label: 'پروفایل کاربری', icon: UserRound, exact: false },
+    ],
+  },
 ];
+
+function SidebarLink({
+  item,
+  active,
+  onNavigate,
+}: {
+  item: NavItem;
+  active: boolean;
+  onNavigate: () => void;
+}) {
+  return (
+    <Link
+      href={item.href}
+      // The dashboard sidebar links to every panel; letting Next prefetch all of
+      // them fired a burst of `?_rsc=` requests on every page load (the top
+      // network bottleneck in the speed report). Navigate on demand.
+      prefetch={false}
+      onClick={onNavigate}
+      className={cn(
+        'flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm font-semibold transition',
+        active
+          ? 'border-brand bg-brand-light text-brand'
+          : 'border-transparent text-muted hover:border-[var(--vintage-border)] hover:bg-[var(--vintage-paper)]',
+      )}
+    >
+      <item.icon className="size-4" aria-hidden />
+      {item.label}
+    </Link>
+  );
+}
 
 export function UserShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -57,9 +118,12 @@ export function UserShell({ children }: { children: React.ReactNode }) {
   const { user, clear } = useAuth();
   const { isFeatureVisible } = useFeatures();
   const [open, setOpen] = useState(false);
-  const navItems = NAV.filter(
-    (item) => !item.feature || isFeatureVisible(item.feature),
-  );
+  const isVisible = (item: NavItem) =>
+    !item.feature || isFeatureVisible(item.feature);
+  const groups = NAV_GROUPS.map((group) => ({
+    title: group.title,
+    items: group.items.filter(isVisible),
+  })).filter((group) => group.items.length > 0);
 
   // A limited «کاربر ادمین» has no dashboard — only the content-review panel.
   useEffect(() => {
@@ -99,29 +163,26 @@ export function UserShell({ children }: { children: React.ReactNode }) {
           </div>
         </Link>
 
-        <p className="px-3 pb-2 text-[10px] font-bold tracking-wider text-muted">
-          منوی اصلی
-        </p>
         <nav className="flex flex-col gap-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              // The dashboard sidebar links to every panel; letting Next prefetch
-              // all of them fired a burst of `?_rsc=` requests on every page load
-              // (the top network bottleneck in the speed report). Navigate on demand.
-              prefetch={false}
-              onClick={() => setOpen(false)}
-              className={cn(
-                'flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm font-semibold transition',
-                isActive(item.href, item.exact)
-                  ? 'border-brand bg-brand-light text-brand'
-                  : 'border-transparent text-muted hover:border-[var(--vintage-border)] hover:bg-[var(--vintage-paper)]',
-              )}
-            >
-              <item.icon className="size-4" aria-hidden />
-              {item.label}
-            </Link>
+          <SidebarLink
+            item={NAV_PRIMARY}
+            active={isActive(NAV_PRIMARY.href, NAV_PRIMARY.exact)}
+            onNavigate={() => setOpen(false)}
+          />
+          {groups.map((group) => (
+            <div key={group.title} className="flex flex-col gap-1">
+              <p className="px-3 pb-1 pt-3 text-[10px] font-bold tracking-wider text-muted">
+                {group.title}
+              </p>
+              {group.items.map((item) => (
+                <SidebarLink
+                  key={item.href}
+                  item={item}
+                  active={isActive(item.href, item.exact)}
+                  onNavigate={() => setOpen(false)}
+                />
+              ))}
+            </div>
           ))}
 
           {user?.role === 'ADMIN' ? (

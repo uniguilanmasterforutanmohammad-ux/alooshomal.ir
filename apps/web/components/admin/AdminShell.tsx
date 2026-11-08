@@ -68,32 +68,91 @@ interface Props {
   children: React.ReactNode;
 }
 
-const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboard }> = [
-  { key: 'overview', label: 'داشبورد', icon: LayoutDashboard },
-  { key: 'biolinks', label: 'بیولینک‌ها', icon: IdCard },
-  { key: 'business-cards', label: 'کارت‌های ویزیت', icon: IdCard },
-  { key: 'subscriptions', label: 'اشتراک‌ها', icon: Crown },
-  { key: 'boosts', label: 'افزایش بازدید', icon: TrendingUp },
-  { key: 'ads', label: 'تبلیغات', icon: Megaphone },
-  { key: 'revenue', label: 'درآمد', icon: Banknote },
-  { key: 'payments', label: 'درگاه پرداخت', icon: CreditCard },
-  { key: 'payping-oauth', label: 'درگاه پرداخت (OAuth)', icon: ShieldCheck },
-  { key: 'points', label: 'امتیازها', icon: Coins },
-  { key: 'feeds', label: 'فیدها', icon: ImagePlus },
-  { key: 'users', label: 'کاربران', icon: Users },
-  { key: 'emails', label: 'ایمیل‌های ارسالی', icon: Mail },
-  { key: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
-  { key: 'news', label: 'شهروند خبرنگار', icon: Newspaper },
-  { key: 'blog', label: 'بلاگ', icon: BookOpen },
-  { key: 'permissions', label: 'سطوح دسترسی', icon: ShieldCheck },
-  { key: 'moderators', label: 'کاربران ادمین', icon: UserCog },
-  { key: 'storage', label: 'فضای سرور', icon: HardDrive },
-  { key: 'monitoring', label: 'پایش منابع', icon: Activity },
-  { key: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
-  { key: 'notifications', label: 'اعلانات', icon: Bell },
-  { key: 'tools', label: 'ابزار تست', icon: FlaskConical },
-  { key: 'settings', label: 'تنظیمات', icon: Settings },
+/** The single most-used entry, kept above the groups. */
+const NAV_PRIMARY: { key: AdminSection; label: string; icon: typeof LayoutDashboard } = {
+  key: 'overview',
+  label: 'داشبورد',
+  icon: LayoutDashboard,
+};
+
+/**
+ * Sidebar information architecture: related panels live under one heading so a
+ * flat list of 24 items stays scannable. Order matches the daily workflow —
+ * review first, then revenue, people, and finally system settings.
+ */
+const NAV_GROUPS: Array<{
+  title: string;
+  items: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboard }>;
+}> = [
+  {
+    title: 'بررسی محتوا',
+    items: [
+      { key: 'biolinks', label: 'بیولینک‌ها', icon: IdCard },
+      { key: 'business-cards', label: 'کارت‌های ویزیت', icon: IdCard },
+      { key: 'feeds', label: 'فیدها', icon: ImagePlus },
+      { key: 'news', label: 'شهروند خبرنگار', icon: Newspaper },
+      { key: 'blog', label: 'بلاگ', icon: BookOpen },
+    ],
+  },
+  {
+    title: 'درآمد و پرداخت',
+    items: [
+      { key: 'subscriptions', label: 'اشتراک‌ها', icon: Crown },
+      { key: 'boosts', label: 'افزایش بازدید', icon: TrendingUp },
+      { key: 'ads', label: 'تبلیغات', icon: Megaphone },
+      { key: 'points', label: 'امتیازها', icon: Coins },
+      { key: 'revenue', label: 'گزارش درآمد', icon: Banknote },
+      { key: 'payments', label: 'درگاه پرداخت', icon: CreditCard },
+      { key: 'payping-oauth', label: 'درگاه پرداخت (OAuth)', icon: ShieldCheck },
+    ],
+  },
+  {
+    title: 'کاربران و پشتیبانی',
+    items: [
+      { key: 'users', label: 'کاربران', icon: Users },
+      { key: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
+      { key: 'emails', label: 'ایمیل‌های ارسالی', icon: Mail },
+      { key: 'notifications', label: 'اعلانات', icon: Bell },
+      { key: 'moderators', label: 'کاربران ادمین', icon: UserCog },
+      { key: 'permissions', label: 'سطوح دسترسی', icon: ShieldCheck },
+    ],
+  },
+  {
+    title: 'تنظیمات و سیستم',
+    items: [
+      { key: 'settings', label: 'تنظیمات', icon: Settings },
+      { key: 'monitoring', label: 'پایش منابع', icon: Activity },
+      { key: 'storage', label: 'فضای سرور', icon: HardDrive },
+      { key: 'reports', label: 'گزارش‌های سیستم', icon: BarChart3 },
+      { key: 'tools', label: 'ابزار تست', icon: FlaskConical },
+    ],
+  },
 ];
+
+function NavButton({
+  item,
+  active,
+  onSelect,
+}: {
+  item: { key: AdminSection; label: string; icon: typeof LayoutDashboard };
+  active: boolean;
+  onSelect: (key: AdminSection) => void;
+}) {
+  return (
+    <button
+      onClick={() => onSelect(item.key)}
+      className={cn(
+        'flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm font-semibold transition',
+        active
+          ? 'border-brand bg-brand-light text-brand'
+          : 'border-transparent text-muted hover:border-[var(--vintage-border)] hover:bg-[var(--indeed-blue-light)]',
+      )}
+    >
+      <item.icon className="size-4" aria-hidden />
+      {item.label}
+    </button>
+  );
+}
 
 export function AdminShell({ section, onSection, children }: Props) {
   const router = useRouter();
@@ -126,27 +185,32 @@ export function AdminShell({ section, onSection, children }: Props) {
           </div>
         </div>
 
-        <p className="px-3 pb-2 text-[10px] font-bold tracking-wider text-muted">
-          منوی اصلی
-        </p>
         <nav className="flex flex-col gap-1">
-          {NAV.map((item) => (
-            <button
-              key={item.key}
-              onClick={() => {
-                onSection(item.key);
-                setOpen(false);
-              }}
-              className={cn(
-                'flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm font-semibold transition',
-                section === item.key
-                  ? 'border-brand bg-brand-light text-brand'
-                  : 'border-transparent text-muted hover:border-[var(--vintage-border)] hover:bg-[var(--indeed-blue-light)]',
-              )}
-            >
-              <item.icon className="size-4" aria-hidden />
-              {item.label}
-            </button>
+          <NavButton
+            item={NAV_PRIMARY}
+            active={section === NAV_PRIMARY.key}
+            onSelect={(key) => {
+              onSection(key);
+              setOpen(false);
+            }}
+          />
+          {NAV_GROUPS.map((group) => (
+            <div key={group.title} className="flex flex-col gap-1">
+              <p className="px-3 pb-1 pt-3 text-[10px] font-bold tracking-wider text-muted">
+                {group.title}
+              </p>
+              {group.items.map((item) => (
+                <NavButton
+                  key={item.key}
+                  item={item}
+                  active={section === item.key}
+                  onSelect={(key) => {
+                    onSection(key);
+                    setOpen(false);
+                  }}
+                />
+              ))}
+            </div>
           ))}
           <button
             onClick={logout}

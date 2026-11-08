@@ -150,12 +150,6 @@ export default function DashboardPage() {
               <h3 className="text-sm font-extrabold text-ink">دسترسی سریع</h3>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3">
-              <Link
-                href="/biolinks"
-                className="indeed-btn indeed-btn-secondary py-2 text-sm"
-              >
-                دایرکتوری بیولینک‌ها
-              </Link>
               {isFeatureVisible('allowBiolinkCreation') ? (
                 <Link
                   href="/dashboard/biolinks/new"
@@ -164,12 +158,6 @@ export default function DashboardPage() {
                   ساخت بیولینک
                 </Link>
               ) : null}
-              <Link
-                href="/business-cards"
-                className="indeed-btn indeed-btn-secondary py-2 text-sm"
-              >
-                دایرکتوری کارت ویزیت
-              </Link>
               {isFeatureVisible('allowBusinessCardCreation') ? (
                 <Link
                   href="/dashboard/business-cards/new"
@@ -178,6 +166,40 @@ export default function DashboardPage() {
                   ساخت کارت ویزیت
                 </Link>
               ) : null}
+              <Link
+                href="/biolinks"
+                className="indeed-btn indeed-btn-secondary py-2 text-sm"
+              >
+                دایرکتوری بیولینک‌ها
+              </Link>
+              <Link
+                href="/business-cards"
+                className="indeed-btn indeed-btn-secondary py-2 text-sm"
+              >
+                دایرکتوری کارت ویزیت
+              </Link>
+              {isFeatureVisible('featureBoostRequests') ? (
+                <Link
+                  href="/dashboard/boost"
+                  className="indeed-btn indeed-btn-secondary py-2 text-sm"
+                >
+                  افزایش بازدید و تبلیغات
+                </Link>
+              ) : null}
+              {isFeatureVisible('featureNews') ? (
+                <Link
+                  href="/dashboard/reporter"
+                  className="indeed-btn indeed-btn-secondary py-2 text-sm"
+                >
+                  شهروند خبرنگار
+                </Link>
+              ) : null}
+              <Link
+                href="/dashboard/subscriptions"
+                className="indeed-btn indeed-btn-secondary py-2 text-sm"
+              >
+                اشتراک من
+              </Link>
             </div>
           </div>
       </div>
