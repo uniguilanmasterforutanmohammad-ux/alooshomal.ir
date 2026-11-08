@@ -20,7 +20,53 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.1.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.2.0**.
+
+## ۱۴۰۵/۰۸/۱۷ — سامانه‌ی پایش منابع سرور با هشدار ایمیل و پیامک — نسخه `v3.2.0`
+
+**هدف:** راه‌اندازی سامانه‌ی پایش منابع سرور تا ادمین بتواند آستانه‌ی مصرف رم،
+پردازنده و دیسک را (مثلاً رم ۸۰٪ و CPU ۹۰٪) از پنل تنظیم کند و در صورت عبور از
+آستانه، هشدار به ایمیل و موبایل ادمین ارسال شود.
+
+**تغییرات:**
+- `apps/api/src/monitoring/monitoring.service.ts`: نمونه‌برداری دوره‌ای از رم/CPU/دیسک
+  (`os` + `statfs`)، خواندن آستانه‌ها و گیرندگان از جدول `settings`، ارسال هشدار و
+  «بازگشت به حالت عادی» با cooldown قابل تنظیم، و ثبت اعلان درون‌برنامه‌ای برای مدیران.
+- `apps/api/src/monitoring/monitoring.controller.ts` و
+  `apps/api/src/monitoring/monitoring.module.ts`: مسیرهای `GET/PATCH /admin/monitoring`
+  و `POST /admin/monitoring/test` با محافظت `ADMIN` و مستندات Swagger.
+- `apps/api/src/monitoring/dto/update-monitoring.dto.ts`: DTO اعتبارسنجی‌شده‌ی آستانه‌ها،
+  بازه‌ی نمونه‌برداری، cooldown و ایمیل/موبایل گیرنده.
+- `apps/api/src/auth/sms.service.ts`: افزودن `sendText` برای پیامک متنی ساده از مسیر
+  `MELIPAYAMAK_SMS_PATH` (بدون پرتاب خطا؛ مناسب هشدار).
+- `apps/api/src/auth/mail.service.ts`: افزودن `sendAlert` برای ایمیل هشدار متنی.
+- `apps/api/src/auth/auth.module.ts` و `apps/api/src/app.module.ts`: صادرکردن
+  `MailService`/`SmsService` و ثبت `MonitoringModule`.
+- `apps/api/src/settings/settings.service.ts`: دسته‌ی اعلان `SYSTEM` برای هشدارهای منابع.
+- `apps/web/components/admin/AdminMonitoringPanel.tsx`: پنل نمایش گیج‌های رم/CPU/دیسک،
+  فرم آستانه‌ها و گیرندگان، وضعیت کانال‌ها و دکمه‌ی پیام آزمایشی.
+- `apps/web/components/admin/AdminShell.tsx` و `apps/web/app/admin/page.tsx`: افزودن
+  بخش «پایش منابع» به منوی پنل مدیر.
+- `apps/web/components/admin/AdminNotificationSettings.tsx`: برچسب دسته‌ی `SYSTEM`.
+- `docs/API.md`، `docs/DEPLOY.md` و `.env.example`: مستندسازی مسیرها و متغیرهای
+  `MELIPAYAMAK_SMS_PATH`/`MONITORING_ALERT_*`.
+- `apps/web/lib/version.ts`: نسخه به `v3.2.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- `python3 scripts/check_api_docs.py` → «کنترلرها: ۲۴ | مسیرها: ۲۴۲» و همه‌ی مسیرها
+  `@ApiOperation` دارند.
+- با توکن ادمین: `GET /api/admin/monitoring` وضعیت لحظه‌ای (رم ۴۱٪، CPU ۱۵٪، دیسک ۳۸٪)
+  را برگرداند؛ `PATCH` با `alertPhone: "123"` پاسخ ۴۰۰ داد و مقادیر معتبر ذخیره شدند؛
+  `POST /api/admin/monitoring/test` پاسخ `{ email: false, sms: false }` داد (SMTP در
+  محیط توسعه در دسترس نیست، ولی خطا مدیریت شد).
+- با کاهش موقت آستانه‌ی رم به ۱۰٪، تیک بعدی هشدار را ارسال کرد
+  (`Monitoring alert dispatched (ram=41.3%)`)، ایمیل با خطای «Greeting never received»
+  به‌صورت مدیریت‌شده شکست خورد و ردیف اعلان `ADMIN` با عنوان
+  «هشدار منابع سرور — حافظه (RAM)» ثبت شد؛ سپس تنظیمات به مقادیر پیش‌فرض بازگشت.
+- Playwright روی `/admin?section=monitoring`: عنوان «پایش منابع سرور»، گیج‌های رم/CPU/دیسک،
+  فرم آستانه‌ها و بخش گیرندگان هشدار رندر شدند.
 
 ## ۱۴۰۵/۰۸/۱۷ — ورود ایمیل/رمز فقط برای مدیران با تأیید کد یکبارمصرف — نسخه `v3.1.0`
 

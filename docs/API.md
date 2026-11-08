@@ -61,7 +61,7 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 
 ## کامل‌بودن مستندات
 
-- هر کنترلر با `@ApiTags` یک گروه مشخص دارد (۲۲ کنترلر / ۲۱ برچسب).
+- هر کنترلر با `@ApiTags` یک گروه مشخص دارد (۲۴ کنترلر / ۲۳ برچسب).
 - هر مسیر باید `@ApiOperation({ summary })` و برای ورودی‌ها DTO با
   `@ApiProperty`/`@ApiPropertyOptional` داشته باشد.
 - DTOهای به‌روزرسانی با `PartialType` از DTO ساخت ارث‌بری می‌کنند، پس متادیتای
@@ -85,6 +85,23 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 
 تغییر تم، همه‌ی صفحات عمومی، کارت ویزیت، بیولینک، داشبورد و پنل مدیر را هم‌زمان
 به‌روز می‌کند؛ حالت روشن/تیره همچنان ترجیح جداگانه‌ی هر بازدیدکننده است.
+
+### پایش منابع سرور (`monitoring`)
+
+سامانه‌ی پایش، مصرف رم/پردازنده/دیسک کانتینر را هر چند ثانیه نمونه‌برداری می‌کند
+و در صورت عبور از آستانه، به ایمیل و موبایل ادمین هشدار می‌فرستد. تنظیمات در
+جدول `settings` ذخیره می‌شود.
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET` | `/admin/monitoring` | وضعیت لحظه‌ای منابع، آستانه‌ها، گیرندگان و آخرین زمان هشدار هر منبع. فقط مدیر. |
+| `PATCH` | `/admin/monitoring` | بدنه‌ی `UpdateMonitoringDto`: `enabled`، `ramThreshold`، `cpuThreshold`، `diskThreshold` (۱ تا ۱۰۰)، `cooldownMinutes` (۵ تا ۱۴۴۰)، `intervalSeconds` (۳۰ تا ۳۶۰۰)، `alertEmail`، `alertPhone`. مقدار خالی ایمیل/موبایل یعنی استفاده از حساب ادمین اصلی. فقط مدیر. |
+| `POST` | `/admin/monitoring/test` | ارسال پیام آزمایشی به کانال‌های تنظیم‌شده و برگرداندن `{ email, sms }` (موفق/ناموفق). فقط مدیر. |
+
+کانال پیامک از `MELIPAYAMAK_SMS_PATH` (مسیر ساده‌ی ارسال، مثل
+`/api/send/simple/<token>`) استفاده می‌کند و ایمیل از همان `MAIL_*` موجود.
+در صورت تنظیم‌نبودن هر کانال، هشدار درون‌برنامه‌ای (دسته‌ی `SYSTEM`) همچنان ثبت
+می‌شود.
 
 ### بررسی سریع کامل‌بودن
 

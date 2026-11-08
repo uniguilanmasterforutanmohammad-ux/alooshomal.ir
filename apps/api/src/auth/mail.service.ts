@@ -63,6 +63,7 @@ export class MailService {
     if (purpose === 'email-change') return 'تغییر ایمیل';
     if (purpose === 'password-reset') return 'تغییر رمز عبور';
     if (purpose === 'admin-login') return 'ورود مدیران';
+    if (purpose === 'system-alert') return 'هشدار منابع سرور';
     return 'ورود به سایت';
   }
 
@@ -156,6 +157,60 @@ export class MailService {
         error: message,
       });
       throw error;
+    }
+  }
+
+  /**
+   * Sends a plain alert email (used by the resource monitor). Never throws:
+   * a delivery failure is logged and recorded, and the caller gets `false`.
+   */
+  async sendAlert(to: string, subject: string, text: string): Promise<boolean> {
+    if (!this.enabled) {
+      this.logger.warn(
+        `MAIL_* is not configured — alert email to ${MailService.maskEmail(to)} was not sent.`,
+      );
+      return false;
+    }
+
+    const fromAddress = (process.env.MAIL_FROM ?? process.env.MAIL_USER!).trim();
+    const fromName = (process.env.MAIL_FROM_NAME ?? 'شمالی کارت').trim();
+    const html = `
+      <div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;background:#f6f3ec;padding:24px">
+        <div style="max-width:520px;margin:0 auto;background:#ffffff;border-radius:16px;padding:24px;border:1px solid #e8e1d4">
+          <h2 style="margin:0 0 12px;color:#1f4d3a;font-size:18px">شمالی کارت — پایش منابع سرور</h2>
+          <pre dir="rtl" style="margin:0;color:#374151;font-size:14px;line-height:2;white-space:pre-wrap;font-family:inherit">${text}</pre>
+        </div>
+      </div>`;
+
+    try {
+      await this.getTransporter().sendMail({
+        from: `"${fromName}" <${fromAddress}>`,
+        to,
+        subject,
+        text,
+        html,
+      });
+      this.logger.log(`Alert email sent to ${MailService.maskEmail(to)}`);
+      await this.logEmail({
+        to,
+        subject,
+        purpose: 'system-alert',
+        status: 'SENT',
+      });
+      return true;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown error';
+      this.logger.error(
+        `Alert email to ${MailService.maskEmail(to)} failed: ${message}`,
+      );
+      await this.logEmail({
+        to,
+        subject,
+        purpose: 'system-alert',
+        status: 'FAILED',
+        error: message,
+      });
+      return false;
     }
   }
 }

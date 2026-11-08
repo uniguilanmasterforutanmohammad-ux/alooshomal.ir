@@ -419,6 +419,7 @@ export const ADMIN_NOTIFY_CATEGORIES = [
   'FEED_COMMENT',
   'TICKET',
   'SECURITY',
+  'SYSTEM',
 ] as const;
 export type AdminNotifyCategory = (typeof ADMIN_NOTIFY_CATEGORIES)[number];
 

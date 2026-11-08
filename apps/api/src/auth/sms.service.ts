@@ -88,4 +88,62 @@ export class SmsService {
       clearTimeout(timeout);
     }
   }
+
+  /** True when a Melipayamak *simple send* path is configured. */
+  get textEnabled(): boolean {
+    return Boolean(process.env.MELIPAYAMAK_SMS_PATH?.trim());
+  }
+
+  /**
+   * Sends a plain-text SMS (no generated code) through Melipayamak's simple
+   * send endpoint. Used by the resource monitor for admin alerts.
+   *
+   * The path (which embeds the token) lives in `MELIPAYAMAK_SMS_PATH`, e.g.
+   * `/api/send/simple/<token>`. Never throws: monitoring must not crash when
+   * SMS is unavailable; the caller just gets `false`.
+   */
+  async sendText(phone: string, text: string): Promise<boolean> {
+    const path = process.env.MELIPAYAMAK_SMS_PATH?.trim();
+    if (!path) {
+      this.logger.warn(
+        `MELIPAYAMAK_SMS_PATH is not set — SMS to ${SmsService.maskPhone(phone)} was not sent.`,
+      );
+      return false;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch(`https://console.melipayamak.com${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: phone, text }),
+        signal: controller.signal,
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | { recId?: number | string; status?: string }
+        | null;
+
+      if (!response.ok || payload?.recId === undefined) {
+        this.logger.error(
+          `Melipayamak simple-send failed for ${SmsService.maskPhone(phone)}: ${
+            payload?.status ?? `HTTP ${response.status}`
+          }`,
+        );
+        return false;
+      }
+      this.logger.log(`Alert SMS sent to ${SmsService.maskPhone(phone)}`);
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Melipayamak simple-send failed for ${SmsService.maskPhone(phone)}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+      return false;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
 }

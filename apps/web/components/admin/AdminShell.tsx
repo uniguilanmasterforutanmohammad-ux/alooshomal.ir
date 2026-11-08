@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import {
+  Activity,
   Banknote,
   BarChart3,
   BookOpen,
@@ -54,6 +55,7 @@ export type AdminSection =
   | 'permissions'
   | 'moderators'
   | 'storage'
+  | 'monitoring'
   | 'notifications'
   | 'settings';
 
@@ -81,6 +83,7 @@ const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboar
   { key: 'permissions', label: 'سطوح دسترسی', icon: ShieldCheck },
   { key: 'moderators', label: 'کاربران ادمین', icon: UserCog },
   { key: 'storage', label: 'فضای سرور', icon: HardDrive },
+  { key: 'monitoring', label: 'پایش منابع', icon: Activity },
   { key: 'reports', label: 'گزارش‌ها', icon: BarChart3 },
   { key: 'notifications', label: 'اعلانات', icon: Bell },
   { key: 'tools', label: 'ابزار تست', icon: FlaskConical },

@@ -30,6 +30,7 @@ import { AdminPermissionsMatrix } from '@/components/admin/AdminPermissionsMatri
 import { AdminModerators } from '@/components/admin/AdminModerators';
 import { AdminNewsSettings } from '@/components/admin/AdminNewsSettings';
 import { AdminStoragePanel } from '@/components/admin/AdminStoragePanel';
+import { AdminMonitoringPanel } from '@/components/admin/AdminMonitoringPanel';
 import { ActivityLogPanel } from '@/components/admin/ActivityLogPanel';
 import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
 import { AdminDataTable, type AdminColumn } from '@/components/admin/AdminDataTable';
@@ -110,6 +111,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'permissions',
   'moderators',
   'storage',
+  'monitoring',
   'reports',
   'tools',
   'notifications',
@@ -536,6 +538,10 @@ function AdminContent() {
       title: 'فضای سرور',
       sub: 'حجم آپلودهای رسانه، ریشه‌ی باکت و فضای هارد دیسک سرور',
     },
+    monitoring: {
+      title: 'پایش منابع سرور',
+      sub: 'مصرف رم، پردازنده و دیسک و تنظیم آستانه‌ی ارسال هشدار به ایمیل و موبایل',
+    },
     reports: { title: 'گزارش‌ها', sub: 'گزارش‌های سیستم' },
     tools: { title: 'ابزار تست', sub: 'ایمپورت گروهی، حذف داده‌های تستی و قفل ساخت' },
     notifications: {
@@ -851,6 +857,8 @@ function AdminContent() {
       {section === 'moderators' ? <AdminModerators /> : null}
 
       {section === 'storage' ? <AdminStoragePanel /> : null}
+
+      {section === 'monitoring' ? <AdminMonitoringPanel /> : null}
 
       {section === 'notifications' ? <NotificationsInbox scope="admin" /> : null}
 
