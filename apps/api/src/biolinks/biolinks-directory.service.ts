@@ -8,7 +8,7 @@ import {
   orderedByAlpha,
 } from '../common/directory-sort';
 import { FacetsCacheService } from '../common/facets-cache.service';
-import { applyContactFieldMask, hiddenFieldsFrom } from '../common/plans';
+import { applyPlanMask } from '../common/plans';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { PublicBiolinkQueryDto } from './dto/public-biolink-query.dto';
@@ -186,13 +186,13 @@ export class BiolinksDirectoryService {
     // badge cannot advertise itself), and apply the owner's plan mask.
     const project = (row: DirectoryRow, keepAdBadge: boolean) => {
       const { _count, user, ...item } = row;
-      const masked = applyContactFieldMask(
+      const masked = applyPlanMask(
         {
           ...item,
           adDirectoryUntil: keepAdBadge ? item.adDirectoryUntil : null,
           likeCount: _count.likes,
         },
-        hiddenFieldsFrom(user?.plan),
+        user?.plan,
       );
       return masked as unknown as DirectoryBiolinkItem;
     };

@@ -20,7 +20,35 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.25**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.26**.
+
+## ۱۴۰۵/۰۸/۱۷ — یکدست‌سازی ماسک پلن در یک هلپر مشترک — نسخه `v3.8.26`
+
+**هدف:** منطق «پنهان‌کردن فیلدها بر اساس پلن کاربر» به‌صورت تکراری در چهار جا
+تکرار شده بود: یک متد خصوصی تقریباً یکسان در `business-cards.service.ts` و
+`biolinks.service.ts` و دو کپی درون‌خطی در سرویس‌های دایرکتوری. یک منبع یکتا
+برای این قاعده ساخته شد تا همه‌ی سطوح عمومی دقیقاً یک فیلدها را پنهان کنند.
+
+**تغییرات:**
+- `apps/api/src/common/plans.ts`: افزودن `applyPlanMask(item, plan)` که همان
+  ترکیب `applyContactFieldMask` + `hiddenFieldsFrom` را یک‌جا می‌کند.
+- `apps/api/src/businesscards/business-cards.service.ts`: حذف متد خصوصی
+  `applyPlanVisibility` و استفاده‌ی مستقیم از `applyPlanMask` در سه نقطه.
+- `apps/api/src/biolinks/biolinks.service.ts`: همان تغییر در دو نقطه.
+- `apps/api/src/businesscards/business-cards-directory.service.ts` و
+  `apps/api/src/biolinks/biolinks-directory.service.ts`: جایگزینی فراخوانی
+  درون‌خطی ماسک با `applyPlanMask`.
+
+**تأیید/تست:**
+- `rg` روی پوشه‌های `businesscards` و `biolinks` → هیچ ارجاع باقی‌مانده‌ای به
+  `applyPlanVisibility`/`applyContactFieldMask`/`hiddenFieldsFrom` نماند.
+- `docker exec alooshomal-api … tsc --noEmit` و `eslint src` → بدون خطا.
+- رفتار معادل است: `applyPlanMask(x, p)` = `applyContactFieldMask(x,
+  hiddenFieldsFrom(p))`. مسیرهای عمومی با API زنده: `business-cards/public`،
+  `…/public/latest`، `…/public/phonebook`، `biolinks/public`،
+  `…/public/latest` → همه ۲۰۰ و خروجی بدون `user` (نسبت به قبل یکسان).
+- `python3 scripts/check_modules.py` و `python3 scripts/check_api_docs.py` →
+  exit 0؛ `python3 scripts/sync_install.py --check` → `patched: 0 / added: 0`.
 
 ## ۱۴۰۵/۰۸/۱۷ — همگام‌سازی `CHANGELOG.md` با بازه‌ی v3.8.5 تا v3.8.24 — نسخه `v3.8.25`
 

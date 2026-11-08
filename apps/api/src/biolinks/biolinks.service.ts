@@ -8,11 +8,7 @@ import {
 import { BiolinkStatus, NotificationType } from '@prisma/client';
 
 import { FacetsCacheService } from '../common/facets-cache.service';
-import {
-  applyContactFieldMask,
-  hiddenFieldsFrom,
-  planLimitsFrom,
-} from '../common/plans';
+import { applyPlanMask, planLimitsFrom } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
 import { appUrl } from '../common/app-url';
@@ -496,7 +492,7 @@ export class BiolinksService {
     // Hide the fields the owner's plan masks (e.g. contact details on «رایگان»)
     // and drop the `user` relation from the public payload.
     return rows.map((row) => {
-      const { user: _user, ...rest } = this.applyPlanVisibility(row);
+      const { user: _user, ...rest } = applyPlanMask(row, row.user?.plan);
       return rest;
     });
   }
@@ -547,7 +543,7 @@ export class BiolinksService {
           }
         : null;
     const { user: _user, businessCard: _businessCard, ...rest } =
-      this.applyPlanVisibility(biolink);
+      applyPlanMask(biolink, biolink.user?.plan);
     return {
       ...rest,
       planName: limits.name,
@@ -559,23 +555,6 @@ export class BiolinksService {
   /** Public URL of a linked business card (used by the directory detail panel). */
   private linkedBusinessCardLink(slug: string): string {
     return `${appUrl().replace(/\/$/, '')}/business-cards/${slug}`;
-  }
-
-  /**
-   * The free plan hides social links and the website field. When the owner has
-   * no plan (fresh account) the free limits apply.
-   */
-  private applyPlanVisibility<T extends {
-    user?: { plan: { showSocialLinks: boolean; hiddenFields: string[] } | null } | null;
-  }>(biolink: T): T {
-    // A plan masks exactly the field keys its admin disabled; the legacy
-    // `showSocialLinks` flag is folded into that list by `hiddenFieldsFrom`.
-    const hidden = hiddenFieldsFrom(biolink.user?.plan);
-    const masked = applyContactFieldMask(
-      biolink as unknown as Record<string, unknown>,
-      hidden,
-    ) as T;
-    return masked;
   }
 
   async directoryRank(biolinkId: string) {

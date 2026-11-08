@@ -11,11 +11,7 @@ import {
   orderedByAlpha,
 } from '../common/directory-sort';
 import { FacetsCacheService } from '../common/facets-cache.service';
-import {
-  applyContactFieldMask,
-  hiddenFieldsFrom,
-  planLimitsFrom,
-} from '../common/plans';
+import { applyPlanMask, planLimitsFrom } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
 import { appUrl } from '../common/app-url';
@@ -521,7 +517,7 @@ export class BusinessCardsService {
     // Hide the fields the owner's plan masks (e.g. contact details on «رایگان»)
     // and drop the `user` relation from the public payload.
     return rows.map((row) => {
-      const { user: _user, ...rest } = this.applyPlanVisibility(row);
+      const { user: _user, ...rest } = applyPlanMask(row, row.user?.plan);
       return rest;
     });
   }
@@ -581,7 +577,7 @@ export class BusinessCardsService {
     });
 
     const mapped = rows.map((row) => {
-      const { user: _user, ...rest } = this.applyPlanVisibility(row);
+      const { user: _user, ...rest } = applyPlanMask(row, row.user?.plan);
       return rest;
     });
 
@@ -659,7 +655,7 @@ export class BusinessCardsService {
           }
         : null;
     const { user: _user, linkedBiolinks: _linkedBiolinks, ...rest } =
-      this.applyPlanVisibility(businessCard);
+      applyPlanMask(businessCard, businessCard.user?.plan);
     return {
       ...rest,
       planName: limits.name,
@@ -671,22 +667,6 @@ export class BusinessCardsService {
   /** Public URL of a linked biolink (used by the directory detail panel). */
   private linkedBiolinkLink(slug: string): string {
     return `${appUrl().replace(/\/$/, '')}/biolinks/${slug}`;
-  }
-
-  /**
-   * The free plan hides social links and the website field. When the owner has
-   * no plan (fresh account) the free limits apply.
-   */
-  private applyPlanVisibility<T extends {
-    user?: { plan: { showSocialLinks: boolean; hiddenFields: string[] } | null } | null;
-  }>(businessCard: T): T {
-    // A plan masks exactly the field keys its admin disabled; the legacy
-    // `showSocialLinks` flag is folded into that list by `hiddenFieldsFrom`.
-    const hidden = hiddenFieldsFrom(businessCard.user?.plan);
-    return applyContactFieldMask(
-      businessCard as unknown as Record<string, unknown>,
-      hidden,
-    ) as T;
   }
 
   async directoryRank(businessCardId: string) {

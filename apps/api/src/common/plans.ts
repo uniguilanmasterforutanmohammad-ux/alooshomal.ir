@@ -166,6 +166,24 @@ export function applyContactFieldMask<T extends Record<string, unknown>>(
   return masked as T;
 }
 
+/**
+ * Public-visibility mask for a record plus its owner's plan: nulls exactly the
+ * field keys the plan hides. Shared by the card/biolink services and their
+ * public directory read-paths so every surface hides the same fields.
+ */
+export function applyPlanMask<T>(
+  item: T,
+  plan:
+    | { showSocialLinks: boolean; hiddenFields?: string[] | null }
+    | null
+    | undefined,
+): T {
+  return applyContactFieldMask(
+    item as unknown as Record<string, unknown>,
+    hiddenFieldsFrom(plan),
+  ) as T;
+}
+
 export function planLimitsFrom(plan: {
   name: string;
   maxBiolinks: number;
