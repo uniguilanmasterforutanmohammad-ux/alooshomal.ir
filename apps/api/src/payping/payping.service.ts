@@ -114,8 +114,11 @@ export class PaypingService {
 
     if (!response.ok) {
       const message = this.describeError(payload, response.status);
+      const traceId = this.describeTraceId(payload);
       this.logger.warn(
-        `PayPing ${method} ${path} -> ${response.status}: ${message}`,
+        `PayPing ${method} ${path} -> ${response.status}: ${message}${
+          traceId ? ` (trace ${traceId})` : ''
+        }`,
       );
       const Exception =
         response.status >= 500 ? BadGatewayException : BadRequestException;
@@ -135,21 +138,52 @@ export class PaypingService {
   private describeError(payload: unknown, status: number): string {
     if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
       const record = payload as Record<string, unknown>;
+      // PayPing wraps policy/validation failures in
+      // `metaData: { code, errors: [{ message }] }`; that nested message is the
+      // only human-readable part (type/title/instance are generic).
+      const metaData =
+        record.metaData && typeof record.metaData === 'object'
+          ? (record.metaData as Record<string, unknown>)
+          : null;
+      const errors = Array.isArray(metaData?.errors) ? metaData.errors : [];
+      const errorMessages = errors
+        .map((item) =>
+          item && typeof item === 'object'
+            ? (item as Record<string, unknown>).message
+            : item,
+        )
+        .filter(
+          (value): value is string =>
+            typeof value === 'string' && value.trim() !== '',
+        );
+      if (errorMessages.length) {
+        const code =
+          typeof metaData?.code === 'number' || typeof metaData?.code === 'string'
+            ? String(metaData.code)
+            : null;
+        const suffix = code ? ` (کد ${code})` : '';
+        return `${errorMessages.join('، ')}${suffix}`;
+      }
       if (typeof record.detail === 'string' && record.detail.trim()) {
         return record.detail.trim();
       }
       if (typeof record.message === 'string' && record.message.trim()) {
         return record.message.trim();
       }
-      const parts = Object.values(record).filter(
-        (value): value is string => typeof value === 'string' && value.trim() !== '',
-      );
-      if (parts.length) return parts.join('، ');
     }
     if (typeof payload === 'string' && payload.trim()) {
       return payload.trim().slice(0, 300);
     }
     return `خطا در درگاه پی‌پینگ (کد ${status})`;
+  }
+
+  /** PayPing trace id (used by their support) when the body carries one. */
+  private describeTraceId(payload: unknown): string | null {
+    if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+      const traceId = (payload as Record<string, unknown>).paypingTraceId;
+      if (typeof traceId === 'string' && traceId.trim()) return traceId.trim();
+    }
+    return null;
   }
 
   // -------------------------------------------------------------------------
