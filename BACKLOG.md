@@ -34,9 +34,30 @@
 **معوق (منتظر تصمیم/منبع):** ورود با گوگل (OAuth) · کد تأیید ایمیل (منصرف‌شده)
 · انتقال رسانه به سرور جداگانه · keyset/cursor pagination صفحه‌های عمیق
 · افزایش vCPU یا بار‌توزیع افقی · مورد ۳ استقرار blue-green · بازگشت وجه
-درخواست‌های پرداخت‌شده‌ی ردشده · مهاجرت به قواعد React Compiler (`react-hooks` v7).
+درخواست‌های پرداخت‌شده‌ی ردشده · مهاجرت به قواعد React Compiler (`react-hooks` v7)
+· شکستن فایل‌های بزرگ باقی‌مانده (API/Web).
 
 ---
+
+## شکستن فایل‌های بزرگ باقی‌مانده (Modularization) — وضعیت: در انتظار
+
+- **تاریخ:** ۱۴۰۵/۰۸/۱۷
+- **زمینه/مشکل:** چند سرویس و کامپوننت همچنان بالای ~۱۰۰۰ خط‌اند و شکستن
+  مرحله‌به‌مرحله‌شان ادامه دارد. تا این لحظه `apps/api/src/settings/settings.service.ts`
+  (← `settings.constants.ts`) و `apps/api/src/admin/admin.service.ts`
+  (← `admin-revenue.service.ts` + `common/jalali.ts`) شکسته شده‌اند.
+- **راه‌حل پیشنهادی (به‌ترتیب اولویت):**
+  - API: `feeds.service.ts` (۱۳۵۷)، `business-cards.service.ts` (۱۲۱۶)،
+    `biolinks.service.ts` (۱۱۰۰)، `subscriptions.service.ts` (۹۹۷)،
+    `ads.service.ts` (۸۲۱)، `boosts.service.ts` (۷۰۸).
+  - Web: `AdminPaypingPanel.tsx` (۱۸۵۵)، `lib/api.ts` (۱۱۰۵ — با barrel
+    `lib/api` برای حفظ ۱۰۵ واردکننده)، `app/admin/page.tsx` (۹۲۴)،
+    `AdminFeeds.tsx` (۸۹۲).
+  - الگو: شکستن در همان پوشه به‌همراه re-export (مطابق `docs/ARCHITECTURE.md`).
+- **دلیل تعویق:** هر شکست باید جداگانه و با تست (tsc/eslint و اجرای واقعی API)
+  انجام شود تا ریسک رگرسیون پایین بماند؛ «کم‌کم» و مرحله‌به‌مرحله.
+- **اثر/فوریت:** متوسط — نگه‌داشت‌پذیری و خوانایی؛ روی رفتار فعلی اثری ندارد.
+- **مرجع:** `docs/ARCHITECTURE.md`، ورودی‌های تاریخچه‌ی `v3.8.6` و `v3.8.7`.
 
 ## مهاجرت به قواعد React Compiler (`react-hooks` v7) در وب — وضعیت: معوق
 
