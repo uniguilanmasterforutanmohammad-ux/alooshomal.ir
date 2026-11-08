@@ -112,6 +112,7 @@ async function bootstrap(): Promise<void> {
       .addTag('admin', 'پنل مدیریت: کاربران، محتوا، تنظیمات و گزارش‌ها')
       .addTag('settings', 'تنظیمات عمومی سایت')
       .addTag('payping', 'درگاه پرداخت پی‌پینگ (حساب پذیرنده)')
+      .addTag('payping-oauth', 'درگاه پرداخت پی‌پینگ (اپلیکیشن OAuth)')
       .addTag('seo', 'نقشه‌ی سایت و داده‌های سئو')
       .addTag('health', 'سلامت سرویس')
       .build();

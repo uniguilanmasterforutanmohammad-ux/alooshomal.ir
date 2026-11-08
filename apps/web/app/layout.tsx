@@ -4,6 +4,7 @@ import { FeatureNoticeBar } from '@/components/layout/FeatureNoticeBar';
 import { ToastViewport } from '@/components/ui/ToastViewport';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { SessionWatcher } from '@/components/ui/SessionWatcher';
+import { PaypingOAuthCatcher } from '@/components/admin/PaypingOAuthCatcher';
 import { SITE_URL } from '@/lib/site';
 import { getSiteTheme, siteThemeDocumentAttrs } from '@/lib/site-theme';
 import { getPublicFeatureSnapshot } from '@/lib/sections-server';
@@ -107,6 +108,7 @@ export default async function RootLayout({
           <FeatureNoticeBar />
           {children}
           <SessionWatcher />
+          <PaypingOAuthCatcher />
           <MobileNav />
           <ToastViewport />
         </FeaturesProvider>

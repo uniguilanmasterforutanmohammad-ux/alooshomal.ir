@@ -108,6 +108,12 @@ MONITORING_ALERT_PHONE=
 # فقط سمت سرور استفاده می‌شود؛ هرگز در گیت یا مرورگر قرار نگیرد.
 PAYPING_TOKEN=<توکن-اختصاصی-شما>
 PAYPING_BASE_URL=https://api.payping.ir
+
+# اپلیکیشن OAuth پی‌پینگ (ClientId/ClientSecret) برای پنل جداگانه‌ی «درگاه پرداخت (OAuth)»
+# آدرس بازگشت باید دقیقاً با Redirect URI ثبت‌شده در کنسول پی‌پینگ یکسان باشد.
+PAYPING_OAUTH_CLIENT_ID=<client-id>
+PAYPING_OAUTH_CLIENT_SECRET=<client-secret>
+PAYPING_OAUTH_REDIRECT_URI=https://shomalicard.ir
 EOF
 ```
 
@@ -138,6 +144,13 @@ EOF
 > فاکتور، خرید اقساطی، استعلام و آپلود را نشان می‌دهد. توکن فقط سمت API استفاده
 > می‌شود و به مرورگر نمی‌رود. اگر سرویسی خطای `Client IP is not allowed` داد،
 > باید IP سرور را در کنسول توسعه‌دهنده‌ی پی‌پینگ ثبت کنید.
+
+> **درگاه پرداخت پی‌پینگ (OAuth):** پنل جداگانه‌ی «درگاه پرداخت (OAuth)» با
+> `PAYPING_OAUTH_CLIENT_ID`/`PAYPING_OAUTH_CLIENT_SECRET` کار می‌کند و با روش
+> authorization_code + PKCE یک‌بار به حساب پی‌پینگ وصل می‌شود. `PAYPING_OAUTH_REDIRECT_URI`
+> باید دقیقاً با Redirect URI ثبت‌شده در کنسول یکسان باشد (برای این اپلیکیشن
+> `https://shomalicard.ir`). چون scope `offline_access` برای این کلاینت مجاز نیست،
+> refresh token صادر نمی‌شود و پس از انقضای توکن باید دوباره «اتصال» زده شود.
 
 ### نکته‌ی مهم: یک دامنه، سه سرویس
 

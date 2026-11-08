@@ -22,6 +22,7 @@ import { NewsModule } from './news/news.module';
 import { ModeratorModule } from './moderator/moderator.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
 import { PaypingModule } from './payping/payping.module';
+import { PaypingOAuthModule } from './payping-oauth/payping-oauth.module';
 import { PointsModule } from './points/points.module';
 import { ProfileModule } from './profile/profile.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -60,6 +61,7 @@ import { UsersModule } from './users/users.module';
     ModeratorModule,
     MonitoringModule,
     PaypingModule,
+    PaypingOAuthModule,
     AdminModule,
     TaxonomyModule,
     TicketsModule,

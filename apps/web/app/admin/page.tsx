@@ -32,6 +32,7 @@ import { AdminNewsSettings } from '@/components/admin/AdminNewsSettings';
 import { AdminStoragePanel } from '@/components/admin/AdminStoragePanel';
 import { AdminMonitoringPanel } from '@/components/admin/AdminMonitoringPanel';
 import { AdminPaypingPanel } from '@/components/admin/AdminPaypingPanel';
+import { AdminPaypingOAuthPanel } from '@/components/admin/AdminPaypingOAuthPanel';
 import { ActivityLogPanel } from '@/components/admin/ActivityLogPanel';
 import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
 import { AdminDataTable, type AdminColumn } from '@/components/admin/AdminDataTable';
@@ -104,6 +105,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'points',
   'revenue',
   'payments',
+  'payping-oauth',
   'feeds',
   'users',
   'emails',
@@ -548,6 +550,10 @@ function AdminContent() {
       title: 'درگاه پرداخت پی‌پینگ',
       sub: 'تراکنش‌ها، تسویه، مشتریان، کد تخفیف، فاکتور، اقساطی و استعلام',
     },
+    'payping-oauth': {
+      title: 'درگاه پرداخت پی‌پینگ (OAuth)',
+      sub: 'اتصال با ClientId/ClientSecret و آزمایش دسترسی‌های واقعی این توکن',
+    },
     reports: { title: 'گزارش‌ها', sub: 'گزارش‌های سیستم' },
     tools: { title: 'ابزار تست', sub: 'ایمپورت گروهی، حذف داده‌های تستی و قفل ساخت' },
     notifications: {
@@ -830,6 +836,8 @@ function AdminContent() {
       {section === 'revenue' ? <AdminRevenue /> : null}
 
       {section === 'payments' ? <AdminPaypingPanel /> : null}
+
+      {section === 'payping-oauth' ? <AdminPaypingOAuthPanel /> : null}
 
       {section === 'feeds' ? <AdminFeeds /> : null}
 

@@ -46,6 +46,7 @@ export type AdminSection =
   | 'points'
   | 'revenue'
   | 'payments'
+  | 'payping-oauth'
   | 'feeds'
   | 'users'
   | 'emails'
@@ -76,6 +77,7 @@ const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboar
   { key: 'ads', label: 'تبلیغات', icon: Megaphone },
   { key: 'revenue', label: 'درآمد', icon: Banknote },
   { key: 'payments', label: 'درگاه پرداخت', icon: CreditCard },
+  { key: 'payping-oauth', label: 'درگاه پرداخت (OAuth)', icon: ShieldCheck },
   { key: 'points', label: 'امتیازها', icon: Coins },
   { key: 'feeds', label: 'فیدها', icon: ImagePlus },
   { key: 'users', label: 'کاربران', icon: Users },

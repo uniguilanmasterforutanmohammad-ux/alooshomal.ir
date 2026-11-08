@@ -20,7 +20,53 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.4.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.5.0**.
+
+## ۱۴۰۵/۰۸/۱۷ — پنل جداگانه‌ی «درگاه پرداخت (OAuth)» با ClientId/ClientSecret — نسخه `v3.5.0`
+
+**هدف:** با روش دوم توکن (اپلیکیشن OAuth پی‌پینگ با ClientId/ClientSecret) یک
+پنل کاملاً مستقل ساخته شود (بدون ادغام با پنل توکن پذیرنده) تا مشخص شود این
+کلاینت به چه چیزهایی دسترسی دارد. کلاینت `client_credentials` را نمی‌پذیرد و
+فقط با authorization_code + PKCE کار می‌کند، پس جریان اتصال یک‌باره پیاده شد.
+
+**تغییرات:**
+- `apps/api/src/payping-oauth/payping-oauth.service.ts`: کلاینت OAuth2 (PKCE
+  S256، ذخیره‌ی verifier در Redis/تنظیمات، تبدیل کد به توکن، refresh، ذخیره‌ی
+  توکن در جدول `settings`، `probe` برای آزمایش دسترسی هر scope و فراخوانی خام).
+- `apps/api/src/payping-oauth/payping-oauth.controller.ts` و
+  `apps/api/src/payping-oauth/dto/payping-oauth.dto.ts`: مسیرهای
+  `admin/payping-oauth` (status/scopes/start/callback/disconnect/userinfo/probe/request)
+  فقط برای `ADMIN` و مستندشده برای Swagger.
+- `apps/api/src/payping-oauth/payping-oauth.module.ts` و
+  `apps/api/src/app.module.ts`: ثبت ماژول.
+- `apps/api/src/main.ts`: برچسب Swagger `payping-oauth`.
+- `apps/web/components/admin/AdminPaypingOAuthPanel.tsx`: پنل مستقل (وضعیت اتصال،
+  ویرایش scope، اتصال/قطع، userinfo، جدول Probe و تستر درخواست خام).
+- `apps/web/components/admin/PaypingOAuthCatcher.tsx` و `apps/web/app/layout.tsx`:
+  دریافت کد بازگشتی در ریشه‌ی سایت (Redirect URI ثبت‌شده) و تکمیل اتصال.
+- `apps/web/components/admin/AdminShell.tsx` و `apps/web/app/admin/page.tsx`:
+  افزودن بخش `payping-oauth` («درگاه پرداخت (OAuth)»).
+- `.env.example`، `docker-compose.yml` و `docs/DEPLOY.md`: متغیرهای
+  `PAYPING_OAUTH_CLIENT_ID`/`SECRET`/`REDIRECT_URI`.
+- `docs/API.md`: مستندسازی کامل گروه `payping-oauth` و فهرست scopeهای مجاز.
+- `BACKLOG.md`: ثبت معوق‌شدن «اتصال درگاه به خرید کاربران» به درخواست کاربر.
+- `apps/web/lib/version.ts`: ارتقای نسخه به `v3.5.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- `python3 scripts/check_api_docs.py` → exit 0.
+- تست زنده با توکن ادمین: `GET /api/admin/payping-oauth/status` →
+  `{configured:true, connected:false}`؛ `POST start` آدرس مجوزدهی با PKCE ساخت
+  و با curl به صفحه‌ی ورود پی‌پینگ (نه خطا) رسید؛ `callback` با state نامعتبر
+  ۴۰۰ منطقی داد؛ `probe/userinfo` پیش از اتصال ۴۰۰ راهنما دادند؛ بدون توکن ۴۰۱.
+- با آزمون scope روی endpoint مجوزدهی مشخص شد scopeهای مجاز این کلاینت
+  `openid`, `pay:read/write`, `report:read`, `product:read/write`,
+  `coupon:read/write`, `customer:read/write`, `invoice:read/write`,
+  `upload:write`, `bnpl:merchantread/write` هستند و `profile/email/phone/
+  offline_access/inquiry:*` رد می‌شوند؛ پیش‌فرض scopeها همین فهرست مجاز شد.
+- تست Playwright روی `/admin?section=payping-oauth`: عنوان، دکمه‌ی «اتصال به
+  پی‌پینگ» و وضعیت «مجوز داده نشده» رندر شدند و خطای کنسول نبود.
 
 ## ۱۴۰۵/۰۸/۱۷ — پنل «درگاه پرداخت پی‌پینگ» در داشبورد مدیریت — نسخه `v3.4.0`
 

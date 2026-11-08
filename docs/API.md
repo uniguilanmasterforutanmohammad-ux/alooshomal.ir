@@ -135,6 +135,40 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 توسعه‌دهنده‌ی پی‌پینگ ثبت شود. اگر `PAYPING_TOKEN` خالی باشد، `GET status`
 `configured: false` برمی‌گرداند و پنل راهنمای تنظیم توکن را نشان می‌دهد.
 
+### درگاه پرداخت پی‌پینگ — اپلیکیشن OAuth (`payping-oauth`)
+
+پنل جداگانه‌ی «درگاه پرداخت (OAuth)» از **ClientId/ClientSecret** یک اپلیکیشن
+OAuth پی‌پینگ استفاده می‌کند و کاملاً از پنل توکن پذیرنده جداست. این کلاینت
+`client_credentials` را نمی‌پذیرد و فقط با **authorization_code + PKCE** کار
+می‌کند؛ بنابراین مدیر یک‌بار حساب پی‌پینگ را مجوز می‌دهد و توکن‌ها سمت سرور
+ذخیره می‌شوند. همه‌ی مسیرها فقط برای `ADMIN` و با پیشوند `/api/admin/payping-oauth`.
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET` | `status` | وضعیت تنظیم/اتصال، ClientId ماسک‌شده، آدرس بازگشت و scopeهای درخواستی/داده‌شده. |
+| `PATCH` | `scopes` | بدنه `{ scopes }` (فاصله‌جدا) برای تغییر scopeهای درخواستی اتصال بعدی. |
+| `POST` | `start` | ساخت آدرس مجوزدهی (شامل `state` و `code_challenge` S256)؛ خروجی `{ url, state }`. |
+| `POST` | `callback` | بدنه `{ code, state }`؛ تبدیل کد به توکن و ذخیره‌ی آن. |
+| `POST` | `disconnect` | حذف توکن‌های ذخیره‌شده. |
+| `GET` | `userinfo` | اطلاعات کاربر پی‌پینگ با توکن OAuth. |
+| `GET` | `probe` | صدا زدن یک endpoint نمونه برای هر scope و گزارش «دسترسی دارد/ندارد». |
+| `POST` | `request` | بدنه `{ method, path, body? }`؛ فراخوانی خام یک مسیر مجاز پی‌پینگ. |
+
+**آدرس بازگشت:** باید دقیقاً با یکی از Redirect URIهای ثبت‌شده در کنسول پی‌پینگ
+یکسان باشد. برای این اپلیکیشن، آدرس ثبت‌شده `https://shomalicard.ir` (ریشه‌ی
+سایت) است؛ بنابراین یک کامپوننت سراسری (`PaypingOAuthCatcher`) کد بازگشتی را در
+ریشه می‌گیرد، به API می‌فرستد و سپس به `/admin?section=payping-oauth` هدایت می‌کند.
+
+**scopeهای مجاز این کلاینت** (بررسی‌شده روی endpoint مجوزدهی):
+`openid`، `pay:read`، `pay:write`، `report:read`، `product:read`،
+`product:write`، `coupon:read`، `coupon:write`، `customer:read`،
+`customer:write`، `invoice:read`، `invoice:write`، `upload:write`،
+`bnpl:merchantread`، `bnpl:merchantwrite`.
+
+scopeهای `profile`، `email`، `phone`، `offline_access` و همه‌ی `inquiry:*` برای
+این کلاینت **مجاز نیستند** (خطای صفحه‌ی مجوزدهی). چون `offline_access` مجاز نیست،
+refresh token صادر نمی‌شود و پس از انقضای توکن دسترسی باید دوباره «اتصال» زده شود.
+
 ### بررسی سریع کامل‌بودن
 
 ```bash
