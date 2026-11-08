@@ -20,7 +20,30 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.20**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.21**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن `settings.service.ts`: جداسازی بذرپاشی پیش‌فرض‌ها — نسخه `v3.8.21`
+
+**هدف:** `apps/api/src/settings/settings.service.ts` (۱۰۷۲ خط) در کنار
+خواندن/نوشتن تنظیمات، تابع بلند `ensureDefaults` (حدود ۱۸۰ خط upsert) را هم داشت؛
+این مسئولیت بذرپاشی به یک ماژول جدا منتقل شد تا سرویس تنظیمات روی سطح
+دسترسی‌دهنده (getter/setter) متمرکز بماند.
+
+**تغییرات:**
+- `apps/api/src/settings/settings-defaults.ts` (فایل تازه):
+  `ensureSettingsDefaults(prisma)` شامل همان upsertهای idempotent و پیشوند
+  `notifyAdmin.` (۲۳۵ خط).
+- `apps/api/src/settings/settings.service.ts`: حذف `ensureDefaults` و فراخوانی
+  ماژول جدید در `onModuleInit` (اکنون ۸۹۲ خط).
+
+**تأیید/تست:**
+- `tsc --noEmit -p tsconfig.json` و `eslint src` → exit 0.
+- مقایسه‌ی نرمال‌شده‌ی بدنه‌ی تابع منتقل‌شده با نسخه‌ی قبلی → یکسان (فقط امضای
+  تابع از متد کلاس به تابع مستقل تغییر کرده است).
+- اجرای واقعی API: بوت بدون خطا (یعنی `ensureSettingsDefaults` در
+  `onModuleInit` اجرا شده)، `GET /api/health`، `GET /api/settings/public` و
+  `GET /api/subscriptions/plans` → ۲۰۰.
+- `python3 scripts/check_modules.py` و `check_api_docs.py` سبز.
 
 ## ۱۴۰۵/۰۸/۱۷ — شکستن `feeds.service.ts`: جداسازی مسیر خواندن عمومی دایرکتوری — نسخه `v3.8.20`
 
