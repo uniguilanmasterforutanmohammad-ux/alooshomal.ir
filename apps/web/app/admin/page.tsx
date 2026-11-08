@@ -222,7 +222,7 @@ function AdminContent() {
       return;
     }
     if (!token) {
-      router.replace('/login');
+      router.replace('/admin/login');
       return;
     }
     if (user && user.role === 'MODERATOR') {

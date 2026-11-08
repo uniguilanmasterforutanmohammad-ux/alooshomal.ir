@@ -88,6 +88,7 @@
   `apps/web/components/moderator/ModeratorShell.tsx`،
   `apps/web/components/moderator/ModeratorPanel.tsx`،
   `apps/web/app/moderator/notifications/page.tsx`،
+  `apps/web/app/admin/page.tsx`،
   `apps/web/components/ui/SessionWatcher.tsx` و
   `apps/web/components/layout/MobileNav.tsx`: به‌روزرسانی متن‌ها و هدایت خروج/انقضای
   نشست مدیران به `/admin/login`.
