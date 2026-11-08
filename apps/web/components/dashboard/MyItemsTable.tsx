@@ -15,7 +15,8 @@ import {
 
 import { BiolinkStatusBadge } from '@/components/biolink/BiolinkStatusBadge';
 import { BusinessCardStatusBadge } from '@/components/businesscard/BusinessCardStatusBadge';
-import { api } from '@/lib/api';
+import { api, type RequestPaymentInfo } from '@/lib/api';
+import { goToPaymentGateway } from '@/lib/request-payment';
 import type { Biolink, BusinessCard } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
@@ -50,11 +51,15 @@ export function MyItemsTable({ kind, items, loading, deletingId, onRemove }: Pro
     setBusy(`boost:${item.id}`);
     setError(null);
     try {
-      await api.post('/boosts/request', {
-        kind: apiKind,
-        targetId: item.id,
-        feature: 'POLE',
-      });
+      const result = await api.post<{ payment?: RequestPaymentInfo | null }>(
+        '/boosts/request',
+        {
+          kind: apiKind,
+          targetId: item.id,
+          feature: 'POLE',
+        },
+      );
+      if (goToPaymentGateway(result.payment)) return;
       setBoostState((prev) => ({ ...prev, [item.id]: 'PENDING' }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ثبت درخواست پله ناموفق بود');
@@ -67,7 +72,11 @@ export function MyItemsTable({ kind, items, loading, deletingId, onRemove }: Pro
     setBusy(`ad:${item.id}`);
     setError(null);
     try {
-      await api.post('/ads/request', { kind: apiKind, targetId: item.id });
+      const result = await api.post<{ payment?: RequestPaymentInfo | null }>(
+        '/ads/request',
+        { kind: apiKind, targetId: item.id },
+      );
+      if (goToPaymentGateway(result.payment)) return;
       setAdState((prev) => ({ ...prev, [item.id]: 'PENDING' }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ثبت درخواست تبلیغ ناموفق بود');
@@ -86,12 +95,16 @@ export function MyItemsTable({ kind, items, loading, deletingId, onRemove }: Pro
     setBusy(`dir:${item.id}`);
     setError(null);
     try {
-      await api.post('/ads/request', {
-        kind: apiKind,
-        targetId: item.id,
-        placement: 'DIRECTORY',
-        note: 'درخواست تبلیغ در صدر لیست دایرکتوری',
-      });
+      const result = await api.post<{ payment?: RequestPaymentInfo | null }>(
+        '/ads/request',
+        {
+          kind: apiKind,
+          targetId: item.id,
+          placement: 'DIRECTORY',
+          note: 'درخواست تبلیغ در صدر لیست دایرکتوری',
+        },
+      );
+      if (goToPaymentGateway(result.payment)) return;
       setDirectoryState((prev) => ({ ...prev, [item.id]: 'PENDING' }));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ثبت درخواست تبلیغ در دایرکتوری ناموفق بود');

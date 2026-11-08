@@ -95,6 +95,14 @@ enum PaymentStatus {
   CANCELED
 }
 
+/// What a `RequestPayment` is paying for. Boost («پله») and the two ad
+/// placements are reviewed by an admin only after the fee is settled.
+enum RequestPaymentTarget {
+  BOOST
+  AD_HOME
+  AD_DIRECTORY
+}
+
 enum BoostTargetKind {
   BIOLINK
   BUSINESS_CARD
@@ -412,6 +420,7 @@ model User {
   boostDecisions    BoostRequest[]      @relation("BoostDecisions")
   adRequests        AdRequest[]         @relation("UserAdRequests")
   adDecisions       AdRequest[]         @relation("AdDecisions")
+  requestPayments   RequestPayment[]    @relation("UserRequestPayments")
   biolinkSaves      BiolinkSave[]
   businessCardSaves BusinessCardSave[]
   notifications     Notification[]    @relation("UserNotifications")
@@ -1083,6 +1092,7 @@ model BoostRequest {
 
   user    User  @relation("UserBoostRequests", fields: [userId], references: [id], onDelete: Cascade)
   decidedBy User? @relation("BoostDecisions", fields: [decidedById], references: [id], onDelete: SetNull)
+  payment RequestPayment?
 
   @@index([userId])
   @@index([kind, targetId])
@@ -1114,12 +1124,48 @@ model AdRequest {
 
   user      User  @relation("UserAdRequests", fields: [userId], references: [id], onDelete: Cascade)
   decidedBy User? @relation("AdDecisions", fields: [decidedById], references: [id], onDelete: SetNull)
+  payment   RequestPayment?
 
   @@index([userId])
   @@index([placement, targetId])
   @@index([status])
   @@index([endsAt])
   @@map("ad_requests")
+}
+
+/// One online payment attempt for a boost or ad request via PayPing `/v3/pay`.
+/// When the merchant gateway is configured, the request enters the admin review
+/// queue only after this payment is verified; otherwise no row is created and
+/// the request stays free (legacy behaviour). At most one row per request.
+model RequestPayment {
+  id             String               @id @default(cuid())
+  userId         String
+  target         RequestPaymentTarget
+  boostRequestId String?              @unique
+  adRequestId    String?              @unique
+  /// Amount in Toman, snapshotted from the admin setting at checkout time.
+  amount         Int
+  status         PaymentStatus        @default(PENDING)
+  clientRefId    String               @unique
+  /// PayPing payment code returned by `POST /v3/pay`.
+  paymentCode    String?              @unique
+  /// PayPing tracking id (`paymentRefId`) returned on the callback.
+  refId          String?
+  gatewayUrl     String?
+  paidAt         DateTime?
+  verifiedAt     DateTime?
+  failureReason  String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  user         User          @relation("UserRequestPayments", fields: [userId], references: [id], onDelete: Cascade)
+  boostRequest BoostRequest? @relation(fields: [boostRequestId], references: [id], onDelete: Cascade)
+  adRequest    AdRequest?    @relation(fields: [adRequestId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([target])
+  @@map("request_payments")
 }
 
 // ---------------------------------------------------------------------------

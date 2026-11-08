@@ -19,12 +19,14 @@ import { BoostBadge } from '@/components/ui/BoostBadge';
 import { Pagination } from '@/components/ui/Pagination';
 import {
   api,
+  type AdRequest,
   type BoostOverview,
   type BoostRequest,
   type BoostStatus,
   type BoostTargetItem,
   type BoostTargetKind,
 } from '@/lib/api';
+import { goToPaymentGateway } from '@/lib/request-payment';
 import { cn } from '@/lib/utils';
 
 type Tab = 'biolinks' | 'business-cards' | 'feeds';
@@ -104,13 +106,30 @@ export function BoostTable({
   const requestFor = (kind: BoostTargetKind, id: string): BoostRequest | undefined =>
     data?.requests.find((entry) => entry.kind === kind && entry.targetId === id);
 
+  const adRequestFor = (
+    kind: BoostTargetKind,
+    id: string,
+    placement: 'HOME' | 'DIRECTORY',
+  ): AdRequest | undefined =>
+    data?.adRequests.find(
+      (entry) =>
+        entry.kind === kind &&
+        entry.targetId === id &&
+        (entry.placement ?? 'HOME') === placement,
+    );
+
   async function requestBoost(item: BoostTargetItem) {
     const kind = TAB_KIND[tab];
     setBusy(`boost:${item.id}`);
     onError(null);
     onMessage(null);
     try {
-      await api.post('/boosts/request', { kind, targetId: item.id, feature: 'POLE' });
+      const result = await api.post<BoostRequest>('/boosts/request', {
+        kind,
+        targetId: item.id,
+        feature: 'POLE',
+      });
+      if (goToPaymentGateway(result.payment)) return;
       setLocalBoost((prev) => ({ ...prev, [`${kind}:${item.id}`]: 'PENDING' }));
       onMessage('درخواست پله ثبت شد. پس از تأیید مدیر در صدر لیست دایرکتوری نمایش داده می‌شود.');
       onReload();
@@ -127,7 +146,11 @@ export function BoostTable({
     onError(null);
     onMessage(null);
     try {
-      await api.post('/ads/request', { kind, targetId: item.id });
+      const result = await api.post<AdRequest>('/ads/request', {
+        kind,
+        targetId: item.id,
+      });
+      if (goToPaymentGateway(result.payment)) return;
       setLocalAd((prev) => ({ ...prev, [`${kind}:${item.id}`]: 'PENDING' }));
       onMessage('درخواست تبلیغ ثبت شد. پس از تأیید مدیر در صفحه اصلی نمایش داده می‌شود.');
       onReload();
@@ -145,11 +168,12 @@ export function BoostTable({
     onError(null);
     onMessage(null);
     try {
-      await api.post('/ads/request', {
+      const result = await api.post<AdRequest>('/ads/request', {
         kind,
         targetId: item.id,
         placement: 'DIRECTORY',
       });
+      if (goToPaymentGateway(result.payment)) return;
       setLocalDirectoryAd((prev) => ({ ...prev, [`${kind}:${item.id}`]: 'PENDING' }));
       onMessage(
         'درخواست تبلیغ در دایرکتوری ثبت شد. پس از تأیید مدیر در صدر لیست همان شهر/کسب‌وکار نمایش داده می‌شود.',
@@ -239,6 +263,16 @@ export function BoostTable({
                   adDirectoryUntil && adDirectoryUntil > new Date();
                 const isBoosted =
                   !isDirectoryAd && boostedUntil && boostedUntil > new Date();
+                // A pending request whose fee is not settled yet can be resumed
+                // from the gateway instead of being a dead end.
+                const boostUnpaid =
+                  !!request?.payment && request.payment.status !== 'PAID';
+                const dirAdReq = adRequestFor(kind, item.id, 'DIRECTORY');
+                const dirAdUnpaid =
+                  !!dirAdReq?.payment && dirAdReq.payment.status !== 'PAID';
+                const homeAdReq = adRequestFor(kind, item.id, 'HOME');
+                const homeAdUnpaid =
+                  !!homeAdReq?.payment && homeAdReq.payment.status !== 'PAID';
                 const rank = item.rank?.rank ?? null;
                 const rankPage = item.rank?.page ?? null;
                 return (
@@ -310,68 +344,102 @@ export function BoostTable({
                       <div className="flex flex-wrap items-center gap-1.5">
                         <button
                           type="button"
-                          disabled={busy === `boost:${item.id}` || boostStatus === 'PENDING' || !item.isPublished}
+                          disabled={
+                            busy === `boost:${item.id}` ||
+                            (!boostUnpaid && boostStatus === 'PENDING') ||
+                            !item.isPublished
+                          }
                           onClick={() => requestBoost(item)}
-                          title={!item.isPublished ? 'فقط موارد منتشرشده قابل پله هستند' : 'درخواست پله (رسیدن به صدر لیست دایرکتوری)'}
+                          title={
+                            !item.isPublished
+                              ? 'فقط موارد منتشرشده قابل پله هستند'
+                              : boostUnpaid
+                                ? 'پرداخت پله را تکمیل کنید'
+                                : 'درخواست پله (رسیدن به صدر لیست دایرکتوری)'
+                          }
                           className={cn(
                             'indeed-btn py-1.5 text-xs',
-                            boostStatus === 'PENDING'
+                            boostUnpaid
+                              ? 'border border-red-200 bg-red-50 text-red-600'
+                              : boostStatus === 'PENDING'
                               ? 'border border-amber-200 bg-amber-50 text-amber-600'
                               : 'indeed-btn-secondary',
                           )}
                         >
                           <TrendingUp className="size-3.5" aria-hidden />
-                          {boostStatus === 'PENDING'
-                            ? 'پله: در انتظار'
-                            : boostStatus === 'APPROVED'
-                              ? BOOST_STATUS_LABELS.APPROVED
-                              : 'پله'}
+                          {boostUnpaid
+                            ? 'پله: پرداخت'
+                            : boostStatus === 'PENDING'
+                              ? 'پله: در انتظار'
+                              : boostStatus === 'APPROVED'
+                                ? BOOST_STATUS_LABELS.APPROVED
+                                : 'پله'}
                         </button>
                         <button
                           type="button"
                           disabled={
                             busy === `dir:${item.id}` ||
-                            directoryAdStatus === 'PENDING' ||
+                            (!dirAdUnpaid && directoryAdStatus === 'PENDING') ||
                             !item.isPublished
                           }
                           onClick={() => requestDirectoryAd(item)}
                           title={
                             !item.isPublished
                               ? 'فقط موارد منتشرشده قابل تبلیغ هستند'
-                              : 'درخواست تبلیغ در صدر لیست دایرکتوری شهر/کسب‌وکار'
+                              : dirAdUnpaid
+                                ? 'پرداخت تبلیغ دایرکتوری را تکمیل کنید'
+                                : 'درخواست تبلیغ در صدر لیست دایرکتوری شهر/کسب‌وکار'
                           }
                           className={cn(
                             'indeed-btn py-1.5 text-xs',
-                            directoryAdStatus === 'PENDING'
+                            dirAdUnpaid
+                              ? 'border border-red-200 bg-red-50 text-red-600'
+                              : directoryAdStatus === 'PENDING'
                               ? 'border border-amber-200 bg-amber-50 text-amber-600'
                               : 'indeed-btn-secondary',
                           )}
                         >
                           <ListOrdered className="size-3.5" aria-hidden />
-                          {directoryAdStatus === 'PENDING'
-                            ? 'دایرکتوری: در انتظار'
-                            : directoryAdStatus === 'APPROVED'
-                              ? 'تبلیغ دایرکتوری تأییدشده'
-                              : 'تبلیغ در دایرکتوری'}
+                          {dirAdUnpaid
+                            ? 'دایرکتوری: پرداخت'
+                            : directoryAdStatus === 'PENDING'
+                              ? 'دایرکتوری: در انتظار'
+                              : directoryAdStatus === 'APPROVED'
+                                ? 'تبلیغ دایرکتوری تأییدشده'
+                                : 'تبلیغ در دایرکتوری'}
                         </button>
                         <button
                           type="button"
-                          disabled={busy === `ad:${item.id}` || adStatus === 'PENDING' || !item.isPublished}
+                          disabled={
+                            busy === `ad:${item.id}` ||
+                            (!homeAdUnpaid && adStatus === 'PENDING') ||
+                            !item.isPublished
+                          }
                           onClick={() => requestAd(item)}
-                          title={!item.isPublished ? 'فقط موارد منتشرشده قابل تبلیغ هستند' : 'درخواست تبلیغ در صفحه اول'}
+                          title={
+                            !item.isPublished
+                              ? 'فقط موارد منتشرشده قابل تبلیغ هستند'
+                              : homeAdUnpaid
+                                ? 'پرداخت تبلیغ صفحه اول را تکمیل کنید'
+                                : 'درخواست تبلیغ در صفحه اول'
+                          }
                           className={cn(
                             'indeed-btn py-1.5 text-xs',
-                            adStatus === 'PENDING'
+                            homeAdUnpaid
+                              ? 'border border-red-200 bg-red-50 text-red-600'
+                              : adStatus === 'PENDING'
                               ? 'border border-amber-200 bg-amber-50 text-amber-600'
                               : 'indeed-btn-secondary',
                           )}
                         >
                           <Megaphone className="size-3.5" aria-hidden />
-                          {adStatus === 'PENDING'
-                            ? 'تبلیغ: در انتظار'
-                            : adStatus === 'APPROVED'
-                              ? 'تبلیغ تأییدشده'
-                              : 'تبلیغ در صفحه اول'}
+                          {homeAdUnpaid
+                            ? 'تبلیغ: پرداخت'
+                            : adStatus === 'PENDING'
+                              ? 'تبلیغ: در انتظار'
+                              : adStatus === 'APPROVED'
+                                ? 'تبلیغ تأییدشده'
+                                : 'تبلیغ در صفحه اول'}
                         </button>
                       </div>
                     </td>

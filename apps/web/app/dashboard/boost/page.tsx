@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import { BoostSearchForm, BoostTable } from '@/components/dashboard/BoostTable';
 import { api, type BoostOverview } from '@/lib/api';
@@ -13,8 +13,9 @@ import { useAuth } from '@/lib/auth';
  * (biolink / business card / feed) with both the «پله» (directory) and
  * «تبلیغ صفحه اول» actions, search and pagination.
  */
-export default function BoostPage() {
+function BoostContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { token, hydrated } = useAuth();
   const [data, setData] = useState<BoostOverview | null>(null);
   const [page, setPage] = useState(1);
@@ -46,6 +47,21 @@ export default function BoostPage() {
     void load();
   }, [hydrated, token, router, load]);
 
+  // PayPing lands the browser back here after a boost/ad prepayment.
+  useEffect(() => {
+    const payment = searchParams.get('payment');
+    if (!payment) return;
+    setMessage(
+      payment === 'success'
+        ? 'پرداخت با موفقیت انجام شد و درخواست برای تأیید مدیر ارسال شد.'
+        : payment === 'pending'
+          ? 'تأیید پرداخت در حال پردازش است؛ چند لحظه بعد صفحه را دوباره باز کنید.'
+          : 'پرداخت انجام نشد یا ناموفق بود.',
+    );
+    if (payment === 'success') void load();
+    router.replace('/dashboard/boost', { scroll: false });
+  }, [searchParams, router, load]);
+
   function submitSearch(event: React.FormEvent) {
     event.preventDefault();
     setPage(1);
@@ -60,7 +76,8 @@ export default function BoostPage() {
           با «پله» موردی را به صدر دایرکتوری خودش برسانید، با «تبلیغ در دایرکتوری»
           آن را به‌صورت هدفمند و مدت‌دار با نشان «تبلیغات» در صدر همان شهر/کسب‌وکار
           نمایش دهید، و با «تبلیغ در صفحه اول» آن را در باکس تبلیغات صفحه اصلی
-          بیاورید. هر درخواست پس از تأیید مدیر فعال می‌شود.
+          بیاورید. با فعال بودن درگاه پرداخت، هر درخواست ابتدا پرداخت و سپس برای
+          تأیید مدیر ارسال می‌شود.
         </p>
       </div>
 
@@ -83,5 +100,15 @@ export default function BoostPage() {
         onMessage={setMessage}
       />
     </div>
+  );
+}
+
+export default function BoostPage() {
+  return (
+    <Suspense
+      fallback={<div className="p-8 text-center text-muted">در حال بارگذاری...</div>}
+    >
+      <BoostContent />
+    </Suspense>
   );
 }

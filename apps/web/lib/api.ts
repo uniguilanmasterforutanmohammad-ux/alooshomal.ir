@@ -520,6 +520,17 @@ export interface SubscriptionCheckout {
 export type BoostTargetKind = 'BIOLINK' | 'BUSINESS_CARD' | 'FEED';
 export type BoostStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
 
+/**
+ * Online prepayment of a «پله»/ad request (gateway configured). `url` is the
+ * PayPing checkout link while the payment is still pending; `null` afterwards.
+ */
+export interface RequestPaymentInfo {
+  amount: number;
+  status: SubscriptionPaymentStatus;
+  /** PayPing checkout link while the payment is still pending (dashboard only). */
+  url?: string | null;
+}
+
 export interface BoostTargetItem {
   id: string;
   slug: string;
@@ -569,6 +580,7 @@ export interface BoostRequest {
   adminNote: string | null;
   target?: { id: string; fullName: string; slug: string } | null;
   user?: { id: string; email: string; fullName: string | null };
+  payment?: RequestPaymentInfo | null;
 }
 
 export interface BoostOverview {
@@ -625,6 +637,7 @@ export interface AdRequest {
   target?: { id: string; fullName: string; slug: string } | null;
   user?: { id: string; email: string; fullName: string | null };
   decidedBy?: { id: string; email: string | null; fullName: string | null } | null;
+  payment?: RequestPaymentInfo | null;
 }
 
 /** Where an approved ad sits in its display window (computed by the API). */

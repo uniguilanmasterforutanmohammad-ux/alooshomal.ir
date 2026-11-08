@@ -27,6 +27,7 @@ import { PointsModule } from './points/points.module';
 import { ProfileModule } from './profile/profile.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
+import { RequestPaymentsModule } from './request-payments/request-payments.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { SeoModule } from './seo/seo.module';
 import { SettingsModule } from './settings/settings.module';
@@ -53,6 +54,7 @@ import { UsersModule } from './users/users.module';
     SubscriptionsModule,
     BoostsModule,
     AdsModule,
+    RequestPaymentsModule,
     SettingsModule,
     NotificationsModule,
     NewsModule,

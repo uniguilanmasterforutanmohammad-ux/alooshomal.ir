@@ -20,7 +20,63 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.6.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.7.0**.
+
+## ۱۴۰۵/۰۸/۱۷ — پرداخت پیش‌از‌تأیید برای پله و تبلیغات (دایرکتوری/صفحه اصلی) — نسخه `v3.7.0`
+
+**هدف:** با متصل‌بودن درگاه پی‌پینگ، درخواست‌های افزایش بازدید («پله»، «تبلیغ در
+صفحه اصلی» و «تبلیغ در دایرکتوری») دیگر مستقیم به صف مدیر نروند؛ ابتدا مبلغ از
+کاربر دریافت شود و سپس برای تأیید/رد به مدیر برسد. بدون درگاه (یا مبلغ کمتر از
+۱۰۰۰ تومان) رفتار رایگان قبلی حفظ شد.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل `RequestPayment` (هدف، مبلغ، وضعیت،
+  `clientRefId`/`paymentCode`، لینک اختیاری به درخواست پله/تبلیغ) و enum
+  `RequestPaymentTarget`؛ رابطه‌ی `payment` روی `BoostRequest`/`AdRequest` و
+  `User`.
+- `apps/api/src/request-payments/`: ماژول/سرویس/کنترلر تازه؛
+  `RequestPaymentsService` ساخت/ادامه‌ی پرداخت پی‌پینگ، تأیید و علامت‌گذاری
+  `PAID`، اعلان به مدیر پس از پرداخت و `GET /api/payments/request-callback`
+  عمومی برای بازگشت از درگاه.
+- `apps/api/src/boosts/boosts.service.ts`: `create` مبلغ `boostPrice` را دریافت
+  و در صورت نیاز پرداخت می‌سازد؛ صف مدیر فقط درخواست‌های پرداخت‌شده/بدون‌پرداخت
+  را می‌بیند؛ تأیید درخواستِ پرداخت‌نشده با ۴۰۰ رد می‌شود؛ `overview` وضعیت
+  پرداخت را برمی‌گرداند.
+- `apps/api/src/ads/ads.service.ts`: همان جریان برای تبلیغ صفحه اصلی
+  (`adHomePrice`) و دایرکتوری (`adDirectoryPrice`) و فیلتر صف/گارد تأیید.
+- `apps/api/src/{boosts,ads}/…module.ts`، `app.module.ts`: ثبت ماژول پرداخت.
+- `apps/api/src/settings/settings.service.ts`: به‌روزرسانی توضیح قیمت‌ها (دیگر
+  فقط برآورد درآمد نیست).
+- `apps/web/lib/api.ts` و `apps/web/lib/request-payment.ts`: نوع
+  `RequestPaymentInfo` و کمک‌تابع هدایت به درگاه.
+- `apps/web/components/dashboard/{BoostTable,MyItemsTable,CardStatsBar}.tsx`:
+  هدایت به درگاه وقتی `payment.url` برگردد و دکمه‌ی «پرداخت» برای ادامه‌ی
+  پرداخت ناتمام.
+- `apps/web/app/dashboard/boost/page.tsx`: نمایش پیام بازگشت از درگاه
+  (`?payment=`) و بسته‌بندی در `Suspense` برای `useSearchParams`.
+- `apps/web/components/admin/{AdminBoosts,AdminAds}.tsx`: ستون وضعیت پرداخت و
+  غیرفعال‌کردن «تأیید» تا تکمیل پرداخت.
+- `docs/API.md`: مستندسازی مسیر بازگشت و قرار جدید خروجی درخواست‌ها.
+- `BACKLOG.md`: بستن مورد «اتصال درگاه پی‌پینگ به خرید کاربران» و ثبت مورد جدید
+  بازگشت وجه.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api tsc --noEmit` و `docker exec alooshomal-web tsc --noEmit`
+  → هر دو exit 0.
+- `prisma validate` و `prisma db push` روی دیتابیس dev → بدون خطا.
+- `python3 scripts/check_api_docs.py` → ۲۷ کنترلر/۳۲۲ مسیر، بدون خطا؛
+  `GET /api/docs-json` مسیر `payments/request-callback` را با summary دارد.
+- فراخوانی واقعی با JWT معتبر: `POST /boosts/request` و
+  `POST /ads/request` (DIRECTORY) رکورد `RequestPayment` با مبلغ/هدف درست
+  ساختند؛ چون IP این میزبان در پی‌پینگ مجاز نیست، خطای شفاف «کد 166» برگشت
+  و پرداخت `FAILED` ثبت شد.
+- `GET /admin/boosts?status=PENDING` درخواست پرداخت‌نشده را نشان نداد، پس از
+  `PAID` شدن نشان داد؛ `PATCH /admin/boosts/:id` روی درخواست پرداخت‌نشده با
+  ۴۰۰ رد شد. سپس داده‌های تستی از دیتابیس dev پاک شد.
+- `GET /api/payments/request-callback` بدون پارامتر → ریدایرکت ۳۰۲ به
+  `/dashboard/boost?payment=failed`. سرویس وب صفحه‌ی `/dashboard/boost` را
+  ۲۰۰ و بدون خطای کامپایل سرو کرد. `python3 scripts/sync_install.py --check`
+  بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۷ — نمایش درخواست‌های تبلیغ دایرکتوری با لینک اعلان — نسخه `v3.6.2`
 

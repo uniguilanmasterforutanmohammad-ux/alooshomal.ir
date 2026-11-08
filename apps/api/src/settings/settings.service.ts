@@ -68,10 +68,11 @@ export const AD_DIRECTORY_DURATION_DAYS_KEY = 'adDirectoryDurationDays';
 export const DEFAULT_AD_DIRECTORY_DURATION_DAYS = 30;
 
 /**
- * Unit prices (in Toman) for the paid products, used only to *estimate* the
- * revenue the platform earns from each approved transaction. There is no
- * payment gateway yet, so these are admin-set figures the revenue report
- * multiplies by the number of approved transactions per model.
+ * Unit prices (in Toman) for the paid products. Since the PayPing gateway was
+ * wired up, these are what `RequestPaymentsService` actually charges before a
+ * «پله»/ad request reaches admin review; the revenue report also multiplies
+ * them by the number of approved transactions per model. When the gateway is
+ * off they remain estimation-only figures.
  */
 export const BOOST_PRICE_KEY = 'boostPrice';
 export const DEFAULT_BOOST_PRICE = 50_000;

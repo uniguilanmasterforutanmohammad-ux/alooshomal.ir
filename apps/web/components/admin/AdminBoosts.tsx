@@ -93,30 +93,56 @@ export function AdminBoosts() {
       ),
     },
     {
+      key: 'payment',
+      label: 'پرداخت',
+      render: (request) => (
+        <span
+          className={
+            !request.payment
+              ? 'text-xs text-muted'
+              : request.payment.status === 'PAID'
+                ? 'inline-block rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-bold text-green-700'
+                : 'inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700'
+          }
+        >
+          {!request.payment
+            ? 'بدون پیش‌پرداخت'
+            : request.payment.status === 'PAID'
+              ? `پرداخت‌شده (${request.payment.amount.toLocaleString('fa-IR')} تومان)`
+              : 'در انتظار پرداخت'}
+        </span>
+      ),
+    },
+    {
       key: 'actions',
       label: 'عملیات',
-      render: (request) => (
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            disabled={busyId === request.id}
-            onClick={() => decide(request.id, 'APPROVED')}
-            className="indeed-btn indeed-btn-primary py-1.5 text-xs disabled:opacity-60"
-          >
-            <Check className="size-3.5" aria-hidden />
-            تأیید
-          </button>
-          <button
-            type="button"
-            disabled={busyId === request.id}
-            onClick={() => decide(request.id, 'REJECTED')}
-            className="indeed-btn indeed-btn-secondary py-1.5 text-xs disabled:opacity-60"
-          >
-            <X className="size-3.5" aria-hidden />
-            رد
-          </button>
-        </div>
-      ),
+      render: (request) => {
+        const unpaid =
+          !!request.payment && request.payment.status !== 'PAID';
+        return (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={busyId === request.id || unpaid}
+              title={unpaid ? 'تا تکمیل پرداخت امکان تأیید وجود ندارد' : undefined}
+              onClick={() => decide(request.id, 'APPROVED')}
+              className="indeed-btn indeed-btn-primary py-1.5 text-xs disabled:opacity-60"
+            >
+              <Check className="size-3.5" aria-hidden />
+              تأیید
+            </button>
+            <button
+              type="button"
+              disabled={busyId === request.id}
+              onClick={() => decide(request.id, 'REJECTED')}
+              className="indeed-btn indeed-btn-secondary py-1.5 text-xs text-red-600 disabled:opacity-60"
+            >
+              <X className="size-3.5" aria-hidden />
+              رد
+            </button>
+          </div>
+        );
+      },
     },
   ];
 

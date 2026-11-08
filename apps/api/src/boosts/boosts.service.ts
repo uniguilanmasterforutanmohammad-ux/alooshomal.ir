@@ -9,7 +9,9 @@ import {
   BoostStatus,
   BoostTargetKind,
   NotificationType,
+  PaymentStatus,
   Prisma,
+  RequestPaymentTarget,
 } from '@prisma/client';
 
 import { NotificationsService } from '../notifications/notifications.service';
@@ -20,6 +22,10 @@ import { BiolinksService } from '../biolinks/biolinks.service';
 import { BusinessCardsService } from '../businesscards/business-cards.service';
 import { FeedsService } from '../feeds/feeds.service';
 import { SettingsService } from '../settings/settings.service';
+import {
+  RequestPaymentsService,
+  type RequestPaymentInfo,
+} from '../request-payments/request-payments.service';
 import { CreateBoostDto } from './dto/create-boost.dto';
 import { DecideBoostDto } from './dto/decide-boost.dto';
 
@@ -66,6 +72,16 @@ function adDisplayState(
   return 'ACTIVE';
 }
 
+/**
+ * Only requests whose fee is settled (or that never needed one, i.e. the
+ * gateway was off) may enter the admin review queue.
+ */
+function reviewableWhere(): Prisma.BoostRequestWhereInput {
+  return {
+    OR: [{ payment: null }, { payment: { status: PaymentStatus.PAID } }],
+  };
+}
+
 @Injectable()
 export class BoostsService {
   constructor(
@@ -77,6 +93,7 @@ export class BoostsService {
     private readonly activity: ActivityService,
     private readonly facetsCache: FacetsCacheService,
     private readonly settings: SettingsService,
+    private readonly requestPayments: RequestPaymentsService,
   ) {}
 
   /**
@@ -169,11 +186,13 @@ export class BoostsService {
     // user's requests directly instead.
     const requests = await this.prisma.boostRequest.findMany({
       where: { userId },
+      include: { payment: true },
       orderBy: { requestedAt: 'desc' },
       take: 300,
     });
     const adRequests = await this.prisma.adRequest.findMany({
       where: { userId },
+      include: { payment: true },
       orderBy: { requestedAt: 'desc' },
       take: 300,
     });
@@ -258,11 +277,13 @@ export class BoostsService {
       requests: requests.map((request) => ({
         ...request,
         target: requestTargetLabels.get(request.targetId) ?? null,
+        payment: RequestPaymentsService.toInfo(request.payment),
       })),
       adRequests: adRequests.map((request) => ({
         ...request,
         target: requestTargetLabels.get(request.targetId) ?? null,
         displayState: adDisplayState(request, new Date()),
+        payment: RequestPaymentsService.toInfo(request.payment),
       })),
       meta: {
         page: currentPage,
@@ -343,6 +364,10 @@ export class BoostsService {
       );
     }
 
+    // With the payment gateway connected a «پله» is paid first, then reviewed.
+    const price = await this.settings.getBoostPrice();
+    const paymentRequired = this.requestPayments.isRequired(price);
+
     const pending = await this.prisma.boostRequest.findFirst({
       where: {
         userId,
@@ -350,9 +375,20 @@ export class BoostsService {
         targetId: dto.targetId,
         status: BoostStatus.PENDING,
       },
+      include: { payment: true },
     });
     if (pending) {
-      throw new ConflictException('برای این مورد قبلاً درخواست پله ثبت شده است');
+      // An unpaid attempt can be resumed from the gateway; a free or already
+      // paid request is genuinely a duplicate.
+      const resumable =
+        paymentRequired &&
+        pending.payment &&
+        pending.payment.status !== PaymentStatus.PAID;
+      if (!resumable) {
+        throw new ConflictException('برای این مورد قبلاً درخواست پله ثبت شده است');
+      }
+      const payment = await this.startPayment(userId, pending.id, price);
+      return { ...pending, payment };
     }
 
     const request = await this.prisma.boostRequest.create({
@@ -366,15 +402,23 @@ export class BoostsService {
       },
     });
 
-    await this.notifications.notifyAdmins({
-      category: 'BOOST',
-      scope: 'BOOST',
-      title: 'درخواست پله جدید',
-      body: `یک درخواست «پله» برای ${boostKindLabel(dto.kind)} ثبت شد.`,
-      type: NotificationType.INFO,
-      link: '/admin?section=boosts',
-      actorId: userId,
-    });
+    const payment = paymentRequired
+      ? await this.startPayment(userId, request.id, price)
+      : null;
+
+    // The admin queue is only notified once the fee is settled (or when the
+    // gateway is off and the request is free).
+    if (!payment) {
+      await this.notifications.notifyAdmins({
+        category: 'BOOST',
+        scope: 'BOOST',
+        title: 'درخواست پله جدید',
+        body: `یک درخواست «پله» برای ${boostKindLabel(dto.kind)} ثبت شد.`,
+        type: NotificationType.INFO,
+        link: '/admin?section=boosts',
+        actorId: userId,
+      });
+    }
 
     await this.activity.log({
       action: 'BOOST_REQUESTED',
@@ -383,16 +427,44 @@ export class BoostsService {
       entityId: request.id,
     });
 
-    return request;
+    return { ...request, payment };
+  }
+
+  /** Open (or reopen) the PayPing order of one «پله» request. */
+  private startPayment(
+    userId: string,
+    requestId: string,
+    amount: number,
+  ): Promise<RequestPaymentInfo | null> {
+    return this.prisma.user
+      .findUnique({
+        where: { id: userId },
+        select: { email: true, phone: true, fullName: true },
+      })
+      .then((payer) =>
+        this.requestPayments.start({
+          userId,
+          target: RequestPaymentTarget.BOOST,
+          requestId,
+          amount,
+          description: 'پله در صدر دایرکتوری — شمالی‌کارت',
+          payerIdentity: payer?.phone ?? payer?.email ?? null,
+          payerName: payer?.fullName ?? null,
+        }),
+      );
   }
 
   async listRequests(status?: BoostStatus) {
-    const where: Prisma.BoostRequestWhereInput = status ? { status } : {};
+    const where: Prisma.BoostRequestWhereInput = {
+      ...(status ? { status } : {}),
+      ...(status === BoostStatus.PENDING ? reviewableWhere() : {}),
+    };
     const requests = await this.prisma.boostRequest.findMany({
       where,
       include: {
         user: { select: { id: true, email: true, fullName: true } },
         decidedBy: { select: { id: true, email: true, fullName: true } },
+        payment: true,
       },
       orderBy: { requestedAt: 'desc' },
       take: 200,
@@ -410,6 +482,7 @@ export class BoostsService {
     const { status, decidedById, skip, take } = params;
     const where: Prisma.BoostRequestWhereInput = {
       ...(status ? { status } : {}),
+      ...(status === BoostStatus.PENDING ? reviewableWhere() : {}),
       ...(decidedById && status && status !== BoostStatus.PENDING
         ? { decidedById }
         : {}),
@@ -420,6 +493,7 @@ export class BoostsService {
         include: {
           user: { select: { id: true, email: true, fullName: true } },
           decidedBy: { select: { id: true, email: true, fullName: true } },
+          payment: true,
         },
         orderBy: { requestedAt: 'desc' },
         skip,
@@ -433,7 +507,9 @@ export class BoostsService {
   /** Per-status counts for the review-queue tabs. */
   async requestQueueCounts(decidedById: string) {
     const [pending, approved, rejected] = await this.prisma.$transaction([
-      this.prisma.boostRequest.count({ where: { status: BoostStatus.PENDING } }),
+      this.prisma.boostRequest.count({
+        where: { status: BoostStatus.PENDING, ...reviewableWhere() },
+      }),
       this.prisma.boostRequest.count({
         where: { status: BoostStatus.APPROVED, decidedById },
       }),
@@ -504,12 +580,22 @@ export class BoostsService {
   async decide(adminId: string, requestId: string, dto: DecideBoostDto) {
     const request = await this.prisma.boostRequest.findUnique({
       where: { id: requestId },
+      include: { payment: true },
     });
     if (!request) {
       throw new NotFoundException('درخواست پله یافت نشد');
     }
     if (request.status !== BoostStatus.PENDING) {
       throw new BadRequestException('این درخواست قبلاً بررسی شده است');
+    }
+    if (
+      dto.status === BoostStatus.APPROVED &&
+      request.payment &&
+      request.payment.status !== PaymentStatus.PAID
+    ) {
+      throw new BadRequestException(
+        'پرداخت این درخواست هنوز تأیید نشده است؛ تا تکمیل پرداخت امکان تأیید وجود ندارد',
+      );
     }
 
     const now = new Date();

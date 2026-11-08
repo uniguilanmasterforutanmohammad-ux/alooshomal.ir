@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { Bookmark, Eye, Heart, ListOrdered, TrendingUp } from 'lucide-react';
 
-import { api } from '@/lib/api';
+import { api, type RequestPaymentInfo } from '@/lib/api';
+import { goToPaymentGateway } from '@/lib/request-payment';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -44,11 +45,15 @@ export function CardStatsBar({
     setBusy(true);
     setError(null);
     try {
-      await api.post('/boosts/request', {
-        kind: kind === 'biolinks' ? 'BIOLINK' : 'BUSINESS_CARD',
-        targetId,
-        feature: 'POLE',
-      });
+      const result = await api.post<{ payment?: RequestPaymentInfo | null }>(
+        '/boosts/request',
+        {
+          kind: kind === 'biolinks' ? 'BIOLINK' : 'BUSINESS_CARD',
+          targetId,
+          feature: 'POLE',
+        },
+      );
+      if (goToPaymentGateway(result.payment)) return;
       setBoostStatus('PENDING');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ثبت درخواست ناموفق بود');

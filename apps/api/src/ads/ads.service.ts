@@ -10,7 +10,9 @@ import {
   AdTargetKind,
   BoostStatus,
   NotificationType,
+  PaymentStatus,
   Prisma,
+  RequestPaymentTarget,
 } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
@@ -18,6 +20,10 @@ import { scheduleAdWindow } from '../common/ad-scheduling';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  RequestPaymentsService,
+  type RequestPaymentInfo,
+} from '../request-payments/request-payments.service';
 import { SettingsService } from '../settings/settings.service';
 import { CreateAdDto } from './dto/create-ad.dto';
 import { DecideAdDto } from './dto/decide-ad.dto';
@@ -39,6 +45,16 @@ type AdDisplayState =
   | 'ACTIVE'
   | 'EXPIRED'
   | 'REJECTED';
+
+/**
+ * Only ads whose fee is settled (or that never needed one, i.e. the gateway was
+ * off) may enter the admin review queue.
+ */
+function reviewableWhere(): Prisma.AdRequestWhereInput {
+  return {
+    OR: [{ payment: null }, { payment: { status: PaymentStatus.PAID } }],
+  };
+}
 
 function displayStateOf(
   request: {
@@ -66,6 +82,7 @@ export class AdsService {
     private readonly activity: ActivityService,
     private readonly facetsCache: FacetsCacheService,
     private readonly settings: SettingsService,
+    private readonly requestPayments: RequestPaymentsService,
   ) {}
 
   /**
@@ -160,6 +177,7 @@ export class AdsService {
       }),
       this.prisma.adRequest.findMany({
         where: { userId },
+        include: { payment: true },
         orderBy: { requestedAt: 'desc' },
         take: 50,
       }),
@@ -188,6 +206,7 @@ export class AdsService {
         ...request,
         target: labels.get(request.targetId) ?? null,
         displayState: displayStateOf(request, now),
+        payment: RequestPaymentsService.toInfo(request.payment),
       })),
       settings: { durationDays, dailySlots },
       meta: {
@@ -226,6 +245,14 @@ export class AdsService {
       );
     }
 
+    // With the payment gateway connected the ad fee is collected first and the
+    // request reaches the admin review queue only after payment.
+    const price =
+      placement === AdPlacement.DIRECTORY
+        ? await this.settings.getAdDirectoryPrice()
+        : await this.settings.getAdHomePrice();
+    const paymentRequired = this.requestPayments.isRequired(price);
+
     const existing = await this.prisma.adRequest.findFirst({
       where: {
         userId,
@@ -234,9 +261,25 @@ export class AdsService {
         placement,
         status: BoostStatus.PENDING,
       },
+      include: { payment: true },
     });
     if (existing) {
-      throw new ConflictException('برای این مورد یک درخواست تبلیغ در انتظار تأیید دارید');
+      // An unpaid attempt can be resumed from the gateway; a free or already
+      // paid request is genuinely a duplicate.
+      const resumable =
+        paymentRequired &&
+        existing.payment &&
+        existing.payment.status !== PaymentStatus.PAID;
+      if (!resumable) {
+        throw new ConflictException('برای این مورد یک درخواست تبلیغ در انتظار تأیید دارید');
+      }
+      const payment = await this.startPayment(
+        userId,
+        existing.id,
+        placement,
+        price,
+      );
+      return { ...existing, payment };
     }
 
     const request = await this.prisma.adRequest.create({
@@ -249,24 +292,32 @@ export class AdsService {
       },
     });
 
-    await this.notifications.notifyAdmins({
-      category: 'AD',
-      scope: placement === AdPlacement.DIRECTORY ? 'DIRECTORY_AD' : 'AD',
-      title:
-        placement === AdPlacement.DIRECTORY
-          ? 'درخواست تبلیغ در دایرکتوری جدید'
-          : 'درخواست تبلیغ جدید',
-      body:
-        placement === AdPlacement.DIRECTORY
-          ? `درخواست تبلیغ «${target.fullName}» برای نمایش در صدر دایرکتوری همان شهر/کسب‌وکار ثبت شد.`
-          : `درخواست تبلیغ «${target.fullName}» برای نمایش در صفحه اصلی ثبت شد.`,
-      type: NotificationType.INFO,
-      link:
-        placement === AdPlacement.DIRECTORY
-          ? '/admin?section=ads&placement=directory'
-          : '/admin?section=ads',
-      actorId: userId,
-    });
+    const payment = paymentRequired
+      ? await this.startPayment(userId, request.id, placement, price)
+      : null;
+
+    // The admin queue is only notified once the fee is settled (or when the
+    // gateway is off and the ad is free).
+    if (!payment) {
+      await this.notifications.notifyAdmins({
+        category: 'AD',
+        scope: placement === AdPlacement.DIRECTORY ? 'DIRECTORY_AD' : 'AD',
+        title:
+          placement === AdPlacement.DIRECTORY
+            ? 'درخواست تبلیغ در دایرکتوری جدید'
+            : 'درخواست تبلیغ جدید',
+        body:
+          placement === AdPlacement.DIRECTORY
+            ? `درخواست تبلیغ «${target.fullName}» برای نمایش در صدر دایرکتوری همان شهر/کسب‌وکار ثبت شد.`
+            : `درخواست تبلیغ «${target.fullName}» برای نمایش در صفحه اصلی ثبت شد.`,
+        type: NotificationType.INFO,
+        link:
+          placement === AdPlacement.DIRECTORY
+            ? '/admin?section=ads&placement=directory'
+            : '/admin?section=ads',
+        actorId: userId,
+      });
+    }
 
     await this.activity.log({
       action: 'AD_REQUESTED',
@@ -275,7 +326,38 @@ export class AdsService {
       entityId: request.id,
     });
 
-    return request;
+    return { ...request, payment };
+  }
+
+  /** Open (or reopen) the PayPing order of one ad request. */
+  private startPayment(
+    userId: string,
+    requestId: string,
+    placement: AdPlacement,
+    amount: number,
+  ): Promise<RequestPaymentInfo | null> {
+    return this.prisma.user
+      .findUnique({
+        where: { id: userId },
+        select: { email: true, phone: true, fullName: true },
+      })
+      .then((payer) =>
+        this.requestPayments.start({
+          userId,
+          target:
+            placement === AdPlacement.DIRECTORY
+              ? RequestPaymentTarget.AD_DIRECTORY
+              : RequestPaymentTarget.AD_HOME,
+          requestId,
+          amount,
+          description:
+            placement === AdPlacement.DIRECTORY
+              ? 'تبلیغ در صدر دایرکتوری — شمالی‌کارت'
+              : 'تبلیغ در صفحه اصلی — شمالی‌کارت',
+          payerIdentity: payer?.phone ?? payer?.email ?? null,
+          payerName: payer?.fullName ?? null,
+        }),
+      );
   }
 
   /**
@@ -327,12 +409,14 @@ export class AdsService {
     const where: Prisma.AdRequestWhereInput = {
       ...(status ? { status } : {}),
       ...(placement ? { placement } : {}),
+      ...(status === BoostStatus.PENDING ? reviewableWhere() : {}),
     };
     const requests = await this.prisma.adRequest.findMany({
       where,
       include: {
         user: { select: { id: true, email: true, fullName: true } },
         decidedBy: { select: { id: true, email: true, fullName: true } },
+        payment: true,
       },
       orderBy: { requestedAt: 'desc' },
       take: 200,
@@ -358,6 +442,7 @@ export class AdsService {
     const where: Prisma.AdRequestWhereInput = {
       placement,
       ...(status ? { status } : {}),
+      ...(status === BoostStatus.PENDING ? reviewableWhere() : {}),
       ...(decidedById && status && status !== BoostStatus.PENDING
         ? { decidedById }
         : {}),
@@ -368,6 +453,7 @@ export class AdsService {
         include: {
           user: { select: { id: true, email: true, fullName: true } },
           decidedBy: { select: { id: true, email: true, fullName: true } },
+          payment: true,
         },
         orderBy: { requestedAt: 'desc' },
         skip,
@@ -391,7 +477,9 @@ export class AdsService {
   async requestQueueCounts(decidedById: string, placement?: AdPlacement) {
     const base: Prisma.AdRequestWhereInput = placement ? { placement } : {};
     const [pending, approved, rejected] = await this.prisma.$transaction([
-      this.prisma.adRequest.count({ where: { ...base, status: BoostStatus.PENDING } }),
+      this.prisma.adRequest.count({
+        where: { ...base, status: BoostStatus.PENDING, ...reviewableWhere() },
+      }),
       this.prisma.adRequest.count({
         where: { ...base, status: BoostStatus.APPROVED, decidedById },
       }),
@@ -409,12 +497,22 @@ export class AdsService {
   async decide(adminId: string, requestId: string, dto: DecideAdDto) {
     const request = await this.prisma.adRequest.findUnique({
       where: { id: requestId },
+      include: { payment: true },
     });
     if (!request) {
       throw new NotFoundException('درخواست تبلیغ یافت نشد');
     }
     if (request.status !== BoostStatus.PENDING) {
       throw new BadRequestException('این درخواست قبلاً بررسی شده است');
+    }
+    if (
+      dto.status === BoostStatus.APPROVED &&
+      request.payment &&
+      request.payment.status !== PaymentStatus.PAID
+    ) {
+      throw new BadRequestException(
+        'پرداخت این درخواست هنوز تأیید نشده است؛ تا تکمیل پرداخت امکان تأیید وجود ندارد',
+      );
     }
 
     const approved = dto.status === BoostStatus.APPROVED;
