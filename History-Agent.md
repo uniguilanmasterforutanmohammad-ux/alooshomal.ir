@@ -20,7 +20,32 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.9**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.10**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن `business-cards.service.ts`: جداسازی دایرکتوری عمومی — نسخه `v3.8.10`
+
+**هدف:** مسیر خواندنِ دایرکتوری عمومی (جستجو/فیلتر/وجه‌ها/صفحه‌بندی) در
+`business-cards.service.ts` (۱۲۱۶ خط) یک بلوک مستقل و پرحجم بود. به سرویس
+جداگانه منتقل شد تا مرز «دایرکتوری عمومی» در برابر «CRUD کاربر» روشن شود.
+
+**تغییرات:**
+- `apps/api/src/businesscards/business-cards-directory.service.ts` (فایل تازه):
+  `BusinessCardsDirectoryService` با `findPublicDirectory`، `loadDirectoryPage`
+  و `getDirectoryFacets`، به‌همراه ثابت `DIRECTORY_CACHE_TTL_MS` و اینترفیس
+  `DirectoryBusinessCardItem` (۲۷۹ خط منتقل شد).
+- `apps/api/src/businesscards/business-cards.service.ts`: حذف بلوک دایرکتوری
+  (اکنون ۹۳۴ خط) و ایمپورت‌های بی‌استفاده.
+- `apps/api/src/businesscards/business-cards.controller.ts`: تزریق
+  `BusinessCardsDirectoryService` (با نام `directoryService` برای پرهیز از
+  تداخل با متد روت `directory`) و هدایت مسیر `GET /business-cards/public`.
+- `apps/api/src/businesscards/business-cards.module.ts`: افزودن سرویس جدید به
+  `providers`.
+
+**تأیید/تست:**
+- `tsc --noEmit -p tsconfig.json` و `eslint src/businesscards` → exit 0.
+- اجرای واقعی API؛ `GET /api/health` → ۲۰۰ و `GET /api/business-cards/public?page=1`
+  → ۲۰۰ با داده‌ی واقعی دایرکتوری.
+- `python3 scripts/check_modules.py` و `check_api_docs.py` سبز.
 
 ## ۱۴۰۵/۰۸/۱۷ — شکستن `feeds.service.ts`: جداسازی سرویس کامنت‌ها — نسخه `v3.8.9`
 

@@ -21,6 +21,7 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 import { RequirePermission } from '../auth/permissions.decorator';
 import { visitorKeyFrom } from '../common/visitor-key';
 import { BusinessCardsService } from './business-cards.service';
+import { BusinessCardsDirectoryService } from './business-cards-directory.service';
 import { CreateBusinessCardDto } from './dto/create-business-card.dto';
 import { PublicBusinessCardQueryDto } from './dto/public-business-card-query.dto';
 import { PublicPhonebookQueryDto } from './dto/public-phonebook-query.dto';
@@ -29,7 +30,10 @@ import { UpdateBusinessCardDto } from './dto/update-business-card.dto';
 @ApiTags('business-cards')
 @Controller('business-cards')
 export class BusinessCardsController {
-  constructor(private readonly businessCardsService: BusinessCardsService) {}
+  constructor(
+    private readonly businessCardsService: BusinessCardsService,
+    private readonly directoryService: BusinessCardsDirectoryService,
+  ) {}
 
   @Post()
   @ApiBearerAuth()
@@ -102,7 +106,7 @@ export class BusinessCardsController {
     @Req() request: Request,
     @CurrentUser() user?: AuthUser,
   ) {
-    return this.businessCardsService.findPublicDirectory(
+    return this.directoryService.findPublicDirectory(
       query,
       visitorKeyFrom(request),
       user?.id,
