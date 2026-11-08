@@ -113,6 +113,10 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-}
       MAIL_FROM_NAME: ${MAIL_FROM_NAME:-شمالی کارت}
+      # PayPing merchant token used by the «درگاه پرداخت» admin panel; the
+      # token stays server-side (never shipped to the browser).
+      PAYPING_TOKEN: ${PAYPING_TOKEN:-}
+      PAYPING_BASE_URL: ${PAYPING_BASE_URL:-https://api.payping.ir}
     ports:
       - "${API_PORT:-4000}:4000"
     volumes:

@@ -20,7 +20,49 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.3.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.4.0**.
+
+## ۱۴۰۵/۰۸/۱۷ — پنل «درگاه پرداخت پی‌پینگ» در داشبورد مدیریت — نسخه `v3.4.0`
+
+**هدف:** با توجه به توکن درگاه پرداخت پی‌پینگ و مستندات رسمی، همه‌ی
+دسترسی‌های مجاز توکن (پرداخت، گزارش تراکنش/تسویه، تسویه‌حساب، مشتریان، کد
+تخفیف، آیتم مالی و لینک ثابت، فاکتور، خرید اقساطی، استعلام و آپلود) در یک
+بخش تازه‌ی داشبورد مدیریت («درگاه پرداخت») پیاده‌سازی شود. توکن فقط سمت سرور
+استفاده می‌شود و هرگز به مرورگر نمی‌رود.
+
+**تغییرات:**
+- `apps/api/src/payping/payping.service.ts`: کلاینت REST پی‌پینگ با `fetch`
+  (توکن از `PAYPING_TOKEN`)، مدیریت خطای problem+json و تایم‌اوت؛ متدهایی برای
+  همه‌ی endpointهای مجاز توکن.
+- `apps/api/src/payping/payping.controller.ts`: کنترلر `admin/payping` فقط برای
+  نقش `ADMIN` با `@ApiTags`/`@ApiOperation`/`@ApiBearerAuth` روی همه‌ی مسیرها.
+- `apps/api/src/payping/dto/*.dto.ts`: DTOهای مستندشده برای گزارش، پرداخت،
+  مشتری، کد تخفیف، آیتم مالی/لینک ثابت، فاکتور و اقساطی.
+- `apps/api/src/payping/payping.module.ts` و `apps/api/src/app.module.ts`:
+  ثبت ماژول جدید.
+- `apps/api/src/main.ts`: افزودن برچسب Swagger `payping`.
+- `apps/web/components/admin/AdminPaypingPanel.tsx`: پنل کامل با ۱۱ تب
+  (خلاصه/اتصال، تراکنش‌ها، تسویه‌ها، مشتریان، کد تخفیف، آیتم‌های مالی،
+  فاکتورها، اقساطی، ساخت پرداخت، استعلام، آپلود).
+- `apps/web/components/admin/AdminShell.tsx` و `apps/web/app/admin/page.tsx`:
+  افزودن بخش `payments` («درگاه پرداخت») و اتصال پنل.
+- `apps/web/lib/api.ts`: افزودن متد `api.put`.
+- `.env.example`، `docker-compose.yml` و `docs/DEPLOY.md`: متغیرهای
+  `PAYPING_TOKEN` و `PAYPING_BASE_URL`.
+- `docs/API.md`: مستندسازی کامل گروه `payping`.
+- `apps/web/lib/version.ts`: ارتقای نسخه به `v3.4.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- `python3 scripts/check_api_docs.py` → «همه‌ی مسیرها @ApiOperation دارند» (exit 0).
+- تست زنده‌ی API با توکن ادمین: `GET /api/admin/payping/status` →
+  `{configured:true, reachable:true}`؛ `overview`، `customers`، `coupons`،
+  `invoices`، `bnpl/options`، `bnpl/plans` و `reports/transactions` پاسخ ۲۰۰
+  دادند؛ بدون توکن ۴۰۱.
+- تست Playwright روی `/admin?section=payments`: عنوان «درگاه پرداخت پی‌پینگ»،
+  پیام «اتصال برقرار است»، تب‌ها و فرم «ساخت پرداخت» رندر شدند و خطای کنسول
+  نداشت.
 
 ## ۱۴۰۵/۰۸/۱۷ — زمان ماندگاری در پایش منابع و اصلاح کادر جستجوی موبایل — نسخه `v3.3.1`
 

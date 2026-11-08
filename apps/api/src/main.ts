@@ -111,6 +111,7 @@ async function bootstrap(): Promise<void> {
       .addTag('moderator', 'پنل کاربر ادمین (بررسی محتوا)')
       .addTag('admin', 'پنل مدیریت: کاربران، محتوا، تنظیمات و گزارش‌ها')
       .addTag('settings', 'تنظیمات عمومی سایت')
+      .addTag('payping', 'درگاه پرداخت پی‌پینگ (حساب پذیرنده)')
       .addTag('seo', 'نقشه‌ی سایت و داده‌های سئو')
       .addTag('health', 'سلامت سرویس')
       .build();

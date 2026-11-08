@@ -31,6 +31,7 @@ import { AdminModerators } from '@/components/admin/AdminModerators';
 import { AdminNewsSettings } from '@/components/admin/AdminNewsSettings';
 import { AdminStoragePanel } from '@/components/admin/AdminStoragePanel';
 import { AdminMonitoringPanel } from '@/components/admin/AdminMonitoringPanel';
+import { AdminPaypingPanel } from '@/components/admin/AdminPaypingPanel';
 import { ActivityLogPanel } from '@/components/admin/ActivityLogPanel';
 import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
 import { AdminDataTable, type AdminColumn } from '@/components/admin/AdminDataTable';
@@ -102,6 +103,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'ads',
   'points',
   'revenue',
+  'payments',
   'feeds',
   'users',
   'emails',
@@ -542,6 +544,10 @@ function AdminContent() {
       title: 'پایش منابع سرور',
       sub: 'مصرف رم، پردازنده و دیسک و تنظیم آستانه‌ی ارسال هشدار به ایمیل و موبایل',
     },
+    payments: {
+      title: 'درگاه پرداخت پی‌پینگ',
+      sub: 'تراکنش‌ها، تسویه، مشتریان، کد تخفیف، فاکتور، اقساطی و استعلام',
+    },
     reports: { title: 'گزارش‌ها', sub: 'گزارش‌های سیستم' },
     tools: { title: 'ابزار تست', sub: 'ایمپورت گروهی، حذف داده‌های تستی و قفل ساخت' },
     notifications: {
@@ -822,6 +828,8 @@ function AdminContent() {
       {section === 'points' ? <AdminPoints /> : null}
 
       {section === 'revenue' ? <AdminRevenue /> : null}
+
+      {section === 'payments' ? <AdminPaypingPanel /> : null}
 
       {section === 'feeds' ? <AdminFeeds /> : null}
 

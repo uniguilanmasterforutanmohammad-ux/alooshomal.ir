@@ -10,6 +10,7 @@ import {
   BookOpen,
   Coins,
   Crown,
+  CreditCard,
   HardDrive,
   IdCard,
   LifeBuoy,
@@ -44,6 +45,7 @@ export type AdminSection =
   | 'ads'
   | 'points'
   | 'revenue'
+  | 'payments'
   | 'feeds'
   | 'users'
   | 'emails'
@@ -73,6 +75,7 @@ const NAV: Array<{ key: AdminSection; label: string; icon: typeof LayoutDashboar
   { key: 'boosts', label: 'افزایش بازدید', icon: TrendingUp },
   { key: 'ads', label: 'تبلیغات', icon: Megaphone },
   { key: 'revenue', label: 'درآمد', icon: Banknote },
+  { key: 'payments', label: 'درگاه پرداخت', icon: CreditCard },
   { key: 'points', label: 'امتیازها', icon: Coins },
   { key: 'feeds', label: 'فیدها', icon: ImagePlus },
   { key: 'users', label: 'کاربران', icon: Users },

@@ -110,6 +110,31 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 در صورت تنظیم‌نبودن هر کانال، هشدار درون‌برنامه‌ای (دسته‌ی `SYSTEM`) همچنان ثبت
 می‌شود.
 
+### درگاه پرداخت پی‌پینگ (`payping`)
+
+پنل مدیر «درگاه پرداخت» با توکن پذیرنده‌ی پی‌پینگ (متغیر محیطی `PAYPING_TOKEN`)
+کار می‌کند. توکن فقط سمت سرور استفاده می‌شود و هرگز به مرورگر نمی‌رود؛ رابط
+کاربری از طریق همین API با پی‌پینگ صحبت می‌کند. همه‌ی مسیرها فقط برای نقش
+`ADMIN` در دسترس‌اند و پیشوندشان `/api/admin/payping` است.
+
+| گروه | مسیرها | توضیح |
+| --- | --- | --- |
+| اتصال | `GET status`، `GET overview` | بررسی توکن/دسترسی و شمارنده‌های تراکنش، تسویه، مشتری، کد تخفیف و فاکتور. |
+| گزارش | `POST reports/transactions`، `POST reports/transactions/count`، `POST reports/withdrawals`، `POST reports/withdrawals/count`، `GET reports/transaction/:code` | بدنه‌ی گزارش: `fromDate`/`toDate` (ISO-8601) و اختیاری `pageNumber`/`pageSize`. |
+| تسویه | `POST withdrawals`، `GET withdrawals/:code` | درخواست تسویه با `{ amount }` (تومان). |
+| مشتریان | `GET customers`، `GET customers/count`، `GET customers/:code`، `POST customers`، `PUT customers/:code`، `DELETE customers/:code` | CRUD مشتریان پی‌پینگ. |
+| کد تخفیف | `GET coupons`، `GET coupons/count`، `GET coupons/:code`، `POST coupons`، `PUT coupons`، `DELETE coupons/:code`، `GET coupons/:code/buyers` | ساخت/ویرایش/حذف و دیدن خریداران. |
+| آیتم مالی | `GET products`، `GET products/:code`، `POST products`، `PUT products`، `DELETE products/:code`، `POST permalinks`، `PUT permalinks`، `GET permalinks/:code`، `DELETE permalinks/:code`، `GET permalinks/:code/buyers` | آیتم‌های مالی و لینک ثابت (محدود به IP مجاز پی‌پینگ). |
+| فاکتور | `GET invoices`، `GET invoices/count`، `GET invoices/:code`، `POST invoices`، `PUT invoices/:code`، `POST invoices/:code/archive`، `POST invoices/:code/dearchive`، `GET invoices/:code/pdf`، `POST invoices/cancel`، `POST invoices/confirm-payment`، `GET invoices/payment-code` | مدیریت کامل فاکتورها. |
+| پرداخت | `POST payments`، `POST payments/verify`، `POST payments/reverse`، `POST payments/unblock`، `DELETE payments/:code` | ساخت پرداخت (لینک درگاه)، تأیید، بازگشت وجه، آزادسازی و حذف پرداخت پرداخت‌نشده. |
+| اقساطی | `GET bnpl/options`، `GET bnpl/orders`، `GET bnpl/orders/detail`، `POST bnpl/orders`، `GET bnpl/plans`، `PUT bnpl/plans/toggle`، `POST bnpl/wallet-credit` | خرید اقساطی (BNPL). |
+| استعلام | `GET inquiries/card-to-sheba`، `GET inquiries/card-to-deposit`، `GET inquiries/card-to-owner`، `GET inquiries/sheba-owner`، `GET inquiries/postal-code`، `GET inquiries/national-code`، `GET inquiries/national-code-mobile` | سرویس‌های استعلامی (در صورت فعال‌بودن در توکن). |
+| آپلود | `POST uploads/:kind` | `ProfilePic` / `Item` / `InvoiceAttachment` به‌صورت `multipart/form-data` با فیلد `file`. |
+
+اگر یک سرویس خطای `Client IP is not allowed` برگرداند، باید IP سرور در کنسول
+توسعه‌دهنده‌ی پی‌پینگ ثبت شود. اگر `PAYPING_TOKEN` خالی باشد، `GET status`
+`configured: false` برمی‌گرداند و پنل راهنمای تنظیم توکن را نشان می‌دهد.
+
 ### بررسی سریع کامل‌بودن
 
 ```bash
