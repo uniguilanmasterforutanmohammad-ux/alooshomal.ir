@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Check, Megaphone, Save, X } from 'lucide-react';
 
 import { api, type AdRequest } from '@/lib/api';
@@ -45,7 +46,18 @@ interface SettingsPayload {
  * and the settings controlling how long each ad runs.
  */
 export function AdminAds() {
-  const [tab, setTab] = useState<Tab>('home');
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  // The placement tab follows the URL (`?placement=directory`), the same way the
+  // admin shell derives `?section=`, so notification links land on the right
+  // tab. The settings tab has no URL and stays local.
+  const placementParam = searchParams.get('placement')?.toLowerCase() ?? null;
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const tab: Tab = settingsOpen
+    ? 'settings'
+    : placementParam === 'directory'
+      ? 'directory'
+      : 'home';
   const [status, setStatus] = useState('PENDING');
   const [requests, setRequests] = useState<AdRequest[]>([]);
   const [directoryRequests, setDirectoryRequests] = useState<AdRequest[]>([]);
@@ -88,6 +100,22 @@ export function AdminAds() {
     if (tab === 'home') void load();
     if (tab === 'directory') void loadDirectory();
   }, [tab, load, loadDirectory]);
+
+  const selectTab = useCallback(
+    (next: Tab) => {
+      if (next === 'settings') {
+        setSettingsOpen(true);
+        return;
+      }
+      setSettingsOpen(false);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('section', 'ads');
+      if (next === 'directory') params.set('placement', 'directory');
+      else params.delete('placement');
+      router.replace(`/admin?${params.toString()}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
 
   async function decide(id: string, decision: 'APPROVED' | 'REJECTED') {
     setBusyId(id);
@@ -232,7 +260,7 @@ export function AdminAds() {
         ).map(([key, label]) => (
           <button
             key={key}
-            onClick={() => setTab(key)}
+            onClick={() => selectTab(key)}
             className={cn(
               'rounded-lg border px-4 py-2 text-sm font-bold transition',
               tab === key
