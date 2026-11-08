@@ -165,7 +165,9 @@ export function CreateTicketDialog({ open, onClose, onCreated }: CreateProps) {
           </label>
 
           {error ? (
-            <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
+            <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
+              {error}
+            </p>
           ) : null}
         </div>
 
@@ -232,7 +234,9 @@ export function TicketDetail({ ticketId, onClose, onUpdated }: DetailProps) {
   if (!ticket) {
     return (
       <div className="indeed-panel p-6">
-        <p className="rounded-lg bg-red-50 p-4 text-sm text-red-700">{error}</p>
+        <p className="rounded-lg bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
+          {error}
+        </p>
         <button onClick={onClose} className="indeed-btn indeed-btn-secondary mt-4">
           بستن
         </button>
@@ -269,7 +273,7 @@ export function TicketDetail({ ticketId, onClose, onUpdated }: DetailProps) {
             className={cn(
               'max-w-[85%] rounded-xl border p-3 text-sm leading-7',
               msg.isStaff
-                ? 'self-start border-[var(--vintage-border)] bg-white'
+                ? 'self-start border-[var(--vintage-border)] bg-white dark:bg-white/5'
                 : 'self-end border-brand/40 bg-brand-light text-ink',
             )}
           >
@@ -285,7 +289,9 @@ export function TicketDetail({ ticketId, onClose, onUpdated }: DetailProps) {
       </div>
 
       {error ? (
-        <p className="mx-4 mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
+        <p className="mx-4 mb-3 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
+          {error}
+        </p>
       ) : null}
 
       <form

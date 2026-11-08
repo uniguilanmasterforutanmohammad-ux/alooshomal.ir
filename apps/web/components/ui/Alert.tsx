@@ -18,23 +18,23 @@ interface Props {
 
 const TONE = {
   error: {
-    wrap: 'border-red-200 bg-red-50 text-red-800',
-    iconWrap: 'bg-red-100 text-red-600',
+    wrap: 'border-red-200 bg-red-50 text-red-800 dark:border-red-800/60 dark:bg-red-950/50 dark:text-red-200',
+    iconWrap: 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-300',
     Icon: XCircle,
   },
   warning: {
-    wrap: 'border-amber-200 bg-amber-50 text-amber-900',
-    iconWrap: 'bg-amber-100 text-amber-600',
+    wrap: 'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/50 dark:text-amber-200',
+    iconWrap: 'bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-300',
     Icon: AlertTriangle,
   },
   success: {
-    wrap: 'border-emerald-200 bg-emerald-50 text-emerald-800',
-    iconWrap: 'bg-emerald-100 text-emerald-600',
+    wrap: 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/50 dark:text-emerald-200',
+    iconWrap: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-300',
     Icon: CheckCircle2,
   },
   info: {
-    wrap: 'border-sky-200 bg-sky-50 text-sky-800',
-    iconWrap: 'bg-sky-100 text-sky-600',
+    wrap: 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800/60 dark:bg-sky-950/50 dark:text-sky-200',
+    iconWrap: 'bg-sky-100 text-sky-600 dark:bg-sky-900/50 dark:text-sky-300',
     Icon: Info,
   },
 } as const;
@@ -68,7 +68,7 @@ export function Alert({ tone = 'error', title, children, action, className }: Pr
         {action ? (
           <Link
             href={action.href}
-            className="mt-2 inline-flex items-center rounded-lg bg-white/70 px-3 py-1.5 text-xs font-bold underline-offset-2 hover:underline"
+            className="mt-2 inline-flex items-center rounded-lg bg-white/70 px-3 py-1.5 text-xs font-bold underline-offset-2 hover:underline dark:bg-white/10"
           >
             {action.label}
           </Link>

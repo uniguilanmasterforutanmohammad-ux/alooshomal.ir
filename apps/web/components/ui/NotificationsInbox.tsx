@@ -124,7 +124,9 @@ export function NotificationsInbox({ scope = 'user', linkMapper }: Props) {
       </div>
 
       {error ? (
-        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
+        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/50 dark:text-red-200">
+          {error}
+        </p>
       ) : null}
 
       <div className="indeed-panel overflow-hidden">

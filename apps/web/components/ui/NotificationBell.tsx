@@ -30,10 +30,13 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
 const POLL_MS = 120000;
 
 const typeStyles: Record<AppNotification['type'], string> = {
-  INFO: 'border-s-sky-400 bg-sky-50 text-sky-700',
-  SUCCESS: 'border-s-emerald-400 bg-emerald-50 text-emerald-700',
-  WARNING: 'border-s-amber-400 bg-amber-50 text-amber-700',
-  ERROR: 'border-s-red-400 bg-red-50 text-red-700',
+  INFO: 'border-s-sky-400 bg-sky-50 text-sky-700 dark:border-s-sky-500 dark:bg-sky-950/50 dark:text-sky-200',
+  SUCCESS:
+    'border-s-emerald-400 bg-emerald-50 text-emerald-700 dark:border-s-emerald-500 dark:bg-emerald-950/50 dark:text-emerald-200',
+  WARNING:
+    'border-s-amber-400 bg-amber-50 text-amber-700 dark:border-s-amber-500 dark:bg-amber-950/50 dark:text-amber-200',
+  ERROR:
+    'border-s-red-400 bg-red-50 text-red-700 dark:border-s-red-500 dark:bg-red-950/50 dark:text-red-200',
 };
 
 export function NotificationBell({
@@ -218,7 +221,9 @@ export function NotificationBell({
                     onClick={() => void markOne(item.id, item.link)}
                     className={cn(
                       'block border-s-4 px-4 py-3 transition hover:bg-soft',
-                      item.readAt ? 'border-s-transparent bg-white' : typeStyles[item.type],
+                      item.readAt
+                        ? 'border-s-transparent bg-white dark:bg-transparent'
+                        : typeStyles[item.type],
                     )}
                   >
                     {content}
@@ -230,7 +235,9 @@ export function NotificationBell({
                     onClick={() => void markOne(item.id, null)}
                     className={cn(
                       'block w-full border-s-4 px-4 py-3 text-right transition hover:bg-soft',
-                      item.readAt ? 'border-s-transparent bg-white' : typeStyles[item.type],
+                      item.readAt
+                        ? 'border-s-transparent bg-white dark:bg-transparent'
+                        : typeStyles[item.type],
                     )}
                   >
                     {content}
