@@ -20,7 +20,33 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.5**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.6**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن ماژول تنظیمات: جداسازی ثابت‌ها و رجیستری ویژگی‌ها — نسخه `v3.8.6`
+
+**هدف:** `settings.service.ts` با ۱۴۲۰ خط بزرگ‌ترین فایل بک‌اند بود و ~۴۲۰ خط
+ابتهای آن فقط ثابت/تایپ/رجیستری `FEATURE_FLAGS` بود (بدون هیچ منطقی). این بخش
+به فایل جداگانه منتقل شد تا مرز ماژول (ثابت‌ها در برابر رفتار) روشن شود و سرویس
+به ~۱۰۷۲ خط برسد. این نخستین گام از شکستن فایل‌های بزرگ به‌صورت مرحله‌به‌مرحله است.
+
+**تغییرات:**
+- `apps/api/src/settings/settings.constants.ts` (فایل تازه): تمام ثابت‌ها،
+  تایپ‌ها، اینترفیس‌های ویژگی و آرایه‌ی `FEATURE_FLAGS` از سرویس منتقل شد.
+- `apps/api/src/settings/settings.service.ts`: بخش ثابت‌ها حذف و با
+  `export * from './settings.constants'` دوباره صادر شد؛ واردکننده‌های بیرونی
+  (`settings.controller.ts`، `biolinks.service.ts`، `notifications.service.ts` و …)
+  بدون تغییر کار می‌کنند.
+- `scripts/check_modules.py`: بررسی `FEATURE_FLAGS` به‌جای یک فایل، کل پوشه‌ی
+  `settings/` را جارو می‌کند تا با این انتقال هم‌گام بماند.
+- `docs/ARCHITECTURE.md`: افزودن قرارداد «شکستن ماژول بزرگ در همان پوشه با
+  re-export» و نام‌گذاری `*.constants.ts`/`*-<concern>.service.ts`.
+
+**تأیید/تست:**
+- `tsc --noEmit -p tsconfig.json` و `eslint src` در api → exit 0.
+- راه‌اندازی مجدد واقعی API (watch) بدون خطا؛ `GET /api/health` → ۲۰۰ و
+  `GET /api/settings/public` داده‌ی درست برگرداند (شامل `biolinkTemplatesEnabled`).
+- `python3 scripts/check_modules.py` (۹ کلید فیچر)، `check_api_docs.py` (۳۲۲ مسیر)
+  و `sync_install.py --check` همه سبز.
 
 ## ۱۴۰۵/۰۸/۱۷ — همگام‌سازی CHANGELOG با نسخه‌های v2.32.0 تا v3.8.4 — نسخه `v3.8.5`
 

@@ -22,7 +22,9 @@ import sys
 
 SRC = os.path.join("apps", "api", "src")
 APP_MODULE = os.path.join(SRC, "app.module.ts")
-SETTINGS = os.path.join(SRC, "settings", "settings.service.ts")
+# The feature-flag registry may live in any file inside the settings module
+# (e.g. `settings.constants.ts`), so scan the whole folder.
+SETTINGS_DIR = os.path.join(SRC, "settings")
 
 # Folders that are infrastructure, not a feature module (see ARCHITECTURE.md).
 EXEMPT_DIRS = {"config"}
@@ -68,19 +70,29 @@ def check_modules(problems: list[str]) -> int:
 
 
 def check_feature_flags(problems: list[str]) -> int:
-    with open(SETTINGS, encoding="utf-8") as handle:
+    source = None
+    for name in sorted(os.listdir(SETTINGS_DIR)):
+        if not name.endswith(".ts"):
+            continue
+        path = os.path.join(SETTINGS_DIR, name)
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+        if "export const FEATURE_FLAGS" in text:
+            source = path
+            break
+    if source is None:
+        problems.append(f"{SETTINGS_DIR}: آرایه‌ی FEATURE_FLAGS پیدا نشد")
+        return 0
+    with open(source, encoding="utf-8") as handle:
         text = handle.read()
     start = text.find("export const FEATURE_FLAGS")
-    if start == -1:
-        problems.append(f"{SETTINGS}: آرایه‌ی FEATURE_FLAGS پیدا نشد")
-        return 0
     end = text.find("\n];", start)
     block = text[start : end if end != -1 else len(text)]
     keys = [match.strip() for match in FLAG_KEY.findall(block)]
     seen: set[str] = set()
     for key in keys:
         if key in seen:
-            problems.append(f"{SETTINGS}: کلید تکراری در FEATURE_FLAGS: {key}")
+            problems.append(f"{source}: کلید تکراری در FEATURE_FLAGS: {key}")
         seen.add(key)
     return len(keys)
 

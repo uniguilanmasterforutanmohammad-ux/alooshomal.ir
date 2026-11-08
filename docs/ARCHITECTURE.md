@@ -61,6 +61,14 @@ apps/api/src/
   دارد (قانون ۸ در `AGENTS.md`). بررسی خودکار:
   `python3 scripts/check_api_docs.py`.
 
+**شکستن یک ماژول بزرگ:** وقتی فایلی مثل سرویس از چند صد خط گذشت، آن را **در
+همان پوشه** به فایل‌های کوچک‌تر بشکنید و از فایل اصلی دوباره صادر (re-export)
+کنید تا واردکننده‌های بیرونی دست‌نخورده بمانند. نام‌گذاری پیشنهادی:
+`<feature>.constants.ts` برای ثابت‌ها/تایپ‌ها و `<feature>-<concern>.service.ts`
+برای زیرسرویس‌ها. مثال زنده: رجیستری ثابت‌ها و `FEATURE_FLAGS` به
+`apps/api/src/settings/settings.constants.ts` منتقل شده و سرویس اصلی آن را با
+`export * from './settings.constants'` دوباره صادر می‌کند.
+
 ---
 
 ## ۳. ساختار Web
