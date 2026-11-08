@@ -22,6 +22,7 @@ interface MonitoringSnapshot {
   thresholds: { ram: number; cpu: number; disk: number };
   cooldownMinutes: number;
   intervalSeconds: number;
+  sustainMinutes: number;
   recipients: {
     email: string;
     phone: string;
@@ -52,6 +53,7 @@ interface FormState {
   diskThreshold: number;
   cooldownMinutes: number;
   intervalSeconds: number;
+  sustainMinutes: number;
   alertEmail: string;
   alertPhone: string;
 }
@@ -145,6 +147,7 @@ export function AdminMonitoringPanel() {
       diskThreshold: data.thresholds.disk,
       cooldownMinutes: data.cooldownMinutes,
       intervalSeconds: data.intervalSeconds,
+      sustainMinutes: data.sustainMinutes,
       alertEmail: data.recipients.emailFromAdminAccount ? '' : data.recipients.email,
       alertPhone: data.recipients.phoneFromAdminAccount ? '' : data.recipients.phone,
     });
@@ -298,7 +301,8 @@ export function AdminMonitoringPanel() {
             آستانه‌های هشدار
           </h3>
           <p className="mt-1 text-sm text-muted">
-            وقتی مصرف هر منبع به این درصد برسد، هشدار برای گیرندگان ارسال می‌شود.
+            وقتی مصرف هر منبع به این درصد برسد و به مدت تعیین‌شده بالای آن بماند،
+            هشدار برای گیرندگان ارسال می‌شود.
           </p>
 
           <label className="mt-4 flex items-start gap-3 rounded-lg border border-[var(--vintage-border)] p-3">
@@ -367,6 +371,20 @@ export function AdminMonitoringPanel() {
           </div>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-semibold text-ink">
+              مدت ماندگاری بالای آستانه (دقیقه)
+              <input
+                type="number"
+                min={0}
+                max={120}
+                className="indeed-input mt-1"
+                value={form.sustainMinutes}
+                disabled={busy}
+                onChange={(event) =>
+                  setForm({ ...form, sustainMinutes: Number(event.target.value) })
+                }
+              />
+            </label>
             <label className="text-sm font-semibold text-ink">
               تکرار هشدار (دقیقه)
               <input

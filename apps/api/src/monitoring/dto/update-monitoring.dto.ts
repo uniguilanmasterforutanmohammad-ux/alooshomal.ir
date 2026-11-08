@@ -83,6 +83,19 @@ export class UpdateMonitoringDto {
 
   @ApiPropertyOptional({
     description:
+      'مدت ماندگاری بالای آستانه (دقیقه) پیش از ارسال هشدار؛ مثلاً ۱ یعنی فقط اگر مصرف یک دقیقه بالای آستانه بماند هشدار برود. صفر = بدون تأخیر.',
+    minimum: 0,
+    maximum: 120,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(120)
+  sustainMinutes?: number;
+
+  @ApiPropertyOptional({
+    description:
       'ایمیل گیرنده‌ی هشدارها؛ خالی یعنی ایمیل ادمین اصلی. برای پاک‌کردن، رشته‌ی خالی بفرستید.',
   })
   @IsOptional()

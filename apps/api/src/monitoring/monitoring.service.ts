@@ -23,6 +23,7 @@ export const MONITORING_CPU_THRESHOLD_KEY = 'monitoringCpuThreshold';
 export const MONITORING_DISK_THRESHOLD_KEY = 'monitoringDiskThreshold';
 export const MONITORING_COOLDOWN_KEY = 'monitoringCooldownMinutes';
 export const MONITORING_INTERVAL_KEY = 'monitoringIntervalSeconds';
+export const MONITORING_SUSTAIN_KEY = 'monitoringSustainMinutes';
 export const MONITORING_ALERT_EMAIL_KEY = 'monitoringAlertEmail';
 export const MONITORING_ALERT_PHONE_KEY = 'monitoringAlertPhone';
 
@@ -32,6 +33,7 @@ export const DEFAULT_CPU_THRESHOLD = 90;
 export const DEFAULT_DISK_THRESHOLD = 90;
 export const DEFAULT_COOLDOWN_MINUTES = 30;
 export const DEFAULT_INTERVAL_SECONDS = 60;
+export const DEFAULT_SUSTAIN_MINUTES = 1;
 
 /** How far a metric must fall below its threshold before «بازگشت به حالت عادی» is reported. */
 const RECOVERY_HYSTERESIS = 5;
@@ -43,6 +45,7 @@ export interface MonitoringConfig {
   diskThreshold: number;
   cooldownMinutes: number;
   intervalSeconds: number;
+  sustainMinutes: number;
   alertEmail: string;
   alertPhone: string;
 }
@@ -56,6 +59,7 @@ export interface MonitoringSnapshot {
   };
   cooldownMinutes: number;
   intervalSeconds: number;
+  sustainMinutes: number;
   recipients: {
     email: string;
     phone: string;
@@ -125,6 +129,8 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
   private intervalSeconds = DEFAULT_INTERVAL_SECONDS;
   private readonly lastAlertAt = new Map<MetricKey, number>();
   private readonly alerting = new Set<MetricKey>();
+  /** When each metric first went above its threshold (for the sustain window). */
+  private readonly aboveSince = new Map<MetricKey, number>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -166,6 +172,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
       [MONITORING_DISK_THRESHOLD_KEY, String(DEFAULT_DISK_THRESHOLD)],
       [MONITORING_COOLDOWN_KEY, String(DEFAULT_COOLDOWN_MINUTES)],
       [MONITORING_INTERVAL_KEY, String(DEFAULT_INTERVAL_SECONDS)],
+      [MONITORING_SUSTAIN_KEY, String(DEFAULT_SUSTAIN_MINUTES)],
       [MONITORING_ALERT_EMAIL_KEY, ''],
       [MONITORING_ALERT_PHONE_KEY, ''],
     ];
@@ -196,6 +203,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
             MONITORING_DISK_THRESHOLD_KEY,
             MONITORING_COOLDOWN_KEY,
             MONITORING_INTERVAL_KEY,
+            MONITORING_SUSTAIN_KEY,
             MONITORING_ALERT_EMAIL_KEY,
             MONITORING_ALERT_PHONE_KEY,
           ],
@@ -227,6 +235,10 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
         byKey.get(MONITORING_INTERVAL_KEY),
         DEFAULT_INTERVAL_SECONDS,
       ),
+      sustainMinutes: MonitoringService.toInt(
+        byKey.get(MONITORING_SUSTAIN_KEY),
+        DEFAULT_SUSTAIN_MINUTES,
+      ),
       alertEmail: byKey.get(MONITORING_ALERT_EMAIL_KEY) ?? '',
       alertPhone: byKey.get(MONITORING_ALERT_PHONE_KEY) ?? '',
     };
@@ -240,6 +252,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
       [MONITORING_DISK_THRESHOLD_KEY, dto.diskThreshold?.toString()],
       [MONITORING_COOLDOWN_KEY, dto.cooldownMinutes?.toString()],
       [MONITORING_INTERVAL_KEY, dto.intervalSeconds?.toString()],
+      [MONITORING_SUSTAIN_KEY, dto.sustainMinutes?.toString()],
       [MONITORING_ALERT_EMAIL_KEY, dto.alertEmail?.trim()],
       [MONITORING_ALERT_PHONE_KEY, dto.alertPhone?.trim()],
     ];
@@ -283,6 +296,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
       },
       cooldownMinutes: config.cooldownMinutes,
       intervalSeconds: config.intervalSeconds,
+      sustainMinutes: config.sustainMinutes,
       recipients: {
         email: recipients.email,
         phone: recipients.phone,
@@ -412,6 +426,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
       };
       const now = Date.now();
       const cooldownMs = Math.max(5, config.cooldownMinutes) * 60_000;
+      const sustainMs = Math.max(0, config.sustainMinutes) * 60_000;
 
       for (const key of ['ram', 'cpu', 'disk'] as MetricKey[]) {
         const value = values[key];
@@ -419,29 +434,43 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
         const last = this.lastAlertAt.get(key) ?? 0;
 
         if (value >= threshold) {
+          // Wait until the metric has stayed above the threshold for the
+          // configured window before alerting (e.g. RAM > 80% for 1 minute).
+          const since = this.aboveSince.get(key);
+          if (since === undefined) {
+            this.aboveSince.set(key, now);
+            if (sustainMs > 0) continue;
+          } else if (now - since < sustainMs) {
+            continue;
+          }
           if (now - last < cooldownMs) continue;
           this.lastAlertAt.set(key, now);
           this.alerting.add(key);
           await this.dispatch(
             `هشدار منابع سرور — ${labels[key]}`,
-            `مصرف ${labels[key]} به ${value}٪ رسید (آستانه: ${threshold}٪).\n` +
+            `مصرف ${labels[key]} به ${value}٪ رسید و بیش از ` +
+              `${config.sustainMinutes.toLocaleString('fa-IR')} دقیقه بالاتر از آستانه‌ی ` +
+              `${threshold}٪ ماند.\n` +
               `زمان: ${new Date(now).toLocaleString('fa-IR')}\n` +
               `لطفاً وضعیت سرور را بررسی کنید.`,
             key,
             value,
           );
-        } else if (
-          this.alerting.has(key) &&
-          value < threshold - RECOVERY_HYSTERESIS
-        ) {
-          this.alerting.delete(key);
-          this.lastAlertAt.delete(key);
-          await this.dispatch(
-            `بازگشت به حالت عادی — ${labels[key]}`,
-            `مصرف ${labels[key]} به ${value}٪ کاهش یافت و از آستانه‌ی ${threshold}٪ پایین‌تر آمد.`,
-            key,
-            value,
-          );
+        } else {
+          this.aboveSince.delete(key);
+          if (
+            this.alerting.has(key) &&
+            value < threshold - RECOVERY_HYSTERESIS
+          ) {
+            this.alerting.delete(key);
+            this.lastAlertAt.delete(key);
+            await this.dispatch(
+              `بازگشت به حالت عادی — ${labels[key]}`,
+              `مصرف ${labels[key]} به ${value}٪ کاهش یافت و از آستانه‌ی ${threshold}٪ پایین‌تر آمد.`,
+              key,
+              value,
+            );
+          }
         }
       }
     } catch (error) {

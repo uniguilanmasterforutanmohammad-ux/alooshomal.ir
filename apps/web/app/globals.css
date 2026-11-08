@@ -5685,3 +5685,21 @@ html[data-theme='bazaar'] .bizcard-avatar {
 .tw-card-more:hover {
   background: color-mix(in srgb, var(--vintage-accent) 6%, transparent);
 }
+
+/* =====================================================================
+   Home search box — phones.
+
+   The «توییتر» skin styles the hero search as a pill (border-radius: 9999px,
+   inherited from the Twitter look). On phones that reads as an over-rounded
+   capsule; this block — last in the file so it wins on source order — makes it
+   a tidy rounded rectangle instead, on every theme/skin. Tablets and desktop
+   keep their own radii.
+   ===================================================================== */
+@media (max-width: 767px) {
+  .home-hero form[role='search'],
+  html[data-skin='twitter'] .home-hero form[role='search'],
+  html[data-theme='modern'] .home-hero form[role='search'],
+  html[data-theme='bazaar'] .home-hero form[role='search'] {
+    border-radius: 10px;
+  }
+}
