@@ -117,6 +117,15 @@ services:
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-}
       MAIL_FROM_NAME: ${MAIL_FROM_NAME:-شمالی کارت}
+      # PayPing merchant token used by the «درگاه پرداخت» admin panel; the
+      # token stays server-side (never shipped to the browser).
+      PAYPING_TOKEN: ${PAYPING_TOKEN:-}
+      PAYPING_BASE_URL: ${PAYPING_BASE_URL:-https://api.payping.ir}
+      # PayPing OAuth application (authorization-code + PKCE) used by the
+      # separate «درگاه پرداخت (OAuth)» panel.
+      PAYPING_OAUTH_CLIENT_ID: ${PAYPING_OAUTH_CLIENT_ID:-}
+      PAYPING_OAUTH_CLIENT_SECRET: ${PAYPING_OAUTH_CLIENT_SECRET:-}
+      PAYPING_OAUTH_REDIRECT_URI: ${PAYPING_OAUTH_REDIRECT_URI:-https://shomalicard.ir}
     ports:
       - "127.0.0.1:${API_PORT:-4000}:4000"
     volumes:
