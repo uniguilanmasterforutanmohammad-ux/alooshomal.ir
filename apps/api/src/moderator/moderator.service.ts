@@ -19,7 +19,7 @@ import { ModerateBiolinkDto } from '../admin/dto/moderate-biolink.dto';
 import { UpdateBiolinkDto } from '../biolinks/dto/update-biolink.dto';
 import { UpdateBusinessCardDto } from '../businesscards/dto/update-business-card.dto';
 import { AdsReviewService } from '../ads/ads-review.service';
-import { BoostsService } from '../boosts/boosts.service';
+import { BoostsReviewService } from '../boosts/boosts-review.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { FeedsService } from '../feeds/feeds.service';
 import { UpdateNewsAdminDto } from '../news/dto/update-news-admin.dto';
@@ -69,7 +69,7 @@ export class ModeratorService {
     private readonly feeds: FeedsService,
     private readonly news: NewsService,
     private readonly subscriptions: SubscriptionsService,
-    private readonly boosts: BoostsService,
+    private readonly boostsReview: BoostsReviewService,
     private readonly adsReview: AdsReviewService,
     private readonly decisions: ContentDecisionService,
   ) {}
@@ -146,7 +146,9 @@ export class ModeratorService {
       can('DIRECTORY_AD_REQUESTS')
         ? this.adsReview.requestQueueCounts(context.id, AdPlacement.DIRECTORY)
         : empty,
-      can('BOOST_REQUESTS') ? this.boosts.requestQueueCounts(context.id) : empty,
+      can('BOOST_REQUESTS')
+        ? this.boostsReview.requestQueueCounts(context.id)
+        : empty,
     ]);
     const toCounts = (c: { pending: number; approved: number; rejected: number }) => c;
     return {
@@ -246,7 +248,7 @@ export class ModeratorService {
         return paginate(result.items, result.total, safePage, limit);
       }
       case 'BOOST_REQUESTS': {
-        const { items, total } = await this.boosts.listRequestQueue({
+        const { items, total } = await this.boostsReview.listRequestQueue({
           status: toBoostStatus(status),
           decidedById: decidedOnly ? context.id : undefined,
           skip,
@@ -471,7 +473,7 @@ export class ModeratorService {
           adminNote: reason,
         } as never);
       case 'BOOST_REQUESTS':
-        return this.boosts.decide(actorId, id, {
+        return this.boostsReview.decide(actorId, id, {
           status: approved ? BoostStatus.APPROVED : BoostStatus.REJECTED,
           adminNote: reason,
         } as never);

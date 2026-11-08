@@ -20,7 +20,33 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.13**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.8.14**.
+
+## ۱۴۰۵/۰۸/۱۷ — شکستن `boosts.service.ts`: جداسازی گردش‌کار بازبینی مدیر — نسخه `v3.8.14`
+
+**هدف:** گردش‌کار بازبینی «پله» توسط مدیر (فهرست‌ها، شمارش‌ها، تأیید/رد و
+برچسب‌گذاری هدف‌ها) بلوکی مستقل از `boosts.service.ts` (۷۰۸ خط) بود و از جریان
+کاربر جدا شد؛ منطق تکراری برچسب‌گذاری هدف‌ها هم به یک کمکی مشترک منتقل شد.
+
+**تغییرات:**
+- `apps/api/src/boosts/boosts-review.service.ts` (فایل تازه): `BoostsReviewService`
+  با `listRequests`، `listRequestQueue`، `requestQueueCounts`، `decide` و
+  `attachTargets` (پین مجدد هدف و اطلاع‌رسانی/ثبت فعالیت).
+- `apps/api/src/boosts/boosts-targets.ts` (فایل تازه): کمکی مشترک
+  `resolveBoostTargetLabels` و نوع `BoostTargetLabel` برای برچسب‌گذاری دسته‌ای
+  کارت/بیولینک/فید (حذف کد تکراری میان «نمای کاربر» و «بازبینی مدیر»).
+- `apps/api/src/boosts/boosts.service.ts`: حذف گردش‌کار بازبینی و تابع تکراری
+  برچسب‌گذاری (اکنون ۴۳۰ خط).
+- `apps/api/src/boosts/boosts.module.ts`: تأمین و صادرکردن `BoostsReviewService`.
+- `apps/api/src/admin/admin.controller.ts` و `apps/api/src/moderator/moderator.service.ts`:
+  تزریق و استفاده از `BoostsReviewService`.
+
+**تأیید/تست:**
+- `tsc --noEmit -p tsconfig.json` و `eslint src` → exit 0.
+- اجرای واقعی API بدون خطای DI؛ `GET /api/health` و
+  `GET /api/biolinks/public?page=1` → ۲۰۰ و `GET /api/admin/boosts` → ۴۰۱
+  (مسیر محافظت‌شده، تأیید بارگذاری صحیح تزریق وابستگی).
+- `python3 scripts/check_modules.py` و `check_api_docs.py` سبز.
 
 ## ۱۴۰۵/۰۸/۱۷ — شکستن `ads.service.ts`: جداسازی گردش‌کار بازبینی مدیر — نسخه `v3.8.13`
 

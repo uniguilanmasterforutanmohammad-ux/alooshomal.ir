@@ -8,6 +8,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { RequestPaymentsModule } from '../request-payments/request-payments.module';
 import { SettingsModule } from '../settings/settings.module';
 import { BoostsController } from './boosts.controller';
+import { BoostsReviewService } from './boosts-review.service';
 import { BoostsService } from './boosts.service';
 
 @Module({
@@ -21,7 +22,7 @@ import { BoostsService } from './boosts.service';
     RequestPaymentsModule,
   ],
   controllers: [BoostsController],
-  providers: [BoostsService],
-  exports: [BoostsService],
+  providers: [BoostsService, BoostsReviewService],
+  exports: [BoostsService, BoostsReviewService],
 })
 export class BoostsModule {}

@@ -20,7 +20,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { UpdateBiolinkDto } from '../biolinks/dto/update-biolink.dto';
 import { UpdateBusinessCardDto } from '../businesscards/dto/update-business-card.dto';
-import { BoostsService } from '../boosts/boosts.service';
+import { BoostsReviewService } from '../boosts/boosts-review.service';
 import { DecideBoostDto } from '../boosts/dto/decide-boost.dto';
 import { AdsReviewService } from '../ads/ads-review.service';
 import { DecideAdDto } from '../ads/dto/decide-ad.dto';
@@ -68,7 +68,7 @@ export class AdminController {
     private readonly adminRevenue: AdminRevenueService,
     private readonly subscriptionsService: SubscriptionsService,
     private readonly subscriptionsPayment: SubscriptionsPaymentService,
-    private readonly boostsService: BoostsService,
+    private readonly boostsReview: BoostsReviewService,
     private readonly adsReview: AdsReviewService,
     private readonly bulkService: BulkService,
     private readonly permissions: PermissionsService,
@@ -299,7 +299,7 @@ export class AdminController {
   @Get('boosts')
   @ApiOperation({ summary: 'درخواست‌های افزایش بازدید (پله)' })
   boosts(@Query('status') status?: BoostStatus) {
-    return this.boostsService.listRequests(status);
+    return this.boostsReview.listRequests(status);
   }
 
   @Patch('boosts/:id')
@@ -309,7 +309,7 @@ export class AdminController {
     @Param('id') id: string,
     @Body() dto: DecideBoostDto,
   ) {
-    return this.boostsService.decide(admin.id, id, dto);
+    return this.boostsReview.decide(admin.id, id, dto);
   }
 
   // ----- Ads (تبلیغات) -----

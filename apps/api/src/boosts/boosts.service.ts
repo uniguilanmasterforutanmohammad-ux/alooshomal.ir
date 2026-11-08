@@ -10,7 +10,6 @@ import {
   BoostTargetKind,
   NotificationType,
   PaymentStatus,
-  Prisma,
   RequestPaymentTarget,
 } from '@prisma/client';
 
@@ -26,8 +25,8 @@ import {
   RequestPaymentsService,
   type RequestPaymentInfo,
 } from '../request-payments/request-payments.service';
+import { resolveBoostTargetLabels } from './boosts-targets';
 import { CreateBoostDto } from './dto/create-boost.dto';
-import { DecideBoostDto } from './dto/decide-boost.dto';
 
 /**
  * Fallback boost duration when the admin setting cannot be read (the effective
@@ -70,16 +69,6 @@ function adDisplayState(
     return 'SCHEDULED';
   }
   return 'ACTIVE';
-}
-
-/**
- * Only requests whose fee is settled (or that never needed one, i.e. the
- * gateway was off) may enter the admin review queue.
- */
-function reviewableWhere(): Prisma.BoostRequestWhereInput {
-  return {
-    OR: [{ payment: null }, { payment: { status: PaymentStatus.PAID } }],
-  };
 }
 
 @Injectable()
@@ -199,7 +188,7 @@ export class BoostsService {
 
     // Resolve a human-readable label for every request target so both the boost
     // and the ad history can name the item.
-    const requestTargetLabels = await this.resolveTargetLabels([
+    const requestTargetLabels = await resolveBoostTargetLabels(this.prisma, [
       ...requests,
       ...adRequests,
     ]);
@@ -299,56 +288,6 @@ export class BoostsService {
         hasPrev: currentPage > 1,
       },
     };
-  }
-
-  /**
-   * Resolve the human-readable label (item name + slug) for a mixed batch of
-   * boost/ad requests, regardless of which kind of target each one points at.
-   */
-  private async resolveTargetLabels(
-    requests: Array<{ kind: BoostTargetKind; targetId: string }>,
-  ): Promise<Map<string, { id: string; fullName: string; slug: string }>> {
-    const biolinkIds = requests
-      .filter((r) => r.kind === BoostTargetKind.BIOLINK)
-      .map((r) => r.targetId);
-    const cardIds = requests
-      .filter((r) => r.kind === BoostTargetKind.BUSINESS_CARD)
-      .map((r) => r.targetId);
-    const feedIds = requests
-      .filter((r) => r.kind === BoostTargetKind.FEED)
-      .map((r) => r.targetId);
-
-    const [biolinks, cards, feeds] = await Promise.all([
-      biolinkIds.length
-        ? this.prisma.biolink.findMany({
-            where: { id: { in: biolinkIds } },
-            select: { id: true, fullName: true, slug: true },
-          })
-        : Promise.resolve([]),
-      cardIds.length
-        ? this.prisma.businessCard.findMany({
-            where: { id: { in: cardIds } },
-            select: { id: true, fullName: true, slug: true },
-          })
-        : Promise.resolve([]),
-      feedIds.length
-        ? this.prisma.feedPost.findMany({
-            where: { id: { in: feedIds } },
-            select: { id: true, body: true },
-          })
-        : Promise.resolve([]),
-    ]);
-
-    const map = new Map<string, { id: string; fullName: string; slug: string }>();
-    [...biolinks, ...cards].forEach((item) => map.set(item.id, item));
-    feeds.forEach((item) =>
-      map.set(item.id, {
-        id: item.id,
-        fullName: item.body?.slice(0, 40) || 'پست فید',
-        slug: item.id,
-      }),
-    );
-    return map;
   }
 
   async create(userId: string, dto: CreateBoostDto) {
@@ -452,223 +391,6 @@ export class BoostsService {
           payerName: payer?.fullName ?? null,
         }),
       );
-  }
-
-  async listRequests(status?: BoostStatus) {
-    const where: Prisma.BoostRequestWhereInput = {
-      ...(status ? { status } : {}),
-      ...(status === BoostStatus.PENDING ? reviewableWhere() : {}),
-    };
-    const requests = await this.prisma.boostRequest.findMany({
-      where,
-      include: {
-        user: { select: { id: true, email: true, fullName: true } },
-        decidedBy: { select: { id: true, email: true, fullName: true } },
-        payment: true,
-      },
-      orderBy: { requestedAt: 'desc' },
-      take: 200,
-    });
-    return this.attachTargets(requests);
-  }
-
-  /** Paginated review queue scoped to the requesting reviewer for decided rows. */
-  async listRequestQueue(params: {
-    status?: BoostStatus;
-    decidedById?: string;
-    skip: number;
-    take: number;
-  }) {
-    const { status, decidedById, skip, take } = params;
-    const where: Prisma.BoostRequestWhereInput = {
-      ...(status ? { status } : {}),
-      ...(status === BoostStatus.PENDING ? reviewableWhere() : {}),
-      ...(decidedById && status && status !== BoostStatus.PENDING
-        ? { decidedById }
-        : {}),
-    };
-    const [requests, total] = await this.prisma.$transaction([
-      this.prisma.boostRequest.findMany({
-        where,
-        include: {
-          user: { select: { id: true, email: true, fullName: true } },
-          decidedBy: { select: { id: true, email: true, fullName: true } },
-          payment: true,
-        },
-        orderBy: { requestedAt: 'desc' },
-        skip,
-        take,
-      }),
-      this.prisma.boostRequest.count({ where }),
-    ]);
-    return { items: await this.attachTargets(requests), total };
-  }
-
-  /** Per-status counts for the review-queue tabs. */
-  async requestQueueCounts(decidedById: string) {
-    const [pending, approved, rejected] = await this.prisma.$transaction([
-      this.prisma.boostRequest.count({
-        where: { status: BoostStatus.PENDING, ...reviewableWhere() },
-      }),
-      this.prisma.boostRequest.count({
-        where: { status: BoostStatus.APPROVED, decidedById },
-      }),
-      this.prisma.boostRequest.count({
-        where: { status: BoostStatus.REJECTED, decidedById },
-      }),
-    ]);
-    return { pending, approved, rejected };
-  }
-
-  private async attachTargets<
-    T extends { kind: BoostTargetKind; targetId: string },
-  >(requests: T[]) {
-
-    // Attach a human-readable label of the boosted item.
-    const biolinkIds = requests
-      .filter((r) => r.kind === BoostTargetKind.BIOLINK)
-      .map((r) => r.targetId);
-    const cardIds = requests
-      .filter((r) => r.kind === BoostTargetKind.BUSINESS_CARD)
-      .map((r) => r.targetId);
-    const feedIds = requests
-      .filter((r) => r.kind === BoostTargetKind.FEED)
-      .map((r) => r.targetId);
-
-    const [biolinks, cards, feeds] = await Promise.all([
-      biolinkIds.length
-        ? this.prisma.biolink.findMany({
-            where: { id: { in: biolinkIds } },
-            select: { id: true, fullName: true, slug: true },
-          })
-        : Promise.resolve([]),
-      cardIds.length
-        ? this.prisma.businessCard.findMany({
-            where: { id: { in: cardIds } },
-            select: { id: true, fullName: true, slug: true },
-          })
-        : Promise.resolve([]),
-      feedIds.length
-        ? this.prisma.feedPost.findMany({
-            where: { id: { in: feedIds } },
-            select: { id: true, body: true },
-          })
-        : Promise.resolve([]),
-    ]);
-    const map = new Map<string, { id: string; fullName: string; slug: string }>();
-    [...biolinks, ...cards].forEach((item) => map.set(item.id, item));
-    feeds.forEach((item) =>
-      map.set(item.id, {
-        id: item.id,
-        fullName: item.body?.slice(0, 40) || 'پست فید',
-        slug: item.id,
-      }),
-    );
-
-    return requests.map((request) => ({
-      ...request,
-      target: map.get(request.targetId) ?? null,
-    }));
-  }
-
-  /**
-   * Admin decision. Approving re-pins the item (`pinnedAt = now`) and sets
-   * `boostedUntil` ("now + boostDurationDays"), so it rises to the top of the
-   * whole directory as if it were brand-new — and then drops back down as soon
-   * as a newer item is created.
-   */
-  async decide(adminId: string, requestId: string, dto: DecideBoostDto) {
-    const request = await this.prisma.boostRequest.findUnique({
-      where: { id: requestId },
-      include: { payment: true },
-    });
-    if (!request) {
-      throw new NotFoundException('درخواست پله یافت نشد');
-    }
-    if (request.status !== BoostStatus.PENDING) {
-      throw new BadRequestException('این درخواست قبلاً بررسی شده است');
-    }
-    if (
-      dto.status === BoostStatus.APPROVED &&
-      request.payment &&
-      request.payment.status !== PaymentStatus.PAID
-    ) {
-      throw new BadRequestException(
-        'پرداخت این درخواست هنوز تأیید نشده است؛ تا تکمیل پرداخت امکان تأیید وجود ندارد',
-      );
-    }
-
-    const now = new Date();
-    const approved = dto.status === BoostStatus.APPROVED;
-    const durationMs =
-      (await this.settings.getBoostDurationDays()) * 24 * 60 * 60 * 1000;
-
-    const updated = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.boostRequest.update({
-        where: { id: requestId },
-        data: {
-          status: dto.status,
-          decidedAt: now,
-          decidedById: adminId,
-          adminNote: dto.adminNote ?? null,
-        },
-      });
-
-      if (approved) {
-        const boostedUntil = new Date(now.getTime() + durationMs);
-        // Resetting `pinnedAt` pushes the item back to the top of the directory
-        // by "newness" — exactly like a freshly created item. It stays there
-        // only until a newer item appears (then it falls to rank 2), and the
-        // active `boostedUntil` drives the «پله» tag in the UI.
-        if (request.kind === BoostTargetKind.BIOLINK) {
-          await tx.biolink.update({
-            where: { id: request.targetId },
-            data: { boostedUntil, pinnedAt: now },
-          });
-        } else if (request.kind === BoostTargetKind.BUSINESS_CARD) {
-          await tx.businessCard.update({
-            where: { id: request.targetId },
-            data: { boostedUntil, pinnedAt: now },
-          });
-        } else {
-          await tx.feedPost.update({
-            where: { id: request.targetId },
-            data: { boostedUntil, pinnedAt: now },
-          });
-        }
-      }
-
-      return updated;
-    });
-
-    await this.notifications.notify({
-      userId: request.userId,
-      type: approved ? NotificationType.SUCCESS : NotificationType.WARNING,
-      title: approved ? 'درخواست پله تأیید شد' : 'درخواست پله رد شد',
-      body: approved
-        ? 'کارت/بیولینک شما به صدر لیست دایرکتوری منتقل شد.'
-        : 'درخواست پله شما رد شد.' + (dto.adminNote ? ` دلیل: ${dto.adminNote}` : ''),
-      link: '/dashboard/boost',
-      actorId: adminId,
-    });
-
-    await this.activity.log({
-      action: approved ? 'BOOST_APPROVED' : 'BOOST_REJECTED',
-      summary: `${approved ? 'تأیید' : 'رد'} درخواست پله توسط مدیر`,
-      entityType: 'BOOST',
-      entityId: requestId,
-    });
-
-    if (approved) {
-      this.facetsCache.invalidateDirectory(
-        request.kind === BoostTargetKind.BIOLINK
-          ? 'biolink'
-          : request.kind === BoostTargetKind.FEED
-            ? 'feed'
-            : 'businesscard',
-      );
-    }
-    return updated;
   }
 
   private async findOwnedTarget(
