@@ -9,6 +9,7 @@ FROM base AS deps
 ENV NODE_ENV=development
 COPY package*.json ./
 COPY prisma ./prisma
+COPY prisma.config.ts ./
 RUN npm install --include=dev --no-audit --no-fund
 
 # ---------- development ----------
@@ -31,6 +32,7 @@ COPY package*.json ./
 COPY --from=build /usr/src/app/node_modules ./node_modules
 COPY --from=build /usr/src/app/dist ./dist
 COPY --from=build /usr/src/app/prisma ./prisma
+COPY --from=build /usr/src/app/prisma.config.ts ./
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh \
     && mkdir -p /usr/src/app/backups \

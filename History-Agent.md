@@ -20,7 +20,37 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.16.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.16.1**.
+
+## ۱۴۰۵/۰۸/۱۸ — مهاجرت به Prisma 7 و رفع شکست CI وابستگی‌ها — نسخه `v3.16.1`
+
+**هدف:** هم‌گام‌کردن پروژه با Prisma 7 (که `url` را از `datasource` حذف و
+driver adapter را اجباری کرده) تا `prisma generate` در نصب/CI و اجرای
+کانتینر دوباره کار کند.
+
+**تغییرات:**
+- `apps/api/package.json`: ارتقای `@prisma/client` و `prisma` به `^7.10.1` و
+  افزودن `@prisma/adapter-pg`.
+- `apps/api/prisma/schema.prisma`: حذف `url` از بلوک `datasource`.
+- `apps/api/prisma.config.ts` (تازه): تعریف مسیر schema و URL اتصال از
+  `DATABASE_URL` برای CLI؛ نبودِ URL هنگام `generate` مانع نصب نمی‌شود.
+- `apps/api/src/prisma/prisma.service.ts` و `apps/api/prisma/seed.ts`: ساخت
+  `PrismaClient` با `PrismaPg` و بررسی وجود `DATABASE_URL`.
+- `apps/api/docker-entrypoint.sh`: پرچم‌های جدید `migrate diff`
+  (`--from-config-datasource`/`--to-schema`) و حذف `--skip-generate` از
+  `db push`.
+- `apps/api/Dockerfile`: کپی `prisma.config.ts` در مرحله‌های deps و production.
+- `apps/api/package-lock.json`: هم‌گام با نسخه‌های جدید.
+
+**تأیید/تست:**
+- نصب تازه در یک کپی تمیز: `npm install` (شامل postinstall `prisma generate`)
+  → موفق، Prisma Client v7.10.1.
+- `npx prisma generate` بدون `DATABASE_URL` → موفق؛ `npx prisma validate` →
+  «schema is valid».
+- `npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma
+  --script` → پرچم‌ها پذیرفته شد (خطای اتصال P1001 به‌دلیل نبود DB، نه خطای آرگومان).
+- `npx tsc --noEmit -p tsconfig.json` و `npx eslint src` در `apps/api` → بدون خطا.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۸ — ماژول استعلام‌های زحل، تکمیل خودکار هویت و تیک آبی — نسخه `v3.16.0`
 

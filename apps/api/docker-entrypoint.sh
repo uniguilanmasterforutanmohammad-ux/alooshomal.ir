@@ -99,8 +99,8 @@ if command -v npx >/dev/null 2>&1; then
   # (after the snapshot above) instead of wiping real rows.
   if [ -n "${DATABASE_URL:-}" ] && [ "$ALLOW_DESTRUCTIVE_DB_PUSH" != "1" ]; then
     PUSH_SQL="$(npx prisma migrate diff \
-      --from-schema-datasource "$SCHEMA_FILE" \
-      --to-schema-datamodel "$SCHEMA_FILE" \
+      --from-config-datasource \
+      --to-schema "$SCHEMA_FILE" \
       --script 2>/dev/null || echo unknown)"
 
     if printf '%s' "$PUSH_SQL" | grep -qiE '(^|[^a-z])DROP[[:space:]]+(TABLE|COLUMN)'; then
@@ -112,7 +112,7 @@ if command -v npx >/dev/null 2>&1; then
     fi
   fi
 
-  npx prisma db push --skip-generate --accept-data-loss
+  npx prisma db push --accept-data-loss
 fi
 
 if [ -n "${DATABASE_URL:-}" ] && [ -f "prisma/bootstrap.sql" ]; then
