@@ -371,6 +371,22 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     group: 'بازاریابی و تبلیغات',
     default: true,
   },
+  {
+    key: 'featureIdentityInquiry',
+    label: 'استعلام خودکار هویت (زحل)',
+    description:
+      'در تکمیل پروفایل، نام و نام خانوادگی از استعلام کد ملی و تاریخ تولد (زحل) گرفته می‌شود. اگر خاموش باشد، کاربر نام را دستی وارد می‌کند.',
+    group: 'احراز هویت',
+    default: true,
+  },
+  {
+    key: 'featureBlueTick',
+    label: 'تیک آبی (احراز هویت)',
+    description:
+      'کاربران می‌توانند پس از تکمیل مشخصات هویتی، درخواست تیک آبی ثبت کنند؛ تأیید نهایی در پنل «زحل» انجام می‌شود.',
+    group: 'احراز هویت',
+    default: true,
+  },
 ];
 
 export const FEATURE_FLAG_KEYS = FEATURE_FLAGS.map((flag) => flag.key);

@@ -418,7 +418,7 @@ export class BiolinksService {
             isPublished: true,
           },
         },
-        user: { select: { plan: true } },
+        user: { select: { plan: true, verifiedAt: true } },
       },
     });
     if (!biolink) {
@@ -455,7 +455,7 @@ export class BiolinksService {
             isPublished: true,
           },
         },
-        user: { select: { plan: true } },
+        user: { select: { plan: true, verifiedAt: true } },
       },
     });
     return rows.map((row) => this.projectPublicBiolink(row));
@@ -486,14 +486,14 @@ export class BiolinksService {
         publishedAt: true,
         city: { select: { id: true, name: true } },
         business: { select: { id: true, name: true } },
-        user: { select: { plan: true } },
+        user: { select: { plan: true, verifiedAt: true } },
       },
     });
     // Hide the fields the owner's plan masks (e.g. contact details on «رایگان»)
     // and drop the `user` relation from the public payload.
     return rows.map((row) => {
       const { user: _user, ...rest } = applyPlanMask(row, row.user?.plan);
-      return rest;
+      return { ...rest, ownerVerified: Boolean(row.user?.verifiedAt) };
     });
   }
 
@@ -512,6 +512,7 @@ export class BiolinksService {
       twitter: string | null;
       whatsapp: string | null;
       user?: {
+        verifiedAt: Date | null;
         plan: {
           name: string;
           maxBiolinks: number;
@@ -547,6 +548,7 @@ export class BiolinksService {
     return {
       ...rest,
       planName: limits.name,
+      ownerVerified: Boolean(biolink.user?.verifiedAt),
       planHidesFields: limits.hiddenFields.length > 0,
       linkedBusinessCard,
     };

@@ -14,7 +14,9 @@ import {
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { isoToJalali, jalaliToIso, parseJalali } from '@/lib/jalali';
 import { toast } from '@/lib/toast';
+import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
 import { ContactChangePanel } from './ContactChangePanel';
 import { SessionsPanel } from './SessionsPanel';
 
@@ -34,6 +36,10 @@ interface ProfilePayload {
   firstName: string | null;
   lastName: string | null;
   nationalCode: string | null;
+  birthDate: string | null;
+  verifiedAt: string | null;
+  blueTickRequestedAt: string | null;
+  blueTickNote: string | null;
   profileCompleted: boolean;
   role: string;
   isActive: boolean;
@@ -58,6 +64,9 @@ export function ProfilePanel() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [nationalCode, setNationalCode] = useState('');
+  const [birthIso, setBirthIso] = useState('');
+  const [inquiryAvailable, setInquiryAvailable] = useState<boolean | null>(null);
+  const [blueTickBusy, setBlueTickBusy] = useState(false);
   const [savingIdentity, setSavingIdentity] = useState(false);
   const [sending, setSending] = useState(false);
   const [resetSent, setResetSent] = useState(false);
@@ -77,6 +86,12 @@ export function ProfilePanel() {
       setFirstName(data.firstName ?? '');
       setLastName(data.lastName ?? '');
       setNationalCode(data.nationalCode ?? '');
+      const parsedBirth = data.birthDate ? parseJalali(data.birthDate) : null;
+      setBirthIso(
+        parsedBirth
+          ? jalaliToIso(parsedBirth.year, parsedBirth.month, parsedBirth.day)
+          : '',
+      );
       // Keep the cached session user in sync (e.g. after an immediate email
       // change), so the header and other panels show the new address.
       setUser({
@@ -94,6 +109,14 @@ export function ProfilePanel() {
   useEffect(() => {
     if (hydrated) void load();
   }, [hydrated, load]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    void api
+      .get<{ available: boolean }>('/profile/identity-inquiry/status')
+      .then((result) => setInquiryAvailable(result.available))
+      .catch(() => setInquiryAvailable(false));
+  }, [hydrated]);
 
   async function submit() {
     if (fullName.trim().length < 2) {
@@ -113,27 +136,54 @@ export function ProfilePanel() {
   }
 
   async function submitIdentity() {
-    if (firstName.trim().length < 2 || lastName.trim().length < 2) {
-      toast.error('نام و نام خانوادگی باید حداقل ۲ کاراکتر باشند.');
-      return;
-    }
     if (!/^\d{10}$/.test(nationalCode.trim())) {
       toast.error('کد ملی باید دقیقاً ۱۰ رقم باشد.');
       return;
     }
+    const autoInquiry = inquiryAvailable === true;
+    if (autoInquiry && !birthIso) {
+      toast.error('برای استعلام هویت، تاریخ تولد را انتخاب کنید.');
+      return;
+    }
+    if (!autoInquiry && (firstName.trim().length < 2 || lastName.trim().length < 2)) {
+      toast.error('نام و نام خانوادگی باید حداقل ۲ کاراکتر باشند.');
+      return;
+    }
+    const jalaliBirth = isoToJalali(birthIso);
+    const birthDate = jalaliBirth
+      ? `${jalaliBirth.year}/${String(jalaliBirth.month).padStart(2, '0')}/${String(jalaliBirth.day).padStart(2, '0')}`
+      : undefined;
     setSavingIdentity(true);
     try {
       await api.patch('/profile/me', {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
         nationalCode: nationalCode.trim(),
+        ...(autoInquiry
+          ? { birthDate }
+          : { firstName: firstName.trim(), lastName: lastName.trim() }),
       });
-      toast.success('مشخصات هویتی شما ذخیره شد.');
+      toast.success(
+        autoInquiry
+          ? 'هویت شما استعلام و نام و نام خانوادگی به‌صورت خودکار ثبت شد.'
+          : 'مشخصات هویتی شما ذخیره شد.',
+      );
       await load();
     } catch {
       /* api layer surfaces the error */
     } finally {
       setSavingIdentity(false);
+    }
+  }
+
+  async function requestBlueTick() {
+    setBlueTickBusy(true);
+    try {
+      await api.post('/profile/blue-tick/request', {});
+      toast.success('درخواست تیک آبی ثبت شد و در انتظار تأیید مدیر است.');
+      await load();
+    } catch {
+      /* api layer surfaces the error */
+    } finally {
+      setBlueTickBusy(false);
     }
   }
 
@@ -209,7 +259,15 @@ export function ProfilePanel() {
           <UserRound className="size-5" aria-hidden />
         </span>
         <div>
-          <h1 className="text-xl font-extrabold text-ink">پروفایل کاربری</h1>
+          <h1 className="flex items-center gap-2 text-xl font-extrabold text-ink">
+            پروفایل کاربری
+            {profile.verifiedAt ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-700">
+                <BadgeCheck className="size-3.5" aria-hidden />
+                تیک آبی
+              </span>
+            ) : null}
+          </h1>
           <p className="text-sm text-muted">مشاهده و درخواست تغییر اطلاعات حساب</p>
         </div>
       </div>
@@ -232,7 +290,8 @@ export function ProfilePanel() {
         </div>
         <p className="mt-1 text-xs leading-6 text-muted">
           برای ساخت بیولینک، کارت ویزیت، پست فید، درخواست پله/تبلیغ و خرید
-          اشتراک، ابتدا نام، نام خانوادگی و کد ملی خود را ثبت کنید.
+          اشتراک، ابتدا کد ملی و تاریخ تولد خود را ثبت کنید. نام و نام خانوادگی
+          به‌صورت خودکار از استعلام هویت (زحل) دریافت می‌شود.
         </p>
         {!profile.profileCompleted ? (
           <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
@@ -240,24 +299,6 @@ export function ProfilePanel() {
           </p>
         ) : null}
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <label className="text-xs font-bold text-muted">
-            نام
-            <input
-              className="indeed-input mt-1"
-              value={firstName}
-              onChange={(event) => setFirstName(event.target.value)}
-              autoComplete="given-name"
-            />
-          </label>
-          <label className="text-xs font-bold text-muted">
-            نام خانوادگی
-            <input
-              className="indeed-input mt-1"
-              value={lastName}
-              onChange={(event) => setLastName(event.target.value)}
-              autoComplete="family-name"
-            />
-          </label>
           <label className="text-xs font-bold text-muted">
             کد ملی
             <input
@@ -271,7 +312,52 @@ export function ProfilePanel() {
               }
             />
           </label>
+          {inquiryAvailable ? (
+            <label className="text-xs font-bold text-muted">
+              تاریخ تولد (شمسی)
+              <JalaliDatePicker
+                className="mt-1"
+                value={birthIso}
+                onChange={setBirthIso}
+                placeholder="۱۳۷۰/۰۱/۰۱"
+                max={new Date().toISOString().slice(0, 10)}
+              />
+            </label>
+          ) : (
+            <>
+              <label className="text-xs font-bold text-muted">
+                نام
+                <input
+                  className="indeed-input mt-1"
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  autoComplete="given-name"
+                />
+              </label>
+              <label className="text-xs font-bold text-muted">
+                نام خانوادگی
+                <input
+                  className="indeed-input mt-1"
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  autoComplete="family-name"
+                />
+              </label>
+            </>
+          )}
         </div>
+        {inquiryAvailable && profile.firstName && profile.lastName ? (
+          <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs leading-6 text-emerald-800">
+            نام ثبت‌شده از استعلام: <b>{profile.firstName} {profile.lastName}</b>
+            {profile.birthDate ? ` — تاریخ تولد: ${profile.birthDate}` : ''}
+          </p>
+        ) : null}
+        {inquiryAvailable === false ? (
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
+            استعلام خودکار هویت در حال حاضر در دسترس نیست؛ نام و نام خانوادگی را
+            دستی وارد کنید.
+          </p>
+        ) : null}
         <button
           type="button"
           onClick={() => void submitIdentity()}
@@ -279,8 +365,56 @@ export function ProfilePanel() {
           className="indeed-btn indeed-btn-primary mt-4"
         >
           <Send className="size-4" aria-hidden />
-          {savingIdentity ? 'در حال ذخیره...' : 'ذخیره مشخصات'}
+          {savingIdentity
+            ? 'در حال استعلام...'
+            : inquiryAvailable
+              ? 'استعلام و ثبت هویت'
+              : 'ذخیره مشخصات'}
         </button>
+      </div>
+
+      <div className="indeed-panel p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-sm font-extrabold text-ink">
+            <BadgeCheck className="size-4 text-sky-600" aria-hidden />
+            تیک آبی (احراز هویت)
+          </h2>
+          {profile.verifiedAt ? (
+            <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">
+              فعال
+            </span>
+          ) : profile.blueTickRequestedAt ? (
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+              در انتظار بررسی
+            </span>
+          ) : null}
+        </div>
+        <p className="mt-1 text-xs leading-6 text-muted">
+          با تکمیل مشخصات هویتی می‌توانید درخواست تیک آبی ثبت کنید. هویت شما
+          پیش از ثبت درخواست به‌صورت خودکار استعلام می‌شود و تأیید نهایی با مدیر
+          است.
+        </p>
+        {profile.blueTickNote ? (
+          <p className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-xs leading-6 text-red-700">
+            یادداشت مدیر: {profile.blueTickNote}
+          </p>
+        ) : null}
+        {!profile.verifiedAt && !profile.blueTickRequestedAt ? (
+          <button
+            type="button"
+            onClick={() => void requestBlueTick()}
+            disabled={blueTickBusy || !profile.profileCompleted}
+            className="indeed-btn indeed-btn-secondary mt-4"
+          >
+            <BadgeCheck className="size-4" aria-hidden />
+            {blueTickBusy ? 'در حال استعلام...' : 'درخواست تیک آبی'}
+          </button>
+        ) : null}
+        {!profile.profileCompleted ? (
+          <p className="mt-2 text-[11px] text-muted">
+            ابتدا مشخصات هویتی بالا را تکمیل کنید.
+          </p>
+        ) : null}
       </div>
 
       <div className="indeed-panel overflow-hidden">

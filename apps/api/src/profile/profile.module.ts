@@ -5,6 +5,7 @@ import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SettingsModule } from '../settings/settings.module';
+import { ZohalModule } from '../zohal/zohal.module';
 import { AdminProfileController, ProfileController } from './profile.controller';
 import { ProfileService } from './profile.service';
 
@@ -15,6 +16,7 @@ import { ProfileService } from './profile.service';
     ActivityModule,
     AuthModule,
     SettingsModule,
+    ZohalModule,
   ],
   controllers: [ProfileController, AdminProfileController],
   providers: [ProfileService],

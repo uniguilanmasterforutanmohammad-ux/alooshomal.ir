@@ -48,6 +48,7 @@ export type AdminSection =
   | 'points'
   | 'revenue'
   | 'finance'
+  | 'zohal'
   | 'payments'
   | 'payping-oauth'
   | 'feeds'
@@ -107,6 +108,7 @@ const NAV_GROUPS: Array<{
       { key: 'points', label: 'امتیازها', icon: Coins },
       { key: 'revenue', label: 'گزارش درآمد', icon: Banknote },
       { key: 'finance', label: 'مالیاتی', icon: Receipt },
+      { key: 'zohal', label: 'زحل (استعلام)', icon: ShieldCheck },
       { key: 'payments', label: 'درگاه پرداخت', icon: CreditCard },
       { key: 'payping-oauth', label: 'درگاه پرداخت (OAuth)', icon: ShieldCheck },
     ],

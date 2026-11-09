@@ -401,6 +401,14 @@ model User {
   firstName    String?
   lastName     String?
   nationalCode String?  @unique
+  /// Jalali birth date (`1370/01/01`) required by the Zohal identity inquiry.
+  birthDate    String?
+  /// «تیک آبی» — set after a successful identity inquiry and admin approval.
+  verifiedAt   DateTime?
+  /// When the user filed a blue-tick request that is still awaiting review.
+  blueTickRequestedAt DateTime?
+  /// Admin note attached to the latest blue-tick decision (e.g. reject reason).
+  blueTickNote String?
   role         Role     @default(USER)
   isActive     Boolean  @default(true)
   /// For `MODERATOR` accounts: the content types this reviewer may moderate

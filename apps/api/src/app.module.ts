@@ -38,6 +38,7 @@ import { TaxonomyModule } from './taxonomy/taxonomy.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
+import { ZohalModule } from './zohal/zohal.module';
 
 @Module({
   imports: [
@@ -74,6 +75,7 @@ import { UsersModule } from './users/users.module';
     UploadsModule,
     SeoModule,
     HealthModule,
+    ZohalModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

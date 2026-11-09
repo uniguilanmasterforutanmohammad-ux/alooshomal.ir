@@ -256,6 +256,26 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 | `GET` | `/admin/finance/expenses/export` | خروجی CSV هزینه‌ها. |
 | `POST` | `/admin/finance/backfill` | ساخت فاکتور برای تراکنش‌های پرداخت‌شده‌ی قبلی که فاکتور ندارند (idempotent). |
 
+## استعلام‌های زحل (`/api/admin/zohal`) و تیک آبی
+
+راهنمای کامل سرویس‌ها و نحوه‌ی فعال‌سازی در `docs/ZOHAL.md` آمده است. توکن
+زحل فقط سمت سرور (`ZOHAL_TOKEN`) نگه داشته می‌شود و هر سرویس با کلید
+`zohal.service.<key>` جداگانه فعال/غیرفعال می‌شود.
+
+| متد | مسیر | دسترسی | توضیح |
+| --- | --- | --- | --- |
+| `GET` | `/admin/zohal/services` | ADMIN | فهرست همه‌ی سرویس‌های زحل + وضعیت اتصال و فعال/غیرفعال هر سرویس. |
+| `PATCH` | `/admin/zohal/services/:key` | ADMIN | فعال/غیرفعال‌کردن یک سرویس (`{ enabled }`). |
+| `POST` | `/admin/zohal/services/:key/test` | ADMIN | فراخوانی آزمایشی واقعی (هزینه‌زا) با `{ payload }`. |
+| `GET` | `/admin/zohal/blue-tick` | ADMIN | درخواست‌های تیک آبی در انتظار بررسی + آخرین حساب‌های تأییدشده. |
+| `PATCH` | `/admin/zohal/blue-tick/:id` | ADMIN | تأیید/رد درخواست تیک آبی (`{ decision, reason? }`). |
+| `GET` | `/profile/identity-inquiry/status` | کاربر | آیا استعلام خودکار هویت در دسترس است؟ |
+| `POST` | `/profile/blue-tick/request` | کاربر | ثبت درخواست تیک آبی پس از استعلام هویت. |
+
+`PATCH /profile/me` اکنون به‌جای نام دستی، `{ nationalCode, birthDate }` می‌گیرد
+و نام/نام خانوادگی را از استعلام زحل پر می‌کند (فیلدهای `firstName`/`lastName`
+فقط برای حالت جایگزین وقتی استعلام خاموش است).
+
 ### بررسی سریع کامل‌بودن
 ```bash
 # تعداد مسیرهای مستندشده

@@ -20,7 +20,55 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.15.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.16.0**.
+
+## ۱۴۰۵/۰۸/۱۸ — ماژول استعلام‌های زحل، تکمیل خودکار هویت و تیک آبی — نسخه `v3.16.0`
+
+**هدف:** اتصال ماژولار به همه‌ی سرویس‌های استعلام زحل، تکمیل پروفایل بدون
+ورود دستی نام (استعلام کد ملی + تاریخ تولد)، و راه‌اندازی جریان تیک آبی.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: فیلدهای `birthDate`، `verifiedAt`،
+  `blueTickRequestedAt` و `blueTickNote` روی `User`.
+- `apps/api/src/zohal/zohal.constants.ts` (تازه): فهرست کامل ۳۵ سرویس زحل با
+  گروه، مسیر، فیلدهای ورودی و وضعیت پیش‌فرض.
+- `apps/api/src/zohal/zohal.types.ts`، `zohal.service.ts`، `zohal.controller.ts`،
+  `zohal.module.ts` و `dto/zohal.dto.ts` (تازه): کلاینت Bearer، سوییچ مستقل هر
+  سرویس (`zohal.service.<key>`)، فراخوانی آزمایشی، استعلام هویت، جریان تیک آبی
+  و مسیرهای ادمین/کاربر.
+- `apps/api/src/app.module.ts` و `profile/profile.module.ts`: ثبت `ZohalModule`.
+- `apps/api/src/profile/profile.service.ts` و `dto/profile.dto.ts`: `PATCH
+  /profile/me` اکنون `nationalCode` + `birthDate` می‌گیرد و نام را از استعلام
+  پر می‌کند (فیلدهای نام فقط برای حالت جایگزین).
+- `apps/api/src/settings/settings.constants.ts`: دو فلگ `featureIdentityInquiry`
+  و `featureBlueTick`.
+- `apps/api/src/biolinks/biolinks.service.ts` و
+  `businesscards/business-cards.service.ts`: افزودن `ownerVerified` به
+  payload عمومی.
+- `apps/web/components/admin/AdminZohal.tsx` (تازه) + ثبت بخش «زحل» در
+  `AdminShell.tsx`، `admin-console.ts` و `app/admin/page.tsx`.
+- `apps/web/components/dashboard/ProfilePanel.tsx`: فرم کد ملی + تاریخ تولد
+  شمسی با استعلام خودکار، نمایش نام استعلام‌شده، و کارت تیک آبی.
+- `apps/web/components/biolink/PublicBiolinkView.tsx` و
+  `businesscard/PublicBusinessCardView.tsx` + `lib/api/types/catalog.ts`: نشان
+  «تأیید هویت».
+- `.env.example`، `docker-compose.yml` و `docker-compose.prod.yml`: متغیرهای
+  `ZOHAL_TOKEN` و `ZOHAL_BASE_URL`.
+- `docs/ZOHAL.md` (تازه) و `docs/API.md`: مستندات اتصال، سرویس‌ها و مسیرها.
+
+**تأیید/تست:**
+- `tsc --noEmit` در `apps/web` بدون خطا؛ در `apps/api` فقط خطای از پیش موجود
+  `nodemailer`.
+- `python3 scripts/check_api_docs.py` (۳۰ کنترلر/۳۴۸ مسیر) و
+  `scripts/check_modules.py` بدون خطا.
+- جریان کامل با یک mock محلی زحل (بدون هزینه): تکمیل هویت با
+  `PATCH /profile/me` نام «علی رضایی» را خودکار ثبت کرد؛ درخواست تیک آبی ثبت
+  و با تأیید ادمین `verifiedAt` ست شد؛ سوییچ سرویس‌ها و حالت جایگزین (خاموش
+  بودن استعلام) هم بررسی شد.
+- Playwright: پنل `?section=zohal` هر ۳۵ سرویس، وضعیت اتصال و بخش تیک آبی را
+  بدون خطای کنسول نشان داد؛ صفحه‌ی پروفایل فرم استعلام (بدون ورودی دستی نام) و
+  نشان تیک آبی را رندر کرد.
+- داده‌های تستی (کاربر آزمایشی، تنظیمات سرویس و موبایل ادمین) پاک شدند.
 
 ## ۱۴۰۵/۰۸/۱۸ — قالب رسمی فاکتور فروش و مشخصات کامل مشتری — نسخه `v3.15.0`
 

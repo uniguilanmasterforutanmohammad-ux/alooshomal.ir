@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import {
   ArrowRight,
+  BadgeCheck,
   Crown,
   Globe,
   Home,
@@ -161,6 +162,12 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
             </Link>
 
             <div className="flex items-center gap-2">
+              {businessCard.ownerVerified ? (
+                <span className="record-pill text-sky-700">
+                  <BadgeCheck className="size-3.5" aria-hidden />
+                  تأیید هویت
+                </span>
+              ) : null}
               {businessCard.planName ? (
                 <span className="record-pill">
                   <Crown className="size-3.5" aria-hidden />

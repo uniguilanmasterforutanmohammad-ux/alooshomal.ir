@@ -29,6 +29,8 @@ export interface Biolink {
   business?: { id: string; name: string } | null;
   /** owner's subscription plan name, shown on the public page */
   planName?: string | null;
+  /** owner passed the identity inquiry and has the blue tick */
+  ownerVerified?: boolean;
   /** the owner's plan masks links/socials (free plan) */
   planHidesFields?: boolean;
   /** id of the owner account (public payload only, used to detect "my card") */
@@ -168,6 +170,8 @@ export interface BusinessCard {
  business?: { id: string; name: string } | null;
  /** owner's subscription plan name, shown on the public page */
  planName?: string | null;
+  /** owner passed the identity inquiry and has the blue tick */
+  ownerVerified?: boolean;
  /** the owner's plan masks links/socials (free plan) */
  planHidesFields?: boolean;
  /** id of the owner account (public payload only, used to detect "my card") */

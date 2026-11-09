@@ -10,22 +10,44 @@ import {
 
 /** Identity fields required before a user can create content or buy services. */
 export class UpdateIdentityDto {
-  @ApiProperty({ example: 'علی' })
-  @IsString()
-  @MinLength(2)
-  @MaxLength(60)
-  firstName!: string;
-
-  @ApiProperty({ example: 'رضایی' })
-  @IsString()
-  @MinLength(2)
-  @MaxLength(60)
-  lastName!: string;
-
   @ApiProperty({ example: '0012345678' })
   @IsString()
   @Matches(/^\d{10}$/, { message: 'کد ملی باید دقیقاً ۱۰ رقم باشد' })
   nationalCode!: string;
+
+  @ApiPropertyOptional({
+    example: '1370/01/01',
+    description:
+      'تاریخ تولد شمسی؛ برای استعلام خودکار نام از زحل لازم است.',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/, {
+    message: 'تاریخ تولد باید به شکل ۱۳۷۰/۰۱/۰۱ باشد',
+  })
+  birthDate?: string;
+
+  @ApiPropertyOptional({
+    example: 'علی',
+    description:
+      'فقط زمانی لازم است که استعلام خودکار هویت در دسترس نباشد.',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(60)
+  firstName?: string;
+
+  @ApiPropertyOptional({
+    example: 'رضایی',
+    description:
+      'فقط زمانی لازم است که استعلام خودکار هویت در دسترس نباشد.',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(60)
+  lastName?: string;
 }
 
 export class RequestProfileChangeDto {

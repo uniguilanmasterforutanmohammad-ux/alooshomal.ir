@@ -55,6 +55,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'points',
   'revenue',
   'finance',
+  'zohal',
   'payments',
   'payping-oauth',
   'feeds',
@@ -98,6 +99,10 @@ export function isAdminSection(value: string): value is AdminSection {
     finance: {
       title: 'مالیاتی',
       sub: 'بایگانی فاکتور فروش، ثبت هزینه، سود خالص و خروجی اسناد برای اداره مالیات',
+    },
+    zohal: {
+      title: 'زحل (استعلام)',
+      sub: 'سرویس‌های استعلام هویت، بانکی و خدماتی زحل؛ فعال‌سازی ماژولار و درخواست‌های تیک آبی',
     },
     feeds: { title: 'فیدها', sub: 'بررسی پست‌ها، اشتراک‌ها، بسته‌ها و تنظیمات' },
     users: { title: 'کاربران', sub: 'لیست کاربران پلتفرم' },

@@ -130,6 +130,10 @@ services:
       PAYPING_OAUTH_CLIENT_ID: ${PAYPING_OAUTH_CLIENT_ID:-}
       PAYPING_OAUTH_CLIENT_SECRET: ${PAYPING_OAUTH_CLIENT_SECRET:-}
       PAYPING_OAUTH_REDIRECT_URI: ${PAYPING_OAUTH_REDIRECT_URI:-https://shomalicard.ir}
+      # Zohal inquiry services (identity, banking, bill, …). The bearer token
+      # stays server-side; each service is switched on from the «زحل» panel.
+      ZOHAL_TOKEN: ${ZOHAL_TOKEN:-}
+      ZOHAL_BASE_URL: ${ZOHAL_BASE_URL:-https://service.zohal.io}
     ports:
       - "${API_PORT:-4000}:4000"
     volumes:

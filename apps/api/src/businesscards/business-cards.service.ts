@@ -442,7 +442,7 @@ export class BusinessCardsService {
           },
           take: 1,
         },
-        user: { select: { plan: true } },
+        user: { select: { plan: true, verifiedAt: true } },
       },
     });
     if (!businessCard) {
@@ -480,7 +480,7 @@ export class BusinessCardsService {
           },
           take: 1,
         },
-        user: { select: { plan: true } },
+        user: { select: { plan: true, verifiedAt: true } },
       },
     });
     return rows.map((row) => this.projectPublicBusinessCard(row));
@@ -511,14 +511,14 @@ export class BusinessCardsService {
         publishedAt: true,
         city: { select: { id: true, name: true } },
         business: { select: { id: true, name: true } },
-        user: { select: { plan: true } },
+        user: { select: { plan: true, verifiedAt: true } },
       },
     });
     // Hide the fields the owner's plan masks (e.g. contact details on «رایگان»)
     // and drop the `user` relation from the public payload.
     return rows.map((row) => {
       const { user: _user, ...rest } = applyPlanMask(row, row.user?.plan);
-      return rest;
+      return { ...rest, ownerVerified: Boolean(row.user?.verifiedAt) };
     });
   }
 
@@ -570,7 +570,7 @@ export class BusinessCardsService {
         pinnedAt: true,
         city: { select: { id: true, name: true } },
         business: { select: { id: true, name: true } },
-        user: { select: { plan: true } },
+        user: { select: { plan: true, verifiedAt: true } },
       },
       orderBy: [{ pinnedAt: 'desc' }, { id: 'desc' }],
       take: PHONEBOOK_MAX_ROWS,
@@ -578,7 +578,7 @@ export class BusinessCardsService {
 
     const mapped = rows.map((row) => {
       const { user: _user, ...rest } = applyPlanMask(row, row.user?.plan);
-      return rest;
+      return { ...rest, ownerVerified: Boolean(row.user?.verifiedAt) };
     });
 
     const filtered = needle
@@ -626,6 +626,7 @@ export class BusinessCardsService {
       twitter: string | null;
       whatsapp: string | null;
       user?: {
+        verifiedAt: Date | null;
         plan: {
           name: string;
           maxBiolinks: number;
@@ -659,6 +660,7 @@ export class BusinessCardsService {
     return {
       ...rest,
       planName: limits.name,
+      ownerVerified: Boolean(businessCard.user?.verifiedAt),
       planHidesFields: limits.hiddenFields.length > 0,
       linkedBiolink,
     };

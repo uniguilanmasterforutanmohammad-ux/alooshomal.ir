@@ -12,6 +12,7 @@ import { isProfileComplete, isValidNationalCode } from '../common/national-code'
 import { SettingsService } from '../settings/settings.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { ZohalService } from '../zohal/zohal.service';
 
 // Only these profile fields may be changed through a request. Everything else
 // (role, password, ...) is intentionally out of scope. Phone/email changes are
@@ -38,6 +39,7 @@ export class ProfileService {
     private readonly activity: ActivityService,
     private readonly otp: OtpService,
     private readonly settings: SettingsService,
+    private readonly zohal: ZohalService,
   ) {}
 
   /** Contact changes rely on the same OTP delivery as phone sign-in. */
@@ -62,6 +64,10 @@ export class ProfileService {
           firstName: true,
           lastName: true,
           nationalCode: true,
+          birthDate: true,
+          verifiedAt: true,
+          blueTickRequestedAt: true,
+          blueTickNote: true,
           role: true,
           isActive: true,
           createdAt: true,
@@ -90,13 +96,21 @@ export class ProfileService {
   /**
    * Save the identity fields that unlock content creation. `fullName` is kept
    * in sync so every list, invoice and notification keeps showing one name.
+   *
+   * When the Zohal identity inquiry is available, the caller only sends the
+   * national code + Jalali birth date and the first/last name are filled from
+   * the inquiry (never trusted from the client). The manual name fields are a
+   * fallback for when the admin has switched the inquiry off.
    */
   async updateIdentity(
     userId: string,
-    dto: { firstName: string; lastName: string; nationalCode: string },
+    dto: {
+      firstName?: string;
+      lastName?: string;
+      nationalCode: string;
+      birthDate?: string;
+    },
   ) {
-    const firstName = dto.firstName.trim();
-    const lastName = dto.lastName.trim();
     const nationalCode = dto.nationalCode.trim();
     if (!isValidNationalCode(nationalCode)) {
       throw new BadRequestException('کد ملی وارد‌شده معتبر نیست');
@@ -109,12 +123,44 @@ export class ProfileService {
       throw new ConflictException('این کد ملی قبلاً برای حساب دیگری ثبت شده است');
     }
 
+    let firstName = dto.firstName?.trim() ?? '';
+    let lastName = dto.lastName?.trim() ?? '';
+    const birthDate = dto.birthDate?.trim() || null;
+
+    if (!firstName || !lastName) {
+      if (!birthDate) {
+        throw new BadRequestException(
+          'برای استعلام خودکار هویت، تاریخ تولد شمسی الزامی است',
+        );
+      }
+      if (!(await this.zohal.identityInquiryAvailable())) {
+        throw new BadRequestException(
+          'استعلام خودکار هویت در دسترس نیست؛ نام و نام خانوادگی را دستی وارد کنید',
+        );
+      }
+      const inquiry = await this.zohal.inquiryIdentity(nationalCode, birthDate);
+      if (!inquiry.ok || !inquiry.data?.matched) {
+        throw new BadRequestException(
+          inquiry.message ||
+            'استعلام هویت ناموفق بود؛ کد ملی و تاریخ تولد را بررسی کنید',
+        );
+      }
+      firstName = inquiry.data.first_name?.trim() ?? '';
+      lastName = inquiry.data.last_name?.trim() ?? '';
+      if (!firstName || !lastName) {
+        throw new BadRequestException(
+          'نام و نام خانوادگی از استعلام هویت دریافت نشد',
+        );
+      }
+    }
+
     const user = await this.prisma.user.update({
       where: { id: userId },
       data: {
         firstName,
         lastName,
         nationalCode,
+        birthDate,
         fullName: `${firstName} ${lastName}`,
       },
       select: {
@@ -125,6 +171,9 @@ export class ProfileService {
         firstName: true,
         lastName: true,
         nationalCode: true,
+        birthDate: true,
+        verifiedAt: true,
+        blueTickRequestedAt: true,
         role: true,
         isActive: true,
         createdAt: true,
