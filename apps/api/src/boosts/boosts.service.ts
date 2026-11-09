@@ -112,9 +112,11 @@ export class BoostsService {
     const where = { userId, ...searchWhere };
 
     const feedSearchWhere = search ? { body: { contains: search, mode: 'insensitive' as const } } : {};
+    // When the admin turns the feed feature off, the user's feed posts must not
+    // be advertised here either (the «فیدها» tab disappears from the panel).
+    const feedsEnabled = await this.settings.isFeatureEnabled('featureFeedPosts');
 
-    const [biolinks, biolinkTotal, businessCards, cardTotal, feeds, feedTotal] =
-      await Promise.all([
+    const [biolinks, biolinkTotal, businessCards, cardTotal] = await Promise.all([
       this.prisma.biolink.findMany({
         where,
         select: {
@@ -149,7 +151,10 @@ export class BoostsService {
         take: limit,
       }),
       this.prisma.businessCard.count({ where }),
-      this.prisma.feedPost.findMany({
+    ]);
+
+    const feeds = feedsEnabled
+      ? await this.prisma.feedPost.findMany({
         where: { userId, ...feedSearchWhere },
         select: {
           id: true,
@@ -164,9 +169,11 @@ export class BoostsService {
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
-      }),
-      this.prisma.feedPost.count({ where: { userId, ...feedSearchWhere } }),
-    ]);
+      })
+      : [];
+    const feedTotal = feedsEnabled
+      ? await this.prisma.feedPost.count({ where: { userId, ...feedSearchWhere } })
+      : 0;
 
     // The request history must cover *every* item the user owns, not just the
     // rows on the current page. Filtering by page ids (as before) hid every

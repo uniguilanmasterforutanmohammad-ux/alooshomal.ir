@@ -27,6 +27,7 @@ import {
   type BoostTargetKind,
 } from '@/lib/api';
 import { goToPaymentGateway } from '@/lib/request-payment';
+import { useFeatures } from '@/lib/features';
 import { cn } from '@/lib/utils';
 
 type Tab = 'biolinks' | 'business-cards' | 'feeds';
@@ -88,6 +89,11 @@ export function BoostTable({
   onError,
   onMessage,
 }: Props) {
+  const { features } = useFeatures();
+  // The «فیدها» tab follows the admin's feed feature switch: when the feed
+  // feature is disabled, feed posts are not offered for boosting here either.
+  const feedsEnabled = features.featureFeedPosts !== false;
+  const tabs = feedsEnabled ? TABS : TABS.filter((item) => item.key !== 'feeds');
   const [tab, setTab] = useState<Tab>('biolinks');
   const [busy, setBusy] = useState<string | null>(null);
   const [localBoost, setLocalBoost] = useState<Record<string, BoostStatus>>({});
@@ -96,10 +102,14 @@ export function BoostTable({
     Record<string, BoostStatus>
   >({});
 
+  // If the feed feature is switched off while the feed tab is selected, fall
+  // back to biolinks without a state update in an effect.
+  const activeTab: Tab = !feedsEnabled && tab === 'feeds' ? 'biolinks' : tab;
+
   const rows: BoostTargetItem[] =
-    tab === 'biolinks'
+    activeTab === 'biolinks'
       ? data?.biolinks ?? []
-      : tab === 'business-cards'
+      : activeTab === 'business-cards'
         ? data?.businessCards ?? []
         : data?.feeds ?? [];
 
@@ -119,7 +129,7 @@ export function BoostTable({
     );
 
   async function requestBoost(item: BoostTargetItem) {
-    const kind = TAB_KIND[tab];
+    const kind = TAB_KIND[activeTab];
     setBusy(`boost:${item.id}`);
     onError(null);
     onMessage(null);
@@ -141,7 +151,7 @@ export function BoostTable({
   }
 
   async function requestAd(item: BoostTargetItem) {
-    const kind = TAB_KIND[tab];
+    const kind = TAB_KIND[activeTab];
     setBusy(`ad:${item.id}`);
     onError(null);
     onMessage(null);
@@ -163,7 +173,7 @@ export function BoostTable({
 
   /** «تبلیغ در دایرکتوری» — a paid, targeted ad (distinct from «پله»). */
   async function requestDirectoryAd(item: BoostTargetItem) {
-    const kind = TAB_KIND[tab];
+    const kind = TAB_KIND[activeTab];
     setBusy(`dir:${item.id}`);
     onError(null);
     onMessage(null);
@@ -190,6 +200,14 @@ export function BoostTable({
     ? Math.max(data.meta.biolinkTotal, data.meta.cardTotal, data.meta.feedTotal)
     : rows.length;
 
+  // Hide feed rows from the request history too while the feed feature is off.
+  const requests = feedsEnabled
+    ? data?.requests ?? []
+    : (data?.requests ?? []).filter((request) => request.kind !== 'FEED');
+  const adRequests = feedsEnabled
+    ? data?.adRequests ?? []
+    : (data?.adRequests ?? []).filter((request) => request.kind !== 'FEED');
+
   const meta = data?.meta
     ? {
         page: data.meta.page,
@@ -204,14 +222,14 @@ export function BoostTable({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap gap-2">
-        {TABS.map(({ key, label, icon: Icon }) => (
+        {tabs.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             type="button"
             onClick={() => setTab(key)}
             className={cn(
               'inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-bold transition',
-              tab === key
+              activeTab === key
                 ? 'border-brand bg-brand-light text-brand'
                 : 'border-[var(--vintage-border)] bg-white text-muted hover:border-brand',
             )}
@@ -247,7 +265,7 @@ export function BoostTable({
             </thead>
             <tbody>
               {rows.map((item) => {
-                const kind = TAB_KIND[tab];
+                const kind = TAB_KIND[activeTab];
                 const key = `${kind}:${item.id}`;
                 const request = requestFor(kind, item.id);
                 const boostStatus =
@@ -453,14 +471,14 @@ export function BoostTable({
 
       {meta ? <Pagination meta={meta} onPage={onPage} /> : null}
 
-      {data?.requests.length ? (
+      {requests.length ? (
         <section className="flex flex-col gap-3">
           <h3 className="flex items-center gap-2 text-sm font-extrabold text-ink">
             <Sparkles className="size-4 text-brand" aria-hidden />
             تاریخچه درخواست‌های پله
           </h3>
           <div className="indeed-panel divide-y divide-[var(--vintage-border)]">
-            {data.requests.map((request) => (
+            {requests.map((request) => (
               <div
                 key={request.id}
                 className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm"
@@ -496,14 +514,14 @@ export function BoostTable({
         </section>
       ) : null}
 
-      {data?.adRequests?.length ? (
+      {adRequests.length ? (
         <section className="flex flex-col gap-3">
           <h3 className="flex items-center gap-2 text-sm font-extrabold text-ink">
             <Megaphone className="size-4 text-brand" aria-hidden />
             تاریخچه درخواست‌های تبلیغ
           </h3>
           <div className="indeed-panel divide-y divide-[var(--vintage-border)]">
-            {data.adRequests.map((request) => (
+            {adRequests.map((request) => (
               <div
                 key={request.id}
                 className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm"
