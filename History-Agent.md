@@ -20,7 +20,27 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.16.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.16.2**.
+
+## ۱۴۰۵/۰۸/۱۸ — آیکن‌های برند محلی و ارتقای lucide-react — نسخه `v3.16.2`
+
+**هدف:** رفع شکست typecheck پس از حذف آیکن‌های برند (`Instagram`، `Linkedin`،
+`Twitter`) از `lucide-react` 1.x و هم‌گام‌کردن سایت با نسخه‌ی جدید.
+
+**تغییرات:**
+- `apps/web/components/ui/SocialBrandIcons.tsx` (تازه): سه آیکن برند با
+  `createLucideIcon` و همان مسیرهای قبلی lucide.
+- شش کامپوننت `biolink`/`businesscard`: جایگزینی import و استفاده‌ی آیکن‌های
+  برند با `InstagramIcon`/`LinkedinIcon`/`TwitterIcon` و تایپ `LucideIcon`.
+- `apps/web/package.json`: ارتقای `lucide-react` به `^1.70.0`.
+
+**تأیید/تست:**
+- نصب تازه در کپی تمیز `apps/web` با `lucide-react@1.70.0` → موفق.
+- `npx tsc --noEmit` → بدون خطا (خطاهای قبلی `TS2305` رفع شد).
+- `npx eslint .` → بدون error (فقط warningهای ازپیش‌موجود).
+- اسکن همه‌ی importهای `lucide-react` نشان داد تنها آیکن‌های گم‌شده همین سه
+  برند بودند.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۸ — مهاجرت به Prisma 7 و رفع شکست CI وابستگی‌ها — نسخه `v3.16.1`
 

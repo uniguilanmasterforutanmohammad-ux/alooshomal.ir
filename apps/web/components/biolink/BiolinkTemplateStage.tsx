@@ -2,17 +2,19 @@
 
 import {
   Globe,
-  Instagram,
-  Linkedin,
   Mail,
   MapPin,
   MessageCircle,
   Phone,
   Send,
   Smartphone,
-  Twitter,
 } from 'lucide-react';
 
+import {
+  InstagramIcon,
+  LinkedinIcon,
+  TwitterIcon,
+} from '@/components/ui/SocialBrandIcons';
 import { BiolinkTemplateCard } from './BiolinkTemplateCard';
 import {
   RecordCard,
@@ -98,7 +100,7 @@ function buildIconLinks(biolink: Biolink): RecordIconLink[] {
           key: 'instagram',
           label: 'اینستاگرام',
           href: socialNetworkHref('instagram', biolink.instagram),
-          Icon: Instagram,
+          Icon: InstagramIcon,
         }
       : null,
     biolink.telegram
@@ -114,7 +116,7 @@ function buildIconLinks(biolink: Biolink): RecordIconLink[] {
           key: 'linkedin',
           label: 'لینکدین',
           href: socialNetworkHref('linkedin', biolink.linkedin),
-          Icon: Linkedin,
+          Icon: LinkedinIcon,
         }
       : null,
     biolink.twitter
@@ -122,7 +124,7 @@ function buildIconLinks(biolink: Biolink): RecordIconLink[] {
           key: 'twitter',
           label: 'ایکس',
           href: socialNetworkHref('twitter', biolink.twitter),
-          Icon: Twitter,
+          Icon: TwitterIcon,
         }
       : null,
   ].filter((entry): entry is RecordIconLink => Boolean(entry));

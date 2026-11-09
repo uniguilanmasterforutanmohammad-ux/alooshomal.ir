@@ -7,18 +7,21 @@ import {
   Briefcase,
   ExternalLink,
   Globe,
-  Instagram,
-  Linkedin,
   Mail,
   MapPin,
   MessageCircle,
   Phone,
   Send,
-  Twitter,
   UserRound,
   X,
+  type LucideIcon,
 } from 'lucide-react';
 
+import {
+  InstagramIcon,
+  LinkedinIcon,
+  TwitterIcon,
+} from '@/components/ui/SocialBrandIcons';
 import { type Biolink } from '@/lib/api';
 import { useDirectoryDetail } from '@/lib/directory-detail';
 import { FitContent } from '@/components/ui/FitContent';
@@ -76,11 +79,11 @@ export function DirectoryBiolinkDetail({ slug, onClose, hideHeader }: Props) {
   if (biolink.website) rows.push({ Icon: Globe, label: 'وب‌سایت', value: biolink.website, href: biolink.website });
   if (biolink.address) rows.push({ Icon: MapPin, label: 'آدرس', value: biolink.address, href: '' });
 
-  const socials: Array<{ value: string | null; Icon: typeof Linkedin; label: string }> = [
-    { value: biolink.linkedin, Icon: Linkedin, label: 'لینکدین' },
-    { value: biolink.instagram, Icon: Instagram, label: 'اینستاگرام' },
+  const socials: Array<{ value: string | null; Icon: LucideIcon; label: string }> = [
+    { value: biolink.linkedin, Icon: LinkedinIcon, label: 'لینکدین' },
+    { value: biolink.instagram, Icon: InstagramIcon, label: 'اینستاگرام' },
     { value: biolink.telegram, Icon: Send, label: 'تلگرام' },
-    { value: biolink.twitter, Icon: Twitter, label: 'ایکس' },
+    { value: biolink.twitter, Icon: TwitterIcon, label: 'ایکس' },
     { value: biolink.whatsapp, Icon: MessageCircle, label: 'واتساپ' },
   ];
 

@@ -6,17 +6,19 @@ import {
   Globe,
   Home,
   IdCard,
-  Instagram,
-  Linkedin,
   Mail,
   MapPin,
   MessageCircle,
   Phone,
   Send,
   Smartphone,
-  Twitter,
 } from 'lucide-react';
 
+import {
+  InstagramIcon,
+  LinkedinIcon,
+  TwitterIcon,
+} from '@/components/ui/SocialBrandIcons';
 import {
   BusinessCardFace,
   type BizCardRow,
@@ -116,7 +118,7 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
           key: 'instagram',
           label: 'اینستاگرام',
           href: socialNetworkHref('instagram', businessCard.instagram),
-          Icon: Instagram,
+          Icon: InstagramIcon,
         }
       : null,
     businessCard.telegram
@@ -132,7 +134,7 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
           key: 'linkedin',
           label: 'لینکدین',
           href: socialNetworkHref('linkedin', businessCard.linkedin),
-          Icon: Linkedin,
+          Icon: LinkedinIcon,
         }
       : null,
     businessCard.twitter
@@ -140,7 +142,7 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
           key: 'twitter',
           label: 'ایکس',
           href: socialNetworkHref('twitter', businessCard.twitter),
-          Icon: Twitter,
+          Icon: TwitterIcon,
         }
       : null,
   ].filter((entry): entry is BizCardSocial => Boolean(entry));

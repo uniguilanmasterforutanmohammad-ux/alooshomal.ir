@@ -7,19 +7,22 @@ import {
   IdCard,
   ExternalLink,
   Globe,
-  Instagram,
-  Linkedin,
   Mail,
   MapPin,
   MessageCircle,
   Phone,
   Send,
   Smartphone,
-  Twitter,
   UserRound,
   X,
+  type LucideIcon,
 } from 'lucide-react';
 
+import {
+  InstagramIcon,
+  LinkedinIcon,
+  TwitterIcon,
+} from '@/components/ui/SocialBrandIcons';
 import { type BusinessCard } from '@/lib/api';
 import { useDirectoryDetail } from '@/lib/directory-detail';
 import { FitContent } from '@/components/ui/FitContent';
@@ -88,11 +91,11 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
   if (businessCard.website) rows.push({ Icon: Globe, label: 'وب‌سایت', value: businessCard.website, href: businessCard.website });
   if (businessCard.address) rows.push({ Icon: MapPin, label: 'آدرس', value: businessCard.address, href: '' });
 
-  const socials: Array<{ value: string | null; Icon: typeof Linkedin; label: string }> = [
-    { value: businessCard.linkedin, Icon: Linkedin, label: 'لینکدین' },
-    { value: businessCard.instagram, Icon: Instagram, label: 'اینستاگرام' },
+  const socials: Array<{ value: string | null; Icon: LucideIcon; label: string }> = [
+    { value: businessCard.linkedin, Icon: LinkedinIcon, label: 'لینکدین' },
+    { value: businessCard.instagram, Icon: InstagramIcon, label: 'اینستاگرام' },
     { value: businessCard.telegram, Icon: Send, label: 'تلگرام' },
-    { value: businessCard.twitter, Icon: Twitter, label: 'ایکس' },
+    { value: businessCard.twitter, Icon: TwitterIcon, label: 'ایکس' },
     { value: businessCard.whatsapp, Icon: MessageCircle, label: 'واتساپ' },
   ];
 
