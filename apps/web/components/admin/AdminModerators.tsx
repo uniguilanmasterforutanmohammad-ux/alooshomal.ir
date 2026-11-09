@@ -16,12 +16,19 @@ interface ScopeMeta {
 
 interface Draft {
   email: string;
+  phone: string;
   password: string;
   fullName: string;
   scopes: ModeratorScope[];
 }
 
-const EMPTY_DRAFT: Draft = { email: '', password: '', fullName: '', scopes: [] };
+const EMPTY_DRAFT: Draft = {
+  email: '',
+  phone: '',
+  password: '',
+  fullName: '',
+  scopes: [],
+};
 
 /**
  * Super-admin panel for creating and managing limited «کاربر ادمین» accounts.
@@ -76,6 +83,7 @@ export function AdminModerators() {
     try {
       await api.post('/admin/moderators', {
         email: draft.email.trim(),
+        phone: draft.phone.trim() || undefined,
         password: draft.password,
         fullName: draft.fullName.trim() || undefined,
         scopes: draft.scopes,
@@ -90,9 +98,12 @@ export function AdminModerators() {
     }
   }
 
-  async function saveEdit(account: ModeratorAccount, scopes: ModeratorScope[]) {
+  async function saveEdit(account: ModeratorAccount) {
     try {
-      await api.patch(`/admin/moderators/${account.id}`, { scopes });
+      await api.patch(`/admin/moderators/${account.id}`, {
+        scopes: account.moderatorScopes,
+        phone: account.phone?.trim() || null,
+      });
       toast.success('سطوح دسترسی به‌روزرسانی شد.');
       setEditing(null);
       await load();
@@ -145,7 +156,7 @@ export function AdminModerators() {
 
       <div className="indeed-panel p-5">
         <h4 className="text-sm font-extrabold text-ink">ساخت کاربر ادمین جدید</h4>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <label className="text-xs font-bold text-muted">
             ایمیل
             <input
@@ -154,6 +165,17 @@ export function AdminModerators() {
               value={draft.email}
               onChange={(event) => setDraft({ ...draft, email: event.target.value })}
               placeholder="moderator@example.com"
+            />
+          </label>
+          <label className="text-xs font-bold text-muted">
+            شماره موبایل (اختیاری)
+            <input
+              className="indeed-input mt-1"
+              dir="ltr"
+              inputMode="tel"
+              value={draft.phone}
+              onChange={(event) => setDraft({ ...draft, phone: event.target.value })}
+              placeholder="09xxxxxxxxx"
             />
           </label>
           <label className="text-xs font-bold text-muted">
@@ -222,6 +244,11 @@ export function AdminModerators() {
                     <p dir="ltr" className="mt-0.5 text-right text-xs text-muted">
                       {account.email}
                     </p>
+                    {account.phone ? (
+                      <p dir="ltr" className="mt-0.5 text-right text-xs text-muted">
+                        {account.phone}
+                      </p>
+                    ) : null}
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       {account.moderatorScopes.map((scope) => (
                         <span
@@ -264,6 +291,19 @@ export function AdminModerators() {
 
                 {editing?.id === account.id ? (
                   <div className="mt-3 rounded-lg border border-dashed border-[var(--vintage-border)] p-3">
+                    <label className="block text-xs font-bold text-muted">
+                      شماره موبایل (برای ورود با کد یکبارمصرف)
+                      <input
+                        className="indeed-input mt-1"
+                        dir="ltr"
+                        inputMode="tel"
+                        value={editing.phone ?? ''}
+                        onChange={(event) =>
+                          setEditing({ ...editing, phone: event.target.value })
+                        }
+                        placeholder="09xxxxxxxxx"
+                      />
+                    </label>
                     <ScopePicker
                       meta={scopeMeta}
                       selected={account.moderatorScopes}
@@ -276,7 +316,7 @@ export function AdminModerators() {
                     />
                     <div className="mt-3 flex gap-2">
                       <button
-                        onClick={() => saveEdit(account, editing.moderatorScopes)}
+                        onClick={() => saveEdit(editing)}
                         className="indeed-btn indeed-btn-primary py-1.5 text-xs"
                       >
                         ذخیره

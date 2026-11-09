@@ -18,6 +18,14 @@ export class CreateModeratorDto {
   @IsEmail({}, { message: 'ایمیل معتبر نیست' })
   email!: string;
 
+  @ApiPropertyOptional({
+    example: '09121234567',
+    description: 'شماره موبایل برای ورود با کد یکبارمصرف (اختیاری)',
+  })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
   @ApiProperty({ example: 'StrongPass123' })
   @IsString()
   @MinLength(8, { message: 'رمز عبور باید حداقل ۸ کاراکتر باشد' })
@@ -37,6 +45,14 @@ export class CreateModeratorDto {
 }
 
 export class UpdateModeratorDto {
+  @ApiPropertyOptional({
+    example: '09121234567',
+    description: 'شماره موبایل برای ورود با کد یکبارمصرف',
+  })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
   @ApiPropertyOptional({ enum: MODERATOR_SCOPES, isArray: true })
   @IsOptional()
   @IsArray()

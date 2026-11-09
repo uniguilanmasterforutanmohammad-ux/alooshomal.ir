@@ -393,6 +393,7 @@ export class AdminController {
   ) {
     return this.adminUsers.createModerator(admin.id, {
       email: dto.email,
+      phone: dto.phone,
       password: dto.password,
       fullName: dto.fullName,
       scopes: normalizeScopes(dto.scopes),
@@ -407,6 +408,7 @@ export class AdminController {
     @Body() dto: UpdateModeratorDto,
   ) {
     return this.adminUsers.updateModerator(admin.id, id, {
+      phone: dto.phone,
       scopes: dto.scopes ? normalizeScopes(dto.scopes) : undefined,
       isActive: dto.isActive,
       fullName: dto.fullName,

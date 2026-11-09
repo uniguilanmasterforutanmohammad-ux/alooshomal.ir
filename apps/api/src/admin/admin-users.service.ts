@@ -8,6 +8,7 @@ import { NotificationType, Prisma } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
 import { ModeratorScope, normalizeScopes } from '../auth/moderator-scopes';
+import { OtpService } from '../auth/otp.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -301,19 +302,25 @@ export class AdminUsersService {
   }
 
   /**
-   * Create a limited admin account. Requires only an email + password (the
-   * moderator signs in with email/password) and the granted content scopes.
+   * Create a limited admin account. Requires an email + password (the
+   * moderator signs in with email/password) and the granted content scopes. An
+   * optional phone number lets the same account also sign in with mobile + OTP
+   * on `/admin/login`.
    */
   async createModerator(
     adminId: string,
     input: {
       email: string;
+      phone?: string | null;
       password: string;
       fullName?: string | null;
       scopes: ModeratorScope[];
     },
   ) {
     const email = input.email.toLowerCase().trim();
+    const phone = input.phone?.trim()
+      ? OtpService.normalizePhone(input.phone)
+      : null;
     const scopes = normalizeScopes(input.scopes);
     if (scopes.length === 0) {
       throw new BadRequestException('حداقل یک سطح دسترسی را انتخاب کنید');
@@ -322,10 +329,17 @@ export class AdminUsersService {
     if (existing) {
       throw new BadRequestException('این ایمیل قبلاً ثبت شده است');
     }
+    if (phone) {
+      const phoneOwner = await this.prisma.user.findUnique({ where: { phone } });
+      if (phoneOwner) {
+        throw new BadRequestException('این شماره موبایل قبلاً ثبت شده است');
+      }
+    }
     const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
     const created = await this.prisma.user.create({
       data: {
         email,
+        phone,
         passwordHash,
         fullName: input.fullName?.trim() || null,
         role: 'MODERATOR',
@@ -357,6 +371,7 @@ export class AdminUsersService {
     adminId: string,
     userId: string,
     input: {
+      phone?: string | null;
       scopes?: ModeratorScope[];
       isActive?: boolean;
       fullName?: string | null;
@@ -372,6 +387,18 @@ export class AdminUsersService {
     }
 
     const data: Prisma.UserUpdateInput = {};
+    if (input.phone !== undefined) {
+      const phone = input.phone?.trim()
+        ? OtpService.normalizePhone(input.phone)
+        : null;
+      if (phone && phone !== user.phone) {
+        const phoneOwner = await this.prisma.user.findUnique({ where: { phone } });
+        if (phoneOwner && phoneOwner.id !== userId) {
+          throw new BadRequestException('این شماره موبایل قبلاً ثبت شده است');
+        }
+      }
+      data.phone = phone;
+    }
     if (input.scopes !== undefined) {
       const scopes = normalizeScopes(input.scopes);
       if (scopes.length === 0) {
