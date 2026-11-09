@@ -38,6 +38,7 @@ import { TaxonomyModule } from './taxonomy/taxonomy.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { UsersModule } from './users/users.module';
+import { WalletModule } from './wallet/wallet.module';
 import { ZohalModule } from './zohal/zohal.module';
 
 @Module({
@@ -75,6 +76,7 @@ import { ZohalModule } from './zohal/zohal.module';
     UploadsModule,
     SeoModule,
     HealthModule,
+    WalletModule,
     ZohalModule,
   ],
   providers: [

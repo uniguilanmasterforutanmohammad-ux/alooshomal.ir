@@ -86,6 +86,14 @@ export const FEED_TAG_PRICE_KEY = 'feedTagPrice';
 export const DEFAULT_FEED_TAG_PRICE = 20_000;
 export const MAX_PRICE = 1_000_000_000;
 
+/**
+ * How many days a user has to settle the negative wallet balance. The admin
+ * chooses this period; the due date is set when the first charge of a cycle is
+ * recorded and cleared after the single settlement payment.
+ */
+export const WALLET_SETTLEMENT_DAYS_KEY = 'walletSettlementDays';
+export const DEFAULT_WALLET_SETTLEMENT_DAYS = 7;
+
 // ---------------------------------------------------------------------------
 //  «امتیاز» (points) — earned by approved «نبض شهر» news, spent on rewards
 // ---------------------------------------------------------------------------
@@ -384,6 +392,14 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     label: 'تیک آبی (احراز هویت)',
     description:
       'کاربران می‌توانند پس از تکمیل مشخصات هویتی، درخواست تیک آبی ثبت کنند؛ تأیید نهایی در پنل «زحل» انجام می‌شود.',
+    group: 'احراز هویت',
+    default: true,
+  },
+  {
+    key: 'featureWallet',
+    label: 'کیف پول و پرداخت یکجا',
+    description:
+      'هزینه استعلام‌ها و اشتراک‌ها به‌صورت بدهی در کیف پول جمع می‌شود و کاربر یک‌بار کل مبلغ را تا سررسید پرداخت می‌کند.',
     group: 'احراز هویت',
     default: true,
   },

@@ -63,10 +63,12 @@ export interface SubscriptionPayment {
 }
 
 export interface SubscriptionCheckout {
-  paymentId: string;
+  paymentId: string | null;
   amount: number;
   paymentCode: string | null;
   url: string | null;
   paypingProductCode?: string | null;
+  /** True when the price was added to the wallet instead of a gateway call. */
+  wallet?: boolean;
   plan: { id: string; name: string };
 }

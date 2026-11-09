@@ -30,6 +30,7 @@ import {
   TrendingUp,
   UserCog,
   Users,
+  Wallet,
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
@@ -49,6 +50,7 @@ export type AdminSection =
   | 'revenue'
   | 'finance'
   | 'zohal'
+  | 'wallets'
   | 'payments'
   | 'payping-oauth'
   | 'feeds'
@@ -109,6 +111,7 @@ const NAV_GROUPS: Array<{
       { key: 'revenue', label: 'گزارش درآمد', icon: Banknote },
       { key: 'finance', label: 'مالیاتی', icon: Receipt },
       { key: 'zohal', label: 'زحل (استعلام)', icon: ShieldCheck },
+      { key: 'wallets', label: 'کیف پول‌ها', icon: Wallet },
       { key: 'payments', label: 'درگاه پرداخت', icon: CreditCard },
       { key: 'payping-oauth', label: 'درگاه پرداخت (OAuth)', icon: ShieldCheck },
     ],

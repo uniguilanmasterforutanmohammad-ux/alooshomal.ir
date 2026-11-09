@@ -109,6 +109,13 @@ export default function SubscriptionsPage() {
         const checkout = await api.post<SubscriptionCheckout>(
           `/subscriptions/${plan.id}/checkout`,
         );
+        if (checkout?.wallet) {
+          setMessage(
+            'هزینه این بسته به کیف پول شما اضافه شد و اشتراک فعال شد؛ تسویه‌ی یک‌جا از بخش کیف پول انجام می‌شود.',
+          );
+          await load();
+          return;
+        }
         if (!checkout?.url) {
           throw new Error('لینک پرداخت از درگاه دریافت نشد');
         }

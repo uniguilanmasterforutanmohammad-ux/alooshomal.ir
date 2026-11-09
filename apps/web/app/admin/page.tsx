@@ -22,6 +22,7 @@ import { AdminRevenue } from '@/components/admin/AdminRevenue';
 import { AdminSocialAccounts } from '@/components/admin/AdminSocialAccounts';
 import { AdminStoragePanel } from '@/components/admin/AdminStoragePanel';
 import { AdminSubscriptions } from '@/components/admin/AdminSubscriptions';
+import { AdminWallets } from '@/components/admin/AdminWallets';
 import { AdminZohal } from '@/components/admin/AdminZohal';
 import { NotificationsInbox } from '@/components/ui/NotificationsInbox';
 
@@ -74,6 +75,7 @@ function AdminContent() {
       {section === 'revenue' ? <AdminRevenue /> : null}
       {section === 'finance' ? <AdminFinance /> : null}
       {section === 'zohal' ? <AdminZohal /> : null}
+      {section === 'wallets' ? <AdminWallets /> : null}
       {section === 'payments' ? <AdminPaypingPanel /> : null}
       {section === 'payping-oauth' ? <AdminPaypingOAuthPanel /> : null}
       {section === 'feeds' ? <AdminFeeds /> : null}

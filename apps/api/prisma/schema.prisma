@@ -448,6 +448,8 @@ model User {
   actingNotifications Notification[]  @relation("NotificationActors")
   profileChangeRequests ProfileChangeRequest[]
   sessions          Session[]
+  wallet            UserWallet?
+  walletPayments    WalletPayment[]   @relation("UserWalletPayments")
   pointsLedger      PointsLedger[]
   rewardRedemptions RewardRedemption[]
   feedSubscriptions UserFeedSubscription[] @relation("UserFeedSubscriptions")
@@ -1190,6 +1192,76 @@ model RequestPayment {
   @@index([status])
   @@index([target])
   @@map("request_payments")
+}
+
+/// What produced a wallet ledger row. Negative entries are debts and the
+/// `PAYMENT` entry is the positive settlement of the whole balance.
+enum WalletEntryKind {
+  IDENTITY_INQUIRY
+  PHONE_MATCH
+  SUBSCRIPTION
+  ADJUSTMENT
+  PAYMENT
+}
+
+/// One user's running tab. `balance` is negative while the user owes money.
+/// `dueAt` is set when the first debt of a cycle appears and cleared once the
+/// balance reaches zero after a payment.
+model UserWallet {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  balance        Int       @default(0)
+  dueAt          DateTime?
+  reminderSentAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  entries WalletEntry[]
+
+  @@map("user_wallets")
+}
+
+/// Immutable ledger of every debit/credit on a wallet.
+model WalletEntry {
+  id         String          @id @default(cuid())
+  walletId   String
+  kind       WalletEntryKind
+  /// Negative = charged to the user, positive = paid/credited.
+  amount     Int
+  title      String
+  sourceType String?
+  sourceId   String?
+  createdAt  DateTime        @default(now())
+
+  wallet UserWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, createdAt])
+  @@map("wallet_entries")
+}
+
+/// One gateway attempt to settle the current wallet debt (always the full
+/// outstanding balance, so the user pays once per cycle).
+model WalletPayment {
+  id            String        @id @default(cuid())
+  userId        String
+  amount        Int
+  status        PaymentStatus @default(PENDING)
+  clientRefId   String        @unique
+  paymentCode   String?       @unique
+  refId         String?
+  gatewayUrl    String?
+  paidAt        DateTime?
+  verifiedAt    DateTime?
+  failureReason String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user User @relation("UserWalletPayments", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("wallet_payments")
 }
 
 // ---------------------------------------------------------------------------

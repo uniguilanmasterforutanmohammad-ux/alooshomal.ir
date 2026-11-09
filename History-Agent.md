@@ -20,7 +20,52 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.18.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.19.0**.
+
+## ۱۴۰۵/۰۸/۱۸ — کیف پول کاربران و پرداخت یک‌جای بدهی — نسخه `v3.19.0`
+
+**هدف:** هزینه‌ی استعلام هویتی، تطبیق موبایل/کد ملی (تیک آبی) و خرید اشتراک
+به‌صورت بدهی منفی در کیف پول کاربر جمع شود، مدیر مهلت تسویه را تعیین کند و
+کاربر پس از سررسید فقط یک‌بار کل مبلغ را پرداخت کند.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل‌های `UserWallet`، `WalletEntry` و
+  `WalletPayment` به‌همراه enum `WalletEntryKind` و رابطه‌های `User`.
+- `apps/api/src/wallet/`: ماژول تازه با `WalletService` (شارژ، گردش حساب،
+  سررسید و یادآوری، پرداخت یک‌جا با پی‌پینگ/شبیه‌ساز، تنظیم دستی مدیر)،
+  کنترلرهای کاربر و ادمین و DTO.
+- `apps/api/src/profile/profile.service.ts`: شارژ هزینه‌ی
+  `national_identity_inquiry` پس از استعلام خودکار هویت.
+- `apps/api/src/zohal/zohal.service.ts`: شارژ هزینه‌ی `shahkar` پس از تطبیق
+  موفق موبایل و کد ملی.
+- `apps/api/src/subscriptions/subscriptions-payment.service.ts`: با فعال بودن
+  کیف پول، اشتراک بلافاصله فعال و مبلغش به بدهی اضافه می‌شود (بدون پرداخت
+  جداگانه درگاه).
+- `apps/api/src/settings/`: تنظیم `walletSettlementDays` (۱ تا ۹۰ روز) و
+  سوئیچ ویژگی `featureWallet`.
+- `apps/api/src/finance/finance.constants.ts`: منبع درآمد `WALLET_PAYMENT`.
+- `apps/web/app/dashboard/wallet/page.tsx` و `apps/web/lib/api/types/wallet.ts`:
+  پنل کیف پول کاربر (بدهی، سررسید، گردش حساب، پرداخت یک‌جا).
+- `apps/web/components/dashboard/UserShell.tsx` و
+  `apps/web/app/dashboard/subscriptions/page.tsx`: ورودی «کیف پول» در منو و
+  پیام فعال‌سازی اشتراک از کیف پول.
+- `apps/web/components/admin/AdminWallets.tsx`،
+  `apps/web/components/admin/AdminWalletSettings.tsx` و اتصال در
+  `AdminShell.tsx`/`admin-console.ts`/`page.tsx`/`sections.tsx`: پنل ادمین
+  کیف پول‌ها و تنظیم مهلت تسویه.
+- `docs/API.md`: مستندسازی مسیرهای کیف پول.
+
+**تأیید/تست:**
+- `npx prisma generate` و `npx tsc --noEmit -p tsconfig.json` در نسخه‌ی
+  موقت API → بدون خطا؛ `npx eslint src` → بدون خطا.
+- `npx tsc --noEmit` و `npx eslint .` در نسخه‌ی موقت وب → بدون خطا.
+- `python3 scripts/check_api_docs.py` و `check_modules.py` → exit 0.
+- اجرای واقعی روی استک dev: `prisma db push`، سپس با توکن ادمین/کاربر
+  `POST /api/admin/wallets/:id/adjust` (بدهی ۵۰٬۰۰۰)، `POST /api/wallet/checkout`
+  (شبیه‌ساز پی‌پینگ) و `GET /api/wallet/payments/callback` → `balance` به صفر
+  و `dueAt` پاک شد؛ `POST /api/subscriptions/:plan/checkout` → `wallet:true`،
+  بدهی ۹۹٬۰۰۰ و فعال‌سازی اشتراک. داده‌های تست سپس پاک شد.
+- `python3 scripts/sync_install.py` و `--check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۸ — استعلام تطبیق موبایل و کد ملی برای تیک آبی — نسخه `v3.18.0`
 

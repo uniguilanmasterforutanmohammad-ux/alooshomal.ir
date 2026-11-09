@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   TrendingUp,
   UserRound,
+  Wallet,
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
@@ -69,6 +70,7 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
     title: 'رشد و اشتراک',
     items: [
       { href: '/dashboard/subscriptions', label: 'اشتراک من', icon: Crown, exact: false },
+      { href: '/dashboard/wallet', label: 'کیف پول', icon: Wallet, exact: false, feature: 'featureWallet' },
       { href: '/dashboard/boost', label: 'افزایش بازدید و تبلیغات', icon: TrendingUp, exact: false, feature: 'featureBoostRequests' },
       { href: '/dashboard/points', label: 'امتیاز من', icon: Coins, exact: false },
       { href: '/dashboard/reporter', label: 'شهروند خبرنگار', icon: Newspaper, exact: false, feature: 'featureNews' },

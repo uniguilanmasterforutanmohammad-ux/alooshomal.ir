@@ -196,6 +196,13 @@ class UpdateSettingsDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
+  @Min(1)
+  @Max(90)
+  walletSettlementDays?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
   @Min(0)
   @Max(100000)
   pointsPerNews?: number;
@@ -287,6 +294,8 @@ export class AdminSettingsController {
       adHomePrice: await this.settingsService.getAdHomePrice(),
       adDirectoryPrice: await this.settingsService.getAdDirectoryPrice(),
       feedTagPrice: await this.settingsService.getFeedTagPrice(),
+      walletSettlementDays:
+        await this.settingsService.getWalletSettlementDays(),
       pointsPerNews: await this.settingsService.getPointsPerNews(),
       feedMaxImages: await this.settingsService.getFeedMaxImages(),
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
@@ -339,6 +348,7 @@ export class AdminSettingsController {
       adHomePrice?: number;
       adDirectoryPrice?: number;
       feedTagPrice?: number;
+      walletSettlementDays?: number;
       pointsPerNews?: number;
       feedMaxImages?: number;
       feedMaxImageKb?: number;
@@ -489,6 +499,12 @@ export class AdminSettingsController {
       result.feedTagPrice = await this.settingsService.setFeedTagPrice(
         dto.feedTagPrice,
       );
+    }
+    if (dto.walletSettlementDays !== undefined) {
+      result.walletSettlementDays =
+        await this.settingsService.setWalletSettlementDays(
+          dto.walletSettlementDays,
+        );
     }
     if (dto.pointsPerNews !== undefined) {
       result.pointsPerNews = await this.settingsService.setPointsPerNews(

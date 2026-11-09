@@ -10,6 +10,7 @@ import { AdminBiolinkTemplates } from '@/components/admin/AdminBiolinkTemplates'
 import { AdminBlogPanel } from '@/components/admin/AdminBlogPanel';
 import { AdminBoosts } from '@/components/admin/AdminBoosts';
 import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
+import { AdminWalletSettings } from '@/components/admin/AdminWalletSettings';
 import { AdminDataTable } from '@/components/admin/AdminDataTable';
 import { AdminDirectorySettings } from '@/components/admin/AdminDirectorySettings';
 import { AdminEmails } from '@/components/admin/AdminEmails';
@@ -343,6 +344,7 @@ export function SettingsSection() {
       <AdminBiolinkTemplates />
       <AdminDirectorySettings />
       <AdminAuthSettings />
+      <AdminWalletSettings />
       <AdminNotificationSettings />
       <AdminNewsSettings />
       <TaxonomyManager

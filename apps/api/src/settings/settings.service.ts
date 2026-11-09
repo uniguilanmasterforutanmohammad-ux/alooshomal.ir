@@ -48,6 +48,7 @@ import {
   DEFAULT_PHONE_LOGIN_ENABLED,
   DEFAULT_POINTS_PER_NEWS,
   DEFAULT_SITE_THEME,
+  DEFAULT_WALLET_SETTLEMENT_DAYS,
   DIRECTORY_DISPLAY_MODES,
   DIRECTORY_DISPLAY_MODE_KEY,
   DIRECTORY_PAGE_SIZE_KEY,
@@ -74,6 +75,7 @@ import {
   SITE_THEME_KEY,
   SiteTheme,
   StoppedSection,
+  WALLET_SETTLEMENT_DAYS_KEY,
 } from './settings.constants';
 
 export * from './settings.constants';
@@ -825,6 +827,27 @@ export class SettingsService implements OnModuleInit {
 
   setFeedTagPrice(value: number): Promise<number> {
     return this.writePrice(FEED_TAG_PRICE_KEY, value);
+  }
+
+  /** Days the user has to settle the wallet debt (admin-selected). */
+  async getWalletSettlementDays(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: WALLET_SETTLEMENT_DAYS_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 1 && parsed <= 90
+      ? Math.floor(parsed)
+      : DEFAULT_WALLET_SETTLEMENT_DAYS;
+  }
+
+  async setWalletSettlementDays(value: number): Promise<number> {
+    const clamped = Math.min(90, Math.max(1, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: WALLET_SETTLEMENT_DAYS_KEY },
+      update: { value: String(clamped) },
+      create: { key: WALLET_SETTLEMENT_DAYS_KEY, value: String(clamped) },
+    });
+    return clamped;
   }
 
   /** Points credited per approved «نبض شهر» news item. */

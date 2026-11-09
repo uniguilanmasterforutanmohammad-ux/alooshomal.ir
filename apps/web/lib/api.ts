@@ -18,3 +18,4 @@ export * from './api/types/points';
 export * from './api/types/feeds';
 export * from './api/types/social';
 export * from './api/types/finance';
+export * from './api/types/wallet';

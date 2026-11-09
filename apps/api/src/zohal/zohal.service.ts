@@ -7,10 +7,12 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { WalletEntryKind } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
+import { WalletService } from '../wallet/wallet.service';
 import {
   ZOHAL_SERVICES,
   ZOHAL_PRICE_SETTING_PREFIX,
@@ -57,6 +59,7 @@ export class ZohalService {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly activity: ActivityService,
+    private readonly wallet: WalletService,
   ) {
     this.baseUrl = (
       config.get<string>('ZOHAL_BASE_URL') ?? 'https://service.zohal.io'
@@ -442,6 +445,15 @@ export class ZohalService {
         blueTickRequestedAt: true,
         phoneMatchVerifiedAt: true,
       },
+    });
+    const price = await this.getServicePrice('shahkar');
+    await this.wallet.charge({
+      userId,
+      kind: WalletEntryKind.PHONE_MATCH,
+      amount: price,
+      title: 'تطبیق شماره موبایل و کد ملی',
+      sourceType: 'ZOHAL',
+      sourceId: 'shahkar',
     });
     await this.activity.log({
       actor: { id: userId },

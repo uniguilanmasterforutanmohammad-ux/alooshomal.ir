@@ -4,7 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { NewsStatus, NotificationType, Prisma } from '@prisma/client';
+import {
+  NewsStatus,
+  NotificationType,
+  Prisma,
+  WalletEntryKind,
+} from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
 import { OtpService } from '../auth/otp.service';
@@ -13,6 +18,7 @@ import { SettingsService } from '../settings/settings.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ZohalService } from '../zohal/zohal.service';
+import { WalletService } from '../wallet/wallet.service';
 
 // Only these profile fields may be changed through a request. Everything else
 // (role, password, ...) is intentionally out of scope. Phone/email changes are
@@ -40,6 +46,7 @@ export class ProfileService {
     private readonly otp: OtpService,
     private readonly settings: SettingsService,
     private readonly zohal: ZohalService,
+    private readonly wallet: WalletService,
   ) {}
 
   /** Contact changes rely on the same OTP delivery as phone sign-in. */
@@ -127,6 +134,7 @@ export class ProfileService {
     let firstName = dto.firstName?.trim() ?? '';
     let lastName = dto.lastName?.trim() ?? '';
     const birthDate = dto.birthDate?.trim() || null;
+    let inquiryUsed = false;
 
     if (!firstName || !lastName) {
       if (!birthDate) {
@@ -148,6 +156,7 @@ export class ProfileService {
       }
       firstName = inquiry.data.first_name?.trim() ?? '';
       lastName = inquiry.data.last_name?.trim() ?? '';
+      inquiryUsed = true;
       if (!firstName || !lastName) {
         throw new BadRequestException(
           'نام و نام خانوادگی از استعلام هویت دریافت نشد',
@@ -180,6 +189,17 @@ export class ProfileService {
         createdAt: true,
       },
     });
+    if (inquiryUsed) {
+      const price = await this.zohal.getServicePrice('national_identity_inquiry');
+      await this.wallet.charge({
+        userId,
+        kind: WalletEntryKind.IDENTITY_INQUIRY,
+        amount: price,
+        title: 'استعلام اطلاعات هویتی',
+        sourceType: 'ZOHAL',
+        sourceId: 'national_identity_inquiry',
+      });
+    }
     await this.activity.log({
       actor: { id: userId, email: user.email, role: user.role },
       action: 'PROFILE_IDENTITY_UPDATED',

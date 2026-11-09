@@ -13,6 +13,7 @@ export const FINANCE_SOURCE_TYPES = {
   AD_HOME: 'AD_HOME_PAYMENT',
   AD_DIRECTORY: 'AD_DIRECTORY_PAYMENT',
   FEED_TAG: 'FEED_TAG',
+  WALLET: 'WALLET_PAYMENT',
   MANUAL: 'MANUAL_SALE',
 } as const;
 
@@ -26,6 +27,7 @@ export const FINANCE_SOURCE_LABELS: Record<string, string> = {
   [FINANCE_SOURCE_TYPES.AD_HOME]: 'تبلیغ صفحه اصلی',
   [FINANCE_SOURCE_TYPES.AD_DIRECTORY]: 'تبلیغ دایرکتوری',
   [FINANCE_SOURCE_TYPES.FEED_TAG]: 'تگ فید',
+  [FINANCE_SOURCE_TYPES.WALLET]: 'تسویه کیف پول',
   [FINANCE_SOURCE_TYPES.MANUAL]: 'فروش دستی',
 };
 

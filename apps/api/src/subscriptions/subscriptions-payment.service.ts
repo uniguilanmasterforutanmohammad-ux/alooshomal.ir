@@ -13,6 +13,7 @@ import {
   PaymentStatus,
   SubscriptionPlan,
   SubscriptionStatus,
+  WalletEntryKind,
 } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 
@@ -23,6 +24,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SettingsService } from '../settings/settings.service';
+import { WalletService } from '../wallet/wallet.service';
 
 /**
  * Online subscription payment: PayPing checkout, the payment callback and
@@ -40,6 +43,8 @@ export class SubscriptionsPaymentService {
     private readonly simulator: PaymentSimulatorService,
     private readonly config: ConfigService,
     private readonly finance: FinanceService,
+    private readonly settings: SettingsService,
+    private readonly wallet: WalletService,
   ) {}
 
   /** Loads a plan or throws, so payment paths never act on a missing plan. */
@@ -184,6 +189,12 @@ export class SubscriptionsPaymentService {
       throw new BadRequestException('شما در حال حاضر مشترک این بسته هستید');
     }
 
+    // With the wallet switched on, the plan is activated right away and its
+    // price is added to the user's tab instead of a per-purchase gateway call.
+    if (await this.settings.isFeatureEnabled('featureWallet')) {
+      return this.purchaseViaWallet(userId, plan);
+    }
+
     // The simulator has no merchant account to mirror plans into.
     const paypingProductCode = this.simulator.isEnabled
       ? null
@@ -264,6 +275,75 @@ export class SubscriptionsPaymentService {
       paymentCode: updated.paymentCode,
       url: updated.gatewayUrl,
       paypingProductCode,
+      plan: { id: plan.id, name: plan.name },
+    };
+  }
+
+  /**
+   * Wallet purchase: record the price as a debt and activate the plan now, so
+   * the user can keep buying (blue tick, subscriptions, …) and settle
+   * everything with one payment before the wallet due date.
+   */
+  private async purchaseViaWallet(userId: string, plan: SubscriptionPlan) {
+    const amount = await this.wallet.charge({
+      userId,
+      kind: WalletEntryKind.SUBSCRIPTION,
+      amount: plan.price,
+      title: `خرید اشتراک «${plan.name}»`,
+      sourceType: 'SUBSCRIPTION_PLAN',
+      sourceId: plan.id,
+    });
+    const now = new Date();
+    const subscription = await this.prisma.$transaction(async (tx) => {
+      await tx.userSubscription.deleteMany({
+        where: { userId, status: SubscriptionStatus.PENDING },
+      });
+      const created = await tx.userSubscription.create({
+        data: {
+          userId,
+          planId: plan.id,
+          status: SubscriptionStatus.ACTIVE,
+          decidedAt: now,
+          adminNote: 'فعال‌سازی با کیف پول (تسویه یک‌جا در سررسید)',
+        },
+      });
+      await tx.user.update({
+        where: { id: userId },
+        data: { planId: plan.id },
+      });
+      return created;
+    });
+    await this.notifications.notify({
+      userId,
+      type: NotificationType.SUCCESS,
+      title: 'اشتراک شما فعال شد',
+      body:
+        amount > 0
+          ? `بسته «${plan.name}» فعال شد و مبلغ ${amount.toLocaleString('fa-IR')} تومان به بدهی کیف پول شما اضافه شد؛ تا سررسید یک‌جا پرداخت کنید.`
+          : `بسته «${plan.name}» روی حساب شما فعال شد.`,
+      link: '/dashboard/subscriptions',
+    });
+    await this.notifications.notifyAdmins({
+      category: 'SUBSCRIPTION',
+      scope: 'SUBSCRIPTION',
+      title: 'خرید اشتراک از کیف پول',
+      body: `بسته «${plan.name}» فعال شد و مبلغ ${amount.toLocaleString('fa-IR')} تومان به کیف پول کاربر اضافه شد.`,
+      type: NotificationType.INFO,
+      link: '/admin?section=wallets',
+      actorId: userId,
+    });
+    await this.activity.log({
+      action: 'SUBSCRIPTION_APPROVED',
+      summary: `فعال‌سازی اشتراک «${plan.name}» با کیف پول`,
+      entityType: 'SUBSCRIPTION',
+      entityId: subscription.id,
+    });
+    return {
+      wallet: true,
+      paymentId: null,
+      amount,
+      paymentCode: null,
+      url: null,
       plan: { id: plan.id, name: plan.name },
     };
   }
