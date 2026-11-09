@@ -16,6 +16,7 @@ import { BlogModule } from './blog/blog.module';
 import { BoostsModule } from './boosts/boosts.module';
 import { BusinessCardsModule } from './businesscards/business-cards.module';
 import { FeedsModule } from './feeds/feeds.module';
+import { FinanceModule } from './finance/finance.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { NewsModule } from './news/news.module';
@@ -51,6 +52,7 @@ import { UsersModule } from './users/users.module';
     BiolinksModule,
     BusinessCardsModule,
     FeedsModule,
+    FinanceModule,
     BlogModule,
     SubscriptionsModule,
     BoostsModule,

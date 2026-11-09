@@ -54,6 +54,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'ads',
   'points',
   'revenue',
+  'finance',
   'payments',
   'payping-oauth',
   'feeds',
@@ -93,6 +94,10 @@ export function isAdminSection(value: string): value is AdminSection {
     revenue: {
       title: 'گزارش درآمد',
       sub: 'برآورد درآمد هر مدل درآمدی و تعیین قیمت واحد',
+    },
+    finance: {
+      title: 'مالیاتی',
+      sub: 'بایگانی فاکتور فروش، ثبت هزینه، سود خالص و خروجی اسناد برای اداره مالیات',
     },
     feeds: { title: 'فیدها', sub: 'بررسی پست‌ها، اشتراک‌ها، بسته‌ها و تنظیمات' },
     users: { title: 'کاربران', sub: 'لیست کاربران پلتفرم' },

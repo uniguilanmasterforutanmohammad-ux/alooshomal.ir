@@ -191,4 +191,28 @@ export const api = {
   /** multipart/form-data POST (file uploads). */
   upload: <T>(path: string, body: FormData) =>
     request<T>(path, { method: 'POST', body }),
+  /** Authenticated file download (CSV/Excel exports). */
+  download: async (path: string, filename: string) => {
+    const response = await send<Blob>(path, {}, 0);
+    if (!response.ok) {
+      const payload = (await response.json().catch(() => null)) as
+        | { message?: string | string[] }
+        | null;
+      const message = payload?.message
+        ? Array.isArray(payload.message)
+          ? payload.message.join('، ')
+          : payload.message
+        : 'دانلود فایل ناموفق بود';
+      throw new ApiError(message, response.status);
+    }
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  },
 };

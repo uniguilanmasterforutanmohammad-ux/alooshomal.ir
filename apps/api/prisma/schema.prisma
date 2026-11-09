@@ -95,6 +95,13 @@ enum PaymentStatus {
   CANCELED
 }
 
+/// Lifecycle of an archived sales invoice. `VOID` keeps the row (and its
+/// number) for the audit trail after a refund/correction instead of deleting it.
+enum InvoiceStatus {
+  ISSUED
+  VOID
+}
+
 /// What a `RequestPayment` is paying for. Boost («پله») and the two ad
 /// placements are reviewed by an admin only after the fee is settled.
 enum RequestPaymentTarget {
@@ -439,6 +446,9 @@ model User {
   blogPosts         BlogPost[]   @relation("BlogCreatedBy")
   authoredBlogPosts BlogPost[]   @relation("BlogAuthor")
   contentDecisions  ContentDecision[] @relation("ContentDecisions")
+  invoices          Invoice[]    @relation("InvoiceCustomer")
+  invoicesCreated   Invoice[]    @relation("InvoiceCreatedBy")
+  expensesCreated   Expense[]    @relation("ExpenseCreatedBy")
 
   @@index([email])
   @@index([phone])
@@ -1166,6 +1176,110 @@ model RequestPayment {
   @@index([status])
   @@index([target])
   @@map("request_payments")
+}
+
+// ---------------------------------------------------------------------------
+// Finance / tax archive
+//
+// Every sale — subscription, boost, ad, feed tag, or a future paid feature —
+// is archived as one `Invoice` row. `sourceType` + `sourceId` identify the
+// originating transaction and make invoice creation idempotent, so a payment
+// callback can safely retry without issuing a duplicate invoice. New payment
+// flows only need to call `FinanceService.recordSale(...)` once they settle.
+// ---------------------------------------------------------------------------
+
+/// One archived sales invoice. `subtotal + taxAmount = total` (Toman).
+model Invoice {
+  id             String        @id @default(cuid())
+  /// Human-readable sequential number, e.g. `INV-1405-000042`.
+  number         String        @unique
+  status         InvoiceStatus @default(ISSUED)
+  /// Origin of the sale, e.g. `SUBSCRIPTION_PAYMENT`, `BOOST_PAYMENT`,
+  /// `AD_HOME_PAYMENT`, `AD_DIRECTORY_PAYMENT`, `FEED_TAG`, `MANUAL_SALE`.
+  /// Free-form on purpose: a new feature can add a source without a migration.
+  sourceType     String
+  /// Id of the originating payment/request/post (null for manual sales).
+  sourceId       String?
+  title          String
+  description    String?
+  customerUserId String?
+  customerName   String?
+  customerPhone  String?
+  customerEmail  String?
+  subtotal       Int
+  taxAmount      Int           @default(0)
+  total          Int
+  currency       String        @default("IRT")
+  issuedAt       DateTime      @default(now())
+  paidAt         DateTime?
+  /// Snapshot of the source transaction (plan id, target id, gateway ref, …).
+  metadata       Json?
+  voidedAt       DateTime?
+  voidReason     String?
+  createdById    String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  customer  User?         @relation("InvoiceCustomer", fields: [customerUserId], references: [id], onDelete: SetNull)
+  createdBy User?         @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  items     InvoiceItem[]
+
+  @@unique([sourceType, sourceId])
+  @@index([issuedAt])
+  @@index([status, issuedAt])
+  @@index([customerUserId])
+  @@map("invoices")
+}
+
+/// One line of an invoice. Kept as its own table so a future bundle/multi-item
+/// sale can be archived without changing the invoice shape.
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Int     @default(1)
+  unitPrice   Int
+  total       Int
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+/// A manually recorded purchase/expense (server, SMS, email, salaries, …).
+model Expense {
+  id            String   @id @default(cuid())
+  title         String
+  /// Free-form category label, e.g. `سرور`, `پیامک`, `ایمیل`, `تبلیغات`.
+  category      String
+  amount        Int
+  taxAmount     Int      @default(0)
+  spentAt       DateTime @default(now())
+  vendor        String?
+  reference     String?
+  description   String?
+  attachmentUrl String?
+  createdById   String?
+  voidedAt      DateTime?
+  voidReason    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  createdBy User? @relation("ExpenseCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([spentAt])
+  @@index([category])
+  @@map("expenses")
+}
+
+/// Atomic per-year counter backing the sequential invoice numbers.
+model FinanceCounter {
+  key       String   @id
+  value     Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@map("finance_counters")
 }
 
 // ---------------------------------------------------------------------------

@@ -43,6 +43,8 @@ export const REVENUE_ACTIONS: readonly string[] = [
   'AD_APPROVED',
   'AD_REJECTED',
   'REWARD_REDEEMED',
+  'INVOICE_ISSUED',
+  'INVOICE_VOIDED',
 ];
 
 @Injectable()

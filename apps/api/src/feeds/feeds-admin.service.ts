@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -10,6 +11,8 @@ import {
   SubscriptionStatus,
 } from '@prisma/client';
 import { ActivityService } from '../activity/activity.service';
+import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
+import { FinanceService } from '../finance/finance.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { FacetsCacheService } from '../common/facets-cache.service';
@@ -22,11 +25,14 @@ import { feedPostInclude, feedTagInclude } from './feeds.shared';
  */
 @Injectable()
 export class FeedsAdminService {
+  private readonly logger = new Logger(FeedsAdminService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
     private readonly facetsCache: FacetsCacheService,
+    private readonly finance: FinanceService,
   ) {}
 
   async ensureDefaultPackages(): Promise<void> {
@@ -199,6 +205,36 @@ export class FeedsAdminService {
       entityType: 'FEED',
       entityId: postId,
     });
+    try {
+      if (confirm) {
+        const confirmedAt = updated.tagDecidedAt ?? new Date();
+        await this.finance.recordSale({
+          sourceType: FINANCE_SOURCE_TYPES.FEED_TAG,
+          // Each confirmation is its own sale; a later re-confirmation after a
+          // rejection must get a fresh invoice, not reuse the voided one.
+          sourceId: `${post.id}:${confirmedAt.getTime()}`,
+          title: 'تگ کارت/بیولینک روی پست فید',
+          amount: post.tagPrice ?? 0,
+          paidAt: confirmedAt,
+          userId: post.userId,
+          metadata: { postId: post.id, tagKind: post.tagKind },
+        });
+      } else {
+        const previousDecision = post.tagDecidedAt ?? post.createdAt;
+        await this.finance.voidBySource(
+          FINANCE_SOURCE_TYPES.FEED_TAG,
+          `${post.id}:${previousDecision.getTime()}`,
+          'رد پرداخت تگ توسط مدیر',
+        );
+      }
+    } catch (error) {
+      // The tag decision itself must not fail because of the tax archive.
+      this.logger.warn(
+        `invoice sync failed for feed tag ${post.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
     this.facetsCache.invalidate('dir:feeds');
     return updated;
   }

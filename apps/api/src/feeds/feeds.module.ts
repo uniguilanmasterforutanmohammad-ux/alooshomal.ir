@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { ActivityModule } from '../activity/activity.module';
+import { FinanceModule } from '../finance/finance.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SettingsModule } from '../settings/settings.module';
@@ -22,6 +23,7 @@ import { FeedCommentsService } from './feed-comments.service';
     ActivityModule,
     SettingsModule,
     UploadsModule,
+    FinanceModule,
   ],
   controllers: [FeedsPublicController, FeedsUserController, AdminFeedsController],
   providers: [

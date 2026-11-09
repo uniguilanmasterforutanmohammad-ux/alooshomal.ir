@@ -23,6 +23,7 @@ import {
   Bell,
   Newspaper,
   FlaskConical,
+  Receipt,
   Settings,
   Share2,
   ShieldCheck,
@@ -46,6 +47,7 @@ export type AdminSection =
   | 'ads'
   | 'points'
   | 'revenue'
+  | 'finance'
   | 'payments'
   | 'payping-oauth'
   | 'feeds'
@@ -104,6 +106,7 @@ const NAV_GROUPS: Array<{
       { key: 'ads', label: 'تبلیغات', icon: Megaphone },
       { key: 'points', label: 'امتیازها', icon: Coins },
       { key: 'revenue', label: 'گزارش درآمد', icon: Banknote },
+      { key: 'finance', label: 'مالیاتی', icon: Receipt },
       { key: 'payments', label: 'درگاه پرداخت', icon: CreditCard },
       { key: 'payping-oauth', label: 'درگاه پرداخت (OAuth)', icon: ShieldCheck },
     ],

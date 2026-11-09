@@ -15,6 +15,8 @@ import {
 import { randomBytes } from 'crypto';
 
 import { NotificationsService } from '../notifications/notifications.service';
+import { FinanceService } from '../finance/finance.service';
+import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
 import { PaypingService } from '../payping/payping.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -46,6 +48,7 @@ export class RequestPaymentsService {
     private readonly payping: PaypingService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
+    private readonly finance: FinanceService,
   ) {}
 
   /** Site origin used for the gateway return URL. */
@@ -284,7 +287,65 @@ export class RequestPaymentsService {
         failureReason: null,
       },
     });
+    await this.recordInvoice(payment);
     await this.notifyAdmins(payment);
+  }
+
+  /**
+   * Archive the settled sale as a tax invoice. Best-effort: an invoice failure
+   * must never turn a successful payment into an error for the user; the
+   * `/admin/finance/backfill` endpoint can create any missed row later.
+   */
+  private async recordInvoice(payment: {
+    id: string;
+    userId: string;
+    target: RequestPaymentTarget;
+    boostRequestId: string | null;
+    adRequestId: string | null;
+    amount: number;
+    paidAt: Date | null;
+  }): Promise<void> {
+    try {
+      const isBoost = payment.target === RequestPaymentTarget.BOOST;
+      const request = isBoost
+        ? await this.prisma.boostRequest.findUnique({
+            where: { id: payment.boostRequestId ?? '' },
+          })
+        : await this.prisma.adRequest.findUnique({
+            where: { id: payment.adRequestId ?? '' },
+          });
+      if (!request) return;
+      const label = await this.targetLabel(request.kind, request.targetId);
+      const isDirectory = payment.target === RequestPaymentTarget.AD_DIRECTORY;
+      const sourceType = isBoost
+        ? FINANCE_SOURCE_TYPES.BOOST
+        : isDirectory
+          ? FINANCE_SOURCE_TYPES.AD_DIRECTORY
+          : FINANCE_SOURCE_TYPES.AD_HOME;
+      const title = isBoost
+        ? `پله (افزایش بازدید) — ${label}`
+        : isDirectory
+          ? `تبلیغ در دایرکتوری — ${label}`
+          : `تبلیغ در صفحه اصلی — ${label}`;
+      await this.finance.recordSale({
+        sourceType,
+        sourceId: payment.id,
+        title,
+        amount: payment.amount,
+        paidAt: payment.paidAt ?? new Date(),
+        userId: payment.userId,
+        metadata: {
+          targetKind: request.kind,
+          targetId: request.targetId,
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `invoice creation failed for request payment ${payment.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 
   /** Tell the review team a paid request is now waiting for them. */

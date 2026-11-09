@@ -20,7 +20,48 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.10.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.11.0**.
+
+## ۱۴۰۵/۰۸/۱۸ — بخش «مالیاتی»: بایگانی فاکتور فروش، هزینه و سود خالص — نسخه `v3.11.0`
+
+**هدف:** برای ارائه‌ی اسناد به اداره مالیات، هر فروش (اشتراک، پله، تبلیغ، تگ فید
+و هر قابلیت پرداختی آینده) به‌صورت خودکار فاکتور شماره‌دار و بایگانی‌شده داشته
+باشد؛ ادمین هزینه‌های دستی (سرور، پیامک، ایمیل و …) را ثبت کند و گزارش فروش،
+هزینه و سود خالص به‌تفکیک ماه/سال شمسی و نوع فروش در دسترس باشد.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل‌های `Invoice`، `InvoiceItem`، `Expense` و
+  `FinanceCounter` به‌همراه enum `InvoiceStatus`؛ یکتایی `(sourceType, sourceId)`
+  برای idempotency فاکتور و فیلدهای ابطال نرم.
+- `apps/api/src/finance/` (ماژول تازه): `FinanceService.recordSale` نقطه‌ی ورود
+  واحد فروش، `voidBySource`/`voidInvoice`، CRUD هزینه، گزارش `summary`،
+  `backfill` (همگام‌سازی تراکنش‌های قبلی + اجرای خودکار در استارت) و خروجی CSV؛
+  `FinanceController` زیر `/admin/finance` با `@ApiTags('finance')` و
+  `@ApiOperation` برای همه‌ی مسیرها.
+- اتصال خودکار صدور فاکتور در `request-payments.service.ts` (پله/تبلیغ)،
+  `subscriptions-payment.service.ts` (اشتراک) و `feeds-admin.service.ts`
+  (تأیید/رد تگ فید؛ هر تأیید یک `sourceId` یکتا دارد).
+- `apps/web/components/admin/AdminFinance.tsx` (جدید): سه تب «گزارش سود و زیان»،
+  «فاکتورهای فروش» (چاپ، ابطال، ثبت فروش دستی، CSV) و «هزینه‌ها» (ثبت/ویرایش/
+  ابطال، CSV)؛ اتصال به `?section=finance` در `AdminShell`، `admin-console` و
+  `page.tsx`.
+- `apps/web/lib/api/types/finance.ts` و `api.download` برای خروجی CSV؛
+  `docs/API.md` (۲۹ کنترلر/۲۸ برچسب + جدول مسیرهای مالی) و `docs/FINANCE.md`
+  (قرارداد اتصال قابلیت‌های پرداختی آینده).
+
+**تأیید/تست:**
+- `npx prisma generate` و `prisma db push` در کانتینر dev → بدون خطا؛ جدول‌های
+  `invoices`، `invoice_items`، `expenses` و `finance_counters` ساخته شدند.
+- تست واقعی API با توکن ادمین: ثبت هزینه، صدور فاکتور دستی
+  (`INV-1405-000001`)، `backfill` (۲ فاکتور تگ فید)، `summary`
+  (فروش/هزینه/سود/مالیات و ریز ماهانه)، ابطال فاکتور و هزینه (خارج‌شدن از
+  گزارش)، خروجی CSV با `Content-Type: text/csv` و `Content-Disposition`.
+- اجرای دوباره‌ی `backfill` → `{created:0, skipped:2}` (idempotent).
+- تست UI با Playwright/Chrome: باز شدن `/admin?section=finance`، نمایش سه تب،
+  جدول فاکتورها (`INV-1405-...`)، دکمه‌ی چاپ و فرم هزینه بدون خطای کنسول.
+- `tsc --noEmit` در `apps/web` بدون خطا؛ `apps/api` فقط خطای محیطی نبود
+  `nodemailer` (در CI/داکر نصب می‌شود).
+- `check_api_docs.py` (۳۴۰ مسیر) و `check_modules.py` → exit 0.
 
 ## ۱۴۰۵/۰۸/۱۸ — جلوگیری از شکست نصب با ارتقای TypeScript 7 — نسخه `v3.10.2`
 

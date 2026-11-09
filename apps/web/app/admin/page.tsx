@@ -10,6 +10,7 @@ import { AdminBoosts } from '@/components/admin/AdminBoosts';
 import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
 import { AdminEmails } from '@/components/admin/AdminEmails';
 import { AdminFeeds } from '@/components/admin/AdminFeeds';
+import { AdminFinance } from '@/components/admin/AdminFinance';
 import { AdminModerators } from '@/components/admin/AdminModerators';
 import { AdminMonitoringPanel } from '@/components/admin/AdminMonitoringPanel';
 import { AdminNewsPanel } from '@/components/admin/AdminNewsPanel';
@@ -70,6 +71,7 @@ function AdminContent() {
       {section === 'ads' ? <AdminAds /> : null}
       {section === 'points' ? <AdminPoints /> : null}
       {section === 'revenue' ? <AdminRevenue /> : null}
+      {section === 'finance' ? <AdminFinance /> : null}
       {section === 'payments' ? <AdminPaypingPanel /> : null}
       {section === 'payping-oauth' ? <AdminPaypingOAuthPanel /> : null}
       {section === 'feeds' ? <AdminFeeds /> : null}

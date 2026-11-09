@@ -17,6 +17,8 @@ import {
 import { randomBytes } from 'node:crypto';
 
 import { ActivityService } from '../activity/activity.service';
+import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
+import { FinanceService } from '../finance/finance.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PaypingService } from '../payping/payping.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -35,6 +37,7 @@ export class SubscriptionsPaymentService {
     private readonly activity: ActivityService,
     private readonly payping: PaypingService,
     private readonly config: ConfigService,
+    private readonly finance: FinanceService,
   ) {}
 
   /** Loads a plan or throws, so payment paths never act on a missing plan. */
@@ -504,5 +507,24 @@ export class SubscriptionsPaymentService {
       entityType: 'SUBSCRIPTION',
       entityId: subscription.id,
     });
+    try {
+      await this.finance.recordSale({
+        sourceType: FINANCE_SOURCE_TYPES.SUBSCRIPTION,
+        sourceId: payment.id,
+        title: `خرید اشتراک «${payment.plan.name}»`,
+        amount: payment.amount,
+        paidAt: Number.isNaN(paidAt.getTime()) ? now : paidAt,
+        userId: payment.userId,
+        customerName: payment.user?.fullName ?? null,
+        customerEmail: payment.user?.email ?? null,
+        metadata: { planId: payment.planId, refId },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `invoice creation failed for subscription payment ${payment.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
 }

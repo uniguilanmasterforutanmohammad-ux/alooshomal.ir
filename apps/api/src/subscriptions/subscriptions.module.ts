@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { FinanceModule } from '../finance/finance.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PaypingModule } from '../payping/payping.module';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -8,7 +9,7 @@ import { SubscriptionsService } from './subscriptions.service';
 import { SubscriptionsPaymentService } from './subscriptions-payment.service';
 
 @Module({
-  imports: [PrismaModule, NotificationsModule, PaypingModule],
+  imports: [PrismaModule, NotificationsModule, PaypingModule, FinanceModule],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService, SubscriptionsPaymentService],
   exports: [SubscriptionsService, SubscriptionsPaymentService],

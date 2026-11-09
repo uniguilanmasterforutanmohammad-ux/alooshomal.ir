@@ -68,7 +68,7 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 
 ## کامل‌بودن مستندات
 
-- هر کنترلر با `@ApiTags` یک گروه مشخص دارد (۲۸ کنترلر / ۲۷ برچسب).
+- هر کنترلر با `@ApiTags` یک گروه مشخص دارد (۲۹ کنترلر / ۲۸ برچسب).
 - هر مسیر باید `@ApiOperation({ summary })` و برای ورودی‌ها DTO با
   `@ApiProperty`/`@ApiPropertyOptional` داشته باشد.
 - DTOهای به‌روزرسانی با `PartialType` از DTO ساخت ارث‌بری می‌کنند، پس متادیتای
@@ -234,6 +234,27 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 | `PATCH` | `/admin/social-accounts/:id` | ویرایش؛ اگر `password` فرستاده شود رمز جایگزین و `lastRotatedAt` به‌روز می‌شود، در غیر این صورت رمز دست‌نخورده می‌ماند. |
 | `DELETE` | `/admin/social-accounts/:id` | حذف حساب. |
 | `POST` | `/admin/social-accounts/:id/reveal` | بازگرداندن `{ username, password }` رمزگشایی‌شده. `POST` است تا کش نشود؛ `reason` اختیاری در «گزارش‌های سیستم» (اکشن‌های `SOCIAL_ACCOUNT_*`) ثبت می‌شود. |
+
+## مالیات و بایگانی مالی (`/api/admin/finance`)
+
+همه‌ی مسیرها فقط برای نقش `ADMIN` هستند. جزئیات معماری و نحوه‌ی اتصال
+قابلیت‌های پرداختی آینده در `docs/FINANCE.md` آمده است.
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET` | `/admin/finance/summary` | خلاصه‌ی فروش، هزینه، سود خالص، مالیات و ریز ماهانه/سالانه (شمسی). فیلتر اختیاری `from`/`to`. |
+| `GET` | `/admin/finance/meta` | دسته‌های پیشنهادی هزینه برای فرم پنل. |
+| `GET` | `/admin/finance/invoices` | فهرست فاکتورهای بایگانی‌شده با فیلتر `q`، `status`، `sourceType`، `from`، `to` و صفحه‌بندی. |
+| `GET` | `/admin/finance/invoices/:id` | جزئیات فاکتور همراه با اقلام. |
+| `POST` | `/admin/finance/invoices/manual` | ثبت دستی یک فروش و صدور/بایگانی فاکتور. |
+| `POST` | `/admin/finance/invoices/:id/void` | ابطال فاکتور با حفظ شماره و سابقه (`status=VOID`). |
+| `GET` | `/admin/finance/invoices/export` | خروجی CSV فاکتورها (با BOM برای Excel). |
+| `GET` | `/admin/finance/expenses` | فهرست هزینه‌های دستی با فیلتر `q`، `category`، `from`، `to`. |
+| `POST` | `/admin/finance/expenses` | ثبت هزینه‌ی جدید (سرور، پیامک، ایمیل، …). |
+| `PATCH` | `/admin/finance/expenses/:id` | ویرایش هزینه. |
+| `DELETE` | `/admin/finance/expenses/:id` | ابطال نرم هزینه (حذف نمی‌شود؛ `voidedAt` ثبت می‌شود). |
+| `GET` | `/admin/finance/expenses/export` | خروجی CSV هزینه‌ها. |
+| `POST` | `/admin/finance/backfill` | ساخت فاکتور برای تراکنش‌های پرداخت‌شده‌ی قبلی که فاکتور ندارند (idempotent). |
 
 ### بررسی سریع کامل‌بودن
 ```bash
