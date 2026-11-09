@@ -265,7 +265,15 @@ export class FinanceService implements OnModuleInit {
       include: {
         items: true,
         customer: {
-          select: { id: true, fullName: true, email: true, phone: true },
+          select: {
+            id: true,
+            fullName: true,
+            firstName: true,
+            lastName: true,
+            nationalCode: true,
+            email: true,
+            phone: true,
+          },
         },
         createdBy: {
           select: { id: true, fullName: true, email: true },
