@@ -6,7 +6,8 @@ import {
   Search,
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { INPUT, errorText, Panel, Banner, DataTable, Field } from './shared';
+import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
+import { errorText, Panel, Banner, DataTable, Field } from './shared';
 import type { Row } from './shared';
 
 export function TransactionsTab() {
@@ -62,19 +63,17 @@ export function TransactionsTab() {
       <Panel title="فیلتر گزارش تراکنش‌ها">
         <div className="flex flex-wrap items-end gap-3">
           <Field label="از تاریخ">
-            <input
-              type="date"
+            <JalaliDatePicker
               value={fromDate}
-              onChange={(event) => setFromDate(event.target.value)}
-              className={INPUT}
+              onChange={setFromDate}
+              className="w-full"
             />
           </Field>
           <Field label="تا تاریخ">
-            <input
-              type="date"
+            <JalaliDatePicker
               value={toDate}
-              onChange={(event) => setToDate(event.target.value)}
-              className={INPUT}
+              onChange={setToDate}
+              className="w-full"
             />
           </Field>
           <button

@@ -28,6 +28,7 @@ import {
 } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
+import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
 import { Pagination } from '@/components/ui/Pagination';
 import { AdminDataTable, type AdminColumn } from './AdminDataTable';
 
@@ -662,12 +663,11 @@ export function AdminFinance() {
       <div className="flex flex-wrap items-end gap-3 rounded-lg border border-[var(--vintage-border)] bg-white p-3">
         <label className="text-xs font-bold text-muted">
           از تاریخ
-          <input
-            type="date"
-            className="indeed-input mt-1"
+          <JalaliDatePicker
+            className="mt-1"
             value={from}
-            onChange={(event) => {
-              setFrom(event.target.value);
+            onChange={(iso) => {
+              setFrom(iso);
               setInvoicePage(1);
               setExpensePage(1);
             }}
@@ -675,12 +675,11 @@ export function AdminFinance() {
         </label>
         <label className="text-xs font-bold text-muted">
           تا تاریخ
-          <input
-            type="date"
-            className="indeed-input mt-1"
+          <JalaliDatePicker
+            className="mt-1"
             value={to}
-            onChange={(event) => {
-              setTo(event.target.value);
+            onChange={(iso) => {
+              setTo(iso);
               setInvoicePage(1);
               setExpensePage(1);
             }}
@@ -984,12 +983,11 @@ export function AdminFinance() {
               </label>
               <label className="text-xs font-bold text-muted">
                 تاریخ پرداخت
-                <input
-                  type="date"
-                  className="indeed-input mt-1"
+                <JalaliDatePicker
+                  className="mt-1"
                   value={manualDraft.paidAt}
-                  onChange={(event) =>
-                    setManualDraft({ ...manualDraft, paidAt: event.target.value })
+                  onChange={(iso) =>
+                    setManualDraft({ ...manualDraft, paidAt: iso })
                   }
                 />
               </label>
@@ -1133,12 +1131,11 @@ export function AdminFinance() {
             </label>
             <label className="text-xs font-bold text-muted">
               تاریخ
-              <input
-                type="date"
-                className="indeed-input mt-1"
+              <JalaliDatePicker
+                className="mt-1"
                 value={expenseDraft.spentAt}
-                onChange={(event) =>
-                  setExpenseDraft({ ...expenseDraft, spentAt: event.target.value })
+                onChange={(iso) =>
+                  setExpenseDraft({ ...expenseDraft, spentAt: iso })
                 }
               />
             </label>
