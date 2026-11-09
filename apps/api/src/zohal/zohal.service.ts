@@ -394,6 +394,7 @@ export class ZohalService {
         birthDate: true,
         firstName: true,
         lastName: true,
+        phoneMatchVerifiedAt: true,
         verifiedAt: true,
         blueTickRequestedAt: true,
       },
@@ -418,28 +419,28 @@ export class ZohalService {
       );
     }
 
-    const inquiry = await this.inquiryIdentity(user.nationalCode, user.birthDate);
+    // Blue tick needs a fresh Shahkar match (the phone number belongs to this
+    // national code), not another identity lookup.
+    const inquiry = await this.verifyPhoneOwnership(
+      user.phone,
+      user.nationalCode,
+    );
     if (!inquiry.ok || !inquiry.data?.matched) {
       throw new BadRequestException(
         inquiry.message ||
-          'استعلام هویت موفق نبود؛ کد ملی و تاریخ تولد را بررسی کنید.',
+          'تطبیق شماره موبایل و کد ملی موفق نبود؛ شماره و کد ملی را بررسی کنید.',
       );
     }
-    const firstName = inquiry.data.first_name?.trim();
-    const lastName = inquiry.data.last_name?.trim();
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: {
         blueTickRequestedAt: new Date(),
+        phoneMatchVerifiedAt: new Date(),
         blueTickNote: null,
-        ...(firstName && lastName
-          ? { firstName, lastName, fullName: `${firstName} ${lastName}` }
-          : {}),
       },
       select: {
         blueTickRequestedAt: true,
-        firstName: true,
-        lastName: true,
+        phoneMatchVerifiedAt: true,
       },
     });
     await this.activity.log({
@@ -466,6 +467,7 @@ export class ZohalService {
           phone: true,
           nationalCode: true,
           birthDate: true,
+          phoneMatchVerifiedAt: true,
           blueTickRequestedAt: true,
           blueTickNote: true,
         },

@@ -65,6 +65,7 @@ export class ProfileService {
           lastName: true,
           nationalCode: true,
           birthDate: true,
+          phoneMatchVerifiedAt: true,
           verifiedAt: true,
           blueTickRequestedAt: true,
           blueTickNote: true,

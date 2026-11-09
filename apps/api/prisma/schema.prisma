@@ -402,6 +402,8 @@ model User {
   nationalCode String?  @unique
   /// Jalali birth date (`1370/01/01`) required by the Zohal identity inquiry.
   birthDate    String?
+  /// Last successful Shahkar check (mobile ↔ national code) for the blue tick.
+  phoneMatchVerifiedAt DateTime?
   /// «تیک آبی» — set after a successful identity inquiry and admin approval.
   verifiedAt   DateTime?
   /// When the user filed a blue-tick request that is still awaiting review.
