@@ -4,34 +4,30 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Input } from '@/components/ui/Input';
-import { api, ApiError, type AuthResponse } from '@/lib/api';
+import { api, type AuthResponse } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { safeInternalPath } from '@/lib/safe-next';
 
 interface RequestCodeResult {
   phone: string;
   sent: boolean;
-  emailSent?: boolean;
   resendAfter: number;
   /** Present only when SMS is disabled (local dev) so the code is visible. */
   devCode?: string;
 }
 
-type Step = 'phone' | 'code' | 'profile' | 'password';
+type Step = 'phone' | 'code';
 
 /**
  * Unified sign-in / sign-up flow (single form, one page).
  *
  *  1. `phone`   — enter the mobile number, request a one-time code.
- *  2. `code`    — the OTP field only. Returning numbers sign straight in; for a
- *                 new number the API asks for the profile fields, so the flow
- *                 advances to `profile` (the code is not consumed yet).
- *  3. `profile` — a new number's name + email, then the account is created.
- *  4. `password`— shown once after a new sign-up: the email is prefilled and
- *                 the user may set a password now or skip with «بعداً».
+ *  2. `code`    — the OTP field only. Both new and returning numbers finish
+ *                 here; a new account starts with just the phone number and
+ *                 completes its identity on `/dashboard/profile`.
  *
- * An «ورود با ایمیل و رمز عبور» escape hatch is available from the code step
- * (and via the `onEmailLogin` prop) for accounts that prefer email sign-in.
+ * Email is no longer collected in the phone flow. An «ورود با ایمیل و رمز
+ * عبور» escape hatch is still available for accounts that prefer that method.
  */
 export function AuthForm({
   next,
@@ -47,12 +43,7 @@ export function AuthForm({
   const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [passwordConfirm, setPasswordConfirm] = useState('');
   const [devCode, setDevCode] = useState<string | null>(null);
-  const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -65,13 +56,12 @@ export function AuthForm({
     setLoading(true);
     setError(null);
     try {
-      const result = await api.post<RequestCodeResult>('/auth/phone/request-code', {
-        phone,
-        ...(email.trim() ? { email: email.trim() } : {}),
-      });
+      const result = await api.post<RequestCodeResult>(
+        '/auth/phone/request-code',
+        { phone },
+      );
       setPhone(result.phone);
       setDevCode(result.devCode ?? null);
-      setEmailSent(Boolean(result.emailSent));
       setStep('code');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ارسال کد ناموفق بود');
@@ -85,64 +75,14 @@ export function AuthForm({
     setLoading(true);
     setError(null);
     try {
-      const payload: { phone: string; code: string; fullName?: string; email?: string } = {
+      const data = await api.post<AuthResponse>('/auth/phone/verify', {
         phone,
         code,
-      };
-      // The OTP step sends neither field (the API then asks for them); the
-      // profile step sends both. Sending only when present keeps a returning
-      // user's single-field verify call unchanged.
-      if (fullName.trim()) payload.fullName = fullName.trim();
-      if (email.trim()) payload.email = email.trim();
-      const data = await api.post<AuthResponse>('/auth/phone/verify', payload);
+      });
       setSession(data.accessToken, data.user);
-      if (data.isNewUser) {
-        // New account: offer to set a password before continuing.
-        setStep('password');
-      } else {
-        finish();
-      }
-    } catch (err) {
-      // The API asks for the sign-up fields on the first call for a new phone
-      // (the code is not consumed), so the OTP step stays a single field and
-      // the profile fields move to their own step. A duplicate email also lands
-      // here so the user can fix it and retry with the same code.
-      if (err instanceof ApiError) {
-        if (
-          err.code === 'FULLNAME_REQUIRED' ||
-          err.code === 'EMAIL_REQUIRED' ||
-          err.code === 'EMAIL_TAKEN'
-        ) {
-          setStep('profile');
-          // The API message here is just the prompt to fill the profile
-          // fields, not a failure — don't show it as a red error.
-          setError(null);
-          return;
-        }
-      }
-      setError(err instanceof Error ? err.message : 'تأیید کد ناموفق بود');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function savePassword(event: React.FormEvent) {
-    event.preventDefault();
-    if (password.length < 8) {
-      setError('رمز عبور باید حداقل ۸ کاراکتر باشد');
-      return;
-    }
-    if (password !== passwordConfirm) {
-      setError('تکرار رمز عبور مطابقت ندارد');
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      await api.post('/auth/set-password', { password });
       finish();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ثبت رمز عبور ناموفق بود');
+      setError(err instanceof Error ? err.message : 'تأیید کد ناموفق بود');
     } finally {
       setLoading(false);
     }
@@ -160,15 +100,6 @@ export function AuthForm({
           onChange={(event) => setPhone(event.target.value)}
           placeholder="09123456789"
           hint="برای ورود یا ثبت‌نام، شماره موبایل خود را وارد کنید."
-        />
-        <Input
-          label="ایمیل (اختیاری)"
-          type="email"
-          dir="ltr"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="you@example.com"
-          hint="اگر پر شود، کد یکبارمصرف به ایمیل هم ارسال می‌شود."
         />
         {error ? (
           <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
@@ -198,12 +129,6 @@ export function AuthForm({
       <form onSubmit={verifyCode} className="flex flex-col gap-4">
         <p className="text-sm text-muted">
           کد ارسال‌شده به <span dir="ltr" className="font-bold text-ink">{phone}</span>
-          {emailSent && email.trim() ? (
-            <>
-              {' و ایمیل '}
-              <span dir="ltr" className="font-bold text-ink">{email.trim()}</span>
-            </>
-          ) : null}{' '}
           را وارد کنید.
         </p>
         {devCode ? (
@@ -255,97 +180,5 @@ export function AuthForm({
     );
   }
 
-  if (step === 'profile') {
-    // A new number: the OTP was correct but the account needs a name + email.
-    // The code is only consumed on the successful call, so the user can retry
-    // here (e.g. after fixing a duplicate email) with the same code.
-    return (
-      <form onSubmit={verifyCode} className="flex flex-col gap-4">
-        <p className="rounded-lg bg-black/5 p-3 text-xs leading-6 text-muted">
-          شماره‌ی جدید است؛ برای ساخت حساب نام و ایمیل خود را وارد کنید.
-        </p>
-        <Input
-          label="نام و نام خانوادگی"
-          required
-          value={fullName}
-          onChange={(event) => setFullName(event.target.value)}
-          placeholder="سارا محمدی"
-        />
-        <Input
-          label="ایمیل"
-          type="email"
-          required
-          dir="ltr"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          placeholder="you@example.com"
-        />
-        {error ? (
-          <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
-        ) : null}
-        <button
-          type="submit"
-          disabled={loading}
-          className="indeed-btn indeed-btn-primary w-full"
-        >
-          {loading ? 'در حال ساخت حساب...' : 'ساخت حساب و ورود'}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            setStep('code');
-            setError(null);
-          }}
-          className="text-sm font-bold text-muted"
-        >
-          بازگشت
-        </button>
-      </form>
-    );
-  }
-
-  // step === 'password' — offered once, right after a new sign-up.
-  return (
-    <form onSubmit={savePassword} className="flex flex-col gap-4">
-      <p className="text-sm text-muted">
-        حساب شما ساخته شد ✅ می‌توانید همین حالا یک رمز عبور بگذارید تا بعداً با ایمیل هم
-        وارد شوید.
-      </p>
-      <Input label="ایمیل" type="email" dir="ltr" value={email} readOnly disabled />
-      <Input
-        label="رمز عبور"
-        type="password"
-        dir="ltr"
-        value={password}
-        onChange={(event) => setPassword(event.target.value)}
-        placeholder="••••••••"
-        hint="حداقل ۸ کاراکتر"
-      />
-      <Input
-        label="تکرار رمز عبور"
-        type="password"
-        dir="ltr"
-        value={passwordConfirm}
-        onChange={(event) => setPasswordConfirm(event.target.value)}
-        placeholder="••••••••"
-      />
-      {error ? (
-        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
-      ) : null}
-      <button
-        type="submit"
-        disabled={loading}
-        className="indeed-btn indeed-btn-primary w-full"
-      >
-        {loading ? 'در حال ثبت...' : 'ثبت رمز عبور و ادامه'}
-      </button>
-      <button
-        type="button"
-        onClick={finish}
-        className="text-sm font-bold text-muted"
-      >
-        بعداً
-      </button>
-    </form>
-  );
+  return null;
 }
