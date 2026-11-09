@@ -94,6 +94,10 @@ services:
       # would be attacker-controlled and per-IP rate limits could be bypassed.
       TRUST_PROXY: ${TRUST_PROXY:-1}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      # Public API origin, used by the payment simulator (staging only).
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:4000/api}
+      # Simulated checkout. Empty = auto (never on in production).
+      PAYMENT_SIMULATOR: ${PAYMENT_SIMULATOR:-}
       BACKUP_DIR: ${BACKUP_DIR:-/usr/src/app/backups}
       BACKUP_KEEP: ${BACKUP_KEEP:-20}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379}

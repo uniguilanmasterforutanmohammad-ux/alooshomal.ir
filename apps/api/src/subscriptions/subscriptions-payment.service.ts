@@ -20,6 +20,7 @@ import { ActivityService } from '../activity/activity.service';
 import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
 import { FinanceService } from '../finance/finance.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -36,6 +37,7 @@ export class SubscriptionsPaymentService {
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
     private readonly payping: PaypingService,
+    private readonly simulator: PaymentSimulatorService,
     private readonly config: ConfigService,
     private readonly finance: FinanceService,
   ) {}
@@ -115,7 +117,8 @@ export class SubscriptionsPaymentService {
 
   /** Best-effort product sync used by plan create/update (never throws). */
   async syncPlanProductQuietly(plan: SubscriptionPlan): Promise<void> {
-    if (!this.payping.configured || plan.price < 1000) return;
+    if (this.simulator.isEnabled || !this.payping.configured || plan.price < 1000)
+      return;
     try {
       await this.ensurePlanProduct(plan);
     } catch (error) {
@@ -181,7 +184,10 @@ export class SubscriptionsPaymentService {
       throw new BadRequestException('شما در حال حاضر مشترک این بسته هستید');
     }
 
-    const paypingProductCode = await this.ensurePlanProduct(plan);
+    // The simulator has no merchant account to mirror plans into.
+    const paypingProductCode = this.simulator.isEnabled
+      ? null
+      : await this.ensurePlanProduct(plan);
 
     // Supersede any previous unpaid attempt for the same plan.
     await this.prisma.subscriptionPayment.updateMany({
@@ -203,17 +209,25 @@ export class SubscriptionsPaymentService {
       },
     });
 
+    const returnUrl = `${this.appUrl()}/api/subscriptions/payments/callback`;
     let result: { paymentCode?: string; url?: string } | null = null;
     try {
-      result = (await this.payping.createPayment({
-        amount: plan.price,
-        returnUrl: `${this.appUrl()}/api/subscriptions/payments/callback`,
-        payerIdentity: user.phone ?? user.email ?? undefined,
-        payerName: user.fullName ?? undefined,
-        description: `اشتراک ${plan.name} — شمالی‌کارت`,
-        clientRefId,
-        isReversible: false,
-      })) as { paymentCode?: string; url?: string } | null;
+      result = this.simulator.isEnabled
+        ? this.simulator.createPayment({
+            amount: plan.price,
+            returnUrl,
+            clientRefId,
+            description: `اشتراک ${plan.name} — شمالی‌کارت`,
+          })
+        : ((await this.payping.createPayment({
+            amount: plan.price,
+            returnUrl,
+            payerIdentity: user.phone ?? user.email ?? undefined,
+            payerName: user.fullName ?? undefined,
+            description: `اشتراک ${plan.name} — شمالی‌کارت`,
+            clientRefId,
+            isReversible: false,
+          })) as { paymentCode?: string; url?: string } | null);
     } catch (error) {
       await this.prisma.subscriptionPayment.update({
         where: { id: payment.id },
@@ -316,11 +330,17 @@ export class SubscriptionsPaymentService {
     };
     let verified: VerifyResult | null = null;
     try {
-      verified = (await this.payping.verifyPayment({
-        paymentRefId: Number(refId),
-        paymentCode: payment.paymentCode,
-        amount: payment.amount,
-      })) as VerifyResult;
+      verified = this.simulator.handles(payment.paymentCode)
+        ? this.simulator.verifyPayment({
+            paymentCode: payment.paymentCode,
+            amount: payment.amount,
+            clientRefId: payment.clientRefId,
+          })
+        : ((await this.payping.verifyPayment({
+            paymentRefId: Number(refId),
+            paymentCode: payment.paymentCode,
+            amount: payment.amount,
+          })) as VerifyResult);
     } catch (error) {
       const current = await this.prisma.subscriptionPayment.findUnique({
         where: { id: payment.id },

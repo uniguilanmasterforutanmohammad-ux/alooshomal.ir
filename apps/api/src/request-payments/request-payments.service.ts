@@ -17,6 +17,7 @@ import { randomBytes } from 'crypto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FinanceService } from '../finance/finance.service';
 import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
+import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -46,6 +47,7 @@ export class RequestPaymentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly payping: PaypingService,
+    private readonly simulator: PaymentSimulatorService,
     private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
     private readonly finance: FinanceService,
@@ -60,7 +62,10 @@ export class RequestPaymentsService {
 
   /** Whether a request with this price must be paid before admin review. */
   isRequired(amount: number): boolean {
-    return this.payping.configured && amount >= MIN_GATEWAY_AMOUNT;
+    return (
+      (this.payping.configured || this.simulator.isEnabled) &&
+      amount >= MIN_GATEWAY_AMOUNT
+    );
   }
 
   /** Serialize a payment row for the web app. */
@@ -132,15 +137,22 @@ export class RequestPaymentsService {
     const returnUrl = `${this.appUrl()}/api/payments/request-callback`;
     let result: { paymentCode?: string; url?: string } | null = null;
     try {
-      result = (await this.payping.createPayment({
-        amount: payment.amount,
-        returnUrl,
-        payerIdentity: params.payerIdentity ?? undefined,
-        payerName: params.payerName ?? undefined,
-        description: params.description.slice(0, 250),
-        clientRefId: payment.clientRefId,
-        isReversible: false,
-      })) as { paymentCode?: string; url?: string } | null;
+      result = this.simulator.isEnabled
+        ? this.simulator.createPayment({
+            amount: payment.amount,
+            returnUrl,
+            clientRefId: payment.clientRefId,
+            description: params.description.slice(0, 250),
+          })
+        : ((await this.payping.createPayment({
+            amount: payment.amount,
+            returnUrl,
+            payerIdentity: params.payerIdentity ?? undefined,
+            payerName: params.payerName ?? undefined,
+            description: params.description.slice(0, 250),
+            clientRefId: payment.clientRefId,
+            isReversible: false,
+          })) as { paymentCode?: string; url?: string } | null);
     } catch (error) {
       await this.markFailed(
         payment.id,
@@ -204,11 +216,17 @@ export class RequestPaymentsService {
     };
     let verified: VerifyResult | null = null;
     try {
-      verified = (await this.payping.verifyPayment({
-        paymentRefId: Number(refId),
-        paymentCode: payment.paymentCode,
-        amount: payment.amount,
-      })) as VerifyResult;
+      verified = this.simulator.handles(payment.paymentCode)
+        ? this.simulator.verifyPayment({
+            paymentCode: payment.paymentCode,
+            amount: payment.amount,
+            clientRefId: payment.clientRefId,
+          })
+        : ((await this.payping.verifyPayment({
+            paymentRefId: Number(refId),
+            paymentCode: payment.paymentCode,
+            amount: payment.amount,
+          })) as VerifyResult);
     } catch (error) {
       const current = await this.prisma.requestPayment.findUnique({
         where: { id: payment.id },
