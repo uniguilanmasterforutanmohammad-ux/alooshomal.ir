@@ -1,17 +1,34 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsBoolean,
+  IsInt,
   IsObject,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
+  Min,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
-/** Turn one Zohal service on/off. */
-export class ToggleZohalServiceDto {
-  @ApiProperty({ example: true })
+/** Turn one Zohal service on/off and/or set its per-call user price. */
+export class UpdateZohalServiceDto {
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
   @IsBoolean()
-  enabled!: boolean;
+  enabled?: boolean;
+
+  @ApiPropertyOptional({
+    example: 25000,
+    minimum: 0,
+    description: 'هزینه‌ی هر فراخوانی که از کیف پول کاربر کم می‌شود (تومان).',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000_000)
+  price?: number;
 }
 
 /** Body of the admin «آزمایش» call (a real, billable Zohal request). */

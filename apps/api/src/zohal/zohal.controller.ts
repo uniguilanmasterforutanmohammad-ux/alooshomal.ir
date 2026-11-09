@@ -15,7 +15,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import {
   DecideBlueTickDto,
   TestZohalServiceDto,
-  ToggleZohalServiceDto,
+  UpdateZohalServiceDto,
 } from './dto/zohal.dto';
 import { ZohalService } from './zohal.service';
 
@@ -36,13 +36,13 @@ export class AdminZohalController {
   }
 
   @Patch('services/:key')
-  @ApiOperation({ summary: 'فعال/غیرفعال‌کردن یک سرویس زحل' })
-  toggle(
+  @ApiOperation({ summary: 'فعال/غیرفعال‌کردن و قیمت‌گذاری یک سرویس زحل' })
+  update(
     @CurrentUser() admin: AuthUser,
     @Param('key') key: string,
-    @Body() dto: ToggleZohalServiceDto,
+    @Body() dto: UpdateZohalServiceDto,
   ) {
-    return this.zohal.setServiceEnabled(key, dto.enabled, admin.id);
+    return this.zohal.updateService(key, dto, admin.id);
   }
 
   @Post('services/:key/test')

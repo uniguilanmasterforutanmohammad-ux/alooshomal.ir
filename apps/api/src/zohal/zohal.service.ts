@@ -13,6 +13,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import {
   ZOHAL_SERVICES,
+  ZOHAL_PRICE_SETTING_PREFIX,
   ZOHAL_SERVICE_SETTING_PREFIX,
 } from './zohal.constants';
 import type {
@@ -75,6 +76,10 @@ export class ZohalService {
     return `${ZOHAL_SERVICE_SETTING_PREFIX}${key}`;
   }
 
+  private priceKey(key: string) {
+    return `${ZOHAL_PRICE_SETTING_PREFIX}${key}`;
+  }
+
   private findService(key: string): ZohalServiceDef {
     const service = ZOHAL_SERVICES.find((entry) => entry.key === key);
     if (!service) throw new NotFoundException('سرویس زحل یافت نشد');
@@ -134,15 +139,84 @@ export class ZohalService {
     return { key, enabled };
   }
 
+  /** Per-service prices (Toman) charged to the user's wallet. */
+  async getPriceMap(): Promise<Record<string, number>> {
+    const rows = await this.prisma.setting.findMany({
+      where: { key: { startsWith: ZOHAL_PRICE_SETTING_PREFIX } },
+    });
+    const byKey = new Map(rows.map((row) => [row.key, row.value]));
+    const map: Record<string, number> = {};
+    for (const service of ZOHAL_SERVICES) {
+      const parsed = Number(byKey.get(this.priceKey(service.key)) ?? 0);
+      map[service.key] =
+        Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+    }
+    return map;
+  }
+
+  async getServicePrice(key: string): Promise<number> {
+    this.findService(key);
+    const row = await this.prisma.setting.findUnique({
+      where: { key: this.priceKey(key) },
+    });
+    const parsed = Number(row?.value ?? 0);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+  }
+
+  async setServicePrice(
+    key: string,
+    price: number,
+    actorId?: string,
+  ): Promise<{ key: string; price: number }> {
+    const service = this.findService(key);
+    const clean = Math.min(1_000_000_000, Math.max(0, Math.floor(price)));
+    await this.prisma.setting.upsert({
+      where: { key: this.priceKey(key) },
+      create: { key: this.priceKey(key), value: String(clean) },
+      update: { value: String(clean) },
+    });
+    await this.activity.log({
+      actor: actorId ? { id: actorId } : null,
+      action: 'ZOHAL_SERVICE_PRICED',
+      summary: `تعیین هزینه ${clean.toLocaleString('fa-IR')} تومانی برای سرویس زحل «${service.label}»`,
+      entityType: 'SETTING',
+      entityId: this.priceKey(key),
+    });
+    return { key, price: clean };
+  }
+
+  /** Update the switch and/or price of one service in a single admin action. */
+  async updateService(
+    key: string,
+    dto: { enabled?: boolean; price?: number },
+    actorId?: string,
+  ): Promise<{ key: string; enabled: boolean; price: number }> {
+    if (dto.enabled !== undefined) {
+      await this.setServiceEnabled(key, dto.enabled, actorId);
+    }
+    if (dto.price !== undefined) {
+      await this.setServicePrice(key, dto.price, actorId);
+    }
+    return {
+      key,
+      enabled: await this.isServiceEnabled(key),
+      price: await this.getServicePrice(key),
+    };
+  }
+
   /** Connection status + every service with its current switch state. */
   async listServices(): Promise<{
     status: ZohalStatus;
-    services: Array<ZohalServiceDef & { enabled: boolean }>;
+    services: Array<ZohalServiceDef & { enabled: boolean; price: number }>;
   }> {
-    const enabled = await this.getEnabledMap();
+    const [enabled, prices] = await Promise.all([
+      this.getEnabledMap(),
+      this.getPriceMap(),
+    ]);
     const services = ZOHAL_SERVICES.map((service) => ({
       ...service,
       enabled: enabled[service.key],
+      price: prices[service.key] ?? 0,
     }));
     return {
       status: {

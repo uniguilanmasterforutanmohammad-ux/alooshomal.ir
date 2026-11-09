@@ -34,6 +34,7 @@ interface ZohalService {
   pathParams?: string[];
   fields: ZohalField[];
   enabled: boolean;
+  price: number;
 }
 
 interface ZohalStatus {
@@ -93,6 +94,7 @@ export function AdminZohal() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [priceInputs, setPriceInputs] = useState<Record<string, string>>({});
   const [testKey, setTestKey] = useState<string | null>(null);
   const [testPayload, setTestPayload] = useState<Record<string, string>>({});
   const [testResult, setTestResult] = useState<ZohalCallResult | null>(null);
@@ -108,6 +110,11 @@ export function AdminZohal() {
         api.get<BlueTickResponse>('/admin/zohal/blue-tick'),
       ]);
       setData(services);
+      setPriceInputs(
+        Object.fromEntries(
+          services.services.map((service) => [service.key, String(service.price)]),
+        ),
+      );
       setBlueTick(requests);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'بارگذاری سرویس‌های زحل ناموفق بود');
@@ -151,6 +158,43 @@ export function AdminZohal() {
       );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'تغییر وضعیت سرویس ناموفق بود');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function savePrice(service: ZohalService) {
+    const raw = (priceInputs[service.key] ?? '').trim();
+    const value = Number(raw);
+    if (!Number.isFinite(value) || value < 0) {
+      toast.error('هزینه باید یک عدد نامنفی باشد.');
+      return;
+    }
+    setBusyKey(service.key);
+    try {
+      const result = await api.patch<{ price: number }>(
+        `/admin/zohal/services/${service.key}`,
+        { price: Math.floor(value) },
+      );
+      setData((current) =>
+        current
+          ? {
+              ...current,
+              services: current.services.map((item) =>
+                item.key === service.key
+                  ? { ...item, price: result.price }
+                  : item,
+              ),
+            }
+          : current,
+      );
+      setPriceInputs((current) => ({
+        ...current,
+        [service.key]: String(result.price),
+      }));
+      toast.success(`هزینه سرویس «${service.label}» ثبت شد.`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ثبت هزینه ناموفق بود');
     } finally {
       setBusyKey(null);
     }
@@ -357,6 +401,38 @@ export function AdminZohal() {
                     >
                       {service.enabled ? 'فعال' : 'غیرفعال'}
                     </button>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-line bg-background p-2">
+                    <label className="text-[11px] font-bold text-muted">
+                      هزینه‌ی هر استعلام برای کاربر (تومان)
+                      <input
+                        className="indeed-input mt-1 w-36 py-1 text-xs"
+                        dir="ltr"
+                        inputMode="numeric"
+                        value={priceInputs[service.key] ?? ''}
+                        onChange={(event) =>
+                          setPriceInputs((current) => ({
+                            ...current,
+                            [service.key]: event.target.value.replace(/\D/g, ''),
+                          }))
+                        }
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      disabled={busyKey === service.key}
+                      onClick={() => void savePrice(service)}
+                      className="indeed-btn indeed-btn-secondary py-1 text-[11px]"
+                    >
+                      ثبت هزینه
+                    </button>
+                    <span className="text-[11px] text-muted">
+                      فعلی:{' '}
+                      {service.price > 0
+                        ? `${service.price.toLocaleString('fa-IR')} تومان`
+                        : 'رایگان'}
+                    </span>
                   </div>
 
                   <button

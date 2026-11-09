@@ -1,6 +1,7 @@
 import type { ZohalServiceDef } from './zohal.types';
 
 export const ZOHAL_SERVICE_SETTING_PREFIX = 'zohal.service.';
+export const ZOHAL_PRICE_SETTING_PREFIX = 'zohal.price.';
 
 /**
  * Catalogue of every Zohal web service (mirrors `api-1.json`).
