@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { BiolinkForm, type BiolinkFormValues } from '@/components/biolink/BiolinkForm';
+import { ProfileRequiredNotice } from '@/components/dashboard/ProfileRequiredNotice';
 import { Alert, isQuotaMessage } from '@/components/ui/Alert';
 import { api, type Biolink } from '@/lib/api';
+import { useProfileStatus } from '@/lib/profile-status';
 
 export default function NewBiolinkPage() {
   const router = useRouter();
@@ -14,6 +16,7 @@ export default function NewBiolinkPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quota, setQuota] = useState(false);
+  const { completed, loading: profileLoading } = useProfileStatus();
 
   // Reopen the user's most recent unfinished draft (if any) so a saved
   // half-filled builder is not lost when they come back to this page.
@@ -68,6 +71,10 @@ export default function NewBiolinkPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'حذف پیش‌نویس ناموفق بود');
     }
+  }
+
+  if (!profileLoading && !completed) {
+    return <ProfileRequiredNotice action="ساخت بیولینک" />;
   }
 
   return (

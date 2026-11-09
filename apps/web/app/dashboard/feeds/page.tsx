@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 
 import { RichTextEditor } from '@/components/ui/RichTextEditor';
+import { ProfileRequiredNotice } from '@/components/dashboard/ProfileRequiredNotice';
 import { FeedTagCard } from '@/components/feed/FeedTagCard';
 import {
   api,
@@ -23,6 +24,7 @@ import {
   type UploadResult,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useProfileStatus } from '@/lib/profile-status';
 import { isRichTextEmpty, richTextPreview, sanitizeHtml } from '@/lib/rich-text';
 import { cn } from '@/lib/utils';
 
@@ -56,6 +58,7 @@ function faDate(value: string) {
 export default function DashboardFeedsPage() {
   const router = useRouter();
   const { token, hydrated } = useAuth();
+  const { completed: profileCompleted } = useProfileStatus();
   const [data, setData] = useState<FeedMineOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -286,6 +289,9 @@ export default function DashboardFeedsPage() {
         </span>
       </div>
 
+      {!profileCompleted ? (
+        <ProfileRequiredNotice action="ثبت پست فید" />
+      ) : (
       <form onSubmit={submit} className="indeed-panel flex flex-col gap-3 p-5">
           <h3 className="flex items-center gap-2 text-sm font-extrabold text-ink">
             <ImagePlus className="size-4 text-brand" aria-hidden />
@@ -443,6 +449,7 @@ export default function DashboardFeedsPage() {
             ) : null}
           </div>
       </form>
+      )}
 
       <section className="flex flex-col gap-3">
         <h3 className="text-sm font-extrabold text-ink">پست‌های من</h3>

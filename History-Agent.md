@@ -20,7 +20,53 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.13.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.14.0**.
+
+## ۱۴۰۵/۰۸/۱۸ — ثبت‌نام فقط با موبایل و الزام تکمیل پروفایل پیش از اقدام‌ها — نسخه `v3.14.0`
+
+**هدف:** ثبت‌نام با یک شماره موبایل کافی باشد و پیش از ساخت بیولینک/کارت ویزیت،
+ثبت پست فید، درخواست پله/تبلیغ و خرید اشتراک، کاربر ابتدا نام، نام خانوادگی و کد
+ملی خود را در پروفایل تکمیل کند.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: فیلدهای `firstName`، `lastName` و
+  `nationalCode` (یکتا) روی `User`.
+- `apps/api/src/common/national-code.ts` (تازه): اعتبارسنجی کد ملی ایران
+  (۱۰ رقم، عدم تکرار، رقم کنترل) و `isProfileComplete`.
+- `apps/api/src/common/guards/profile-complete.guard.ts` (تازه) و ثبت آن در
+  `common.module.ts`: پاسخ ۴۰۳ با پیام فارسی تا تکمیل پروفایل.
+- گیت روی `POST /biolinks`، `POST /business-cards`، `POST /feeds/mine` و
+  `POST /feeds/mine/uploads`، `POST /feeds/mine/subscriptions/request`،
+  `POST /boosts/request`، `POST /ads/request`، `POST /subscriptions/request`،
+  `POST /subscriptions/:planId/checkout` و `POST /news/reporter/request`.
+- `apps/api/src/auth/auth.service.ts`: ثبت‌نام موبایلی فقط با شماره انجام
+  می‌شود (نام/ایمیل اختیاری) و کاربر بلافاصله وارد می‌شود.
+- `apps/api/src/profile/*`: مسیر `PATCH /profile/me` برای ثبت مشخصات هویتی،
+  همگام‌سازی `fullName`، بررسی یکتایی کد ملی، و `profileCompleted` در پاسخ
+  `GET /profile/me`؛ تأیید تغییر نام توسط مدیر هم `firstName/lastName` را
+  به‌روز می‌کند.
+- `apps/web/components/dashboard/ProfilePanel.tsx`: بخش «مشخصات هویتی» با
+  وضعیت تکمیل/نیازمند تکمیل و فرم نام، نام خانوادگی و کد ملی.
+- `apps/web/lib/profile-status.ts` و
+  `apps/web/components/dashboard/ProfileRequiredNotice.tsx` (تازه): خواندن وضعیت
+  پروفایل و نمایش پیام «ابتدا پروفایل خود را تکمیل کنید».
+- `apps/web/components/dashboard/UserShell.tsx`: نوار هشدار سراسری پنل کاربری
+  تا تکمیل پروفایل.
+- `apps/web/app/dashboard/biolinks/new/page.tsx`،
+  `apps/web/app/dashboard/business-cards/new/page.tsx` و
+  `apps/web/app/dashboard/feeds/page.tsx`: جایگزینی فرم ساخت با پیام تکمیل پروفایل.
+
+**تأیید/تست:**
+- `prisma generate` و `db push` روی دیتابیس dev؛ `tsc` وب بدون خطا و API فقط
+  خطای محیطی قبلی `nodemailer`؛ `check_api_docs.py` (۳۴۱ مسیر) و
+  `check_modules.py` exit 0؛ `eslint` فایل‌های جدید بدون خطا.
+- تست زنده API: ثبت‌نام فقط با موبایل (۲۰۰)، `profileCompleted=false`،
+  `POST /biolinks` → ۴۰۳؛ کد ملی نامعتبر → ۴۰۰؛ کد ملی معتبر → ۲۰۰ و
+  `profileCompleted=true`؛ سپس `POST /biolinks` → ۲۰۱؛ کد ملی تکراری برای
+  کاربر دیگر → ۴۰۹.
+- Playwright: نوار هشدار در داشبورد، گیت صفحه‌ی «بیولینک جدید»، ذخیره‌ی
+  مشخصات در پروفایل و نمایش فرم پس از تکمیل؛ بدون خطای کنسول.
+- داده‌های تست (کاربران موبایلی، بیولینک و نشست‌ها) پاک‌سازی شد.
 
 ## ۱۴۰۵/۰۸/۱۸ — دیت‌پیکر شمسی در همه‌ی بخش‌های سایت — نسخه `v3.13.0`
 

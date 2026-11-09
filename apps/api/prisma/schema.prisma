@@ -396,6 +396,11 @@ model User {
   phone        String?  @unique
   phoneVerified Boolean @default(false)
   fullName     String?
+  /// Identity fields collected on the profile page before a user may create
+  /// content or buy services. `fullName` is kept in sync as «نام نام‌خانوادگی».
+  firstName    String?
+  lastName     String?
+  nationalCode String?  @unique
   role         Role     @default(USER)
   isActive     Boolean  @default(true)
   /// For `MODERATOR` accounts: the content types this reviewer may moderate

@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
+import { ProfileCompleteGuard } from '../common/guards/profile-complete.guard';
 import { BoostsService } from './boosts.service';
 import { BoostOverviewQueryDto } from './dto/boost-overview-query.dto';
 import { CreateBoostDto } from './dto/create-boost.dto';
@@ -22,6 +23,7 @@ export class BoostsController {
   }
 
   @Post('request')
+  @UseGuards(ProfileCompleteGuard)
   @ApiOperation({ summary: 'درخواست افزایش بازدید (پله) برای یک کارت/بیولینک' })
   request(@CurrentUser() user: AuthUser, @Body() dto: CreateBoostDto) {
     return this.boostsService.create(user.id, dto);

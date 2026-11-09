@@ -15,6 +15,7 @@ import { NewsStatus } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { ProfileCompleteGuard } from '../common/guards/profile-complete.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { RequirePermission } from '../auth/permissions.decorator';
 import { CreateNewsDto } from './dto/create-news.dto';
@@ -71,6 +72,7 @@ export class ReporterController {
   constructor(private readonly news: NewsService) {}
 
   @Post('request')
+  @UseGuards(ProfileCompleteGuard)
   @ApiOperation({ summary: 'درخواست نقش شهروند خبرنگار' })
   request(@CurrentUser() user: AuthUser, @Body('message') message?: string) {
     return this.news.requestReporter(user.id, message);

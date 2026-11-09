@@ -25,6 +25,7 @@ import { api } from '@/lib/api';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useFeatures } from '@/lib/features';
+import { useProfileStatus } from '@/lib/profile-status';
 import { cn } from '@/lib/utils';
 import { APP_VERSION } from '@/lib/version';
 
@@ -117,6 +118,11 @@ export function UserShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, clear } = useAuth();
   const { isFeatureVisible } = useFeatures();
+  const isRegularUser =
+    user?.role === 'USER' || user?.role === 'CITIZEN_REPORTER';
+  const { completed: profileCompleted } = useProfileStatus(isRegularUser);
+  const showProfileBanner =
+    isRegularUser && !profileCompleted && pathname !== '/dashboard/profile';
   const [open, setOpen] = useState(false);
   const isVisible = (item: NavItem) =>
     !item.feature || isFeatureVisible(item.feature);
@@ -271,6 +277,23 @@ export function UserShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
         </header>
+
+        {showProfileBanner ? (
+          <div className="mx-4 mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 md:mx-6">
+            <ShieldCheck className="size-4 shrink-0" aria-hidden />
+            <span className="flex-1 leading-6">
+              پروفایل شما ناقص است؛ برای ساخت بیولینک، کارت ویزیت، پست فید و
+              خرید خدمات، نام، نام خانوادگی و کد ملی را ثبت کنید.
+            </span>
+            <Link
+              href="/dashboard/profile"
+              prefetch={false}
+              className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700"
+            >
+              تکمیل پروفایل
+            </Link>
+          </div>
+        ) : null}
 
         <main className="p-4 md:p-6">{children}</main>
       </div>

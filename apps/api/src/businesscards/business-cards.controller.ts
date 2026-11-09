@@ -9,6 +9,7 @@ import {
   Post,
   Query,
   Req,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { createHash } from 'node:crypto';
@@ -18,6 +19,7 @@ import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorat
 import { OptionalAuth } from '../common/decorators/optional-auth.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { ProfileCompleteGuard } from '../common/guards/profile-complete.guard';
 import { RequirePermission } from '../auth/permissions.decorator';
 import { visitorKeyFrom } from '../common/visitor-key';
 import { BusinessCardsEngagementService } from './business-cards-engagement.service';
@@ -38,6 +40,7 @@ export class BusinessCardsController {
   ) {}
 
   @Post()
+  @UseGuards(ProfileCompleteGuard)
   @ApiBearerAuth()
   @RequirePermission('BUSINESS_CARD_CREATE')
   @ApiOperation({ summary: 'ساخت کارت ویزیت جدید (وضعیت: در انتظار تأیید مدیر)' })

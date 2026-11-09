@@ -3,9 +3,30 @@ import {
   IsEmail,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   MinLength,
 } from 'class-validator';
+
+/** Identity fields required before a user can create content or buy services. */
+export class UpdateIdentityDto {
+  @ApiProperty({ example: 'علی' })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(60)
+  firstName!: string;
+
+  @ApiProperty({ example: 'رضایی' })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(60)
+  lastName!: string;
+
+  @ApiProperty({ example: '0012345678' })
+  @IsString()
+  @Matches(/^\d{10}$/, { message: 'کد ملی باید دقیقاً ۱۰ رقم باشد' })
+  nationalCode!: string;
+}
 
 export class RequestProfileChangeDto {
   @ApiProperty({ example: 'علی رضایی' })

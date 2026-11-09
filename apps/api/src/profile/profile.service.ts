@@ -8,6 +8,7 @@ import { NewsStatus, NotificationType, Prisma } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
 import { OtpService } from '../auth/otp.service';
+import { isProfileComplete, isValidNationalCode } from '../common/national-code';
 import { SettingsService } from '../settings/settings.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -58,6 +59,9 @@ export class ProfileService {
           email: true,
           phone: true,
           fullName: true,
+          firstName: true,
+          lastName: true,
+          nationalCode: true,
           role: true,
           isActive: true,
           createdAt: true,
@@ -75,7 +79,65 @@ export class ProfileService {
     }
     // Never leak the hash itself — only whether a password has been set.
     const { passwordHash, ...rest } = user;
-    return { ...rest, hasPassword: Boolean(passwordHash), pendingChange: pending };
+    return {
+      ...rest,
+      hasPassword: Boolean(passwordHash),
+      profileCompleted: isProfileComplete(user),
+      pendingChange: pending,
+    };
+  }
+
+  /**
+   * Save the identity fields that unlock content creation. `fullName` is kept
+   * in sync so every list, invoice and notification keeps showing one name.
+   */
+  async updateIdentity(
+    userId: string,
+    dto: { firstName: string; lastName: string; nationalCode: string },
+  ) {
+    const firstName = dto.firstName.trim();
+    const lastName = dto.lastName.trim();
+    const nationalCode = dto.nationalCode.trim();
+    if (!isValidNationalCode(nationalCode)) {
+      throw new BadRequestException('کد ملی وارد‌شده معتبر نیست');
+    }
+    const owner = await this.prisma.user.findUnique({
+      where: { nationalCode },
+      select: { id: true },
+    });
+    if (owner && owner.id !== userId) {
+      throw new ConflictException('این کد ملی قبلاً برای حساب دیگری ثبت شده است');
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName,
+        lastName,
+        nationalCode,
+        fullName: `${firstName} ${lastName}`,
+      },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        fullName: true,
+        firstName: true,
+        lastName: true,
+        nationalCode: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+    await this.activity.log({
+      actor: { id: userId, email: user.email, role: user.role },
+      action: 'PROFILE_IDENTITY_UPDATED',
+      summary: `تکمیل/ویرایش مشخصات هویتی: ${user.fullName}`,
+      entityType: 'USER',
+      entityId: userId,
+    });
+    return { ...user, profileCompleted: true };
   }
 
   /** Submit a name change for admin approval (one pending request at a time). */
@@ -316,6 +378,12 @@ export class ProfileService {
     // A verified phone change also marks the new number as phone-verified.
     const appliedData: Prisma.UserUpdateInput = {
       ...picked,
+      ...(approved && picked.fullName
+        ? {
+            firstName: picked.fullName.split(/\s+/)[0] ?? null,
+            lastName: picked.fullName.split(/\s+/).slice(1).join(' ') || null,
+          }
+        : {}),
       ...(approved && picked.phone ? { phoneVerified: true } : {}),
     };
 

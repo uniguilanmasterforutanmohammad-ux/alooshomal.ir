@@ -26,6 +26,7 @@ import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorat
 import { OptionalAuth } from '../common/decorators/optional-auth.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
+import { ProfileCompleteGuard } from '../common/guards/profile-complete.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { visitorKeyFrom } from '../common/visitor-key';
@@ -156,6 +157,7 @@ export class FeedsUserController {
   }
 
   @Post('subscriptions/request')
+  @UseGuards(ProfileCompleteGuard)
   @ApiOperation({ summary: 'درخواست اشتراک فید (در انتظار تأیید مدیر)' })
   request(
     @CurrentUser() user: AuthUser,
@@ -165,6 +167,7 @@ export class FeedsUserController {
   }
 
   @Post('uploads')
+  @UseGuards(ProfileCompleteGuard)
   @UseInterceptors(
     FileInterceptor('file', { limits: { fileSize: MAX_FEED_UPLOAD_BYTES } }),
   )
@@ -179,6 +182,7 @@ export class FeedsUserController {
   }
 
   @Post()
+  @UseGuards(ProfileCompleteGuard)
   @ApiOperation({ summary: 'ثبت پست فید جدید (در انتظار تأیید مدیر)' })
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateFeedPostDto) {
     return this.feeds.createPost(user.id, dto);

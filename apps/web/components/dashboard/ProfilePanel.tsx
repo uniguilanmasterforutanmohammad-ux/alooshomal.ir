@@ -31,6 +31,10 @@ interface ProfilePayload {
   email: string | null;
   phone: string | null;
   fullName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  nationalCode: string | null;
+  profileCompleted: boolean;
   role: string;
   isActive: boolean;
   createdAt: string;
@@ -51,6 +55,10 @@ export function ProfilePanel() {
   const [profile, setProfile] = useState<ProfilePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [nationalCode, setNationalCode] = useState('');
+  const [savingIdentity, setSavingIdentity] = useState(false);
   const [sending, setSending] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [sendToPhone, setSendToPhone] = useState(false);
@@ -66,6 +74,9 @@ export function ProfilePanel() {
       const data = await api.get<ProfilePayload>('/profile/me');
       setProfile(data);
       setFullName((current) => current || data.fullName || '');
+      setFirstName(data.firstName ?? '');
+      setLastName(data.lastName ?? '');
+      setNationalCode(data.nationalCode ?? '');
       // Keep the cached session user in sync (e.g. after an immediate email
       // change), so the header and other panels show the new address.
       setUser({
@@ -98,6 +109,31 @@ export function ProfilePanel() {
       /* api layer surfaces the error */
     } finally {
       setSending(false);
+    }
+  }
+
+  async function submitIdentity() {
+    if (firstName.trim().length < 2 || lastName.trim().length < 2) {
+      toast.error('نام و نام خانوادگی باید حداقل ۲ کاراکتر باشند.');
+      return;
+    }
+    if (!/^\d{10}$/.test(nationalCode.trim())) {
+      toast.error('کد ملی باید دقیقاً ۱۰ رقم باشد.');
+      return;
+    }
+    setSavingIdentity(true);
+    try {
+      await api.patch('/profile/me', {
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        nationalCode: nationalCode.trim(),
+      });
+      toast.success('مشخصات هویتی شما ذخیره شد.');
+      await load();
+    } catch {
+      /* api layer surfaces the error */
+    } finally {
+      setSavingIdentity(false);
     }
   }
 
@@ -178,10 +214,85 @@ export function ProfilePanel() {
         </div>
       </div>
 
+      <div className="indeed-panel p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="flex items-center gap-2 text-sm font-extrabold text-ink">
+            <IdCard className="size-4 text-brand" aria-hidden />
+            مشخصات هویتی
+          </h2>
+          {profile.profileCompleted ? (
+            <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+              تکمیل شده
+            </span>
+          ) : (
+            <span className="rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">
+              نیازمند تکمیل
+            </span>
+          )}
+        </div>
+        <p className="mt-1 text-xs leading-6 text-muted">
+          برای ساخت بیولینک، کارت ویزیت، پست فید، درخواست پله/تبلیغ و خرید
+          اشتراک، ابتدا نام، نام خانوادگی و کد ملی خود را ثبت کنید.
+        </p>
+        {!profile.profileCompleted ? (
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
+            تا زمانی که این بخش تکمیل نشود، امکان ثبت موارد بالا وجود ندارد.
+          </p>
+        ) : null}
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <label className="text-xs font-bold text-muted">
+            نام
+            <input
+              className="indeed-input mt-1"
+              value={firstName}
+              onChange={(event) => setFirstName(event.target.value)}
+              autoComplete="given-name"
+            />
+          </label>
+          <label className="text-xs font-bold text-muted">
+            نام خانوادگی
+            <input
+              className="indeed-input mt-1"
+              value={lastName}
+              onChange={(event) => setLastName(event.target.value)}
+              autoComplete="family-name"
+            />
+          </label>
+          <label className="text-xs font-bold text-muted">
+            کد ملی
+            <input
+              className="indeed-input mt-1"
+              dir="ltr"
+              inputMode="numeric"
+              maxLength={10}
+              value={nationalCode}
+              onChange={(event) =>
+                setNationalCode(event.target.value.replace(/\D/g, ''))
+              }
+            />
+          </label>
+        </div>
+        <button
+          type="button"
+          onClick={() => void submitIdentity()}
+          disabled={savingIdentity}
+          className="indeed-btn indeed-btn-primary mt-4"
+        >
+          <Send className="size-4" aria-hidden />
+          {savingIdentity ? 'در حال ذخیره...' : 'ذخیره مشخصات'}
+        </button>
+      </div>
+
       <div className="indeed-panel overflow-hidden">
         <table className="w-full border-collapse text-sm">
           <tbody>
             <ProfileRow icon={UserRound} label="نام" value={profile.fullName ?? '—'} />
+            <ProfileRow
+              icon={IdCard}
+              label="کد ملی"
+              value={profile.nationalCode ?? '—'}
+              ltr
+            />
             <ProfileRow icon={Mail} label="ایمیل" value={profile.email ?? '—'} ltr />
             <ProfileRow icon={Phone} label="موبایل" value={profile.phone ?? '—'} ltr />
             <ProfileRow

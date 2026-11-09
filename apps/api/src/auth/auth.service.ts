@@ -126,8 +126,8 @@ export class AuthService {
 
   /**
    * Step 2 of the phone flow: verify the code and either sign the existing
-   * user in or create a new account. New accounts must supply a full name —
-   * that is what makes the same form serve both login and sign-up.
+   * user in or create a new account from the phone alone. The identity fields
+   * (first/last name, national code) are completed later on the profile page.
    */
   async verifyPhoneCode(dto: VerifyPhoneDto, context: SessionContext = {}) {
     await this.assertPhoneLoginEnabled();
@@ -135,34 +135,22 @@ export class AuthService {
     await this.rateLimit.hit(RATE_LIMITS.otpVerify, phone);
     const existing = await this.prisma.user.findUnique({ where: { phone } });
 
-    // Check the new-user case *before* consuming the code: a first-time
-    // sign-up that still needs its profile fields must not burn the OTP,
-    // otherwise the second call (with the fields) would fail with «کد منقضی».
+    // A first-time sign-up only needs the phone: name, national code and the
+    // rest are collected afterwards on `/dashboard/profile`. Name/email are
+    // still accepted when a client sends them, and the email must be free.
     if (!existing) {
-      if (!dto.fullName?.trim()) {
-        // Signals the client to reveal the sign-up fields (name + email).
-        throw new BadRequestException({
-          code: 'FULLNAME_REQUIRED',
-          message: 'برای ساخت حساب، نام و نام خانوادگی را وارد کنید',
+      if (dto.email?.trim()) {
+        // Check the email *before* consuming the code, so a conflict lets the
+        // user correct the address without requesting a new OTP.
+        const emailOwner = await this.prisma.user.findUnique({
+          where: { email: dto.email.toLowerCase().trim() },
         });
-      }
-      if (!dto.email?.trim()) {
-        // Same sign-up step also collects the email.
-        throw new BadRequestException({
-          code: 'EMAIL_REQUIRED',
-          message: 'برای ساخت حساب، ایمیل را وارد کنید',
-        });
-      }
-      // Check the email *before* consuming the code, so a conflict lets the
-      // user correct the address without requesting a new OTP.
-      const emailOwner = await this.prisma.user.findUnique({
-        where: { email: dto.email.toLowerCase().trim() },
-      });
-      if (emailOwner) {
-        throw new ConflictException({
-          code: 'EMAIL_TAKEN',
-          message: 'این ایمیل قبلاً ثبت شده است',
-        });
+        if (emailOwner) {
+          throw new ConflictException({
+            code: 'EMAIL_TAKEN',
+            message: 'این ایمیل قبلاً ثبت شده است',
+          });
+        }
       }
     }
 
@@ -191,8 +179,8 @@ export class AuthService {
       };
     }
 
-    const fullName = dto.fullName!.trim();
-    const email = dto.email!.toLowerCase().trim();
+    const fullName = dto.fullName?.trim() || null;
+    const email = dto.email?.toLowerCase().trim() || null;
 
     const user = await this.prisma.user.create({
       data: { phone, phoneVerified: true, fullName, email },

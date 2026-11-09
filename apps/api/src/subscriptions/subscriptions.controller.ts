@@ -6,6 +6,7 @@ import {
   Post,
   Query,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -17,6 +18,7 @@ import type { Response } from 'express';
 
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { ProfileCompleteGuard } from '../common/guards/profile-complete.guard';
 import { SubscriptionsService } from './subscriptions.service';
 import { SubscriptionsPaymentService } from './subscriptions-payment.service';
 import { RequestSubscriptionDto } from './dto/request-subscription.dto';
@@ -44,6 +46,7 @@ export class SubscriptionsController {
   }
 
   @Post('request')
+  @UseGuards(ProfileCompleteGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'درخواست اشتراک جدید (در انتظار تأیید مدیر)' })
   request(@CurrentUser() user: AuthUser, @Body() dto: RequestSubscriptionDto) {
@@ -51,6 +54,7 @@ export class SubscriptionsController {
   }
 
   @Post(':planId/checkout')
+  @UseGuards(ProfileCompleteGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'شروع پرداخت آنلاین اشتراک با درگاه پی‌پینگ' })
   checkout(

@@ -10,6 +10,7 @@ import {
   DecideProfileChangeDto,
   RequestContactOtpDto,
   RequestProfileChangeDto,
+  UpdateIdentityDto,
   VerifyContactChangeDto,
 } from './dto/profile.dto';
 import { ProfileService } from './profile.service';
@@ -24,6 +25,17 @@ export class ProfileController {
   @ApiOperation({ summary: 'پروفایل من + آخرین درخواست تغییر' })
   me(@CurrentUser() user: AuthUser) {
     return this.profile.me(user.id);
+  }
+
+  @Patch('me')
+  @ApiOperation({
+    summary: 'ثبت/ویرایش مشخصات هویتی (نام، نام خانوادگی، کد ملی)',
+  })
+  updateIdentity(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: UpdateIdentityDto,
+  ) {
+    return this.profile.updateIdentity(user.id, dto);
   }
 
   @Post('change-request')

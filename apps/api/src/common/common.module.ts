@@ -4,6 +4,7 @@ import { RedisModule } from '../redis/redis.module';
 import { PermissionsService } from '../auth/permissions.service';
 import { StreamTicketService } from '../auth/stream-ticket.service';
 import { FacetsCacheService } from './facets-cache.service';
+import { ProfileCompleteGuard } from './guards/profile-complete.guard';
 import { RateLimitService } from './rate-limit.service';
 
 /**
@@ -14,7 +15,19 @@ import { RateLimitService } from './rate-limit.service';
 @Global()
 @Module({
   imports: [RedisModule],
-  providers: [FacetsCacheService, PermissionsService, RateLimitService, StreamTicketService],
-  exports: [FacetsCacheService, PermissionsService, RateLimitService, StreamTicketService],
+  providers: [
+    FacetsCacheService,
+    PermissionsService,
+    RateLimitService,
+    StreamTicketService,
+    ProfileCompleteGuard,
+  ],
+  exports: [
+    FacetsCacheService,
+    PermissionsService,
+    RateLimitService,
+    StreamTicketService,
+    ProfileCompleteGuard,
+  ],
 })
 export class CommonModule {}
