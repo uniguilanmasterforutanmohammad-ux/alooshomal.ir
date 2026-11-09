@@ -7,11 +7,16 @@ import {
   AdminZohalController,
   ZohalProfileController,
 } from './zohal.controller';
+import { ZohalPricingController } from './zohal-pricing.controller';
 import { ZohalService } from './zohal.service';
 
 @Module({
   imports: [ActivityModule, SettingsModule, WalletModule],
-  controllers: [AdminZohalController, ZohalProfileController],
+  controllers: [
+    AdminZohalController,
+    ZohalProfileController,
+    ZohalPricingController,
+  ],
   providers: [ZohalService],
   exports: [ZohalService],
 })

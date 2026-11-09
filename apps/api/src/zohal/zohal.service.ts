@@ -232,6 +232,36 @@ export class ZohalService {
     };
   }
 
+  /**
+   * Public tariff rows: enabled services with a positive price. The two
+   * profile/blue-tick services are also hidden when their feature switch is
+   * off, so the pricing page never advertises a capability that is stopped.
+   */
+  async publicPricing() {
+    const [enabled, prices, identityEnabled, blueTickEnabled] =
+      await Promise.all([
+        this.getEnabledMap(),
+        this.getPriceMap(),
+        this.settings.isFeatureEnabled('featureIdentityInquiry'),
+        this.settings.isFeatureEnabled('featureBlueTick'),
+      ]);
+    return ZOHAL_SERVICES.filter((service) => {
+      if (!enabled[service.key]) return false;
+      if ((prices[service.key] ?? 0) <= 0) return false;
+      if (service.key === 'national_identity_inquiry' && !identityEnabled) {
+        return false;
+      }
+      if (service.key === 'shahkar' && !blueTickEnabled) return false;
+      return true;
+    }).map((service) => ({
+      key: service.key,
+      label: service.label,
+      group: service.group,
+      description: service.description,
+      price: prices[service.key],
+    }));
+  }
+
   // -------------------------------------------------------------------------
   //  Transport
   // -------------------------------------------------------------------------
