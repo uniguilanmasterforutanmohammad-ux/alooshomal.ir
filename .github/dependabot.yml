@@ -14,6 +14,13 @@ updates:
         dependency-type: production
       development-dependencies:
         dependency-type: development
+    ignore:
+      # TypeScript 7 is not supported by the current `typescript-eslint`
+      # release (peer range `<6.1.0`), so a grouped dev-dependency bump would
+      # fail `npm install` with ERESOLVE. Keep TypeScript on the 5.x/6.x line
+      # until typescript-eslint widens its peer range.
+      - dependency-name: typescript
+        versions: ['>=7.0.0']
 
   # Keep the CI base images patched.
   - package-ecosystem: github-actions
