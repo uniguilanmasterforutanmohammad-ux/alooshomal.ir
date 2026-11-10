@@ -8,6 +8,7 @@ import { AlertTriangle, CreditCard } from 'lucide-react';
 const ALLOWED_CALLBACKS = [
   '/api/subscriptions/payments/callback',
   '/api/payments/request-callback',
+  '/api/wallet/payments/callback',
 ];
 
 function isLoopbackHost(hostname: string): boolean {

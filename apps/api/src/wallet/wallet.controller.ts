@@ -23,7 +23,7 @@ import {
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { AdjustWalletDto } from './dto/wallet.dto';
+import { AdjustWalletDto, CheckoutWalletDto } from './dto/wallet.dto';
 import { WalletService } from './wallet.service';
 
 @ApiTags('wallet')
@@ -40,8 +40,8 @@ export class WalletController {
 
   @Post('checkout')
   @ApiOperation({ summary: 'شروع پرداخت یک‌جای کل بدهی کیف پول' })
-  checkout(@CurrentUser() user: AuthUser) {
-    return this.wallet.checkout(user.id);
+  checkout(@CurrentUser() user: AuthUser, @Body() dto: CheckoutWalletDto) {
+    return this.wallet.checkout(user.id, dto?.returnTo);
   }
 
   /**
@@ -62,6 +62,7 @@ export class WalletController {
     @Query('paymentRefId') paymentRefId: string | undefined,
     @Query('refid') refid: string | undefined,
     @Query('clientRefId') clientRefId: string | undefined,
+    @Query('returnTo') returnTo: string | undefined,
     @Res() res: Response,
   ) {
     const result = await this.wallet.handleCallback({
@@ -69,7 +70,27 @@ export class WalletController {
       refId: refId ?? paymentRefId ?? refid,
       clientRefId,
     });
-    res.redirect(302, result.redirectUrl);
+    res.redirect(302, withReturnTo(result.redirectUrl, result.status, returnTo));
+  }
+}
+
+/** Only same-site absolute paths are accepted as a post-payment destination. */
+function withReturnTo(
+  fallbackUrl: string,
+  status: string,
+  returnTo?: string,
+): string {
+  if (!returnTo || !/^\/(?!\/)/.test(returnTo)) return fallbackUrl;
+  try {
+    const target = new URL(fallbackUrl);
+    const [path, search] = returnTo.split('?');
+    target.pathname = path;
+    const params = new URLSearchParams(search ?? '');
+    params.set('payment', status);
+    target.search = params.toString();
+    return target.toString();
+  } catch {
+    return fallbackUrl;
   }
 }
 

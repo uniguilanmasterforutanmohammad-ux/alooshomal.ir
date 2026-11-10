@@ -277,8 +277,8 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 | متد | مسیر | توضیح |
 | --- | --- | --- |
 | `GET` | `/wallet/me` | `{ nationalCode, balance, dueAt, overdue, settlementDays, entries, payments }`؛ `balance` منفی یعنی بدهی. |
-| `POST` | `/wallet/checkout` | شروع پرداخت یک‌جای کل بدهی؛ خروجی `{ paymentId, amount, paymentCode, url }`. اگر درگاه فعال نباشد ۵۰۳ برمی‌گرداند. |
-| `GET` | `/wallet/payments/callback` | بازگشت عمومی درگاه؛ تراکنش را تأیید و بدهی را تسویه می‌کند و به `/dashboard/wallet?payment=...` هدایت می‌کند. |
+| `POST` | `/wallet/checkout` | شروع پرداخت یک‌جای کل بدهی؛ بدنه‌ی اختیاری `{ returnTo }` (مسیر داخلی بازگشت، پیش‌فرض `/dashboard/wallet`)؛ خروجی `{ paymentId, amount, paymentCode, url }`. اگر درگاه فعال نباشد ۵۰۳ برمی‌گرداند. |
+| `GET` | `/wallet/payments/callback` | بازگشت عمومی درگاه؛ تراکنش را تأیید و بدهی را تسویه می‌کند و با `returnTo` معتبر به همان مسیر (وگرنه `/dashboard/wallet`) با پارامتر `payment` هدایت می‌کند. |
 | `GET` | `/admin/wallets` | فهرست کیف پول‌های دارای بدهی/سررسید با `settlementDays`، `totalDebt` و `nationalCode` هر کیف پول. |
 | `GET` | `/admin/wallets/lookup?nationalCode=...` | گردش کامل یک شخص با کد ملی: کیف پول‌ها، گردش حساب، پرداخت‌ها و فاکتورها. |
 | `POST` | `/admin/wallets/:userId/adjust` | تنظیم دستی؛ `amount` مثبت = افزایش بدهی، منفی = بستانکاری، همراه `title` اختیاری. |

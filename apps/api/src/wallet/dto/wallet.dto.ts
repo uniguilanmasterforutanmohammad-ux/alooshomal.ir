@@ -29,3 +29,16 @@ export class AdjustWalletDto {
   @MaxLength(200)
   title?: string;
 }
+
+/** Start a single payment that clears the whole outstanding wallet balance. */
+export class CheckoutWalletDto {
+  @ApiPropertyOptional({
+    example: '/dashboard/onboarding',
+    description:
+      'مسیر بازگشت پس از پرداخت (فقط مسیر داخلی سایت؛ پیش‌فرض: /dashboard/wallet)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  returnTo?: string;
+}

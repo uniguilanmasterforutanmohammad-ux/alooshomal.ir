@@ -319,7 +319,7 @@ export class WalletService implements OnModuleInit {
   // -------------------------------------------------------------------------
 
   /** Open the single gateway payment that clears the whole outstanding balance. */
-  async checkout(userId: string) {
+  async checkout(userId: string, returnTo?: string) {
     await this.settings.assertFeatureEnabled('featureWallet');
     const wallet = await this.prisma.userWallet.findUnique({ where: { userId } });
     const balance = wallet?.balance ?? 0;
@@ -356,7 +356,13 @@ export class WalletService implements OnModuleInit {
       },
     });
 
-    const returnUrl = `${this.appUrl()}/api/wallet/payments/callback`;
+    // Carry the post-payment destination through the gateway so the onboarding
+    // wizard can come back to the same step after a simulated/local payment.
+    const safeReturnTo =
+      returnTo && /^\/(?!\/)/.test(returnTo) ? returnTo : null;
+    const returnUrl = `${this.appUrl()}/api/wallet/payments/callback${
+      safeReturnTo ? `?returnTo=${encodeURIComponent(safeReturnTo)}` : ''
+    }`;
     let result: { paymentCode?: string; url?: string } | null = null;
     try {
       result = this.simulator.isEnabled

@@ -25,6 +25,7 @@ import { api } from '@/lib/api';
 import { isoToJalali } from '@/lib/jalali';
 import { toast } from '@/lib/toast';
 import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
+import { OnboardingBusinessForm } from '@/components/dashboard/OnboardingBusinessForm';
 import { cn } from '@/lib/utils';
 
 type StepKind =
@@ -234,7 +235,9 @@ export function OnboardingWizard() {
   async function payInvoice() {
     setPaying(true);
     try {
-      const result = await api.post<{ url?: string }>('/wallet/checkout', {});
+      const result = await api.post<{ url?: string }>('/wallet/checkout', {
+        returnTo: '/dashboard/onboarding',
+      });
       if (result?.url) {
         window.location.href = result.url;
         return;
@@ -331,7 +334,14 @@ export function OnboardingWizard() {
 
       {/* the single step card */}
       <div className="p-5 sm:p-6">
-        <div className="mx-auto flex max-w-2xl flex-col gap-4">
+        <div
+          className={cn(
+            'mx-auto flex flex-col gap-4',
+            step.kind === 'business' || step.kind === 'details'
+              ? 'max-w-4xl'
+              : 'max-w-2xl',
+          )}
+        >
           <div className="flex items-start gap-3">
             <span
               className={cn(
@@ -524,6 +534,20 @@ export function OnboardingWizard() {
             </div>
           ) : null}
 
+          {step.kind === 'business' || step.kind === 'details' ? (
+            <OnboardingBusinessForm
+              defaultFullName={
+                [payload.identity?.firstName, payload.identity?.lastName]
+                  .filter(Boolean)
+                  .join(' ') || undefined
+              }
+              debt={debt}
+              paying={paying}
+              onPay={() => void payInvoice()}
+              onSaved={() => void load()}
+            />
+          ) : null}
+
           {isManual(step) && step.kind !== 'welcome' ? (
             <button
               type="button"
@@ -543,7 +567,10 @@ export function OnboardingWizard() {
             </button>
           ) : null}
 
-          {!isManual(step) && step.href ? (
+          {!isManual(step) &&
+          step.href &&
+          step.kind !== 'business' &&
+          step.kind !== 'details' ? (
             <Link
               href={step.href}
               className="indeed-btn indeed-btn-secondary w-fit py-2 text-xs"
