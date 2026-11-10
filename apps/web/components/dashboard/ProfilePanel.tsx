@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import {
   BadgeCheck,
   IdCard,
@@ -8,15 +9,14 @@ import {
   Mail,
   Phone,
   Send,
+  Sparkles,
   ShieldCheck,
   UserRound,
 } from 'lucide-react';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { isoToJalali, jalaliToIso, parseJalali } from '@/lib/jalali';
 import { toast } from '@/lib/toast';
-import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
 import { ContactChangePanel } from './ContactChangePanel';
 import { SessionsPanel } from './SessionsPanel';
 
@@ -65,12 +65,7 @@ export function ProfilePanel() {
   const [profile, setProfile] = useState<ProfilePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState('');
-  const [nationalCode, setNationalCode] = useState('');
-  const [birthIso, setBirthIso] = useState('');
-  const [inquiryAvailable, setInquiryAvailable] = useState<boolean | null>(null);
   const [blueTickBusy, setBlueTickBusy] = useState(false);
-  const [matchingPhone, setMatchingPhone] = useState(false);
-  const [inquiryRunning, setInquiryRunning] = useState(false);
   const [sending, setSending] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [sendToPhone, setSendToPhone] = useState(false);
@@ -85,15 +80,7 @@ export function ProfilePanel() {
     try {
       const data = await api.get<ProfilePayload>('/profile/me');
       setProfile(data);
-      setInquiryAvailable(data.identityInquiryAvailable);
       setFullName((current) => current || data.fullName || '');
-      setNationalCode(data.nationalCode ?? '');
-      const parsedBirth = data.birthDate ? parseJalali(data.birthDate) : null;
-      setBirthIso(
-        parsedBirth
-          ? jalaliToIso(parsedBirth.year, parsedBirth.month, parsedBirth.day)
-          : '',
-      );
       // Keep the cached session user in sync (e.g. after an immediate email
       // change), so the header and other panels show the new address.
       setUser({
@@ -112,14 +99,6 @@ export function ProfilePanel() {
     if (hydrated) void load();
   }, [hydrated, load]);
 
-  useEffect(() => {
-    if (!hydrated) return;
-    void api
-      .get<{ available: boolean }>('/profile/identity-inquiry/status')
-      .then((result) => setInquiryAvailable(result.available))
-      .catch(() => setInquiryAvailable(false));
-  }, [hydrated]);
-
   async function submit() {
     if (fullName.trim().length < 2) {
       toast.error('نام باید حداقل ۲ کاراکتر باشد.');
@@ -134,53 +113,6 @@ export function ProfilePanel() {
       /* api layer surfaces the error */
     } finally {
       setSending(false);
-    }
-  }
-
-  function birthDateJalali(): string | undefined {
-    const jalaliBirth = isoToJalali(birthIso);
-    return jalaliBirth
-      ? `${jalaliBirth.year}/${String(jalaliBirth.month).padStart(2, '0')}/${String(jalaliBirth.day).padStart(2, '0')}`
-      : undefined;
-  }
-
-  async function matchPhoneOwnership() {
-    if (!/^\d{10}$/.test(nationalCode.trim())) {
-      toast.error('کد ملی باید دقیقاً ۱۰ رقم باشد.');
-      return;
-    }
-    if (!birthIso) {
-      toast.error('برای استعلام هویت، تاریخ تولد را انتخاب کنید.');
-      return;
-    }
-    setMatchingPhone(true);
-    try {
-      await api.post('/profile/identity/phone-match', {
-        nationalCode: nationalCode.trim(),
-        birthDate: birthDateJalali(),
-      });
-      toast.success('مالکیت شماره موبایل با کد ملی (شاهکار) تأیید شد.');
-      await load();
-      // The scenario continues straight into the paid identity inquiry; if
-      // that call fails, the step-2 button stays available for a retry.
-      await runIdentityInquiry();
-    } catch {
-      /* api layer surfaces the error */
-    } finally {
-      setMatchingPhone(false);
-    }
-  }
-
-  async function runIdentityInquiry() {
-    setInquiryRunning(true);
-    try {
-      await api.post('/profile/identity/inquiry', {});
-      toast.success('استعلام هویت انجام شد و مشخصات شما ذخیره شد.');
-      await load();
-    } catch {
-      /* api layer surfaces the error */
-    } finally {
-      setInquiryRunning(false);
     }
   }
 
@@ -299,93 +231,37 @@ export function ProfilePanel() {
           )}
         </div>
         <p className="mt-1 text-xs leading-6 text-muted">
-          برای ساخت بیولینک، کارت ویزیت، پست فید، درخواست پله/تبلیغ و خرید
-          اشتراک، ابتدا باید دو مرحله‌ی استعلام هویت را کامل کنید. هزینه‌ی هر
-          استعلام به‌صورت بدهی در کیف پول ثبت می‌شود.
+          این اطلاعات به‌صورت خودکار از استعلام هویت در بخش «شروع آسان» ثبت
+          می‌شود؛ نیازی به وارد کردن دستی آن‌ها در پروفایل نیست. برای ساخت
+          بیولینک، کارت ویزیت، پست فید، درخواست پله/تبلیغ و خرید اشتراک، ابتدا
+          باید استعلام هویت را کامل کنید.
         </p>
         {profile.identityVerifiedAt ? (
-          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs leading-6 text-emerald-800">
-            هویت شما تأیید شده است: <b>{profile.firstName} {profile.lastName}</b>
-            {profile.fatherName ? ` — نام پدر: ${profile.fatherName}` : ''}
-            {profile.birthDate ? ` — تاریخ تولد: ${profile.birthDate}` : ''}
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            <IdentityField label="نام" value={profile.firstName} />
+            <IdentityField label="نام خانوادگی" value={profile.lastName} />
+            <IdentityField label="نام پدر" value={profile.fatherName} />
+            <IdentityField label="کد ملی" value={profile.nationalCode} ltr />
+            <IdentityField label="تاریخ تولد" value={profile.birthDate} ltr />
+            <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-800">
+              <BadgeCheck className="size-4" aria-hidden />
+              تیک سفید (هویت تأییدشده)
+            </div>
           </div>
         ) : (
-          <>
-            {!profile.profileCompleted ? (
-              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
-                تا زمانی که این بخش تکمیل نشود، امکان ثبت موارد بالا وجود ندارد.
-              </p>
-            ) : null}
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <label className="text-xs font-bold text-muted">
-                کد ملی
-                <input
-                  className="indeed-input mt-1"
-                  dir="ltr"
-                  inputMode="numeric"
-                  maxLength={10}
-                  value={nationalCode}
-                  onChange={(event) =>
-                    setNationalCode(event.target.value.replace(/\D/g, ''))
-                  }
-                />
-              </label>
-              <label className="text-xs font-bold text-muted">
-                تاریخ تولد (شمسی)
-                <JalaliDatePicker
-                  className="mt-1"
-                  value={birthIso}
-                  onChange={setBirthIso}
-                  placeholder="۱۳۷۰/۰۱/۰۱"
-                  max={new Date().toISOString().slice(0, 10)}
-                />
-              </label>
-            </div>
-            <div className="mt-4 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={() => void matchPhoneOwnership()}
-                disabled={matchingPhone}
-                className="indeed-btn indeed-btn-primary"
-              >
-                <Send className="size-4" aria-hidden />
-                {matchingPhone
-                  ? 'در حال استعلام شاهکار...'
-                  : 'مرحله ۱: تطبیق شاهکار'}
-              </button>
-              {profile.phoneMatchVerifiedAt ? (
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
-                  مالکیت شماره تأیید شد
-                </span>
-              ) : null}
-            </div>
-            {profile.phoneMatchVerifiedAt ? (
-              <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
-                <p className="text-xs leading-6 text-emerald-800">
-                  شماره موبایل شما با کد ملی تطبیق داده شد. اکنون می‌توانید
-                  استعلام اطلاعات هویتی را انجام دهید.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => void runIdentityInquiry()}
-                  disabled={inquiryRunning}
-                  className="indeed-btn indeed-btn-primary mt-3"
-                >
-                  <ShieldCheck className="size-4" aria-hidden />
-                  {inquiryRunning
-                    ? 'در حال استعلام هویت...'
-                    : 'مرحله ۲: استعلام و ثبت هویت'}
-                </button>
-              </div>
-            ) : null}
-          </>
+          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
+            هنوز اطلاعات هویتی ثبت نشده است. برای دریافت تیک سفید، مرحله‌ی
+            استعلام هویت را در بخش «شروع آسان» کامل کنید؛ اطلاعات پس از استعلام
+            به‌صورت خودکار همین‌جا نمایش داده می‌شود.
+            <Link
+              href="/dashboard/onboarding"
+              className="indeed-btn indeed-btn-primary mt-3 w-fit py-2 text-xs"
+            >
+              <Sparkles className="size-4" aria-hidden />
+              رفتن به شروع آسان
+            </Link>
+          </div>
         )}
-        {!profile.identityVerifiedAt && inquiryAvailable === false ? (
-          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
-            استعلام خودکار هویت در حال حاضر توسط مدیر غیرفعال است؛ لطفاً بعداً
-            تلاش کنید یا با پشتیبانی تماس بگیرید.
-          </p>
-        ) : null}
       </div>
 
       <div className="indeed-panel p-5">
@@ -432,7 +308,7 @@ export function ProfilePanel() {
         ) : null}
         {!profile.profileCompleted ? (
           <p className="mt-2 text-[11px] text-muted">
-            ابتدا مشخصات هویتی بالا را تکمیل کنید.
+            ابتدا استعلام هویت را در بخش «شروع آسان» تکمیل کنید.
           </p>
         ) : null}
       </div>
@@ -611,6 +487,29 @@ export function ProfilePanel() {
         <span dir="ltr" className="font-bold">
           {user?.email ?? user?.phone ?? '—'}
         </span>
+      </p>
+    </div>
+  );
+}
+
+/** One read-only identity value auto-filled from the Zohal inquiry. */
+function IdentityField({
+  label,
+  value,
+  ltr = false,
+}: {
+  label: string;
+  value: string | null;
+  ltr?: boolean;
+}) {
+  return (
+    <div className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/60 p-3">
+      <p className="text-[11px] text-muted">{label}</p>
+      <p
+        dir={ltr ? 'ltr' : undefined}
+        className={`mt-0.5 text-sm font-bold ${ltr ? 'text-left' : 'text-right'} text-ink`}
+      >
+        {value ?? '—'}
       </p>
     </div>
   );

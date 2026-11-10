@@ -42,8 +42,8 @@ export default function PricingPage() {
     ? '/dashboard/subscriptions'
     : '/login?next=/dashboard/subscriptions';
   const inquiryHref = signedIn
-    ? '/dashboard/profile'
-    : '/login?next=/dashboard/profile';
+    ? '/dashboard/onboarding'
+    : '/login?next=/dashboard/onboarding';
 
   useEffect(() => {
     Promise.all([

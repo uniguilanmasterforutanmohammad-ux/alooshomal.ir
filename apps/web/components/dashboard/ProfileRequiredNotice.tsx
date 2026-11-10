@@ -11,17 +11,18 @@ export function ProfileRequiredNotice({ action }: { action?: string }) {
         <ShieldAlert className="size-6" aria-hidden />
       </span>
       <h2 className="mt-4 text-lg font-extrabold text-ink">
-        ابتدا پروفایل خود را تکمیل کنید
+        ابتدا استعلام هویت را کامل کنید
       </h2>
       <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-muted">
-        برای {action ?? 'این کار'} لازم است نام، نام خانوادگی و کد ملی شما در
-        پروفایل ثبت شده باشد.
+        برای {action ?? 'این کار'} لازم است نام، نام خانوادگی و کد ملی شما از
+        طریق استعلام هویت ثبت شده باشد. این کار در بخش «شروع آسان» انجام می‌شود و
+        اطلاعات به‌صورت خودکار در پروفایل شما قرار می‌گیرد.
       </p>
       <Link
-        href="/dashboard/profile"
+        href="/dashboard/onboarding"
         className="indeed-btn indeed-btn-primary mt-5 inline-flex"
       >
-        تکمیل پروفایل
+        شروع آسان
       </Link>
     </div>
   );

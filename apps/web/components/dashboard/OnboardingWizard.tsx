@@ -186,20 +186,12 @@ export function OnboardingWizard() {
   return (
     <section className="indeed-panel overflow-hidden">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--vintage-border)] bg-brand-light/60 p-4">
-        <div className="flex items-center gap-2.5">
-          <span className="flex size-9 items-center justify-center rounded-xl border border-[var(--vintage-border)] bg-white text-brand">
-            <Sparkles className="size-4.5" aria-hidden />
-          </span>
-          <div>
-            <h2 className="text-sm font-extrabold text-ink">شروع آسان</h2>
-            <p className="text-[11px] text-muted">
-              مرحله‌به‌مرحله تا راه‌اندازی کامل کسب‌وکار و دریافت تیک‌ها
-            </p>
-          </div>
-        </div>
-        <div className="flex min-w-[160px] flex-1 flex-col gap-1 sm:max-w-xs">
+        <div className="flex min-w-0 flex-1 flex-col gap-1 sm:max-w-sm">
           <div className="flex items-center justify-between text-[11px] font-bold text-muted">
-            <span>پیشرفت شما</span>
+            <span className="flex items-center gap-1.5">
+              <Sparkles className="size-3.5 text-brand" aria-hidden />
+              پیشرفت شما
+            </span>
             <span className="text-ink">
               {payload.completed.toLocaleString('fa-IR')} از {payload.total.toLocaleString('fa-IR')}
             </span>

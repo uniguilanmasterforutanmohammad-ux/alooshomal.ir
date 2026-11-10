@@ -8,7 +8,6 @@ import { BadgeCheck, Clock, Eye, IdCard, LifeBuoy } from 'lucide-react';
 import { api, type Biolink, type BusinessCard, type Paged } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useFeatures } from '@/lib/features';
-import { OnboardingWizard } from '@/components/dashboard/OnboardingWizard';
 
 interface TicketSummary {
   open: number;
@@ -104,8 +103,6 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {isFeatureVisible('featureOnboarding') ? <OnboardingWizard /> : null}
-
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile icon={IdCard} label="بیولینک‌ها" value={biolinks.length} />
         <StatTile
@@ -153,6 +150,14 @@ export default function DashboardPage() {
               <h3 className="text-sm font-extrabold text-ink">دسترسی سریع</h3>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3">
+              {isFeatureVisible('featureOnboarding') ? (
+                <Link
+                  href="/dashboard/onboarding"
+                  className="indeed-btn indeed-btn-primary py-2 text-sm"
+                >
+                  شروع آسان
+                </Link>
+              ) : null}
               {isFeatureVisible('allowBiolinkCreation') ? (
                 <Link
                   href="/dashboard/biolinks/new"

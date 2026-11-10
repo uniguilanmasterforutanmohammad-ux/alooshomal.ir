@@ -16,6 +16,7 @@ import {
   ImagePlus,
   Newspaper,
   ShieldCheck,
+  Sparkles,
   TrendingUp,
   UserRound,
   Wallet,
@@ -60,6 +61,7 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
   {
     title: 'محتوا و علاقه‌مندی‌ها',
     items: [
+      { href: '/dashboard/onboarding', label: 'شروع آسان', icon: Sparkles, exact: false, feature: 'featureOnboarding' },
       { href: '/dashboard/business-cards', label: 'کارت‌های ویزیت من', icon: BadgeCheck, exact: false },
       { href: '/dashboard/biolinks', label: 'بیولینک‌های من', icon: IdCard, exact: false },
       { href: '/dashboard/feeds', label: 'پست‌های من', icon: ImagePlus, exact: false, feature: 'featureFeedPosts' },
@@ -124,7 +126,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
     user?.role === 'USER' || user?.role === 'CITIZEN_REPORTER';
   const { completed: profileCompleted } = useProfileStatus(isRegularUser);
   const showProfileBanner =
-    isRegularUser && !profileCompleted && pathname !== '/dashboard/profile';
+    isRegularUser && !profileCompleted && pathname !== '/dashboard/onboarding';
   const [open, setOpen] = useState(false);
   const isVisible = (item: NavItem) =>
     !item.feature || isFeatureVisible(item.feature);
@@ -285,14 +287,14 @@ export function UserShell({ children }: { children: React.ReactNode }) {
             <ShieldCheck className="size-4 shrink-0" aria-hidden />
             <span className="flex-1 leading-6">
               پروفایل شما ناقص است؛ برای ساخت بیولینک، کارت ویزیت، پست فید و
-              خرید خدمات، نام، نام خانوادگی و کد ملی را ثبت کنید.
+              خرید خدمات، ابتدا استعلام هویت را در «شروع آسان» کامل کنید.
             </span>
             <Link
-              href="/dashboard/profile"
+              href="/dashboard/onboarding"
               prefetch={false}
               className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700"
             >
-              تکمیل پروفایل
+              شروع آسان
             </Link>
           </div>
         ) : null}

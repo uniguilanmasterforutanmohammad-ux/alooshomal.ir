@@ -24,7 +24,8 @@ type Step = 'phone' | 'code';
  *  1. `phone`   — enter the mobile number, request a one-time code.
  *  2. `code`    — the OTP field only. Both new and returning numbers finish
  *                 here; a new account starts with just the phone number and
- *                 completes its identity on `/dashboard/profile`.
+ *                 completes its identity in the «شروع آسان» section
+ *                 (`/dashboard/onboarding`).
  *
  * Email is no longer collected in the phone flow. An «ورود با ایمیل و رمز
  * عبور» escape hatch is still available for accounts that prefer that method.
