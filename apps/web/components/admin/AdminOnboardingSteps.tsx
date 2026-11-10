@@ -15,6 +15,7 @@ import { api } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 type StepKind =
+  | 'welcome'
   | 'identity'
   | 'business'
   | 'details'
@@ -33,6 +34,7 @@ interface EditableStep {
 }
 
 const KIND_LABEL: Record<StepKind, string> = {
+  welcome: 'خوش‌آمدگویی (تیک دستی کاربر)',
   identity: 'استعلام هویت (خودکار)',
   business: 'ساخت کسب‌وکار (خودکار)',
   details: 'تکمیل مشخصات (خودکار)',
@@ -43,6 +45,7 @@ const KIND_LABEL: Record<StepKind, string> = {
 };
 
 const KIND_OPTIONS: StepKind[] = [
+  'welcome',
   'identity',
   'business',
   'details',
@@ -108,7 +111,9 @@ export function AdminOnboardingSteps() {
 
   function addStep() {
     const used = new Set(steps.map((step) => step.kind));
-    const nextKind = KIND_OPTIONS.find((kind) => kind !== 'custom' && !used.has(kind));
+    const nextKind = KIND_OPTIONS.find(
+      (kind) => kind !== 'custom' && kind !== 'welcome' && !used.has(kind),
+    );
     setSteps((prev) => [
       ...prev,
       {

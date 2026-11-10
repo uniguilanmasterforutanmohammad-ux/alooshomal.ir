@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import {
   DEFAULT_ONBOARDING_STEPS,
+  MANUAL_STEP_KINDS,
   ONBOARDING_STEPS_SETTING_KEY,
   ONBOARDING_STEP_KINDS,
   type OnboardingProgressPayload,
@@ -23,8 +24,11 @@ import type { OnboardingStepDto } from './dto/onboarding.dto';
 
 /** The built-in kinds whose completion is derived from account data. */
 const BUILT_IN_KINDS = new Set<OnboardingStepKind>(
-  ONBOARDING_STEP_KINDS.filter((kind) => kind !== 'custom'),
+  ONBOARDING_STEP_KINDS.filter((kind) => !MANUAL_STEP_KINDS.includes(kind)),
 );
+
+/** The kinds the user ticks off manually (welcome + admin-added steps). */
+const MANUAL_KINDS = new Set<OnboardingStepKind>(MANUAL_STEP_KINDS);
 
 @Injectable()
 export class OnboardingService implements OnModuleInit {
@@ -265,7 +269,7 @@ export class OnboardingService implements OnModuleInit {
     const steps = await this.getSteps();
     const step = steps.find((entry) => entry.id === stepId && entry.enabled);
     if (!step) throw new NotFoundException('مرحله یافت نشد');
-    if (step.kind !== 'custom') {
+    if (!MANUAL_KINDS.has(step.kind)) {
       throw new BadRequestException(
         'این مرحله به‌صورت خودکار تکمیل می‌شود و تیک دستی ندارد.',
       );
@@ -374,6 +378,8 @@ export class OnboardingService implements OnModuleInit {
         return 'در انتظار انتخاب طرح';
       case 'approval':
         return 'در انتظار تأیید مدیر';
+      case 'welcome':
+        return 'تکمیل نشده — برای شروع وارد شوید';
       default:
         return 'انجام نشده';
     }

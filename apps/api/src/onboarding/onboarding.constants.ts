@@ -10,6 +10,7 @@
 export const ONBOARDING_STEPS_SETTING_KEY = 'onboardingSteps';
 
 export type OnboardingStepKind =
+  | 'welcome'
   | 'identity'
   | 'business'
   | 'details'
@@ -19,6 +20,7 @@ export type OnboardingStepKind =
   | 'custom';
 
 export const ONBOARDING_STEP_KINDS: OnboardingStepKind[] = [
+  'welcome',
   'identity',
   'business',
   'details',
@@ -27,6 +29,12 @@ export const ONBOARDING_STEP_KINDS: OnboardingStepKind[] = [
   'approval',
   'custom',
 ];
+
+/**
+ * Kinds whose completion is a manual tick by the user (no account data to
+ * derive it from): the informational welcome screen and admin-added steps.
+ */
+export const MANUAL_STEP_KINDS: OnboardingStepKind[] = ['welcome', 'custom'];
 
 export interface OnboardingStepDef {
   /** stable id; built-in steps use their `kind` as the id. */
@@ -41,6 +49,14 @@ export interface OnboardingStepDef {
 }
 
 export const DEFAULT_ONBOARDING_STEPS: OnboardingStepDef[] = [
+  {
+    id: 'welcome',
+    kind: 'welcome',
+    title: 'به شمالی‌کارت خوش آمدید',
+    description:
+      'آماده‌اید کسب‌وکارتان را ثبت کنیم؟ در چند مرحله‌ی ساده از استعلام هویت تا ساخت کارت ویزیت و صفحه‌ی مشاغل همراهتان هستیم. برای شروع دکمه‌ی زیر را بزنید.',
+    enabled: true,
+  },
   {
     id: 'identity',
     kind: 'identity',
