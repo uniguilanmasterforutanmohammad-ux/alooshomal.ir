@@ -13,7 +13,6 @@ import {
   Mail,
   MapPin,
   MessageCircle,
-  Navigation,
   Phone,
   Send,
   Smartphone,
@@ -22,6 +21,7 @@ import {
 
 import { BusinessGallery } from '@/components/business/BusinessGallery';
 import { BusinessReviews } from '@/components/business/BusinessReviews';
+import { BusinessSectionNav } from '@/components/business/BusinessSectionNav';
 import { RatingStars } from '@/components/business/RatingStars';
 import { WorkingHoursTable } from '@/components/business/WorkingHoursTable';
 import { Footer } from '@/components/layout/Footer';
@@ -269,15 +269,17 @@ export default async function BusinessProfilePage({
             خانه
           </Link>
           <ChevronLeft className="size-3.5" aria-hidden />
-          <Link href="/categories" className="hover:text-brand">
+          <Link href="/categories" className="hidden hover:text-brand sm:inline">
             دسته‌بندی مشاغل
           </Link>
-          <ChevronLeft className="size-3.5" aria-hidden />
-          <Link href={categoryHref} className="hover:text-brand">
+          <ChevronLeft className="hidden size-3.5 sm:block" aria-hidden />
+          <Link href={categoryHref} className="hidden hover:text-brand sm:inline">
             {card.business?.name ?? 'کسب‌وکارها'}
           </Link>
-          <ChevronLeft className="size-3.5" aria-hidden />
-          <span className="truncate font-bold text-ink">{card.fullName}</span>
+          <ChevronLeft className="hidden size-3.5 shrink-0 sm:block" aria-hidden />
+          <span className="min-w-0 max-w-[45vw] truncate font-bold text-ink sm:max-w-xs">
+            {card.fullName}
+          </span>
         </nav>
 
         <section className="biz-hero">
@@ -348,65 +350,71 @@ export default async function BusinessProfilePage({
             </div>
 
             <div className="biz-hero-actions">
-              {phone ? (
-                <a
-                  href={`tel:${phone.replace(/\s/g, '')}`}
-                  className="indeed-btn indeed-btn-primary"
-                >
-                  <Phone className="size-4" aria-hidden />
-                  تماس
-                </a>
-              ) : null}
-              {whatsapp ? (
-                <a
-                  href={whatsapp}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="indeed-btn indeed-btn-secondary"
-                >
-                  <MessageCircle className="size-4" aria-hidden />
-                  واتساپ
-                </a>
-              ) : null}
-              <span
-                className="biz-route-soon"
-                title="نقشه و مسیریابی به‌زودی اضافه می‌شود"
-              >
-                <Navigation className="size-4" aria-hidden />
-                مسیریابی (به‌زودی)
-              </span>
+              <div className="biz-hero-contact">
+                {phone ? (
+                  <a
+                    href={`tel:${phone.replace(/\s/g, '')}`}
+                    className="indeed-btn indeed-btn-primary"
+                  >
+                    <Phone className="size-4" aria-hidden />
+                    تماس
+                  </a>
+                ) : null}
+                {whatsapp ? (
+                  <a
+                    href={whatsapp}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="indeed-btn indeed-btn-secondary"
+                  >
+                    <MessageCircle className="size-4" aria-hidden />
+                    واتساپ
+                  </a>
+                ) : null}
+              </div>
+              <div className="biz-hero-tools">
               <ShareButton
                 url={absoluteUrl(`/business/${card.slug}`)}
                 title={card.fullName}
                 size="md"
+                iconOnly
               />
-              <SaveButton kind="business-cards" slug={card.slug} size="md" reconcile />
-              <LikeButton
-                kind="business-cards"
-                slug={card.slug}
-                initialCount={payload.like?.likeCount ?? 0}
-                initialLiked={payload.like?.liked ?? false}
-                size="md"
-              />
+                <SaveButton
+                  kind="business-cards"
+                  slug={card.slug}
+                  size="md"
+                  iconOnly
+                  reconcile
+                />
+                <LikeButton
+                  kind="business-cards"
+                  slug={card.slug}
+                  initialCount={payload.like?.likeCount ?? 0}
+                  initialLiked={payload.like?.liked ?? false}
+                  size="md"
+                />
+              </div>
             </div>
           </div>
         </section>
 
+        <BusinessSectionNav />
+
         <div className="biz-layout">
           <div className="min-w-0 space-y-4">
-            <section className="biz-section">
+            <section id="about" className="biz-section">
               <h2 className="biz-section-title">درباره این کسب‌وکار</h2>
               <p className="whitespace-pre-line text-sm leading-8 text-ink">
                 {card.bio || 'توضیحی ثبت نشده است.'}
               </p>
             </section>
 
-            <section className="biz-section">
+            <section id="gallery" className="biz-section">
               <h2 className="biz-section-title">تصاویر و ویدئوها</h2>
               <BusinessGallery images={card.gallery ?? []} name={card.fullName} />
             </section>
 
-            <section className="biz-section">
+            <section id="info" className="biz-section">
               <h2 className="biz-section-title">اطلاعات کسب‌وکار</h2>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
@@ -495,7 +503,7 @@ export default async function BusinessProfilePage({
               </div>
             </section>
 
-            <section className="biz-section">
+            <section id="hours" className="biz-section">
               <h2 className="biz-section-title">ساعات کاری</h2>
               <WorkingHoursTable hours={card.workingHours} />
             </section>
@@ -550,57 +558,63 @@ export default async function BusinessProfilePage({
           </div>
 
           <aside className="biz-aside">
-            <div className="indeed-panel p-4">
-              <h2 className="text-sm font-extrabold text-ink">تماس سریع</h2>
-              {phone ? (
-                <a
-                  href={`tel:${phone.replace(/\s/g, '')}`}
-                  className="indeed-btn indeed-btn-primary mt-3 w-full"
-                >
-                  <Phone className="size-4" aria-hidden />
-                  {phone}
-                </a>
-              ) : null}
-              {whatsapp ? (
-                <a
-                  href={whatsapp}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="indeed-btn indeed-btn-secondary mt-2 w-full"
-                >
-                  <MessageCircle className="size-4" aria-hidden />
-                  گفتگو در واتساپ
-                </a>
-              ) : null}
-              {card.website ? (
-                <a
-                  href={externalHref(card.website)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="indeed-btn indeed-btn-secondary mt-2 w-full"
-                >
-                  <Globe className="size-4" aria-hidden />
-                  وب‌سایت کسب‌وکار
-                </a>
-              ) : null}
-              {card.address ? (
-                <p className="mt-3 flex items-start gap-1.5 border-t border-[var(--vintage-border)] pt-3 text-xs leading-6 text-muted">
-                  <MapPin className="mt-1 size-3.5 shrink-0 text-brand" aria-hidden />
-                  {card.address}
+            {hasContact ? (
+              <div className="indeed-panel p-4">
+                <h2 className="text-sm font-extrabold text-ink">تماس سریع</h2>
+                {phone ? (
+                  <a
+                    href={`tel:${phone.replace(/\s/g, '')}`}
+                    className="indeed-btn indeed-btn-primary mt-3 w-full"
+                  >
+                    <Phone className="size-4" aria-hidden />
+                    {phone}
+                  </a>
+                ) : null}
+                {whatsapp ? (
+                  <a
+                    href={whatsapp}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="indeed-btn indeed-btn-secondary mt-2 w-full"
+                  >
+                    <MessageCircle className="size-4" aria-hidden />
+                    گفتگو در واتساپ
+                  </a>
+                ) : null}
+                {card.website ? (
+                  <a
+                    href={externalHref(card.website)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="indeed-btn indeed-btn-secondary mt-2 w-full"
+                  >
+                    <Globe className="size-4" aria-hidden />
+                    وب‌سایت کسب‌وکار
+                  </a>
+                ) : null}
+                {card.address ? (
+                  <p className="mt-3 flex items-start gap-1.5 border-t border-[var(--vintage-border)] pt-3 text-xs leading-6 text-muted">
+                    <MapPin className="mt-1 size-3.5 shrink-0 text-brand" aria-hidden />
+                    {card.address}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {payload.qr ? (
+              <div className="indeed-panel p-4 text-center">
+                <p className="text-sm font-extrabold text-ink">اشتراک‌گذاری سریع</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={payload.qr}
+                  alt="کد QR صفحه کسب‌وکار"
+                  className="mx-auto mt-3 size-32 rounded-lg bg-white p-1"
+                />
+                <p className="mt-2 text-[11px] leading-5 text-muted">
+                  با اسکن این کد، صفحه کسب‌وکار را با دیگران به اشتراک بگذارید.
                 </p>
-              ) : null}
-              {payload.qr ? (
-                <div className="mt-4 border-t border-[var(--vintage-border)] pt-4">
-                  <p className="text-xs font-bold text-muted">اشتراک‌گذاری سریع</p>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={payload.qr}
-                    alt="کد QR صفحه کسب‌وکار"
-                    className="mt-2 mx-auto size-28 rounded-lg bg-white p-1"
-                  />
-                </div>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
 
             <div className="biz-aside-note">
               <Clock className="size-5 text-brand" aria-hidden />

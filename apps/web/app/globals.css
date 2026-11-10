@@ -5853,6 +5853,7 @@ html[data-theme='bazaar'] .bizcard-avatar {
 .category-chip {
   display: inline-flex;
   align-items: center;
+  min-height: 32px;
   padding: 5px 11px;
   border: 1px solid var(--vintage-border);
   border-radius: 999px;
@@ -5986,22 +5987,80 @@ html[data-theme='bazaar'] .bizcard-avatar {
 .biz-hero-actions {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 14px;
 }
 
-.biz-route-soon {
-  display: inline-flex;
+.biz-hero-contact,
+.biz-hero-tools {
+  display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 14px;
-  border: 1px dashed var(--vintage-border);
-  border-radius: var(--vintage-radius);
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.biz-hero-tools > * {
+  min-height: 40px;
+}
+
+.biz-hero-tools > button {
+  min-width: 40px;
+}
+
+/* Sticky in-page section tabs (درباره / تصاویر / آدرس و تماس / ساعات کاری /
+   دیدگاه‌ها). On phones it scrolls horizontally so every tab stays reachable
+   without wrapping into several rows; `scroll-margin-top` on the target
+   sections keeps their titles clear of the sticky header. */
+.biz-tabs {
+  position: sticky;
+  top: calc(66px + var(--feature-notice-h));
+  z-index: 20;
+  margin-top: 16px;
+  border: 1px solid var(--vintage-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--vintage-surface) 92%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.biz-tabs-inner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 4px;
+  scrollbar-width: none;
+}
+
+.biz-tabs-inner::-webkit-scrollbar {
+  display: none;
+}
+
+.biz-tab {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border-radius: 10px;
   color: var(--vintage-ink-soft);
   font-size: 13px;
   font-weight: 700;
-  cursor: not-allowed;
+  white-space: nowrap;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.biz-tab:hover {
+  color: var(--vintage-accent);
+  background: var(--indeed-blue-light);
+}
+
+.biz-tab-active,
+.biz-tab-active:hover {
+  background: var(--vintage-accent);
+  color: #fff7ed;
+}
+
+.biz-section {
+  scroll-margin-top: calc(66px + var(--feature-notice-h) + 60px);
 }
 
 .biz-layout {
@@ -6328,19 +6387,48 @@ html[data-theme='bazaar'] .bizcard-avatar {
     padding: 16px;
   }
 
+  .biz-hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .biz-hero-contact {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .biz-hero-contact > .indeed-btn {
+    justify-content: center;
+  }
+
+  .biz-hero-contact > .indeed-btn:only-child {
+    grid-column: 1 / -1;
+  }
+
+  .biz-hero-tools {
+    justify-content: flex-start;
+  }
+
   .categories-hero-count {
     margin-inline-start: 0;
   }
 
   .category-result {
     flex-wrap: wrap;
+    column-gap: 10px;
   }
 
   .category-result-actions {
     flex-direction: row;
     width: 100%;
-    margin-top: 2px;
-    padding-inline-start: 36px;
+    margin-top: 12px;
+    padding-inline-start: 0;
+  }
+
+  .category-result-actions > * {
+    flex: 1 1 0;
+    justify-content: center;
+    min-height: 38px;
   }
 
   .biz-hero-media {
@@ -6352,4 +6440,52 @@ html[data-theme='bazaar'] .bizcard-avatar {
   .biz-section {
     padding: 16px;
   }
+}
+
+/* Phones / tablets hide the sticky top header and use the bottom nav instead,
+   so the section tabs stick to the very top of the viewport. */
+@media (max-width: 1023px) {
+  .biz-tabs {
+    top: var(--feature-notice-h);
+  }
+
+  .biz-section {
+    scroll-margin-top: calc(var(--feature-notice-h) + 60px);
+  }
+}
+
+/* ---- Dark-mode fix-ups for the catalog/profile layer ----
+   The verified / ad / like / star accents use light pastel Tailwind colours
+   that wash out on the warm dark surfaces, so they get explicit dark variants
+   here (this block sits after the theme rules, so it wins). */
+html.dark .biz-review-bar {
+  background: color-mix(in srgb, var(--vintage-border) 70%, transparent);
+}
+
+html.dark .biz-review-bar > span {
+  background: var(--vintage-accent);
+}
+
+html.dark .biz-tab-active,
+html.dark .biz-tab-active:hover,
+html.dark .category-chip-active,
+html.dark .category-chip-active:hover {
+  color: #241914;
+}
+
+/* Pastel status pills (verified / ad / warning) read as near-white blocks on
+   the dark warm surface; give them translucent, theme-aware washes instead. */
+html.dark .bg-sky-50 {
+  background-color: rgba(56, 132, 190, 0.18);
+}
+html.dark .text-sky-700 {
+  color: #9ecdf0;
+}
+html.dark .bg-amber-100,
+html.dark .bg-amber-50 {
+  background-color: rgba(217, 154, 40, 0.16);
+}
+html.dark .text-amber-800,
+html.dark .text-amber-700 {
+  color: #f0c078;
 }

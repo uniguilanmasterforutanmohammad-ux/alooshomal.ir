@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { Loader2, MessageSquarePlus, Pencil, Star, Trash2 } from 'lucide-react';
+import { Loader2, MessageSquarePlus, Pencil, Star, Trash2, X } from 'lucide-react';
 
 import {
   api,
@@ -39,7 +39,9 @@ export function BusinessReviews({ slug, initial, ownerUserId }: Props) {
   const [comment, setComment] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const canReview = features.featureBusinessReviews !== false;
   const visible = isFeatureVisible('featureBusinessReviews');
@@ -93,7 +95,12 @@ export function BusinessReviews({ slug, initial, ownerUserId }: Props) {
           result.review,
           ...prev.items.filter((item) => item.id !== result.review.id),
         ],
-        meta: { ...prev.meta, total: result.summary.count },
+        meta: {
+          ...prev.meta,
+          total: result.summary.count,
+          totalPages: Math.max(1, Math.ceil(result.summary.count / prev.meta.limit)),
+          hasNext: prev.items.length + 1 < result.summary.count,
+        },
       }));
       toast.success(
         result.review.updatedAt !== result.review.createdAt
@@ -106,7 +113,7 @@ export function BusinessReviews({ slug, initial, ownerUserId }: Props) {
   }
 
   async function remove() {
-    if (!window.confirm('دیدگاه و امتیاز خود را حذف می‌کنید؟')) return;
+    setConfirmDelete(false);
     setDeleting(true);
     try {
       const result = await api.delete<{ summary: ReviewSummary }>(
@@ -116,7 +123,12 @@ export function BusinessReviews({ slug, initial, ownerUserId }: Props) {
         ...prev,
         summary: result.summary,
         items: prev.items.filter((item) => !item.mine && item.id !== mine?.id),
-        meta: { ...prev.meta, total: result.summary.count },
+        meta: {
+          ...prev.meta,
+          total: result.summary.count,
+          totalPages: Math.max(1, Math.ceil(result.summary.count / prev.meta.limit)),
+          hasNext: prev.items.length > result.summary.count,
+        },
       }));
       setMine(null);
       setRating(5);
@@ -208,13 +220,26 @@ export function BusinessReviews({ slug, initial, ownerUserId }: Props) {
             </Link>
           </div>
         ) : (
-          <form onSubmit={submit} className="biz-review-form">
+          <form onSubmit={submit} ref={formRef} className="biz-review-form">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-bold text-ink">
                 {mine ? 'دیدگاه شما' : 'دیدگاه خود را ثبت کنید'}
               </p>
             </div>
-            <div className="mt-3 flex items-center gap-1" role="radiogroup" aria-label="امتیاز">
+            <div
+              className="mt-3 flex items-center gap-1"
+              role="radiogroup"
+              aria-label="امتیاز"
+              onKeyDown={(event) => {
+                if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+                  return;
+                }
+                event.preventDefault();
+                const step =
+                  event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? 1 : -1;
+                setRating((prev) => Math.min(5, Math.max(1, prev + step)));
+              }}
+            >
               {STAR_VALUES.slice()
                 .reverse()
                 .map((value) => (
@@ -224,8 +249,9 @@ export function BusinessReviews({ slug, initial, ownerUserId }: Props) {
                     role="radio"
                     aria-checked={rating === value}
                     aria-label={`${value} ستاره`}
+                    tabIndex={value === rating ? 0 : -1}
                     onClick={() => setRating(value)}
-                    className="rounded p-0.5 transition hover:scale-110"
+                    className="rounded p-0.5 transition hover:scale-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--vintage-accent)]"
                   >
                     <Star
                       className={
@@ -261,19 +287,41 @@ export function BusinessReviews({ slug, initial, ownerUserId }: Props) {
                 {mine ? 'ذخیره تغییرات' : 'ثبت دیدگاه'}
               </button>
               {mine ? (
-                <button
-                  type="button"
-                  onClick={() => void remove()}
-                  disabled={deleting}
-                  className="indeed-btn border border-red-200 bg-red-50 text-red-600 disabled:opacity-60"
-                >
-                  {deleting ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
+                confirmDelete ? (
+                  <span className="inline-flex items-center gap-2">
+                    <span className="text-xs font-bold text-muted">مطمئنید؟</span>
+                    <button
+                      type="button"
+                      onClick={() => void remove()}
+                      disabled={deleting}
+                      className="indeed-btn border border-red-200 bg-red-50 text-red-600 disabled:opacity-60"
+                    >
+                      {deleting ? (
+                        <Loader2 className="size-4 animate-spin" aria-hidden />
+                      ) : (
+                        <Trash2 className="size-4" aria-hidden />
+                      )}
+                      بله، حذف کن
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(false)}
+                      className="indeed-btn indeed-btn-secondary"
+                    >
+                      <X className="size-4" aria-hidden />
+                      انصراف
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                    className="indeed-btn border border-red-200 bg-red-50 text-red-600"
+                  >
                     <Trash2 className="size-4" aria-hidden />
-                  )}
-                  حذف دیدگاه
-                </button>
+                    حذف دیدگاه
+                  </button>
+                )
               ) : null}
             </div>
           </form>
@@ -327,9 +375,7 @@ export function BusinessReviews({ slug, initial, ownerUserId }: Props) {
                     onClick={() => {
                       setRating(review.rating);
                       setComment(review.comment ?? '');
-                      document
-                        .querySelector('.biz-review-form')
-                        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }}
                     className="inline-flex items-center gap-1 text-xs font-bold text-brand hover:underline"
                   >
