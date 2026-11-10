@@ -10,17 +10,18 @@ export interface PublicNavItem {
 }
 
 export const PUBLIC_NAV: PublicNavItem[] = [
-  { href: '/business-cards', label: 'لیست کارت ویزیت‌ها' },
-  { href: '/biolinks', label: 'لیست بیولینک‌ها' },
+  { href: '/categories', label: 'مشاغل' },
+  { href: '/business-cards', label: 'کارت‌های ویزیت' },
+  { href: '/biolinks', label: 'بیولینک‌ها' },
   { href: '/business-cards?view=notebook&sort=alpha', label: 'دفترچه تلفن' },
-  { href: '/feeds', label: 'پست کاربران' },
-  { href: '/pulse', label: 'اخبار شهر' },
+  { href: '/feeds', label: 'پست‌ها' },
+  { href: '/pulse', label: 'اخبار' },
   { href: '/blog', label: 'بلاگ' },
-  { href: '/services', label: 'لیست خدمات' },
+  { href: '/services', label: 'خدمات' },
   { href: '/pricing', label: 'تعرفه‌ها' },
   { href: '/guide', label: 'راهنما' },
   { href: '/rules', label: 'قوانین' },
-  { href: '/contact', label: 'تماس با ما' },
+  { href: '/contact', label: 'تماس' },
 ];
 
 /** The «دفترچه تلفن» deep-link's href, so the header can hide just this item. */

@@ -19,7 +19,7 @@ export interface UploadCategory {
   label: string;
 }
 
-export type UploadCategoryKey = 'logo' | 'avatar' | 'feed';
+export type UploadCategoryKey = 'logo' | 'avatar' | 'feed' | 'gallery';
 
 export const UPLOAD_CATEGORIES: Record<UploadCategoryKey, UploadCategory> = {
   logo: { folder: 'logos', maxWidth: 512, maxHeight: 512, label: 'لوگو' },
@@ -31,6 +31,12 @@ export const UPLOAD_CATEGORIES: Record<UploadCategoryKey, UploadCategory> = {
     label: 'تصویر پروفایل',
   },
   feed: { folder: 'feeds', maxWidth: 1080, maxHeight: 1350, label: 'تصویر فید' },
+  gallery: {
+    folder: 'gallery',
+    maxWidth: 1600,
+    maxHeight: 1600,
+    label: 'تصویر گالری',
+  },
 };
 
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB

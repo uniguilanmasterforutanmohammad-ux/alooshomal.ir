@@ -319,7 +319,10 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
       'اگر خاموش باشد، کاربران نمی‌توانند کارت ویزیت جدید بسازند. خاموش‌کردن «نمایش» صفحه‌ی «کارت‌های ویزیت» را هم متوقف می‌کند.',
     group: 'ساخت محتوا',
     default: true,
-    publicSection: { name: 'کارت‌های ویزیت', routes: ['/business-cards'] },
+    publicSection: {
+      name: 'کارت‌های ویزیت',
+      routes: ['/business-cards', '/categories', '/business'],
+    },
   },
   {
     key: 'featureFeedPosts',
@@ -344,6 +347,14 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     label: 'کامنت کاربران روی پست‌های فید',
     description:
       'اگر خاموش باشد، کاربران نمی‌توانند روی پست‌های فید کامنت بگذارند. کامنت‌ها پیش از نمایش عمومی توسط مدیر تأیید می‌شوند.',
+    group: 'ساخت محتوا',
+    default: true,
+  },
+  {
+    key: 'featureBusinessReviews',
+    label: 'دیدگاه و امتیاز کسب‌وکارها',
+    description:
+      'اگر خاموش باشد، کاربران نمی‌توانند برای کسب‌وکارها دیدگاه و امتیاز ثبت یا ویرایش کنند؛ دیدگاه‌های قبلی همچنان نمایش داده می‌شوند.',
     group: 'ساخت محتوا',
     default: true,
   },

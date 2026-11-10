@@ -27,6 +27,7 @@ interface DirectoryBusinessCardItem {
   jobTitle: string | null;
   company: string | null;
   bio: string | null;
+  address: string | null;
   phone: string | null;
   mobile: string | null;
   avatarUrl: string | null;
@@ -40,6 +41,9 @@ interface DirectoryBusinessCardItem {
   city: { id: string; name: string } | null;
   business: { id: string; name: string } | null;
   likeCount: number;
+  /** aggregate review rating + count (kept in sync by the reviews service) */
+  ratingAvg: number;
+  ratingCount: number;
   /** The owner passed the paid identity inquiry and has the blue tick. */
   ownerVerified: boolean;
 }
@@ -159,12 +163,15 @@ export class BusinessCardsDirectoryService {
       jobTitle: true,
       company: true,
       bio: true,
+      address: true,
       phone: true,
       mobile: true,
       avatarUrl: true,
       logoUrl: true,
       primaryColor: true,
       template: true,
+      ratingAvg: true,
+      ratingCount: true,
       publishedAt: true,
       pinnedAt: true,
       boostedUntil: true,

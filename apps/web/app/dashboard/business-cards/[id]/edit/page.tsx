@@ -81,6 +81,8 @@ export default function EditBiolinkPage() {
               biolinkId: businessCard.linkedBiolinks?.[0]?.id ?? '',
               avatarUrl: businessCard.avatarUrl ?? '',
               logoUrl: businessCard.logoUrl ?? '',
+              gallery: businessCard.gallery ?? [],
+              workingHours: businessCard.workingHours ?? {},
             }}
             onSubmit={handleSubmit}
             submitting={submitting}

@@ -464,6 +464,7 @@ model User {
   feedPosts         FeedPost[]
   feedSaves         FeedSave[]
   feedComments      FeedComment[]
+  businessReviews   BusinessReview[]
   feedCommentDecisions FeedComment[] @relation("FeedCommentDecisions")
   feedTagDecisions  FeedPost[]   @relation("FeedTagDecisions")
   blogPosts         BlogPost[]   @relation("BlogCreatedBy")
@@ -872,6 +873,17 @@ model BusinessCard {
   address     String?
   avatarUrl   String?
   logoUrl     String?
+  /// «ساعات کاری» — optional per-day open/close times, keyed by the English
+  /// weekday name (`saturday` … `friday`). Stored as JSON so the profile page
+  /// can render a proper weekly table instead of free text.
+  workingHours Json?
+  /// «گالری تصاویر» — public image URLs uploaded by the owner.
+  gallery     String[] @default([])
+
+  /// Aggregate review rating kept in sync by the reviews service, so directory
+  /// and category listings can sort/show stars without a per-row aggregate.
+  ratingAvg   Float    @default(0)
+  ratingCount Int      @default(0)
 
   // social links
   linkedin  String?
@@ -915,6 +927,7 @@ model BusinessCard {
   likes       BusinessCardLike[]
   saves       BusinessCardSave[]
   feedTags    FeedPost[]         @relation("FeedTagBusinessCard")
+  reviews     BusinessReview[]
 
   @@index([userId])
   @@index([slug])
@@ -925,6 +938,30 @@ model BusinessCard {
   @@index([pinnedAt])
   @@index([isTestData])
   @@map("business_cards")
+}
+
+/// One public review (rating + optional comment) by a signed-in user for a
+/// published business card. A user can review the same business once and edit
+/// that review later; `authorName` is snapshotted for a stable public display.
+model BusinessReview {
+  id             String   @id @default(cuid())
+  businessCardId String
+  userId         String
+  authorName     String
+  rating         Int
+  comment        String?
+  /// Reserved for admin moderation; hidden rows are excluded from averages.
+  isHidden       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  businessCard BusinessCard @relation(fields: [businessCardId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([businessCardId, userId])
+  @@index([businessCardId, isHidden, createdAt])
+  @@index([userId])
+  @@map("business_reviews")
 }
 
 model BusinessCardScanEvent {

@@ -14,6 +14,7 @@ import {
 
 import { UpdateBiolinkDto } from '../biolinks/dto/update-biolink.dto';
 import { UpdateBusinessCardDto } from '../businesscards/dto/update-business-card.dto';
+import { sanitizeWorkingHours } from '../businesscards/working-hours';
 import { ActivityService } from '../activity/activity.service';
 import { addJalaliMonths, jalaliParts } from '../common/jalali';
 import { PaginationDto } from '../common/dto/pagination.dto';
@@ -432,9 +433,14 @@ export class AdminService {
       }
     }
 
+    const { workingHours: rawWorkingHours, ...fields } = dto;
+    const workingHours = sanitizeWorkingHours(rawWorkingHours);
     const updated = await this.prisma.businessCard.update({
       where: { id: businessCardId },
-      data: { ...dto },
+      data: {
+        ...fields,
+        ...(workingHours !== undefined ? { workingHours } : {}),
+      },
       include: { city: true, business: true },
     });
     this.facetsCache.invalidateDirectory('businesscard');

@@ -24,6 +24,7 @@ import { WalletService } from '../wallet/wallet.service';
 import { CreateBusinessCardDto } from './dto/create-business-card.dto';
 import { PublicPhonebookQueryDto } from './dto/public-phonebook-query.dto';
 import { UpdateBusinessCardDto } from './dto/update-business-card.dto';
+import { sanitizeWorkingHours } from './working-hours';
 
 /**
  * Upper bound on how many rows the public «دفترچه تلفن» considers for one
@@ -103,8 +104,12 @@ export class BusinessCardsService {
     );
     // `draft` is a transport-only flag: it decides the initial status and
     // whether the moderators get pinged, and must never reach Prisma.
-    const { draft, ...fields } = dto;
-    assertOwnedMediaUrls([fields.avatarUrl, fields.logoUrl], 'تصویر کارت ویزیت');
+    const { draft, workingHours: rawWorkingHours, ...fields } = dto;
+    assertOwnedMediaUrls(
+      [fields.avatarUrl, fields.logoUrl, ...(fields.gallery ?? [])],
+      'تصویر کارت ویزیت',
+    );
+    const workingHours = sanitizeWorkingHours(rawWorkingHours);
     // Global kill-switch: the admin can pause creation while load-testing.
     const locks = await this.settings.getCreationLocks();
     if (!locks.allowBusinessCardCreation) {
@@ -140,6 +145,7 @@ export class BusinessCardsService {
       const created = await tx.businessCard.create({
         data: {
           ...fields,
+          ...(workingHours !== undefined ? { workingHours } : {}),
           slug,
           userId,
           status: draft ? BiolinkStatus.DRAFT : BiolinkStatus.PENDING,
@@ -328,8 +334,12 @@ export class BusinessCardsService {
 
   async update(userId: string, id: string, dto: UpdateBusinessCardDto) {
     const existing = await this.findMineById(userId, id);
-    const { draft, ...fields } = dto;
-    assertOwnedMediaUrls([fields.avatarUrl, fields.logoUrl], 'تصویر کارت ویزیت');
+    const { draft, workingHours: rawWorkingHours, ...fields } = dto;
+    assertOwnedMediaUrls(
+      [fields.avatarUrl, fields.logoUrl, ...(fields.gallery ?? [])],
+      'تصویر کارت ویزیت',
+    );
+    const workingHours = sanitizeWorkingHours(rawWorkingHours);
     if (dto.cityId) {
       const city = await this.prisma.city.findUnique({ where: { id: dto.cityId } });
       if (!city || !city.isActive) {
@@ -369,6 +379,7 @@ export class BusinessCardsService {
         where: { id },
         data: {
           ...fields,
+          ...(workingHours !== undefined ? { workingHours } : {}),
           ...(staysDraft
             ? { status: BiolinkStatus.DRAFT, isPublished: false }
             : {

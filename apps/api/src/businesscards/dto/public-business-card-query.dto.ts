@@ -21,11 +21,11 @@ export class PublicBusinessCardQueryDto extends PaginationDto {
   businessId?: string;
 
   @ApiPropertyOptional({
-    enum: ['recent', 'liked', 'alpha'],
+    enum: ['recent', 'liked', 'alpha', 'rating'],
     default: 'recent',
-    description: 'ترتیب فهرست: جدیدترین، محبوب‌ترین یا الفبایی',
+    description: 'ترتیب فهرست: جدیدترین، محبوب‌ترین، بالاترین امتیاز یا الفبایی',
   })
   @IsOptional()
-  @IsIn(['recent', 'liked', 'alpha'])
-  sort: 'recent' | 'liked' | 'alpha' = 'recent';
+  @IsIn(['recent', 'liked', 'alpha', 'rating'])
+  sort: 'recent' | 'liked' | 'alpha' | 'rating' = 'recent';
 }

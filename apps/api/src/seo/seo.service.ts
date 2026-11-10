@@ -36,7 +36,7 @@ export class SeoService {
   constructor(private readonly prisma: PrismaService) {}
 
   async sitemapEntries(): Promise<SitemapEntry[]> {
-    const [biolinks, businessCards, feeds] = await Promise.all([
+    const [biolinks, businessCards, feeds, categories] = await Promise.all([
       this.prisma.biolink.findMany({
         where: { status: 'APPROVED', isPublished: true },
         select: { slug: true, updatedAt: true },
@@ -55,11 +55,23 @@ export class SeoService {
         orderBy: { updatedAt: 'desc' },
         take: MAX_ROWS,
       }),
+      this.prisma.businessCategory.findMany({
+        where: {
+          isActive: true,
+          businessCards: {
+            some: { status: 'APPROVED', isPublished: true },
+          },
+        },
+        select: { name: true, updatedAt: true },
+        orderBy: { updatedAt: 'desc' },
+        take: MAX_ROWS,
+      }),
     ]);
 
     const staticPages: SitemapEntry[] = [
       { path: '/', lastModified: '', changeFrequency: 'daily', priority: 1 },
       { path: '/business-cards', lastModified: '', changeFrequency: 'daily', priority: 0.9 },
+      { path: '/categories', lastModified: '', changeFrequency: 'daily', priority: 0.9 },
       { path: '/biolinks', lastModified: '', changeFrequency: 'daily', priority: 0.9 },
       // «دفترچه تلفن» is now the notebook view of /business-cards
       // (`?view=notebook`), so it no longer needs its own sitemap entry.
@@ -72,6 +84,12 @@ export class SeoService {
 
     return [
       ...staticPages,
+      ...businessCards.map((card) => ({
+        path: `/business/${card.slug}`,
+        lastModified: card.updatedAt.toISOString(),
+        changeFrequency: 'weekly' as const,
+        priority: 0.7,
+      })),
       ...businessCards.map((card) => ({
         path: `/business-cards/${card.slug}`,
         lastModified: card.updatedAt.toISOString(),
@@ -89,6 +107,12 @@ export class SeoService {
         lastModified: post.updatedAt.toISOString(),
         changeFrequency: 'weekly' as const,
         priority: 0.5,
+      })),
+      ...categories.map((category) => ({
+        path: `/categories/${encodeURIComponent(category.name)}`,
+        lastModified: category.updatedAt.toISOString(),
+        changeFrequency: 'weekly' as const,
+        priority: 0.8,
       })),
     ];
   }

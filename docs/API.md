@@ -68,7 +68,8 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 
 ## کامل‌بودن مستندات
 
-- هر کنترلر با `@ApiTags` یک گروه مشخص دارد (۲۹ کنترلر / ۲۸ برچسب).
+- هر کنترلر با `@ApiTags` یک گروه مشخص دارد (شمارش دقیق در خروجی
+  `python3 scripts/check_api_docs.py`).
 - هر مسیر باید `@ApiOperation({ summary })` و برای ورودی‌ها DTO با
   `@ApiProperty`/`@ApiPropertyOptional` داشته باشد.
 - DTOهای به‌روزرسانی با `PartialType` از DTO ساخت ارث‌بری می‌کنند، پس متادیتای
@@ -82,6 +83,27 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 | --- | --- | --- |
 | `GET` | `/business-cards/public/phonebook` | فهرست صفحه‌بندی‌شده‌ی تماس کارت‌ویزیت‌های منتشرشده‌ای که شماره دارند. پارامترهای `page`/`limit` (مشترک با `PaginationDto`) و `sort` (`alpha` پیش‌فرض / `recent`) را می‌پذیرد؛ `q` جستجو در نام/شغل/شرکت/شماره است. مرتب‌سازی الفبایی با collation فارسی در سرور انجام می‌شود (سقف ۲۰۰۰ ردیف نامزد). |
 | `GET` | `/business-cards/public/:slug` | جزئیات کامل هر مخاطب (مقصد لینک «مشاهدهٔ کارت ویزیت کامل»). |
+
+### دسته‌بندی مشاغل و صفحه‌ی کسب‌وکار
+
+صفحه‌های `/categories` و `/categories/[slug]` و `/business/[slug]` روی این
+مسیرهای عمومی بنا شده‌اند:
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET` | `/business-categories/public` | فهرست دسته‌بندی‌های شغلی فعال با تعداد کارت‌های منتشرشده‌ی هر دسته (`{ id, name, count }[]`). |
+| `GET` | `/business-categories/public/:slug` | صفحه‌ی یک دسته: `category` + فهرست صفحه‌بندی‌شده‌ی کسب‌وکارها (`items`, `meta`, `filters`) با پارامترهای `page`، `cityId`، `q` و `sort` (`recent` \| `rating` \| `liked` \| `alpha`). `slug` همان نام دسته است (URL-encoded). |
+| `GET` | `/business-reviews/public/:slug` | دیدگاه‌ها و امتیاز عمومی کسب‌وکار: `summary` (میانگین، تعداد و توزیع ستاره‌ها)، `items` و `meta`. فقط دیدگاه‌های نمایش‌پذیر. |
+| `GET` | `/business-reviews/public/:slug/mine` | دیدگاه کاربر جاری برای پیش‌پرکردن فرم (نیازمند ورود؛ در غیر این صورت `{ review: null }`). |
+| `POST` | `/business-reviews/public/:slug` | ثبت یا ویرایش دیدگاه کاربر جاری؛ بدنه `{ rating: 1..5, comment? }`. ثبت برای مالک همان کسب‌وکار مجاز نیست. |
+| `DELETE` | `/business-reviews/public/:slug/mine` | حذف دیدگاه کاربر جاری و به‌روزرسانی میانگین امتیاز. |
+| `POST` | `/uploads/gallery` | آپلود تصویر گالری کسب‌وکار (WebP)؛ خروجی `url` در فیلد `gallery` کارت ویزیت ذخیره می‌شود. |
+
+فیلدهای جدید کارت ویزیت در `CreateBusinessCardDto`/`UpdateBusinessCardDto`:
+`gallery` (حداکثر ۱۲ URL) و `workingHours` (شیء هفت‌روزه با کلیدهای
+`saturday` … `friday` و مقادیر `{ open, close, closed }` با قالب `HH:mm`).
+میانگین و تعداد امتیاز (`ratingAvg`/`ratingCount`) روی خود کارت ذخیره و پس از
+هر ثبت/ویرایش/حذف دیدگاه به‌صورت تراکنشی به‌روز می‌شود.
 
 ### تم سراسری سایت (`siteTheme`)
 

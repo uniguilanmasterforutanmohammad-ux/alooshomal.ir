@@ -248,13 +248,20 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
         ) : null}
 
         <Link
-          href={`/business-cards/${businessCard.slug}`}
+          href={`/business/${businessCard.slug}`}
           className={`indeed-btn indeed-btn-primary w-full ${
             businessCard.linkedBiolink ? 'mt-2' : 'mt-5'
           }`}
         >
           <ExternalLink className="size-4" aria-hidden />
-          مشاهده صفحه کامل کارت ویزیت
+          مشاهده صفحه کسب‌وکار
+        </Link>
+        <Link
+          href={`/business-cards/${businessCard.slug}`}
+          className="indeed-btn indeed-btn-secondary mt-2 w-full"
+        >
+          <IdCard className="size-4" aria-hidden />
+          نمایش کارت ویزیت
         </Link>
       </FitContent>
     </div>

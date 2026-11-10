@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react';
 
 import { Input } from '@/components/ui/Input';
 import { ImageUpload } from '@/components/ui/ImageUpload';
+import { GalleryUpload } from '@/components/ui/GalleryUpload';
 import { SocialInput } from '@/components/ui/SocialInput';
 import { SpectrumColorPicker } from '@/components/ui/SpectrumColorPicker';
 import { LinkSelector } from '@/components/link/LinkSelector';
 import { LiveBusinessCardPreview } from '@/components/businesscard/LiveBusinessCardPreview';
-import { api, type TaxonomyItem } from '@/lib/api';
+import { WorkingHoursEditor } from '@/components/business/WorkingHoursEditor';
+import { api, type TaxonomyItem, type WorkingHours } from '@/lib/api';
 import {
   SELECTABLE_BUSINESS_CARD_THEMES,
   DEFAULT_BUSINESS_CARD_THEME_KEY,
@@ -44,6 +46,8 @@ export interface BusinessCardFormValues {
   biolinkId: string;
   avatarUrl: string;
   logoUrl: string;
+  gallery: string[];
+  workingHours: WorkingHours;
 }
 
 const emptyValues: BusinessCardFormValues = {
@@ -68,6 +72,8 @@ const emptyValues: BusinessCardFormValues = {
   biolinkId: '',
   avatarUrl: '',
   logoUrl: '',
+  gallery: [],
+  workingHours: {},
 };
 
 interface Props {
@@ -108,6 +114,8 @@ export function BusinessCardForm({
   const [values, setValues] = useState<BusinessCardFormValues>({
     ...emptyValues,
     ...initial,
+    gallery: initial?.gallery ?? [],
+    workingHours: initial?.workingHours ?? {},
   });
   const [cities, setCities] = useState<TaxonomyItem[]>([]);
   const [businesses, setBusinesses] = useState<TaxonomyItem[]>([]);
@@ -404,6 +412,23 @@ export function BusinessCardForm({
             </div>
           </div>
 
+          <div className="indeed-panel p-6">
+            <h2 className="text-lg font-extrabold text-ink">گالری و ساعات کاری</h2>
+            <p className="mt-1 text-xs text-muted">
+              این اطلاعات در صفحه‌ی عمومی کسب‌وکار نمایش داده می‌شود.
+            </p>
+            <div className="mt-4 space-y-5">
+              <GalleryUpload
+                value={values.gallery}
+                onChange={(gallery) => setField('gallery', gallery)}
+              />
+              <WorkingHoursEditor
+                value={values.workingHours}
+                onChange={(workingHours) => setField('workingHours', workingHours)}
+              />
+            </div>
+          </div>
+
           {hideLink ? null : (
             <div className="indeed-panel p-6">
               <h2 className="text-lg font-extrabold text-ink">اتصال بیولینک</h2>
@@ -665,6 +690,23 @@ export function BusinessCardForm({
               kind="avatar"
               value={values.avatarUrl}
               onChange={(url) => setField('avatarUrl', url)}
+            />
+          </div>
+        </div>
+
+        <div className="indeed-panel p-6">
+          <h2 className="text-lg font-extrabold text-ink">گالری و ساعات کاری</h2>
+          <p className="mt-1 text-xs text-muted">
+            این اطلاعات در صفحه‌ی عمومی کسب‌وکار نمایش داده می‌شود.
+          </p>
+          <div className="mt-4 space-y-5">
+            <GalleryUpload
+              value={values.gallery}
+              onChange={(gallery) => setField('gallery', gallery)}
+            />
+            <WorkingHoursEditor
+              value={values.workingHours}
+              onChange={(workingHours) => setField('workingHours', workingHours)}
             />
           </div>
         </div>

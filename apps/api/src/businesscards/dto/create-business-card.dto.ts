@@ -1,13 +1,18 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsBoolean,
   IsEmail,
   IsHexColor,
+  IsObject,
   IsOptional,
   IsString,
   IsUrl,
   MaxLength,
 } from 'class-validator';
+
+import { WorkingHoursDto } from './working-hours.dto';
 
 export class CreateBusinessCardDto {
   @ApiProperty({ example: 'سارا محمدی' })
@@ -70,6 +75,24 @@ export class CreateBusinessCardDto {
   @IsOptional()
   @IsUrl({ require_protocol: true, require_tld: false })
   logoUrl?: string;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'گالری تصاویر کسب‌وکار (حداکثر ۱۲ تصویر)',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(12)
+  @IsUrl({ require_protocol: true, require_tld: false }, { each: true })
+  gallery?: string[];
+
+  @ApiPropertyOptional({
+    type: WorkingHoursDto,
+    description: 'ساعات کاری هفتگی (کلیدها: saturday … friday)',
+  })
+  @IsOptional()
+  @IsObject()
+  workingHours?: WorkingHoursDto;
 
   @ApiPropertyOptional()
   @IsOptional()

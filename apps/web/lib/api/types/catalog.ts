@@ -155,6 +155,13 @@ export interface BusinessCard {
   address: string | null;
   avatarUrl: string | null;
   logoUrl: string | null;
+  /** optional weekly opening hours, keyed by English weekday name */
+  workingHours?: WorkingHours | null;
+  /** public gallery image URLs */
+  gallery?: string[];
+  /** aggregate rating kept in sync by the reviews service */
+  ratingAvg?: number;
+  ratingCount?: number;
   linkedin: string | null;
   instagram: string | null;
   telegram: string | null;
@@ -198,6 +205,7 @@ export interface DirectoryBusinessCard {
   jobTitle: string | null;
   company: string | null;
   bio: string | null;
+  address?: string | null;
   /** landline number (تنها در حالت لیست/دفترچه نمایش داده می‌شود) */
   phone?: string | null;
   /** mobile number */
@@ -214,10 +222,52 @@ export interface DirectoryBusinessCard {
   city?: { id: string; name: string } | null;
   business?: { id: string; name: string } | null;
   likeCount: number;
+  ratingAvg?: number;
+  ratingCount?: number;
   /** owner passed the identity inquiry and has the blue tick */
   ownerVerified?: boolean;
   liked: boolean;
   saved: boolean;
+}
+
+export type Weekday =
+  | 'saturday'
+  | 'sunday'
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday';
+
+export interface WorkingHoursDay {
+  open?: string;
+  close?: string;
+  closed?: boolean;
+}
+
+export type WorkingHours = Partial<Record<Weekday, WorkingHoursDay>>;
+
+export interface BusinessCategorySummary {
+  id: string;
+  name: string;
+  count: number;
+}
+
+export interface CategoryDirectoryResponse {
+  category: BusinessCategorySummary;
+  items: DirectoryBusinessCard[];
+  meta: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  filters: {
+    cities: DirectoryFacet[];
+    businesses: DirectoryFacet[];
+  };
 }
 
 export interface DirectoryBusinessCardResponse {

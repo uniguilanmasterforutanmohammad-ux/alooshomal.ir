@@ -20,7 +20,72 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.21.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.22.0**.
+
+## ۱۴۰۵/۰۸/۱۹ — صفحه‌های دسته‌بندی مشاغل و پروفایل کسب‌وکار با دیدگاه و امتیاز — نسخه `v3.22.0`
+
+**هدف:** برای هر دسته‌بندی شغلی یک صفحه‌ی مستقل ساخته شود و اطلاعات هر
+کسب‌وکار در یک صفحه‌ی کامل به سبک دایرکتوری‌های کسب‌وکار (نمونه‌های بهتری‌نو)
+نمایش داده شود: اطلاعات تماس، آدرس، گالری، ساعات کاری، امتیاز و دیدگاه کاربران.
+نقشه طبق درخواست کاربر فعلاً به‌صورت جایگاه «به‌زودی» رزرو شده است.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `workingHours` (JSON هفتگی)، `gallery`
+  و فیلدهای تجمیعی `ratingAvg`/`ratingCount` به `BusinessCard` و مدل جدید
+  `BusinessReview` (یک دیدگاه برای هر کاربر/کسب‌وکار، با امکان ویرایش).
+- `apps/api/src/businesscards/business-categories.controller.ts`: مسیرهای عمومی
+  `GET /business-categories/public` (دسته‌ها + تعداد) و
+  `GET /business-categories/public/:slug` (دسته + فهرست صفحه‌بندی‌شده).
+- `apps/api/src/businesscards/business-reviews.controller.ts` و
+  `business-reviews.service.ts`: فهرست دیدگاه‌ها/خلاصه‌ی امتیاز، دیدگاه من،
+  ثبت/ویرایش و حذف دیدگاه با به‌روزرسانی تراکنشی میانگین امتیاز.
+- `apps/api/src/businesscards/business-cards.service.ts`،
+  `business-cards-directory.service.ts`، `working-hours.ts` و
+  `business-cards.module.ts`: پشتیبانی از گالری/ساعات کاری، اعتبارسنجی و
+  پاک‌سازی JSON، افزودن `address`/امتیاز به ردیف‌های دایرکتوری و ثبت کنترلرها.
+- `apps/api/src/businesscards/dto/*`: `CreateBusinessReviewDto`،
+  `WorkingHoursDto` و فیلدهای جدید کارت + مرتب‌سازی `rating`.
+- `apps/api/src/settings/settings.constants.ts`: کلید
+  `featureBusinessReviews` (فعال/نمایش خودکار در پنل) و افزودن مسیرهای
+  `/categories` و `/business` به بخش عمومی کارت‌های ویزیت.
+- `apps/api/src/uploads/*`: دسته‌ی آپلود `gallery` و مسیر `POST /uploads/gallery`.
+- `apps/api/src/seo/seo.service.ts`: افزودن `/categories`، صفحه‌های دسته و
+  `/business/:slug` به نقشه‌ی سایت.
+- `apps/web/app/categories/page.tsx` و `categories/[slug]/page.tsx`: صفحه‌ی
+  فهرست دسته‌ها و صفحه‌ی هر دسته با جستجو، فیلتر شهر، مرتب‌سازی (جدیدترین/
+  امتیاز/محبوب/الفبا)، ردیف‌های رتبه‌بندی‌شده و صفحه‌بندی.
+- `apps/web/app/business/[slug]/page.tsx` + `components/business/*`: پروفایل
+  کامل کسب‌وکار به سبک بهتری‌نو (هدر، تماس/واتساپ/اشتراک/ذخیره/لایک، درباره،
+  گالری، اطلاعات تماس، جدول ساعات کاری، جایگاه نقشه، دیدگاه‌ها، مشابه‌ها،
+  JSON-LD `LocalBusiness` + `AggregateRating`).
+- `apps/web/components/ui/GalleryUpload.tsx` و
+  `components/business/WorkingHoursEditor.tsx`: آپلود چندتصویری گالری و ویرایشگر
+  ساعات کاری؛ اتصال آن‌ها به فرم کارت ویزیت (داشبورد و پنل مدیر).
+- `apps/web/lib/catalog-server.ts`، `lib/api/types/{catalog,reviews}.ts` و
+  `lib/api.ts`: تایپ‌ها و واکشی‌های سمت سرور صفحه‌های دسته/کسب‌وکار.
+- `apps/web/lib/nav.ts`، `app/page.tsx` و لینک‌های دایرکتوری/کارت عمومی:
+  افزودن ورودی «مشاغل» به ناوبری (با کوتاه‌کردن برچسب‌ها برای جلوگیری از سرریز
+  در عرض ۱۰۲۴–۱۴۴۰ پیکسل) و دسترسی از خانه، ردیف دایرکتوری و کارت عمومی.
+- `apps/web/app/globals.css`: طراحی کامل صفحه‌های دسته/پروفایل، جدول ساعات،
+  گالری، فرم و خلاصه‌ی دیدگاه‌ها و حالت‌های موبایل.
+- `docs/API.md`: مستندسازی مسیرهای جدید، فیلدهای گالری/ساعات کاری و جریان
+  دیدگاه/امتیاز.
+- `BACKLOG.md`: ثبت «نقشه و مسیریابی» به‌عنوان مورد معوق به درخواست کاربر.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v3.22.0`.
+
+**تأیید/تست:**
+- `apps/api`: `./node_modules/.bin/tsc --noEmit --incremental false` → بدون خطا.
+- `apps/web`: `./node_modules/.bin/tsc --noEmit` → بدون خطا.
+- `python3 scripts/check_api_docs.py` → ۳۵ کنترلر و ۳۶۶ مسیر، exit 0.
+- `prisma db push` روی دیتابیس لوکال → همگام شد (بدون تغییر مخرب).
+- تست زنده‌ی API: دسته‌ها، صفحه‌ی «فناوری اطلاعات»، ثبت دیدگاه ۵ ستاره با
+  حساب دمو، خواندن میانگین/توزیع و به‌روزرسانی `ratingAvg=5`/`ratingCount=1`.
+- تست زنده‌ی UI با Playwright/Chrome: رندر `/categories`،
+  `/categories/فناوری اطلاعات` و `/business/sample-full-card`؛ ورود با حساب
+  دمو، پیش‌پر شدن فرم دیدگاه و ذخیره‌ی ویرایش دیدگاه از مرورگر.
+- بررسی سرریز افقی در عرض‌های ۳۶۰/۳۹۰/۷۶۸/۱۰۲۴/۱۲۸۰ → بدون overflow؛
+  ناوبری هدر در ۱۰۲۴–۱۴۴۰ پیکسل کامل داخل عرض می‌ماند.
+- `python3 scripts/sync_install.py` و `--check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۱۹ — نمایش تیک آبی تأییدشده روی کارت‌ها و بیولینک‌ها — نسخه `v3.21.1`
 

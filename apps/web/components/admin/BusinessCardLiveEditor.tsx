@@ -46,6 +46,8 @@ const toFormValues = (businessCard: AdminBusinessCardFull): BusinessCardFormValu
   biolinkId: '',
   avatarUrl: businessCard.avatarUrl ?? '',
   logoUrl: businessCard.logoUrl ?? '',
+  gallery: businessCard.gallery ?? [],
+  workingHours: businessCard.workingHours ?? {},
 });
 
 export function BusinessCardLiveEditor({

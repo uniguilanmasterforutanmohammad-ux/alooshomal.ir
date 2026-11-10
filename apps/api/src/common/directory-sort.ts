@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client';
 
-export type DirectorySort = 'recent' | 'liked' | 'alpha';
+export type DirectorySort = 'recent' | 'liked' | 'alpha' | 'rating';
 
 /**
  * Upper bound on how many rows the alphabetical directory ordering considers
@@ -51,6 +51,13 @@ export function businessCardOrderBy(
   switch (sort) {
     case 'liked':
       return [{ likes: { _count: 'desc' } }, { pinnedAt: 'desc' }, { id: 'desc' }];
+    case 'rating':
+      return [
+        { ratingAvg: 'desc' },
+        { ratingCount: 'desc' },
+        { pinnedAt: 'desc' },
+        { id: 'desc' },
+      ];
     default:
       return [{ pinnedAt: 'desc' }, { id: 'desc' }];
   }

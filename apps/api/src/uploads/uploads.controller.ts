@@ -41,4 +41,15 @@ export class UploadsController {
   ) {
     return this.uploads.upload('avatar', user.id, file);
   }
+
+  @Post('gallery')
+  @UseInterceptors(fileInterceptor())
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'آپلود تصویر گالری کسب‌وکار (WebP)' })
+  gallery(
+    @CurrentUser() user: AuthUser,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.uploads.upload('gallery', user.id, file);
+  }
 }

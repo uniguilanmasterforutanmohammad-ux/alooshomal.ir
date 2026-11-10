@@ -3,6 +3,7 @@ import {
   ArrowRight,
   BadgeCheck,
   Crown,
+  ExternalLink,
   Globe,
   Home,
   IdCard,
@@ -164,6 +165,10 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
             </Link>
 
             <div className="flex items-center gap-2">
+              <Link href={`/business/${businessCard.slug}`} className="record-pill">
+                <ExternalLink className="size-3.5" aria-hidden />
+                صفحه کسب‌وکار
+              </Link>
               {businessCard.ownerVerified ? (
                 <span className="record-pill text-sky-700">
                   <BadgeCheck className="size-3.5" aria-hidden />

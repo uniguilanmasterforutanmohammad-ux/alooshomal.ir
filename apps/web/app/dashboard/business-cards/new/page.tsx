@@ -139,6 +139,8 @@ export default function NewBusinessCardPage() {
                     biolinkId: draft.linkedBiolinks?.[0]?.id ?? '',
                     avatarUrl: draft.avatarUrl ?? '',
                     logoUrl: draft.logoUrl ?? '',
+                    gallery: draft.gallery ?? [],
+                    workingHours: draft.workingHours ?? {},
                   }
                 : undefined
             }

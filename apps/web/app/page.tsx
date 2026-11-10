@@ -6,11 +6,11 @@ import { Footer } from '@/components/layout/Footer';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
 import { HomeSearchBox } from '@/components/home/HomeSearchBox';
 import { HomeHeadline } from '@/components/home/HomeHeadline';
-import { BadgeCheck, Smartphone } from 'lucide-react';
+import { BadgeCheck, BriefcaseBusiness, Smartphone } from 'lucide-react';
 
 /**
  * Public home page. It is deliberately minimal and single-screen: only the
- * hero — headline, city line, search box and the two directory buttons. The
+ * hero — headline, city line, search box and the directory/category buttons. The
  * ads box, the latest business-cards/biolinks sliders, the city news table,
  * the blog picks, the «چطور کار می‌کند؟» / feature guide cards and the
  * «شهروند خبرنگار شوید» invitation were all removed on request so the whole
@@ -67,6 +67,15 @@ export default async function HomePage() {
                 >
                   <Smartphone className="size-4" aria-hidden />
                   لیست بیولینک‌ها
+                </Link>
+              ) : null}
+              {showCards ? (
+                <Link
+                  href="/categories"
+                  className="indeed-btn border-white text-white hover:bg-white/10"
+                >
+                  <BriefcaseBusiness className="size-4" aria-hidden />
+                  دسته‌بندی مشاغل
                 </Link>
               ) : null}
             </div>
