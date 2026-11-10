@@ -11,6 +11,7 @@ import {
   CreditCard,
   Crown,
   FileCheck2,
+  History,
   ListChecks,
   Loader2,
   Sparkles,
@@ -48,6 +49,32 @@ interface OnboardingPayload {
   completed: number;
   total: number;
   currentStepId: string | null;
+  identity: IdentityState;
+  history: IdentityLog[];
+}
+
+interface IdentityState {
+  nationalCode: string | null;
+  birthDate: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  fatherName: string | null;
+  phoneMatched: boolean;
+  verified: boolean;
+}
+
+interface IdentityLog {
+  id: string;
+  kind: 'PHONE_MATCH' | 'IDENTITY_INQUIRY';
+  status: 'SUCCESS' | 'FAILED' | 'CACHED';
+  nationalCode: string | null;
+  birthDate: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  fatherName: string | null;
+  message: string | null;
+  amount: number;
+  createdAt: string;
 }
 
 interface WalletPayload {
@@ -59,6 +86,23 @@ interface ZohalPrice {
   key: string;
   price?: number;
 }
+
+const LOG_KIND_LABEL: Record<IdentityLog['kind'], string> = {
+  PHONE_MATCH: 'تطبیق شماره موبایل',
+  IDENTITY_INQUIRY: 'استعلام هویت',
+};
+
+const LOG_STATUS_LABEL: Record<IdentityLog['status'], string> = {
+  SUCCESS: 'موفق',
+  FAILED: 'ناموفق',
+  CACHED: 'از قبل ثبت‌شده',
+};
+
+const LOG_STATUS_CLASS: Record<IdentityLog['status'], string> = {
+  SUCCESS: 'bg-emerald-50 text-emerald-700',
+  FAILED: 'bg-red-50 text-red-600',
+  CACHED: 'bg-sky-50 text-sky-700',
+};
 
 const STEP_ICON: Record<StepKind, typeof Sparkles> = {
   identity: BadgeCheck,
@@ -100,6 +144,7 @@ export function OnboardingWizard() {
       ]);
       setPayload(progress);
       setWallet(walletPayload);
+      setNationalCode((current) => current || progress.identity?.nationalCode || '');
       setExpandedId((current) => current ?? progress.currentStepId);
     } catch {
       setPayload(null);
@@ -140,6 +185,28 @@ export function OnboardingWizard() {
       toast.success('هویت شما استعلام شد (تیک سفید).');
       await load();
       // Keep the identity step open so the invoice / pay-later choice shows.
+      setExpandedId('identity');
+    } catch {
+      /* api layer surfaces the error */
+    } finally {
+      setIdentityBusy(false);
+    }
+  }
+
+  /** Continue from an already-matched phone straight into the paid inquiry. */
+  async function continueIdentityInquiry() {
+    setIdentityBusy(true);
+    try {
+      const result = await api.post<{ alreadyVerified?: boolean }>(
+        '/profile/identity/inquiry',
+        {},
+      );
+      toast.success(
+        result?.alreadyVerified
+          ? 'هویت شما قبلاً استعلام شده بود؛ هزینه‌ی مجدد ثبت نشد.'
+          : 'استعلام هویت انجام شد (تیک سفید).',
+      );
+      await load();
       setExpandedId('identity');
     } catch {
       /* api layer surfaces the error */
@@ -253,10 +320,43 @@ export function OnboardingWizard() {
 
                   {step.kind === 'identity' ? (
                     <div className="mt-3 flex flex-col gap-3">
-                      {step.done ? (
-                        <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-bold text-emerald-800">
-                          هویت شما تأیید شد؛ تیک سفید دریافت کردید.
-                        </p>
+                      {payload.identity?.verified ? (
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs leading-6 text-emerald-800">
+                          <b className="flex items-center gap-1.5">
+                            <BadgeCheck className="size-4" aria-hidden />
+                            هویت شما تأیید شد؛ تیک سفید دریافت کردید.
+                          </b>
+                          <p className="mt-1">
+                            {[
+                              payload.identity.firstName,
+                              payload.identity.lastName,
+                            ]
+                              .filter(Boolean)
+                              .join(' ') || '—'}
+                            {payload.identity.fatherName
+                              ? ` — نام پدر: ${payload.identity.fatherName}`
+                              : ''}
+                            {payload.identity.nationalCode
+                              ? ` — کد ملی: ${payload.identity.nationalCode}`
+                              : ''}
+                          </p>
+                          <p className="mt-1 text-[11px] text-emerald-700">
+                            این اطلاعات ذخیره شده است و با تغییر ظاهر یا قابلیت‌ها
+                            از بین نمی‌رود و هزینه‌ی مجددی ثبت نمی‌شود.
+                          </p>
+                        </div>
+                      ) : payload.identity?.phoneMatched ? (
+                        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs leading-6 text-emerald-800">
+                          <b>مالکیت شماره موبایل با کد ملی تأیید شده است.</b>
+                          {payload.identity.nationalCode
+                            ? ` کد ملی: ${payload.identity.nationalCode}.`
+                            : ''}
+                          {payload.identity.birthDate
+                            ? ` تاریخ تولد: ${payload.identity.birthDate}.`
+                            : ''}{' '}
+                          برای تکمیل، فقط استعلام هویت را انجام دهید (شناسه‌ها
+                          از قبل ذخیره شده‌اند).
+                        </div>
                       ) : (
                         <div className="grid gap-3 sm:grid-cols-2">
                           <label className="text-xs font-bold text-muted">
@@ -292,7 +392,7 @@ export function OnboardingWizard() {
                           : ''}
                       </div>
 
-                      {!step.done ? (
+                      {!payload.identity?.verified && !payload.identity?.phoneMatched ? (
                         <button
                           type="button"
                           onClick={() => void completeIdentity()}
@@ -306,7 +406,25 @@ export function OnboardingWizard() {
                           )}
                           {identityBusy ? 'در حال استعلام...' : 'تأیید و پرداخت'}
                         </button>
-                      ) : debt > 0 ? (
+                      ) : !payload.identity?.verified ? (
+                        <button
+                          type="button"
+                          onClick={() => void continueIdentityInquiry()}
+                          disabled={identityBusy}
+                          className="indeed-btn indeed-btn-primary self-start"
+                        >
+                          {identityBusy ? (
+                            <Loader2 className="size-4 animate-spin" aria-hidden />
+                          ) : (
+                            <BadgeCheck className="size-4" aria-hidden />
+                          )}
+                          {identityBusy
+                            ? 'در حال استعلام...'
+                            : 'ادامه: استعلام و ثبت هویت'}
+                        </button>
+                      ) : null}
+
+                      {payload.identity?.verified && debt > 0 ? (
                         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
                           <span className="text-xs font-bold text-amber-800">
                             بدهی کیف پول: {faPrice(debt)}
@@ -365,6 +483,61 @@ export function OnboardingWizard() {
           );
         })}
       </ol>
+
+      {payload.history?.length ? (
+        <details className="group border-t border-[var(--vintage-border)] bg-[var(--vintage-paper)]/60">
+          <summary className="flex cursor-pointer list-none items-center gap-2 p-3.5 text-xs font-bold text-ink">
+            <History className="size-4 text-brand" aria-hidden />
+            سابقه‌ی استعلام‌ها و نتایج
+            <span className="text-muted">
+              ({payload.history.length.toLocaleString('fa-IR')} مورد)
+            </span>
+            <ChevronDown
+              className="ms-auto size-4 text-muted transition group-open:rotate-180"
+              aria-hidden
+            />
+          </summary>
+          <ul className="flex flex-col gap-2 px-4 pb-4">
+            {payload.history.map((log) => (
+              <li
+                key={log.id}
+                className="rounded-lg border border-[var(--vintage-border)] bg-white p-3 text-[11px] leading-6"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={cn(
+                      'rounded-full px-2 py-0.5 text-[10px] font-bold',
+                      LOG_STATUS_CLASS[log.status],
+                    )}
+                  >
+                    {LOG_STATUS_LABEL[log.status]}
+                  </span>
+                  <b className="text-ink">{LOG_KIND_LABEL[log.kind]}</b>
+                  <span className="text-muted">
+                    {new Date(log.createdAt).toLocaleString('fa-IR')}
+                  </span>
+                  <span className="ms-auto text-muted">
+                    {log.amount > 0 ? `مبلغ: ${faPrice(log.amount)}` : 'بدون هزینه'}
+                  </span>
+                </div>
+                <p className="mt-1 text-muted">
+                  {[
+                    log.nationalCode ? `کد ملی: ${log.nationalCode}` : null,
+                    log.birthDate ? `تاریخ تولد: ${log.birthDate}` : null,
+                    [log.firstName, log.lastName].filter(Boolean).join(' ') || null,
+                    log.fatherName ? `نام پدر: ${log.fatherName}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' — ') || '—'}
+                </p>
+                {log.message ? (
+                  <p className="mt-0.5 text-[10px] text-muted">{log.message}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
     </section>
   );
 }

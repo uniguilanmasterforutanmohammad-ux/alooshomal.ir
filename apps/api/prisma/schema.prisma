@@ -474,6 +474,7 @@ model User {
   invoicesCreated   Invoice[]    @relation("InvoiceCreatedBy")
   expensesCreated   Expense[]    @relation("ExpenseCreatedBy")
   onboardingCompletions OnboardingStepCompletion[]
+  identityInquiryLogs   IdentityInquiryLog[]
 
   @@index([email])
   @@index([phone])
@@ -495,6 +496,55 @@ model OnboardingStepCompletion {
   @@unique([userId, stepId])
   @@index([userId])
   @@map("onboarding_step_completions")
+}
+
+/// Which paid identity call was attempted.
+enum IdentityInquiryKind {
+  /// «شاهکار» — match the signed-in mobile against the national code.
+  PHONE_MATCH
+  /// Paid identity inquiry (name / father name) with national code + birth date.
+  IDENTITY_INQUIRY
+}
+
+/// Outcome of one attempt. `CACHED` means the result was already known (from a
+/// previous successful call) so nothing was re-charged and no upstream call was
+/// made — this is what keeps a UI change from asking the user to pay twice.
+enum IdentityInquiryStatus {
+  SUCCESS
+  FAILED
+  CACHED
+}
+
+/// Immutable audit trail of every identity inquiry attempt, success or failure.
+///
+/// Kept as its own table (instead of only on `User`) so a UI change or a flag
+/// reset can never lose the history: the wizard and the profile both read this
+/// record to decide whether a step is already done and to show past results.
+model IdentityInquiryLog {
+  id           String                @id @default(cuid())
+  userId       String
+  kind         IdentityInquiryKind
+  status       IdentityInquiryStatus
+  nationalCode String?
+  birthDate    String?
+  phone        String?
+  matched      Boolean?
+  firstName    String?
+  lastName     String?
+  fatherName   String?
+  /// Persian message from the upstream service (or the local rule).
+  message      String?
+  /// Toman charged to the wallet for this attempt (0 = nothing charged).
+  amount       Int                   @default(0)
+  /// Raw upstream payload, kept for audit.
+  raw          Json?
+  createdAt    DateTime              @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([kind, status])
+  @@map("identity_inquiry_logs")
 }
 
 // A signed-in device/session. Login (password or OTP) creates one row; the JWT

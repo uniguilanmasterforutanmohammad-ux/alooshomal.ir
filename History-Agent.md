@@ -20,7 +20,26 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.26.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.27.0**.
+
+## ۱۴۰۵/۰۸/۲۰ — سابقه‌ی پایدار استعلام‌های هویت در «شروع آسان» — نسخه `v3.27.0`
+
+**هدف:** در `/dashboard/onboarding` اگر کاربر یک‌بار استعلام هویت و تطبیق موبایل
+را انجام داده باشد، با تغییر ظاهر/قابلیت‌ها نباید دوباره از او خواسته شود که
+استعلام کند و هزینه بپردازد. یک سابقه‌ی ماندگار از همه‌ی استعلام‌ها و نتایج آن‌ها
+ذخیره و در بنل کاربری نمایش داده می‌شود.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `IdentityInquiryLog` (جدول `identity_inquiry_logs`) با انوم‌های `IdentityInquiryKind` (`PHONE_MATCH`/`IDENTITY_INQUIRY`) و `IdentityInquiryStatus` (`SUCCESS`/`FAILED`/`CACHED`) برای ثبت تغییرناپذیر هر تلاش استعلام.
+- `apps/api/src/profile/profile.service.ts`: متد `logInquiry()` (به‌صورت best-effort) و ثبت ردیف در همه‌ی مسیرهای `matchIdentityPhone`/`inquiryIdentity`؛ idempotency برای جلوگیری از شارژ مجدد و ثبت ردیف `CACHED` در تلاش تکراری؛ `me()` حالا `identityHistory` (۲۵ مورد آخر) هم برمی‌گرداند.
+- `apps/api/src/onboarding/onboarding.service.ts` + `onboarding.constants.ts`: `GET /onboarding/me` حالا `identity` و `history` می‌دهد؛ یک بازسازی یک‌باره‌ی `backfillIdentityState()` (با نشانگر `identityStateBackfillV1`) حساب‌هایی را که کد ملی/تاریخ تولد دارند ولی فلگ‌های تأیید خالی‌اند تعمیر می‌کند و ردیف `CACHED` ثبت می‌کند.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: گام هویت حالا بر اساس وضعیت ذخیره‌شده (تأییدشده / موبایل تطبیق‌شده / نیازمند استعلام) نمایش داده می‌شود و بخش «سابقه‌ی استعلام‌ها و نتایج» با برچسب‌های فارسی نوع/وضعیت، تاریخ شمسی و مبلغ در پایین ویزارد اضافه شد.
+- `docs/API.md`: توضیح `GET /onboarding/me` به‌روزرسانی شد (`identity` + `history`).
+
+**تأیید/تست:**
+- `tsc --noEmit` در هر دو کانتینر `api` و `web` بدون خطا.
+- `python3 scripts/check_api_docs.py` بدون خطا (exit 0).
+- تست زنده: `GET /api/onboarding/me` برای کاربر `09207818389` (کد ملی `0013529536`) هم `identity` تأییدشده و هم ۲ ردیف `CACHED` (بدون هزینه) برگرداند؛ و در مرورگر (Playwright) بخش «سابقه‌ی استعلام‌ها و نتایج» رندر شد.
 
 ## ۱۴۰۵/۰۸/۲۰ — تقسیم صفحه‌ی «تنظیمات» پنل مدیر به پنل‌های مستقل — نسخه `v3.26.0`
 

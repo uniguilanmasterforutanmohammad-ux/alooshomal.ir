@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import {
+  IdentityInquiryKind,
+  IdentityInquiryStatus,
   NewsStatus,
   NotificationType,
   Prisma,
@@ -58,9 +60,53 @@ export class ProfileService {
     }
   }
 
+  /**
+   * Persist one identity-inquiry attempt. Best-effort: the audit trail must
+   * never break the paid flow, and `CACHED` rows keep the «no double charge»
+   * story visible in the history (see `IdentityInquiryLog`).
+   */
+  private async logInquiry(input: {
+    userId: string;
+    kind: IdentityInquiryKind;
+    status: IdentityInquiryStatus;
+    nationalCode?: string | null;
+    birthDate?: string | null;
+    phone?: string | null;
+    matched?: boolean | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    fatherName?: string | null;
+    message?: string | null;
+    amount?: number;
+    raw?: unknown;
+  }): Promise<void> {
+    try {
+      await this.prisma.identityInquiryLog.create({
+        data: {
+          userId: input.userId,
+          kind: input.kind,
+          status: input.status,
+          nationalCode: input.nationalCode ?? null,
+          birthDate: input.birthDate ?? null,
+          phone: input.phone ?? null,
+          matched: input.matched ?? null,
+          firstName: input.firstName ?? null,
+          lastName: input.lastName ?? null,
+          fatherName: input.fatherName ?? null,
+          message: input.message ?? null,
+          amount: input.amount ?? 0,
+          raw: (input.raw ?? undefined) as Prisma.InputJsonValue | undefined,
+        },
+      });
+    } catch {
+      // history is best-effort
+    }
+  }
+
   /** Profile of the current user plus their latest pending change request. */
   async me(userId: string) {
-    const [user, pending, identityInquiryAvailable] = await Promise.all([
+    const [user, pending, identityInquiryAvailable, identityHistory] =
+      await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -90,6 +136,11 @@ export class ProfileService {
         orderBy: { createdAt: 'desc' },
       }),
       this.zohal.identityInquiryAvailable(),
+      this.prisma.identityInquiryLog.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 25,
+      }),
     ]);
     if (!user) {
       throw new NotFoundException('کاربر یافت نشد');
@@ -110,6 +161,7 @@ export class ProfileService {
         lastName: user.lastName,
         fatherName: user.fatherName,
       },
+      identityHistory,
       pendingChange: pending,
     };
   }
@@ -142,12 +194,46 @@ export class ProfileService {
     }
     const me = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { phone: true, phoneVerified: true },
+      select: {
+        phone: true,
+        phoneVerified: true,
+        nationalCode: true,
+        birthDate: true,
+        phoneMatchVerifiedAt: true,
+      },
     });
     if (!me?.phone || !me.phoneVerified) {
       throw new BadRequestException(
         'برای استعلام مالکیت شماره، ابتدا باید شماره موبایل حساب تأیید شده باشد.',
       );
+    }
+
+    // Idempotency: the same national code + birth date already matched on this
+    // account, so nothing is re-sent upstream and nothing is charged. The row
+    // is still logged (CACHED) so the history shows what happened.
+    if (
+      me.phoneMatchVerifiedAt &&
+      me.nationalCode === nationalCode &&
+      me.birthDate === birthDate
+    ) {
+      await this.logInquiry({
+        userId,
+        kind: IdentityInquiryKind.PHONE_MATCH,
+        status: IdentityInquiryStatus.CACHED,
+        nationalCode,
+        birthDate,
+        phone: me.phone,
+        matched: true,
+        message: 'قبلاً تطبیق داده شده بود؛ هزینه‌ی مجدد ثبت نشد.',
+      });
+      return {
+        matched: true,
+        cached: true,
+        charged: 0,
+        nationalCode,
+        birthDate,
+        phoneMatchVerifiedAt: me.phoneMatchVerifiedAt,
+      };
     }
 
     const inquiry = await this.zohal.verifyPhoneOwnership(
@@ -157,8 +243,9 @@ export class ProfileService {
     const price = await this.zohal.getServicePrice('shahkar');
     // Charge only when Zohal actually answered; a network/timeout failure never
     // consumed the paid inquiry, so the user must not be billed for it.
+    let charged = 0;
     if (inquiry.httpStatus !== null) {
-      await this.wallet.charge({
+      charged = await this.wallet.charge({
         userId,
         kind: WalletEntryKind.PHONE_MATCH,
         amount: price,
@@ -170,11 +257,35 @@ export class ProfileService {
     }
 
     if (!inquiry.ok) {
+      await this.logInquiry({
+        userId,
+        kind: IdentityInquiryKind.PHONE_MATCH,
+        status: IdentityInquiryStatus.FAILED,
+        nationalCode,
+        birthDate,
+        phone: me.phone,
+        matched: null,
+        message: inquiry.message ?? 'استعلام شاهکار انجام نشد',
+        amount: charged,
+        raw: inquiry.data ?? null,
+      });
       throw new BadRequestException(
         inquiry.message || 'استعلام شاهکار انجام نشد؛ لطفاً دوباره تلاش کنید.',
       );
     }
     if (!inquiry.data?.matched) {
+      await this.logInquiry({
+        userId,
+        kind: IdentityInquiryKind.PHONE_MATCH,
+        status: IdentityInquiryStatus.FAILED,
+        nationalCode,
+        birthDate,
+        phone: me.phone,
+        matched: false,
+        message: 'شماره‌ی موبایل با کد ملی تطبیق نداشت',
+        amount: charged,
+        raw: inquiry.data ?? null,
+      });
       throw new BadRequestException(
         'شماره‌ی موبایل تأییدشده با این کد ملی تطبیق ندارد؛ شماره و کد ملی را بررسی کنید.',
       );
@@ -205,7 +316,19 @@ export class ProfileService {
       entityType: 'USER',
       entityId: userId,
     });
-    return { matched: true, ...updated, charged: price };
+    await this.logInquiry({
+      userId,
+      kind: IdentityInquiryKind.PHONE_MATCH,
+      status: IdentityInquiryStatus.SUCCESS,
+      nationalCode,
+      birthDate,
+      phone: me.phone,
+      matched: true,
+      message: 'تطبیق شماره موبایل با کد ملی انجام شد',
+      amount: charged,
+      raw: inquiry.data ?? null,
+    });
+    return { matched: true, ...updated, charged };
   }
 
   /**
@@ -233,8 +356,22 @@ export class ProfileService {
     });
     if (!user) throw new NotFoundException('کاربر یافت نشد');
     if (user.identityVerifiedAt) {
+      await this.logInquiry({
+        userId,
+        kind: IdentityInquiryKind.IDENTITY_INQUIRY,
+        status: IdentityInquiryStatus.CACHED,
+        nationalCode: user.nationalCode,
+        birthDate: user.birthDate,
+        matched: true,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fatherName: user.fatherName,
+        message: 'هویت قبلاً استعلام شده بود؛ هزینه‌ی مجدد ثبت نشد.',
+      });
       return {
         alreadyVerified: true,
+        cached: true,
+        charged: 0,
         identityVerifiedAt: user.identityVerifiedAt,
         firstName: user.firstName,
         lastName: user.lastName,
@@ -253,8 +390,9 @@ export class ProfileService {
     );
     const price = await this.zohal.getServicePrice('national_identity_inquiry');
     // Same rule as step 1: bill only a call that Zohal actually answered.
+    let charged = 0;
     if (inquiry.httpStatus !== null) {
-      await this.wallet.charge({
+      charged = await this.wallet.charge({
         userId,
         kind: WalletEntryKind.IDENTITY_INQUIRY,
         amount: price,
@@ -266,11 +404,33 @@ export class ProfileService {
     }
 
     if (!inquiry.ok) {
+      await this.logInquiry({
+        userId,
+        kind: IdentityInquiryKind.IDENTITY_INQUIRY,
+        status: IdentityInquiryStatus.FAILED,
+        nationalCode: user.nationalCode,
+        birthDate: user.birthDate,
+        matched: null,
+        message: inquiry.message ?? 'استعلام هویت انجام نشد',
+        amount: charged,
+        raw: inquiry.data ?? null,
+      });
       throw new BadRequestException(
         inquiry.message || 'استعلام هویت انجام نشد؛ لطفاً دوباره تلاش کنید.',
       );
     }
     if (!inquiry.data?.matched) {
+      await this.logInquiry({
+        userId,
+        kind: IdentityInquiryKind.IDENTITY_INQUIRY,
+        status: IdentityInquiryStatus.FAILED,
+        nationalCode: user.nationalCode,
+        birthDate: user.birthDate,
+        matched: false,
+        message: 'اطلاعات هویتی با کد ملی و تاریخ تولد تطبیق نداشت',
+        amount: charged,
+        raw: inquiry.data ?? null,
+      });
       throw new BadRequestException(
         'اطلاعات هویتی با این کد ملی و تاریخ تولد تطبیق نداشت؛ تاریخ تولد را بررسی کنید.',
       );
@@ -308,7 +468,21 @@ export class ProfileService {
       entityType: 'USER',
       entityId: userId,
     });
-    return { ...updated, charged: price };
+    await this.logInquiry({
+      userId,
+      kind: IdentityInquiryKind.IDENTITY_INQUIRY,
+      status: IdentityInquiryStatus.SUCCESS,
+      nationalCode: user.nationalCode,
+      birthDate: user.birthDate,
+      matched: true,
+      firstName,
+      lastName,
+      fatherName,
+      message: 'استعلام اطلاعات هویتی با موفقیت انجام شد',
+      amount: charged,
+      raw: inquiry.data ?? null,
+    });
+    return { ...updated, charged };
   }
 
   /**

@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  OnModuleInit,
 } from '@nestjs/common';
 import { BiolinkStatus } from '@prisma/client';
 
@@ -26,12 +27,23 @@ const BUILT_IN_KINDS = new Set<OnboardingStepKind>(
 );
 
 @Injectable()
-export class OnboardingService {
+export class OnboardingService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly activity: ActivityService,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    // Repair accounts whose identity was captured by an older flow that did not
+    // set the verification flags (so the wizard wrongly asked them to pay
+    // again). Guarded by a marker so it only ever runs once.
+    try {
+      await this.backfillIdentityState();
+    } catch {
+      // the table may not exist on a first boot; a later boot retries
+    }
+  }
 
   /** The configured step list, falling back to the shipped defaults. */
   async getSteps(): Promise<OnboardingStepDef[]> {
@@ -79,7 +91,15 @@ export class OnboardingService {
       'بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.',
     );
     const steps = (await this.getSteps()).filter((step) => step.enabled);
-    const done = await this.completionMap(userId);
+    const [done, identity, history] = await Promise.all([
+      this.completionMap(userId),
+      this.identityState(userId),
+      this.prisma.identityInquiryLog.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 25,
+      }),
+    ]);
     const states: OnboardingStepState[] = steps.map((step) => {
       const isDone = done.get(step.id) ?? false;
       return { ...step, done: isDone, hint: this.hintFor(step, isDone) };
@@ -90,7 +110,127 @@ export class OnboardingService {
       completed,
       total: states.length,
       currentStepId: states.find((step) => !step.done)?.id ?? null,
+      identity,
+      history,
     };
+  }
+
+  /** The identity fields currently stored on the account (read-only snapshot). */
+  private async identityState(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        nationalCode: true,
+        birthDate: true,
+        firstName: true,
+        lastName: true,
+        fatherName: true,
+        phoneMatchVerifiedAt: true,
+        identityVerifiedAt: true,
+      },
+    });
+    return {
+      nationalCode: user?.nationalCode ?? null,
+      birthDate: user?.birthDate ?? null,
+      firstName: user?.firstName ?? null,
+      lastName: user?.lastName ?? null,
+      fatherName: user?.fatherName ?? null,
+      phoneMatched: Boolean(user?.phoneMatchVerifiedAt),
+      verified: Boolean(user?.identityVerifiedAt),
+    };
+  }
+
+  /**
+   * One-time repair for accounts that hold identity data but no verification
+   * flags (e.g. captured by the legacy manual profile form). It sets the flags
+   * from the stored data and appends a `CACHED` history row, so the wizard
+   * stops asking those users to pay for an inquiry that already happened.
+   */
+  private async backfillIdentityState(): Promise<void> {
+    const markerKey = 'identityStateBackfillV1';
+    const marker = await this.prisma.setting.findUnique({
+      where: { key: markerKey },
+    });
+    if (marker) return;
+
+    const users = await this.prisma.user.findMany({
+      where: { nationalCode: { not: null }, birthDate: { not: null } },
+      select: {
+        id: true,
+        nationalCode: true,
+        birthDate: true,
+        firstName: true,
+        lastName: true,
+        fullName: true,
+        phoneMatchVerifiedAt: true,
+        identityVerifiedAt: true,
+      },
+    });
+
+    for (const user of users) {
+      const data: {
+        phoneMatchVerifiedAt?: Date;
+        firstName?: string;
+        lastName?: string;
+        fullName?: string;
+        identityVerifiedAt?: Date;
+      } = {};
+      let first = user.firstName?.trim() ?? '';
+      let last = user.lastName?.trim() ?? '';
+      if ((!first || !last) && user.fullName?.trim()) {
+        const parts = user.fullName.trim().split(/\s+/);
+        if (parts.length > 1) {
+          first = first || parts[0];
+          last = last || parts.slice(1).join(' ');
+        } else if (!first) {
+          first = parts[0];
+        }
+      }
+      const matched = !user.phoneMatchVerifiedAt;
+      const verified =
+        !user.identityVerifiedAt && Boolean(first) && Boolean(last);
+      if (!matched && !verified) continue;
+
+      const now = new Date();
+      if (matched) data.phoneMatchVerifiedAt = now;
+      if (verified) {
+        data.firstName = first;
+        data.lastName = last;
+        data.fullName = `${first} ${last}`;
+        data.identityVerifiedAt = now;
+      }
+      await this.prisma.user.update({ where: { id: user.id }, data });
+
+      const common = {
+        userId: user.id,
+        status: 'CACHED' as const,
+        nationalCode: user.nationalCode,
+        birthDate: user.birthDate,
+        matched: true,
+        message: 'بازیابی از اطلاعات ثبت‌شده‌ی قبلی؛ هزینه‌ی مجدد ثبت نشد.',
+      };
+      if (matched) {
+        await this.prisma.identityInquiryLog.create({
+          data: { ...common, kind: 'PHONE_MATCH' },
+        });
+      }
+      if (verified) {
+        await this.prisma.identityInquiryLog.create({
+          data: {
+            ...common,
+            kind: 'IDENTITY_INQUIRY',
+            firstName: first,
+            lastName: last,
+          },
+        });
+      }
+    }
+
+    await this.prisma.setting.upsert({
+      where: { key: markerKey },
+      create: { key: markerKey, value: new Date().toISOString() },
+      update: {},
+    });
   }
 
   /** Tick a custom step off (built-in steps complete automatically). */

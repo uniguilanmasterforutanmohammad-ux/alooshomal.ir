@@ -109,4 +109,36 @@ export interface OnboardingProgressPayload {
   total: number;
   /** id of the first unfinished step (the one the wizard expands). */
   currentStepId: string | null;
+  /** the identity data collected by the Zohal inquiry, if any. */
+  identity: OnboardingIdentityState;
+  /** persisted log of every identity inquiry attempt (newest first). */
+  history: OnboardingIdentityLog[];
+}
+
+/** Snapshot of the identity fields stored on the user (may be partially set). */
+export interface OnboardingIdentityState {
+  nationalCode: string | null;
+  birthDate: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  fatherName: string | null;
+  phoneMatched: boolean;
+  verified: boolean;
+}
+
+/** One row of the persisted inquiry history shown under the wizard. */
+export interface OnboardingIdentityLog {
+  id: string;
+  kind: 'PHONE_MATCH' | 'IDENTITY_INQUIRY';
+  status: 'SUCCESS' | 'FAILED' | 'CACHED';
+  nationalCode: string | null;
+  birthDate: string | null;
+  phone: string | null;
+  matched: boolean | null;
+  firstName: string | null;
+  lastName: string | null;
+  fatherName: string | null;
+  message: string | null;
+  amount: number;
+  createdAt: Date;
 }
