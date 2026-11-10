@@ -154,7 +154,7 @@ export function OnboardingWizard() {
     try {
       const [progress, walletPayload] = await Promise.all([
         api.get<OnboardingPayload>('/onboarding/me'),
-        api.get<WalletPayload>('/wallet/mine').catch(() => null),
+        api.get<WalletPayload>('/wallet/me').catch(() => null),
       ]);
       setPayload(progress);
       setWallet(walletPayload);
