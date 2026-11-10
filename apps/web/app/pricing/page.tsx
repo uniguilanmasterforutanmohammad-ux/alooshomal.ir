@@ -7,6 +7,7 @@ import { BadgeCheck, Check, Crown, ShieldCheck, Sparkles } from 'lucide-react';
 import { Footer } from '@/components/layout/Footer';
 import { Header } from '@/components/layout/Header';
 import { api, type SubscriptionPlan } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 
 interface PricingService {
   key: string;
@@ -28,10 +29,21 @@ function faPrice(value: number): string {
  * service off also removes its tariff row here.
  */
 export default function PricingPage() {
+  const { token, hydrated } = useAuth();
+  const signedIn = hydrated && Boolean(token);
   const [services, setServices] = useState<PricingService[]>([]);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Signed-in visitors land straight on the purchase screen; guests are sent
+  // through login first and come back to the same destination afterwards.
+  const subscriptionsHref = signedIn
+    ? '/dashboard/subscriptions'
+    : '/login?next=/dashboard/subscriptions';
+  const inquiryHref = signedIn
+    ? '/dashboard/profile'
+    : '/login?next=/dashboard/profile';
 
   useEffect(() => {
     Promise.all([
@@ -77,6 +89,13 @@ export default function PricingPage() {
             سررسید فقط یک‌بار پرداخت می‌کنید. تعرفه‌ی سرویس‌هایی که مدیر غیرفعال
             کرده است در این صفحه نمایش داده نمی‌شود.
           </p>
+          <Link
+            href={subscriptionsHref}
+            className="indeed-btn indeed-btn-primary mt-5"
+          >
+            <Crown className="size-4" aria-hidden />
+            خرید اشتراک
+          </Link>
         </div>
 
         {error ? (
@@ -129,7 +148,7 @@ export default function PricingPage() {
                             {faPrice(service.price)}
                           </p>
                           <Link
-                            href="/login?next=/dashboard/profile"
+                            href={inquiryHref}
                             className="indeed-btn indeed-btn-secondary mt-4 w-full py-2 text-sm"
                           >
                             درخواست استعلام
@@ -197,7 +216,7 @@ export default function PricingPage() {
                         ))}
                       </ul>
                       <Link
-                        href="/login?next=/dashboard/subscriptions"
+                        href={subscriptionsHref}
                         className="indeed-btn indeed-btn-primary mt-4 w-full py-2 text-sm"
                       >
                         انتخاب و پرداخت
