@@ -41,6 +41,15 @@ export class CreateManualInvoiceDto {
   @MaxLength(20)
   customerPhone?: string;
 
+  @ApiPropertyOptional({
+    example: '0013529536',
+    description: 'کد ملی خریدار (برای اتصال فاکتور به شخص)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(10)
+  customerNationalCode?: string;
+
   @ApiPropertyOptional({ example: 'ali@example.com' })
   @IsOptional()
   @IsEmail()

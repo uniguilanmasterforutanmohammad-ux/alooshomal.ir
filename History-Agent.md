@@ -20,7 +20,31 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.27.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.28.0**.
+
+## ۱۴۰۵/۰۸/۲۰ — گره‌خوردن کیف پول و تاریخچه‌اش به کد ملی — نسخه `v3.28.0`
+
+**هدف:** کیف پول هر شخص به کد ملی او متصل باشد و گردش حساب، تاریخچه‌ی
+پرداخت‌ها، صورتحساب‌ها و لاگ کلیه‌ی تغییرات با کد ملی کاربر ذخیره گردد؛ به‌ویژه
+پس از تغییر قابلیت‌ها این سوابق از بین نرود.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `nationalCode` (snapshot) به `UserWallet`، `WalletEntry`، `WalletPayment` و `Invoice` (`customerNationalCode`) به همراه ایندکس‌های مربوطه.
+- `apps/api/src/wallet/wallet.service.ts`: `OnModuleInit` + بازسازی یک‌باره‌ی `walletNationalCodeBackfillV1` برای پرکردن ردیف‌های قدیمی؛ ثبت کد ملی در `charge()`، `applyPayment()`، `adjust()` و ساخت `WalletPayment` در `checkout()`؛ `getMine()` حالا `nationalCode` را هم برمی‌گرداند؛ متد تازه‌ی `historyByNationalCode()` برای گردش کامل یک شخص.
+- `apps/api/src/wallet/wallet.controller.ts`: مسیر `GET /admin/wallets/lookup?nationalCode=...` با مستند Swagger.
+- `apps/api/src/finance/finance.service.ts` + `dto/create-manual-invoice.dto.ts`: افزودن `customerNationalCode` به ورودی/خروجی فروش، پرکردن خودکار آن از حساب خریدار، افزودن به جستجوی فاکتورها و پذیرش آن در فاکتور دستی.
+- `apps/web/lib/api/types/wallet.ts` + `finance.ts`: افزودن میدان‌های `nationalCode`/`customerNationalCode` به تایپ‌ها.
+- `apps/web/app/dashboard/wallet/page.tsx`: نمایش کد ملی صاحب کیف پول و کد ملی روی هر ردیف گردش/پرداخت.
+- `apps/web/components/admin/AdminWallets.tsx`: نمایش ستون کد ملی، جستجوی نام/موبایل/کد ملی و پنل «گردش کامل کیف پول با کد ملی» (کیف پول، گردش حساب، پرداخت‌ها، فاکتورها).
+- `apps/web/components/admin/AdminFinance.tsx`: نمایش کد ملی خریدار در فهرست فاکتورها.
+- `docs/API.md`: به‌روزرسانی مستندات کیف پول و مسیر جدید lookup.
+
+**تأیید/تست:**
+- `tsc --noEmit` در هر دو کانتینر `api` و `web` بدون خطا.
+- `python3 scripts/check_api_docs.py` بدون خطا؛ مسیر جدید در `GET /api/docs-json` با `summary` دیده شد.
+- بازسازی زنده: `walletNationalCodeBackfillV1` اجرا شد و `nationalCode='0013529536'` روی کیف پول و هر دو ردیف گردش کاربر `09207818389` ثبت شد.
+- تست API: `GET /api/wallet/me` کد ملی را برگرداند و `GET /api/admin/wallets/lookup?nationalCode=0013529536` مجموع بدهی، ۲ گردش حساب، ۱ پرداخت و ۳ فاکتور را داد.
+- تست مرورگر (Playwright): صفحه‌ی کیف پول کاربر برچسب «کد ملی صاحب کیف پول» و پنل مدیر «گردش کامل کیف پول با کد ملی» با نتیجه‌ی موفق رندر شدند.
 
 ## ۱۴۰۵/۰۸/۲۰ — سابقه‌ی پایدار استعلام‌های هویت در «شروع آسان» — نسخه `v3.27.0`
 

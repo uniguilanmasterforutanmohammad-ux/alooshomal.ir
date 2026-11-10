@@ -8,6 +8,7 @@ export interface FinanceInvoice {
   title: string;
   description: string | null;
   customerUserId: string | null;
+  customerNationalCode: string | null;
   customerName: string | null;
   customerPhone: string | null;
   customerEmail: string | null;

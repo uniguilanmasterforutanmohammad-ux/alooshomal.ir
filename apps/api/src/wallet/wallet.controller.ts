@@ -87,6 +87,15 @@ export class AdminWalletController {
     return this.wallet.listAdmin();
   }
 
+  @Get('lookup')
+  @ApiOperation({
+    summary: 'گردش کامل کیف پول یک شخص با کد ملی (گردش حساب، پرداخت‌ها، فاکتورها)',
+  })
+  @ApiQuery({ name: 'nationalCode', required: true, example: '0013529536' })
+  lookup(@Query('nationalCode') nationalCode: string) {
+    return this.wallet.historyByNationalCode(nationalCode ?? '');
+  }
+
   @Post(':userId/adjust')
   @ApiOperation({ summary: 'تنظیم دستی کیف پول یک کاربر (بدهی/بستانکاری)' })
   adjust(

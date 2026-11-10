@@ -1326,6 +1326,9 @@ enum WalletEntryKind {
 model UserWallet {
   id             String    @id @default(cuid())
   userId         String    @unique
+  /// Snapshot of the owner's national code, so the wallet (and everything it
+  /// records) stays tied to the person even if the account row changes.
+  nationalCode   String?
   balance        Int       @default(0)
   dueAt          DateTime?
   reminderSentAt DateTime?
@@ -1335,6 +1338,7 @@ model UserWallet {
   user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   entries WalletEntry[]
 
+  @@index([nationalCode])
   @@map("user_wallets")
 }
 
@@ -1343,6 +1347,8 @@ model WalletEntry {
   id         String          @id @default(cuid())
   walletId   String
   kind       WalletEntryKind
+  /// Owner's national code at write time (audit trail keyed to the person).
+  nationalCode String?
   /// Optional caller-supplied key so retrying the same paid action can never
   /// append a second debt. Unique across the whole ledger.
   idempotencyKey String?    @unique
@@ -1356,6 +1362,7 @@ model WalletEntry {
   wallet UserWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
 
   @@index([walletId, createdAt])
+  @@index([nationalCode, createdAt])
   @@map("wallet_entries")
 }
 
@@ -1364,6 +1371,8 @@ model WalletEntry {
 model WalletPayment {
   id            String        @id @default(cuid())
   userId        String
+  /// Owner's national code at write time (audit trail keyed to the person).
+  nationalCode  String?
   amount        Int
   status        PaymentStatus @default(PENDING)
   clientRefId   String        @unique
@@ -1380,6 +1389,7 @@ model WalletPayment {
 
   @@index([userId])
   @@index([status])
+  @@index([nationalCode])
   @@map("wallet_payments")
 }
 
@@ -1408,6 +1418,9 @@ model Invoice {
   title          String
   description    String?
   customerUserId String?
+  /// Snapshot of the buyer's national code, so invoices remain tied to the
+  /// person for tax/reporting even if the account is later edited.
+  customerNationalCode String?
   customerName   String?
   customerPhone  String?
   customerEmail  String?
@@ -1433,6 +1446,7 @@ model Invoice {
   @@index([issuedAt])
   @@index([status, issuedAt])
   @@index([customerUserId])
+  @@index([customerNationalCode])
   @@map("invoices")
 }
 

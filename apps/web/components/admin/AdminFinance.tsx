@@ -498,7 +498,8 @@ export function AdminFinance() {
           ];
     const customerName =
       full.customerName ?? full.customer?.fullName ?? '—';
-    const customerNationalCode = full.customer?.nationalCode ?? '—';
+    const customerNationalCode =
+      full.customerNationalCode ?? full.customer?.nationalCode ?? '—';
     const customerPhone =
       full.customerPhone ?? full.customer?.phone ?? '—';
     const customerEmail =
@@ -695,6 +696,7 @@ export function AdminFinance() {
           <p className="font-bold text-ink">{row.title}</p>
           <p className="text-[11px] text-muted">
             {row.customerName ?? row.customerPhone ?? row.customerEmail ?? '—'}
+            {row.customerNationalCode ? ` · کد ملی: ${row.customerNationalCode}` : ''}
           </p>
         </div>
       ),

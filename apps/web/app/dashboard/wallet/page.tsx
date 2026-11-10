@@ -169,6 +169,11 @@ export default function WalletPage() {
               ? `سررسید تسویه: ${formatJalali(wallet.dueAt)}`
               : `مهلت تسویه هر دوره ${wallet?.settlementDays ?? 7} روز است.`}
           </p>
+          <p className="mt-1 text-xs text-muted">
+            {wallet?.nationalCode
+              ? `کد ملی صاحب کیف پول: ${wallet.nationalCode}`
+              : 'برای اتصال کیف پول به کد ملی، ابتدا استعلام هویت را در «شروع آسان» تکمیل کنید.'}
+          </p>
           {wallet?.overdue ? (
             <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-red-600">
               <AlertTriangle className="size-4" aria-hidden />
@@ -225,6 +230,7 @@ export default function WalletPage() {
                   <span className="w-full text-xs text-muted">
                     {faDateTime(entry.createdAt)}
                     {KIND_LABELS[entry.kind] ? ` · ${KIND_LABELS[entry.kind]}` : ''}
+                    {entry.nationalCode ? ` · کد ملی: ${entry.nationalCode}` : ''}
                   </span>
                 </li>
               );
@@ -264,6 +270,7 @@ export default function WalletPage() {
                 <span className="w-full text-xs text-muted">
                   تاریخ: {faDateTime(payment.createdAt)}
                   {payment.refId ? ` · کد رهگیری: ${payment.refId}` : ''}
+                  {payment.nationalCode ? ` · کد ملی: ${payment.nationalCode}` : ''}
                 </span>
                 {payment.failureReason ? (
                   <span className="w-full text-xs text-red-600">

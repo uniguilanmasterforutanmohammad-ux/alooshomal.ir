@@ -6,6 +6,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  OnModuleInit,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -56,7 +57,7 @@ export interface WalletChargeInput {
  * the wallet flow stays optional and defeats into the legacy «free» behaviour.
  */
 @Injectable()
-export class WalletService {
+export class WalletService implements OnModuleInit {
   private readonly logger = new Logger(WalletService.name);
 
   constructor(
@@ -69,6 +70,71 @@ export class WalletService {
     private readonly activity: ActivityService,
     private readonly finance: FinanceService,
   ) {}
+
+  /**
+   * Wallets created before the national-code columns existed carry `null`, so
+   * we stamp them once from the owner's account. Guarded by a marker setting so
+   * it only ever runs once (and stays idempotent if it is re-run).
+   */
+  async onModuleInit(): Promise<void> {
+    try {
+      await this.backfillNationalCodes();
+    } catch {
+      // the table may not exist on a first boot; a later boot retries
+    }
+  }
+
+  private async backfillNationalCodes(): Promise<void> {
+    const markerKey = 'walletNationalCodeBackfillV1';
+    const marker = await this.prisma.setting.findUnique({
+      where: { key: markerKey },
+    });
+    if (marker) return;
+
+    const users = await this.prisma.user.findMany({
+      where: { nationalCode: { not: null } },
+      select: { id: true, nationalCode: true },
+    });
+    for (const user of users) {
+      if (!user.nationalCode) continue;
+      await this.prisma.$transaction([
+        this.prisma.userWallet.updateMany({
+          where: { userId: user.id, nationalCode: null },
+          data: { nationalCode: user.nationalCode },
+        }),
+        this.prisma.walletEntry.updateMany({
+          where: {
+            nationalCode: null,
+            wallet: { userId: user.id },
+          },
+          data: { nationalCode: user.nationalCode },
+        }),
+        this.prisma.walletPayment.updateMany({
+          where: { userId: user.id, nationalCode: null },
+          data: { nationalCode: user.nationalCode },
+        }),
+        this.prisma.invoice.updateMany({
+          where: { customerUserId: user.id, customerNationalCode: null },
+          data: { customerNationalCode: user.nationalCode },
+        }),
+      ]);
+    }
+
+    await this.prisma.setting.upsert({
+      where: { key: markerKey },
+      create: { key: markerKey, value: new Date().toISOString() },
+      update: {},
+    });
+  }
+
+  /** The owner's national code, used to stamp every ledger/payment row. */
+  private async nationalCodeOf(userId: string): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { nationalCode: true },
+    });
+    return user?.nationalCode ?? null;
+  }
 
   private appUrl(): string {
     return (
@@ -93,6 +159,7 @@ export class WalletService {
     if (!Number.isFinite(amount) || amount <= 0) return 0;
     if (!(await this.settings.isFeatureEnabled('featureWallet'))) return 0;
     const days = await this.settings.getWalletSettlementDays();
+    const nationalCode = await this.nationalCodeOf(input.userId);
 
     let charged = false;
     try {
@@ -106,8 +173,8 @@ export class WalletService {
         }
         const wallet = await tx.userWallet.upsert({
           where: { userId: input.userId },
-          create: { userId: input.userId },
-          update: {},
+          create: { userId: input.userId, nationalCode },
+          update: nationalCode ? { nationalCode } : {},
         });
         // A settled wallet starts a fresh cycle: reset the due date (and let a
         // new reminder fire once it passes).
@@ -116,6 +183,7 @@ export class WalletService {
           data: {
             walletId: wallet.id,
             kind: input.kind,
+            nationalCode,
             idempotencyKey: input.idempotencyKey ?? null,
             amount: -amount,
             title: input.title,
@@ -176,8 +244,11 @@ export class WalletService {
     const wallet = await this.prisma.userWallet.findUnique({
       where: { userId },
     });
+    const nationalCode =
+      wallet?.nationalCode ?? (await this.nationalCodeOf(userId));
     if (!wallet) {
       return {
+        nationalCode,
         balance: 0,
         dueAt: null,
         overdue: false,
@@ -204,6 +275,7 @@ export class WalletService {
       }),
     ]);
     return {
+      nationalCode,
       balance: wallet.balance,
       dueAt: wallet.dueAt,
       overdue,
@@ -261,7 +333,7 @@ export class WalletService {
     }
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { phone: true, email: true, fullName: true },
+      select: { phone: true, email: true, fullName: true, nationalCode: true },
     });
     if (!user) throw new NotFoundException('کاربر یافت نشد');
 
@@ -276,7 +348,12 @@ export class WalletService {
       },
     });
     const payment = await this.prisma.walletPayment.create({
-      data: { userId, amount, clientRefId },
+      data: {
+        userId,
+        amount,
+        clientRefId,
+        nationalCode: user.nationalCode ?? null,
+      },
     });
 
     const returnUrl = `${this.appUrl()}/api/wallet/payments/callback`;
@@ -464,9 +541,13 @@ export class WalletService {
   ): Promise<void> {
     const payment = await this.prisma.walletPayment.findUnique({
       where: { id: paymentId },
-      include: { user: { select: { fullName: true, email: true } } },
+      include: {
+        user: { select: { fullName: true, email: true, nationalCode: true } },
+      },
     });
     if (!payment || payment.status === PaymentStatus.PAID) return;
+    const nationalCode =
+      payment.nationalCode ?? payment.user?.nationalCode ?? null;
 
     const now = new Date();
     const paidAt = verified?.payedDate ? new Date(verified.payedDate) : now;
@@ -475,14 +556,15 @@ export class WalletService {
     await this.prisma.$transaction(async (tx) => {
       const wallet = await tx.userWallet.upsert({
         where: { userId: payment.userId },
-        create: { userId: payment.userId },
-        update: {},
+        create: { userId: payment.userId, nationalCode },
+        update: nationalCode ? { nationalCode } : {},
       });
       const newBalance = wallet.balance + payment.amount;
       await tx.walletEntry.create({
         data: {
           walletId: wallet.id,
           kind: WalletEntryKind.PAYMENT,
+          nationalCode,
           amount: payment.amount,
           title: 'تسویه کیف پول',
           sourceType: 'WALLET_PAYMENT',
@@ -499,6 +581,7 @@ export class WalletService {
       await tx.walletPayment.update({
         where: { id: payment.id },
         data: {
+          nationalCode,
           status: PaymentStatus.PAID,
           refId,
           paidAt: paidAtSafe,
@@ -563,7 +646,13 @@ export class WalletService {
       where: { OR: [{ balance: { not: 0 } }, { dueAt: { not: null } }] },
       include: {
         user: {
-          select: { id: true, fullName: true, email: true, phone: true },
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true,
+            nationalCode: true,
+          },
         },
       },
       orderBy: { updatedAt: 'desc' },
@@ -591,10 +680,54 @@ export class WalletService {
       ),
       wallets: wallets.map((wallet) => ({
         ...wallet,
+        nationalCode: wallet.nationalCode ?? wallet.user?.nationalCode ?? null,
         overdue: Boolean(
           wallet.balance < 0 && wallet.dueAt && wallet.dueAt.getTime() <= now,
         ),
       })),
+    };
+  }
+
+  /**
+   * The whole money trail for one national code: wallet balance, every ledger
+   * change, every gateway payment and every invoice. This is the lookup the
+   * admin panel uses to tie the wallet (and its history) to the person.
+   */
+  async historyByNationalCode(nationalCode: string) {
+    const code = nationalCode.trim();
+    if (!code) throw new BadRequestException('کد ملی را وارد کنید.');
+
+    const [wallets, entries, payments, invoices] = await Promise.all([
+      this.prisma.userWallet.findMany({
+        where: { nationalCode: code },
+        include: {
+          user: { select: { id: true, fullName: true, phone: true, email: true } },
+        },
+      }),
+      this.prisma.walletEntry.findMany({
+        where: { nationalCode: code },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+      }),
+      this.prisma.walletPayment.findMany({
+        where: { nationalCode: code },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+      this.prisma.invoice.findMany({
+        where: { customerNationalCode: code },
+        orderBy: { issuedAt: 'desc' },
+        take: 100,
+      }),
+    ]);
+
+    return {
+      nationalCode: code,
+      balance: wallets.reduce((sum, wallet) => sum + wallet.balance, 0),
+      wallets,
+      entries,
+      payments,
+      invoices,
     };
   }
 
@@ -606,23 +739,25 @@ export class WalletService {
     }
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, fullName: true },
+      select: { id: true, fullName: true, nationalCode: true },
     });
     if (!user) throw new NotFoundException('کاربر یافت نشد');
     const days = await this.settings.getWalletSettlementDays();
     const entryAmount = -value;
+    const nationalCode = user.nationalCode ?? null;
 
     await this.prisma.$transaction(async (tx) => {
       const wallet = await tx.userWallet.upsert({
         where: { userId },
-        create: { userId },
-        update: {},
+        create: { userId, nationalCode },
+        update: nationalCode ? { nationalCode } : {},
       });
       const newBalance = wallet.balance + entryAmount;
       await tx.walletEntry.create({
         data: {
           walletId: wallet.id,
           kind: WalletEntryKind.ADJUSTMENT,
+          nationalCode,
           amount: entryAmount,
           title:
             title?.trim() ||

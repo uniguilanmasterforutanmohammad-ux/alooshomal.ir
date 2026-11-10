@@ -268,12 +268,19 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 `featureWallet` خاموش باشد هیچ هزینه‌ای ثبت نمی‌شود و رفتار قبلی (استعلام
 رایگان و پرداخت مستقیم اشتراک از درگاه) حفظ می‌شود.
 
+**گره‌خوردن به کد ملی:** صاحب کیف پول با کد ملی شناسایی می‌شود. هنگام هر
+تغییر در گردش حساب، پرداخت درگاه یا صدور فاکتور، `nationalCode` کاربر روی همان
+ردیف ثبت (snapshot) می‌شود تا تاریخچه حتی با تغییر بعدی حساب نیز گم نشود. یک
+بازسازی یک‌باره (`walletNationalCodeBackfillV1`) ردیف‌های قدیمی را از روی
+`User.nationalCode` پر می‌کند.
+
 | متد | مسیر | توضیح |
 | --- | --- | --- |
-| `GET` | `/wallet/me` | `{ balance, dueAt, overdue, settlementDays, entries, payments }`؛ `balance` منفی یعنی بدهی. |
+| `GET` | `/wallet/me` | `{ nationalCode, balance, dueAt, overdue, settlementDays, entries, payments }`؛ `balance` منفی یعنی بدهی. |
 | `POST` | `/wallet/checkout` | شروع پرداخت یک‌جای کل بدهی؛ خروجی `{ paymentId, amount, paymentCode, url }`. اگر درگاه فعال نباشد ۵۰۳ برمی‌گرداند. |
 | `GET` | `/wallet/payments/callback` | بازگشت عمومی درگاه؛ تراکنش را تأیید و بدهی را تسویه می‌کند و به `/dashboard/wallet?payment=...` هدایت می‌کند. |
-| `GET` | `/admin/wallets` | فهرست کیف پول‌های دارای بدهی/سررسید با `settlementDays` و `totalDebt`. |
+| `GET` | `/admin/wallets` | فهرست کیف پول‌های دارای بدهی/سررسید با `settlementDays`، `totalDebt` و `nationalCode` هر کیف پول. |
+| `GET` | `/admin/wallets/lookup?nationalCode=...` | گردش کامل یک شخص با کد ملی: کیف پول‌ها، گردش حساب، پرداخت‌ها و فاکتورها. |
 | `POST` | `/admin/wallets/:userId/adjust` | تنظیم دستی؛ `amount` مثبت = افزایش بدهی، منفی = بستانکاری، همراه `title` اختیاری. |
 
 **گیت تسویه:** ساخت بیولینک/کارت ویزیت/پست فید و اعمال نهایی پله، تبلیغ، تگ فید،

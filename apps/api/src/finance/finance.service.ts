@@ -44,6 +44,8 @@ export interface RecordSaleInput {
   customerName?: string | null;
   customerPhone?: string | null;
   customerEmail?: string | null;
+  /** Buyer's national code; ties the invoice to the person for tax archives. */
+  customerNationalCode?: string | null;
   metadata?: Prisma.InputJsonValue;
   createdById?: string | null;
 }
@@ -143,6 +145,7 @@ export class FinanceService implements OnModuleInit {
             customerName: customer.name,
             customerPhone: customer.phone,
             customerEmail: customer.email,
+            customerNationalCode: customer.nationalCode,
             subtotal,
             taxAmount,
             total,
@@ -193,26 +196,30 @@ export class FinanceService implements OnModuleInit {
   }
 
   private async resolveCustomer(input: RecordSaleInput) {
+    // Explicitly supplied fields always win; anything missing (notably the
+    // national code) is filled from the buyer's account so the invoice stays
+    // tied to the person even for callers that only pass a name.
+    const provided = {
+      name: input.customerName ?? null,
+      phone: input.customerPhone ?? null,
+      email: input.customerEmail ?? null,
+      nationalCode: input.customerNationalCode ?? null,
+    };
     if (
-      input.customerName ||
-      input.customerPhone ||
-      input.customerEmail ||
-      !input.userId
+      !input.userId ||
+      (provided.name && provided.phone && provided.email && provided.nationalCode)
     ) {
-      return {
-        name: input.customerName ?? null,
-        phone: input.customerPhone ?? null,
-        email: input.customerEmail ?? null,
-      };
+      return provided;
     }
     const user = await this.prisma.user.findUnique({
       where: { id: input.userId },
-      select: { fullName: true, phone: true, email: true },
+      select: { fullName: true, phone: true, email: true, nationalCode: true },
     });
     return {
-      name: user?.fullName ?? null,
-      phone: user?.phone ?? null,
-      email: user?.email ?? null,
+      name: provided.name ?? user?.fullName ?? null,
+      phone: provided.phone ?? user?.phone ?? null,
+      email: provided.email ?? user?.email ?? null,
+      nationalCode: provided.nationalCode ?? user?.nationalCode ?? null,
     };
   }
 
@@ -244,6 +251,7 @@ export class FinanceService implements OnModuleInit {
         { customerName: { contains: search, mode: 'insensitive' } },
         { customerPhone: { contains: search, mode: 'insensitive' } },
         { customerEmail: { contains: search, mode: 'insensitive' } },
+        { customerNationalCode: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -295,6 +303,7 @@ export class FinanceService implements OnModuleInit {
       customerName: dto.customerName?.trim() || null,
       customerPhone: dto.customerPhone?.trim() || null,
       customerEmail: dto.customerEmail?.trim() || null,
+      customerNationalCode: dto.customerNationalCode?.trim() || null,
       paidAt: dto.paidAt ? new Date(dto.paidAt) : new Date(),
       createdById: adminId,
       metadata: { manual: true },

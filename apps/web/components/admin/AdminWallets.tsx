@@ -1,7 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { AlertTriangle, RefreshCw, Save, Wallet } from 'lucide-react';
+import {
+  AlertTriangle,
+  IdCard,
+  RefreshCw,
+  Save,
+  Search,
+  Wallet,
+} from 'lucide-react';
 
 import { api } from '@/lib/api';
 import { formatJalali } from '@/lib/jalali';
@@ -11,6 +18,7 @@ import { cn } from '@/lib/utils';
 interface AdminWalletRow {
   id: string;
   userId: string;
+  nationalCode: string | null;
   balance: number;
   dueAt: string | null;
   reminderSentAt: string | null;
@@ -21,6 +29,7 @@ interface AdminWalletRow {
     fullName: string | null;
     email: string | null;
     phone: string | null;
+    nationalCode: string | null;
   } | null;
 }
 
@@ -30,8 +39,42 @@ interface AdminWalletsResponse {
   wallets: AdminWalletRow[];
 }
 
+interface WalletLookup {
+  nationalCode: string;
+  balance: number;
+  wallets: AdminWalletRow[];
+  entries: {
+    id: string;
+    kind: string;
+    amount: number;
+    title: string;
+    nationalCode: string | null;
+    createdAt: string;
+  }[];
+  payments: {
+    id: string;
+    amount: number;
+    status: string;
+    refId: string | null;
+    nationalCode: string | null;
+    createdAt: string;
+  }[];
+  invoices: {
+    id: string;
+    number: string;
+    title: string;
+    total: number;
+    customerNationalCode: string | null;
+    issuedAt: string;
+  }[];
+}
+
 function faPrice(amount: number): string {
   return `${Math.abs(amount).toLocaleString('fa-IR')} تومان`;
+}
+
+function rowNationalCode(wallet: AdminWalletRow): string | null {
+  return wallet.nationalCode ?? wallet.user?.nationalCode ?? null;
 }
 
 /**
@@ -41,6 +84,10 @@ function faPrice(amount: number): string {
 export function AdminWallets() {
   const [data, setData] = useState<AdminWalletsResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [lookupCode, setLookupCode] = useState('');
+  const [lookup, setLookup] = useState<WalletLookup | null>(null);
+  const [lookupBusy, setLookupBusy] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [titles, setTitles] = useState<Record<string, string>>({});
@@ -59,6 +106,22 @@ export function AdminWallets() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function runLookup() {
+    const code = lookupCode.trim();
+    if (!/^\d{10}$/.test(code)) {
+      toast.error('کد ملی باید دقیقاً ۱۰ رقم باشد.');
+      return;
+    }
+    setLookupBusy(true);
+    try {
+      setLookup(await api.get<WalletLookup>(`/admin/wallets/lookup?nationalCode=${code}`));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'جستجوی کد ملی ناموفق بود');
+    } finally {
+      setLookupBusy(false);
+    }
+  }
 
   async function adjust(wallet: AdminWalletRow) {
     const raw = amounts[wallet.userId] ?? '';
@@ -83,6 +146,21 @@ export function AdminWallets() {
       setBusyId(null);
     }
   }
+
+  const query = search.trim().toLowerCase();
+  const visibleWallets = (data?.wallets ?? []).filter((wallet) => {
+    if (!query) return true;
+    const code = rowNationalCode(wallet)?.toLowerCase() ?? '';
+    const name = wallet.user?.fullName?.toLowerCase() ?? '';
+    const phone = wallet.user?.phone?.toLowerCase() ?? '';
+    const email = wallet.user?.email?.toLowerCase() ?? '';
+    return (
+      code.includes(query) ||
+      name.includes(query) ||
+      phone.includes(query) ||
+      email.includes(query)
+    );
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -115,6 +193,104 @@ export function AdminWallets() {
         </button>
       </div>
 
+      <div className="indeed-panel flex flex-col gap-3 p-4">
+        <div className="flex items-center gap-2">
+          <IdCard className="size-5 text-brand" aria-hidden />
+          <div>
+            <p className="text-sm font-extrabold text-ink">گردش کامل کیف پول با کد ملی</p>
+            <p className="text-xs text-muted">
+              کل گردش حساب، پرداخت‌ها و فاکتورهای یک شخص را با کد ملی او ببینید —
+              کیف پول و سابقه‌ی آن به کد ملی گره خورده است.
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            value={lookupCode}
+            onChange={(event) =>
+              setLookupCode(event.target.value.replace(/\D/g, '').slice(0, 10))
+            }
+            inputMode="numeric"
+            placeholder="کد ملی ۱۰ رقمی"
+            dir="ltr"
+            className="indeed-input w-44"
+          />
+          <button
+            type="button"
+            onClick={() => void runLookup()}
+            disabled={lookupBusy}
+            className="indeed-btn indeed-btn-primary"
+          >
+            <Search className={cn('size-4', lookupBusy && 'animate-pulse')} aria-hidden />
+            {lookupBusy ? 'در حال جستجو...' : 'نمایش گردش'}
+          </button>
+        </div>
+        {lookup ? (
+          <div className="flex flex-col gap-3 rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/60 p-3">
+            <p className="text-xs font-bold text-ink">
+              کد ملی <span dir="ltr">{lookup.nationalCode}</span> — مجموع بدهی:{' '}
+              {faPrice(lookup.balance)}
+            </p>
+            <div className="grid gap-3 lg:grid-cols-3">
+              <div>
+                <p className="text-xs font-bold text-muted">
+                  گردش حساب ({lookup.entries.length.toLocaleString('fa-IR')})
+                </p>
+                <ul className="mt-1 flex flex-col gap-1 text-[11px]">
+                  {lookup.entries.slice(0, 20).map((entry) => (
+                    <li key={entry.id} className="flex justify-between gap-2">
+                      <span className="truncate text-ink">{entry.title}</span>
+                      <span className={entry.amount < 0 ? 'text-red-600' : 'text-emerald-600'}>
+                        {entry.amount < 0 ? '−' : '+'}
+                        {faPrice(entry.amount)}
+                      </span>
+                    </li>
+                  ))}
+                  {lookup.entries.length === 0 ? (
+                    <li className="text-muted">موردی ثبت نشده است.</li>
+                  ) : null}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-muted">
+                  پرداخت‌ها ({lookup.payments.length.toLocaleString('fa-IR')})
+                </p>
+                <ul className="mt-1 flex flex-col gap-1 text-[11px]">
+                  {lookup.payments.slice(0, 20).map((payment) => (
+                    <li key={payment.id} className="flex justify-between gap-2">
+                      <span className="text-muted">{formatJalali(payment.createdAt)}</span>
+                      <span>{faPrice(payment.amount)}</span>
+                      <span className="text-muted">{payment.status}</span>
+                    </li>
+                  ))}
+                  {lookup.payments.length === 0 ? (
+                    <li className="text-muted">موردی ثبت نشده است.</li>
+                  ) : null}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-muted">
+                  فاکتورها ({lookup.invoices.length.toLocaleString('fa-IR')})
+                </p>
+                <ul className="mt-1 flex flex-col gap-1 text-[11px]">
+                  {lookup.invoices.slice(0, 20).map((invoice) => (
+                    <li key={invoice.id} className="flex justify-between gap-2">
+                      <span className="truncate text-ink" dir="ltr">
+                        {invoice.number}
+                      </span>
+                      <span>{faPrice(invoice.total)}</span>
+                    </li>
+                  ))}
+                  {lookup.invoices.length === 0 ? (
+                    <li className="text-muted">موردی ثبت نشده است.</li>
+                  ) : null}
+                </ul>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
+
       {loading ? (
         <p className="text-muted">در حال بارگذاری...</p>
       ) : !data || data.wallets.length === 0 ? (
@@ -123,17 +299,34 @@ export function AdminWallets() {
         </p>
       ) : (
         <div className="indeed-panel overflow-x-auto">
-          <table className="w-full min-w-[760px] text-sm">
+          <div className="flex items-center gap-2 border-b border-dashed border-[var(--vintage-border)] px-3 py-2.5">
+            <Search className="size-4 text-muted" aria-hidden />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="جستجو بر اساس نام، موبایل یا کد ملی"
+              className="indeed-input w-full max-w-sm py-1.5 text-xs"
+            />
+          </div>
+          <table className="w-full min-w-[860px] text-sm">
             <thead className="border-b border-dashed border-[var(--vintage-border)] text-xs text-muted">
               <tr>
                 <th className="px-3 py-3 text-right">کاربر</th>
+                <th className="px-3 py-3 text-right">کد ملی</th>
                 <th className="px-3 py-3 text-right">بدهی</th>
                 <th className="px-3 py-3 text-right">سررسید</th>
                 <th className="px-3 py-3 text-right">تنظیم دستی</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--vintage-border)]">
-              {data.wallets.map((wallet) => (
+              {visibleWallets.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-3 py-5 text-center text-xs text-muted">
+                    موردی با این جستجو یافت نشد.
+                  </td>
+                </tr>
+              ) : null}
+              {visibleWallets.map((wallet) => (
                 <tr key={wallet.id}>
                   <td className="px-3 py-3">
                     <p className="font-bold text-ink">
@@ -142,6 +335,9 @@ export function AdminWallets() {
                     <p className="text-xs text-muted" dir="ltr">
                       {wallet.user?.phone ?? wallet.user?.email ?? wallet.userId}
                     </p>
+                  </td>
+                  <td className="px-3 py-3 text-xs" dir="ltr">
+                    {rowNationalCode(wallet) ?? '—'}
                   </td>
                   <td className="px-3 py-3 font-extrabold text-red-600">
                     {wallet.balance < 0 ? faPrice(wallet.balance) : '—'}

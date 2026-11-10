@@ -13,6 +13,8 @@ export type WalletEntryKind =
 export interface WalletEntry {
   id: string;
   walletId: string;
+  /** Owner's national code captured when the entry was written. */
+  nationalCode: string | null;
   kind: WalletEntryKind;
   /** Negative = charged to the user, positive = paid/credited. */
   amount: number;
@@ -27,6 +29,8 @@ export type WalletPaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELED';
 export interface WalletPayment {
   id: string;
   userId: string;
+  /** Owner's national code captured when the payment was created. */
+  nationalCode: string | null;
   amount: number;
   status: WalletPaymentStatus;
   clientRefId: string;
@@ -40,6 +44,8 @@ export interface WalletPayment {
 }
 
 export interface MyWallet {
+  /** The account's national code; the wallet ledger is keyed to it. */
+  nationalCode: string | null;
   /** Negative while the user owes money. */
   balance: number;
   dueAt: string | null;
