@@ -20,7 +20,38 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.25.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.26.0**.
+
+## ۱۴۰۵/۰۸/۲۰ — تقسیم صفحه‌ی «تنظیمات» پنل مدیر به پنل‌های مستقل — نسخه `v3.26.0`
+
+**هدف:** صفحه‌ی `/admin?section=settings` با ده فرم پشت‌سرهم خیلی شلوغ شده بود؛
+هر بخش تنظیمات به یک آیتم/پنل مستقل در منوی پنل مدیر منتقل شد.
+
+**تغییرات:**
+- `apps/web/components/admin/AdminShell.tsx`: افزودن ده بخش تازه به
+  `AdminSection` و ایجاد گروه منوی «تنظیمات سایت» با آیتم‌های مستقل: ظاهر سایت،
+  ویژگی‌ها و دسترسی‌ها، شروع آسان، قالب بیولینک، نمایش دایرکتوری، شهرها و
+  کسب‌وکارها، ورود و ثبت‌نام، کیف پول و تسویه، اعلان‌ها، اخبار شهر. گروه
+  «تنظیمات و سیستم» به «سیستم» تغییر نام یافت.
+- `apps/web/app/admin/admin-console.ts`: ثبت بخش‌های تازه در `ADMIN_SECTIONS`
+  و افزودن عنوان/زیرعنوان هر پنل در `PAGE_HEAD`.
+- `apps/web/app/admin/sections.tsx`: جایگزینی `SettingsSection` شلوغ با یک صفحه‌ی
+  «نمای کلی تنظیمات» (کارت‌های لینک‌دار برای سازگاری با لینک قدیمی
+  `?section=settings`) و ده کامپوننت مستقل: `SettingsAppearanceSection`،
+  `SettingsFeaturesSection`، `SettingsOnboardingSection`،
+  `SettingsTemplatesSection`، `SettingsDirectorySection`،
+  `SettingsTaxonomySection`، `SettingsAuthSection`، `SettingsWalletSection`،
+  `SettingsNotificationsSection` و `SettingsNewsSection`.
+- `apps/web/app/admin/page.tsx`: مسیریابی بخش‌های تازه به کامپوننت‌های مستقل.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v3.26.0`.
+
+**تأیید/تست:**
+- `npx tsc --noEmit -p tsconfig.json` در کانتینر `alooshomal-web` → exit 0.
+- بررسی بصری با `playwright-core` + `/usr/bin/google-chrome` روی محیط محلی
+  (با یک حساب ادمین آزمایشی): منوی «تنظیمات سایت» با ده آیتم رندر شد و هر مسیر
+  مستقل محتوای خودش را نشان داد — `?section=settings` (نمای کلی کارت‌ها)،
+  `settings-features` (ویژگی‌ها و دسترسی‌ها)، `settings-onboarding` (مراحل شروع
+  آسان) و `settings-taxonomy` (شهرها و کسب‌وکارها).
 
 ## ۱۴۰۵/۰۸/۲۰ — انتقال «شروع آسان» به بخش مجزا، حذف استعلامات پروفایل و پُر شدن خودکار اطلاعات — نسخه `v3.25.0`
 

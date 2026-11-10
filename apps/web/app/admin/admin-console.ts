@@ -73,6 +73,16 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'tools',
   'notifications',
   'settings',
+  'settings-appearance',
+  'settings-features',
+  'settings-onboarding',
+  'settings-templates',
+  'settings-directory',
+  'settings-taxonomy',
+  'settings-auth',
+  'settings-wallet',
+  'settings-notifications',
+  'settings-news',
   'social-accounts',
 ];
 
@@ -156,7 +166,47 @@ export function isAdminSection(value: string): value is AdminSection {
     },
     settings: {
       title: 'تنظیمات',
-      sub: 'ویژگی‌ها و دسترسی‌ها، شهرها، کسب‌وکارها و نمایش دایرکتوری',
+      sub: 'نمای کلی بخش‌های تنظیمات؛ هر بخش پنل مستقل خودش را دارد',
+    },
+    'settings-appearance': {
+      title: 'ظاهر سایت',
+      sub: 'تم سراسری سایت (vintage/modern/twitter/bazaar) و حالت تاریک',
+    },
+    'settings-features': {
+      title: 'ویژگی‌ها و دسترسی‌ها',
+      sub: 'سوئیچ فعال/نمایش هر قابلیت کاربری و نوار «توقف موقت»',
+    },
+    'settings-onboarding': {
+      title: 'مراحل «شروع آسان»',
+      sub: 'افزودن، حذف و جابه‌جایی مراحل ویزارد داشبورد کاربر',
+    },
+    'settings-templates': {
+      title: 'قالب بیولینک',
+      sub: 'فعال/غیرفعال‌کردن قالب‌های آماده‌ی صفحه‌ی بیولینک',
+    },
+    'settings-directory': {
+      title: 'نمایش دایرکتوری',
+      sub: 'چیدمان و ستون‌های نمایش دایرکتوری بیولینک و کارت ویزیت',
+    },
+    'settings-taxonomy': {
+      title: 'شهرها و کسب‌وکارها',
+      sub: 'مدیریت شهرها و دسته‌بندی‌های کسب‌وکار قابل انتخاب در فرم‌ها',
+    },
+    'settings-auth': {
+      title: 'ورود و ثبت‌نام',
+      sub: 'فعال/غیرفعال‌کردن ورود با موبایل (OTP) و ایمیل/رمز',
+    },
+    'settings-wallet': {
+      title: 'کیف پول و تسویه',
+      sub: 'مهلت تسویه‌ی بدهی کیف پول و رفتار صورتحساب‌ها',
+    },
+    'settings-notifications': {
+      title: 'اعلان‌ها',
+      sub: 'دسته‌بندی اعلان‌هایی که برای مدیر ساخته می‌شود',
+    },
+    'settings-news': {
+      title: 'تنظیمات اخبار شهر',
+      sub: 'تعداد تیترها و سطح دسترسی بخش اخبار شهروند خبرنگار',
     },
     'social-accounts': {
       title: 'شبکه‌های اجتماعی شمالی کارت',

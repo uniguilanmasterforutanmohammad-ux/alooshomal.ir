@@ -31,7 +31,17 @@ import {
   BiolinksSection,
   BusinessCardsSection,
   OverviewSection,
+  SettingsAppearanceSection,
+  SettingsAuthSection,
+  SettingsDirectorySection,
+  SettingsFeaturesSection,
+  SettingsNewsSection,
+  SettingsNotificationsSection,
+  SettingsOnboardingSection,
   SettingsSection,
+  SettingsTaxonomySection,
+  SettingsTemplatesSection,
+  SettingsWalletSection,
   TicketsSection,
   UsersSection,
 } from './sections';
@@ -90,6 +100,18 @@ function AdminContent() {
       {section === 'notifications' ? <NotificationsInbox scope="admin" /> : null}
       {section === 'tools' ? <AdminBulkTools /> : null}
       {section === 'settings' ? <SettingsSection /> : null}
+      {section === 'settings-appearance' ? <SettingsAppearanceSection /> : null}
+      {section === 'settings-features' ? <SettingsFeaturesSection /> : null}
+      {section === 'settings-onboarding' ? <SettingsOnboardingSection /> : null}
+      {section === 'settings-templates' ? <SettingsTemplatesSection /> : null}
+      {section === 'settings-directory' ? <SettingsDirectorySection /> : null}
+      {section === 'settings-taxonomy' ? <SettingsTaxonomySection /> : null}
+      {section === 'settings-auth' ? <SettingsAuthSection /> : null}
+      {section === 'settings-wallet' ? <SettingsWalletSection /> : null}
+      {section === 'settings-notifications' ? (
+        <SettingsNotificationsSection />
+      ) : null}
+      {section === 'settings-news' ? <SettingsNewsSection /> : null}
       {section === 'social-accounts' ? <AdminSocialAccounts /> : null}
     </AdminShell>
   );

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Search } from 'lucide-react';
 
 import { ActivityLogPanel } from '@/components/admin/ActivityLogPanel';
@@ -337,18 +338,129 @@ export function TicketsSection({ state }: { state: AdminConsole }) {
   );
 }
 
+/**
+ * Every settings area now lives in its own sidebar panel (so the single
+ * «تنظیمات» page no longer crams ten forms together). This hub is the
+ * fallback for the legacy `?section=settings` link and simply links to each
+ * dedicated panel.
+ */
+const SETTINGS_PANELS: Array<{
+  section: string;
+  title: string;
+  description: string;
+}> = [
+  {
+    section: 'settings-appearance',
+    title: 'ظاهر سایت',
+    description: 'تم سراسری و حالت تاریک',
+  },
+  {
+    section: 'settings-features',
+    title: 'ویژگی‌ها و دسترسی‌ها',
+    description: 'سوئیچ فعال/نمایش هر قابلیت کاربری',
+  },
+  {
+    section: 'settings-onboarding',
+    title: 'مراحل «شروع آسان»',
+    description: 'ترتیب و فهرست مراحل ویزارد کاربر',
+  },
+  {
+    section: 'settings-templates',
+    title: 'قالب بیولینک',
+    description: 'قالب‌های آماده‌ی صفحه‌ی بیولینک',
+  },
+  {
+    section: 'settings-directory',
+    title: 'نمایش دایرکتوری',
+    description: 'چیدمان فهرست بیولینک و کارت ویزیت',
+  },
+  {
+    section: 'settings-taxonomy',
+    title: 'شهرها و کسب‌وکارها',
+    description: 'دسته‌بندی‌های قابل انتخاب در فرم‌ها',
+  },
+  {
+    section: 'settings-auth',
+    title: 'ورود و ثبت‌نام',
+    description: 'ورود با موبایل و ایمیل/رمز',
+  },
+  {
+    section: 'settings-wallet',
+    title: 'کیف پول و تسویه',
+    description: 'مهلت تسویه‌ی بدهی',
+  },
+  {
+    section: 'settings-notifications',
+    title: 'اعلان‌ها',
+    description: 'دسته‌بندی اعلان‌های مدیر',
+  },
+  {
+    section: 'settings-news',
+    title: 'اخبار شهر',
+    description: 'تیترها و سطح دسترسی اخبار',
+  },
+];
+
 export function SettingsSection() {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      {SETTINGS_PANELS.map((panel) => (
+        <Link
+          key={panel.section}
+          href={`/admin?section=${panel.section}`}
+          className="indeed-panel p-4 transition hover:border-brand"
+        >
+          <b className="text-sm font-extrabold text-ink">{panel.title}</b>
+          <p className="mt-1 text-xs leading-6 text-muted">{panel.description}</p>
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+export function SettingsAppearanceSection() {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <AdminAppearanceSettings />
+    </div>
+  );
+}
+
+export function SettingsFeaturesSection() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
       <AdminFeatureFlags />
+    </div>
+  );
+}
+
+export function SettingsOnboardingSection() {
+  return (
+    <div className="grid gap-4">
       <AdminOnboardingSteps />
+    </div>
+  );
+}
+
+export function SettingsTemplatesSection() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
       <AdminBiolinkTemplates />
+    </div>
+  );
+}
+
+export function SettingsDirectorySection() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
       <AdminDirectorySettings />
-      <AdminAuthSettings />
-      <AdminWalletSettings />
-      <AdminNotificationSettings />
-      <AdminNewsSettings />
+    </div>
+  );
+}
+
+export function SettingsTaxonomySection() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
       <TaxonomyManager
         title="مدیریت شهرها"
         description="شهرهای قابل انتخاب در فرم ساخت بیولینک"
@@ -361,6 +473,38 @@ export function SettingsSection() {
         endpoint="/admin/businesses"
         placeholder="نام کسب‌وکار"
       />
+    </div>
+  );
+}
+
+export function SettingsAuthSection() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <AdminAuthSettings />
+    </div>
+  );
+}
+
+export function SettingsWalletSection() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <AdminWalletSettings />
+    </div>
+  );
+}
+
+export function SettingsNotificationsSection() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <AdminNotificationSettings />
+    </div>
+  );
+}
+
+export function SettingsNewsSection() {
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <AdminNewsSettings />
     </div>
   );
 }

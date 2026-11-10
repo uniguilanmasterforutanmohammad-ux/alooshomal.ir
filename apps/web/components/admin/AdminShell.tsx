@@ -13,20 +13,26 @@ import {
   CreditCard,
   HardDrive,
   IdCard,
+  KeyRound,
+  LayoutGrid,
+  LayoutTemplate,
   LifeBuoy,
   LayoutDashboard,
   LogOut,
   Mail,
+  MapPin,
   Megaphone,
   ImagePlus,
   Menu,
   Bell,
   Newspaper,
   FlaskConical,
+  Palette,
   Receipt,
-  Settings,
   Share2,
   ShieldCheck,
+  Sparkles,
+  ToggleRight,
   TrendingUp,
   UserCog,
   Users,
@@ -67,7 +73,17 @@ export type AdminSection =
   | 'storage'
   | 'monitoring'
   | 'notifications'
-  | 'settings';
+  | 'settings'
+  | 'settings-appearance'
+  | 'settings-features'
+  | 'settings-onboarding'
+  | 'settings-templates'
+  | 'settings-directory'
+  | 'settings-taxonomy'
+  | 'settings-auth'
+  | 'settings-wallet'
+  | 'settings-notifications'
+  | 'settings-news';
 
 interface Props {
   section: AdminSection;
@@ -128,9 +144,23 @@ const NAV_GROUPS: Array<{
     ],
   },
   {
-    title: 'تنظیمات و سیستم',
+    title: 'تنظیمات سایت',
     items: [
-      { key: 'settings', label: 'تنظیمات', icon: Settings },
+      { key: 'settings-appearance', label: 'ظاهر سایت', icon: Palette },
+      { key: 'settings-features', label: 'ویژگی‌ها و دسترسی‌ها', icon: ToggleRight },
+      { key: 'settings-onboarding', label: 'شروع آسان', icon: Sparkles },
+      { key: 'settings-templates', label: 'قالب بیولینک', icon: LayoutTemplate },
+      { key: 'settings-directory', label: 'نمایش دایرکتوری', icon: LayoutGrid },
+      { key: 'settings-taxonomy', label: 'شهرها و کسب‌وکارها', icon: MapPin },
+      { key: 'settings-auth', label: 'ورود و ثبت‌نام', icon: KeyRound },
+      { key: 'settings-wallet', label: 'کیف پول و تسویه', icon: Wallet },
+      { key: 'settings-notifications', label: 'اعلان‌ها', icon: Bell },
+      { key: 'settings-news', label: 'اخبار شهر', icon: Newspaper },
+    ],
+  },
+  {
+    title: 'سیستم',
+    items: [
       { key: 'social-accounts', label: 'شبکه‌های اجتماعی', icon: Share2 },
       { key: 'monitoring', label: 'پایش منابع', icon: Activity },
       { key: 'storage', label: 'فضای سرور', icon: HardDrive },
