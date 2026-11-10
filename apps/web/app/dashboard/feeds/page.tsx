@@ -51,9 +51,9 @@ function faDate(value: string) {
 /**
  * «فید من» — the user's feed panel. Publishing a post (text + images) is free;
  * the only paid product is *tagging* one of the author's own business cards or
- * biolinks on the post. There is no payment gateway yet, so the tag fee is
- * settled by an admin confirmation (simulated payment). The panel also manages
- * the opt-in feed subscription package and the user's own posts.
+ * biolinks on the post. The tag fee is added to the wallet and the admin can
+ * apply the tag only after the wallet is settled. The panel also manages the
+ * opt-in feed subscription package and the user's own posts.
  */
 export default function DashboardFeedsPage() {
   const router = useRouter();
@@ -230,7 +230,7 @@ export default function DashboardFeedsPage() {
         await api.post('/feeds/mine', payload);
         setMessage(
           tagKind
-            ? 'پست ثبت شد. پس از تأیید مدیر منتشر می‌شود و پس از تأیید پرداخت تگ، لینک کارت/بیولینک نمایش داده می‌شود.'
+            ? 'پست ثبت شد و هزینه‌ی تگ به کیف پول شما اضافه شد. پس از تأیید مدیر منتشر می‌شود و پس از تسویه‌ی کیف پول، لینک کارت/بیولینک نمایش داده می‌شود.'
             : 'پست ثبت شد و پس از تأیید مدیر در فید منتشر می‌شود.',
         );
       }

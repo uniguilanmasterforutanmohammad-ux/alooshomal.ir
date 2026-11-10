@@ -17,6 +17,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { feedPostInclude, feedTagInclude } from './feeds.shared';
+import { WalletService } from '../wallet/wallet.service';
 
 /**
  * Admin side of «فیدها»: post moderation, the paid-tag decisions, and the
@@ -33,6 +34,7 @@ export class FeedsAdminService {
     private readonly activity: ActivityService,
     private readonly facetsCache: FacetsCacheService,
     private readonly finance: FinanceService,
+    private readonly wallet: WalletService,
   ) {}
 
   async ensureDefaultPackages(): Promise<void> {
@@ -174,6 +176,12 @@ export class FeedsAdminService {
       throw new BadRequestException('این پست تگی ندارد');
     }
     const confirm = decision === 'CONFIRM';
+    if (confirm) {
+      await this.wallet.assertSettled(
+        post.userId,
+        'کاربر برای اعمال تگ فید باید ابتدا بدهی کیف پول خود را تسویه کند.',
+      );
+    }
     const updated = await this.prisma.feedPost.update({
       where: { id: postId },
       data: confirm
@@ -329,6 +337,12 @@ export class FeedsAdminService {
     }
     const now = new Date();
     const approved = decision === SubscriptionStatus.ACTIVE;
+    if (approved) {
+      await this.wallet.assertSettled(
+        sub.userId,
+        'کاربر برای فعال‌سازی اشتراک فید باید ابتدا بدهی کیف پول خود را تسویه کند.',
+      );
+    }
 
     // An *upgrade* is an approval given while another ACTIVE subscription is
     // still inside its paid window. In that case the new package's quota must

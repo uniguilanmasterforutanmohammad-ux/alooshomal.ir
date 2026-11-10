@@ -60,7 +60,7 @@ export class ProfileService {
 
   /** Profile of the current user plus their latest pending change request. */
   async me(userId: string) {
-    const [user, pending] = await Promise.all([
+    const [user, pending, identityInquiryAvailable] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -70,9 +70,11 @@ export class ProfileService {
           fullName: true,
           firstName: true,
           lastName: true,
+          fatherName: true,
           nationalCode: true,
           birthDate: true,
           phoneMatchVerifiedAt: true,
+          identityVerifiedAt: true,
           verifiedAt: true,
           blueTickRequestedAt: true,
           blueTickNote: true,
@@ -87,6 +89,7 @@ export class ProfileService {
         where: { userId, status: NewsStatus.PENDING },
         orderBy: { createdAt: 'desc' },
       }),
+      this.zohal.identityInquiryAvailable(),
     ]);
     if (!user) {
       throw new NotFoundException('کاربر یافت نشد');
@@ -97,8 +100,215 @@ export class ProfileService {
       ...rest,
       hasPassword: Boolean(passwordHash),
       profileCompleted: isProfileComplete(user),
+      identityInquiryAvailable,
+      identity: {
+        phoneMatched: Boolean(user.phoneMatchVerifiedAt),
+        verified: Boolean(user.identityVerifiedAt),
+        nationalCode: user.nationalCode,
+        birthDate: user.birthDate,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fatherName: user.fatherName,
+      },
       pendingChange: pending,
     };
+  }
+
+  /**
+   * Step 1: prove the signed-in mobile belongs to the national code (Shahkar)
+   * and capture the Jalali birth date. The paid call is charged to the wallet
+   * even when Shahkar says «not matched», because the upstream inquiry was
+   * consumed. A successful match clears any previous identity verification.
+   */
+  async matchIdentityPhone(
+    userId: string,
+    dto: { nationalCode: string; birthDate: string },
+  ) {
+    await this.settings.assertFeatureEnabled(
+      'featureIdentityInquiry',
+      'استعلام هویت موقتاً توسط مدیر غیرفعال شده است.',
+    );
+    const nationalCode = dto.nationalCode.trim();
+    if (!isValidNationalCode(nationalCode)) {
+      throw new BadRequestException('کد ملی وارد‌شده معتبر نیست');
+    }
+    const birthDate = dto.birthDate.trim();
+    const owner = await this.prisma.user.findUnique({
+      where: { nationalCode },
+      select: { id: true },
+    });
+    if (owner && owner.id !== userId) {
+      throw new ConflictException('این کد ملی قبلاً برای حساب دیگری ثبت شده است');
+    }
+    const me = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { phone: true, phoneVerified: true },
+    });
+    if (!me?.phone || !me.phoneVerified) {
+      throw new BadRequestException(
+        'برای استعلام مالکیت شماره، ابتدا باید شماره موبایل حساب تأیید شده باشد.',
+      );
+    }
+
+    const inquiry = await this.zohal.verifyPhoneOwnership(
+      me.phone,
+      nationalCode,
+    );
+    const price = await this.zohal.getServicePrice('shahkar');
+    // Charge only when Zohal actually answered; a network/timeout failure never
+    // consumed the paid inquiry, so the user must not be billed for it.
+    if (inquiry.httpStatus !== null) {
+      await this.wallet.charge({
+        userId,
+        kind: WalletEntryKind.PHONE_MATCH,
+        amount: price,
+        title: 'تطبیق شماره موبایل و کد ملی (شاهکار)',
+        sourceType: 'ZOHAL',
+        sourceId: 'shahkar',
+        idempotencyKey: `identity:phone-match:${userId}:${nationalCode}:${birthDate}`,
+      });
+    }
+
+    if (!inquiry.ok) {
+      throw new BadRequestException(
+        inquiry.message || 'استعلام شاهکار انجام نشد؛ لطفاً دوباره تلاش کنید.',
+      );
+    }
+    if (!inquiry.data?.matched) {
+      throw new BadRequestException(
+        'شماره‌ی موبایل تأییدشده با این کد ملی تطبیق ندارد؛ شماره و کد ملی را بررسی کنید.',
+      );
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        nationalCode,
+        birthDate,
+        phoneMatchVerifiedAt: new Date(),
+        // Any previous inquiry belongs to the old national code / birth date.
+        identityVerifiedAt: null,
+        fatherName: null,
+        identityInquiryData: Prisma.DbNull,
+      },
+      select: {
+        nationalCode: true,
+        birthDate: true,
+        phoneMatchVerifiedAt: true,
+        identityVerifiedAt: true,
+      },
+    });
+    await this.activity.log({
+      actor: { id: userId },
+      action: 'IDENTITY_PHONE_MATCHED',
+      summary: 'تطبیق موفق شماره موبایل با کد ملی (شاهکار)',
+      entityType: 'USER',
+      entityId: userId,
+    });
+    return { matched: true, ...updated, charged: price };
+  }
+
+  /**
+   * Step 2: run the paid Zohal identity inquiry with the already-matched
+   * national code + birth date, store the returned name/father data and mark
+   * the account as identity-verified. Idempotent once verified: a second call
+   * returns the stored result without charging again.
+   */
+  async inquiryIdentity(userId: string) {
+    await this.settings.assertFeatureEnabled(
+      'featureIdentityInquiry',
+      'استعلام هویت موقتاً توسط مدیر غیرفعال شده است.',
+    );
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        nationalCode: true,
+        birthDate: true,
+        phoneMatchVerifiedAt: true,
+        identityVerifiedAt: true,
+        firstName: true,
+        lastName: true,
+        fatherName: true,
+      },
+    });
+    if (!user) throw new NotFoundException('کاربر یافت نشد');
+    if (user.identityVerifiedAt) {
+      return {
+        alreadyVerified: true,
+        identityVerifiedAt: user.identityVerifiedAt,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fatherName: user.fatherName,
+      };
+    }
+    if (!user.phoneMatchVerifiedAt || !user.nationalCode || !user.birthDate) {
+      throw new BadRequestException(
+        'ابتدا مرحله‌ی اول را کامل کنید: تطبیق کد ملی با شماره موبایل و ثبت تاریخ تولد.',
+      );
+    }
+
+    const inquiry = await this.zohal.inquiryIdentity(
+      user.nationalCode,
+      user.birthDate,
+    );
+    const price = await this.zohal.getServicePrice('national_identity_inquiry');
+    // Same rule as step 1: bill only a call that Zohal actually answered.
+    if (inquiry.httpStatus !== null) {
+      await this.wallet.charge({
+        userId,
+        kind: WalletEntryKind.IDENTITY_INQUIRY,
+        amount: price,
+        title: 'استعلام اطلاعات هویتی (زحل)',
+        sourceType: 'ZOHAL',
+        sourceId: 'national_identity_inquiry',
+        idempotencyKey: `identity:inquiry:${userId}:${user.nationalCode}:${user.birthDate}`,
+      });
+    }
+
+    if (!inquiry.ok) {
+      throw new BadRequestException(
+        inquiry.message || 'استعلام هویت انجام نشد؛ لطفاً دوباره تلاش کنید.',
+      );
+    }
+    if (!inquiry.data?.matched) {
+      throw new BadRequestException(
+        'اطلاعات هویتی با این کد ملی و تاریخ تولد تطبیق نداشت؛ تاریخ تولد را بررسی کنید.',
+      );
+    }
+    const firstName = inquiry.data.first_name?.trim() ?? '';
+    const lastName = inquiry.data.last_name?.trim() ?? '';
+    if (!firstName || !lastName) {
+      throw new BadRequestException(
+        'نام و نام خانوادگی از استعلام هویت دریافت نشد',
+      );
+    }
+    const fatherName = inquiry.data.father_name?.trim() || null;
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        firstName,
+        lastName,
+        fatherName,
+        fullName: `${firstName} ${lastName}`,
+        identityVerifiedAt: new Date(),
+        identityInquiryData: inquiry.data as unknown as Prisma.InputJsonValue,
+      },
+      select: {
+        firstName: true,
+        lastName: true,
+        fatherName: true,
+        fullName: true,
+        identityVerifiedAt: true,
+      },
+    });
+    await this.activity.log({
+      actor: { id: userId },
+      action: 'IDENTITY_INQUIRY_COMPLETED',
+      summary: `تکمیل استعلام هویت: ${updated.fullName}`,
+      entityType: 'USER',
+      entityId: userId,
+    });
+    return { ...updated, charged: price };
   }
 
   /**
@@ -119,6 +329,11 @@ export class ProfileService {
       birthDate?: string;
     },
   ) {
+    if (await this.zohal.identityInquiryAvailable()) {
+      throw new BadRequestException(
+        'برای ثبت هویت از مرحله‌های «تطبیق شاهکار» و «استعلام هویت» در پروفایل استفاده کنید.',
+      );
+    }
     const nationalCode = dto.nationalCode.trim();
     if (!isValidNationalCode(nationalCode)) {
       throw new BadRequestException('کد ملی وارد‌شده معتبر نیست');
@@ -133,6 +348,8 @@ export class ProfileService {
 
     let firstName = dto.firstName?.trim() ?? '';
     let lastName = dto.lastName?.trim() ?? '';
+    let fatherName: string | null = null;
+    let inquiryData: Prisma.InputJsonValue | undefined;
     const birthDate = dto.birthDate?.trim() || null;
     let inquiryUsed = false;
 
@@ -148,14 +365,20 @@ export class ProfileService {
         );
       }
       const inquiry = await this.zohal.inquiryIdentity(nationalCode, birthDate);
-      if (!inquiry.ok || !inquiry.data?.matched) {
+      if (!inquiry.ok) {
         throw new BadRequestException(
-          inquiry.message ||
-            'استعلام هویت ناموفق بود؛ کد ملی و تاریخ تولد را بررسی کنید',
+          inquiry.message || 'استعلام هویت انجام نشد؛ لطفاً دوباره تلاش کنید',
+        );
+      }
+      if (!inquiry.data?.matched) {
+        throw new BadRequestException(
+          'اطلاعات هویتی با این کد ملی و تاریخ تولد تطبیق نداشت؛ تاریخ تولد را بررسی کنید',
         );
       }
       firstName = inquiry.data.first_name?.trim() ?? '';
       lastName = inquiry.data.last_name?.trim() ?? '';
+      fatherName = inquiry.data.father_name?.trim() || null;
+      inquiryData = inquiry.data as unknown as Prisma.InputJsonValue;
       inquiryUsed = true;
       if (!firstName || !lastName) {
         throw new BadRequestException(
@@ -169,9 +392,13 @@ export class ProfileService {
       data: {
         firstName,
         lastName,
+        fatherName,
         nationalCode,
         birthDate,
         fullName: `${firstName} ${lastName}`,
+        ...(inquiryUsed
+          ? { identityVerifiedAt: new Date(), identityInquiryData: inquiryData }
+          : {}),
       },
       select: {
         id: true,
@@ -182,6 +409,8 @@ export class ProfileService {
         lastName: true,
         nationalCode: true,
         birthDate: true,
+        phoneMatchVerifiedAt: true,
+        identityVerifiedAt: true,
         verifiedAt: true,
         blueTickRequestedAt: true,
         role: true,
@@ -198,6 +427,7 @@ export class ProfileService {
         title: 'استعلام اطلاعات هویتی',
         sourceType: 'ZOHAL',
         sourceId: 'national_identity_inquiry',
+        idempotencyKey: `identity:inquiry:${userId}:${nationalCode}:${birthDate}`,
       });
     }
     await this.activity.log({
@@ -207,7 +437,7 @@ export class ProfileService {
       entityType: 'USER',
       entityId: userId,
     });
-    return { ...user, profileCompleted: true };
+    return { ...user, profileCompleted: isProfileComplete(user) };
   }
 
   /** Submit a name change for admin approval (one pending request at a time). */

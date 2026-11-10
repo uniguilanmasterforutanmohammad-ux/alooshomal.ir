@@ -35,13 +35,16 @@ interface ProfilePayload {
   fullName: string | null;
   firstName: string | null;
   lastName: string | null;
+  fatherName: string | null;
   nationalCode: string | null;
   birthDate: string | null;
   phoneMatchVerifiedAt: string | null;
+  identityVerifiedAt: string | null;
   verifiedAt: string | null;
   blueTickRequestedAt: string | null;
   blueTickNote: string | null;
   profileCompleted: boolean;
+  identityInquiryAvailable: boolean;
   role: string;
   isActive: boolean;
   createdAt: string;
@@ -62,13 +65,12 @@ export function ProfilePanel() {
   const [profile, setProfile] = useState<ProfilePayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [nationalCode, setNationalCode] = useState('');
   const [birthIso, setBirthIso] = useState('');
   const [inquiryAvailable, setInquiryAvailable] = useState<boolean | null>(null);
   const [blueTickBusy, setBlueTickBusy] = useState(false);
-  const [savingIdentity, setSavingIdentity] = useState(false);
+  const [matchingPhone, setMatchingPhone] = useState(false);
+  const [inquiryRunning, setInquiryRunning] = useState(false);
   const [sending, setSending] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [sendToPhone, setSendToPhone] = useState(false);
@@ -83,9 +85,8 @@ export function ProfilePanel() {
     try {
       const data = await api.get<ProfilePayload>('/profile/me');
       setProfile(data);
+      setInquiryAvailable(data.identityInquiryAvailable);
       setFullName((current) => current || data.fullName || '');
-      setFirstName(data.firstName ?? '');
-      setLastName(data.lastName ?? '');
       setNationalCode(data.nationalCode ?? '');
       const parsedBirth = data.birthDate ? parseJalali(data.birthDate) : null;
       setBirthIso(
@@ -136,42 +137,50 @@ export function ProfilePanel() {
     }
   }
 
-  async function submitIdentity() {
+  function birthDateJalali(): string | undefined {
+    const jalaliBirth = isoToJalali(birthIso);
+    return jalaliBirth
+      ? `${jalaliBirth.year}/${String(jalaliBirth.month).padStart(2, '0')}/${String(jalaliBirth.day).padStart(2, '0')}`
+      : undefined;
+  }
+
+  async function matchPhoneOwnership() {
     if (!/^\d{10}$/.test(nationalCode.trim())) {
       toast.error('کد ملی باید دقیقاً ۱۰ رقم باشد.');
       return;
     }
-    const autoInquiry = inquiryAvailable === true;
-    if (autoInquiry && !birthIso) {
+    if (!birthIso) {
       toast.error('برای استعلام هویت، تاریخ تولد را انتخاب کنید.');
       return;
     }
-    if (!autoInquiry && (firstName.trim().length < 2 || lastName.trim().length < 2)) {
-      toast.error('نام و نام خانوادگی باید حداقل ۲ کاراکتر باشند.');
-      return;
-    }
-    const jalaliBirth = isoToJalali(birthIso);
-    const birthDate = jalaliBirth
-      ? `${jalaliBirth.year}/${String(jalaliBirth.month).padStart(2, '0')}/${String(jalaliBirth.day).padStart(2, '0')}`
-      : undefined;
-    setSavingIdentity(true);
+    setMatchingPhone(true);
     try {
-      await api.patch('/profile/me', {
+      await api.post('/profile/identity/phone-match', {
         nationalCode: nationalCode.trim(),
-        ...(autoInquiry
-          ? { birthDate }
-          : { firstName: firstName.trim(), lastName: lastName.trim() }),
+        birthDate: birthDateJalali(),
       });
-      toast.success(
-        autoInquiry
-          ? 'هویت شما استعلام و نام و نام خانوادگی به‌صورت خودکار ثبت شد.'
-          : 'مشخصات هویتی شما ذخیره شد.',
-      );
+      toast.success('مالکیت شماره موبایل با کد ملی (شاهکار) تأیید شد.');
+      await load();
+      // The scenario continues straight into the paid identity inquiry; if
+      // that call fails, the step-2 button stays available for a retry.
+      await runIdentityInquiry();
+    } catch {
+      /* api layer surfaces the error */
+    } finally {
+      setMatchingPhone(false);
+    }
+  }
+
+  async function runIdentityInquiry() {
+    setInquiryRunning(true);
+    try {
+      await api.post('/profile/identity/inquiry', {});
+      toast.success('استعلام هویت انجام شد و مشخصات شما ذخیره شد.');
       await load();
     } catch {
       /* api layer surfaces the error */
     } finally {
-      setSavingIdentity(false);
+      setInquiryRunning(false);
     }
   }
 
@@ -291,87 +300,92 @@ export function ProfilePanel() {
         </div>
         <p className="mt-1 text-xs leading-6 text-muted">
           برای ساخت بیولینک، کارت ویزیت، پست فید، درخواست پله/تبلیغ و خرید
-          اشتراک، ابتدا کد ملی و تاریخ تولد خود را ثبت کنید. نام و نام خانوادگی
-          به‌صورت خودکار از استعلام هویت (زحل) دریافت می‌شود.
+          اشتراک، ابتدا باید دو مرحله‌ی استعلام هویت را کامل کنید. هزینه‌ی هر
+          استعلام به‌صورت بدهی در کیف پول ثبت می‌شود.
         </p>
-        {!profile.profileCompleted ? (
-          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
-            تا زمانی که این بخش تکمیل نشود، امکان ثبت موارد بالا وجود ندارد.
-          </p>
-        ) : null}
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <label className="text-xs font-bold text-muted">
-            کد ملی
-            <input
-              className="indeed-input mt-1"
-              dir="ltr"
-              inputMode="numeric"
-              maxLength={10}
-              value={nationalCode}
-              onChange={(event) =>
-                setNationalCode(event.target.value.replace(/\D/g, ''))
-              }
-            />
-          </label>
-          {inquiryAvailable ? (
-            <label className="text-xs font-bold text-muted">
-              تاریخ تولد (شمسی)
-              <JalaliDatePicker
-                className="mt-1"
-                value={birthIso}
-                onChange={setBirthIso}
-                placeholder="۱۳۷۰/۰۱/۰۱"
-                max={new Date().toISOString().slice(0, 10)}
-              />
-            </label>
-          ) : (
-            <>
-              <label className="text-xs font-bold text-muted">
-                نام
-                <input
-                  className="indeed-input mt-1"
-                  value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
-                  autoComplete="given-name"
-                />
-              </label>
-              <label className="text-xs font-bold text-muted">
-                نام خانوادگی
-                <input
-                  className="indeed-input mt-1"
-                  value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
-                  autoComplete="family-name"
-                />
-              </label>
-            </>
-          )}
-        </div>
-        {inquiryAvailable && profile.firstName && profile.lastName ? (
-          <p className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs leading-6 text-emerald-800">
-            نام ثبت‌شده از استعلام: <b>{profile.firstName} {profile.lastName}</b>
+        {profile.identityVerifiedAt ? (
+          <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs leading-6 text-emerald-800">
+            هویت شما تأیید شده است: <b>{profile.firstName} {profile.lastName}</b>
+            {profile.fatherName ? ` — نام پدر: ${profile.fatherName}` : ''}
             {profile.birthDate ? ` — تاریخ تولد: ${profile.birthDate}` : ''}
-          </p>
-        ) : null}
-        {inquiryAvailable === false ? (
+          </div>
+        ) : (
+          <>
+            {!profile.profileCompleted ? (
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
+                تا زمانی که این بخش تکمیل نشود، امکان ثبت موارد بالا وجود ندارد.
+              </p>
+            ) : null}
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="text-xs font-bold text-muted">
+                کد ملی
+                <input
+                  className="indeed-input mt-1"
+                  dir="ltr"
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={nationalCode}
+                  onChange={(event) =>
+                    setNationalCode(event.target.value.replace(/\D/g, ''))
+                  }
+                />
+              </label>
+              <label className="text-xs font-bold text-muted">
+                تاریخ تولد (شمسی)
+                <JalaliDatePicker
+                  className="mt-1"
+                  value={birthIso}
+                  onChange={setBirthIso}
+                  placeholder="۱۳۷۰/۰۱/۰۱"
+                  max={new Date().toISOString().slice(0, 10)}
+                />
+              </label>
+            </div>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={() => void matchPhoneOwnership()}
+                disabled={matchingPhone}
+                className="indeed-btn indeed-btn-primary"
+              >
+                <Send className="size-4" aria-hidden />
+                {matchingPhone
+                  ? 'در حال استعلام شاهکار...'
+                  : 'مرحله ۱: تطبیق شاهکار'}
+              </button>
+              {profile.phoneMatchVerifiedAt ? (
+                <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                  مالکیت شماره تأیید شد
+                </span>
+              ) : null}
+            </div>
+            {profile.phoneMatchVerifiedAt ? (
+              <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                <p className="text-xs leading-6 text-emerald-800">
+                  شماره موبایل شما با کد ملی تطبیق داده شد. اکنون می‌توانید
+                  استعلام اطلاعات هویتی را انجام دهید.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void runIdentityInquiry()}
+                  disabled={inquiryRunning}
+                  className="indeed-btn indeed-btn-primary mt-3"
+                >
+                  <ShieldCheck className="size-4" aria-hidden />
+                  {inquiryRunning
+                    ? 'در حال استعلام هویت...'
+                    : 'مرحله ۲: استعلام و ثبت هویت'}
+                </button>
+              </div>
+            ) : null}
+          </>
+        )}
+        {!profile.identityVerifiedAt && inquiryAvailable === false ? (
           <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
-            استعلام خودکار هویت در حال حاضر در دسترس نیست؛ نام و نام خانوادگی را
-            دستی وارد کنید.
+            استعلام خودکار هویت در حال حاضر توسط مدیر غیرفعال است؛ لطفاً بعداً
+            تلاش کنید یا با پشتیبانی تماس بگیرید.
           </p>
         ) : null}
-        <button
-          type="button"
-          onClick={() => void submitIdentity()}
-          disabled={savingIdentity}
-          className="indeed-btn indeed-btn-primary mt-4"
-        >
-          <Send className="size-4" aria-hidden />
-          {savingIdentity
-            ? 'در حال استعلام...'
-            : inquiryAvailable
-              ? 'استعلام و ثبت هویت'
-              : 'ذخیره مشخصات'}
-        </button>
       </div>
 
       <div className="indeed-panel p-5">

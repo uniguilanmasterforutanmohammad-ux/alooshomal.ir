@@ -63,6 +63,14 @@ function faDate(value: string) {
   return new Date(value).toLocaleDateString('fa-IR');
 }
 
+function walletDebtMessage(
+  wallet: { charged: number } | null | undefined,
+  fallback: string,
+): string {
+  if (!wallet || wallet.charged <= 0) return fallback;
+  return `مبلغ ${wallet.charged.toLocaleString('fa-IR')} تومان به بدهی کیف پول شما اضافه شد؛ برای اعمال این درخواست ابتدا از بخش کیف پول تسویه کنید.`;
+}
+
 interface Props {
   data: BoostOverview | null;
   loading: boolean;
@@ -141,7 +149,12 @@ export function BoostTable({
       });
       if (goToPaymentGateway(result.payment)) return;
       setLocalBoost((prev) => ({ ...prev, [`${kind}:${item.id}`]: 'PENDING' }));
-      onMessage('درخواست پله ثبت شد. پس از تأیید مدیر در صدر لیست دایرکتوری نمایش داده می‌شود.');
+      onMessage(
+        walletDebtMessage(
+          result.wallet,
+          'درخواست پله ثبت شد. پس از تأیید مدیر در صدر لیست دایرکتوری نمایش داده می‌شود.',
+        ),
+      );
       onReload();
     } catch (err) {
       onError(err instanceof Error ? err.message : 'ثبت درخواست پله ناموفق بود');
@@ -162,7 +175,12 @@ export function BoostTable({
       });
       if (goToPaymentGateway(result.payment)) return;
       setLocalAd((prev) => ({ ...prev, [`${kind}:${item.id}`]: 'PENDING' }));
-      onMessage('درخواست تبلیغ ثبت شد. پس از تأیید مدیر در صفحه اصلی نمایش داده می‌شود.');
+      onMessage(
+        walletDebtMessage(
+          result.wallet,
+          'درخواست تبلیغ ثبت شد. پس از تأیید مدیر در صفحه اصلی نمایش داده می‌شود.',
+        ),
+      );
       onReload();
     } catch (err) {
       onError(err instanceof Error ? err.message : 'ثبت درخواست تبلیغ ناموفق بود');
@@ -186,7 +204,10 @@ export function BoostTable({
       if (goToPaymentGateway(result.payment)) return;
       setLocalDirectoryAd((prev) => ({ ...prev, [`${kind}:${item.id}`]: 'PENDING' }));
       onMessage(
-        'درخواست تبلیغ در دایرکتوری ثبت شد. پس از تأیید مدیر در صدر لیست همان شهر/کسب‌وکار نمایش داده می‌شود.',
+        walletDebtMessage(
+          result.wallet,
+          'درخواست تبلیغ در دایرکتوری ثبت شد. پس از تأیید مدیر در صدر لیست همان شهر/کسب‌وکار نمایش داده می‌شود.',
+        ),
       );
       onReload();
     } catch (err) {

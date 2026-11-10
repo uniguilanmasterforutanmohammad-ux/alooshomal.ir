@@ -21,6 +21,7 @@ import {
 } from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { assertOwnedMediaUrls } from '../uploads/media-url';
+import { WalletService } from '../wallet/wallet.service';
 import { CreateBiolinkDto } from './dto/create-biolink.dto';
 import { UpdateBiolinkDto } from './dto/update-biolink.dto';
 
@@ -33,6 +34,7 @@ export class BiolinksService {
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
     private readonly facetsCache: FacetsCacheService,
+    private readonly wallet: WalletService,
   ) {}
 
   private async generateSlug(_fullName: string): Promise<string> {
@@ -77,6 +79,10 @@ export class BiolinksService {
   }
 
   async create(userId: string, dto: CreateBiolinkDto) {
+    await this.wallet.assertSettled(
+      userId,
+      'برای ساخت بیولینک، ابتدا بدهی کیف پول خود را تسویه کنید.',
+    );
     // `draft` is a transport-only flag: it decides the initial status and
     // whether the moderators get pinged, and must never reach Prisma.
     const { draft, ...fields } = dto;

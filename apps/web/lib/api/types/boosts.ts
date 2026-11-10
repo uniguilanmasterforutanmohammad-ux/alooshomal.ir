@@ -67,6 +67,8 @@ export interface BoostRequest {
   target?: { id: string; fullName: string; slug: string } | null;
   user?: { id: string; email: string; fullName: string | null };
   payment?: RequestPaymentInfo | null;
+  /** Present when the fee was added to the wallet instead of a gateway call. */
+  wallet?: { charged: number; balance: number } | null;
 }
 
 export interface BoostOverview {

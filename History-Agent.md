@@ -20,7 +20,73 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.20.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.21.0**.
+
+## ۱۴۰۵/۰۸/۱۹ — استعلام دو‌مرحله‌ای هویت، کیف پول حساب‌شده و قیمت‌گذاری یک‌جای خدمات — نسخه `v3.21.0`
+
+**هدف:** پیاده‌سازی سناریوی کامل ورود با موبایل → استعلام هویت اجباری
+(مرحله ۱ شاهکار + مرحله ۲ استعلام زحل) → ثبت همه‌ی هزینه‌ها در کیف پول و
+الزام تسویه پیش از اعمال هر خدمت پولی؛ به‌همراه یک بخش یک‌جا در پنل مدیر
+برای مشاهده و ویرایش مبلغ همه‌ی خدمات دارای هزینه.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `fatherName`، `identityVerifiedAt` و
+  `identityInquiryData` به کاربر؛ افزودن انواع `BOOST`، `AD_HOME`،
+  `AD_DIRECTORY`، `FEED_TAG` و `FEED_PACKAGE` به `WalletEntryKind`؛ افزودن
+  `idempotencyKey` یکتا به `WalletEntry`.
+- `apps/api/src/wallet/wallet.service.ts`: شارژ idempotent (کلید یکتا + مدیریت
+  همزمانی P2002)، `balanceOf` و `assertSettled` با خطای ۴۰۳ و کد `WALLET_DEBT`.
+- `apps/api/src/profile/profile.service.ts` و `profile.controller.ts` و
+  `dto/profile.dto.ts`: مسیرهای `GET /profile/identity/status`،
+  `POST /profile/identity/phone-match` و `POST /profile/identity/inquiry`؛
+  شارژ فقط وقتی زحل واقعاً پاسخ داده، پیام دقیق برای «عدم تطبیق» و ذخیره‌ی
+  نام/نام پدر/داده‌ی خام استعلام؛ `me()` حالا `identityInquiryAvailable` هم
+  برمی‌گرداند.
+- `apps/api/src/common/national-code.ts` و `common/guards/profile-complete.guard.ts`:
+  تکمیل پروفایل یعنی تاریخ تولد + تطبیق شاهکار + استعلام هویت؛ پیام راهنمای
+  دو‌مرحله‌ای.
+- `apps/api/src/zohal/zohal.service.ts`: تیک آبی فقط با هویت تأییدشده و پیام
+  درست برای عدم تطبیق شاهکار؛ تأیید تیک آبی توسط مدیر پشت `assertSettled`.
+- `apps/api/src/biolinks/*` و `businesscards/*`: ساخت بیولینک/کارت پشت
+  `assertSettled`.
+- `apps/api/src/boosts/*` و `ads/*`: با روشن‌بودن کیف پول، هزینه به‌جای درگاه
+  به کیف پول اضافه می‌شود (کلید idempotent) و تأیید مدیر پشت `assertSettled`.
+- `apps/api/src/feeds/*`: شارژ بسته‌ی فید و تگ فید با کلید idempotent،
+  `assertSettled` در ساخت پست و تأیید مدیر، و rollback رکورد در صورت خطای شارژ.
+- `apps/api/src/subscriptions/subscriptions-payment.service.ts`: ثبت اشتراک سپس
+  شارژ با کلید `subscription:<id>` و بازگردانی پلن قبلی در صورت خطا.
+- `apps/api/src/pricing/*` (جدید) و `app.module.ts`: کاتالوگ یک‌جای
+  `GET/PATCH /api/admin/pricing` شامل پله، تبلیغ صفحه اصلی/دایرکتوری، تگ فید،
+  همه‌ی پلن‌ها، بسته‌های فید و سرویس‌های زحل؛ اعتبارسنجی کامل کلیدها پیش از
+  اعمال تا به‌روزرسانی نیمه‌کاره رخ ندهد.
+- `apps/web/components/admin/AdminPricingPanel.tsx` (جدید) و
+  `AdminSubscriptions.tsx`: تب «قیمت خدمات» با جدول گروه‌بندی‌شده و ذخیره‌ی
+  گروهی.
+- `apps/web/components/dashboard/ProfilePanel.tsx`: رابط دو‌مرحله‌ای استعلام
+  هویت (شاهکار سپس استعلام خودکار) و نمایش نام پدر.
+- `apps/web/app/dashboard/wallet/page.tsx`، `lib/api/types/wallet.ts`،
+  `lib/api/types/boosts.ts`، `lib/api/types/ads.ts` و
+  `components/dashboard/BoostTable.tsx`: برچسب انواع جدید، نمایش پیام بدهی
+  کیف پول پس از ثبت درخواست پله/تبلیغ.
+- `docs/API.md`: مستندسازی مسیرهای استعلام هویت، قیمت‌گذاری یک‌جا و قاعده‌ی
+  `WALLET_DEBT`.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v3.21.0`.
+
+**تأیید/تست:**
+- `apps/web`: `./node_modules/.bin/tsc --noEmit` → بدون خطا.
+- `apps/api`: `./node_modules/.bin/tsc --noEmit --incremental false` → فقط سه
+  خطای محیطی از پیش موجود (`@prisma/adapter-pg` و `nodemailer` که در کانتینر
+  موجودند).
+- `python3 scripts/check_api_docs.py` → exit 0 (۳۳ کنترلر، ۳۵۹ مسیر).
+- تست زنده روی کانتینر dev: `GET /api/admin/pricing` فهرست کامل را داد؛
+  `PATCH` مبلغ پله را ۶۰۰۰۰ کرد و برگرداند؛ درخواست با کلید نامعتبر ۴۰۰ داد و
+  هیچ تغییری اعمال نشد (اعتبارسنجی پیش از نوشتن).
+- تست زنده استعلام: `POST /api/profile/identity/phone-match` با کد ملی نامطابق
+  پیام فارسی «شماره‌ی موبایل تأییدشده با این کد ملی تطبیق ندارد…» را برگرداند
+  (پیش‌تر پیام گمراه‌کننده‌ی «موفق» زحل نمایش داده می‌شد).
+- تست زنده کیف پول: کاربر با بدهی ۲۹۸٬۰۰۰ تومان در `POST /api/biolinks` پاسخ
+  ۴۰۳ با کد `WALLET_DEBT` و متن بدهی گرفت.
+- `python3 scripts/sync_install.py` سپس `--check` → `patched: 0, added: 0`.
 
 ## ۱۴۰۵/۰۸/۱۹ — خرید اشتراک آگاه از وضعیت ورود در صفحه تعرفه — نسخه `v3.20.1`
 

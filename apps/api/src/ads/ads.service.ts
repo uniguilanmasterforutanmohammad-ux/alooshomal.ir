@@ -12,6 +12,7 @@ import {
   NotificationType,
   PaymentStatus,
   RequestPaymentTarget,
+  WalletEntryKind,
 } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
@@ -23,6 +24,7 @@ import {
   type RequestPaymentInfo,
 } from '../request-payments/request-payments.service';
 import { SettingsService } from '../settings/settings.service';
+import { WalletService } from '../wallet/wallet.service';
 import { displayStateOf, resolveAdTargetLabels } from './ads-targets';
 import { CreateAdDto } from './dto/create-ad.dto';
 
@@ -45,6 +47,7 @@ export class AdsService {
     private readonly facetsCache: FacetsCacheService,
     private readonly settings: SettingsService,
     private readonly requestPayments: RequestPaymentsService,
+    private readonly wallet: WalletService,
   ) {}
 
   /**
@@ -214,6 +217,7 @@ export class AdsService {
         ? await this.settings.getAdDirectoryPrice()
         : await this.settings.getAdHomePrice();
     const paymentRequired = this.requestPayments.isRequired(price);
+    const walletEnabled = await this.settings.isFeatureEnabled('featureWallet');
 
     const existing = await this.prisma.adRequest.findFirst({
       where: {
@@ -226,6 +230,16 @@ export class AdsService {
       include: { payment: true },
     });
     if (existing) {
+      if (walletEnabled) {
+        return {
+          ...existing,
+          payment: null,
+          wallet: {
+            charged: 0,
+            balance: await this.wallet.balanceOf(userId),
+          },
+        };
+      }
       // An unpaid attempt can be resumed from the gateway; a free or already
       // paid request is genuinely a duplicate.
       const resumable =
@@ -254,12 +268,36 @@ export class AdsService {
       },
     });
 
-    const payment = paymentRequired
-      ? await this.startPayment(userId, request.id, placement, price)
-      : null;
+    let payment: RequestPaymentInfo | null = null;
+    let walletCharge: { charged: number; balance: number } | null = null;
+    if (walletEnabled) {
+      const charged = await this.wallet.charge({
+        userId,
+        kind:
+          placement === AdPlacement.DIRECTORY
+            ? WalletEntryKind.AD_DIRECTORY
+            : WalletEntryKind.AD_HOME,
+        amount: price,
+        title:
+          placement === AdPlacement.DIRECTORY
+            ? 'تبلیغ در صدر دایرکتوری'
+            : 'تبلیغ در صفحه اصلی',
+        sourceType: 'AD_REQUEST',
+        sourceId: request.id,
+        idempotencyKey: `ad:${request.id}`,
+      });
+      walletCharge = {
+        charged,
+        balance: await this.wallet.balanceOf(userId),
+      };
+    } else {
+      payment = paymentRequired
+        ? await this.startPayment(userId, request.id, placement, price)
+        : null;
+    }
 
-    // The admin queue is only notified once the fee is settled (or when the
-    // gateway is off and the ad is free).
+    // With the wallet the request can be reviewed immediately; the admin
+    // decision itself is blocked until the tab is settled.
     if (!payment) {
       await this.notifications.notifyAdmins({
         category: 'AD',
@@ -288,7 +326,7 @@ export class AdsService {
       entityId: request.id,
     });
 
-    return { ...request, payment };
+    return { ...request, payment, wallet: walletCharge };
   }
 
   /** Open (or reopen) the PayPing order of one ad request. */

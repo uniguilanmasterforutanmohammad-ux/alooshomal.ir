@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   BadRequestException,
+  ForbiddenException,
   HttpException,
   Injectable,
   Logger,
@@ -35,6 +36,11 @@ export interface WalletChargeInput {
   title: string;
   sourceType?: string;
   sourceId?: string;
+  /**
+   * Optional stable key (e.g. `boost:<requestId>`). A retry of the same paid
+   * action is a no-op instead of a second debt.
+   */
+  idempotencyKey?: string;
 }
 
 /**
@@ -88,36 +94,80 @@ export class WalletService {
     if (!(await this.settings.isFeatureEnabled('featureWallet'))) return 0;
     const days = await this.settings.getWalletSettlementDays();
 
-    await this.prisma.$transaction(async (tx) => {
-      const wallet = await tx.userWallet.upsert({
-        where: { userId: input.userId },
-        create: { userId: input.userId },
-        update: {},
+    let charged = false;
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        if (input.idempotencyKey) {
+          const existing = await tx.walletEntry.findUnique({
+            where: { idempotencyKey: input.idempotencyKey },
+            select: { id: true },
+          });
+          if (existing) return;
+        }
+        const wallet = await tx.userWallet.upsert({
+          where: { userId: input.userId },
+          create: { userId: input.userId },
+          update: {},
+        });
+        // A settled wallet starts a fresh cycle: reset the due date (and let a
+        // new reminder fire once it passes).
+        const startsCycle = wallet.balance >= 0;
+        await tx.walletEntry.create({
+          data: {
+            walletId: wallet.id,
+            kind: input.kind,
+            idempotencyKey: input.idempotencyKey ?? null,
+            amount: -amount,
+            title: input.title,
+            sourceType: input.sourceType ?? null,
+            sourceId: input.sourceId ?? null,
+          },
+        });
+        await tx.userWallet.update({
+          where: { id: wallet.id },
+          data: {
+            balance: { decrement: amount },
+            ...(startsCycle
+              ? { dueAt: new Date(Date.now() + days * DAY_MS), reminderSentAt: null }
+              : {}),
+          },
+        });
+        charged = true;
       });
-      // A settled wallet starts a fresh cycle: reset the due date (and let a
-      // new reminder fire once it passes).
-      const startsCycle = wallet.balance >= 0;
-      await tx.walletEntry.create({
-        data: {
-          walletId: wallet.id,
-          kind: input.kind,
-          amount: -amount,
-          title: input.title,
-          sourceType: input.sourceType ?? null,
-          sourceId: input.sourceId ?? null,
-        },
-      });
-      await tx.userWallet.update({
-        where: { id: wallet.id },
-        data: {
-          balance: { decrement: amount },
-          ...(startsCycle
-            ? { dueAt: new Date(Date.now() + days * DAY_MS), reminderSentAt: null }
-            : {}),
-        },
-      });
+    } catch (error) {
+      // A concurrent retry won the unique-key race: the debt already exists.
+      if ((error as { code?: string }).code === 'P2002') return 0;
+      throw error;
+    }
+    return charged ? amount : 0;
+  }
+
+  /** Current balance (negative = debt). */
+  async balanceOf(userId: string): Promise<number> {
+    const wallet = await this.prisma.userWallet.findUnique({
+      where: { userId },
+      select: { balance: true },
     });
-    return amount;
+    return wallet?.balance ?? 0;
+  }
+
+  /**
+   * Throws while the user still owes money. Content creation and the final
+   * application of paid requests call this so a negative tab can never be
+   * carried forward silently. When the wallet feature is off it is a no-op.
+   */
+  async assertSettled(
+    userId: string,
+    message = 'برای ادامه، ابتدا بدهی کیف پول خود را تسویه کنید.',
+  ): Promise<void> {
+    if (!(await this.settings.isFeatureEnabled('featureWallet'))) return;
+    const balance = await this.balanceOf(userId);
+    if (balance < 0) {
+      throw new ForbiddenException({
+        code: 'WALLET_DEBT',
+        message: `${message} (بدهی فعلی: ${Math.abs(balance).toLocaleString('fa-IR')} تومان)`,
+      });
+    }
   }
 
   /** The current user's tab: balance, due date and the full ledger. */

@@ -15,15 +15,26 @@ export function isValidNationalCode(value: string): boolean {
   return remainder < 2 ? check === remainder : check === 11 - remainder;
 }
 
-/** Whether a user row has every identity field filled in. */
+/**
+ * Whether a user row has completed the two-step identity flow:
+ * Shahkar phone↔national-code match, birth date, and the paid identity
+ * inquiry. Every gated action (content creation, paid requests, plan purchase)
+ * requires this.
+ */
 export function isProfileComplete(user: {
   firstName?: string | null;
   lastName?: string | null;
   nationalCode?: string | null;
+  birthDate?: string | null;
+  phoneMatchVerifiedAt?: Date | null;
+  identityVerifiedAt?: Date | null;
 }): boolean {
   return Boolean(
     user.firstName?.trim() &&
       user.lastName?.trim() &&
-      user.nationalCode?.trim(),
+      user.nationalCode?.trim() &&
+      user.birthDate?.trim() &&
+      user.phoneMatchVerifiedAt &&
+      user.identityVerifiedAt,
   );
 }

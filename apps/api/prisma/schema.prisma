@@ -399,11 +399,18 @@ model User {
   /// content or buy services. `fullName` is kept in sync as «نام نام‌خانوادگی».
   firstName    String?
   lastName     String?
+  /// «نام پدر» returned by the Zohal identity inquiry.
+  fatherName   String?
   nationalCode String?  @unique
   /// Jalali birth date (`1370/01/01`) required by the Zohal identity inquiry.
   birthDate    String?
   /// Last successful Shahkar check (mobile ↔ national code) for the blue tick.
   phoneMatchVerifiedAt DateTime?
+  /// Set only after the paid identity inquiry succeeds. This is the gate for
+  /// every other user action (create content, buy a plan, request a boost/ad).
+  identityVerifiedAt DateTime?
+  /// Raw (already normalised) identity inquiry payload, kept for audit.
+  identityInquiryData Json?
   /// «تیک آبی» — set after a successful identity inquiry and admin approval.
   verifiedAt   DateTime?
   /// When the user filed a blue-tick request that is still awaiting review.
@@ -1200,6 +1207,11 @@ enum WalletEntryKind {
   IDENTITY_INQUIRY
   PHONE_MATCH
   SUBSCRIPTION
+  BOOST
+  AD_HOME
+  AD_DIRECTORY
+  FEED_TAG
+  FEED_PACKAGE
   ADJUSTMENT
   PAYMENT
 }
@@ -1227,6 +1239,9 @@ model WalletEntry {
   id         String          @id @default(cuid())
   walletId   String
   kind       WalletEntryKind
+  /// Optional caller-supplied key so retrying the same paid action can never
+  /// append a second debt. Unique across the whole ledger.
+  idempotencyKey String?    @unique
   /// Negative = charged to the user, positive = paid/credited.
   amount     Int
   title      String

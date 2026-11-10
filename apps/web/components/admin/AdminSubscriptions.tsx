@@ -10,8 +10,9 @@ import {
 } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { AdminDataTable, type AdminColumn } from './AdminDataTable';
+import { AdminPricingPanel } from './AdminPricingPanel';
 
-type Tab = 'requests' | 'plans';
+type Tab = 'requests' | 'plans' | 'pricing';
 
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
   { value: 'PENDING', label: 'در انتظار' },
@@ -394,6 +395,7 @@ export function AdminSubscriptions() {
           [
             ['requests', 'درخواست‌ها'],
             ['plans', 'مدیریت بسته‌ها'],
+            ['pricing', 'قیمت خدمات'],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -412,7 +414,9 @@ export function AdminSubscriptions() {
         ))}
       </div>
 
-      {tab === 'plans' ? (
+      {tab === 'pricing' ? (
+        <AdminPricingPanel />
+      ) : tab === 'plans' ? (
         <div className="indeed-panel overflow-hidden">
           <div className="flex items-center justify-between border-b border-dashed border-[var(--vintage-border)] px-5 py-3">
             <h3 className="text-sm font-extrabold text-ink">بسته‌های اشتراک</h3>

@@ -6,6 +6,7 @@ import { FacetsCacheService } from '../common/facets-cache.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
+import { WalletService } from '../wallet/wallet.service';
 import { resolveBoostTargetLabels } from './boosts-targets';
 import { DecideBoostDto } from './dto/decide-boost.dto';
 
@@ -32,6 +33,7 @@ export class BoostsReviewService {
     private readonly activity: ActivityService,
     private readonly facetsCache: FacetsCacheService,
     private readonly settings: SettingsService,
+    private readonly wallet: WalletService,
   ) {}
 
   async listRequests(status?: BoostStatus) {
@@ -135,6 +137,12 @@ export class BoostsReviewService {
     ) {
       throw new BadRequestException(
         'پرداخت این درخواست هنوز تأیید نشده است؛ تا تکمیل پرداخت امکان تأیید وجود ندارد',
+      );
+    }
+    if (dto.status === BoostStatus.APPROVED) {
+      await this.wallet.assertSettled(
+        request.userId,
+        'کاربر برای اعمال این پله باید ابتدا بدهی کیف پول خود را تسویه کند.',
       );
     }
 

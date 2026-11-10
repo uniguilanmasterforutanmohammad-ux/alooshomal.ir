@@ -10,9 +10,10 @@ import { AuthUser } from '../decorators/current-user.decorator';
 import { isProfileComplete } from '../national-code';
 
 /**
- * Blocks actions that need a real identity (creating biolinks/cards/posts,
- * paid requests, …) until the user has filled in first name, last name and
- * national code on `/dashboard/profile`.
+ * Blocks actions that need a verified identity (creating biolinks/cards/posts,
+ * paid requests, plan purchase, …) until the user has completed the two-step
+ * identity flow on `/dashboard/profile`: Shahkar phone↔national-code match and
+ * the paid Zohal identity inquiry.
  */
 @Injectable()
 export class ProfileCompleteGuard implements CanActivate {
@@ -25,12 +26,19 @@ export class ProfileCompleteGuard implements CanActivate {
 
     const row = await this.prisma.user.findUnique({
       where: { id: user.id },
-      select: { firstName: true, lastName: true, nationalCode: true },
+      select: {
+        firstName: true,
+        lastName: true,
+        nationalCode: true,
+        birthDate: true,
+        phoneMatchVerifiedAt: true,
+        identityVerifiedAt: true,
+      },
     });
     if (row && isProfileComplete(row)) return true;
 
     throw new ForbiddenException(
-      'برای انجام این کار ابتدا پروفایل خود را تکمیل کنید: نام، نام خانوادگی و کد ملی.',
+      'برای انجام این کار ابتدا استعلام هویت را کامل کنید: تطبیق کد ملی با شماره موبایل (شاهکار) و سپس استعلام اطلاعات هویتی.',
     );
   }
 }

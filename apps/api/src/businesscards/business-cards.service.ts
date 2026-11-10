@@ -20,6 +20,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { assertOwnedMediaUrls } from '../uploads/media-url';
+import { WalletService } from '../wallet/wallet.service';
 import { CreateBusinessCardDto } from './dto/create-business-card.dto';
 import { PublicPhonebookQueryDto } from './dto/public-phonebook-query.dto';
 import { UpdateBusinessCardDto } from './dto/update-business-card.dto';
@@ -55,6 +56,7 @@ export class BusinessCardsService {
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
     private readonly facetsCache: FacetsCacheService,
+    private readonly wallet: WalletService,
   ) {}
 
   private async generateSlug(_fullName: string): Promise<string> {
@@ -95,6 +97,10 @@ export class BusinessCardsService {
   }
 
   async create(userId: string, dto: CreateBusinessCardDto) {
+    await this.wallet.assertSettled(
+      userId,
+      'برای ساخت کارت ویزیت، ابتدا بدهی کیف پول خود را تسویه کنید.',
+    );
     // `draft` is a transport-only flag: it decides the initial status and
     // whether the moderators get pinged, and must never reach Prisma.
     const { draft, ...fields } = dto;

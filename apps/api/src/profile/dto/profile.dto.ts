@@ -50,6 +50,24 @@ export class UpdateIdentityDto {
   lastName?: string;
 }
 
+/** Step 1 of the identity flow: national code + birth date for Shahkar. */
+export class MatchIdentityPhoneDto {
+  @ApiProperty({ example: '0012345678' })
+  @IsString()
+  @Matches(/^\d{10}$/, { message: 'کد ملی باید دقیقاً ۱۰ رقم باشد' })
+  nationalCode!: string;
+
+  @ApiProperty({
+    example: '1370/01/01',
+    description: 'تاریخ تولد شمسی برای استعلام هویت در مرحله‌ی دوم.',
+  })
+  @IsString()
+  @Matches(/^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/, {
+    message: 'تاریخ تولد باید به شکل ۱۳۷۰/۰۱/۰۱ باشد',
+  })
+  birthDate!: string;
+}
+
 export class RequestProfileChangeDto {
   @ApiProperty({ example: 'علی رضایی' })
   @IsString()

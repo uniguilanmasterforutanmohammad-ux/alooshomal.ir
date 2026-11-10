@@ -5,6 +5,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RequestPaymentsModule } from '../request-payments/request-payments.module';
 import { SettingsModule } from '../settings/settings.module';
+import { WalletModule } from '../wallet/wallet.module';
 import { AdsController } from './ads.controller';
 import { AdsReviewService } from './ads-review.service';
 import { AdsService } from './ads.service';
@@ -16,6 +17,7 @@ import { AdsService } from './ads.service';
     ActivityModule,
     SettingsModule,
     RequestPaymentsModule,
+    WalletModule,
   ],
   controllers: [AdsController],
   providers: [AdsService, AdsReviewService],

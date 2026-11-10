@@ -11,6 +11,7 @@ import {
   NotificationType,
   Prisma,
   SubscriptionStatus,
+  WalletEntryKind,
 } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
@@ -19,6 +20,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { assertOwnedMediaUrls } from '../uploads/media-url';
+import { WalletService } from '../wallet/wallet.service';
 import { CreateFeedPostDto } from './dto/feed.dto';
 import { FeedsAdminService } from './feeds-admin.service';
 import { FeedsDirectoryService } from './feeds-directory.service';
@@ -45,6 +47,7 @@ export class FeedsService implements OnModuleInit {
     private readonly facetsCache: FacetsCacheService,
     private readonly directory: FeedsDirectoryService,
     private readonly admin: FeedsAdminService,
+    private readonly wallet: WalletService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -282,6 +285,25 @@ export class FeedsService implements OnModuleInit {
     const created = await this.prisma.userFeedSubscription.create({
       data: { userId, packageId },
     });
+    try {
+      if (pkg.price > 0 && (await this.settings.isFeatureEnabled('featureWallet'))) {
+        await this.wallet.charge({
+          userId,
+          kind: WalletEntryKind.FEED_PACKAGE,
+          amount: pkg.price,
+          title: `خرید بسته فید «${pkg.name}»`,
+          sourceType: 'FEED_PACKAGE',
+          sourceId: created.id,
+          idempotencyKey: `feed-package:${created.id}`,
+        });
+      }
+    } catch (error) {
+      // Never leave a paid package request behind without its debt.
+      await this.prisma.userFeedSubscription
+        .delete({ where: { id: created.id } })
+        .catch(() => undefined);
+      throw error;
+    }
     await this.notifications.notifyAdmins({
       category: 'FEED',
       scope: 'FEED',
@@ -302,6 +324,10 @@ export class FeedsService implements OnModuleInit {
 
   /** Create a feed post (enters the moderation queue). */
   async createPost(userId: string, dto: CreateFeedPostDto) {
+    await this.wallet.assertSettled(
+      userId,
+      'برای ثبت پست فید، ابتدا بدهی کیف پول خود را تسویه کنید.',
+    );
     // Admin off-switch for the whole «پست کاربران» feature.
     await this.settings.assertFeatureEnabled(
       'featureFeedPosts',
@@ -346,6 +372,28 @@ export class FeedsService implements OnModuleInit {
         status: NewsStatus.PENDING,
       },
     });
+    if (
+      tag &&
+      (tagPrice ?? 0) > 0 &&
+      (await this.settings.isFeatureEnabled('featureWallet'))
+    ) {
+      try {
+        await this.wallet.charge({
+          userId,
+          kind: WalletEntryKind.FEED_TAG,
+          amount: tagPrice ?? 0,
+          title: 'تگ کارت/بیولینک روی پست فید',
+          sourceType: 'FEED_POST',
+          sourceId: post.id,
+          idempotencyKey: `feed-tag:${post.id}:${tag.kind}:${tag.biolinkId ?? tag.businessCardId}`,
+        });
+      } catch (error) {
+        // The post was just created for this tag; drop it rather than keep a
+        // free paid tag.
+        await this.prisma.feedPost.delete({ where: { id: post.id } }).catch(() => undefined);
+        throw error;
+      }
+    }
     await this.notifications.notifyAdmins({
       category: 'FEED',
       scope: 'FEED',
@@ -440,6 +488,22 @@ export class FeedsService implements OnModuleInit {
         reason: null,
       },
     });
+    if (
+      tag &&
+      !sameTag &&
+      (tagPrice ?? 0) > 0 &&
+      (await this.settings.isFeatureEnabled('featureWallet'))
+    ) {
+      await this.wallet.charge({
+        userId,
+        kind: WalletEntryKind.FEED_TAG,
+        amount: tagPrice ?? 0,
+        title: 'تگ کارت/بیولینک روی پست فید',
+        sourceType: 'FEED_POST',
+        sourceId: post.id,
+        idempotencyKey: `feed-tag:${post.id}:${tag.kind}:${tag.biolinkId ?? tag.businessCardId}`,
+      });
+    }
     this.facetsCache.invalidate('dir:feeds');
     return updated;
   }

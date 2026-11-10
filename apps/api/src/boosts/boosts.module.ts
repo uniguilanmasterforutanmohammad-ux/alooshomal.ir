@@ -7,6 +7,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RequestPaymentsModule } from '../request-payments/request-payments.module';
 import { SettingsModule } from '../settings/settings.module';
+import { WalletModule } from '../wallet/wallet.module';
 import { BoostsController } from './boosts.controller';
 import { BoostsReviewService } from './boosts-review.service';
 import { BoostsService } from './boosts.service';
@@ -20,6 +21,7 @@ import { BoostsService } from './boosts.service';
     NotificationsModule,
     SettingsModule,
     RequestPaymentsModule,
+    WalletModule,
   ],
   controllers: [BoostsController],
   providers: [BoostsService, BoostsReviewService],

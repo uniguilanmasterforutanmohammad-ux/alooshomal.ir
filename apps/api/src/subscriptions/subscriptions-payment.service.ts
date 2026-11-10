@@ -285,14 +285,13 @@ export class SubscriptionsPaymentService {
    * everything with one payment before the wallet due date.
    */
   private async purchaseViaWallet(userId: string, plan: SubscriptionPlan) {
-    const amount = await this.wallet.charge({
-      userId,
-      kind: WalletEntryKind.SUBSCRIPTION,
-      amount: plan.price,
-      title: `خرید اشتراک «${plan.name}»`,
-      sourceType: 'SUBSCRIPTION_PLAN',
-      sourceId: plan.id,
-    });
+    const previousPlanId =
+      (
+        await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: { planId: true },
+        })
+      )?.planId ?? null;
     const now = new Date();
     const subscription = await this.prisma.$transaction(async (tx) => {
       await tx.userSubscription.deleteMany({
@@ -313,6 +312,28 @@ export class SubscriptionsPaymentService {
       });
       return created;
     });
+    let amount = 0;
+    try {
+      amount = await this.wallet.charge({
+        userId,
+        kind: WalletEntryKind.SUBSCRIPTION,
+        amount: plan.price,
+        title: `خرید اشتراک «${plan.name}»`,
+        sourceType: 'SUBSCRIPTION_PLAN',
+        sourceId: subscription.id,
+        idempotencyKey: `subscription:${subscription.id}`,
+      });
+    } catch (error) {
+      // Never leave an activated plan behind if the ledger write failed.
+      await this.prisma.$transaction([
+        this.prisma.userSubscription.delete({ where: { id: subscription.id } }),
+        this.prisma.user.update({
+          where: { id: userId },
+          data: { planId: previousPlanId },
+        }),
+      ]);
+      throw error;
+    }
     await this.notifications.notify({
       userId,
       type: NotificationType.SUCCESS,

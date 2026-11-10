@@ -11,6 +11,7 @@ import {
   NotificationType,
   PaymentStatus,
   RequestPaymentTarget,
+  WalletEntryKind,
 } from '@prisma/client';
 
 import { NotificationsService } from '../notifications/notifications.service';
@@ -21,6 +22,7 @@ import { BiolinksService } from '../biolinks/biolinks.service';
 import { BusinessCardsService } from '../businesscards/business-cards.service';
 import { FeedsDirectoryService } from '../feeds/feeds-directory.service';
 import { SettingsService } from '../settings/settings.service';
+import { WalletService } from '../wallet/wallet.service';
 import {
   RequestPaymentsService,
   type RequestPaymentInfo,
@@ -83,6 +85,7 @@ export class BoostsService {
     private readonly facetsCache: FacetsCacheService,
     private readonly settings: SettingsService,
     private readonly requestPayments: RequestPaymentsService,
+    private readonly wallet: WalletService,
   ) {}
 
   /**
@@ -313,6 +316,7 @@ export class BoostsService {
     // With the payment gateway connected a «پله» is paid first, then reviewed.
     const price = await this.settings.getBoostPrice();
     const paymentRequired = this.requestPayments.isRequired(price);
+    const walletEnabled = await this.settings.isFeatureEnabled('featureWallet');
 
     const pending = await this.prisma.boostRequest.findFirst({
       where: {
@@ -324,6 +328,16 @@ export class BoostsService {
       include: { payment: true },
     });
     if (pending) {
+      if (walletEnabled) {
+        return {
+          ...pending,
+          payment: null,
+          wallet: {
+            charged: 0,
+            balance: await this.wallet.balanceOf(userId),
+          },
+        };
+      }
       // An unpaid attempt can be resumed from the gateway; a free or already
       // paid request is genuinely a duplicate.
       const resumable =
@@ -348,12 +362,30 @@ export class BoostsService {
       },
     });
 
-    const payment = paymentRequired
-      ? await this.startPayment(userId, request.id, price)
-      : null;
+    let payment: RequestPaymentInfo | null = null;
+    let walletCharge: { charged: number; balance: number } | null = null;
+    if (walletEnabled) {
+      const charged = await this.wallet.charge({
+        userId,
+        kind: WalletEntryKind.BOOST,
+        amount: price,
+        title: 'پله در صدر دایرکتوری',
+        sourceType: 'BOOST_REQUEST',
+        sourceId: request.id,
+        idempotencyKey: `boost:${request.id}`,
+      });
+      walletCharge = {
+        charged,
+        balance: await this.wallet.balanceOf(userId),
+      };
+    } else {
+      payment = paymentRequired
+        ? await this.startPayment(userId, request.id, price)
+        : null;
+    }
 
-    // The admin queue is only notified once the fee is settled (or when the
-    // gateway is off and the request is free).
+    // With the wallet the request can be reviewed immediately; the admin
+    // decision itself is blocked until the tab is settled.
     if (!payment) {
       await this.notifications.notifyAdmins({
         category: 'BOOST',
@@ -373,7 +405,7 @@ export class BoostsService {
       entityId: request.id,
     });
 
-    return { ...request, payment };
+    return { ...request, payment, wallet: walletCharge };
   }
 
   /** Open (or reopen) the PayPing order of one «پله» request. */

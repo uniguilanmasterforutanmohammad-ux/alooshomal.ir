@@ -30,6 +30,8 @@ export interface AdRequest {
   user?: { id: string; email: string; fullName: string | null };
   decidedBy?: { id: string; email: string | null; fullName: string | null } | null;
   payment?: RequestPaymentInfo | null;
+  /** Present when the fee was added to the wallet instead of a gateway call. */
+  wallet?: { charged: number; balance: number } | null;
 }
 
 /** Where an approved ad sits in its display window (computed by the API). */

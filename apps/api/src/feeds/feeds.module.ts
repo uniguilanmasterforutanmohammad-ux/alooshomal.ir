@@ -6,6 +6,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SettingsModule } from '../settings/settings.module';
 import { UploadsModule } from '../uploads/uploads.module';
+import { WalletModule } from '../wallet/wallet.module';
 import {
   AdminFeedsController,
   FeedsPublicController,
@@ -24,6 +25,7 @@ import { FeedCommentsService } from './feed-comments.service';
     SettingsModule,
     UploadsModule,
     FinanceModule,
+    WalletModule,
   ],
   controllers: [FeedsPublicController, FeedsUserController, AdminFeedsController],
   providers: [

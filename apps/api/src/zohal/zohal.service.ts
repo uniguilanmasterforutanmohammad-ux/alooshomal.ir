@@ -428,6 +428,7 @@ export class ZohalService {
         firstName: true,
         lastName: true,
         phoneMatchVerifiedAt: true,
+        identityVerifiedAt: true,
         verifiedAt: true,
         blueTickRequestedAt: true,
       },
@@ -439,6 +440,11 @@ export class ZohalService {
     if (!user.nationalCode || !user.birthDate) {
       throw new BadRequestException(
         'برای درخواست تیک آبی ابتدا مشخصات هویتی (کد ملی و تاریخ تولد) را در پروفایل تکمیل کنید.',
+      );
+    }
+    if (!user.identityVerifiedAt) {
+      throw new BadRequestException(
+        'برای درخواست تیک آبی ابتدا استعلام هویت را در پروفایل کامل کنید.',
       );
     }
     if (!user.phone || !user.phoneVerified) {
@@ -458,10 +464,14 @@ export class ZohalService {
       user.phone,
       user.nationalCode,
     );
-    if (!inquiry.ok || !inquiry.data?.matched) {
+    if (!inquiry.ok) {
       throw new BadRequestException(
-        inquiry.message ||
-          'تطبیق شماره موبایل و کد ملی موفق نبود؛ شماره و کد ملی را بررسی کنید.',
+        inquiry.message || 'استعلام شاهکار انجام نشد؛ لطفاً دوباره تلاش کنید.',
+      );
+    }
+    if (!inquiry.data?.matched) {
+      throw new BadRequestException(
+        'شماره‌ی موبایل تأییدشده با این کد ملی تطبیق ندارد؛ شماره و کد ملی را بررسی کنید.',
       );
     }
     const updated = await this.prisma.user.update({
@@ -544,6 +554,12 @@ export class ZohalService {
       throw new BadRequestException('درخواست تیک آبی فعالی برای این کاربر نیست.');
     }
     const approved = decision === 'APPROVED';
+    if (approved) {
+      await this.wallet.assertSettled(
+        userId,
+        'کاربر برای اعمال تیک آبی باید ابتدا بدهی کیف پول خود را تسویه کند.',
+      );
+    }
     const updated = await this.prisma.user.update({
       where: { id: userId },
       data: {

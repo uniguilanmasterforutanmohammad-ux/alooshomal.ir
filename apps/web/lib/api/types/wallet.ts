@@ -2,6 +2,11 @@ export type WalletEntryKind =
   | 'IDENTITY_INQUIRY'
   | 'PHONE_MATCH'
   | 'SUBSCRIPTION'
+  | 'BOOST'
+  | 'AD_HOME'
+  | 'AD_DIRECTORY'
+  | 'FEED_TAG'
+  | 'FEED_PACKAGE'
   | 'ADJUSTMENT'
   | 'PAYMENT';
 

@@ -8,6 +8,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { RequirePermission } from '../auth/permissions.decorator';
 import {
   DecideProfileChangeDto,
+  MatchIdentityPhoneDto,
   RequestContactOtpDto,
   RequestProfileChangeDto,
   UpdateIdentityDto,
@@ -36,6 +37,33 @@ export class ProfileController {
     @Body() dto: UpdateIdentityDto,
   ) {
     return this.profile.updateIdentity(user.id, dto);
+  }
+
+  @Get('identity/status')
+  @ApiOperation({
+    summary: 'وضعیت دو مرحله‌ی استعلام هویت (شاهکار و استعلام اطلاعات)',
+  })
+  identityStatus(@CurrentUser() user: AuthUser) {
+    return this.profile.me(user.id);
+  }
+
+  @Post('identity/phone-match')
+  @ApiOperation({
+    summary: 'مرحله ۱: تطبیق کد ملی با شماره موبایل (شاهکار) + ثبت تاریخ تولد',
+  })
+  matchIdentityPhone(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: MatchIdentityPhoneDto,
+  ) {
+    return this.profile.matchIdentityPhone(user.id, dto);
+  }
+
+  @Post('identity/inquiry')
+  @ApiOperation({
+    summary: 'مرحله ۲: استعلام اطلاعات هویتی و ذخیره‌ی نام/نام پدر',
+  })
+  inquiryIdentity(@CurrentUser() user: AuthUser) {
+    return this.profile.inquiryIdentity(user.id);
   }
 
   @Post('change-request')
