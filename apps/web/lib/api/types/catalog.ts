@@ -85,6 +85,8 @@ export interface DirectoryBiolink {
   city?: { id: string; name: string } | null;
   business?: { id: string; name: string } | null;
   likeCount: number;
+  /** owner passed the identity inquiry and has the blue tick */
+  ownerVerified?: boolean;
   liked: boolean;
   saved: boolean;
 }
@@ -212,6 +214,8 @@ export interface DirectoryBusinessCard {
   city?: { id: string; name: string } | null;
   business?: { id: string; name: string } | null;
   likeCount: number;
+  /** owner passed the identity inquiry and has the blue tick */
+  ownerVerified?: boolean;
   liked: boolean;
   saved: boolean;
 }

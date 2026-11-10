@@ -20,7 +20,47 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.21.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.21.1**.
+
+## ۱۴۰۵/۰۸/۱۹ — نمایش تیک آبی تأییدشده روی کارت‌ها و بیولینک‌ها — نسخه `v3.21.1`
+
+**هدف:** پس از تأیید درخواست تیک آبی توسط مدیر در پنل «زحل»، نشان تأیید هویت
+بلافاصله روی کارت ویزیت و بیولینک همان کاربر (در دایرکتوری، کاشی‌ها، دفترچه،
+پنل جزئیات و صفحه «کارت‌های من») نمایش داده شود.
+
+**تغییرات:**
+- `apps/api/src/biolinks/biolinks-directory.service.ts` و
+  `apps/api/src/businesscards/business-cards-directory.service.ts`: افزودن
+  `ownerVerified` به ردیف‌های دایرکتوری بر اساس `user.verifiedAt`.
+- `apps/api/src/biolinks/biolinks.service.ts` و
+  `apps/api/src/businesscards/business-cards.service.ts`: افزودن
+  `ownerVerified` به پاسخ فهرست کارت‌های خود کاربر.
+- `apps/api/src/zohal/zohal.service.ts`: پس از تأیید/رد تیک آبی، کش دایرکتوری
+  بیولینک و کارت ویزیت پاک می‌شود تا نشان جدید فوراً دیده شود.
+- `apps/web/lib/api/types/catalog.ts`: افزودن `ownerVerified` به انواع
+  `DirectoryBiolink` و `DirectoryBusinessCard`.
+- `apps/web/components/ui/DirectoryContactTile.tsx`،
+  `components/biolink/DirectoryBiolinkItem.tsx`،
+  `components/biolink/DirectoryBiolinkTile.tsx`،
+  `components/biolink/DirectoryBiolinkDetail.tsx`،
+  `components/businesscard/DirectoryBusinessCardItem.tsx`،
+  `components/businesscard/DirectoryBusinessCardTile.tsx`،
+  `components/businesscard/DirectoryBusinessCardNotebook.tsx` و
+  `components/businesscard/DirectoryBusinessCardDetail.tsx`: نمایش نشان
+  «تأیید هویت» (BadgeCheck) برای مالک تأییدشده.
+- `apps/web/app/dashboard/cards/page.tsx`: نمایش تیک آبی روی کارت‌های خود کاربر.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v3.21.1`.
+
+**تأیید/تست:**
+- `apps/web`: `./node_modules/.bin/tsc --noEmit` → بدون خطا.
+- `apps/api`: `./node_modules/.bin/tsc --noEmit --incremental false` → فقط سه
+  خطای محیطی از پیش موجود.
+- `python3 scripts/check_api_docs.py` → exit 0.
+- تست زنده: درخواست تیک آبی برای مالک `sample-full-biolink` ثبت و با
+  `PATCH /api/admin/zohal/blue-tick/:id` تأیید شد؛ `verifiedAt` ذخیره شد و
+  بلافاصله `GET /api/biolinks/public` و `GET /api/business-cards/public`
+  مقدار `ownerVerified: true` را برگرداندند (پاک‌سازی کش مؤثر بود). سپس داده‌ی
+  تست به حالت قبل برگردانده شد.
 
 ## ۱۴۰۵/۰۸/۱۹ — استعلام دو‌مرحله‌ای هویت، کیف پول حساب‌شده و قیمت‌گذاری یک‌جای خدمات — نسخه `v3.21.0`
 

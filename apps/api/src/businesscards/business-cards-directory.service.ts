@@ -40,6 +40,8 @@ interface DirectoryBusinessCardItem {
   city: { id: string; name: string } | null;
   business: { id: string; name: string } | null;
   likeCount: number;
+  /** The owner passed the paid identity inquiry and has the blue tick. */
+  ownerVerified: boolean;
 }
 
 /**
@@ -171,7 +173,12 @@ export class BusinessCardsDirectoryService {
       business: { select: { id: true, name: true } },
       // The owner's plan decides which contact fields are masked on the public
       // row (a plan that hides «تلفن همراه / ثابت» nulls phone + mobile).
-      user: { select: { plan: { select: { showSocialLinks: true, hiddenFields: true } } } },
+      user: {
+        select: {
+          verifiedAt: true,
+          plan: { select: { showSocialLinks: true, hiddenFields: true } },
+        },
+      },
       _count: { select: { likes: true } },
     } satisfies Prisma.BusinessCardSelect;
 
@@ -190,7 +197,10 @@ export class BusinessCardsDirectoryService {
         },
         user?.plan,
       );
-      return masked as unknown as DirectoryBusinessCardItem;
+      return {
+        ...masked,
+        ownerVerified: Boolean(user?.verifiedAt),
+      } as unknown as DirectoryBusinessCardItem;
     };
 
     const pageSize = limit;

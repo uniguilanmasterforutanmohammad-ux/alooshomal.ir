@@ -231,10 +231,15 @@ export class BiolinksService {
         adByTarget.set(request.targetId, request.status);
       }
     }
+    const owner = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { verifiedAt: true },
+    });
 
     return {
       items: biolinks.map((item, index) => ({
         ...item,
+        ownerVerified: Boolean(owner?.verifiedAt),
         likeCount: item._count.likes,
         saveCount: item._count.saves,
         views: item._count.scanEvents,

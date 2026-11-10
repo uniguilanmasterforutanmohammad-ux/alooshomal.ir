@@ -34,6 +34,8 @@ interface DirectoryBiolinkItem {
   city: { id: string; name: string } | null;
   business: { id: string; name: string } | null;
   likeCount: number;
+  /** The owner passed the paid identity inquiry and has the blue tick. */
+  ownerVerified: boolean;
 }
 
 /**
@@ -175,7 +177,12 @@ export class BiolinksDirectoryService {
       business: { select: { id: true, name: true } },
       // The owner's plan decides which contact fields are masked on the public
       // row (a plan that hides «تلفن همراه / ثابت» nulls phone + mobile).
-      user: { select: { plan: { select: { showSocialLinks: true, hiddenFields: true } } } },
+      user: {
+        select: {
+          verifiedAt: true,
+          plan: { select: { showSocialLinks: true, hiddenFields: true } },
+        },
+      },
       _count: { select: { likes: true } },
     } satisfies Prisma.BiolinkSelect;
 
@@ -194,7 +201,10 @@ export class BiolinksDirectoryService {
         },
         user?.plan,
       );
-      return masked as unknown as DirectoryBiolinkItem;
+      return {
+        ...masked,
+        ownerVerified: Boolean(user?.verifiedAt),
+      } as unknown as DirectoryBiolinkItem;
     };
 
     const pageSize = limit;

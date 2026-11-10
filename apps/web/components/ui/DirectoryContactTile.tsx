@@ -1,7 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { Building2, MapPin, Phone, Smartphone, UserRound } from 'lucide-react';
+import {
+  BadgeCheck,
+  Building2,
+  MapPin,
+  Phone,
+  Smartphone,
+  UserRound,
+} from 'lucide-react';
 
 import { LikeButton } from '@/components/ui/LikeButton';
 import { SaveButton } from '@/components/ui/SaveButton';
@@ -26,6 +33,8 @@ interface Props {
   likeCount: number;
   liked: boolean;
   saved: boolean;
+  /** the owner passed the identity inquiry (blue tick) */
+  verified?: boolean;
   /** boost/ad badge, absolutely positioned in the tile's top corner */
   badge?: React.ReactNode;
   /**
@@ -68,6 +77,7 @@ export function DirectoryContactTile({
   likeCount,
   liked,
   saved,
+  verified,
   badge,
   mobileOrder = 'name',
 }: Props) {
@@ -95,7 +105,15 @@ export function DirectoryContactTile({
             {initial(fullName)}
           </span>
           <div className="directory-tile-headtext">
-            <span className="directory-tile-name">{fullName}</span>
+            <span className="directory-tile-name">
+              {fullName}
+              {verified ? (
+                <BadgeCheck
+                  className="ms-1 inline size-3.5 shrink-0 text-sky-600"
+                  aria-label="تأیید هویت"
+                />
+              ) : null}
+            </span>
             {meta ? (
               <span className="directory-tile-line directory-tile-meta">
                 <UserRound className="directory-tile-icon" aria-hidden />

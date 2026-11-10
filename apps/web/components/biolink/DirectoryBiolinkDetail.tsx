@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import {
+  BadgeCheck,
   Building2,
   Briefcase,
   ExternalLink,
@@ -131,6 +132,12 @@ export function DirectoryBiolinkDetail({ slug, onClose, hideHeader }: Props) {
           </div>
           <div className="min-w-0">
             <h2 className="truncate text-lg font-extrabold text-ink">{biolink.fullName}</h2>
+            {biolink.ownerVerified ? (
+              <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-700">
+                <BadgeCheck className="size-3.5" aria-hidden />
+                تأیید هویت
+              </p>
+            ) : null}
             {biolink.jobTitle ? (
               <p className="flex items-center gap-1.5 text-sm text-muted">
                 <UserRound className="size-3.5 shrink-0" aria-hidden />

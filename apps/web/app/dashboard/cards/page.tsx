@@ -122,6 +122,12 @@ export default function MyCardsPage() {
                   </span>
                   <h3 className="truncate text-lg font-extrabold text-ink">
                     {item.fullName}
+                    {item.ownerVerified ? (
+                      <BadgeCheck
+                        className="ms-1 inline size-4 shrink-0 text-sky-600"
+                        aria-label="تأیید هویت"
+                      />
+                    ) : null}
                   </h3>
                   <p className="truncate text-sm text-muted">{item.jobTitle ?? '—'}</p>
                 </div>
@@ -166,6 +172,12 @@ export default function MyCardsPage() {
                   </span>
                   <h3 className="truncate text-lg font-extrabold text-ink">
                     {item.fullName}
+                    {item.ownerVerified ? (
+                      <BadgeCheck
+                        className="ms-1 inline size-4 shrink-0 text-sky-600"
+                        aria-label="تأیید هویت"
+                      />
+                    ) : null}
                   </h3>
                   <p className="truncate text-sm text-muted">{item.jobTitle ?? '—'}</p>
                 </div>

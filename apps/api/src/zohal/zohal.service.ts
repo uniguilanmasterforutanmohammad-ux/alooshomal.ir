@@ -10,6 +10,7 @@ import { ConfigService } from '@nestjs/config';
 import { WalletEntryKind } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
+import { FacetsCacheService } from '../common/facets-cache.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { WalletService } from '../wallet/wallet.service';
@@ -60,6 +61,7 @@ export class ZohalService {
     private readonly settings: SettingsService,
     private readonly activity: ActivityService,
     private readonly wallet: WalletService,
+    private readonly facets: FacetsCacheService,
   ) {
     this.baseUrl = (
       config.get<string>('ZOHAL_BASE_URL') ?? 'https://service.zohal.io'
@@ -569,6 +571,10 @@ export class ZohalService {
       },
       select: { id: true, verifiedAt: true, blueTickNote: true },
     });
+    // Public directory pages are cached; drop them so the new badge shows up
+    // immediately instead of after the cache TTL.
+    this.facets.invalidateDirectory('biolink');
+    this.facets.invalidateDirectory('businesscard');
     await this.activity.log({
       actor: { id: adminId },
       action: approved ? 'BLUE_TICK_APPROVED' : 'BLUE_TICK_REJECTED',

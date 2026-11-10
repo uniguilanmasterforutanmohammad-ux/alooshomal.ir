@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MapPin, Phone, Smartphone } from 'lucide-react';
+import { BadgeCheck, MapPin, Phone, Smartphone } from 'lucide-react';
 
 import { LikeButton } from '@/components/ui/LikeButton';
 import { SaveButton } from '@/components/ui/SaveButton';
@@ -118,6 +118,12 @@ export function DirectoryBusinessCardNotebook({
                   >
                     {highlight(card.fullName, trimmedQuery)}
                   </Link>
+                  {card.ownerVerified ? (
+                    <BadgeCheck
+                      className="ms-1 inline size-3.5 shrink-0 text-sky-600"
+                      aria-label="تأیید هویت"
+                    />
+                  ) : null}
                   {/* Desktop keeps the classic one-line «نقش · شرکت»; on phones
                       it is replaced by two separate lines so the business name
                       leads (same order as the list and tile looks). */}

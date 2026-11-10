@@ -40,6 +40,7 @@ export function DirectoryBusinessCardTile({ businessCard }: Props) {
       likeCount={businessCard.likeCount ?? 0}
       liked={businessCard.liked ?? false}
       saved={businessCard.saved ?? false}
+      verified={businessCard.ownerVerified}
       badge={
         directoryAd ? (
           <BoostBadge

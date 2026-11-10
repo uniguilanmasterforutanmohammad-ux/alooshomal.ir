@@ -40,6 +40,7 @@ export function DirectoryBiolinkTile({ biolink }: Props) {
       likeCount={biolink.likeCount ?? 0}
       liked={biolink.liked ?? false}
       saved={biolink.saved ?? false}
+      verified={biolink.ownerVerified}
       badge={
         directoryAd ? (
           <BoostBadge

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Building2, Phone, Smartphone, UserRound } from 'lucide-react';
+import { BadgeCheck, Building2, Phone, Smartphone, UserRound } from 'lucide-react';
 
 import { BoostBadge } from '@/components/ui/BoostBadge';
 import { LikeButton } from '@/components/ui/LikeButton';
@@ -115,6 +115,12 @@ export function DirectoryBiolinkItem({ biolink, selected, onSelect }: Props) {
               className="hover:underline focus:underline focus:outline-none"
             >
               {biolink.fullName}
+              {biolink.ownerVerified ? (
+                <BadgeCheck
+                  className="ms-1 inline size-3.5 shrink-0 text-sky-600"
+                  aria-label="تأیید هویت"
+                />
+              ) : null}
               {/* descriptive anchor text for crawlers (avoids "click here") */}
               <span className="sr-only">
                 {' '}

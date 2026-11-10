@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import {
+  BadgeCheck,
   Building2,
   IdCard,
   ExternalLink,
@@ -155,6 +156,12 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
             <h2 className="dir-detail-name truncate text-lg font-extrabold text-ink">
               {businessCard.fullName}
             </h2>
+            {businessCard.ownerVerified ? (
+              <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-700">
+                <BadgeCheck className="size-3.5" aria-hidden />
+                تأیید هویت
+              </p>
+            ) : null}
             {businessCard.company ? (
               <p className="dir-detail-company flex items-center gap-1.5 text-sm text-muted">
                 <Building2 className="size-3.5 shrink-0" aria-hidden />
