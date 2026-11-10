@@ -399,6 +399,14 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     default: true,
   },
   {
+    key: 'featureOnboarding',
+    label: 'بخش «شروع آسان» در داشبورد کاربری',
+    description:
+      'ویزارد مرحله‌به‌مرحله‌ی راه‌اندازی کسب‌وکار (از استعلام هویت تا تأیید مدیر) در صدر داشبورد کاربر نمایش داده می‌شود. ترتیب و فهرست مراحل از تنظیمات پنل مدیریت قابل تغییر است.',
+    group: 'احراز هویت',
+    default: true,
+  },
+  {
     key: 'featureBlueTick',
     label: 'تیک آبی (احراز هویت)',
     description:

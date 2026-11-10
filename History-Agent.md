@@ -22,6 +22,60 @@
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
 > اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.23.0**.
 
+## ۱۴۰۵/۰۸/۱۹ — بخش «شروع آسان» در داشبورد کاربری + مدیریت مراحل در پنل — نسخه `v3.24.0`
+
+**هدف:** افزودن یک ویزارد مرحله‌به‌مرحله در صدر داشبورد کاربری برای طی مسیر
+کامل راه‌اندازی کسب‌وکار (از استعلام هویت و پرداخت صورتحساب تا ساخت کسب‌وکار،
+تکمیل مشخصات، ارسال مدارک/تیک آبی، انتخاب اشتراک و انتظار تأیید مدیر) با
+امکان افزودن/حذف/جابه‌جایی مراحل از پنل مدیریت.
+
+**تغییرات:**
+- `apps/api/src/onboarding/onboarding.constants.ts` (جدید): رجیستری مراحل
+  پیش‌فرض (شش مرحله‌ی خواسته‌شده)، نوع `OnboardingStepKind` و ساختار خروجی
+  وضعیت/پیشرفت.
+- `apps/api/src/onboarding/onboarding.service.ts` (جدید): خواندن/اعتبارسنجی
+  فهرست مراحل از `Setting` (`onboardingSteps`)، محاسبه‌ی خودکار تکمیل مراحل
+  پیش‌فرض از داده‌ی حساب (استعلام هویت، وجود کارت کسب‌وکار، کامل‌بودن مشخصات،
+  تیک آبی، اشتراک فعال، تأیید کارت توسط مدیر) و تیک دستی مراحل سفارشی.
+- `apps/api/src/onboarding/onboarding.controller.ts` (جدید): مسیرهای کاربر
+  `GET /onboarding/me`، `POST|DELETE /onboarding/steps/:id/complete` و مسیرهای
+  مدیر `GET /admin/onboarding/steps` و `PUT /admin/onboarding/steps` (همراه با
+  `@ApiTags`/`@ApiOperation` طبق قانون ۸).
+- `apps/api/src/onboarding/dto/onboarding.dto.ts` و
+  `apps/api/src/onboarding/onboarding.module.ts` (جدید): DTO مستندشده و ماژول.
+- `apps/api/src/app.module.ts`: ثبت `OnboardingModule`.
+- `apps/api/prisma/schema.prisma`: مدل `OnboardingStepCompletion` برای تیک
+  دستی مراحل سفارشی + رابطه‌ی آن روی `User`.
+- `apps/api/src/settings/settings.constants.ts`: افزودن فلگ `featureOnboarding`
+  به رجیستری `FEATURE_FLAGS` (طبق قانون ۹؛ سوئیچ‌های فعال/نمایش خودکار).
+- `apps/web/components/dashboard/OnboardingWizard.tsx` (جدید): ویزارد داشبورد؛
+  نوار پیشرفت، بازشدن مرحله‌ی جاری، فرم دریافت کد ملی/تاریخ تولد، نمایش
+  صورتحساب استعلام، دکمه‌ی «تأیید و پرداخت»، و پس از منفی‌شدن اعتبار کیف پول
+  دو گزینه‌ی «پرداخت آنلاین» و «بعداً پرداخت می‌کنم».
+- `apps/web/app/dashboard/page.tsx`: نمایش ویزارد در صدر داشبورد در صورت
+  `isFeatureVisible('featureOnboarding')`.
+- `apps/web/components/admin/AdminOnboardingSteps.tsx` (جدید): ویرایشگر مراحل
+  در پنل (افزودن/حذف/جابه‌جایی/فعال‌سازی/ویرایش عنوان و لینک).
+- `apps/web/app/admin/sections.tsx`: افزودن ویرایشگر مراحل به بخش «تنظیمات».
+- `docs/API.md`: مستندسازی مسیرهای `/api/onboarding` و `/api/admin/onboarding`
+  و قاعده‌ی تکمیل هر مرحله.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v3.24.0` (قابلیت جدید).
+
+**تأیید/تست:**
+- `python3 scripts/check_api_docs.py` → exit 0 (۳۶ کنترلر / ۳۷۱ مسیر، همه با
+  `@ApiOperation`).
+- `npx tsc --noEmit -p tsconfig.json` در کانتینرهای `alooshomal-api` و
+  `alooshomal-web` → هر دو exit 0.
+- تست زنده‌ی API روی کانتینر محلی: `GET /api/onboarding/me` مراحل و پیشرفت را
+  برگرداند؛ `PUT /api/admin/onboarding/steps` افزودن مرحله‌ی سفارشی، سپس
+  `POST`/`DELETE /onboarding/steps/:id/complete` تیک/برداشتن تیک و بازگردانی
+  فهرست پیش‌فرض؛ ورودی نامعتبر `kind` با ۴۰۰ رد شد.
+- بررسی بصری با `playwright-core` + `/usr/bin/google-chrome`: ویزارد «شروع
+  آسان» با پیشرفت «۴ از ۶»، صورتحساب استعلام و فرم هویت در `/dashboard` و
+  ویرایشگر مراحل در `/admin?section=settings` رندر شدند.
+- `python3 scripts/sync_install.py` و `python3 scripts/sync_install.py --check`
+  → «تغییر معلق» صفر.
+
 ## ۱۴۰۵/۰۸/۱۹ — بازبینی جامع UI/UX دسته‌بندی مشاغل و پروفایل کسب‌وکار — نسخه `v3.23.0`
 
 **هدف:** بازبینی جامع رابط صفحه‌های «دسته‌بندی مشاغل» و «صفحه‌ی کسب‌وکار»،

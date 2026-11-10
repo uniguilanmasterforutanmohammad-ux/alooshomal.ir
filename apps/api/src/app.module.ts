@@ -22,6 +22,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { NewsModule } from './news/news.module';
 import { ModeratorModule } from './moderator/moderator.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
+import { OnboardingModule } from './onboarding/onboarding.module';
 import { PaypingModule } from './payping/payping.module';
 import { PaypingOAuthModule } from './payping-oauth/payping-oauth.module';
 import { PointsModule } from './points/points.module';
@@ -70,6 +71,7 @@ import { ZohalModule } from './zohal/zohal.module';
     ProfileModule,
     ModeratorModule,
     MonitoringModule,
+    OnboardingModule,
     PaypingModule,
     PaypingOAuthModule,
     AdminModule,

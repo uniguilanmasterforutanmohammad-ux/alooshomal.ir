@@ -21,6 +21,7 @@ import { AdminMonitoringPanel } from '@/components/admin/AdminMonitoringPanel';
 import { AdminNewsPanel } from '@/components/admin/AdminNewsPanel';
 import { AdminNewsSettings } from '@/components/admin/AdminNewsSettings';
 import { AdminNotificationSettings } from '@/components/admin/AdminNotificationSettings';
+import { AdminOnboardingSteps } from '@/components/admin/AdminOnboardingSteps';
 import { AdminPaypingOAuthPanel } from '@/components/admin/AdminPaypingOAuthPanel';
 import { AdminPaypingPanel } from '@/components/admin/AdminPaypingPanel';
 import { AdminPermissionsMatrix } from '@/components/admin/AdminPermissionsMatrix';
@@ -341,6 +342,7 @@ export function SettingsSection() {
     <div className="grid gap-4 lg:grid-cols-2">
       <AdminAppearanceSettings />
       <AdminFeatureFlags />
+      <AdminOnboardingSteps />
       <AdminBiolinkTemplates />
       <AdminDirectorySettings />
       <AdminAuthSettings />

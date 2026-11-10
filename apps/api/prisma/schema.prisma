@@ -473,11 +473,28 @@ model User {
   invoices          Invoice[]    @relation("InvoiceCustomer")
   invoicesCreated   Invoice[]    @relation("InvoiceCreatedBy")
   expensesCreated   Expense[]    @relation("ExpenseCreatedBy")
+  onboardingCompletions OnboardingStepCompletion[]
 
   @@index([email])
   @@index([phone])
   @@index([planId])
   @@map("users")
+}
+
+/// One manually ticked step in the «شروع آسان» onboarding wizard. Built-in
+/// steps are derived from account data (identity, business card, subscription,
+/// …); only admin-added custom steps are persisted here.
+model OnboardingStepCompletion {
+  id          String   @id @default(cuid())
+  userId      String
+  stepId      String
+  completedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stepId])
+  @@index([userId])
+  @@map("onboarding_step_completions")
 }
 
 // A signed-in device/session. Login (password or OTP) creates one row; the JWT
