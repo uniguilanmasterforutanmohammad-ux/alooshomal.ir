@@ -6,6 +6,7 @@ import {
 import { BiolinkStatus } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
+import { DEFAULT_PLAN } from '../common/plans';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import {
@@ -137,7 +138,7 @@ export class OnboardingService {
    * custom steps read the manual completion rows.
    */
   private async completionMap(userId: string): Promise<Map<string, boolean>> {
-    const [user, completions] = await Promise.all([
+    const [user, completions, defaultPlan] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -170,6 +171,10 @@ export class OnboardingService {
         where: { userId },
         select: { stepId: true },
       }),
+      this.prisma.subscriptionPlan.findFirst({
+        where: { name: DEFAULT_PLAN.name },
+        select: { id: true },
+      }),
     ]);
     const map = new Map<string, boolean>();
     for (const completion of completions) map.set(completion.stepId, true);
@@ -180,7 +185,13 @@ export class OnboardingService {
     map.set('business', cards.length > 0);
     map.set('details', cards.some((card) => this.detailsComplete(card)));
     map.set('documents', Boolean(user.blueTickRequestedAt || user.verifiedAt));
-    map.set('plan', Boolean(user.planId) || user.subscriptions.length > 0);
+    // New accounts get the free plan assigned automatically, so an explicit
+    // plan choice (an approved subscription, or a non-default plan) is what
+    // completes this step — not the auto-assigned default.
+    const hasExplicitPlan =
+      user.subscriptions.length > 0 ||
+      (Boolean(user.planId) && user.planId !== defaultPlan?.id);
+    map.set('plan', hasExplicitPlan);
     map.set(
       'approval',
       cards.some((card) => card.status === BiolinkStatus.APPROVED),
