@@ -21,6 +21,8 @@ export interface HomeBusinessCard {
   phone: string | null;
   address: string | null;
   publishedAt: string | null;
+  ratingAvg: number;
+  ratingCount: number;
   city: { id: string; name: string } | null;
   business: { id: string; name: string } | null;
   ownerVerified?: boolean;
@@ -44,9 +46,10 @@ export async function fetchHomeBusinessCards(limit = 12): Promise<HomeBusinessCa
 
 /**
  * Splits one latest snapshot into a recommendation rail and a freshness rail.
- * Verified owners lead the suggestions (the API order is kept for ties), while
- * «کسب‌وکارهای تازه» is sorted by publication date and excludes the cards
- * already shown above so the two sections do not repeat each other.
+ * Suggestions lead with the highest-rated cards (review count and verified
+ * owners break ties), while «کسب‌وکارهای تازه» is sorted by publication date
+ * and excludes the cards already shown above so the two sections do not
+ * repeat each other.
  */
 export function splitHomeBusinessCards(items: HomeBusinessCard[]): {
   suggested: HomeBusinessCard[];
@@ -54,7 +57,10 @@ export function splitHomeBusinessCards(items: HomeBusinessCard[]): {
 } {
   const suggested = [...items]
     .sort(
-      (a, b) => Number(Boolean(b.ownerVerified)) - Number(Boolean(a.ownerVerified)),
+      (a, b) =>
+        (b.ratingAvg ?? 0) - (a.ratingAvg ?? 0) ||
+        (b.ratingCount ?? 0) - (a.ratingCount ?? 0) ||
+        Number(Boolean(b.ownerVerified)) - Number(Boolean(a.ownerVerified)),
     )
     .slice(0, 4);
   const suggestedIds = new Set(suggested.map((item) => item.id));

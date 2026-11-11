@@ -531,6 +531,8 @@ export class BusinessCardsService {
         phone: true,
         address: true,
         publishedAt: true,
+        ratingAvg: true,
+        ratingCount: true,
         city: { select: { id: true, name: true } },
         business: { select: { id: true, name: true } },
         user: { select: { plan: true, verifiedAt: true } },

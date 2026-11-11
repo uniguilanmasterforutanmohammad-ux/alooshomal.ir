@@ -13,6 +13,7 @@ import {
   Phone,
   Send,
   Smartphone,
+  Star,
 } from 'lucide-react';
 
 import {
@@ -239,6 +240,37 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
               <p dir="ltr" className="mt-1 break-all text-[11px] text-muted">
                 {link}
               </p>
+              <Link
+                href={`/business/${businessCard.slug}#reviews`}
+                className="mt-1 inline-flex items-center gap-1 text-[11px] font-bold text-ink transition hover:text-brand"
+                aria-label={
+                  businessCard.ratingCount
+                    ? `امتیاز ${Number(businessCard.ratingAvg ?? 0).toLocaleString('fa-IR')} از ۵ بر اساس ${businessCard.ratingCount.toLocaleString('fa-IR')} دیدگاه`
+                    : 'بدون امتیاز — ثبت دیدگاه'
+                }
+              >
+                <Star
+                  className={
+                    businessCard.ratingCount
+                      ? 'size-3.5 fill-amber-400 text-amber-500'
+                      : 'size-3.5 text-muted'
+                  }
+                  aria-hidden
+                />
+                {businessCard.ratingCount ? (
+                  <>
+                    {Number(businessCard.ratingAvg ?? 0).toLocaleString('fa-IR', {
+                      minimumFractionDigits: 1,
+                      maximumFractionDigits: 1,
+                    })}
+                    <span className="font-normal text-muted">
+                      ({businessCard.ratingCount.toLocaleString('fa-IR')} دیدگاه)
+                    </span>
+                  </>
+                ) : (
+                  <span className="font-normal text-muted">بدون امتیاز — ثبت دیدگاه</span>
+                )}
+              </Link>
               <div className="mt-2 flex items-center gap-2">
                 <a
                   href={`/api/proxy/business-cards/public/${businessCard.slug}/vcard`}

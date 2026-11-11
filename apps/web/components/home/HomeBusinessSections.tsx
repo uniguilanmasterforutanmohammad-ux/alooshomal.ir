@@ -4,8 +4,8 @@ import {
   BadgeCheck,
   CalendarDays,
   ChevronLeft,
-  IdCard,
   MapPin,
+  Star,
 } from 'lucide-react';
 
 import type { HomeBusinessCard } from '@/lib/home-server';
@@ -34,6 +34,21 @@ function publishedLabel(value: string | null): string | null {
     day: 'numeric',
     month: 'short',
   }).format(date);
+}
+
+function ratingValue(item: HomeBusinessCard): number {
+  return Math.max(0, Math.min(5, Number(item.ratingAvg) || 0));
+}
+
+function ratingText(item: HomeBusinessCard): string {
+  return ratingValue(item).toLocaleString('fa-IR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
+}
+
+function reviewCount(item: HomeBusinessCard): string {
+  return Math.max(0, Number(item.ratingCount) || 0).toLocaleString('fa-IR');
 }
 
 function SectionHeader({
@@ -106,8 +121,18 @@ function SuggestionCard({ item }: { item: HomeBusinessCard }) {
             <BadgeCheck className="size-4" aria-hidden />
           </span>
         ) : null}
-        <span className="absolute bottom-2 right-2 rounded-full bg-[var(--footer-tile)] px-2 py-0.5 text-[10px] font-bold text-[var(--footer-ink)] shadow-sm">
-          کارت ویزیت
+        <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-[var(--footer-tile)] px-2 py-0.5 text-[10px] font-bold text-[var(--footer-ink)] shadow-sm">
+          {item.ratingCount > 0 ? (
+            <>
+              <Star className="size-3 fill-amber-400 text-amber-500" aria-hidden />
+              {ratingText(item)}
+              <span className="font-normal text-[var(--footer-faint)]">
+                ({reviewCount(item)})
+              </span>
+            </>
+          ) : (
+            <span className="font-normal text-[var(--footer-faint)]">بدون امتیاز</span>
+          )}
         </span>
       </div>
       <div className="flex flex-1 flex-col gap-1 p-3">
@@ -173,13 +198,21 @@ function LatestCard({ item }: { item: HomeBusinessCard }) {
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex items-center gap-1 text-xs text-[var(--footer-muted)]">
-            <IdCard
-              className="size-3.5 shrink-0 text-[var(--footer-brand-light)]"
-              aria-hidden
-            />
-            کارت ویزیت دیجیتال
-          </span>
+          {item.ratingCount > 0 ? (
+            <span
+              className="inline-flex items-center gap-1 text-xs text-[var(--footer-muted)]"
+              aria-label={`امتیاز ${ratingText(item)} از ۵ بر اساس ${reviewCount(item)} دیدگاه`}
+            >
+              <Star className="size-3.5 shrink-0 fill-amber-400 text-amber-500" aria-hidden />
+              <span className="font-bold text-[var(--footer-ink)]">{ratingText(item)}</span>
+              <span>({reviewCount(item)} نفر)</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-xs text-[var(--footer-faint)]">
+              <Star className="size-3.5 shrink-0 text-[var(--footer-border)]" aria-hidden />
+              بدون امتیاز
+            </span>
+          )}
           <span className="inline-flex items-center gap-1 rounded-full bg-[#e5f5ee] px-2 py-0.5 text-[11px] font-semibold leading-5 text-[#439878] dark:bg-[#1d3a31] dark:text-[#8fd4b9]">
             تازه
           </span>
