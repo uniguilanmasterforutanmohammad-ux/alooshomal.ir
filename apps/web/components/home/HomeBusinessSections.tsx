@@ -1,6 +1,12 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { BadgeCheck, ChevronLeft, MapPin, Phone } from 'lucide-react';
+import {
+  BadgeCheck,
+  CalendarDays,
+  ChevronLeft,
+  IdCard,
+  MapPin,
+} from 'lucide-react';
 
 import type { HomeBusinessCard } from '@/lib/home-server';
 
@@ -18,6 +24,16 @@ function subline(item: HomeBusinessCard): string {
 
 function place(item: HomeBusinessCard): string {
   return [item.city?.name, item.business?.name].filter(Boolean).join(' · ');
+}
+
+function publishedLabel(value: string | null): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat('fa-IR', {
+    day: 'numeric',
+    month: 'short',
+  }).format(date);
 }
 
 function SectionHeader({
@@ -60,7 +76,7 @@ function SuggestionCard({ item }: { item: HomeBusinessCard }) {
     <Link
       href={`/business-cards/${item.slug}`}
       prefetch={false}
-      className="group flex flex-col overflow-hidden rounded-xl border border-[var(--footer-border)] bg-[var(--footer-tile)] transition hover:border-[var(--footer-brand-light)] hover:shadow-[0_6px_18px_rgba(16,24,65,0.08)]"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--footer-border)] bg-[var(--footer-tile)] transition hover:border-[var(--footer-brand-light)] hover:shadow-[0_6px_18px_rgba(16,24,65,0.08)]"
     >
       <div className="relative aspect-[16/10] overflow-hidden bg-[var(--footer-bg)]">
         <span
@@ -111,18 +127,21 @@ function SuggestionCard({ item }: { item: HomeBusinessCard }) {
 }
 
 function LatestCard({ item }: { item: HomeBusinessCard }) {
-  const image = imageUrl(item);
+  // The reference uses a photo-like cover; avatars are the closest fit, with
+  // the logo as a fallback.
+  const image = item.avatarUrl || item.logoUrl;
   const color = accent(item);
   const meta = place(item);
-  const phone = item.mobile || item.phone;
+  const address = item.address?.trim() || meta;
+  const date = publishedLabel(item.publishedAt);
 
   return (
     <Link
       href={`/business-cards/${item.slug}`}
       prefetch={false}
-      className="group flex gap-3 rounded-xl border border-[var(--footer-border)] bg-[var(--footer-tile)] p-3 transition hover:border-[var(--footer-brand-light)] hover:shadow-[0_4px_14px_rgba(16,24,65,0.07)]"
+      className="group flex gap-3 rounded-2xl border border-[var(--footer-border)] bg-[var(--footer-tile)] p-3 transition hover:border-[var(--footer-brand-light)] hover:shadow-[0_2px_8px_0_rgba(16,24,65,0.06)]"
     >
-      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-[var(--footer-bg)] sm:h-28 sm:w-32">
+      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-[var(--footer-thumb)] sm:h-28 sm:w-32">
         {image ? (
           <Image
             src={image}
@@ -130,7 +149,7 @@ function LatestCard({ item }: { item: HomeBusinessCard }) {
             fill
             unoptimized
             sizes="128px"
-            className="object-contain p-3 transition duration-300 group-hover:scale-105"
+            className="size-full object-cover transition duration-300 group-hover:scale-105"
           />
         ) : (
           <span
@@ -153,19 +172,40 @@ function LatestCard({ item }: { item: HomeBusinessCard }) {
             />
           ) : null}
         </div>
-        <p className="line-clamp-1 text-[11px] text-[var(--footer-faint)]">
-          {subline(item) || 'کارت ویزیت دیجیتال'}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 text-xs text-[var(--footer-muted)]">
+            <IdCard
+              className="size-3.5 shrink-0 text-[var(--footer-brand-light)]"
+              aria-hidden
+            />
+            کارت ویزیت دیجیتال
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#e5f5ee] px-2 py-0.5 text-[11px] font-semibold leading-5 text-[#439878] dark:bg-[#1d3a31] dark:text-[#8fd4b9]">
+            تازه
+          </span>
+        </div>
+        <p className="line-clamp-2 flex items-start gap-1 text-[11px] leading-5 text-[var(--footer-faint)]">
+          <MapPin className="mt-1 size-3 shrink-0" aria-hidden />
+          {address || 'شمالی کارت'}
         </p>
-        <p className="line-clamp-1 flex items-center gap-1 text-[11px] leading-5 text-[var(--footer-faint)]">
-          <MapPin className="size-3 shrink-0" aria-hidden />
-          {meta || 'شمالی کارت'}
-        </p>
-        {phone ? (
-          <p className="mt-auto flex items-center gap-1 text-[11px] leading-5 text-[var(--footer-faint)]">
-            <Phone className="size-3 shrink-0" aria-hidden />
-            <span dir="ltr">{phone}</span>
-          </p>
-        ) : null}
+        <div className="mt-auto flex items-center gap-2 pt-1 text-[10px] text-[var(--footer-faint)]">
+          {item.business?.name ? (
+            <span className="rounded bg-[var(--footer-chip)] px-1.5 py-0.5">
+              {item.business.name}
+            </span>
+          ) : null}
+          {item.city?.name ? (
+            <span className="rounded bg-[var(--footer-chip)] px-1.5 py-0.5">
+              {item.city.name}
+            </span>
+          ) : null}
+          {date ? (
+            <span className="ms-auto flex items-center gap-1 text-[var(--footer-brand-light)]">
+              <CalendarDays className="size-3" aria-hidden />
+              {date}
+            </span>
+          ) : null}
+        </div>
       </div>
     </Link>
   );
@@ -187,9 +227,9 @@ export function HomeBusinessSections({
   if (suggested.length === 0 && latest.length === 0) return null;
 
   return (
-    <div className="container-page mt-6 flex flex-col gap-6 pb-2">
+    <div className="mx-auto mt-6 flex w-full max-w-7xl flex-col gap-6 px-4 pb-2 lg:px-6">
       {suggested.length > 0 ? (
-        <section className="footer-palette rounded-xl border border-[var(--footer-border)] bg-[var(--footer-bg)] p-4 sm:p-5">
+        <section className="footer-palette">
           <SectionHeader
             title="پیشنهاد شمالی کارت"
             description="کسب‌وکارهای منتخب برای شروع"
@@ -205,10 +245,10 @@ export function HomeBusinessSections({
       ) : null}
 
       {latest.length > 0 ? (
-        <section className="footer-palette rounded-xl border border-[var(--footer-border)] bg-[var(--footer-bg)] p-4 sm:p-5">
+        <section className="footer-palette">
           <SectionHeader
-            title="کسب و کارهای تازه"
-            description="تازه‌ترین پروفایل‌ها در شمالی کارت"
+            title="تازه‌ترین کسب‌وکارها"
+            description="پروفایل‌های جدید در شمالی کارت"
             href="/business-cards?sort=recent"
             moreLabel="همه کسب‌وکارها"
           />

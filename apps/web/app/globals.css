@@ -6420,9 +6420,18 @@ html.dark .text-amber-700 {
   --footer-brand-light: #3a43a1;
   --footer-tile: #ffffff;
   --footer-on-brand: #ffffff;
+  --footer-thumb: #eff0f6;
+  --footer-chip: #f4f6fa;
   --footer-shadow: 0 1px 2px rgba(16, 24, 65, 0.04);
+}
+
+.site-footer {
   background-color: var(--footer-bg);
   border-color: var(--footer-border);
+  color: var(--footer-ink);
+}
+
+.footer-palette {
   color: var(--footer-ink);
 }
 
@@ -6437,5 +6446,7 @@ html.dark .footer-palette {
   --footer-brand-light: #8f98e8;
   --footer-tile: #1f2230;
   --footer-on-brand: #101223;
+  --footer-thumb: #232637;
+  --footer-chip: #232637;
   --footer-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }
