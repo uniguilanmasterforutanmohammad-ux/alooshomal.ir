@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Check, Moon, Palette, Sun } from 'lucide-react';
 
 import { api } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
 import {
   SITE_THEME_OPTIONS,
   isSiteTheme,
@@ -29,7 +28,6 @@ interface SettingsPayload {
  */
 export function AdminAppearanceSettings() {
   const router = useRouter();
-  const { token } = useAuth();
   const [theme, setTheme] = useState<SiteTheme>('vintage');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<SiteTheme | null>(null);
@@ -64,21 +62,13 @@ export function AdminAppearanceSettings() {
       // window even though the API had already saved it.
       // Must stay under `/api/proxy/`: production nginx sends only that prefix
       // to the web app and routes every other `/api/*` path to NestJS.
-      const response = await fetch('/api/proxy/site-theme', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ siteTheme: next }),
-      });
-      const payload = (await response.json().catch(() => null)) as
-        | { data?: SettingsPayload; message?: string }
-        | null;
-      if (!response.ok) {
-        throw new Error(payload?.message ?? 'ذخیره‌ی تم ناموفق بود');
-      }
-      const savedTheme = payload?.data?.siteTheme;
+      // `postSameOrigin` keeps the silent token refresh, so an expired access
+      // token no longer turns this into a 401 «Unauthorized».
+      const payload = await api.postSameOrigin<SettingsPayload>(
+        '/api/proxy/site-theme',
+        { siteTheme: next },
+      );
+      const savedTheme = payload?.siteTheme;
       const applied = isSiteTheme(savedTheme) ? savedTheme : next;
       setTheme(applied);
       // `router.refresh()` re-renders the RSC tree but Next does not re-apply

@@ -92,6 +92,27 @@ async function request<T>(
 }
 
 /**
+ * POST to a same-origin Next.js route while reusing the API client's auth
+ * handling (Bearer from localStorage, one silent refresh + retry on 401).
+ *
+ * Some operations must go through the web server instead of the API origin —
+ * e.g. `/api/proxy/site-theme`, which also purges the cached root layout.
+ * Those used to call `fetch` directly with `useAuth().token`; once the access
+ * token expired, that stale value produced an «Unauthorized» response even
+ * though the refresh cookie was still valid. Routing them through this helper
+ * keeps them on the same rotation path as every other API call.
+ */
+async function postSameOrigin<T>(path: string, body?: unknown): Promise<T> {
+  const response = await send<T>(
+    path,
+    { method: 'POST', body: JSON.stringify(body ?? {}) },
+    0,
+    '',
+  );
+  return parse<T>(response);
+}
+
+/**
  * Performs the request, transparently refreshing an expired access token once.
  * A 401 with a stored refresh token triggers a silent rotation and one retry;
  * a second 401 (or no refresh token) is surfaced to the caller so it can send
@@ -101,6 +122,7 @@ async function send<T>(
   path: string,
   options: RequestInit,
   attempt: number,
+  baseUrl: string = API_URL,
 ): Promise<Response> {
   const token =
     typeof window !== 'undefined'
@@ -109,7 +131,7 @@ async function send<T>(
 
   const visitorId = getVisitorId();
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers: {
       // FormData sets its own multipart boundary; only default to JSON when the
@@ -135,7 +157,9 @@ async function send<T>(
   if (response.status === 401 && attempt === 0 && !isAuthEndpoint) {
     const refreshed = await refreshSession();
     if (refreshed) {
-      return send<T>(path, options, 1);
+      // Keep the same base URL: same-origin routes must stay on the web
+      // server after the refresh, not jump to the API origin.
+      return send<T>(path, options, 1, baseUrl);
     }
     // Refresh failed: clear the dead session so the UI can redirect to login.
     if (typeof window !== 'undefined') {
@@ -183,6 +207,8 @@ export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'POST', body: JSON.stringify(body ?? {}) }),
+  /** POST to a same-origin Next.js route with the same auth/refresh handling. */
+  postSameOrigin,
   put: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'PUT', body: JSON.stringify(body ?? {}) }),
   patch: <T>(path: string, body?: unknown) =>

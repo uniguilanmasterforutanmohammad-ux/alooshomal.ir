@@ -20,7 +20,34 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.32.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.32.1**.
+
+## ۱۴۰۵/۰۸/۲۰ — رفع خطای Unauthorized هنگام تغییر تم — نسخه `v3.32.1`
+
+**هدف:** تغییر تم از پنل مدیر وقتی توکن دسترسی منقضی شده بود با خطای
+`Unauthorized` شکست می‌خورد، هرچند کوکی refresh هنوز معتبر بود. علت این بود که
+این عملیات به‌جای کلاینت مشترک `api`، با `fetch` خام و توکن قدیمی
+`useAuth().token` انجام می‌شد و مسیر refresh خودکار را دور می‌زد.
+
+**تغییرات:**
+- `apps/web/lib/api/client.ts`: افزودن `api.postSameOrigin` برای درخواست به
+  مسیرهای same-origin نکست (مثل `/api/proxy/site-theme`) با همان منطق
+  Authorization، refresh یک‌باره روی 401 و تلاش مجدد؛ همچنین حفظ `baseUrl` در
+  تلاش مجدد تا درخواست پس از refresh به origin اشتباه نرود.
+- `apps/web/components/admin/AdminAppearanceSettings.tsx`: استفاده از
+  `api.postSameOrigin` به‌جای `fetch` خام و حذف وابستگی به توکن stale.
+- `apps/web/lib/version.ts`: ارتقای نسخه به `v3.32.1`.
+
+**تأیید/تست:**
+- سناریوی واقعی با Playwright: ورود ادمین، سپس جایگزینی توکن دسترسی با یک JWT
+  منقضی و نگه‌داشتن کوکی refresh معتبر، و کلیک روی تم «کاشی ایرانی».
+- توالی شبکه پس از اصلاح: `POST /api/proxy/site-theme → 401`،
+  `POST /api/auth/refresh → 200`، `POST /api/proxy/site-theme → 200`؛
+  `data-theme` روی `kashi` قرار گرفت و پیام موفقیت نمایش داده شد
+  (بدون `Unauthorized`).
+- `docker exec alooshomal-web npx tsc --noEmit` → exit 0.
+- در پایان، مقدار `siteTheme` دیتابیس dev به `modern` برگردانده شد.
+- `python3 scripts/sync_install.py` و سپس `--check` بدون «تغییر معلق».
 
 ## ۱۴۰۵/۰۸/۲۰ — افزودن تم ماژولار «کاشی ایرانی» — نسخه `v3.32.0`
 
