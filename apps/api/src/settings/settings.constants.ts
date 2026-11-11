@@ -224,13 +224,21 @@ export const DEFAULT_BIOLINK_TEMPLATES_ENABLED: string[] = [...BIOLINK_TEMPLATE_
  *                 Javaneh Bazaar (kids marketplace);
  *   - `twitter` — the flat Twitter/X skin (white/black canvas, #1d9bf0 accent)
  *                 layered on the «نوین» layout.
+ *   - `kashi`   — the Persian-tile «کاشی ایرانی» look (ivory canvas, lapis,
+ *                 turquoise and gold) defined in `apps/web/app/themes/kashi.css`.
  *
  * This is a global setting (not per-visitor): the admin switches it once from
  * «تنظیمات ← ظاهر سایت» and every page follows. Dark/light stays a per-visitor
  * preference handled client-side.
  */
 export const SITE_THEME_KEY = 'siteTheme';
-export const SITE_THEMES = ['vintage', 'modern', 'bazaar', 'twitter'] as const;
+export const SITE_THEMES = [
+  'vintage',
+  'modern',
+  'bazaar',
+  'twitter',
+  'kashi',
+] as const;
 export type SiteTheme = (typeof SITE_THEMES)[number];
 export const DEFAULT_SITE_THEME: SiteTheme = 'vintage';
 

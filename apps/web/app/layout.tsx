@@ -7,7 +7,11 @@ import { SupportChatWidget } from '@/components/support/SupportChatWidget';
 import { SessionWatcher } from '@/components/ui/SessionWatcher';
 import { PaypingOAuthCatcher } from '@/components/admin/PaypingOAuthCatcher';
 import { SITE_URL } from '@/lib/site';
-import { getSiteTheme, siteThemeDocumentAttrs } from '@/lib/site-theme';
+import {
+  getSiteTheme,
+  siteThemeDocumentAttrs,
+  siteThemeThemeColor,
+} from '@/lib/site-theme';
 import { getPublicFeatureSnapshot } from '@/lib/sections-server';
 import { FeaturesProvider } from '@/components/layout/FeaturesProvider';
 import './globals.css';
@@ -47,16 +51,8 @@ export const metadata: Metadata = {
 export async function generateViewport(): Promise<Viewport> {
   // Match the browser chrome to the active site theme.
   const theme = await getSiteTheme();
-  const themeColor =
-    theme === 'twitter'
-      ? '#FFFFFF'
-      : theme === 'modern'
-        ? '#F4F6FB'
-        : theme === 'bazaar'
-          ? '#FFFAF0'
-          : '#F2E8D9';
   return {
-    themeColor,
+    themeColor: siteThemeThemeColor(theme),
     width: 'device-width',
     initialScale: 1,
   };

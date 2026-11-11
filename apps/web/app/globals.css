@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+/* Modular site themes — each file is fully scoped to its own `data-theme`. */
+@import './themes/kashi.css';
 
 /* Enable the `.dark` class as the dark-mode variant for `dark:` utilities. */
 @custom-variant dark (&:where(.dark, .dark *));

@@ -7,12 +7,30 @@
  * `data-theme` on `<html>`, so pages render in the chosen design on the very
  * first paint (no flash). Dark/light remains a per-visitor preference handled
  * client-side by adding the `.dark` class.
+ *
+ * The four built-in skins are declared here. Newer themes are self-contained
+ * modules under `lib/site-themes/` and are merged through
+ * {@link EXTRA_SITE_THEMES}; removing one module removes it from the type
+ * union, the admin options and the layout mapping in one step.
  */
 
 import { SERVER_API_URL } from './site';
+import {
+  EXTRA_SITE_THEMES,
+  type ExtraSiteThemeKey,
+  type SiteThemeDefinition,
+} from './site-themes';
 
-export const SITE_THEMES = ['vintage', 'modern', 'bazaar', 'twitter'] as const;
-export type SiteTheme = (typeof SITE_THEMES)[number];
+const BASE_SITE_THEMES = ['vintage', 'modern', 'bazaar', 'twitter'] as const;
+
+export type BaseSiteTheme = (typeof BASE_SITE_THEMES)[number];
+export type SiteTheme = BaseSiteTheme | ExtraSiteThemeKey;
+
+export const SITE_THEMES: readonly SiteTheme[] = [
+  ...BASE_SITE_THEMES,
+  ...EXTRA_SITE_THEMES.map((theme) => theme.key),
+];
+
 export const DEFAULT_SITE_THEME: SiteTheme = 'vintage';
 
 /**
@@ -23,12 +41,33 @@ export const DEFAULT_SITE_THEME: SiteTheme = 'vintage';
  * instant preview in sync.
  */
 export function siteThemeDocumentAttrs(theme: SiteTheme): {
-  theme: Exclude<SiteTheme, 'twitter'>;
-  skin: 'twitter' | null;
+  theme: string;
+  skin: string | null;
 } {
+  const extra: SiteThemeDefinition | undefined = EXTRA_SITE_THEMES.find(
+    (item) => item.key === theme,
+  );
+  if (extra) {
+    return extra.documentAttrs ?? { theme: extra.key, skin: null };
+  }
   return theme === 'twitter'
     ? { theme: 'modern', skin: 'twitter' }
     : { theme, skin: null };
+}
+
+/** Browser-chrome colour for the active theme (light scheme). */
+export function siteThemeThemeColor(theme: SiteTheme): string {
+  const extra: SiteThemeDefinition | undefined = EXTRA_SITE_THEMES.find(
+    (item) => item.key === theme,
+  );
+  if (extra) return extra.themeColor.light;
+  return theme === 'twitter'
+    ? '#FFFFFF'
+    : theme === 'modern'
+      ? '#F4F6FB'
+      : theme === 'bazaar'
+        ? '#FFFAF0'
+        : '#F2E8D9';
 }
 
 export const SITE_THEME_OPTIONS: Array<{
@@ -56,14 +95,17 @@ export const SITE_THEME_OPTIONS: Array<{
     name: 'توییتر (روشن/تیره)',
     description: 'ظاهر تخت و مینیمال توییتر/X؛ زمینه‌ی سفید یا مشکی، خطوط نازک و آبی #1d9bf0.',
   },
+  ...EXTRA_SITE_THEMES.map((theme) => ({
+    key: theme.key,
+    name: theme.name,
+    description: theme.description,
+  })),
 ];
 
 export function isSiteTheme(value: unknown): value is SiteTheme {
   return (
-    value === 'vintage' ||
-    value === 'modern' ||
-    value === 'bazaar' ||
-    value === 'twitter'
+    typeof value === 'string' &&
+    (SITE_THEMES as readonly string[]).includes(value)
   );
 }
 

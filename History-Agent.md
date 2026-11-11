@@ -20,7 +20,51 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.31.4**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.32.0**.
+
+## ۱۴۰۵/۰۸/۲۰ — افزودن تم ماژولار «کاشی ایرانی» — نسخه `v3.32.0`
+
+**هدف:** افزودن یک تم کامل و مستقل برای کل سایت با همان ساختار تایپوگرافی،
+فونت شبنم، هدر/فوتر و کامپوننت‌های موجود، اما با هویت بصری تازه‌ی کاشی‌کاری
+ایرانی (لاجورد، فیروزه و طلا). تم به‌صورت ماژولار پیاده شد تا هیچ قاعده‌ای با
+تم‌های دیگر قاطی نشود و حذف آن در آینده فقط حذف همین ماژول باشد.
+
+**تغییرات:**
+- `apps/web/app/themes/kashi.css`: تمام قواعد تم جدید، کاملاً محدود به
+  `html[data-theme='kashi']`؛ شامل بوم ستاره‌ای، هدر با خط طلایی، فوتر
+  لاجوردی، فرم‌ها، دکمه‌ها، کارت رکورد، کارت ویزیت، تبلیغات، دفترچه تلفن،
+  صفحات فید/بلاگ و حالت تیره.
+- `apps/web/lib/site-themes/types.ts`: قرارداد ماژول تم.
+- `apps/web/lib/site-themes/kashi.ts`: متادیتای تم (کلید، نام، توضیح، رنگ نوار مرورگر).
+- `apps/web/lib/site-themes/index.ts`: رجیستری واحد تم‌های ماژولار.
+- `apps/web/lib/site-theme.ts`: اشتقاق `SiteTheme`، `SITE_THEMES`، گزینه‌های پنل،
+  نگاشت `data-theme`/`data-skin` و رنگ viewport از رجیستری.
+- `apps/web/app/layout.tsx`: استفاده از هلپر رنگ تم برای `generateViewport`.
+- `apps/web/app/globals.css`: ایمپورت ماژول CSS تم.
+- `apps/web/components/admin/theme-previews/KashiThemePreview.tsx` و
+  `apps/web/components/admin/theme-previews/index.tsx`: پیش‌نمایش مستقل تم.
+- `apps/web/components/admin/AdminAppearanceSettings.tsx`: رندر پیش‌نمایش از
+  رجیستری و پیام موفقیت عمومی بر پایه‌ی نام تم.
+- `apps/api/src/settings/settings.constants.ts` و
+  `apps/api/src/settings/settings.controller.ts`: افزودن `kashi` به تم‌های مجاز API.
+- `docs/API.md` و `docs/THEMES.md`: به‌روزرسانی فهرست تم‌ها و افزودن راهنمای
+  افزودن/حذف تم ماژولار.
+- `apps/web/lib/version.ts`: ارتقای نسخه به `v3.32.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web npx tsc --noEmit` → exit 0.
+- `python3 scripts/check_api_docs.py` → ۳۷ کنترلر و ۳۹۰ مسیر، بدون خطا (exit 0).
+- تم را در دیتابیس dev روی `kashi` گذاشتم و با Playwright + Chrome صفحات
+  `/`، `/business-cards`، `/biolinks/<slug>`، `/business-cards/<slug>` و
+  `/business-cards?view=notebook&sort=alpha` را بررسی کردم: `data-theme="kashi"`،
+  بوم `rgb(246,241,230)`، هدر/هیرو/فوتر/کارت رکورد/کارت ویزیت/دفترچه تلفن با
+  استایل‌های تازه، بدون خطای کنسول.
+- حالت تیره: بوم `rgb(6,18,27)`، هیرو `rgb(7,30,42)`، فوتر `rgb(6,18,27)` و
+  دکمه‌ی اصلی با گرادیان فیروزه‌ای→آبی→نیلی؛ بدون باقی‌ماندن رنگ‌های قهوه‌ای تم کلاسیک.
+- موبایل ۳۹۰×۸۴۴: `scrollWidth == clientWidth` (بدون سرریز افقی) و نوار پایین
+  با حاشیه‌ی طلایی.
+- در پایان، مقدار `siteTheme` دیتابیس dev به `modern` برگردانده شد.
+- `python3 scripts/sync_install.py` و سپس `--check` بدون «تغییر معلق» اجرا شد.
 
 ## ۱۴۰۵/۰۸/۲۰ — throttle نوشتن `lastUsedAt` در هر درخواست (`sessions.touch`) — نسخه `v3.31.4`
 

@@ -1,0 +1,896 @@
+/* =====================================================================
+   «کاشی ایرانی» — Persian tile site theme
+   ---------------------------------------------------------------------
+   Selected by the admin (`siteTheme`) and written on
+   `<html data-theme="kashi">` by the root layout.
+
+   Design language: an ivory canvas with a faint eight-point-star lattice,
+   lapis-lazuli and turquoise identity panels, a warm gold hairline and
+   geometric inner frames. The type scale, Shabnam font, header/footer
+   structure and every component keep the exact same shape as the other
+   skins — only the palette, surfaces, radii and accents change.
+
+   This file is intentionally self-contained: every rule is scoped to
+   `html[data-theme='kashi']`, so the whole theme can be removed by deleting
+   this file together with its single registry entry in
+   `apps/web/lib/site-themes/` — no other theme is touched.
+   ===================================================================== */
+
+html[data-theme='kashi'] {
+  color-scheme: light;
+
+  /* semantic tokens shared with the rest of the app */
+  --vintage-paper: #f6f1e6;
+  --vintage-surface: #fffdf7;
+  --vintage-ring: #e8ddc6;
+  --vintage-accent: #0f766e;
+  --vintage-accent-dark: #115e59;
+  --vintage-accent-hover: #14b8a6;
+  --vintage-ink: #14243b;
+  --vintage-ink-soft: #5c6b80;
+  --vintage-border: #e3d8c2;
+  --vintage-radius: 14px;
+  --indeed-blue-light: #e6f4f1;
+
+  /* kashi-only palette */
+  --kashi-lapis: #1e3a8a;
+  --kashi-lapis-deep: #122a5c;
+  --kashi-teal: #0f766e;
+  --kashi-teal-bright: #14b8a6;
+  --kashi-gold: #b8860b;
+  --kashi-gold-soft: #d9b45a;
+  --kashi-gold-pale: #f3e6c4;
+  --kashi-shadow: 0 1px 2px rgba(20, 36, 59, 0.05),
+    0 20px 44px -30px rgba(20, 36, 59, 0.42);
+  --kashi-shadow-lg: 0 2px 4px rgba(20, 36, 59, 0.05),
+    0 34px 64px -32px rgba(20, 36, 59, 0.5);
+
+  /* Eight-point star lattice (two rotated squares) used behind the page. */
+  --kashi-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%231e3a8a' stroke-width='1.1'%3E%3Crect x='14' y='14' width='28' height='28'/%3E%3Crect x='14' y='14' width='28' height='28' transform='rotate(45 28 28)'/%3E%3Ccircle cx='28' cy='28' r='3.6'/%3E%3C/g%3E%3C/svg%3E");
+  /* Gold version painted over the dark hero panel. */
+  --kashi-hero-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%23f0d38a' stroke-width='1.2'%3E%3Crect x='18' y='18' width='36' height='36'/%3E%3Crect x='18' y='18' width='36' height='36' transform='rotate(45 36 36)'/%3E%3Ccircle cx='36' cy='36' r='4.5'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+html[data-theme='kashi'].dark {
+  color-scheme: dark;
+  --vintage-paper: #06121b;
+  --vintage-surface: #0c1f2b;
+  --vintage-ring: #17384a;
+  --vintage-accent: #5eead4;
+  --vintage-accent-dark: #99f6e4;
+  --vintage-accent-hover: #2dd4bf;
+  --vintage-ink: #e8f3f5;
+  --vintage-ink-soft: #9ab0bc;
+  --vintage-border: #1b3a4a;
+  --indeed-blue-light: #0f2c33;
+  --kashi-gold: #e6c15c;
+  --kashi-gold-soft: #c9a84c;
+  --kashi-gold-pale: #2a2413;
+  --kashi-shadow: 0 1px 2px rgba(0, 0, 0, 0.35),
+    0 20px 44px -30px rgba(0, 0, 0, 0.7);
+  --kashi-shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.4),
+    0 34px 64px -32px rgba(0, 0, 0, 0.85);
+  --kashi-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56' viewBox='0 0 56 56'%3E%3Cg fill='none' stroke='%235eead4' stroke-width='1.1'%3E%3Crect x='14' y='14' width='28' height='28'/%3E%3Crect x='14' y='14' width='28' height='28' transform='rotate(45 28 28)'/%3E%3Ccircle cx='28' cy='28' r='3.6'/%3E%3C/g%3E%3C/svg%3E");
+  --kashi-hero-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='72' height='72' viewBox='0 0 72 72'%3E%3Cg fill='none' stroke='%2399f6e4' stroke-width='1.2'%3E%3Crect x='18' y='18' width='36' height='36'/%3E%3Crect x='18' y='18' width='36' height='36' transform='rotate(45 36 36)'/%3E%3Ccircle cx='36' cy='36' r='4.5'/%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* ---- canvas + typography ---- */
+html[data-theme='kashi'] body {
+  font-family: 'Shabnam', ui-serif, Georgia, 'Times New Roman', serif;
+  color: var(--vintage-ink);
+  line-height: 1.7;
+  background-color: var(--vintage-paper);
+  background-image:
+    var(--kashi-star),
+    radial-gradient(60rem 40rem at 100% -10%, rgba(15, 118, 110, 0.1), transparent 62%),
+    radial-gradient(48rem 34rem at -8% 8%, rgba(30, 58, 138, 0.08), transparent 60%);
+  background-size: 56px 56px, auto, auto;
+  background-attachment: fixed;
+}
+
+html[data-theme='kashi'].dark body {
+  background-image:
+    var(--kashi-star),
+    radial-gradient(60rem 40rem at 100% -10%, rgba(20, 184, 166, 0.16), transparent 62%),
+    radial-gradient(48rem 34rem at -8% 8%, rgba(30, 58, 138, 0.22), transparent 60%);
+}
+
+/* Hide the classic brick-wall texture; the star lattice replaces it. */
+html[data-theme='kashi'] body::before {
+  display: none;
+}
+
+html[data-theme='kashi'] ::selection {
+  background: rgba(20, 184, 166, 0.28);
+  color: var(--vintage-ink);
+}
+
+html[data-theme='kashi'] h1,
+html[data-theme='kashi'] h2,
+html[data-theme='kashi'] h3 {
+  letter-spacing: -0.01em;
+}
+
+/* The classic skin draws dashed 2px rules everywhere. Normalise them to the
+   tile system's thin solid hairlines without touching each component. */
+html[data-theme='kashi'] [class*='border-dashed'] {
+  border-style: solid;
+}
+
+html[data-theme='kashi'] [class*='border-b-2'] {
+  border-bottom-width: 1px;
+}
+
+html[data-theme='kashi'] [class*='border-t-2'] {
+  border-top-width: 1px;
+}
+
+html[data-theme='kashi'] [class*='border-l-2'] {
+  border-left-width: 1px;
+}
+
+/* ---- top chrome ---- */
+html[data-theme='kashi'] header.sticky {
+  background-color: color-mix(in srgb, var(--vintage-surface) 90%, transparent);
+  border-bottom: 1px solid var(--kashi-gold-soft);
+  box-shadow: 0 1px 0 rgba(184, 134, 11, 0.18),
+    0 10px 30px -24px rgba(20, 36, 59, 0.5);
+}
+
+/* A thin lapis → gold → turquoise rule under the header. */
+html[data-theme='kashi'] header.sticky::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: -1px;
+  height: 2px;
+  pointer-events: none;
+  opacity: 0.6;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--kashi-gold-soft) 22%,
+    var(--kashi-teal-bright) 50%,
+    var(--kashi-gold-soft) 78%,
+    transparent 100%
+  );
+}
+
+html[data-theme='kashi'].dark header.sticky {
+  background-color: color-mix(in srgb, var(--vintage-surface) 88%, transparent);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+html[data-theme='kashi'] header.bg-white {
+  background-color: var(--vintage-surface);
+}
+
+html[data-theme='kashi'] header.sticky nav a {
+  border-radius: 9px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+html[data-theme='kashi'] header.sticky nav a:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 10%, transparent);
+}
+
+html[data-theme='kashi'] nav[aria-label='ناوبری پایین'] {
+  background-color: color-mix(in srgb, var(--vintage-surface) 92%, transparent);
+  border-top: 1px solid var(--kashi-gold-soft);
+  box-shadow: 0 -10px 30px -22px rgba(20, 36, 59, 0.45);
+}
+
+html[data-theme='kashi'].dark nav[aria-label='ناوبری پایین'] {
+  background-color: color-mix(in srgb, var(--vintage-surface) 94%, transparent);
+  border-top-color: var(--vintage-border);
+}
+
+/* ---- footer: deep lapis → teal panel with a gold hairline ---- */
+html[data-theme='kashi'] footer.site-footer {
+  margin-top: 3rem;
+  border-radius: 30px 30px 0 0;
+  background-color: #0b1f33;
+  background-image:
+    radial-gradient(42rem 22rem at 85% 0%, rgba(20, 184, 166, 0.34), transparent 62%),
+    radial-gradient(30rem 18rem at 10% 100%, rgba(184, 134, 11, 0.18), transparent 60%),
+    linear-gradient(135deg, #0a1a2c 0%, #10314a 55%, #0b2a3a 100%);
+  box-shadow: 0 -30px 60px -48px rgba(7, 19, 29, 0.9),
+    inset 0 2px 0 rgba(217, 180, 90, 0.35);
+}
+
+html[data-theme='kashi'].dark footer.site-footer {
+  background-color: #06121b;
+  background-image:
+    radial-gradient(42rem 22rem at 85% 0%, rgba(20, 184, 166, 0.26), transparent 62%),
+    radial-gradient(30rem 18rem at 10% 100%, rgba(184, 134, 11, 0.14), transparent 60%),
+    linear-gradient(135deg, #06121b 0%, #0b2436 55%, #071e2a 100%);
+}
+
+html[data-theme='kashi'] footer.site-footer .bg-white {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #cdeee8;
+}
+
+html[data-theme='kashi'] footer.site-footer a.bg-white,
+html[data-theme='kashi'] footer.site-footer .bg-white.text-brand {
+  background-color: rgba(255, 255, 255, 0.12);
+  color: #ecfdf5;
+}
+
+html[data-theme='kashi'].dark footer.site-footer .bg-white {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #b7e6dd;
+}
+
+html[data-theme='kashi'].dark footer.site-footer a.bg-white,
+html[data-theme='kashi'].dark footer.site-footer .bg-white.text-brand {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ecfdf5;
+}
+
+/* ---- form controls ---- */
+html[data-theme='kashi'] .indeed-input,
+html[data-theme='kashi'] .rich-editor {
+  border: 1px solid var(--vintage-border);
+  border-radius: 12px;
+  background: var(--vintage-surface);
+  color: var(--vintage-ink);
+  box-shadow: inset 0 1px 0 rgba(184, 134, 11, 0.06);
+}
+
+html[data-theme='kashi'] .indeed-input::placeholder {
+  color: var(--vintage-ink-soft);
+  opacity: 0.75;
+}
+
+html[data-theme='kashi'] .indeed-input:focus {
+  border-color: var(--vintage-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--vintage-accent) 18%, transparent);
+}
+
+html[data-theme='kashi'] input,
+html[data-theme='kashi'] select,
+html[data-theme='kashi'] textarea {
+  color: var(--vintage-ink);
+}
+
+/* ---- buttons: lapis → turquoise primary, gold focus ring ---- */
+html[data-theme='kashi'] .indeed-btn {
+  gap: 8px;
+  border-radius: 12px;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+html[data-theme='kashi'] .indeed-btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--kashi-gold-soft) 70%, transparent);
+  outline-offset: 2px;
+}
+
+html[data-theme='kashi'] .indeed-btn-primary,
+html[data-theme='kashi'] button[type='submit'].indeed-btn-primary,
+html[data-theme='kashi'] form button[type='submit'].indeed-btn,
+html[data-theme='kashi'] .home-hero button[type='submit'] {
+  color: #ffffff;
+  border-color: transparent;
+  background-color: var(--kashi-teal);
+  background-image: linear-gradient(135deg, #0f766e 0%, #0e7490 48%, #1e3a8a 100%);
+  box-shadow: 0 10px 24px -14px rgba(15, 118, 110, 0.85);
+}
+
+html[data-theme='kashi'] .indeed-btn-primary:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px -14px rgba(15, 118, 110, 0.9);
+}
+
+html[data-theme='kashi'] .indeed-btn-secondary {
+  background: var(--vintage-surface);
+  color: var(--vintage-accent);
+  border-color: var(--vintage-border);
+  box-shadow: inset 0 0 0 1px rgba(184, 134, 11, 0.08);
+}
+
+html[data-theme='kashi'] .indeed-btn-secondary:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 8%, var(--vintage-surface));
+  border-color: color-mix(in srgb, var(--vintage-accent) 45%, var(--vintage-border));
+  color: var(--vintage-accent-dark);
+  transform: translateY(-1px);
+}
+
+html[data-theme='kashi'] .indeed-btn:disabled {
+  background: var(--vintage-paper);
+  background-image: none;
+  border-color: var(--vintage-border);
+  color: color-mix(in srgb, var(--vintage-ink-soft) 75%, transparent);
+  box-shadow: none;
+}
+
+html[data-theme='kashi'].dark .indeed-btn-primary,
+html[data-theme='kashi'].dark button[type='submit'].indeed-btn-primary,
+html[data-theme='kashi'].dark form button[type='submit'].indeed-btn,
+html[data-theme='kashi'].dark .home-hero button[type='submit'] {
+  color: #06121b;
+  border-color: transparent;
+  background-color: #5eead4;
+  background-image: linear-gradient(135deg, #5eead4 0%, #38bdf8 52%, #818cf8 100%);
+  box-shadow: 0 12px 28px -16px rgba(94, 234, 212, 0.6);
+}
+
+html[data-theme='kashi'].dark .indeed-btn-secondary {
+  background: color-mix(in srgb, var(--vintage-surface) 82%, #ffffff);
+  color: var(--vintage-ink);
+  border-color: var(--vintage-border);
+}
+
+html[data-theme='kashi'].dark .indeed-btn-secondary:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 16%, var(--vintage-surface));
+  color: var(--vintage-accent-dark);
+}
+
+/* ---- surfaces ---- */
+html[data-theme='kashi'] .indeed-panel {
+  background: var(--vintage-surface);
+  border: 1px solid var(--vintage-border);
+  border-radius: 18px;
+  box-shadow: inset 0 0 0 1px rgba(184, 134, 11, 0.06), var(--kashi-shadow);
+}
+
+html[data-theme='kashi'] .vintage-frame {
+  border: 1px solid var(--vintage-border);
+  border-radius: var(--vintage-radius);
+}
+
+html[data-theme='kashi'] .vintage-avatar {
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #14b8a6, #0f766e 52%, #1e3a8a);
+  box-shadow: 0 8px 20px -12px rgba(15, 118, 110, 0.9);
+  color: #fff;
+}
+
+html[data-theme='kashi'] .inline-edit:hover {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--vintage-accent) 30%, transparent);
+}
+
+html[data-theme='kashi'] .inline-edit:focus {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--vintage-accent) 45%, transparent);
+}
+
+/* ---- status badges ---- */
+html[data-theme='kashi'] .badge-open {
+  color: #0f766e;
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+html[data-theme='kashi'] .badge-progress {
+  color: #92400e;
+  background: #fffbeb;
+  border-color: #fde68a;
+}
+
+html[data-theme='kashi'] .badge-closed {
+  color: #be123c;
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+html[data-theme='kashi'].dark .badge-open {
+  color: #6ee7b7;
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+html[data-theme='kashi'].dark .badge-progress {
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+html[data-theme='kashi'].dark .badge-closed {
+  color: #fda4af;
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.35);
+}
+
+/* ---- home hero: lapis → turquoise panel with a gold star lattice ---- */
+html[data-theme='kashi'] .home-hero {
+  border-radius: 0 0 38px 38px;
+  background-color: #0e3a4a;
+  background-image:
+    radial-gradient(60% 80% at 12% 18%, rgba(20, 184, 166, 0.42), transparent 62%),
+    radial-gradient(52% 72% at 88% 4%, rgba(30, 58, 138, 0.55), transparent 60%),
+    linear-gradient(150deg, #0b2a4a 0%, #0f5f63 52%, #123a6b 100%);
+  box-shadow: 0 34px 70px -46px rgba(11, 42, 74, 0.9);
+}
+
+/* The shared `html.dark` block repaints `.home-hero` in warm brown; restore
+   the kashi lapis panel for dark mode. Higher specificity keeps it local. */
+html[data-theme='kashi'].dark .home-hero {
+  background-color: #071e2a;
+  background-image:
+    radial-gradient(60% 80% at 12% 18%, rgba(20, 184, 166, 0.32), transparent 62%),
+    radial-gradient(52% 72% at 88% 4%, rgba(30, 58, 138, 0.55), transparent 60%),
+    linear-gradient(150deg, #061a2e 0%, #0a3f45 52%, #0b2a4f 100%);
+}
+
+html[data-theme='kashi'] .home-hero-brick::before {
+  display: block;
+  opacity: 0.16;
+  background-image: var(--kashi-hero-star);
+  background-size: 72px 72px;
+}
+
+html[data-theme='kashi'] .home-hero-brick::after {
+  display: block;
+  background-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    rgba(3, 15, 26, 0.35) 100%
+  );
+}
+
+html[data-theme='kashi'] .home-hero-prefix {
+  background: linear-gradient(135deg, #f0d38a, #d9b45a);
+  color: #1a2a3a;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.4),
+    0 4px 12px -6px rgba(0, 0, 0, 0.5);
+}
+
+html[data-theme='kashi'] .home-hero form[role='search'] {
+  overflow: hidden;
+  border: 1px solid rgba(217, 180, 90, 0.55);
+  border-radius: 10px;
+  background: rgba(255, 253, 247, 0.98);
+  box-shadow: 0 26px 50px -26px rgba(3, 15, 26, 0.7),
+    0 0 0 4px rgba(217, 180, 90, 0.12);
+}
+
+html[data-theme='kashi'].dark .home-hero form[role='search'] {
+  background: rgba(12, 31, 43, 0.95);
+  border-color: rgba(217, 180, 90, 0.35);
+}
+
+html[data-theme='kashi'] .home-hero form[role='search'] button[type='submit'] {
+  align-self: stretch;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  border-radius: 0;
+  background-color: #d9b45a;
+  background-image: linear-gradient(135deg, #f0d38a, #d9b45a);
+  color: #1a2a3a;
+  font-weight: 800;
+  box-shadow: none;
+  transition: filter 0.12s ease;
+}
+
+html[data-theme='kashi'] .home-hero form[role='search'] button[type='submit']:hover {
+  filter: brightness(1.05);
+}
+
+html[data-theme='kashi'] .home-hero .indeed-btn {
+  border-radius: 9999px;
+  border-color: rgba(240, 211, 138, 0.55);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  backdrop-filter: blur(8px);
+}
+
+html[data-theme='kashi'] .home-hero .indeed-btn:hover {
+  background: rgba(240, 211, 138, 0.18);
+  border-color: rgba(240, 211, 138, 0.8);
+}
+
+html[data-theme='kashi'] .home-section-frame {
+  padding: 20px;
+  border: 1px solid var(--vintage-border);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--vintage-surface) 92%, transparent);
+  box-shadow: inset 0 0 0 1px rgba(184, 134, 11, 0.06), var(--kashi-shadow);
+}
+
+html[data-theme='kashi'] .home-section-frame::before {
+  display: none;
+}
+
+html[data-theme='kashi'] .spectrum-arrow {
+  width: 38px;
+  height: 38px;
+  border-radius: 9999px;
+  background: var(--vintage-surface);
+  border: 1px solid var(--vintage-border);
+  color: var(--vintage-accent);
+  box-shadow: var(--kashi-shadow);
+}
+
+html[data-theme='kashi'] .spectrum-dot {
+  background: color-mix(in srgb, var(--vintage-ink-soft) 30%, transparent);
+}
+
+html[data-theme='kashi'] .spectrum-dot[aria-current='true'] {
+  background: var(--kashi-gold);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--kashi-gold) 20%, transparent);
+}
+
+html[data-theme='kashi'] .spectrum-pair:hover .record-card,
+html[data-theme='kashi'] .spectrum-pair:hover .bizcard {
+  transform: translateY(-3px);
+  box-shadow: var(--kashi-shadow-lg);
+}
+
+/* ---- directory view switch ---- */
+html[data-theme='kashi'] .directory-view-switch {
+  padding: 4px;
+  border: 1px solid var(--vintage-border);
+  border-radius: 12px;
+  background: var(--vintage-surface);
+  box-shadow: inset 0 0 0 1px rgba(184, 134, 11, 0.06);
+}
+
+html[data-theme='kashi'] .directory-view-switch button {
+  border-radius: 9px;
+  padding: 7px 13px;
+}
+
+html[data-theme='kashi'] .directory-view-switch button[aria-pressed='true'] {
+  background: linear-gradient(135deg, #0f766e, #1e3a8a);
+  color: #ffffff;
+  box-shadow: 0 6px 14px -8px rgba(15, 118, 110, 0.9);
+}
+
+/* ---- public record card (biolink / business card classic view) ---- */
+html[data-theme='kashi'] .record-page {
+  color: var(--vintage-ink);
+}
+
+html[data-theme='kashi'] .record-card {
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid var(--vintage-border);
+  border-radius: 22px;
+  background: var(--vintage-surface);
+  box-shadow: inset 0 0 0 1px rgba(184, 134, 11, 0.06),
+    var(--kashi-shadow-lg);
+}
+
+html[data-theme='kashi'] .record-head {
+  gap: 16px;
+  padding: 18px;
+  border-radius: 16px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--record-accent) 88%, #0b1f33) 0%,
+    var(--record-accent) 48%,
+    color-mix(in srgb, var(--record-accent) 45%, #0f766e) 100%
+  );
+  box-shadow: 0 18px 36px -24px color-mix(in srgb, var(--record-accent) 85%, transparent);
+}
+
+/* Keep the geometric inner frame, but in warm gold instead of the classic
+   dashed white line. */
+html[data-theme='kashi'] .record-head::after {
+  inset: 7px;
+  border: 1px solid rgba(240, 211, 138, 0.45);
+  border-radius: 12px;
+}
+
+html[data-theme='kashi'] .record-avatar {
+  border: 3px solid rgba(255, 255, 255, 0.6);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.7);
+}
+
+html[data-theme='kashi'] .record-name {
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.18);
+}
+
+html[data-theme='kashi'] .record-chip {
+  padding: 6px 13px;
+  border: 1px solid var(--vintage-border);
+  background: color-mix(in srgb, var(--record-accent) 6%, var(--vintage-surface));
+  font-size: 11.5px;
+}
+
+html[data-theme='kashi'] .record-bio {
+  font-size: 13.5px;
+  line-height: 1.95;
+  color: var(--vintage-ink-soft);
+}
+
+html[data-theme='kashi'] .record-rows {
+  border-top: 1px solid var(--vintage-border);
+  border-bottom: 0;
+}
+
+html[data-theme='kashi'] .record-rows > li + li {
+  border-top: 1px solid var(--vintage-border);
+}
+
+html[data-theme='kashi'] .record-row {
+  gap: 12px;
+  padding: 11px 8px;
+  border-radius: 10px;
+}
+
+html[data-theme='kashi'] a.record-row:hover {
+  background: color-mix(in srgb, var(--record-accent) 7%, transparent);
+}
+
+html[data-theme='kashi'] .record-row-icon {
+  width: 30px;
+  height: 30px;
+  padding: 7px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--record-accent) 10%, transparent);
+  color: var(--record-accent);
+}
+
+html[data-theme='kashi'] .record-row-label {
+  min-width: 70px;
+  font-size: 11.5px;
+  color: var(--vintage-ink-soft);
+}
+
+html[data-theme='kashi'] .record-social {
+  border-radius: 12px;
+  border: 1px solid var(--vintage-border);
+  background: var(--vintage-paper);
+  font-weight: 700;
+}
+
+html[data-theme='kashi'] .record-social:hover {
+  border-color: color-mix(in srgb, var(--record-accent) 55%, var(--vintage-border));
+  background: color-mix(in srgb, var(--record-accent) 8%, var(--vintage-surface));
+  color: var(--record-accent);
+}
+
+html[data-theme='kashi'] .record-pill {
+  border: 1px solid var(--vintage-border);
+  background: var(--vintage-surface);
+  box-shadow: inset 0 0 0 1px rgba(184, 134, 11, 0.06);
+}
+
+html[data-theme='kashi'] .record-panel {
+  border: 1px solid var(--vintage-border);
+  background: var(--vintage-surface);
+  border-radius: 16px;
+  box-shadow: var(--kashi-shadow);
+}
+
+/* ---- public business-card face ---- */
+html[data-theme='kashi'] .bizcard {
+  border: 1px solid var(--vintage-border);
+  border-radius: 24px;
+  background: var(--vintage-surface);
+  box-shadow: inset 0 0 0 1px rgba(184, 134, 11, 0.06),
+    var(--kashi-shadow-lg);
+}
+
+html[data-theme='kashi'] .bizcard-side {
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(255, 255, 255, 0.22), transparent 55%),
+    linear-gradient(
+      155deg,
+      color-mix(in srgb, var(--bizcard-accent) 88%, #0b1f33) 0%,
+      var(--bizcard-accent) 52%,
+      color-mix(in srgb, var(--bizcard-accent) 45%, #0f766e) 100%
+    );
+}
+
+html[data-theme='kashi'] .bizcard-side::after {
+  inset: 8px;
+  border: 1px solid rgba(240, 211, 138, 0.45);
+  border-radius: 14px;
+}
+
+html[data-theme='kashi'] .bizcard-avatar {
+  border: 3px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 14px 30px -16px rgba(0, 0, 0, 0.8);
+}
+
+html[data-theme='kashi'] .bizcard-tag {
+  border: 1px solid rgba(240, 211, 138, 0.4);
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(6px);
+}
+
+html[data-theme='kashi'] .bizcard-main {
+  background: var(--vintage-surface);
+}
+
+html[data-theme='kashi'] .bizcard-rows > li + li {
+  border-top: 1px solid var(--vintage-border);
+}
+
+html[data-theme='kashi'] .bizcard-row {
+  padding: 10px 8px;
+  border-radius: 10px;
+}
+
+html[data-theme='kashi'] a.bizcard-row:hover {
+  background: color-mix(in srgb, var(--bizcard-accent) 7%, transparent);
+}
+
+html[data-theme='kashi'] .bizcard-row-icon {
+  width: 30px;
+  height: 30px;
+  padding: 7px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--bizcard-accent) 10%, transparent);
+  color: var(--bizcard-accent);
+}
+
+html[data-theme='kashi'] .bizcard-bio {
+  color: var(--vintage-ink-soft);
+}
+
+html[data-theme='kashi'] .bizcard-social {
+  border: 1px solid var(--vintage-border);
+  background: var(--vintage-paper);
+  color: var(--bizcard-accent);
+}
+
+html[data-theme='kashi'] .bizcard-social:hover {
+  border-color: color-mix(in srgb, var(--bizcard-accent) 55%, var(--vintage-border));
+  background: color-mix(in srgb, var(--bizcard-accent) 10%, var(--vintage-surface));
+  transform: translateY(-2px);
+}
+
+/* ---- home ad banner ---- */
+html[data-theme='kashi'] .ad-banner {
+  border: 1px solid var(--vintage-border);
+  border-inline-start: 4px solid var(--kashi-gold);
+  border-radius: 18px;
+  background-color: var(--vintage-surface);
+  background-image: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--ad-accent) 7%, transparent),
+    transparent 55%
+  );
+  box-shadow: inset 0 0 0 1px rgba(184, 134, 11, 0.06), var(--kashi-shadow);
+}
+
+html[data-theme='kashi'] .ad-banner:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--kashi-shadow-lg);
+}
+
+html[data-theme='kashi'] .ad-banner-flag {
+  background: linear-gradient(135deg, #f0d38a, #d9b45a);
+  color: #1a2a3a;
+}
+
+html[data-theme='kashi'] .ad-banner-media {
+  border: 0;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ad-accent) 15%, transparent);
+}
+
+html[data-theme='kashi'] .ad-banner-cta {
+  border-radius: 12px;
+  box-shadow: 0 10px 22px -14px color-mix(in srgb, var(--ad-accent) 85%, transparent);
+}
+
+/* The shared dark block paints `#ads .ad-banner` warm brown; keep the tile
+   surface instead. The ID in the shared rule needs an ID here to win. */
+html[data-theme='kashi'].dark #ads .ad-banner {
+  background-color: var(--vintage-surface);
+}
+
+/* ---- admin / dashboard chrome ---- */
+html[data-theme='kashi'] .admin-sidebar,
+html[data-theme='kashi'] aside[class*='border-l-2'] {
+  border-left: 1px solid var(--vintage-border);
+  background: var(--vintage-surface);
+  box-shadow: -10px 0 40px -34px rgba(20, 36, 59, 0.55);
+}
+
+html[data-theme='kashi'] aside a[class*='border-brand'],
+html[data-theme='kashi'] aside button[class*='border-brand'] {
+  border-radius: 10px;
+}
+
+html[data-theme='kashi'] .dash-table thead tr,
+html[data-theme='kashi'] table thead tr {
+  border-color: var(--vintage-border);
+}
+
+html[data-theme='kashi'] .dash-table tbody tr:hover {
+  background: color-mix(in srgb, var(--vintage-accent) 5%, transparent);
+}
+
+/* ---- feed / blog / rich text ---- */
+html[data-theme='kashi'] .rich-editor-toolbar {
+  border-bottom: 1px solid var(--vintage-border);
+  background: var(--vintage-paper);
+  border-radius: 12px 12px 0 0;
+}
+
+html[data-theme='kashi'] .rich-editor-btn {
+  border-radius: 8px;
+}
+
+html[data-theme='kashi'] .feed-rich a,
+html[data-theme='kashi'] .blog-rich a {
+  color: var(--vintage-accent);
+}
+
+html[data-theme='kashi'] .blog-rich blockquote,
+html[data-theme='kashi'] .feed-rich blockquote {
+  border-inline-start: 3px solid var(--kashi-gold);
+  background: color-mix(in srgb, var(--kashi-gold) 6%, transparent);
+  border-radius: 0 12px 12px 0;
+}
+
+/* ---- phonebook («دفترچه تلفن»): ruled sheet with tile-blue rules ---- */
+html[data-theme='kashi'] .notebook-paper {
+  border: 1px solid var(--vintage-border);
+  border-radius: 18px;
+  background-color: var(--vintage-surface);
+  background-image:
+    linear-gradient(
+      90deg,
+      transparent 0 46px,
+      color-mix(in srgb, var(--kashi-gold) 45%, transparent) 46px 47px,
+      transparent 47px
+    ),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0 47px,
+      color-mix(in srgb, var(--vintage-accent) 18%, transparent) 47px 48px
+    );
+  box-shadow: inset 0 0 0 1px rgba(184, 134, 11, 0.06), var(--kashi-shadow);
+}
+
+html[data-theme='kashi'] .notebook-paper::before {
+  display: none;
+}
+
+html[data-theme='kashi'] .notebook-tab {
+  border-radius: 8px;
+}
+
+/* ---- scrollbars ---- */
+html[data-theme='kashi'] .card-public-scroll,
+html[data-theme='kashi'] .directory-shell .directory-list {
+  scrollbar-color: var(--vintage-border) transparent;
+}
+
+/* ---- touch comfort on phones/tablets ---- */
+@media (max-width: 1023px) {
+  html[data-theme='kashi'] .indeed-btn {
+    min-height: 42px;
+  }
+
+  html[data-theme='kashi'] .record-card {
+    padding: 16px;
+    gap: 14px;
+  }
+
+  html[data-theme='kashi'] .record-head {
+    padding: 15px;
+  }
+
+  html[data-theme='kashi'] .record-social {
+    min-height: 44px;
+  }
+
+  html[data-theme='kashi'] .bizcard-compact .bizcard-main,
+  html[data-theme='kashi'] .bizcard-main {
+    padding: 18px;
+  }
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  html[data-theme='kashi'] .record-card {
+    padding: 24px;
+  }
+
+  html[data-theme='kashi'] .home-section-frame {
+    padding: 22px;
+  }
+}

@@ -13,6 +13,7 @@ import {
   type SiteTheme,
 } from '@/lib/site-theme';
 import { cn } from '@/lib/utils';
+import { EXTRA_THEME_PREVIEWS } from './theme-previews';
 
 interface SettingsPayload {
   siteTheme?: string;
@@ -91,15 +92,10 @@ export function AdminAppearanceSettings() {
       }
       // Re-render the server layout so `data-theme` updates immediately.
       router.refresh();
-      setMessage(
-        applied === 'modern'
-          ? 'تم نوین برای همه‌ی صفحات فعال شد.'
-          : applied === 'bazaar'
-            ? 'تم بازارچه (شاد و کودکانه) برای همه‌ی صفحات فعال شد.'
-            : applied === 'twitter'
-              ? 'تم توییتر (روشن/تیره) برای همه‌ی صفحات فعال شد.'
-              : 'تم کلاسیک (وینتیج) فعال شد.',
-      );
+      const appliedName =
+        SITE_THEME_OPTIONS.find((option) => option.key === applied)?.name ??
+        applied;
+      setMessage(`تم «${appliedName}» برای همه‌ی صفحات فعال شد.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره‌ی تم ناموفق بود');
     } finally {
@@ -180,8 +176,11 @@ export function AdminAppearanceSettings() {
   );
 }
 
-/** Tiny in-place mockups so the admin can compare the two looks at a glance. */
+/** Tiny in-place mockups so the admin can compare the available looks. */
 function ThemePreview({ variant }: { variant: SiteTheme }) {
+  const Extra = EXTRA_THEME_PREVIEWS[variant];
+  if (Extra) return <Extra />;
+
   if (variant === 'bazaar') {
     return (
       <div className="overflow-hidden rounded-xl border-2 border-emerald-900/10 bg-[#fffaf0] p-2">
