@@ -1,8 +1,9 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { IdCard, LayoutDashboard, LogIn } from 'lucide-react';
+import { LayoutDashboard, LogIn } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useAuth } from '@/lib/auth';
@@ -33,12 +34,18 @@ export function Header() {
       <div className="container-page flex h-16 items-center justify-between gap-2 xl:gap-4">
         <Link
           href="/"
-          className="flex shrink-0 items-center gap-2 text-lg font-extrabold text-brand xl:text-xl"
+          aria-label="شمالی کارت — صفحه اصلی"
+          className="flex shrink-0 items-center"
         >
-          <span className="vintage-avatar flex size-9 items-center justify-center">
-            <IdCard className="size-5" aria-hidden />
-          </span>
-          <span>شمالی کارت</span>
+          <Image
+            src="/shomali-card-calligraphy.svg"
+            alt="شمالی کارت"
+            width={148}
+            height={72}
+            priority
+            unoptimized
+            className="h-9 w-auto dark:invert xl:h-10"
+          />
         </Link>
 
         {/* The nav is the flexible middle column. Each link is a standard

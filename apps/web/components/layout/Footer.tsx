@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import {
   BookOpen,
@@ -86,17 +87,22 @@ export function Footer({ showEnamad = false }: { showEnamad?: boolean }) {
       <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-6">
         {/* Brand + icon tiles */}
         <div className="flex flex-col gap-6 border-b border-[var(--footer-border)] pb-6 lg:flex-row lg:items-center lg:justify-between">
-          <Link href="/" prefetch={false} className="flex items-center gap-3">
-            <span className="vintage-avatar flex size-12 shrink-0 items-center justify-center">
-              <IdCard className="size-6" aria-hidden />
-            </span>
-            <span>
-              <span className="block text-base font-bold text-[var(--footer-brand)]">
-                شمالی کارت
-              </span>
-              <span className="block text-xs text-[var(--footer-faint)]">
-                کارت ویزیت دیجیتال، بیولینک و دفترچه تلفن کسب‌وکارها
-              </span>
+          <Link
+            href="/"
+            prefetch={false}
+            aria-label="شمالی کارت — صفحه اصلی"
+            className="flex items-center gap-3"
+          >
+            <Image
+              src="/shomali-card-calligraphy.svg"
+              alt="شمالی کارت"
+              width={148}
+              height={72}
+              unoptimized
+              className="h-10 w-auto shrink-0 dark:invert"
+            />
+            <span className="max-w-[17rem] text-xs leading-5 text-[var(--footer-faint)]">
+              کارت ویزیت دیجیتال، بیولینک و دفترچه تلفن کسب‌وکارها
             </span>
           </Link>
 
