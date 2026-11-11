@@ -6409,7 +6409,8 @@ html.dark .text-amber-700 {
    dark headings, muted links, navy brand accents and white icon tiles. Kept as
    footer-local variables so the rest of the site can keep its own theme while
    the footer stays identical across skins. */
-.site-footer {
+.site-footer,
+.footer-palette {
   --footer-bg: #f8f9fc;
   --footer-border: #e6e8f0;
   --footer-ink: #202222;
@@ -6425,7 +6426,8 @@ html.dark .text-amber-700 {
   color: var(--footer-ink);
 }
 
-html.dark .site-footer {
+html.dark .site-footer,
+html.dark .footer-palette {
   --footer-bg: #161821;
   --footer-border: #2b2e3c;
   --footer-ink: #f1f2f7;

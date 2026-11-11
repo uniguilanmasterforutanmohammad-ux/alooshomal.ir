@@ -13,7 +13,6 @@ import {
 import { EnamadBadge } from '@/components/layout/EnamadBadge';
 import { useFeatures } from '@/lib/features';
 import { NOTEBOOK_NAV_HREF } from '@/lib/nav';
-import { cn } from '@/lib/utils';
 import { APP_VERSION } from '@/lib/version';
 
 /** Business-owner destinations (dashboard + the free-start CTA). */
@@ -73,17 +72,8 @@ const CONTACT_ROWS = [
  * Links go through `showNav` so an admin-disabled section disappears from the
  * footer too, exactly like the header and the mobile bar. Support/contact
  * destinations are exempt from the feature switches and stay visible.
- *
- * `mobileHidden` keeps the one-screen home page from growing a footer under
- * the thumb on phones/tablets; every other page shows the stacked footer.
  */
-export function Footer({
-  showEnamad = false,
-  mobileHidden = false,
-}: {
-  showEnamad?: boolean;
-  mobileHidden?: boolean;
-}) {
+export function Footer({ showEnamad = false }: { showEnamad?: boolean }) {
   const currentYear = new Date().getFullYear();
   const { showNav } = useFeatures();
 
@@ -92,12 +82,7 @@ export function Footer({
   const quickLinks = QUICK_LINKS.filter((item) => showNav(item.href));
 
   return (
-    <footer
-      className={cn(
-        'site-footer mt-8 border-t',
-        mobileHidden && 'hidden lg:block',
-      )}
-    >
+    <footer className="site-footer mt-8 border-t">
       <div className="mx-auto w-full max-w-7xl px-4 py-8 lg:px-6">
         {/* Brand + icon tiles */}
         <div className="flex flex-col gap-6 border-b border-[var(--footer-border)] pb-6 lg:flex-row lg:items-center lg:justify-between">
