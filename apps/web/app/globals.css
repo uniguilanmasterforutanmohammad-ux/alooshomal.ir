@@ -2126,10 +2126,9 @@ html.dark {
   --vintage-border: #4a3628;
   --indeed-blue-light: #3a2519;
 
-  /* header + hero + footer: dark warm browns instead of the light accents */
+  /* header + hero: dark warm browns instead of the light accents */
   header.sticky { background-color: rgba(26, 18, 13, 0.95); }
-  .home-hero,
-  footer.site-footer {
+  .home-hero {
     background-color: #2a1a12;
   }
 
@@ -2181,12 +2180,6 @@ html.dark {
       linear-gradient(#a8532a, #8a4020);
   }
   .indeed-btn-primary:hover { filter: brightness(1.1); }
-
-  /* footer: warm burnt-umber gradient */
-  footer.site-footer {
-    background-color: #4a2414;
-    background-image: linear-gradient(to bottom, #5e2f18 0%, #3f1f10 100%);
-  }
 
   /* ad banner: warm dark surface instead of cream */
   #ads .ad-banner {
@@ -3596,39 +3589,6 @@ html[data-theme='modern'].dark nav[aria-label='ناوبری پایین'] {
   border-top-color: var(--vintage-border);
 }
 
-/* ---- footer: deep navy → indigo panel ---- */
-html[data-theme='modern'] footer.site-footer {
-  margin-top: 3rem;
-  border-radius: 28px 28px 0 0;
-  background-color: #0f172a;
-  background-image:
-    radial-gradient(40rem 20rem at 85% 0%, rgba(99, 102, 241, 0.4), transparent 60%),
-    linear-gradient(135deg, #111c33 0%, #1e1b4b 55%, #172554 100%);
-  box-shadow: 0 -30px 60px -48px rgba(15, 23, 42, 0.9);
-}
-
-html[data-theme='modern'].dark footer.site-footer {
-  background-image:
-    radial-gradient(40rem 20rem at 85% 0%, rgba(99, 102, 241, 0.28), transparent 60%),
-    linear-gradient(135deg, #0b1222 0%, #171436 55%, #101c36 100%);
-}
-
-html[data-theme='modern'] footer.site-footer .bg-white {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #c7d2fe;
-}
-
-html[data-theme='modern'] footer.site-footer a.bg-white,
-html[data-theme='modern'] footer.site-footer .bg-white.text-brand {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #e0e7ff;
-}
-
-html[data-theme='modern'].dark footer.site-footer .bg-white {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: #c7d2fe;
-}
-
 /* ---- form controls ---- */
 html[data-theme='modern'] .indeed-input,
 html[data-theme='modern'] .rich-editor {
@@ -4299,32 +4259,6 @@ html[data-skin='twitter'] nav[aria-label='ناوبری پایین'] {
   backdrop-filter: blur(12px);
 }
 
-/* ---- footer: black panel with a soft blue glow ---- */
-html[data-skin='twitter'] footer.site-footer {
-  background-color: #0f1419;
-  background-image:
-    radial-gradient(42rem 22rem at 85% 0%, rgba(29, 155, 240, 0.28), transparent 62%),
-    linear-gradient(135deg, #000000 0%, #0f1419 60%, #06131c 100%);
-  box-shadow: 0 -20px 50px -40px rgba(0, 0, 0, 0.9);
-}
-
-html[data-skin='twitter'].dark footer.site-footer {
-  background-image:
-    radial-gradient(42rem 22rem at 85% 0%, rgba(29, 155, 240, 0.22), transparent 62%),
-    linear-gradient(135deg, #000000 0%, #0b0e11 60%, #04121b 100%);
-}
-
-html[data-skin='twitter'] footer.site-footer .bg-white {
-  background-color: #1d9bf0;
-  color: #ffffff;
-}
-
-html[data-skin='twitter'] footer.site-footer a.bg-white,
-html[data-skin='twitter'] footer.site-footer .bg-white.text-brand {
-  background-color: #1d9bf0;
-  color: #ffffff;
-}
-
 /* ---- controls: solid blue pills, no gradients ---- */
 html[data-skin='twitter'] .indeed-btn-primary,
 html[data-skin='twitter'] button[type='submit'].indeed-btn-primary,
@@ -4537,28 +4471,6 @@ html[data-theme='bazaar'] nav[aria-label='ناوبری پایین'] {
 html[data-theme='bazaar'].dark nav[aria-label='ناوبری پایین'] {
   border-top-color: rgba(209, 250, 229, 0.1);
   box-shadow: 0 -6px 0 rgba(0, 0, 0, 0.35);
-}
-
-/* ---- footer: the reference's deep forest panel ---- */
-html[data-theme='bazaar'] footer.site-footer {
-  margin-top: 3rem;
-  border-radius: 32px 32px 0 0;
-  background-color: var(--bazaar-deep);
-  background-image:
-    radial-gradient(36rem 20rem at 85% 0%, rgba(110, 231, 183, 0.28), transparent 62%),
-    linear-gradient(145deg, #062b21 0%, #0b3b2c 58%, #062b21 100%);
-  box-shadow: 0 -10px 0 rgba(6, 78, 59, 0.06);
-}
-
-html[data-theme='bazaar'] footer.site-footer .bg-white {
-  background-color: rgba(209, 250, 229, 0.12);
-  color: #d1fae5;
-}
-
-html[data-theme='bazaar'] footer.site-footer a.bg-white,
-html[data-theme='bazaar'] footer.site-footer .bg-white.text-brand {
-  background-color: rgba(209, 250, 229, 0.14);
-  color: #ecfdf5;
 }
 
 /* ---- form controls ---- */
@@ -6490,4 +6402,38 @@ html.dark .bg-amber-50 {
 html.dark .text-amber-800,
 html.dark .text-amber-700 {
   color: #f0c078;
+}
+
+/* ---- Site footer palette ----
+   Mirrors the reference footer: a light `#f8f9fc` panel, `#e6e8f0` hairlines,
+   dark headings, muted links, navy brand accents and white icon tiles. Kept as
+   footer-local variables so the rest of the site can keep its own theme while
+   the footer stays identical across skins. */
+.site-footer {
+  --footer-bg: #f8f9fc;
+  --footer-border: #e6e8f0;
+  --footer-ink: #202222;
+  --footer-muted: #474d66;
+  --footer-faint: #747576;
+  --footer-brand: #0e187b;
+  --footer-brand-light: #3a43a1;
+  --footer-tile: #ffffff;
+  --footer-on-brand: #ffffff;
+  --footer-shadow: 0 1px 2px rgba(16, 24, 65, 0.04);
+  background-color: var(--footer-bg);
+  border-color: var(--footer-border);
+  color: var(--footer-ink);
+}
+
+html.dark .site-footer {
+  --footer-bg: #161821;
+  --footer-border: #2b2e3c;
+  --footer-ink: #f1f2f7;
+  --footer-muted: #c2c6d6;
+  --footer-faint: #9ba0b3;
+  --footer-brand: #aab1f0;
+  --footer-brand-light: #8f98e8;
+  --footer-tile: #1f2230;
+  --footer-on-brand: #101223;
+  --footer-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }

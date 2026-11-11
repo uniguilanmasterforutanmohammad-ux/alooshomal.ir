@@ -29,8 +29,8 @@ export default async function HomePage() {
        padded by `body`) or the 66px sticky header on desktop — plus the height
        of the sticky «توقف موقت» notice strip when one is showing
        (`--feature-notice-h`), so the hero takes the remaining room and the page
-       never scrolls. The footer is desktop-only (see `Footer`), so on
-       phones/tablets the hero is the entire page. */
+       never scrolls. The footer is hidden on phones/tablets here (see
+       `mobileHidden`), so the hero is the entire page on those screens. */
     <div className="home-shell flex min-h-[calc(100dvh-56px-var(--feature-notice-h))] flex-col lg:min-h-[calc(100dvh-66px-var(--feature-notice-h))]">
       <Header />
 
@@ -83,7 +83,7 @@ export default async function HomePage() {
         </section>
       </main>
 
-      <Footer showEnamad />
+      <Footer showEnamad mobileHidden />
     </div>
   );
 }
