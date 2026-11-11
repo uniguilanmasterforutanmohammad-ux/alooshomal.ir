@@ -23,7 +23,7 @@
 | `SERVER_USER` | کاربر SSH روی سرور (مثلاً `root`) |
 | `SERVER_SSH_KEY` | کل محتوای کلید خصوصی (`-----BEGIN ... END-----`) |
 | `SERVER_PORT` | پورت SSH (معمولاً `22`) |
-| `GHCR_PAT` *(اختیاری)* | فقط اگر پکیج‌های GHCR خصوصی‌اند (`read:packages`) |
+| `GHCR_PAT` *(اختیاری)* | فقط اگر پکیج‌ها در namespace دیگری‌اند یا می‌خواهید pull دستی روی سرور هم کار کند (`read:packages`). ورک‌فلو به‌طور خودکار با `GITHUB_TOKEN` وارد GHCR می‌شود. |
 
 ### Variables (اطلاعات غیرحساس)
 
@@ -186,10 +186,25 @@ ghcr.io/uniguilanmasterforutanmohammad-ux/alooshomal.ir-minio:RELEASE.2026-09-16
 ```
 
 سپس سرویس `minio` در `docker-compose.prod.yml` همین ایمیج را از GHCR می‌کشد؛
-نیازی به `docker login` روی سرور نیست چون پکیج عمومی است (در غیر این صورت
-`GHCR_PAT` با دسترسی `read:packages` را ست کنید). برای تغییر نسخه کافی است
+ورک‌فلوی deploy پیش از `docker compose pull` با `GITHUB_TOKEN` (مجوز
+`packages: read`) روی سرور `docker login ghcr.io` انجام می‌دهد، بنابراین
+پکیج‌های خصوصی هم بدون تنظیم دستی pull می‌شوند. اگر پکیج در namespace دیگری
+باشد یا بخواهید بعداً روی سرور دستی pull کنید، `GHCR_PAT` با دسترسی
+`read:packages` را ست کنید. برای تغییر نسخه کافی است
 `MINIO_TAG`/`MINIO_SOURCE` در ورک‌فلو و (در صورت نیاز) `MINIO_IMAGE` در `.env`
 سرور را به‌روز کنید؛ حتماً تگ `RELEASE.*` بدهید و از `latest` پرهیز کنید.
+
+### خطای `error from registry: denied` هنگام pull
+
+این خطا یعنی سرور بدون احراز هویت (یا با توکن بدون `read:packages`) سراغ
+پکیج خصوصی GHCR رفته است. ورک‌فلوی فعلی خودش با `GITHUB_TOKEN` لاگین می‌کند؛
+اگر باز هم دیدید:
+
+1. مطمئن شوید job `deploy` در `deploy.yml` مجوز `packages: read` دارد.
+2. یک `GHCR_PAT` با دسترسی `read:packages` بسازید و در Secrets مخزن بگذارید
+   (روی namespace سازمان/کاربری که پکیج‌ها در آن هستند).
+3. یا پکیج‌های `…-api`، `…-web` و `…-minio` را از تنظیمات GitHub Packages
+   عمومی کنید.
 
 ```bash
 # وضعیت کانتینر nginx

@@ -153,11 +153,18 @@ jobs:
 
       - name: Pull new images and restart services
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          # Prefer a repo PAT when the admin configured one; otherwise the
+          # workflow's own GITHUB_TOKEN is enough to read packages in this repo
+          # (the deploy job declares `packages: read`).
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
+          envs: GHCR_USER,GHCR_TOKEN
           script: |
             set -e
             cd ${{ vars.DEPLOY_PATH || '/var/www/alooshomal.ir' }}
@@ -181,13 +188,22 @@ jobs:
             ensure_secret MINIO_ROOT_PASSWORD
             ensure_secret JWT_SECRET
 
-            # Pull from GHCR. Works without credentials if the packages are
-            # public; otherwise set a GHCR_PAT secret with read:packages.
-            if [ -n "${{ secrets.GHCR_PAT }}" ]; then
-              echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            # Authenticate before pulling. A freshly pushed GHCR package is
+            # private by default, so an anonymous `docker compose pull` fails
+            # with `error from registry: denied`. The deploy job's GITHUB_TOKEN
+            # carries `packages: read`; a GHCR_PAT (read:packages) overrides it
+            # when the package lives in another namespace.
+            if [ -n "${GHCR_TOKEN:-}" ]; then
+              echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+              # Do not leave the short-lived workflow token in the server's
+              # docker config after this deploy (also runs on early failure).
+              trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
             fi
 
-            docker compose -f docker-compose.prod.yml pull
+            if ! docker compose -f docker-compose.prod.yml pull; then
+              echo "GHCR pull failed. Make the api/web/minio packages public or set GHCR_PAT with read:packages." >&2
+              exit 1
+            fi
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
             # Wait for the API and web healthchecks to pass before finishing.
