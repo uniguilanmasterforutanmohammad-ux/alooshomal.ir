@@ -52,7 +52,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('نشست منقضی یا باطل شده است');
     }
     // Heartbeat: keeps the idle window (7 days) counting from real activity.
-    void this.sessions.touch(payload.sid);
+    // Throttled inside `touch` so it does not write on every request.
+    void this.sessions.touch(payload.sid, session.lastUsedAt);
 
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },

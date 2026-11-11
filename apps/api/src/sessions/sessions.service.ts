@@ -24,6 +24,16 @@ export const SESSION_ABSOLUTE_DAYS = 30;
  */
 export const SESSION_IDLE_DAYS = 7;
 
+/**
+ * Minimum gap between `lastUsedAt` writes for one session.
+ *
+ * Every authenticated request used to run an UPDATE just to refresh the idle
+ * clock. Since the idle window is measured in days, stamping activity at most
+ * once a minute is precise enough and removes a database write (and the
+ * same-row contention it causes) from almost every request.
+ */
+export const SESSION_TOUCH_INTERVAL_MS = 60_000;
+
 /** Refresh tokens live as long as the idle window; each refresh extends it. */
 export const REFRESH_IDLE_DAYS = SESSION_IDLE_DAYS;
 
@@ -97,8 +107,18 @@ export class SessionsService {
     return session;
   }
 
-  /** Best-effort activity stamp; failures must never block a request. */
-  async touch(sessionId: string): Promise<void> {
+  /**
+   * Best-effort activity stamp; failures must never block a request. The write
+   * is skipped when the session was already stamped recently, so a burst of
+   * requests (or the chat polling loop) costs a single UPDATE, not one each.
+   */
+  async touch(sessionId: string, lastUsedAt?: Date): Promise<void> {
+    if (
+      lastUsedAt &&
+      Date.now() - lastUsedAt.getTime() < SESSION_TOUCH_INTERVAL_MS
+    ) {
+      return;
+    }
     await this.prisma.session
       .update({ where: { id: sessionId }, data: { lastUsedAt: new Date() } })
       .catch(() => undefined);
