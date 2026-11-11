@@ -264,7 +264,7 @@ export class SupportChatService {
       throw new NotFoundException('گفتگو یافت نشد');
     }
 
-    await this.prisma.$transaction([
+    const [marked] = await this.prisma.$transaction([
       this.prisma.supportMessage.updateMany({
         where: {
           conversationId: conversation.id,
@@ -279,7 +279,12 @@ export class SupportChatService {
       }),
     ]);
 
-    this.emitRead(conversation.userId, conversation.id);
+    // Only announce a read when something actually changed. Emitting on every
+    // call created a load → read → emit → load feedback loop that made the
+    // chat panel flicker continuously.
+    if (marked.count > 0 || conversation.userUnread > 0) {
+      this.emitRead(conversation.userId, conversation.id);
+    }
     return { ok: true, userUnread: 0 };
   }
 
@@ -290,7 +295,7 @@ export class SupportChatService {
     });
     if (!conversation) throw new NotFoundException('گفتگو یافت نشد');
 
-    await this.prisma.$transaction([
+    const [marked] = await this.prisma.$transaction([
       this.prisma.supportMessage.updateMany({
         where: {
           conversationId: id,
@@ -305,7 +310,9 @@ export class SupportChatService {
       }),
     ]);
 
-    this.emitRead(conversation.userId, id);
+    if (marked.count > 0 || conversation.staffUnread > 0) {
+      this.emitRead(conversation.userId, id);
+    }
     return { ok: true, staffUnread: 0 };
   }
 

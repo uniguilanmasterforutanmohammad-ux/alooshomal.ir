@@ -109,7 +109,9 @@ export function SupportChatPanel({
       setLoading(false);
       return;
     }
-    setLoading(true);
+    // Only the first load shows the spinner; background polls must keep the
+    // existing messages on screen (otherwise the thread visibly blinks).
+    if (!conversationRef.current) setLoading(true);
     try {
       const data = conversationId
         ? await api.get<SupportConversation>(
@@ -118,7 +120,9 @@ export function SupportChatPanel({
         : await api.get<SupportConversation | null>('/support/chat/me');
       applyConversation(data);
       setError(null);
-      if (data?.status === 'OPEN') {
+      // Only a *new* unread message needs a read receipt. Calling this on every
+      // load emitted a read event that triggered another load (flicker loop).
+      if (data?.status === 'OPEN' && data.userUnread > 0) {
         void api
           .post(`/support/chat/me/conversations/${data.id}/read`)
           .catch(() => undefined);
@@ -200,7 +204,7 @@ export function SupportChatPanel({
             requestAnimationFrame(scrollToBottom);
             return;
           }
-          if (data.type === 'status' || data.type === 'read') {
+          if (data.type === 'status') {
             if (!current || current.id === data.conversationId) void load();
           }
         };
@@ -322,7 +326,7 @@ export function SupportChatPanel({
           isPage ? 'min-h-[26rem]' : 'h-80',
         )}
       >
-        {loading ? (
+        {loading && messages.length === 0 ? (
           <div className="flex h-full items-center justify-center text-muted">
             <Loader2 className="size-5 animate-spin" aria-hidden />
           </div>
