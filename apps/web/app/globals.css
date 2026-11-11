@@ -3757,7 +3757,7 @@ html[data-theme='modern'].dark .badge-closed {
 
 /* ---- home hero ---- */
 html[data-theme='modern'] .home-hero {
-  border-radius: 0 0 36px 36px;
+  border-radius: 0;
   background-color: #4338ca;
   background-image:
     radial-gradient(60% 80% at 12% 18%, rgba(56, 189, 248, 0.32), transparent 62%),
