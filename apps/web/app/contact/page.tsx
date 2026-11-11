@@ -36,10 +36,27 @@ export default function ContactPage() {
           </span>
           <h1 className="mt-4 text-3xl font-extrabold text-ink">تماس با شمالی کارت</h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-muted">
-            سؤال، پیشنهاد یا مشکلی دارید؟ تیم پشتیبانی ما از طریق سامانه‌ی تیکت
-            پاسخ‌گوی شماست. برای سریع‌ترین پاسخ، دسته‌ی مناسب را انتخاب کنید و
-            جزئیات را بنویسید.
+            سؤال، پیشنهاد یا مشکلی دارید؟ برای پاسخ فوری از دکمه‌ی «پشتیبانی
+            آنلاین» (پایین صفحه) گفتگوی زنده را شروع کنید؛ تیم پشتیبانی همان
+            لحظه پاسخ می‌دهد. برای درخواست‌های جزئی‌تر هم می‌توانید تیکت ثبت
+            کنید.
           </p>
+          <div className="mt-5 flex flex-wrap justify-center gap-3">
+            <Link
+              href="/dashboard/support"
+              className="indeed-btn indeed-btn-primary py-2 text-sm"
+            >
+              <MessageCircleQuestion className="size-4" aria-hidden />
+              گفتگوی آنلاین با پشتیبانی
+            </Link>
+            <Link
+              href="/dashboard/tickets"
+              className="indeed-btn indeed-btn-secondary py-2 text-sm"
+            >
+              <LifeBuoy className="size-4" aria-hidden />
+              ثبت تیکت
+            </Link>
+          </div>
         </div>
 
         <div className="mt-10 grid gap-4 md:grid-cols-3">

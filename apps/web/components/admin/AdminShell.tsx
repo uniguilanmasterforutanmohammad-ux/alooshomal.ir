@@ -12,6 +12,7 @@ import {
   Crown,
   CreditCard,
   HardDrive,
+  Headset,
   IdCard,
   KeyRound,
   LayoutGrid,
@@ -63,6 +64,7 @@ export type AdminSection =
   | 'users'
   | 'emails'
   | 'tickets'
+  | 'support-chat'
   | 'reports'
   | 'tools'
   | 'news'
@@ -136,6 +138,7 @@ const NAV_GROUPS: Array<{
     title: 'کاربران و پشتیبانی',
     items: [
       { key: 'users', label: 'کاربران', icon: Users },
+      { key: 'support-chat', label: 'پشتیبانی آنلاین', icon: Headset },
       { key: 'tickets', label: 'تیکت‌ها', icon: LifeBuoy },
       { key: 'emails', label: 'ایمیل‌های ارسالی', icon: Mail },
       { key: 'notifications', label: 'اعلانات', icon: Bell },

@@ -8,7 +8,8 @@ const FOOTER_LINKS = [
   { href: '/guide', label: 'راهنما' },
   { href: '/rules', label: 'قوانین و مقررات' },
   { href: '/contact', label: 'تماس با ما' },
-  { href: '/dashboard/tickets', label: 'پشتیبانی' },
+  { href: '/dashboard/support', label: 'پشتیبانی آنلاین' },
+  { href: '/dashboard/tickets', label: 'تیکت پشتیبانی' },
 ];
 
 /**

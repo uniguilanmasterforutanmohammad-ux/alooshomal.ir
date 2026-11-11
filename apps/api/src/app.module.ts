@@ -36,6 +36,7 @@ import { SeoModule } from './seo/seo.module';
 import { SettingsModule } from './settings/settings.module';
 import { SocialAccountsModule } from './social-accounts/social-accounts.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { SupportChatModule } from './support-chat/support-chat.module';
 import { TaxonomyModule } from './taxonomy/taxonomy.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { UploadsModule } from './uploads/uploads.module';
@@ -77,6 +78,7 @@ import { ZohalModule } from './zohal/zohal.module';
     AdminModule,
     TaxonomyModule,
     TicketsModule,
+    SupportChatModule,
     UploadsModule,
     SeoModule,
     HealthModule,

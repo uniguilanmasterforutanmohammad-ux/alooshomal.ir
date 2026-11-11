@@ -8,6 +8,7 @@ import {
   Bookmark,
   Coins,
   Crown,
+  Headset,
   IdCard,
   LayoutDashboard,
   LifeBuoy,
@@ -81,6 +82,7 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
   {
     title: 'حساب و پشتیبانی',
     items: [
+      { href: '/dashboard/support', label: 'پشتیبانی آنلاین', icon: Headset, exact: false },
       { href: '/dashboard/tickets', label: 'تیکت‌های پشتیبانی', icon: LifeBuoy, exact: false },
       { href: '/dashboard/profile', label: 'پروفایل کاربری', icon: UserRound, exact: false },
     ],

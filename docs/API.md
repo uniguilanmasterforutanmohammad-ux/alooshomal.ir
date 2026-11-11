@@ -379,6 +379,39 @@ print(missing or "همه‌ی مسیرها summary دارند")
 PY
 ```
 
+## پشتیبانی آنلاین (`/api/support/chat`)
+
+گفتگوی زنده‌ی کاربر با واحد پشتیبانی. دکمه‌ی شناور «پشتیبانی آنلاین» در همه‌ی
+صفحات سایت و مسیر `/dashboard/support` از این API استفاده می‌کنند. پیام‌ها از
+طریق **SSE** (رویدادهای `message` / `read` / `status`) همان لحظه به هر دو طرف
+می‌رسند؛ ارسال پیام یک `POST` معمولی با توکن Bearer است. جریان SSE مانند
+اعلان‌ها با «تیکت یک‌بارمصرف» احراز هویت می‌شود، نه با قرار دادن JWT در URL.
+
+| متد | مسیر | دسترسی | توضیح |
+| --- | --- | --- | --- |
+| `GET` | `/support/chat/me` | کاربر | گفتگوی باز جاری یا آخرین گفتگو (همراه پیام‌ها). |
+| `GET` | `/support/chat/me/conversations` | کاربر | تاریخچه‌ی صفحه‌بندی‌شده‌ی گفتگوهای من. |
+| `GET` | `/support/chat/me/conversations/:id` | کاربر | جزئیات یک گفتگوی خودم. |
+| `POST` | `/support/chat/me/messages` | کاربر | ارسال پیام؛ اگر گفتگوی بازی نباشد خودکار ساخته می‌شود. `conversationId` اختیاری است. |
+| `POST` | `/support/chat/me/read` | کاربر | خواندن پیام‌های گفتگوی باز جاری. |
+| `POST` | `/support/chat/me/conversations/:id/read` | کاربر | خواندن پیام‌های یک گفتگوی مشخص. |
+| `POST` | `/support/chat/me/close` | کاربر | بستن گفتگوی باز جاری. |
+| `GET` | `/support/chat/me/unread-count` | کاربر | تعداد پیام‌های خوانده‌نشده‌ی پشتیبانی. |
+| `GET` | `/support/chat/me/stream-ticket` | کاربر | صدور تیکت یک‌بارمصرف برای اتصال SSE. |
+| `GET` | `/support/chat/me/stream?ticket=…` | عمومی (با تیکت) | جریان زنده‌ی پیام‌های من. |
+| `GET` | `/admin/support/chat` | ADMIN | فهرست گفتگوها با فیلتر `status` و جستجوی `q`. |
+| `GET` | `/admin/support/chat/unread-count` | ADMIN | مجموع پیام‌های خوانده‌نشده و تعداد گفتگوهای باز. |
+| `GET` | `/admin/support/chat/:id` | ADMIN | جزئیات کامل گفتگو. |
+| `POST` | `/admin/support/chat/:id/messages` | ADMIN | پاسخ مدیر (گفتگو در صورت بسته‌بودن باز می‌شود). |
+| `POST` | `/admin/support/chat/:id/read` | ADMIN | خواندن پیام‌های کاربر. |
+| `PATCH` | `/admin/support/chat/:id` | ADMIN | تغییر وضعیت (`OPEN`/`CLOSED`) یا `assignToMe`. |
+| `GET` | `/admin/support/chat/stream-ticket` | ADMIN | صدور تیکت برای جریان زنده‌ی صندوق پشتیبانی. |
+| `GET` | `/admin/support/chat/stream?ticket=…` | عمومی (با تیکت) | جریان زنده‌ی همه‌ی گفتگوها برای مدیران. |
+
+**نکته‌ی حقوقی/دسترسی:** پشتیبانی و همه‌ی راه‌های تماس با پشتیبان مطابق
+`AGENTS.md` همیشه فعال هستند و سوئیچ ویژگی نمی‌گیرند. هر کاربر فقط به گفتگوهای
+خودش دسترسی دارد؛ مسیرهای `/admin/support/chat` فقط برای نقش `ADMIN` باز است.
+
 ## وظیفه‌ی دائمی ایجنت (قانون ۸)
 
 هنگام **افزودن یا تغییر هر مسیر API**، ایجنت موظف است پیش از اعلام اتمام کار:

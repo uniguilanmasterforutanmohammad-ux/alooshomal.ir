@@ -104,6 +104,7 @@ async function bootstrap(): Promise<void> {
       .addTag('points', 'امتیاز و جوایز کاربران')
       .addTag('subscriptions', 'پلن‌ها و اشتراک کاربران')
       .addTag('tickets', 'تیکت‌های پشتیبانی')
+      .addTag('support-chat', 'پشتیبانی آنلاین و گفتگوی زنده')
       .addTag('taxonomy', 'شهرها و کسب‌وکارها')
       .addTag('uploads', 'آپلود تصویر روی MinIO')
       .addTag('notifications', 'اعلان‌های کاربر')

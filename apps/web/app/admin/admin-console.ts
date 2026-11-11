@@ -63,6 +63,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'users',
   'emails',
   'tickets',
+  'support-chat',
   'news',
   'blog',
   'permissions',
@@ -123,6 +124,10 @@ export function isAdminSection(value: string): value is AdminSection {
     users: { title: 'کاربران', sub: 'لیست کاربران پلتفرم' },
     emails: { title: 'ایمیل‌های ارسالی', sub: 'ایمیل‌های تراکنشی ارسال‌شده به کاربران' },
     tickets: { title: 'تیکت‌ها', sub: 'مدیریت تیکت‌های پشتیبانی' },
+    'support-chat': {
+      title: 'پشتیبانی آنلاین',
+      sub: 'گفتگوی زنده با کاربران؛ پاسخ فوری در صندوق پشتیبانی',
+    },
     news: {
       title: 'شهروند خبرنگار',
       sub: 'بررسی خبرهای شهروند خبرنگارها، درخواست‌ها و دسته‌بندی‌ها',

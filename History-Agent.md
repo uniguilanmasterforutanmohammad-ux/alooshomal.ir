@@ -20,7 +20,42 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.30.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.31.0**.
+
+## ۱۴۰۵/۰۸/۲۰ — پشتیبانی آنلاین و چت زنده با واحد پشتیبانی — نسخه `v3.31.0`
+
+**هدف:** راه‌اندازی سامانه‌ی کامل پشتیبانی آنلاین؛ کاربر با فشردن دکمه‌ی شناور
+«پشتیبانی آنلاین» در هر صفحه، بدون واسطه و به‌صورت زنده با واحد پشتیبانی گفتگو
+می‌کند. مدیران یک صندوق پشتیبانی زنده با فهرست گفتگوها، شمارنده‌ی پیام تازه،
+جستجو، واگذاری و بستن/بازگشایی گفتگو دارند.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن enumهای `SupportChatStatus`/`SupportChatSender` و مدل‌های `SupportConversation`/`SupportMessage` با شمارنده‌های خوانده‌نشده‌ی دوطرفه و ایندکس‌های لازم؛ افزودن relationهای کاربر.
+- `apps/api/src/support-chat/support-chat.service.ts`: منطق گفتگو (ایجاد خودکار، پیام کاربر/مدیر، خواندن، بستن، فهرست/جستجو، واگذاری، شمارنده‌ها) و ارسال اعلان/لاگ فعالیت.
+- `apps/api/src/support-chat/support-chat-events.service.ts`: گذرگاه رویداد درون‌فرایندی برای پخش زنده‌ی پیام‌ها.
+- `apps/api/src/support-chat/support-chat.controller.ts`: مسیرهای کاربر (`/support/chat/me/*`) و مدیر (`/admin/support/chat/*`) همراه با SSE و تیکت یک‌بارمصرف جریان.
+- `apps/api/src/support-chat/dto/*`: DTOهای ارسال پیام، فهرست گفتگو و به‌روزرسانی وضعیت/واگذاری با مستندات Swagger.
+- `apps/api/src/support-chat/support-chat.module.ts` و `apps/api/src/app.module.ts`: ثبت ماژول.
+- `apps/api/src/main.ts`: افزودن تگ `support-chat` به Swagger.
+- `apps/web/components/support/SupportChatPanel.tsx`: نمای گفتگوی زنده (حباب پیام، وضعیت اتصال، پاسخ سریع، خواندن خودکار، اتصال SSE و fallback).
+- `apps/web/components/support/SupportChatWidget.tsx`: دکمه‌ی شناور سراسری با نشان پیام تازه و پنل گفتگو.
+- `apps/web/components/support/SupportChatHistory.tsx` و `apps/web/app/dashboard/support/page.tsx`: صفحه‌ی پشتیبانی داشبورد با سابقه‌ی گفتگوها.
+- `apps/web/components/admin/AdminSupportChat.tsx`: صندوق پشتیبانی مدیر (فهرست زنده، جستجو، فیلتر، پاسخ، واگذاری، بستن/بازگشایی).
+- `apps/web/components/admin/AdminShell.tsx`، `apps/web/app/admin/admin-console.ts` و `apps/web/app/admin/page.tsx`: افزودن بخش «پشتیبانی آنلاین» به پنل مدیریت.
+- `apps/web/components/dashboard/UserShell.tsx`: افزودن لینک «پشتیبانی آنلاین» به منوی داشبورد.
+- `apps/web/app/layout.tsx`: نصب دکمه‌ی شناور در همه‌ی صفحات.
+- `apps/web/app/contact/page.tsx` و `apps/web/components/layout/Footer.tsx`: معرفی و لینک‌دهی به گفتگوی آنلاین.
+- `apps/web/lib/api/types/support.ts` و `apps/web/lib/api.ts`: تایپ‌های کلاینت گفتگو.
+- `docs/API.md`: مستندسازی کامل مسیرهای پشتیبانی آنلاین و رفتار SSE.
+
+**تأیید/تست:**
+- `npx prisma validate` و `npx prisma generate` در کانتینر API موفق؛ `npx prisma db push` جدول‌ها را بدون خطا ساخت.
+- `npx tsc --noEmit` در `apps/api` و `apps/web` بدون خطا؛ `npx eslint` روی فایل‌های جدید بدون error (فقط ۴ هشدار سبک React hooks).
+- `python3 scripts/check_api_docs.py` → ۳۹۰ مسیر، همه با `@ApiOperation`/`@ApiTags`؛ `GET /api/docs-json` همه‌ی ۱۷ مسیر `support` را با summary برگرداند.
+- تست API با توکن کاربر/مدیر: ارسال پیام، فهرست مدیر، پاسخ مدیر، شمارنده‌ی خوانده‌نشده، خواندن و بستن گفتگو همه پاسخ درست دادند.
+- تست Playwright با دو نشست هم‌زمان (کاربر + مدیر): پیام کاربر در صندوق مدیر ظاهر شد، پاسخ مدیر بدون رفرش در پنل کاربر رسید (`USER_RECEIVED_LIVE_OK`)، و صفحه‌ی `/dashboard/support` با سابقه‌ی گفتگوها بارگذاری شد.
+- تست موبایل (۳۹۰×۸۴۴): دکمه و پنل داخل viewport، بدون سرریز افقی، و ارسال پیام موفق.
+- `python3 scripts/sync_install.py --check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۰ — اصلاح مسیر کیف پول در «شروع آسان» — نسخه `v3.30.1`
 
