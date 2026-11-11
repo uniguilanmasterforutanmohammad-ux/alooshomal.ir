@@ -6,6 +6,7 @@ import { Headset } from 'lucide-react';
 
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { SUPPORT_POLL_MS } from '@/lib/support-chat';
 import { cn } from '@/lib/utils';
 import { SupportChatPanel } from './SupportChatPanel';
 
@@ -46,7 +47,7 @@ export function SupportChatWidget() {
       }
     }
     void tick();
-    const timer = setInterval(tick, 20_000);
+    const timer = setInterval(tick, SUPPORT_POLL_MS);
     return () => {
       active = false;
       clearInterval(timer);

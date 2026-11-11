@@ -18,6 +18,7 @@ import {
   type SupportConversation,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { SUPPORT_POLL_MS } from '@/lib/support-chat';
 import { cn } from '@/lib/utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
@@ -152,7 +153,7 @@ export function SupportChatPanel({
     if (!token) return;
     const timer = setInterval(() => {
       if (document.visibilityState === 'visible') void load();
-    }, 20_000);
+    }, SUPPORT_POLL_MS);
     return () => clearInterval(timer);
   }, [load, token]);
 

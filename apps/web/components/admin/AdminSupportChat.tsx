@@ -17,6 +17,7 @@ import {
   type SupportChatMessage,
   type SupportConversation,
 } from '@/lib/api';
+import { SUPPORT_POLL_MS } from '@/lib/support-chat';
 import { cn } from '@/lib/utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
@@ -150,7 +151,7 @@ export function AdminSupportChat() {
       void loadList();
       void loadUnread();
       if (selectedRef.current) void loadConversation(selectedRef.current);
-    }, 20_000);
+    }, SUPPORT_POLL_MS);
     return () => clearInterval(timer);
   }, [loadConversation, loadList, loadUnread]);
 

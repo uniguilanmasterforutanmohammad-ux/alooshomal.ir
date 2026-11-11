@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2, MessageSquarePlus } from 'lucide-react';
 
 import { api, type SupportConversation } from '@/lib/api';
+import { SUPPORT_POLL_MS } from '@/lib/support-chat';
 import { cn } from '@/lib/utils';
 
 interface Props {
@@ -49,7 +50,7 @@ export function SupportChatHistory({ selectedId, onSelect, refreshKey = 0 }: Pro
   useEffect(() => {
     const timer = setInterval(() => {
       if (document.visibilityState === 'visible') void load();
-    }, 20_000);
+    }, SUPPORT_POLL_MS);
     return () => clearInterval(timer);
   }, [load]);
 
