@@ -901,6 +901,8 @@ model Biolink {
   /// builder). Stored as plain names; only the main category is filterable.
   subCategory    String?
   subSubCategory String?
+  /// «محله» — free-form neighbourhood, shown as a tag on the public page.
+  neighborhood   String?
   // Optional one-to-one link to the owner's business card. Stored on the
   // biolink side only; the business card's linked biolink is resolved by the
   // inverse lookup (`biolink.findUnique({ where: { businessCardId } })`).
@@ -1022,6 +1024,8 @@ model BusinessCard {
   /// builder). Stored as plain names; only the main category is filterable.
   subCategory    String?
   subSubCategory String?
+  /// «محله» — free-form neighbourhood, shown as a tag on the public page.
+  neighborhood   String?
 
   // personal / professional info
   fullName    String

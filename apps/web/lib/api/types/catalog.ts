@@ -29,6 +29,8 @@ export interface Biolink {
   subCategory?: string | null;
   /** «زیرشاخه» — optional deeper taxonomy pick (searchable in the builder) */
   subSubCategory?: string | null;
+  /** «محله» — free-form, shown as a tag on the public page */
+  neighborhood?: string | null;
   city?: { id: string; name: string } | null;
   business?: { id: string; name: string } | null;
   /** owner's subscription plan name, shown on the public page */
@@ -104,6 +106,8 @@ export interface DirectoryBiolink {
   boostedUntil?: string | null;
   /** paid directory-ad expiry; when in the future a «تبلیغات» tag is shown */
   adDirectoryUntil?: string | null;
+  /** «محله» — free-form, shown as a tag on the public page */
+  neighborhood?: string | null;
   city?: { id: string; name: string } | null;
   business?: { id: string; name: string } | null;
   likeCount: number;
@@ -201,6 +205,8 @@ export interface BusinessCard {
  subCategory?: string | null;
  /** «زیرشاخه» — optional deeper taxonomy pick (searchable in the builder) */
  subSubCategory?: string | null;
+ /** «محله» — free-form, shown as a tag on the public page */
+ neighborhood?: string | null;
  city?: { id: string; name: string } | null;
  business?: { id: string; name: string } | null;
  /** owner's subscription plan name, shown on the public page */
@@ -252,6 +258,8 @@ export interface DirectoryBusinessCard {
   likeCount: number;
   ratingAvg?: number;
   ratingCount?: number;
+  /** «محله» — free-form, shown as a tag on the public page */
+  neighborhood?: string | null;
   /** owner passed the identity inquiry and has the blue tick */
   ownerVerified?: boolean;
   liked: boolean;

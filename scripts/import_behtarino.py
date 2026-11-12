@@ -13,6 +13,9 @@ Two independent inputs (from the sibling `behtarino/` extraction project):
     one becomes an APPROVED + published ``business_cards`` row owned by a
     placeholder account, flagged ``isUnclaimed`` so the public page can show the
     «شما صاحب این کسب‌وکار هستید؟» button and let the real owner take it over.
+    Its «محله» is kept so the public card can show it as a tag, while the
+    scraped «شهر/منطقه» column is *not* stored: it only decides which real city
+    a business belongs to (the merged «تنکابن، شیرود» bucket is split by it).
 
 Nothing here touches production: the script talks to the local Postgres
 container (``alooshomal-db``) through ``psql``, exactly like
@@ -294,6 +297,55 @@ def ensure_cities(names: set[str], rng: random.Random) -> dict[str, str]:
     return mapping
 
 
+def split_merged_city(name: str) -> list[str]:
+    """«تنکابن، شیرود» → ['تنکابن', 'شیرود'] (Persian and latin commas)."""
+    return [part.strip() for part in name.replace("،", ",").split(",") if part.strip()]
+
+
+def resolve_city_name(business: dict) -> str:
+    """The real city a business belongs to.
+
+    The site keeps only real cities: the scraped «شهر/منطقه» column
+    (``city_name``) names one when it holds a single place, otherwise the search
+    city (``listed_city``) is used. Behtarino merged تنکابن and شیرود into one
+    bucket («تنکابن، شیرود») for the rows whose «شهر/منطقه» was empty; the
+    address then decides which of the two the business is in, so the merged
+    bucket disappears instead of staying as a city of its own.
+    """
+    city = (business.get("city_name") or "").strip()
+    listed = (business.get("listed_city") or "").strip()
+    source = city or listed
+    # «خرم آباد» and «خرم‌آباد» are the same place; keep the ZWNJ spelling.
+    source = source.replace("خرم آباد", "خرم\u200cآباد")
+    parts = split_merged_city(source)
+    if len(parts) <= 1:
+        return source
+    address = (business.get("address") or "").strip()
+    for part in parts:
+        if part and part in address:
+            return part
+    return parts[0]
+
+
+# Spellings that are folded into a canonical city (`resolve_city_name`) and
+# must not linger as an empty duplicate in the public city list.
+LEGACY_CITY_ALIASES = ("خرم آباد",)
+
+
+def drop_orphan_merged_cities() -> None:
+    """Remove card-less city rows left behind by a merged bucket or alias."""
+    aliases = ", ".join(sql_quote(name) for name in LEGACY_CITY_ALIASES) or "''"
+    gone = psql(
+        'DELETE FROM "cities" WHERE '
+        "(position(',' in name) > 0 OR position('،' in name) > 0 "
+        f"OR name IN ({aliases})) "
+        'AND NOT EXISTS (SELECT 1 FROM "business_cards" bc '
+        'WHERE bc."cityId" = "cities".id) RETURNING id'
+    )
+    if gone:
+        print(f"removed {len(gone.splitlines())} merged city buckets")
+
+
 def parse_working_hours(raw: str) -> dict[str, dict[str, str]] | None:
     """`شنبه: 07:30:00-18:00:00 | …` → the site's per-weekday JSON shape."""
     text = (raw or "").strip()
@@ -347,11 +399,15 @@ def build_card_rows(
     city_ids: dict[str, str],
     business_ids: dict[str, str],
     rng: random.Random,
+    taken_slugs: set[str] | None = None,
 ) -> list[list[str]]:
     stamp = now_stamp()
+    # Slugs are the public URL, so keep the scraped one and only disambiguate
+    # when it is already used (a locally created card, a previous import, …).
+    used = set(taken_slugs or ())
     rows: list[list[str]] = []
     for business in businesses:
-        city_name = (business.get("city_name") or business.get("listed_city") or "").strip()
+        city_name = resolve_city_name(business)
         category = (business.get("category") or "").strip()
         city_id = city_ids.get(city_name, "")
         business_id = business_ids.get(category, "")
@@ -371,10 +427,16 @@ def build_card_rows(
             or (business.get("guild") or "").strip()
         )
         working_hours = parse_working_hours(business.get("working_hours") or "")
+        slug = (business.get("slug") or cuid(rng)).strip()
+        base, suffix = slug, 2
+        while slug in used:
+            slug = f"{base}-{suffix}"
+            suffix += 1
+        used.add(slug)
         rows.append([
             cuid(rng),
             user_id,
-            (business.get("slug") or cuid(rng)).strip(),
+            slug,
             city_id,
             business_id,
             name,
@@ -399,6 +461,7 @@ def build_card_rows(
             "true",
             stamp,
             stamp,
+            (business.get("neighborhood") or "").strip(),
         ])
     return rows
 
@@ -408,7 +471,7 @@ COPY_COLUMNS = [
     "company", "bio", "phone", "mobile", "email", "website", "address",
     "instagram", "telegram", "whatsapp", "linkedin", "workingHours",
     "isPublished", "status", "approvedAt", "publishedAt", "pinnedAt",
-    "isUnclaimed", "createdAt", "updatedAt",
+    "isUnclaimed", "createdAt", "updatedAt", "neighborhood",
 ]
 
 
@@ -422,7 +485,7 @@ def import_businesses(source_dir: str, rng: random.Random, limit: int | None) ->
     user_id = ensure_import_user(rng)
     city_ids = ensure_cities(
         {
-            (b.get("city_name") or b.get("listed_city") or "").strip()
+            resolve_city_name(b)
             for b in businesses
         },
         rng,
@@ -431,7 +494,14 @@ def import_businesses(source_dir: str, rng: random.Random, limit: int | None) ->
     # category is missing is skipped rather than inventing a new category.
     business_ids = category_id_map()
 
-    rows = build_card_rows(businesses, user_id, city_ids, business_ids, rng)
+    existing_slugs = {
+        line.strip()
+        for line in psql('SELECT slug FROM "business_cards"').splitlines()
+        if line.strip()
+    }
+    rows = build_card_rows(
+        businesses, user_id, city_ids, business_ids, rng, existing_slugs
+    )
     buffer = io.StringIO()
     writer = csv.writer(buffer, lineterminator="\n")
     for row in rows:
@@ -443,6 +513,7 @@ def import_businesses(source_dir: str, rng: random.Random, limit: int | None) ->
     # `\copy … FROM STDIN` reads its data from psql's standard input, so the
     # command and the CSV payload travel together on the same stream.
     psql(copy_sql + "\n" + buffer.getvalue() + "\\.\n")
+    drop_orphan_merged_cities()
     print(f"imported {len(rows)} business cards "
           f"(skipped {len(businesses) - len(rows)})")
 

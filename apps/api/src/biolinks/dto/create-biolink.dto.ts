@@ -130,6 +130,15 @@ export class CreateBiolinkDto {
   subSubCategory?: string;
 
   @ApiPropertyOptional({
+    example: 'محله فردوسی',
+    description: 'محله (جست‌وجو از محله‌های ثبت‌شده یا ورود عبارت تازه)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  neighborhood?: string;
+
+  @ApiPropertyOptional({
     description:
       'شناسه کارت ویزیتِ خودِ کاربر برای اتصال به این بیولینک (خالی = قطع اتصال)',
   })

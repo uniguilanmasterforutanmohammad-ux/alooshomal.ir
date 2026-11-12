@@ -7,6 +7,7 @@ import {
   DIRECTORY_ALPHA_MAX_ROWS,
   orderedByAlpha,
 } from '../common/directory-sort';
+import { sortCities } from '../common/cities';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { applyPlanMask } from '../common/plans';
 import { PrismaService } from '../prisma/prisma.service';
@@ -30,6 +31,8 @@ interface DirectoryBusinessCardItem {
   address: string | null;
   phone: string | null;
   mobile: string | null;
+  /** «محله» — shown as a tag on the public page */
+  neighborhood: string | null;
   avatarUrl: string | null;
   logoUrl: string | null;
   primaryColor: string;
@@ -166,6 +169,7 @@ export class BusinessCardsDirectoryService {
       address: true,
       phone: true,
       mobile: true,
+      neighborhood: true,
       avatarUrl: true,
       logoUrl: true,
       primaryColor: true,
@@ -321,7 +325,8 @@ export class BusinessCardsDirectoryService {
           orderBy: { name: 'asc' },
         }),
       ]);
-      return { cities, businesses };
+      // Cities keep the «main cities first» order shared with the city select.
+      return { cities: sortCities(cities), businesses };
     });
   }
 }

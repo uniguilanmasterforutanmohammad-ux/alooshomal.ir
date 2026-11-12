@@ -3,7 +3,9 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { BiolinkStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { sortCities } from '../common/cities';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
@@ -11,6 +13,7 @@ import { AuthUser } from '../common/decorators/current-user.decorator';
 import { CreateTaxonomyRequestDto } from './dto/create-taxonomy-request.dto';
 import { CreateTaxonomyDto } from './dto/create-taxonomy.dto';
 import { SearchTaxonomyNodeDto } from './dto/search-taxonomy-node.dto';
+import { SearchNeighborhoodDto } from './dto/search-neighborhood.dto';
 import { UpdateTaxonomyDto } from './dto/update-taxonomy.dto';
 
 type Delegate = {
@@ -41,12 +44,14 @@ export class TaxonomyService {
     ) as unknown as Delegate;
   }
 
-  list(kind: 'city' | 'business', onlyActive = false) {
-    return this.model(kind).findMany({
+  async list(kind: 'city' | 'business', onlyActive = false) {
+    const rows = (await this.model(kind).findMany({
       where: onlyActive ? { isActive: true } : {},
       orderBy: { name: 'asc' },
       select: { id: true, name: true, isActive: true, createdAt: true },
-    });
+    })) as Array<{ id: string; name: string; isActive: boolean; createdAt: Date }>;
+    // Cities are surfaced with the four main ones first (see `common/cities`).
+    return kind === 'city' ? sortCities(rows) : rows;
   }
 
   /**
@@ -155,6 +160,35 @@ export class TaxonomyService {
       ...row,
       parentName: row.parentId ? (byId.get(row.parentId) ?? null) : null,
     }));
+  }
+
+  /**
+   * Suggestions for the «محله» field of the builders. The value is free-form —
+   * the user may always type a brand-new neighbourhood — so this only offers
+   * the neighbourhoods already recorded on published business cards, optionally
+   * restricted to one city and filtered by the typed text.
+   */
+  async searchNeighborhoods(query: SearchNeighborhoodDto): Promise<string[]> {
+    const cityId = query.cityId?.trim() || undefined;
+    const q = query.q?.trim();
+    const take = Math.min(Math.max(query.limit ?? 20, 1), 50);
+    const rows = await this.prisma.businessCard.findMany({
+      where: {
+        neighborhood: q
+          ? { not: null, contains: q, mode: 'insensitive' as const }
+          : { not: null },
+        status: BiolinkStatus.APPROVED,
+        isPublished: true,
+        ...(cityId ? { cityId } : {}),
+      },
+      select: { neighborhood: true },
+      distinct: ['neighborhood'],
+      orderBy: { neighborhood: 'asc' },
+      take,
+    });
+    return rows
+      .map((row) => row.neighborhood?.trim())
+      .filter((value): value is string => Boolean(value));
   }
 
   /**

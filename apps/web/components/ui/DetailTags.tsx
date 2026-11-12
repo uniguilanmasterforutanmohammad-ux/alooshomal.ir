@@ -2,6 +2,8 @@ import { Briefcase, MapPin } from 'lucide-react';
 
 interface Props {
   cityName?: string | null;
+  /** «محله» — free-form neighbourgood, surfaced as its own tag */
+  neighborhood?: string | null;
   businessName?: string | null;
 }
 
@@ -9,9 +11,11 @@ interface Props {
  * City + business tags shown in the directory detail panels, matching the
  * chips already rendered inside the themed cards. Rendered as pills so the
  * plain detail view carries the same «شهر» + «کسب و کار» context at a glance.
+ * «محله» gets its own tag next to the city (the «شهر/منطقه» column is not
+ * surfaced anywhere on the site).
  */
-export function DetailTags({ cityName, businessName }: Props) {
-  if (!cityName && !businessName) return null;
+export function DetailTags({ cityName, neighborhood, businessName }: Props) {
+  if (!cityName && !neighborhood && !businessName) return null;
 
   const chip =
     'inline-flex items-center gap-1.5 rounded-full border border-[var(--vintage-border)] bg-soft px-3 py-1 text-xs font-bold text-ink';
@@ -22,6 +26,12 @@ export function DetailTags({ cityName, businessName }: Props) {
         <span className={chip}>
           <MapPin className="size-3.5 shrink-0 text-brand" aria-hidden />
           {cityName}
+        </span>
+      ) : null}
+      {neighborhood ? (
+        <span className={chip}>
+          <MapPin className="size-3.5 shrink-0 text-brand" aria-hidden />
+          {neighborhood}
         </span>
       ) : null}
       {businessName ? (

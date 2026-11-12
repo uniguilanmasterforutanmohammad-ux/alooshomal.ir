@@ -152,6 +152,15 @@ export class CreateBusinessCardDto {
   subSubCategory?: string;
 
   @ApiPropertyOptional({
+    example: 'محله فردوسی',
+    description: 'محله (جست‌وجو از محله‌های ثبت‌شده یا ورود عبارت تازه)',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  neighborhood?: string;
+
+  @ApiPropertyOptional({
     description:
       'شناسه بیولینکِ خودِ کاربر برای اتصال به این کارت ویزیت (خالی = قطع اتصال)',
   })

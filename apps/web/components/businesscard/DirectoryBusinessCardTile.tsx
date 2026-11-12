@@ -31,7 +31,7 @@ export function DirectoryBusinessCardTile({ businessCard }: Props) {
       fullName={businessCard.fullName}
       jobTitle={businessCard.jobTitle}
       company={businessCard.company}
-      cityName={businessCard.city?.name}
+      cityName={businessCard.neighborhood || businessCard.city?.name}
       businessName={businessCard.business?.name}
       mobile={businessCard.mobile}
       landline={businessCard.phone}

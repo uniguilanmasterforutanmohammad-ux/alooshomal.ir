@@ -159,6 +159,7 @@ export function DirectoryBiolinkDetail({ slug, onClose, hideHeader }: Props) {
 
         <DetailTags
           cityName={biolink.city?.name}
+          neighborhood={biolink.neighborhood}
           businessName={biolink.business?.name}
         />
 

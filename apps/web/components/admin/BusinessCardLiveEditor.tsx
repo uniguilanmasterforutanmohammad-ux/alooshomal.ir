@@ -45,6 +45,7 @@ const toFormValues = (businessCard: AdminBusinessCardFull): BusinessCardFormValu
   businessId: businessCard.businessId ?? '',
   subCategory: businessCard.subCategory ?? '',
   subSubCategory: businessCard.subSubCategory ?? '',
+  neighborhood: businessCard.neighborhood ?? '',
   biolinkId: '',
   avatarUrl: businessCard.avatarUrl ?? '',
   logoUrl: businessCard.logoUrl ?? '',

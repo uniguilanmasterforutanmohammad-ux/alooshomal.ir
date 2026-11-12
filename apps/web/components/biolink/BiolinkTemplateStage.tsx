@@ -160,6 +160,9 @@ export function BiolinkTemplateStage({
   const rows = buildRows(biolink);
   const iconLinks = buildIconLinks(biolink);
   const design = biolinkTemplate(mode);
+  // «شهر/منطقه» is not shown on the site; the «محله» tag replaces the city chip
+  // whenever the owner filled it in.
+  const place = biolink.neighborhood?.trim() || biolink.city?.name;
 
   if (!design) {
     return (
@@ -169,7 +172,7 @@ export function BiolinkTemplateStage({
         subline={subline}
         bio={biolink.bio}
         companyName={biolink.company}
-        cityName={biolink.city?.name}
+        cityName={place}
         businessName={biolink.business?.name}
         avatarUrl={biolink.avatarUrl}
         rows={rows}
@@ -187,7 +190,7 @@ export function BiolinkTemplateStage({
       headline={headline}
       subline={subline}
       bio={biolink.bio}
-      cityName={biolink.city?.name}
+      cityName={place}
       businessName={biolink.business?.name}
       avatarUrl={biolink.avatarUrl}
       rows={rows.map((row) => ({

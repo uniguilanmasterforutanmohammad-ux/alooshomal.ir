@@ -10,6 +10,7 @@ import { SpectrumColorPicker } from '@/components/ui/SpectrumColorPicker';
 import { LinkSelector } from '@/components/link/LinkSelector';
 import { LiveBusinessCardPreview } from '@/components/businesscard/LiveBusinessCardPreview';
 import { BusinessTaxonomyFields } from '@/components/taxonomy/BusinessTaxonomyFields';
+import { NeighborhoodPicker } from '@/components/taxonomy/NeighborhoodPicker';
 import { WorkingHoursEditor } from '@/components/business/WorkingHoursEditor';
 import { api, type TaxonomyItem, type WorkingHours } from '@/lib/api';
 import {
@@ -46,6 +47,8 @@ export interface BusinessCardFormValues {
   /** optional deeper taxonomy picks — searchable, never shown as a dropdown */
   subCategory: string;
   subSubCategory: string;
+  /** «محله» — free-form, shown as a tag on the public card */
+  neighborhood: string;
   /** one-to-one link to one of the owner's biolinks (`''` = none) */
   biolinkId: string;
   avatarUrl: string;
@@ -75,6 +78,7 @@ const emptyValues: BusinessCardFormValues = {
   businessId: '',
   subCategory: '',
   subSubCategory: '',
+  neighborhood: '',
   biolinkId: '',
   avatarUrl: '',
   logoUrl: '',
@@ -314,6 +318,11 @@ export function BusinessCardForm({
                 onChange={({ subCategory, subSubCategory }) =>
                   setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
                 }
+              />
+              <NeighborhoodPicker
+                cityId={values.cityId}
+                value={values.neighborhood}
+                onChange={(neighborhood) => setField('neighborhood', neighborhood)}
               />
               <Input
                 label="تلفن همراه *"
@@ -597,6 +606,11 @@ export function BusinessCardForm({
               onChange={({ subCategory, subSubCategory }) =>
                 setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
               }
+            />
+            <NeighborhoodPicker
+              cityId={values.cityId}
+              value={values.neighborhood}
+              onChange={(neighborhood) => setField('neighborhood', neighborhood)}
             />
           </div>
           <label className="mt-4 flex flex-col gap-1.5">

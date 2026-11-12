@@ -138,6 +138,7 @@ export default function NewBusinessCardPage() {
                     businessId: draft.businessId ?? '',
                     subCategory: draft.subCategory ?? '',
                     subSubCategory: draft.subSubCategory ?? '',
+                    neighborhood: draft.neighborhood ?? '',
                     biolinkId: draft.linkedBiolinks?.[0]?.id ?? '',
                     avatarUrl: draft.avatarUrl ?? '',
                     logoUrl: draft.logoUrl ?? '',

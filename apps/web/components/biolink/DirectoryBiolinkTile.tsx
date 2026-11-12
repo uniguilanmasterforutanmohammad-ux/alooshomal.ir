@@ -31,7 +31,7 @@ export function DirectoryBiolinkTile({ biolink }: Props) {
       fullName={biolink.fullName}
       jobTitle={biolink.jobTitle}
       company={biolink.company}
-      cityName={biolink.city?.name}
+      cityName={biolink.neighborhood || biolink.city?.name}
       businessName={biolink.business?.name}
       mobile={biolink.mobile}
       landline={biolink.phone}

@@ -27,6 +27,8 @@ interface Props {
   fullName: string;
   jobTitle?: string | null;
   cityName?: string | null;
+  /** «محله» — when set it becomes the location tag (instead of the city) */
+  neighborhood?: string | null;
   businessName?: string | null;
   bio?: string | null;
   avatarUrl?: string | null;
@@ -59,6 +61,7 @@ export function BusinessCardFace({
   fullName,
   jobTitle,
   cityName,
+  neighborhood,
   businessName,
   bio,
   avatarUrl,
@@ -77,7 +80,10 @@ export function BusinessCardFace({
     .map((part) => part.slice(0, 1))
     .join('');
   const Heading = headingLevel;
-  const hasTags = Boolean(cityName || businessName);
+  // «شهر/منطقه» is not surfaced on the card; the neighbourhood takes its place
+  // as the location tag whenever the owner filled it in.
+  const locationLabel = neighborhood?.trim() || cityName?.trim() || null;
+  const hasTags = Boolean(locationLabel || businessName);
 
   return (
     <article
@@ -107,10 +113,10 @@ export function BusinessCardFace({
 
         {hasTags ? (
           <div className="bizcard-tags">
-            {cityName ? (
+            {locationLabel ? (
               <span className="bizcard-tag">
                 <MapPin aria-hidden />
-                {cityName}
+                {locationLabel}
               </span>
             ) : null}
             {businessName ? (

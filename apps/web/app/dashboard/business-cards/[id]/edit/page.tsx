@@ -80,6 +80,7 @@ export default function EditBiolinkPage() {
               businessId: businessCard.businessId ?? '',
               subCategory: businessCard.subCategory ?? '',
               subSubCategory: businessCard.subSubCategory ?? '',
+              neighborhood: businessCard.neighborhood ?? '',
               biolinkId: businessCard.linkedBiolinks?.[0]?.id ?? '',
               avatarUrl: businessCard.avatarUrl ?? '',
               logoUrl: businessCard.logoUrl ?? '',

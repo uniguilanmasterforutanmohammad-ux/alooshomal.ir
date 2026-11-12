@@ -24,7 +24,7 @@ import re
 import sys
 
 INSTALL = "install.sh"
-SKIP_DIRS = ("/node_modules/", "/.next/", "/dist/")
+SKIP_DIRS = ("/node_modules/", "/.next/", "/dist/", "/__pycache__/")
 BINARY_EXT = (".woff2", ".woff", ".ttf", ".otf", ".eot", ".png", ".jpg", ".jpeg",
               ".ico", ".pdf", ".gz", ".zip")
 # Build/editor artifacts that must never be baked into the installer.

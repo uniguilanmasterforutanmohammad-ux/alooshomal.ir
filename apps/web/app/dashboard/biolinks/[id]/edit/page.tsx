@@ -81,6 +81,7 @@ export default function EditBiolinkPage() {
               businessId: biolink.businessId ?? '',
               subCategory: biolink.subCategory ?? '',
               subSubCategory: biolink.subSubCategory ?? '',
+              neighborhood: biolink.neighborhood ?? '',
               businessCardId: biolink.businessCard?.id ?? '',
               avatarUrl: biolink.avatarUrl ?? '',
               logoUrl: biolink.logoUrl ?? '',

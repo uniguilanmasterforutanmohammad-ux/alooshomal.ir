@@ -14,6 +14,7 @@ import {
 import { Input } from '@/components/ui/Input';
 import { SocialInput } from '@/components/ui/SocialInput';
 import { BusinessTaxonomyFields } from '@/components/taxonomy/BusinessTaxonomyFields';
+import { NeighborhoodPicker } from '@/components/taxonomy/NeighborhoodPicker';
 import {
   api,
   type Biolink,
@@ -32,6 +33,8 @@ interface Values {
   /** optional deeper taxonomy picks — searchable, never shown as a dropdown */
   subCategory: string;
   subSubCategory: string;
+  /** «محله» — free-form, shown as a tag on the public page */
+  neighborhood: string;
   mobile: string;
   address: string;
   bio: string;
@@ -52,6 +55,7 @@ const EMPTY_VALUES: Values = {
   businessId: '',
   subCategory: '',
   subSubCategory: '',
+  neighborhood: '',
   mobile: '',
   address: '',
   bio: '',
@@ -84,6 +88,7 @@ const BIOLINK_FIELDS: Array<keyof Values> = [
   'businessId',
   'subCategory',
   'subSubCategory',
+  'neighborhood',
 ];
 
 const REQUIRED: Array<keyof Values> = [
@@ -168,6 +173,7 @@ export function OnboardingBusinessForm({
           businessId: current.businessId ?? '',
           subCategory: current.subCategory ?? '',
           subSubCategory: current.subSubCategory ?? '',
+          neighborhood: current.neighborhood ?? '',
           mobile: current.mobile ?? '',
           address: current.address ?? '',
           bio: current.bio ?? '',
@@ -379,6 +385,11 @@ export function OnboardingBusinessForm({
             onChange={({ subCategory, subSubCategory }) =>
               setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
             }
+          />
+          <NeighborhoodPicker
+            cityId={values.cityId}
+            value={values.neighborhood}
+            onChange={(neighborhood) => setField('neighborhood', neighborhood)}
           />
           <Input
             label="شماره موبایل *"

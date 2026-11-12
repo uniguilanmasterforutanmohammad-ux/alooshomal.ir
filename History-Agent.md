@@ -20,7 +20,59 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.39.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.40.0**.
+
+## ۱۴۰۵/۰۸/۲۱ — ترتیب شهرها، حذف «شهر/منطقه» و افزودن تگ «محله» — نسخه `v3.40.0`
+
+**هدف:** ترتیب فهرست شهرها ثابت شود (تنکابن، خرم‌آباد، شیرود، رامسر اول و بعد
+بقیه)، ستون «شهر/منطقه» در سایت نمایش داده نشود، و «محله» صرفاً به‌صورت تگ با
+قابلیت جست‌وجو (و ورود عبارت تازه توسط کاربر) درآید. ستون «محله» فایل مازندران
+هم به کارت‌ها منتقل و دسته‌ی ترکیبی «تنکابن، شیرود» بر اساس ستون «شهر/منطقه»
+تفکیک شد.
+
+**تغییرات:**
+- `apps/api/src/common/cities.ts` (جدید): ترتیب ثابت شهرهای اصلی
+  (`MAIN_CITY_ORDER`) و `sortCities`/`compareCities`.
+- `apps/api/src/taxonomy/taxonomy.service.ts`: `list('city')` با ترتیب اصلی‌ها،
+  و متد تازه‌ی `searchNeighborhoods` (پیشنهاد محله از کارت‌های منتشرشده).
+- `apps/api/src/taxonomy/taxonomy.controller.ts`: مسیر عمومی
+  `GET /business-taxonomy/neighborhoods` و به‌روزرسانی `summary` مسیر `/cities`.
+- `apps/api/src/taxonomy/dto/search-neighborhood.dto.ts` (جدید): `{ cityId?, q?, limit? }`.
+- `apps/api/prisma/schema.prisma`: فیلد `neighborhood` روی `Biolink` و `BusinessCard`.
+- `apps/api/src/businesscards/dto/create-business-card.dto.ts` و
+  `apps/api/src/biolinks/dto/create-biolink.dto.ts`: فیلد اختیاری `neighborhood`.
+- `apps/api/src/businesscards/business-cards-directory.service.ts` و
+  `apps/api/src/biolinks/biolinks-directory.service.ts`: `neighborhood` در
+  خروجی دایرکتوری و مرتب‌سازی شهرهای facets.
+- `scripts/import_behtarino.py`: انتقال ستون «محله» به کارت‌ها،
+  `resolve_city_name` برای تفکیک «تنکابن، شیرود» بر اساس «شهر/منطقه»/آدرس،
+  یکسان‌سازی «خرم آباد»→«خرم‌آباد»، حذف شهرهای ترکیبی/تکراری بی‌کارت و
+  جلوگیری از برخورد slug.
+- `apps/web/components/taxonomy/NeighborhoodPicker.tsx` (جدید): کادر جست‌وجوی
+  محله با پیشنهادها + ردیف «افزودن …» برای عبارت تازه.
+- `apps/web/components/businesscard/BusinessCardForm.tsx`،
+  `apps/web/components/biolink/BiolinkForm.tsx` و
+  `apps/web/components/dashboard/OnboardingBusinessForm.tsx`: فیلد `neighborhood`
+  و نمایش کادر محله، به‌همراه `LiveBusinessCardPreview`/`LiveBiolinkPreview`،
+  `BusinessCardFace`، `BiolinkTemplateStage`، `PublicBusinessCardView`،
+  `DetailTags`، کاشی‌های دایرکتوری و `business/[slug]`.
+- `apps/web/components/admin/BiolinkLiveEditor.tsx`،
+  `apps/web/components/admin/BusinessCardLiveEditor.tsx` و صفحات
+  `dashboard/{biolinks,business-cards}/{new,[id]/edit}`: مقدار اولیه‌ی محله.
+- `apps/web/lib/api/types/catalog.ts`: تایپ `neighborhood` برای بیولینک/کارت و
+  خروجی دایرکتوری.
+- `docs/API.md`: مستندسازی مسیر محله و ترتیب شهرها.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- `python3 scripts/check_api_docs.py` → exit 0 (۳۹۴ مسیر، ۳۷ کنترلر).
+- بازایمپورت لوکال: `python3 scripts/import_behtarino.py businesses --clear` →
+  ۹۸۱۵ کارت؛ «تنکابن، شیرود» حذف و ۸۹ کارتش به تنکابن منتقل شد؛ ۸۹۲۳ کارت
+  «محله» دارند.
+- `GET /api/cities` → `['تنکابن','خرم‌آباد','خرم آباد','شیرود','رامسر', …]` و
+  `GET /api/business-taxonomy/neighborhoods?q=روستا` → فهرست محله‌ها.
+- صفحات عمومی `/business-cards/<slug>` با تگ «محله» رندر و ۲۰۰ برگرداندند.
 
 ## ۱۴۰۵/۰۸/۲۰ — یک کادر جست‌وجوی زیرشاخه→زیردسته با ارسال «سایر» به مدیر — نسخه `v3.39.0`
 

@@ -157,6 +157,8 @@ export function LiveBiolinkPreview({
   ].filter((entry): entry is RecordIconLink => Boolean(entry));
 
   const template = biolinkTemplate(values.template);
+  // «محله» takes the place of the city chip whenever it is filled in.
+  const place = values.neighborhood.trim() || cityName;
 
   if (!template) {
     return (
@@ -166,7 +168,7 @@ export function LiveBiolinkPreview({
         subline={subline}
         bio={values.bio}
         companyName={values.company || null}
-        cityName={cityName}
+        cityName={place}
         businessName={businessName}
         avatarUrl={values.avatarUrl || null}
         rows={rows}
@@ -199,7 +201,7 @@ export function LiveBiolinkPreview({
       headline={headline}
       subline={subline}
       bio={values.bio}
-      cityName={cityName}
+      cityName={place}
       businessName={businessName}
       avatarUrl={values.avatarUrl || null}
       rows={templateRows}

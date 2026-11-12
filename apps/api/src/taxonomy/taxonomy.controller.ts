@@ -17,6 +17,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CreateTaxonomyRequestDto } from './dto/create-taxonomy-request.dto';
 import { CreateTaxonomyDto } from './dto/create-taxonomy.dto';
+import { SearchNeighborhoodDto } from './dto/search-neighborhood.dto';
 import { SearchTaxonomyNodeDto } from './dto/search-taxonomy-node.dto';
 import { UpdateTaxonomyDto } from './dto/update-taxonomy.dto';
 import { TaxonomyService } from './taxonomy.service';
@@ -30,7 +31,10 @@ export class CitiesController {
 
   @Public()
   @Get()
-  @ApiOperation({ summary: 'فهرست شهرهای فعال' })
+  @ApiOperation({
+    summary:
+      'فهرست شهرهای فعال؛ شهرهای اصلی (تنکابن، خرم‌آباد، شیرود، رامسر) همیشه اول و به همین ترتیب می‌آیند',
+  })
   list() {
     return this.taxonomy.list('city', true);
   }
@@ -62,6 +66,16 @@ export class BusinessTaxonomyController {
   })
   search(@Query() query: SearchTaxonomyNodeDto) {
     return this.taxonomy.searchNodes(query);
+  }
+
+  @Public()
+  @Get('neighborhoods')
+  @ApiOperation({
+    summary:
+      'پیشنهادهای «محله» برای کادر جست‌وجوی محله؛ مقدار آزاد است و کاربر می‌تواند عبارت تازه هم وارد کند',
+  })
+  neighborhoods(@Query() query: SearchNeighborhoodDto) {
+    return this.taxonomy.searchNeighborhoods(query);
   }
 
   @Post('requests')
