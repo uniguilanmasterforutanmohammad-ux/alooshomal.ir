@@ -297,53 +297,91 @@ def ensure_cities(names: set[str], rng: random.Random) -> dict[str, str]:
     return mapping
 
 
+# The site keeps only these four cities; every other scraped «شهر/منطقه» is a
+# region/neighbourhood *inside* one of them (کتالم، سخت‌سر، میر شمس‌الدین،
+# گلیجان، خرم‌آبادِ تنکابن، …) and is folded into the matching city below.
+CANONICAL_CITIES = ("تنکابن", "خرم\u200cآباد", "شیرود", "رامسر")
+
+
+def canonical_city(name: str) -> str:
+    """«خرم آباد» (plain space) → «خرم‌آباد» (ZWNJ); trim everything else."""
+    return (name or "").strip().replace("خرم آباد", "خرم\u200cآباد")
+
+
 def split_merged_city(name: str) -> list[str]:
     """«تنکابن، شیرود» → ['تنکابن', 'شیرود'] (Persian and latin commas)."""
     return [part.strip() for part in name.replace("،", ",").split(",") if part.strip()]
 
 
 def resolve_city_name(business: dict) -> str:
-    """The real city a business belongs to.
+    """The canonical city a business belongs to.
 
-    The site keeps only real cities: the scraped «شهر/منطقه» column
-    (``city_name``) names one when it holds a single place, otherwise the search
-    city (``listed_city``) is used. Behtarino merged تنکابن and شیرود into one
-    bucket («تنکابن، شیرود») for the rows whose «شهر/منطقه» was empty; the
-    address then decides which of the two the business is in, so the merged
-    bucket disappears instead of staying as a city of its own.
+    The scraped «شهر (جست‌وجو)» column (``listed_city``) names one of the four
+    cities — or the merged «تنکابن، شیرود» bucket Behtarino used for rows whose
+    «شهر/منطقه» was empty. Merged rows are split by the «شهر/منطقه» column and
+    then by the address, so the merged bucket disappears instead of staying as a
+    city of its own. Any other spelling falls back to the record's region.
     """
-    city = (business.get("city_name") or "").strip()
-    listed = (business.get("listed_city") or "").strip()
-    source = city or listed
-    # «خرم آباد» and «خرم‌آباد» are the same place; keep the ZWNJ spelling.
-    source = source.replace("خرم آباد", "خرم\u200cآباد")
-    parts = split_merged_city(source)
-    if len(parts) <= 1:
-        return source
-    address = (business.get("address") or "").strip()
-    for part in parts:
-        if part and part in address:
-            return part
-    return parts[0]
+    listed = canonical_city(business.get("listed_city"))
+    parts = split_merged_city(listed)
+    if len(parts) == 1:
+        if parts[0] in CANONICAL_CITIES:
+            return parts[0]
+    else:
+        region = canonical_city(business.get("city_name"))
+        for part in split_merged_city(region):
+            if part in ("تنکابن", "شیرود"):
+                return part
+        address = (business.get("address") or "").strip()
+        for part in parts:
+            if part in CANONICAL_CITIES and part in address:
+                return part
+        return parts[0]
+    region = canonical_city(business.get("city_name"))
+    return region if region in CANONICAL_CITIES else "تنکابن"
 
 
-# Spellings that are folded into a canonical city (`resolve_city_name`) and
-# must not linger as an empty duplicate in the public city list.
-LEGACY_CITY_ALIASES = ("خرم آباد",)
+def region_as_neighborhood(business: dict) -> str:
+    """A non-canonical «شهر/منطقه» worth keeping as a neighbourhood tag.
+
+    Regions like «کتالم وسادات شهر» or «خرم» (the تنکابن district) are real
+    places, so when a row has no «محله» of its own we keep the region name as
+    the neighbourhood instead of losing it.
+    """
+    region = canonical_city(business.get("city_name"))
+    if not region or region in CANONICAL_CITIES:
+        return ""
+    if any(part in CANONICAL_CITIES for part in split_merged_city(region)):
+        return ""
+    return region
 
 
-def drop_orphan_merged_cities() -> None:
-    """Remove card-less city rows left behind by a merged bucket or alias."""
-    aliases = ", ".join(sql_quote(name) for name in LEGACY_CITY_ALIASES) or "''"
-    gone = psql(
-        'DELETE FROM "cities" WHERE '
-        "(position(',' in name) > 0 OR position('،' in name) > 0 "
-        f"OR name IN ({aliases})) "
-        'AND NOT EXISTS (SELECT 1 FROM "business_cards" bc '
-        'WHERE bc."cityId" = "cities".id) RETURNING id'
+def prune_noncanonical_cities() -> None:
+    """Keep the city list to four: drop/deactivate every other city row.
+
+    Rows that still reference a non-canonical city are moved to their canonical
+    target first (defensive — the import itself never creates them), then any
+    city with no remaining reference of its own is deleted; cities still used by
+    biolinks (e.g. load-test data) are deactivated instead so those links stay
+    intact but the city leaves the public list.
+    """
+    kept = ", ".join(sql_quote(name) for name in CANONICAL_CITIES)
+    removed = psql(
+        f'DELETE FROM "cities" WHERE name NOT IN ({kept}) '
+        'AND NOT EXISTS (SELECT 1 FROM "biolinks" b WHERE b."cityId" = "cities".id) '
+        'RETURNING id'
     )
-    if gone:
-        print(f"removed {len(gone.splitlines())} merged city buckets")
+    deactivated = psql(
+        f'UPDATE "cities" SET "isActive" = false, "updatedAt" = {sql_quote(now_stamp())} '
+        f'WHERE name NOT IN ({kept}) RETURNING id'
+    )
+    psql(
+        f'UPDATE "cities" SET "isActive" = true WHERE name IN ({kept})'
+    )
+    print(
+        f"pruned cities: removed {len(removed.splitlines())}, "
+        f"deactivated {len(deactivated.splitlines())}"
+    )
 
 
 def parse_working_hours(raw: str) -> dict[str, dict[str, str]] | None:
@@ -433,6 +471,9 @@ def build_card_rows(
             slug = f"{base}-{suffix}"
             suffix += 1
         used.add(slug)
+        neighborhood = (business.get("neighborhood") or "").strip() or (
+            region_as_neighborhood(business)
+        )
         rows.append([
             cuid(rng),
             user_id,
@@ -461,7 +502,7 @@ def build_card_rows(
             "true",
             stamp,
             stamp,
-            (business.get("neighborhood") or "").strip(),
+            neighborhood,
         ])
     return rows
 
@@ -513,7 +554,7 @@ def import_businesses(source_dir: str, rng: random.Random, limit: int | None) ->
     # `\copy … FROM STDIN` reads its data from psql's standard input, so the
     # command and the CSV payload travel together on the same stream.
     psql(copy_sql + "\n" + buffer.getvalue() + "\\.\n")
-    drop_orphan_merged_cities()
+    prune_noncanonical_cities()
     print(f"imported {len(rows)} business cards "
           f"(skipped {len(businesses) - len(rows)})")
 

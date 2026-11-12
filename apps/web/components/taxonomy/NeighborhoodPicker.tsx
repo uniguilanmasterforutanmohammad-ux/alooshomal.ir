@@ -58,6 +58,17 @@ export function NeighborhoodPicker({
     };
   }, []);
 
+  // The suggestions belong to one city, so changing the city must drop the
+  // previous list and — when the box is open — reload it for the new city.
+  useEffect(() => {
+    setResults([]);
+    setHighlight(0);
+    if (open) runSearch(query);
+    // `runSearch`/`query` are intentionally read at call time; re-running on
+    // every keystroke would be wasteful, so only the city drives this effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cityId]);
+
   function runSearch(raw: string) {
     if (timerRef.current) clearTimeout(timerRef.current);
     const text = raw.trim();
