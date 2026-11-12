@@ -167,6 +167,7 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 
 | متد | مسیر | توضیح |
 | --- | --- | --- |
+| `POST` | `/admin/import-batches` | ایمپورت دسته‌ی جدید از فایل (`multipart/form-data`: `file` + `ownerUserId` اجباری، `label`/`source`/`note` اختیاری). `file` می‌تواند JSON به‌ترینو (آرایه‌ی خام کسب‌وکارها)، CSV یا Excel باشد (حداکثر ۳۲ مگابایت). کارت‌ها `isUnclaimed=true`، `isPublished=false` و `APPROVED` ثبت می‌شوند و به دسته‌ی تازه وصل می‌شوند؛ خروجی `batchId`، `label`، `imported`، `skipped` و `errors` است. |
 | `GET` | `/admin/import-batches` | فهرست جعبه‌های ایمپورت با `label`، `source`، `createdAt` (تاریخ/ساعت)، `total`، `remaining` (تصاحب‌نشده) و `claimed`؛ به‌همراه `totals`. |
 | `DELETE` | `/admin/import-batches/:id` | بازگردانی یک دسته؛ فقط کارت‌های `isUnclaimed=true` همان دسته حذف می‌شوند و کارت‌های تصاحب‌شده دست‌نخورده می‌مانند. |
 | `DELETE` | `/admin/import-batches` | بازگردانی همه‌ی ایمپورت‌ها؛ همه‌ی کارت‌های تصاحب‌نشده حذف و همه‌ی دسته‌ها «بازگردانی‌شده» علامت می‌خورند. |

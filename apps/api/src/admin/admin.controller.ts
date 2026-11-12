@@ -55,6 +55,7 @@ import {
 } from './dto/manage-user.dto';
 import { ModerateBiolinkDto } from './dto/moderate-biolink.dto';
 import { ModerateBusinessCardDto } from './dto/moderate-business-card.dto';
+import { ImportBusinessBatchDto } from './dto/import-business-batch.dto';
 import {
   CreateModeratorDto,
   UpdateModeratorDto,
@@ -371,6 +372,28 @@ export class AdminController {
   @ApiOperation({ summary: 'حذف گروهی داده‌های تستی ایمپورت‌شده' })
   bulkDelete(@Query('kind') kind?: BulkKind | 'ALL') {
     return this.bulkService.deleteTestData(kind ?? 'ALL');
+  }
+
+  @Post('import-batches')
+  // The scraped Behtarino JSON is ~14 MB; allow it while still capping the
+  // in-memory parse so a runaway upload cannot exhaust memory.
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 32 * 1024 * 1024 } }))
+  @ApiOperation({
+    summary:
+      'ایمپورت کسب‌وکارها از فایل (JSON به‌ترینو، CSV یا Excel) در یک دسته‌ی جدید — منتشرنشده تا تصاحب صاحب',
+  })
+  importBusinessBatch(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() dto: ImportBusinessBatchDto,
+  ) {
+    if (!file?.buffer) {
+      throw new BadRequestException('فایلی آپلود نشده است');
+    }
+    return this.bulkService.importBusinessBatch(dto.ownerUserId, file.buffer, {
+      label: dto.label,
+      source: dto.source,
+      note: dto.note,
+    });
   }
 
   @Get('import-batches')

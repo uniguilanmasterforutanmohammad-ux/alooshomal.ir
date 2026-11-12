@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { BiolinkStatus } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
 
 import { ActivityService } from '../activity/activity.service';
@@ -15,6 +16,14 @@ export type BulkKind = 'BIOLINK' | 'BUSINESS_CARD';
 
 export interface BulkImportResult {
   kind: BulkKind;
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface BusinessBatchImportResult {
+  batchId: string;
+  label: string;
   imported: number;
   skipped: number;
   errors: string[];
@@ -50,10 +59,162 @@ const COLUMN_ALIASES: Record<string, string> = {
   'درباره من': 'bio',
 };
 
+/**
+ * Extra headers accepted by the business-card importer on top of the generic
+ * aliases. It also understands the raw Behtarino JSON keys (`category`,
+ * `listed_city`, `city_name`, `main_tag`, `neighborhood`, …), so the scraped
+ * file can be uploaded as-is from the admin panel.
+ */
+const BUSINESS_COLUMN_ALIASES: Record<string, string> = {
+  ...COLUMN_ALIASES,
+  'نام کسب و کار': 'fullName',
+  'نام کسب‌وکار': 'fullName',
+  'عنوان': 'jobTitle',
+  main_tag: 'jobTitle',
+  guild: 'jobTitle',
+  'تلفن همراه': 'mobile',
+  'موبایل': 'mobile',
+  mobile: 'mobile',
+  'دسته': 'business',
+  'دسته‌بندی': 'business',
+  'دسته بندی': 'business',
+  'کسب‌وکار': 'business',
+  category: 'business',
+  'زیردسته': 'subCategory',
+  subcategory: 'subCategory',
+  'زیرشاخه': 'subSubCategory',
+  sub_sub_category: 'subSubCategory',
+  'محله': 'neighborhood',
+  'منطقه': 'neighborhood',
+  neighborhood: 'neighborhood',
+  'ساعات کاری': 'workingHours',
+  working_hours: 'workingHours',
+  workinghours: 'workingHours',
+  'برچسب‌ها': 'tags',
+  tags: 'tags',
+  slug: 'slug',
+  listed_city: 'city',
+  city_name: 'cityAlt',
+  'توضیحات': 'bio',
+  description: 'bio',
+  instagram: 'instagram',
+  telegram: 'telegram',
+  whatsapp: 'whatsapp',
+  linkedin: 'linkedin',
+};
+
 const MAX_ROWS = 5000;
+const MAX_BUSINESS_ROWS = 20000;
+
+/** A public URL segment: keeps Unicode letters/digits, collapses the rest. */
+function slugifyValue(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
+}
 
 function normalizeHeader(value: string): string {
   return value.trim().toLowerCase();
+}
+
+/** Persian/Arabic digits → ASCII, so `۰۹۱۲…` and `0912…` behave the same. */
+function latinDigits(value: string): string {
+  return value
+    .replace(/[\u06f0-\u06f9]/g, (digit) =>
+      String(digit.charCodeAt(0) - 0x06f0),
+    )
+    .replace(/[\u0660-\u0669]/g, (digit) =>
+      String(digit.charCodeAt(0) - 0x0660),
+    );
+}
+
+/** Same split the Behtarino importer uses: `09…` and 11 digits is a mobile. */
+function splitPhone(value?: string): { phone: string | null; mobile: string | null } {
+  const digits = latinDigits(value ?? '').replace(/[^\d+]/g, '');
+  if (!digits) return { phone: null, mobile: null };
+  if (digits.startsWith('09') && digits.length === 11) {
+    return { phone: null, mobile: digits };
+  }
+  return { phone: digits, mobile: null };
+}
+
+const WEEKDAYS: Record<string, string> = {
+  'شنبه': 'saturday',
+  'یکشنبه': 'sunday',
+  'دوشنبه': 'monday',
+  'سه‌شنبه': 'tuesday',
+  'چهارشنبه': 'wednesday',
+  'پنجشنبه': 'thursday',
+  'جمعه': 'friday',
+};
+
+/** `شنبه: 07:30-18:00 | …` → the per-weekday JSON shape used by the site. */
+function parseWorkingHours(
+  raw?: string,
+): Record<string, { closed: true } | { open: string; close: string }> | null {
+  const text = (raw ?? '').trim();
+  if (!text) return null;
+  const result: Record<string, { closed: true } | { open: string; close: string }> = {};
+  for (const part of text.split('|')) {
+    if (!part.includes(':')) continue;
+    const index = part.indexOf(':');
+    const label = part
+      .slice(0, index)
+      .replace(/[\u200c\s]/g, '')
+      .trim();
+    const value = part.slice(index + 1).trim();
+    const day = WEEKDAYS[label];
+    if (!day) continue;
+    if (value.includes('تعطیل') || !value.includes('-')) {
+      result[day] = { closed: true };
+      continue;
+    }
+    const [openRaw, closeRaw] = value.split('-');
+    result[day] = {
+      open: openRaw.trim().slice(0, 5),
+      close: closeRaw.trim().slice(0, 5),
+    };
+  }
+  return Object.keys(result).length ? result : null;
+}
+
+function socialUrl(network: 'instagram' | 'telegram', value?: string): string | null {
+  const text = (value ?? '').trim();
+  if (!text) return null;
+  if (/^https?:\/\//i.test(text)) return text;
+  const handle = text.replace(/^[@/]+/, '');
+  if (!handle) return null;
+  return network === 'instagram'
+    ? `https://instagram.com/${handle}`
+    : `https://t.me/${handle}`;
+}
+
+function whatsappUrl(value?: string): string | null {
+  const digits = latinDigits(value ?? '').replace(/\D/g, '');
+  return digits ? `https://wa.me/${digits}` : null;
+}
+
+function splitMergedCity(name?: string): string[] {
+  return (name ?? '')
+    .replace(/،/g, ',')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+}
+
+/** Prefer the canonical «شهر» column; merged buckets («تنکابن، شیرود») fall
+ *  back to the region column so a row is never assigned to a fake city. */
+function pickCity(listed?: string, region?: string): string {
+  const listedParts = splitMergedCity(listed);
+  const regionParts = splitMergedCity(region);
+  if (listedParts.length === 1) return listedParts[0];
+  for (const part of regionParts) {
+    if (listedParts.includes(part)) return part;
+  }
+  return listedParts[0] ?? regionParts[0] ?? '';
 }
 
 function randomSuffix(): string {
@@ -79,7 +240,11 @@ export class BulkService {
   ) {}
 
   /** Parse an .xlsx/.csv buffer into rows keyed by canonical field names. */
-  private async parseWorkbook(buffer: Buffer): Promise<Record<string, string>[]> {
+  private async parseWorkbook(
+    buffer: Buffer,
+    aliases: Record<string, string> = COLUMN_ALIASES,
+    maxRows = MAX_ROWS,
+  ): Promise<Record<string, string>[]> {
     const workbook = new ExcelJS.Workbook();
     const isCsv = buffer.slice(0, 4).toString('utf8').toLowerCase().includes('name')
       || buffer.toString('utf8', 0, 200).includes(',');
@@ -103,7 +268,7 @@ export class BulkService {
     const headerMap = new Map<number, string>();
     headerRow.eachCell((cell, colNumber) => {
       const raw = String(cell.value ?? '').trim();
-      const canonical = COLUMN_ALIASES[normalizeHeader(raw)];
+      const canonical = aliases[normalizeHeader(raw)];
       if (canonical) headerMap.set(colNumber, canonical);
     });
 
@@ -116,7 +281,7 @@ export class BulkService {
     const rows: Record<string, string>[] = [];
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return;
-      if (rows.length >= MAX_ROWS) return;
+      if (rows.length >= maxRows) return;
       const record: Record<string, string> = {};
       headerMap.forEach((field, colNumber) => {
         const value = row.getCell(colNumber).value;
@@ -267,6 +432,286 @@ export class BulkService {
     this.facetsCache.invalidateDirectory('biolink');
     this.facetsCache.invalidateDirectory('businesscard');
     return { deleted };
+  }
+
+  /** Map one raw Behtarino record to the canonical row shape. */
+  private mapJsonBusiness(record: Record<string, unknown>): Record<string, string> {
+    const values = new Map<string, unknown>();
+    for (const [key, value] of Object.entries(record)) {
+      values.set(key.trim().toLowerCase(), value);
+    }
+    const text = (key: string): string => {
+      const value = values.get(key);
+      if (value === null || value === undefined) return '';
+      return String(value).trim();
+    };
+    const rawTags = values.get('tags');
+    const tags = Array.isArray(rawTags)
+      ? rawTags.map((tag) => String(tag).trim()).filter(Boolean)
+      : text('tags')
+          .split(/[,،]/)
+          .map((tag) => tag.trim())
+          .filter(Boolean);
+    const subCategory = text('subcategory');
+    const bio = text('description') || tags.join('، ');
+
+    return {
+      fullName: text('name'),
+      jobTitle: text('main_tag') || subCategory || text('guild'),
+      company: text('company'),
+      business: text('category'),
+      subCategory,
+      subSubCategory: text('sub_sub_category'),
+      neighborhood: text('neighborhood'),
+      city: text('listed_city'),
+      cityAlt: text('city_name'),
+      phone: text('phone'),
+      mobile: text('mobile'),
+      email: text('email'),
+      website: text('website'),
+      address: text('address'),
+      bio,
+      tags: tags.join('، '),
+      slug: text('slug'),
+      instagram: text('instagram'),
+      telegram: text('telegram'),
+      whatsapp: text('whatsapp'),
+      linkedin: text('linkedin'),
+      workingHours: text('working_hours') || text('workinghours'),
+    };
+  }
+
+  /**
+   * Parse a Behtarino JSON array (as-is) or an Excel/CSV sheet into rows.
+   * JSON is detected by the first non-space character, so a renamed `.json`
+   * upload still works even if the browser reports a different MIME type.
+   */
+  private async parseBusinessRows(buffer: Buffer): Promise<Record<string, string>[]> {
+    const head = buffer.toString('utf8', 0, 64).trimStart();
+    const looksLikeJson = head.startsWith('[') || head.startsWith('{');
+    if (!looksLikeJson) {
+      return this.parseWorkbook(buffer, BUSINESS_COLUMN_ALIASES, MAX_BUSINESS_ROWS);
+    }
+
+    let payload: unknown;
+    try {
+      payload = JSON.parse(buffer.toString('utf8'));
+    } catch {
+      throw new BadRequestException('فایل JSON معتبر نیست');
+    }
+    let list: unknown[] = [];
+    if (Array.isArray(payload)) {
+      list = payload;
+    } else if (payload && typeof payload === 'object') {
+      const container = payload as Record<string, unknown>;
+      for (const key of ['businesses', 'items', 'data', 'cards']) {
+        if (Array.isArray(container[key])) {
+          list = container[key] as unknown[];
+          break;
+        }
+      }
+    }
+    if (!list.length) {
+      throw new BadRequestException(
+        'فایل JSON باید آرایه‌ای از کسب‌وکارها باشد (مثل فایل به‌ترینو)',
+      );
+    }
+    if (list.length > MAX_BUSINESS_ROWS) {
+      throw new BadRequestException(
+        `تعداد ردیف‌های فایل (${list.length}) بیش از حد مجاز (${MAX_BUSINESS_ROWS}) است`,
+      );
+    }
+    return list
+      .filter((item): item is Record<string, unknown> =>
+        Boolean(item) && typeof item === 'object',
+      )
+      .map((item) => this.mapJsonBusiness(item));
+  }
+
+  /**
+   * Import business cards from an admin upload into their own batch.
+   *
+   * Every card is created APPROVED but *unpublished* and `isUnclaimed`, so the
+   * public directory skips it while its direct link keeps working; the owner
+   * can claim it from that page, after which it behaves like a normal card and
+   * is excluded from batch rollback. City/business names are matched
+   * case-insensitively and created on demand.
+   */
+  async importBusinessBatch(
+    ownerUserId: string,
+    buffer: Buffer,
+    options: { label?: string; source?: string; note?: string } = {},
+  ): Promise<BusinessBatchImportResult> {
+    const owner = await this.prisma.user.findUnique({ where: { id: ownerUserId } });
+    if (!owner) {
+      throw new NotFoundException('کاربر مالک انتخاب‌شده پیدا نشد');
+    }
+
+    const rows = await this.parseBusinessRows(buffer);
+    if (rows.length === 0) {
+      throw new BadRequestException('فایل هیچ ردیف معتبری ندارد');
+    }
+
+    const [cities, businesses, existingCards] = await Promise.all([
+      this.prisma.city.findMany(),
+      this.prisma.businessCategory.findMany(),
+      this.prisma.businessCard.findMany({ select: { slug: true } }),
+    ]);
+    const cityByName = new Map(
+      cities.map((city) => [city.name.trim().toLowerCase(), city.id]),
+    );
+    const businessByName = new Map(
+      businesses.map((business) => [business.name.trim().toLowerCase(), business.id]),
+    );
+    const usedSlugs = new Set(existingCards.map((card) => card.slug));
+
+    const resolveCity = async (name?: string): Promise<string | null> => {
+      const key = (name ?? '').trim();
+      if (!key) return null;
+      const lookup = key.toLowerCase();
+      const existing = cityByName.get(lookup);
+      if (existing) return existing;
+      const created = await this.prisma.city.create({ data: { name: key } });
+      cityByName.set(lookup, created.id);
+      return created.id;
+    };
+    const resolveBusiness = async (name?: string): Promise<string | null> => {
+      const key = (name ?? '').trim();
+      if (!key) return null;
+      const lookup = key.toLowerCase();
+      const existing = businessByName.get(lookup);
+      if (existing) return existing;
+      const created = await this.prisma.businessCategory.create({ data: { name: key } });
+      businessByName.set(lookup, created.id);
+      return created.id;
+    };
+    const uniqueSlug = (raw?: string): string => {
+      const base = slugifyValue(raw ?? '') || `bc-${randomSuffix()}`;
+      let candidate = base;
+      let suffix = 2;
+      while (usedSlugs.has(candidate)) {
+        candidate = `${base}-${suffix}`;
+        suffix += 1;
+      }
+      usedSlugs.add(candidate);
+      return candidate;
+    };
+
+    const now = new Date();
+    const label =
+      (options.label ?? '').trim() ||
+      `ایمپورت دستی — ${now.toISOString().slice(0, 16).replace('T', ' ')}`;
+    const note = (options.note ?? '').trim();
+    const batch = await this.prisma.businessCardImportBatch.create({
+      data: {
+        label,
+        source: (options.source ?? '').trim() || 'admin-upload',
+        note: note || null,
+      },
+    });
+
+    const result: BusinessBatchImportResult = {
+      batchId: batch.id,
+      label: batch.label,
+      imported: 0,
+      skipped: 0,
+      errors: [],
+    };
+    const pending: Prisma.BusinessCardCreateManyInput[] = [];
+    const fail = (name: string, message: string) => {
+      result.skipped += 1;
+      if (result.errors.length < 5) {
+        result.errors.push(`ردیف «${name}»: ${message}`);
+      }
+    };
+
+    for (const row of rows) {
+      const name = (row.fullName ?? '').trim();
+      if (!name) {
+        fail('بدون نام', 'نام کسب‌وکار خالی است');
+        continue;
+      }
+      try {
+        const cityName = pickCity(row.city, row.cityAlt) || (row.cityAlt ?? '').trim();
+        const cityId = await resolveCity(cityName);
+        if (!cityId) {
+          fail(name, 'شهر مشخص نشده است');
+          continue;
+        }
+        const businessId = await resolveBusiness(row.business);
+        if (!businessId) {
+          fail(name, 'دسته‌ی کسب‌وکار مشخص نشده است');
+          continue;
+        }
+
+        let phone = latinDigits(row.phone ?? '').replace(/[^\d+]/g, '') || null;
+        let mobile = latinDigits(row.mobile ?? '').replace(/[^\d+]/g, '') || null;
+        if (!mobile && phone) {
+          const split = splitPhone(phone);
+          phone = split.phone;
+          mobile = split.mobile;
+        }
+
+        const subCategory = (row.subCategory ?? '').trim() || null;
+        const tags = (row.tags ?? '').trim();
+        const workingHours = parseWorkingHours(row.workingHours);
+
+        pending.push({
+          userId: ownerUserId,
+          slug: uniqueSlug(row.slug || name),
+          cityId,
+          businessId,
+          subCategory,
+          subSubCategory: (row.subSubCategory ?? '').trim() || null,
+          neighborhood: (row.neighborhood ?? '').trim() || null,
+          fullName: name,
+          jobTitle: (row.jobTitle ?? '').trim() || subCategory,
+          company: (row.company ?? '').trim() || null,
+          bio: (row.bio ?? '').trim() || tags || null,
+          phone,
+          mobile,
+          email: (row.email ?? '').trim() || null,
+          website: (row.website ?? '').trim() || null,
+          address: (row.address ?? '').trim() || null,
+          instagram: socialUrl('instagram', row.instagram),
+          telegram: socialUrl('telegram', row.telegram),
+          whatsapp: whatsappUrl(row.whatsapp),
+          linkedin: (row.linkedin ?? '').trim() || null,
+          workingHours: workingHours ?? undefined,
+          status: BiolinkStatus.APPROVED,
+          isPublished: false,
+          isUnclaimed: true,
+          approvedAt: now,
+          publishedAt: null,
+          pinnedAt: now,
+          importBatchId: batch.id,
+        });
+      } catch (error) {
+        fail(name, error instanceof Error ? error.message : 'خطای نامشخص');
+      }
+    }
+
+    if (pending.length === 0) {
+      await this.prisma.businessCardImportBatch.delete({ where: { id: batch.id } });
+      throw new BadRequestException(
+        `هیچ کارتی ایمپورت نشد${result.errors.length ? `: ${result.errors.join(' | ')}` : ''}`,
+      );
+    }
+
+    for (let index = 0; index < pending.length; index += 500) {
+      const chunk = pending.slice(index, index + 500);
+      await this.prisma.businessCard.createMany({ data: chunk });
+      result.imported += chunk.length;
+    }
+
+    await this.activity.log({
+      action: 'IMPORT_BATCH_CREATED',
+      summary: `ایمپورت دسته‌ی کسب‌وکار «${batch.label}»: ${result.imported} کارت (${result.skipped} ردیف رد شد)`,
+      entityType: 'BUSINESS_CARD',
+      entityId: batch.id,
+    });
+    this.facetsCache.invalidateDirectory('businesscard');
+    return result;
   }
 
   /**

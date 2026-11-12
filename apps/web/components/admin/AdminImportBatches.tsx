@@ -1,7 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { CalendarClock, Download, Loader2, RotateCcw, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  CalendarClock,
+  Download,
+  Loader2,
+  RotateCcw,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 
 import { api } from '@/lib/api';
 import { fa, formatJalali } from '@/lib/jalali';
@@ -29,6 +36,20 @@ interface ImportBatchesResponse {
   };
 }
 
+interface ImportBatchResult {
+  batchId: string;
+  label: string;
+  imported: number;
+  skipped: number;
+  errors: string[];
+}
+
+interface UserOption {
+  id: string;
+  email: string;
+  fullName: string | null;
+}
+
 function timeOf(iso: string): string {
   return new Date(iso).toLocaleTimeString('fa-IR', {
     hour: '2-digit',
@@ -44,14 +65,30 @@ function timeOf(iso: string): string {
  */
 export function AdminImportBatches() {
   const [data, setData] = useState<ImportBatchesResponse | null>(null);
+  const [users, setUsers] = useState<UserOption[]>([]);
+  const [ownerId, setOwnerId] = useState('');
+  const [label, setLabel] = useState('');
+  const [importing, setImporting] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     try {
-      const result = await api.get<ImportBatchesResponse>('/admin/import-batches');
-      setData(result);
+      const [batches, userList] = await Promise.all([
+        api.get<ImportBatchesResponse>('/admin/import-batches'),
+        api.get<{ items: UserOption[] }>('/admin/users?limit=100'),
+      ]);
+      setData(batches);
+      setUsers(userList.items);
+      setOwnerId(
+        (prev) =>
+          prev ||
+          userList.items.find((user) => user.email === 'imported@alooshomal.local')?.id ||
+          userList.items[0]?.id ||
+          '',
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری دسته‌های ایمپورت');
     }
@@ -60,6 +97,43 @@ export function AdminImportBatches() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function upload() {
+    const file = fileRef.current?.files?.[0];
+    if (!file) {
+      setError('ابتدا فایل JSON، CSV یا Excel را انتخاب کنید');
+      return;
+    }
+    if (!ownerId) {
+      setError('کاربر مالک کارت‌های ایمپورت‌شده را انتخاب کنید');
+      return;
+    }
+    setImporting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('ownerUserId', ownerId);
+      if (label.trim()) form.append('label', label.trim());
+      const result = await api.upload<ImportBatchResult>(
+        '/admin/import-batches',
+        form,
+      );
+      setMessage(
+        `ایمپورت انجام شد: ${fa(result.imported)} کارت در دسته‌ی «${result.label}» ثبت شد؛ ` +
+          'تا تصاحب صاحبشان منتشر نمی‌شوند اما لینک مستقیم دارند.',
+      );
+      if (result.errors.length) setError(result.errors.join(' | '));
+      setLabel('');
+      if (fileRef.current) fileRef.current.value = '';
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ایمپورت ناموفق بود');
+    } finally {
+      setImporting(false);
+    }
+  }
 
   async function rollbackOne(batch: ImportBatch) {
     if (
@@ -128,6 +202,66 @@ export function AdminImportBatches() {
 
   return (
     <div className="indeed-panel p-5">
+      <div className="mb-5 rounded-xl border border-dashed border-[var(--vintage-border)] bg-soft/40 p-4">
+        <h3 className="flex items-center gap-2 text-sm font-extrabold text-ink">
+          <Upload className="size-5 text-brand" aria-hidden />
+          ایمپورت دسته‌ی جدید کسب‌وکار
+        </h3>
+        <p className="mt-1 text-xs text-muted">
+          فایل JSON به‌ترینو (آرایه‌ای از کسب‌وکارها) یا CSV/Excel با ستون‌های «نام،
+          شهر، کسب و کار، تلفن، تلفن همراه، محله، آدرس، توضیحات». هر ایمپورت یک دسته‌ی
+          جدا با تاریخ و ساعت می‌سازد؛ کارت‌ها منتشرنشده و «تصاحب‌نشده» ثبت می‌شوند تا
+          لینکشان برای ارسال به صاحب کسب‌وکار آماده باشد.
+        </p>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
+          <label className="flex flex-col gap-1 text-xs font-bold text-muted">
+            برچسب دسته (اختیاری)
+            <input
+              value={label}
+              onChange={(event) => setLabel(event.target.value)}
+              placeholder="ایمپورت دستی — تاریخ"
+              className="min-w-52 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm font-semibold text-ink outline-none"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-bold text-muted">
+            کاربر مالک
+            <select
+              value={ownerId}
+              onChange={(event) => setOwnerId(event.target.value)}
+              className="min-w-52 rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm font-semibold text-ink outline-none"
+            >
+              {users.map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.fullName ?? user.email}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-bold text-muted">
+            فایل
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".json,.csv,.xlsx,.xls"
+              className="rounded-lg border border-[var(--vintage-border)] bg-white px-3 py-1.5 text-xs text-ink file:me-2 file:rounded-md file:border-0 file:bg-soft file:px-2 file:py-1 file:text-xs file:font-bold"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => void upload()}
+            disabled={importing}
+            className="indeed-btn indeed-btn-primary py-2 text-sm disabled:opacity-60"
+          >
+            {importing ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Upload className="size-4" aria-hidden />
+            )}
+            ایمپورت
+          </button>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h3 className="flex items-center gap-2 text-sm font-extrabold text-ink">

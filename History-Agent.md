@@ -20,7 +20,55 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.45.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.46.0**.
+
+## ۱۴۰۵/۰۸/۲۱ — ایمپورت دستی کسب‌وکارها از پنل مدیر — نسخه `v3.46.0`
+
+**هدف:** بخش «ایمپورت کسب‌وکارها» در پنل مدیر (`/admin?section=imports`) فقط
+فهرست دسته‌ها را نشان می‌داد و هیچ راهی برای آپلود داده نداشت. حالا همان‌جا
+می‌توان فایل JSON به‌ترینو، CSV یا Excel را آپلود کرد؛ هر آپلود یک دسته‌ی
+مستقل با تاریخ/ساعت می‌سازد و کارت‌ها منتشرنشده و «تصاحب‌نشده» ثبت می‌شوند
+(لینک مستقیم دارند) تا با ارسال لینک، صاحب کسب‌وکار آن را تصاحب و تکمیل کند.
+
+**تغییرات:**
+- `apps/api/src/admin/dto/import-business-batch.dto.ts`: افزودن `ownerUserId`
+  اجباری به همراه `label`/`source`/`note` اختیاری برای مستندسازی Swagger.
+- `apps/api/src/admin/bulk.service.ts`: افزودن `importBusinessBatch`؛ پارس
+  آرایه‌ی خام JSON به‌ترینو (`name`, `category`, `listed_city`, `city_name`,
+  `main_tag`, `neighborhood`, `working_hours`, …) و همچنین CSV/Excel با
+  نام‌ستون‌های فارسی/انگلیسی؛ تطبیق بدون‌حساسیت به حروف شهر/دسته و ساخت
+  به‌موقع، اسلاگ یکتا (پسوند `-2`, `-3`)، تفکیک تلفن همراه/ثابت با ارقام
+  فارسی، پارس ساعات کاری و ساخت URL شبکه‌های اجتماعی. ثبت با
+  `isUnclaimed=true`، `isPublished=false`، `status=APPROVED`،
+  `publishedAt=null` و `importBatchId` دسته‌ی تازه؛ درج دسته‌ای
+  (`createMany`) تا فایل‌های چند هزار ردیفی سریع باشند.
+- `apps/api/src/admin/admin.controller.ts`: مسیر
+  `POST /admin/import-batches` با `FileInterceptor` (سقف ۳۲ مگابایت) و
+  `@ApiOperation`/DTO مستندشده.
+- `apps/web/components/admin/AdminImportBatches.tsx`: پنل «ایمپورت دسته‌ی
+  جدید» بالای فهرست جعبه‌ها؛ ورودی فایل (`.json,.csv,.xlsx,.xls`)، برچسب
+  دسته و انتخاب کاربر مالک از فهرست کاربران (پیش‌فرض حساب
+  `imported@alooshomal.local`). پس از ایمپورت، فهرست دسته‌ها و آمار
+  بازخوانی می‌شود.
+- `docs/API.md`: مستندسازی مسیر جدید و بدنه‌ی `multipart/form-data`.
+- `apps/web/lib/version.ts` و `install.sh` (همگام‌سازی): نسخه `v3.46.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit` → بدون خطا.
+- `npx eslint` روی فایل‌های تغییریافته‌ی API و وب → بدون خطا.
+- `python3 scripts/check_api_docs.py` → ۴۰۱ مسیر، همه با `@ApiOperation` و
+  `@ApiTags` (exit 0).
+- آپلود سه رکورد نمونه‌ی JSON به‌ترینو با `POST /api/admin/import-batches` →
+  `imported: 3`، `skipped: 0`؛ بررسی DB: هر سه کارت `isPublished=false`،
+  `isUnclaimed=true`، `status=APPROVED` و متصل به دسته‌ی تازه؛ تلفن ثابت در
+  `phone` و موبایل در `mobile`؛ اسلاگ‌های تکراری با `-2` یکتا شدند.
+- `GET /api/business-cards/public/<slug>` برای کارت منتشرنشده → ۲۰۰ (لینک
+  مستقیم کار می‌کند) و جست‌وجوی همان نام در دایرکتوری عمومی → هیچ نتیجه‌ای
+  (منتشرنشده در فهرست نمی‌آید).
+- `DELETE /api/admin/import-batches/<id>` → `deleted: 3` و صفرشدن کارت‌های
+  آن دسته؛ سپس ردیف دسته‌ی آزمایشی از DB پاک شد.
+- `python3 scripts/sync_install.py` و سپس `--check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۱ — شبیه‌سازی کد یکبارمصرف ورود مدیران در لوکال — نسخه `v3.45.1`
 
