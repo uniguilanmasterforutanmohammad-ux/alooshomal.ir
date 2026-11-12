@@ -11,9 +11,11 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
+import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { CreateTaxonomyRequestDto } from './dto/create-taxonomy-request.dto';
 import { CreateTaxonomyDto } from './dto/create-taxonomy.dto';
 import { SearchTaxonomyNodeDto } from './dto/search-taxonomy-node.dto';
 import { UpdateTaxonomyDto } from './dto/update-taxonomy.dto';
@@ -56,10 +58,20 @@ export class BusinessTaxonomyController {
   @Get('search')
   @ApiOperation({
     summary:
-      'جستجوی زیردسته/زیرشاخه‌ی کسب‌وکار برای انتخاب‌گرهای جست‌جومحور فرم ساخت بیولینک و کارت ویزیت',
+      'جست‌وجوی «زیرشاخه» و در صورت نبود نتیجه «زیردسته» برای کادر جست‌وجوی فرم ساخت بیولینک/کارت ویزیت/کسب‌وکار',
   })
   search(@Query() query: SearchTaxonomyNodeDto) {
     return this.taxonomy.searchNodes(query);
+  }
+
+  @Post('requests')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'ثبت عبارتی که در کادر زیردسته/زیرشاخه یافت نشد؛ برای مدیران ارسال می‌شود و به کاربر «سایر» نمایش داده می‌شود',
+  })
+  request(@CurrentUser() user: AuthUser, @Body() dto: CreateTaxonomyRequestDto) {
+    return this.taxonomy.requestNode(user, dto);
   }
 }
 

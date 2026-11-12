@@ -148,6 +148,19 @@ export function BiolinkForm({
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
+  /**
+   * Changing the main category invalidates the «زیردسته»/«زیرشاخه» picked in
+   * the old one, so both deeper fields are dropped together.
+   */
+  function setBusinessCategory(businessId: string) {
+    setValues((prev) => ({
+      ...prev,
+      businessId,
+      subCategory: '',
+      subSubCategory: '',
+    }));
+  }
+
   function updateField(key: string, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
@@ -269,7 +282,7 @@ export function BiolinkForm({
                   required
                   className="indeed-input"
                   value={values.businessId}
-                  onChange={(event) => setField('businessId', event.target.value)}
+                  onChange={(event) => setBusinessCategory(event.target.value)}
                 >
                   <option value="">انتخاب کسب‌وکار...</option>
                   {businesses.map((business) => (
@@ -283,8 +296,9 @@ export function BiolinkForm({
                 businessId={values.businessId}
                 subCategory={values.subCategory}
                 subSubCategory={values.subSubCategory}
-                onSubCategoryChange={(name) => setField('subCategory', name)}
-                onSubSubCategoryChange={(name) => setField('subSubCategory', name)}
+                onChange={({ subCategory, subSubCategory }) =>
+                  setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
+                }
               />
               <Input
                 label="تلفن همراه *"
@@ -507,7 +521,7 @@ export function BiolinkForm({
               <select
                 className="indeed-input"
                 value={values.businessId}
-                onChange={(event) => setField('businessId', event.target.value)}
+                onChange={(event) => setBusinessCategory(event.target.value)}
               >
                 <option value="">انتخاب کسب و کار...</option>
                 {businesses.map((business) => (
@@ -521,8 +535,9 @@ export function BiolinkForm({
               businessId={values.businessId}
               subCategory={values.subCategory}
               subSubCategory={values.subSubCategory}
-              onSubCategoryChange={(name) => setField('subCategory', name)}
-              onSubSubCategoryChange={(name) => setField('subSubCategory', name)}
+              onChange={({ subCategory, subSubCategory }) =>
+                setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
+              }
             />
           </div>
           <label className="mt-4 flex flex-col gap-1.5">

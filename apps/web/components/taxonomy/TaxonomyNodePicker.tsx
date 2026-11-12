@@ -5,44 +5,49 @@ import { Search, X } from 'lucide-react';
 
 import { api, type TaxonomyNodeSearchResult } from '@/lib/api';
 
+/** What the user picked in the search box. */
+export type TaxonomyPick =
+  | { kind: 'TAG'; name: string; parentName: string | null }
+  | { kind: 'SUB'; name: string }
+  | { kind: 'OTHER'; name: string }
+  | { kind: 'CLEAR'; name: '' };
+
 interface Props {
   label: string;
-  /** `SUB` = «زیردسته»، `TAG` = «زیرشاخه» */
-  level: 'SUB' | 'TAG';
-  /** main category the node must belong to (`''` = none chosen yet) */
+  /** main category the search is limited to (`''` = none chosen yet) */
   categoryId: string;
-  /** for `TAG`: the chosen «زیردسته» id (preferred anchor) */
-  parentId?: string | null;
-  /** for `TAG`: the chosen «زیردسته» name (used when the id is unknown) */
-  parentName?: string | null;
-  /** selected node name (`''` = nothing selected) */
+  /** currently selected label (`''` = nothing selected) */
   value: string;
-  onChange: (name: string) => void;
-  disabled?: boolean;
+  /** level of the current selection, for the little badge (`null` = unknown) */
+  kind: 'SUB' | 'TAG' | 'OTHER' | null;
+  onChange: (pick: TaxonomyPick) => void;
   placeholder?: string;
   /** message shown while the field is disabled */
   disabledHint?: string;
 }
 
+const KIND_LABEL: Record<'SUB' | 'TAG' | 'OTHER', string> = {
+  SUB: 'زیردسته',
+  TAG: 'زیرشاخه',
+  OTHER: 'سایر',
+};
+
 /**
- * Type-ahead picker for the deeper taxonomy levels. The tree has thousands of
- * entries, so — unlike the main-category select — this is a search box: the
- * user types, the component asks the API for a short filtered list and shows
- * the matches. The main category (and, for tags, the sub-category) narrows the
- * search space, so the user only ever sees a handful of relevant options.
+ * Single search box for the deeper taxonomy levels. The tree has thousands of
+ * entries, so instead of two dropdowns the user types once and the API walks
+ * the levels automatically — «زیرشاخه» first and, only when nothing matches,
+ * «زیردسته». If no level matches at all the typed term is forwarded to the
+ * admin team and the builder shows «سایر».
  *
- * Callers must remount the picker (via `key`) when its anchors change, which
- * resets the query/selection state.
+ * Callers must remount the picker (via `key`) when the main category changes,
+ * which resets the query state.
  */
 export function TaxonomyNodePicker({
   label,
-  level,
   categoryId,
-  parentId,
-  parentName,
   value,
+  kind,
   onChange,
-  disabled,
   placeholder,
   disabledHint,
 }: Props) {
@@ -50,6 +55,8 @@ export function TaxonomyNodePicker({
   const [open, setOpen] = useState(false);
   const [results, setResults] = useState<TaxonomyNodeSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [highlight, setHighlight] = useState(0);
   const boxRef = useRef<HTMLDivElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -57,8 +64,11 @@ export function TaxonomyNodePicker({
   const requestRef = useRef(0);
   const listboxId = useId();
 
-  const isDisabled = disabled || !categoryId;
+  const isDisabled = !categoryId;
   const term = query.trim();
+  // The «سایر» row is offered only once the search came back empty.
+  const showOther = !loading && results.length === 0 && term.length > 0;
+  const rowCount = results.length + (showOther ? 1 : 0);
 
   // Close the suggestion list when clicking anywhere outside the field.
   useEffect(() => {
@@ -77,6 +87,7 @@ export function TaxonomyNodePicker({
   /** Debounced lookup, driven from the input handlers (never on first render). */
   function runSearch(raw: string) {
     if (timerRef.current) clearTimeout(timerRef.current);
+    setSendError(null);
     const text = raw.trim();
     if (!text || isDisabled) {
       setResults([]);
@@ -87,12 +98,12 @@ export function TaxonomyNodePicker({
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
     timerRef.current = setTimeout(() => {
-      const params = new URLSearchParams({ level, q: text, limit: '20' });
+      const params = new URLSearchParams({
+        level: 'ANY',
+        q: text,
+        limit: '20',
+      });
       if (categoryId) params.set('categoryId', categoryId);
-      if (level === 'TAG') {
-        if (parentId) params.set('parentId', parentId);
-        else if (parentName) params.set('parentName', parentName);
-      }
       api
         .get<TaxonomyNodeSearchResult[]>(
           `/business-taxonomy/search?${params.toString()}`,
@@ -117,11 +128,43 @@ export function TaxonomyNodePicker({
     runSearch(next);
   }
 
-  function select(name: string) {
-    onChange(name);
+  function close() {
     setQuery('');
     setResults([]);
     setOpen(false);
+    setSendError(null);
+  }
+
+  function pickResult(node: TaxonomyNodeSearchResult) {
+    onChange(
+      node.level === 'TAG'
+        ? { kind: 'TAG', name: node.name, parentName: node.parentName }
+        : { kind: 'SUB', name: node.name },
+    );
+    close();
+  }
+
+  /** No level matched: hand the term to the admins and show «سایر». */
+  async function pickOther() {
+    const text = term;
+    if (!text || sending) return;
+    setSending(true);
+    setSendError(null);
+    try {
+      await api.post('/business-taxonomy/requests', {
+        q: text,
+        ...(categoryId ? { categoryId } : {}),
+      });
+    } catch {
+      // The API client already surfaced the failure; keep the box open so the
+      // user can retry instead of silently losing the request.
+      setSendError('ارسال درخواست به مدیر ناموفق بود؛ دوباره تلاش کنید.');
+      setSending(false);
+      return;
+    }
+    setSending(false);
+    onChange({ kind: 'OTHER', name: text });
+    close();
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
@@ -129,17 +172,18 @@ export function TaxonomyNodePicker({
       setOpen(false);
       return;
     }
-    if (!open || results.length === 0) return;
+    if (!open || rowCount === 0) return;
     if (event.key === 'ArrowDown') {
       event.preventDefault();
-      setHighlight((index) => (index + 1) % results.length);
+      setHighlight((index) => (index + 1) % rowCount);
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
-      setHighlight((index) => (index - 1 + results.length) % results.length);
+      setHighlight((index) => (index - 1 + rowCount) % rowCount);
     } else if (event.key === 'Enter') {
       event.preventDefault();
-      const picked = results[highlight];
-      if (picked) select(picked.name);
+      const node = results[highlight];
+      if (node) pickResult(node);
+      else if (showOther) void pickOther();
     }
   }
 
@@ -147,15 +191,24 @@ export function TaxonomyNodePicker({
     <div ref={boxRef} className="relative flex flex-col gap-1.5">
       <span className="text-sm font-bold text-ink">
         {label}
-        <span className="ms-1 text-xs font-normal text-muted">(با جستجو)</span>
+        <span className="ms-1 text-xs font-normal text-muted">
+          (ابتدا زیرشاخه، سپس زیردسته)
+        </span>
       </span>
 
       {value ? (
         <div className="flex items-center justify-between gap-2 rounded-md border border-[var(--indeed-border)] bg-white px-3 py-2">
-          <span className="truncate text-sm text-ink">{value}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm text-ink">{value}</span>
+            {kind ? (
+              <span className="shrink-0 rounded-full bg-soft px-2 py-0.5 text-[10px] font-bold text-muted">
+                {KIND_LABEL[kind]}
+              </span>
+            ) : null}
+          </span>
           <button
             type="button"
-            onClick={() => select('')}
+            onClick={() => onChange({ kind: 'CLEAR', name: '' })}
             className="shrink-0 rounded p-0.5 text-muted hover:bg-soft hover:text-ink"
             aria-label={`حذف ${label}`}
           >
@@ -175,7 +228,7 @@ export function TaxonomyNodePicker({
             aria-controls={listboxId}
             aria-autocomplete="list"
             className="indeed-input pe-9 disabled:cursor-not-allowed disabled:opacity-60"
-            placeholder={placeholder ?? 'برای جستجو تایپ کنید...'}
+            placeholder={placeholder ?? 'برای جست‌وجو تایپ کنید...'}
             value={query}
             disabled={isDisabled}
             onChange={(event) => handleQueryChange(event.target.value)}
@@ -192,31 +245,62 @@ export function TaxonomyNodePicker({
           className="absolute inset-x-0 top-full z-30 mt-1 max-h-60 overflow-auto rounded-md border border-[var(--indeed-border)] bg-white py-1 shadow-xl"
         >
           {loading && results.length === 0 ? (
-            <li className="px-3 py-2 text-xs text-muted">در حال جستجو…</li>
-          ) : results.length === 0 ? (
-            <li className="px-3 py-2 text-xs text-muted">نتیجه‌ای یافت نشد</li>
+            <li className="px-3 py-2 text-xs text-muted">در حال جست‌وجو…</li>
           ) : (
-            results.map((node, index) => (
-              <li key={node.id} role="option" aria-selected={index === highlight}>
-                <button
-                  type="button"
-                  onMouseEnter={() => setHighlight(index)}
-                  onClick={() => select(node.name)}
-                  className={`block w-full truncate px-3 py-2 text-start text-sm ${
-                    index === highlight
-                      ? 'bg-brand/10 font-bold text-brand'
-                      : 'text-ink hover:bg-soft'
-                  }`}
+            <>
+              {results.map((node, index) => (
+                <li key={node.id} role="option" aria-selected={index === highlight}>
+                  <button
+                    type="button"
+                    onMouseEnter={() => setHighlight(index)}
+                    onClick={() => pickResult(node)}
+                    className={`flex w-full items-center justify-between gap-2 px-3 py-2 text-start text-sm ${
+                      index === highlight
+                        ? 'bg-brand/10 font-bold text-brand'
+                        : 'text-ink hover:bg-soft'
+                    }`}
+                  >
+                    <span className="truncate">{node.name}</span>
+                    <span className="shrink-0 rounded-full bg-soft px-2 py-0.5 text-[10px] font-bold text-muted">
+                      {KIND_LABEL[node.level]}
+                    </span>
+                  </button>
+                </li>
+              ))}
+              {showOther ? (
+                <li
+                  role="option"
+                  aria-selected={highlight === results.length}
+                  className="border-t border-[var(--indeed-border)]"
                 >
-                  {node.name}
-                </button>
-              </li>
-            ))
+                  <button
+                    type="button"
+                    onMouseEnter={() => setHighlight(results.length)}
+                    onClick={() => void pickOther()}
+                    disabled={sending}
+                    className={`block w-full px-3 py-2 text-start text-sm disabled:opacity-60 ${
+                      highlight === results.length
+                        ? 'bg-brand/10 font-bold text-brand'
+                        : 'text-ink hover:bg-soft'
+                    }`}
+                  >
+                    سایر
+                    <span className="mt-0.5 block text-[11px] font-normal text-muted">
+                      {sending
+                        ? 'در حال ارسال درخواست برای مدیر…'
+                        : 'موردی یافت نشد؛ با انتخاب این گزینه عبارت شما برای مدیر ارسال می‌شود.'}
+                    </span>
+                  </button>
+                </li>
+              ) : null}
+            </>
           )}
         </ul>
       ) : null}
 
-      {!categoryId && disabledHint ? (
+      {sendError ? (
+        <span className="text-xs text-red-600">{sendError}</span>
+      ) : !categoryId && disabledHint ? (
         <span className="text-xs text-muted">{disabledHint}</span>
       ) : null}
     </div>

@@ -11,16 +11,26 @@ import {
 } from 'class-validator';
 
 /**
- * Query for the searchable «زیردسته»/«زیرشاخه» pickers in the biolink and
- * business-card builders. The tree is far too large for a dropdown, so the
- * client asks for a short, filtered page instead of the full list.
+ * Query for the search box that picks the deeper taxonomy levels in the
+ * biolink / business-card / business builders. The tree is far too large for a
+ * dropdown, so the client asks for a short, filtered page instead.
+ *
+ * With the default `ANY`, the search walks the levels from the most specific
+ * one upwards: «زیرشاخه» (`TAG`) first and, only when that yields nothing,
+ * «زیردسته» (`SUB`).
  */
 export class SearchTaxonomyNodeDto {
-  @ApiProperty({ enum: ['SUB', 'TAG'], description: 'سطح مورد جستجو' })
-  @IsIn(['SUB', 'TAG'])
-  level!: 'SUB' | 'TAG';
+  @ApiPropertyOptional({
+    enum: ['SUB', 'TAG', 'ANY'],
+    default: 'ANY',
+    description:
+      'سطح مورد جستجو؛ `ANY` یعنی ابتدا زیرشاخه و در صورت نبود نتیجه، زیردسته',
+  })
+  @IsOptional()
+  @IsIn(['SUB', 'TAG', 'ANY'])
+  level?: 'SUB' | 'TAG' | 'ANY';
 
-  @ApiPropertyOptional({ description: 'شناسه‌ی دسته‌ی اصلی (برای زیردسته)' })
+  @ApiPropertyOptional({ description: 'شناسه‌ی دسته‌ی اصلی (کسب‌وکار)' })
   @IsOptional()
   @IsString()
   @MaxLength(64)

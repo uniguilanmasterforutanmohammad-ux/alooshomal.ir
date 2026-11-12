@@ -67,15 +67,19 @@ export interface TaxonomyItem {
 }
 
 /**
- * One hit of the «زیردسته»/«زیرشاخه» type-ahead search
+ * One hit of the «زیردسته»/«زیرشاخه» search box
  * (`GET /business-taxonomy/search`). Only the deeper levels are searchable —
  * the main categories stay in `business_categories` and drive the filters.
  */
 export interface TaxonomyNodeSearchResult {
   id: string;
   name: string;
+  /** «SUB» = زیردسته، «TAG» = زیرشاخه */
+  level: 'SUB' | 'TAG';
   /** parent `SUB` node for a `TAG`, `null` for a `SUB` */
   parentId: string | null;
+  /** name of the parent «زیردسته» for a `TAG`, `null` for a `SUB` */
+  parentName: string | null;
   /** id of the main category the node belongs to */
   categoryId: string;
 }

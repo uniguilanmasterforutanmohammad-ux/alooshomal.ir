@@ -1,6 +1,8 @@
 'use client';
 
-import { TaxonomyNodePicker } from './TaxonomyNodePicker';
+import { useState } from 'react';
+
+import { TaxonomyNodePicker, type TaxonomyPick } from './TaxonomyNodePicker';
 
 interface Props {
   /** main category chosen in the builder's «کسب‌وکار» select (`''` = none) */
@@ -9,51 +11,55 @@ interface Props {
   subCategory: string;
   /** chosen «زیرشاخه» name (`''` = none) */
   subSubCategory: string;
-  onSubCategoryChange: (name: string) => void;
-  onSubSubCategoryChange: (name: string) => void;
+  /** both deeper-level fields at once (they are picked from one search box) */
+  onChange: (next: { subCategory: string; subSubCategory: string }) => void;
 }
 
 /**
- * The two optional deeper taxonomies of the biolink / business-card builder.
- * Both are *search* pickers (the tree has thousands of nodes) and both are
- * anchored to the chosen main category, so they are disabled until it is set.
+ * The optional deeper taxonomy of the biolink / business-card / business
+ * builder. It is a single *search* box (the tree has thousands of nodes):
+ * the user types once and the API walks «زیرشاخه» then «زیردسته»; when neither
+ * matches, the term is sent to the admins and «سایر» is stored. It stays
+ * disabled until a main category is chosen, which anchors the search.
  */
 export function BusinessTaxonomyFields({
   businessId,
   subCategory,
   subSubCategory,
-  onSubCategoryChange,
-  onSubSubCategoryChange,
+  onChange,
 }: Props) {
-  function changeSubCategory(name: string) {
-    onSubCategoryChange(name);
-    // A tag belongs to a sub-category, so changing it drops a stale tag.
-    if (subSubCategory && name !== subCategory) onSubSubCategoryChange('');
+  // The stored fields only hold names, so the picked *level* (needed for the
+  // «زیرشاخه» / «زیردسته» / «سایر» badge) is tracked alongside them.
+  const [kind, setKind] = useState<'SUB' | 'TAG' | 'OTHER' | null>(() =>
+    subSubCategory ? 'TAG' : subCategory ? 'SUB' : null,
+  );
+
+  function handlePick(pick: TaxonomyPick) {
+    if (pick.kind === 'CLEAR') {
+      setKind(null);
+      onChange({ subCategory: '', subSubCategory: '' });
+      return;
+    }
+    setKind(pick.kind);
+    if (pick.kind === 'TAG') {
+      // A tag is stored together with its parent sub-category.
+      onChange({ subCategory: pick.parentName ?? '', subSubCategory: pick.name });
+      return;
+    }
+    // «زیردسته» or the free-text «سایر» both live in the sub-category field.
+    onChange({ subCategory: pick.name, subSubCategory: '' });
   }
 
   return (
-    <>
-      <TaxonomyNodePicker
-        key={`sub-${businessId}`}
-        label="زیردسته"
-        level="SUB"
-        categoryId={businessId}
-        value={subCategory}
-        onChange={changeSubCategory}
-        placeholder="نام زیردسته را بنویسید..."
-        disabledHint="ابتدا «کسب‌وکار» را انتخاب کنید."
-      />
-      <TaxonomyNodePicker
-        key={`tag-${businessId}-${subCategory}`}
-        label="زیرشاخه"
-        level="TAG"
-        categoryId={businessId}
-        parentName={subCategory}
-        value={subSubCategory}
-        onChange={onSubSubCategoryChange}
-        placeholder="نام زیرشاخه را بنویسید..."
-        disabledHint="ابتدا «کسب‌وکار» را انتخاب کنید."
-      />
-    </>
+    <TaxonomyNodePicker
+      key={businessId}
+      label="زیردسته / زیرشاخه"
+      categoryId={businessId}
+      value={subSubCategory || subCategory}
+      kind={kind}
+      onChange={handlePick}
+      placeholder="مثلاً: کافه، تعمیر موبایل،... "
+      disabledHint="ابتدا «کسب‌وکار» را انتخاب کنید."
+    />
   );
 }

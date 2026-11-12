@@ -158,6 +158,19 @@ export function BusinessCardForm({
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
+  /**
+   * Changing the main category invalidates the «زیردسته»/«زیرشاخه» picked in
+   * the old one, so both deeper fields are dropped together.
+   */
+  function setBusinessCategory(businessId: string) {
+    setValues((prev) => ({
+      ...prev,
+      businessId,
+      subCategory: '',
+      subSubCategory: '',
+    }));
+  }
+
   /** Selecting the «طیفی» theme seeds a palette colour when none is set yet. */
   function selectTheme(themeKey: string) {
     setValues((prev) => ({
@@ -284,7 +297,7 @@ export function BusinessCardForm({
                   required
                   className="indeed-input"
                   value={values.businessId}
-                  onChange={(event) => setField('businessId', event.target.value)}
+                  onChange={(event) => setBusinessCategory(event.target.value)}
                 >
                   <option value="">انتخاب کسب‌وکار...</option>
                   {businesses.map((business) => (
@@ -298,8 +311,9 @@ export function BusinessCardForm({
                 businessId={values.businessId}
                 subCategory={values.subCategory}
                 subSubCategory={values.subSubCategory}
-                onSubCategoryChange={(name) => setField('subCategory', name)}
-                onSubSubCategoryChange={(name) => setField('subSubCategory', name)}
+                onChange={({ subCategory, subSubCategory }) =>
+                  setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
+                }
               />
               <Input
                 label="تلفن همراه *"
@@ -566,7 +580,7 @@ export function BusinessCardForm({
               <select
                 className="indeed-input"
                 value={values.businessId}
-                onChange={(event) => setField('businessId', event.target.value)}
+                onChange={(event) => setBusinessCategory(event.target.value)}
               >
                 <option value="">انتخاب کسب و کار...</option>
                 {businesses.map((business) => (
@@ -580,8 +594,9 @@ export function BusinessCardForm({
               businessId={values.businessId}
               subCategory={values.subCategory}
               subSubCategory={values.subSubCategory}
-              onSubCategoryChange={(name) => setField('subCategory', name)}
-              onSubSubCategoryChange={(name) => setField('subSubCategory', name)}
+              onChange={({ subCategory, subSubCategory }) =>
+                setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
+              }
             />
           </div>
           <label className="mt-4 flex flex-col gap-1.5">

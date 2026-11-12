@@ -16,7 +16,8 @@ type Category =
   | 'FEED_COMMENT'
   | 'TICKET'
   | 'SECURITY'
-  | 'SYSTEM';
+  | 'SYSTEM'
+  | 'TAXONOMY';
 
 const LABELS: Record<Category, { title: string; hint: string }> = {
   NEW_USER: { title: 'ثبت‌نام کاربر جدید', hint: 'وقتی کاربر تازه‌ای عضو می‌شود' },
@@ -39,6 +40,10 @@ const LABELS: Record<Category, { title: string; hint: string }> = {
     title: 'هشدارهای منابع سرور',
     hint: 'عبور مصرف رم، پردازنده یا دیسک از آستانه',
   },
+  TAXONOMY: {
+    title: 'درخواست دسته‌بندی تازه',
+    hint: 'کاربر در کادر زیردسته/زیرشاخه چیزی پیدا نکرده و درخواست داده است',
+  },
 };
 
 const ORDER: Category[] = [
@@ -53,6 +58,7 @@ const ORDER: Category[] = [
   'TICKET',
   'SECURITY',
   'SYSTEM',
+  'TAXONOMY',
 ];
 
 interface SettingsPayload {

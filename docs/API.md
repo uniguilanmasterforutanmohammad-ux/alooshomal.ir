@@ -93,7 +93,8 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 | --- | --- | --- |
 | `GET` | `/business-categories/public` | فهرست دسته‌بندی‌های شغلی فعال با تعداد کارت‌های منتشرشده‌ی هر دسته (`{ id, name, count }[]`). |
 | `GET` | `/business-categories/public/:slug` | صفحه‌ی یک دسته: `category` + فهرست صفحه‌بندی‌شده‌ی کسب‌وکارها (`items`, `meta`, `filters`) با پارامترهای `page`، `cityId`، `q` و `sort` (`recent` \| `rating` \| `liked` \| `alpha`). `slug` همان نام دسته است (URL-encoded). |
-| `GET` | `/business-taxonomy/search` | جست‌وجوی «زیردسته»/«زیرشاخه» برای انتخاب‌گرهای جست‌جومحور فرم ساخت بیولینک/کارت ویزیت. پارامترها: `level` (`SUB` \| `TAG`، اجباری)، `categoryId`، `parentId` یا `parentName` (برای `TAG`)، `q` و `limit` (۱ تا ۵۰، پیش‌فرض ۲۰). خروجی `{ id, name, parentId, categoryId }[]`. فقط دسته‌های اصلی در `/businesses` و فیلترها می‌آیند؛ این سطح‌های عمیق فقط از طریق جست‌وجو قابل انتخاب‌اند. |
+| `GET` | `/business-taxonomy/search` | جست‌وجوی کادر «زیردسته / زیرشاخه» فرم ساخت بیولینک/کارت ویزیت/کسب‌وکار. پارامترها: `level` (`ANY` پیش‌فرض \| `SUB` \| `TAG`؛ در حالت `ANY` ابتدا «زیرشاخه» و در صورت نبود نتیجه «زیردسته» جست‌وجو می‌شود)، `categoryId` (دسته‌ی اصلی)، `parentId` یا `parentName` (محدودکردن `TAG` به یک زیردسته)، `q` و `limit` (۱ تا ۵۰، پیش‌فرض ۲۰). خروجی `{ id, name, level, parentId, parentName, categoryId }[]`. فقط دسته‌های اصلی در `/businesses` و فیلترها می‌آیند؛ این سطح‌های عمیق فقط از طریق جست‌وجو قابل انتخاب‌اند. |
+| `POST` | `/business-taxonomy/requests` | وقتی هیچ سطحی با عبارت کاربر مطابقت ندارد، عبارت (`{ q, categoryId? }`) برای مدیران ارسال می‌شود (اعلان دسته‌ی `TAXONOMY` + لاگ فعالیت) و فرم به کاربر «سایر» نشان می‌دهد. نیازمند ورود. |
 | `GET` | `/business-reviews/public/:slug` | دیدگاه‌ها و امتیاز عمومی کسب‌وکار: `summary` (میانگین، تعداد و توزیع ستاره‌ها)، `items` و `meta`. فقط دیدگاه‌های نمایش‌پذیر. |
 | `GET` | `/business-reviews/public/:slug/mine` | دیدگاه کاربر جاری برای پیش‌پرکردن فرم (نیازمند ورود؛ در غیر این صورت `{ review: null }`). |
 | `POST` | `/business-reviews/public/:slug` | ثبت یا ویرایش دیدگاه کاربر جاری؛ بدنه `{ rating: 1..5, comment? }`. ثبت برای مالک همان کسب‌وکار مجاز نیست. |
@@ -106,7 +107,10 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 `saturday` … `friday` و مقادیر `{ open, close, closed }` با قالب `HH:mm`).
 همچنین `subCategory` و `subSubCategory` (اختیاری، حداکثر ۱۲۰ نویسه) برای ثبت
 «زیردسته»/«زیرشاخه»ی انتخاب‌شده از جست‌وجوی تاکسونومی؛ همین دو فیلد به
-`Biolink` هم اضافه شده‌اند.
+`Biolink` هم اضافه شده‌اند. انتخاب «زیرشاخه» هر دو فیلد را پر می‌کند (نام
+زیرشاخه + نام زیردسته‌ی والد) و انتخاب «زیردسته» فقط `subCategory` را. اگر هیچ
+سطحی مطابقت نداشته باشد، عبارت تایپ‌شده در `subCategory` ذخیره و برای مدیران
+ارسال می‌شود.
 میانگین و تعداد امتیاز (`ratingAvg`/`ratingCount`) روی خود کارت ذخیره و پس از
 هر ثبت/ویرایش/حذف دیدگاه به‌صورت تراکنشی به‌روز می‌شود.
 

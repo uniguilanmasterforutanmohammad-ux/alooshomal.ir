@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { NotificationsModule } from '../notifications/notifications.module';
 import { TaxonomyService } from './taxonomy.service';
 import {
   AdminBusinessesController,
@@ -10,6 +11,7 @@ import {
 } from './taxonomy.controller';
 
 @Module({
+  imports: [NotificationsModule],
   controllers: [
     CitiesController,
     BusinessesController,

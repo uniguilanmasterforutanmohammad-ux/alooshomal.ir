@@ -201,6 +201,19 @@ export function OnboardingBusinessForm({
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
+  /**
+   * Changing the main category invalidates the «زیردسته»/«زیرشاخه» picked in
+   * the old one, so both deeper fields are dropped together.
+   */
+  function setBusinessCategory(businessId: string) {
+    setValues((prev) => ({
+      ...prev,
+      businessId,
+      subCategory: '',
+      subSubCategory: '',
+    }));
+  }
+
   async function submit() {
     const missing = REQUIRED.filter((key) => !values[key].trim());
     if (missing.length > 0) {
@@ -349,7 +362,7 @@ export function OnboardingBusinessForm({
               required
               className="indeed-input"
               value={values.businessId}
-              onChange={(event) => setField('businessId', event.target.value)}
+              onChange={(event) => setBusinessCategory(event.target.value)}
             >
               <option value="">انتخاب دسته‌بندی...</option>
               {businesses.map((business) => (
@@ -363,8 +376,9 @@ export function OnboardingBusinessForm({
             businessId={values.businessId}
             subCategory={values.subCategory}
             subSubCategory={values.subSubCategory}
-            onSubCategoryChange={(name) => setField('subCategory', name)}
-            onSubSubCategoryChange={(name) => setField('subSubCategory', name)}
+            onChange={({ subCategory, subSubCategory }) =>
+              setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
+            }
           />
           <Input
             label="شماره موبایل *"

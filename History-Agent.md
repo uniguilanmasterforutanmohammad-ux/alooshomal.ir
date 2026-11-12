@@ -20,7 +20,62 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.38.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.39.0**.
+
+## ۱۴۰۵/۰۸/۲۰ — یک کادر جست‌وجوی زیرشاخه→زیردسته با ارسال «سایر» به مدیر — نسخه `v3.39.0`
+
+**هدف:** در مراحل ساخت کارت ویزیت/بیولینک/کسب‌وکار، دو کادر جداگانه‌ی «زیردسته»
+و «زیرشاخه» با **یک کادر جست‌وجو** جایگزین شود؛ کاربر یک‌بار تایپ می‌کند و
+جست‌وجو به‌ترتیب ابتدا «زیرشاخه» و در صورت نبود نتیجه «زیردسته» را می‌گردد؛ اگر
+هیچ‌کدام نبود، عبارت کاربر برای مدیر ارسال و به کاربر «سایر» نشان داده شود.
+انتخاب «کسب‌وکار» (دسته‌ی اصلی) مثل قبل کشویی می‌ماند.
+
+**تغییرات:**
+- `apps/api/src/taxonomy/dto/search-taxonomy-node.dto.ts`: `level` اختیاری و
+  پیش‌فرض `ANY` (پله‌ی «زیرشاخه» سپس «زیردسته»).
+- `apps/api/src/taxonomy/taxonomy.service.ts`: بازنویسی `searchNodes` با پله‌ی
+  خودکار (`findNodes` + `withParentNames`) و افزودن `requestNode` برای ثبت
+  درخواست کاربر و اطلاع‌رسانی به مدیران.
+- `apps/api/src/taxonomy/dto/create-taxonomy-request.dto.ts`: DTO تازه‌ی
+  `{ q, categoryId? }`.
+- `apps/api/src/taxonomy/taxonomy.controller.ts`: افزودن `POST
+  /business-taxonomy/requests` (نیازمند ورود) و به‌روزرسانی `summary` جست‌وجو.
+- `apps/api/src/taxonomy/taxonomy.module.ts`: واردکردن `NotificationsModule`.
+- `apps/api/src/settings/settings.constants.ts` و
+  `apps/web/components/admin/AdminNotificationSettings.tsx`: افزودن دسته‌ی
+  اعلان `TAXONOMY` (قابل خاموش‌کردن در «تنظیمات ← اعلان‌های مدیر»).
+- `apps/web/components/taxonomy/TaxonomyNodePicker.tsx`: بازنویسی به یک کادر
+  جست‌وجوی واحد؛ نمایش سطح هر نتیجه («زیرشاخه»/«زیردسته»)، و ردیف «سایر» که
+  عبارت را به مدیر می‌فرستد (با پیام خطا در صورت ناموفق‌بودن ارسال).
+- `apps/web/components/taxonomy/BusinessTaxonomyFields.tsx`: یک فیلد واحد که
+  سطح انتخاب‌شده را برای نشان (badge) نگه می‌دارد و هر انتخاب را به دو فیلد
+  `subCategory`/`subSubCategory` نگاشت می‌کند.
+- `apps/web/components/biolink/BiolinkForm.tsx`،
+  `apps/web/components/businesscard/BusinessCardForm.tsx` و
+  `apps/web/components/dashboard/OnboardingBusinessForm.tsx`: هندلر مشترک
+  `setBusinessCategory` که با تغییر دسته‌ی اصلی، زیردسته/زیرشاخه‌ی قدیمی را
+  پاک می‌کند.
+- `apps/web/lib/api/types/catalog.ts`: افزودن `level` و `parentName` به تایپ
+  `TaxonomyNodeSearchResult`.
+- `docs/API.md`: به‌روزرسانی مستندات `search` و مستندسازی `requests`.
+- `apps/web/lib/version.ts`: ارتقای نسخه به `v3.39.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit` → بدون خطا؛ `eslint` روی
+  فایل‌های تغییریافته → فقط هشدارهای ازقبل‌موجود.
+- `python3 scripts/check_api_docs.py` → ۳۷ کنترلر / ۳۹۳ مسیر بدون خطا.
+- `curl` جست‌وجو: `q=لباس` در «فروشگاه» → ۲۰ نتیجه‌ی `TAG` با `parentName`؛
+  `q=آهنگسازی` در «خدمات» → نتیجه‌ی `SUB` (پله‌ی خودکار)؛ `q=بلبل` → خالی.
+- `POST /api/business-taxonomy/requests` بدون توکن → ۴۰۱ و با توکن → ۲۰۰ و ثبت
+  اعلان `ADMIN/TAXONOMY` («کاربر … عبارت «کافه سیار» را در دسته‌ی «خدمات» پیدا
+  نکرد») و لاگ فعالیت `TAXONOMY_NODE_REQUESTED`.
+- بررسی مرورگر (Chrome headless + CDP) روی `/dashboard/biolinks/new` و
+  `/dashboard/business-cards/new`: یک کادر واحد وجود دارد؛ `q=لباس` نتایج
+  «زیرشاخه» را با نشان می‌آورد، انتخاب آن چیپ «… | زیرشاخه» می‌سازد، تغییر
+  دسته‌ی اصلی انتخاب قبلی را پاک می‌کند، `q=آهنگسازی` به «زیردسته» برمی‌گردد و
+  برای عبارت بی‌نتیجه ردیف «سایر» ظاهر و با انتخابش اعلان مدیر ثبت می‌شود
+  (شمار اعلان‌ها ۱ → ۲) و چیپ «… | سایر» نمایش داده می‌شود.
 
 ## ۱۴۰۵/۰۸/۲۰ — فقط دسته‌های اصلی در سایت + انتخاب جست‌جومحور زیردسته/زیرشاخه — نسخه `v3.38.0`
 
