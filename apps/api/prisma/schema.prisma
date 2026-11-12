@@ -857,9 +857,38 @@ model BusinessCategory {
 
   biolinks      Biolink[]
   businessCards BusinessCard[]
+  taxonomyNodes BusinessTaxonomyNode[]
 
   @@index([name])
   @@map("business_categories")
+}
+
+/// Deeper levels of the job taxonomy («زیردسته» and «زیرشاخه»). Only main
+/// categories live in `business_categories` and drive the public listings,
+/// filters and search; these nodes exist so the biolink / business-card
+/// builders can offer a *searchable* picker after the main category is chosen
+/// (the tree is far too large — ~۵۸۰۰ tags — for a dropdown).
+model BusinessTaxonomyNode {
+  id         String   @id @default(cuid())
+  name       String
+  /// `SUB` (زیردسته، parent = a main category) or `TAG` (زیرشاخه، parent = a SUB).
+  level      String
+  /// Main category this node belongs to (always set).
+  categoryId String
+  /// For `TAG` nodes: the parent `SUB` node. Null for `SUB` nodes.
+  parentId   String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  category BusinessCategory       @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  parent   BusinessTaxonomyNode?  @relation("BusinessTaxonomyTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children BusinessTaxonomyNode[] @relation("BusinessTaxonomyTree")
+
+  @@index([level, categoryId])
+  @@index([level, parentId])
+  @@index([level, name])
+  @@map("business_taxonomy_nodes")
 }
 
 model Biolink {
@@ -868,6 +897,10 @@ model Biolink {
   slug   String @unique
   cityId       String?
   businessId   String?
+  /// «زیردسته» / «زیرشاخه» — optional deeper taxonomy picks (searchable in the
+  /// builder). Stored as plain names; only the main category is filterable.
+  subCategory    String?
+  subSubCategory String?
   // Optional one-to-one link to the owner's business card. Stored on the
   // biolink side only; the business card's linked biolink is resolved by the
   // inverse lookup (`biolink.findUnique({ where: { businessCardId } })`).
@@ -984,6 +1017,11 @@ model BusinessCard {
   slug   String @unique
   cityId       String?
   businessId   String?
+
+  /// «زیردسته» / «زیرشاخه» — optional deeper taxonomy picks (searchable in the
+  /// builder). Stored as plain names; only the main category is filterable.
+  subCategory    String?
+  subSubCategory String?
 
   // personal / professional info
   fullName    String

@@ -79,6 +79,8 @@ export default function EditBiolinkPage() {
               template: biolink.template ?? DEFAULT_TEMPLATE_KEY,
               cityId: biolink.cityId ?? '',
               businessId: biolink.businessId ?? '',
+              subCategory: biolink.subCategory ?? '',
+              subSubCategory: biolink.subSubCategory ?? '',
               businessCardId: biolink.businessCard?.id ?? '',
               avatarUrl: biolink.avatarUrl ?? '',
               logoUrl: biolink.logoUrl ?? '',

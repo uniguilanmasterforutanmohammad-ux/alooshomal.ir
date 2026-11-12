@@ -47,6 +47,8 @@ const toFormValues = (biolink: AdminBiolinkFull): BiolinkFormValues => ({
   template: biolink.template ?? 'record',
   cityId: biolink.cityId ?? '',
   businessId: biolink.businessId ?? '',
+  subCategory: biolink.subCategory ?? '',
+  subSubCategory: biolink.subSubCategory ?? '',
   businessCardId: '',
   avatarUrl: biolink.avatarUrl ?? '',
   logoUrl: biolink.logoUrl ?? '',

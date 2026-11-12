@@ -8,6 +8,7 @@ import { SocialInput } from '@/components/ui/SocialInput';
 import { LinkSelector } from '@/components/link/LinkSelector';
 import { LiveBiolinkPreview } from '@/components/biolink/LiveBiolinkPreview';
 import { BiolinkTemplatePicker } from '@/components/biolink/BiolinkTemplatePicker';
+import { BusinessTaxonomyFields } from '@/components/taxonomy/BusinessTaxonomyFields';
 import { api, type TaxonomyItem } from '@/lib/api';
 import { DEFAULT_TEMPLATE_KEY } from '@/lib/biolink-templates';
 import { SOCIAL_FIELDS } from '@/lib/social-fields';
@@ -32,6 +33,9 @@ export interface BiolinkFormValues {
   template: string;
   cityId: string;
   businessId: string;
+  /** optional deeper taxonomy picks — searchable, never shown as a dropdown */
+  subCategory: string;
+  subSubCategory: string;
   /** one-to-one link to one of the owner's business cards (`''` = none) */
   businessCardId: string;
   avatarUrl: string;
@@ -57,6 +61,8 @@ const emptyValues: BiolinkFormValues = {
   template: DEFAULT_TEMPLATE_KEY,
   cityId: '',
   businessId: '',
+  subCategory: '',
+  subSubCategory: '',
   businessCardId: '',
   avatarUrl: '',
   logoUrl: '',
@@ -273,6 +279,13 @@ export function BiolinkForm({
                   ))}
                 </select>
               </label>
+              <BusinessTaxonomyFields
+                businessId={values.businessId}
+                subCategory={values.subCategory}
+                subSubCategory={values.subSubCategory}
+                onSubCategoryChange={(name) => setField('subCategory', name)}
+                onSubSubCategoryChange={(name) => setField('subSubCategory', name)}
+              />
               <Input
                 label="تلفن همراه *"
                 required
@@ -504,6 +517,13 @@ export function BiolinkForm({
                 ))}
               </select>
             </label>
+            <BusinessTaxonomyFields
+              businessId={values.businessId}
+              subCategory={values.subCategory}
+              subSubCategory={values.subSubCategory}
+              onSubCategoryChange={(name) => setField('subCategory', name)}
+              onSubSubCategoryChange={(name) => setField('subSubCategory', name)}
+            />
           </div>
           <label className="mt-4 flex flex-col gap-1.5">
             <span className="text-sm font-bold text-ink">درباره من</span>

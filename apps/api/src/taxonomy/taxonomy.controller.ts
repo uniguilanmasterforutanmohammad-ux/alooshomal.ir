@@ -6,6 +6,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -14,6 +15,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CreateTaxonomyDto } from './dto/create-taxonomy.dto';
+import { SearchTaxonomyNodeDto } from './dto/search-taxonomy-node.dto';
 import { UpdateTaxonomyDto } from './dto/update-taxonomy.dto';
 import { TaxonomyService } from './taxonomy.service';
 
@@ -42,6 +44,22 @@ export class BusinessesController {
   @ApiOperation({ summary: 'فهرست کسب‌وکارهای فعال' })
   list() {
     return this.taxonomy.list('business', true);
+  }
+}
+
+@ApiTags('taxonomy')
+@Controller('business-taxonomy')
+export class BusinessTaxonomyController {
+  constructor(private readonly taxonomy: TaxonomyService) {}
+
+  @Public()
+  @Get('search')
+  @ApiOperation({
+    summary:
+      'جستجوی زیردسته/زیرشاخه‌ی کسب‌وکار برای انتخاب‌گرهای جست‌جومحور فرم ساخت بیولینک و کارت ویزیت',
+  })
+  search(@Query() query: SearchTaxonomyNodeDto) {
+    return this.taxonomy.searchNodes(query);
   }
 }
 

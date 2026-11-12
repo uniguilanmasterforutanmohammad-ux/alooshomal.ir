@@ -93,6 +93,7 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 | --- | --- | --- |
 | `GET` | `/business-categories/public` | فهرست دسته‌بندی‌های شغلی فعال با تعداد کارت‌های منتشرشده‌ی هر دسته (`{ id, name, count }[]`). |
 | `GET` | `/business-categories/public/:slug` | صفحه‌ی یک دسته: `category` + فهرست صفحه‌بندی‌شده‌ی کسب‌وکارها (`items`, `meta`, `filters`) با پارامترهای `page`، `cityId`، `q` و `sort` (`recent` \| `rating` \| `liked` \| `alpha`). `slug` همان نام دسته است (URL-encoded). |
+| `GET` | `/business-taxonomy/search` | جست‌وجوی «زیردسته»/«زیرشاخه» برای انتخاب‌گرهای جست‌جومحور فرم ساخت بیولینک/کارت ویزیت. پارامترها: `level` (`SUB` \| `TAG`، اجباری)، `categoryId`، `parentId` یا `parentName` (برای `TAG`)، `q` و `limit` (۱ تا ۵۰، پیش‌فرض ۲۰). خروجی `{ id, name, parentId, categoryId }[]`. فقط دسته‌های اصلی در `/businesses` و فیلترها می‌آیند؛ این سطح‌های عمیق فقط از طریق جست‌وجو قابل انتخاب‌اند. |
 | `GET` | `/business-reviews/public/:slug` | دیدگاه‌ها و امتیاز عمومی کسب‌وکار: `summary` (میانگین، تعداد و توزیع ستاره‌ها)، `items` و `meta`. فقط دیدگاه‌های نمایش‌پذیر. |
 | `GET` | `/business-reviews/public/:slug/mine` | دیدگاه کاربر جاری برای پیش‌پرکردن فرم (نیازمند ورود؛ در غیر این صورت `{ review: null }`). |
 | `POST` | `/business-reviews/public/:slug` | ثبت یا ویرایش دیدگاه کاربر جاری؛ بدنه `{ rating: 1..5, comment? }`. ثبت برای مالک همان کسب‌وکار مجاز نیست. |
@@ -103,6 +104,9 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 فیلدهای جدید کارت ویزیت در `CreateBusinessCardDto`/`UpdateBusinessCardDto`:
 `gallery` (حداکثر ۱۲ URL) و `workingHours` (شیء هفت‌روزه با کلیدهای
 `saturday` … `friday` و مقادیر `{ open, close, closed }` با قالب `HH:mm`).
+همچنین `subCategory` و `subSubCategory` (اختیاری، حداکثر ۱۲۰ نویسه) برای ثبت
+«زیردسته»/«زیرشاخه»ی انتخاب‌شده از جست‌وجوی تاکسونومی؛ همین دو فیلد به
+`Biolink` هم اضافه شده‌اند.
 میانگین و تعداد امتیاز (`ratingAvg`/`ratingCount`) روی خود کارت ذخیره و پس از
 هر ثبت/ویرایش/حذف دیدگاه به‌صورت تراکنشی به‌روز می‌شود.
 

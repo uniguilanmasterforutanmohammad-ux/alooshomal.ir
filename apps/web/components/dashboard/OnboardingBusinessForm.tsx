@@ -13,6 +13,7 @@ import {
 
 import { Input } from '@/components/ui/Input';
 import { SocialInput } from '@/components/ui/SocialInput';
+import { BusinessTaxonomyFields } from '@/components/taxonomy/BusinessTaxonomyFields';
 import {
   api,
   type Biolink,
@@ -28,6 +29,9 @@ interface Values {
   fullName: string;
   cityId: string;
   businessId: string;
+  /** optional deeper taxonomy picks — searchable, never shown as a dropdown */
+  subCategory: string;
+  subSubCategory: string;
   mobile: string;
   address: string;
   bio: string;
@@ -46,6 +50,8 @@ const EMPTY_VALUES: Values = {
   fullName: '',
   cityId: '',
   businessId: '',
+  subCategory: '',
+  subSubCategory: '',
   mobile: '',
   address: '',
   bio: '',
@@ -76,6 +82,8 @@ const BIOLINK_FIELDS: Array<keyof Values> = [
   'twitter',
   'cityId',
   'businessId',
+  'subCategory',
+  'subSubCategory',
 ];
 
 const REQUIRED: Array<keyof Values> = [
@@ -158,6 +166,8 @@ export function OnboardingBusinessForm({
           fullName: current.fullName ?? '',
           cityId: current.cityId ?? '',
           businessId: current.businessId ?? '',
+          subCategory: current.subCategory ?? '',
+          subSubCategory: current.subSubCategory ?? '',
           mobile: current.mobile ?? '',
           address: current.address ?? '',
           bio: current.bio ?? '',
@@ -349,6 +359,13 @@ export function OnboardingBusinessForm({
               ))}
             </select>
           </label>
+          <BusinessTaxonomyFields
+            businessId={values.businessId}
+            subCategory={values.subCategory}
+            subSubCategory={values.subSubCategory}
+            onSubCategoryChange={(name) => setField('subCategory', name)}
+            onSubSubCategoryChange={(name) => setField('subSubCategory', name)}
+          />
           <Input
             label="شماره موبایل *"
             required

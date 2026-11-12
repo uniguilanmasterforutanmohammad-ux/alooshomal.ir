@@ -20,7 +20,68 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.37.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.38.0**.
+
+## ۱۴۰۵/۰۸/۲۰ — فقط دسته‌های اصلی در سایت + انتخاب جست‌جومحور زیردسته/زیرشاخه — نسخه `v3.38.0`
+
+**هدف:** نمایش صرفاً ۲۰ دسته‌ی اصلی فایل به‌ترینو در کل سایت (فهرست‌ها، فیلترها و
+جست‌وجو) و پاک‌سازی کامل دسته‌ها و کارت‌های قبلی؛ و فراهم‌کردن انتخاب «زیردسته»
+و «زیرشاخه» فقط در فرم‌های ساخت بیولینک/کارت ویزیت/کسب‌وکار، آن هم با جست‌وجو
+(نه لیست کشویی) چون تعدادشان زیاد است. همه‌ی این‌ها فقط روی دیتابیس لوکال.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل تازه‌ی `BusinessTaxonomyNode`
+  (`level: SUB|TAG`، `categoryId` به‌عنوان والدِ دسته‌ی اصلی، `parentId` برای والدِ
+  زیردسته و رابطه‌ی خودارجاع)؛ افزودن `subCategory`/`subSubCategory` به
+  `BusinessCard` و `Biolink`؛ افزودن رابطه‌ی `taxonomyNodes` به `BusinessCategory`.
+- `apps/api/src/taxonomy/dto/search-taxonomy-node.dto.ts`: DTO جست‌وجوی
+  `level`/`categoryId`/`parentId`/`parentName`/`q`/`limit` (۱ تا ۵۰).
+- `apps/api/src/taxonomy/taxonomy.service.ts`: متد `searchNodes` برای یافتن
+  زیردسته‌ها (والد = دسته‌ی اصلی) و زیرشاخه‌ها (والد = زیردسته، با `parentId` یا
+  جفتِ `categoryId`+`parentName`).
+- `apps/api/src/taxonomy/taxonomy.controller.ts` + `taxonomy.module.ts`: کنترلر
+  عمومی `BusinessTaxonomyController` با مسیر `GET /business-taxonomy/search`
+  (دارای `@ApiTags` و `@ApiOperation`).
+- `apps/api/src/{biolinks,businesscards}/dto/create-*.dto.ts`: افزودن فیلدهای
+  اختیاری `subCategory`/`subSubCategory` (حداکثر ۱۲۰ نویسه) با `@ApiPropertyOptional`.
+- `scripts/import_behtarino.py`: بازنویسی ایمپورت دسته‌ها روی `behtarino-categories.json`
+  — فقط ۲۰ دسته‌ی اصلی در `business_categories` و ۸۸۰ زیردسته + ۵۷۴۱ زیرشاخه در
+  `business_taxonomy_nodes`؛ پرچم تازه‌ی `--purge` برای پاک‌سازی کاملِ کارت‌ها و
+  دسته‌های قدیمی (پیوند بیولینک‌ها فقط برای دسته‌های هم‌نام حفظ می‌شود).
+- `apps/web/components/taxonomy/TaxonomyNodePicker.tsx`: انتخاب‌گر جست‌جومحور
+  (تایپ‌هد، دیبانس ۲۵۰ms، ناوبری کلید، چیپ انتخاب با دکمه‌ی حذف) و
+  `apps/web/components/taxonomy/BusinessTaxonomyFields.tsx`: ترکیب زیردسته + زیرشاخه
+  با ری‌مانت بر اساس کیف دسته/زیردسته.
+- `apps/web/components/biolink/BiolinkForm.tsx`،
+  `apps/web/components/businesscard/BusinessCardForm.tsx` و
+  `apps/web/components/dashboard/OnboardingBusinessForm.tsx`: افزودن دو فیلد
+  زیردسته/زیرشاخه (اختیاری) کنار انتخاب دسته‌ی اصلی.
+- `apps/web/app/dashboard/{biolinks,business-cards}/{new,[id]/edit}/page.tsx` و
+  `apps/web/components/admin/{BiolinkLiveEditor,BusinessCardLiveEditor}.tsx`:
+  پیش‌پرکردن و ارسال دو فیلد تازه.
+- `apps/web/lib/api/types/catalog.ts`: افزودن `subCategory`/`subSubCategory` و
+  تایپ `TaxonomyNodeSearchResult`.
+- `docs/API.md`: مستندسازی `GET /business-taxonomy/search` و فیلدهای تازه.
+- `apps/web/lib/version.ts`: ارتقای نسخه به `v3.38.0`.
+
+**تأیید/تست:**
+- `python3 scripts/import_behtarino.py all --purge` →
+  حذف ۶۳۱۸ دسته و ۹۸۲۵ کارت قدیمی؛ `business_categories` = ۲۰،
+  `business_taxonomy_nodes` = ۶۶۲۱ (۸۸۰ زیردسته + ۵۷۴۱ زیرشاخه)،
+  `business_cards` = ۹۸۱۵ (همه `isUnclaimed`).
+- `curl /api/businesses` → ۲۰ دسته‌ی اصلی؛ `curl /api/business-categories/public`
+  → همان ۲۰؛ جست‌وجوی `SUB`/`TAG` با `parentId` و `parentName` درست برمی‌گردد.
+- `docker exec alooshomal-web npx tsc --noEmit` و `npx eslint` روی فایل‌های
+  تغییریافته → بدون خطا؛ `docker exec alooshomal-api npx tsc --noEmit` → بدون خطا؛
+  `python3 scripts/check_api_docs.py` → ۳۷ کنترلر / ۳۹۲ مسیر بدون خطا.
+- بررسی مرورگر (Chrome headless + CDP): انتخاب‌گر «کسب‌وکار» در صفحه‌ی اصلی ۲۰
+  گزینه دارد، فیلتر `/business-cards` فقط ۱۸ دسته‌ی دارای کارت (به‌جز بانک و
+  خدمات حوزه اقامت و سفر) را نشان می‌دهد؛ در فرم‌های `biolinks/new` و
+  `business-cards/new` پیش از انتخاب دسته، فیلد زیردسته غیرفعال و راهنما نمایش
+  داده می‌شود و پس از انتخاب «فروشگاه» + تایپ «پوشاک» نتایج جست‌وجو ظاهر و انتخاب
+  می‌شوند («فروشگاه» → ۳ زیردسته؛ زیردسته‌ی «پوشاک» → ۷ زیرشاخه‌ی «لباس»).
+- `POST /api/business-cards` با `subCategory`/`subSubCategory` → ذخیره و بازگشت
+  درست مقادیر (کارت تستی پس از بررسی حذف شد).
 
 ## ۱۴۰۵/۰۸/۲۰ — ایمپورت کسب‌وکارهای مازندران + دکمه‌ی «شما صاحب این کسب‌وکار هستید» — نسخه `v3.37.0`
 

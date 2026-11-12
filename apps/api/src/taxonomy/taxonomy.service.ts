@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { CreateTaxonomyDto } from './dto/create-taxonomy.dto';
+import { SearchTaxonomyNodeDto } from './dto/search-taxonomy-node.dto';
 import { UpdateTaxonomyDto } from './dto/update-taxonomy.dto';
 
 type Delegate = {
@@ -39,6 +40,51 @@ export class TaxonomyService {
       where: onlyActive ? { isActive: true } : {},
       orderBy: { name: 'asc' },
       select: { id: true, name: true, isActive: true, createdAt: true },
+    });
+  }
+
+  /**
+   * Search the deeper taxonomy levels («زیردسته» / «زیرشاخه») for the builders'
+   * type-ahead pickers. `SUB` nodes hang off a main category; `TAG` nodes hang
+   * off a `SUB` node, identified either by `parentId` or by the pair
+   * (`categoryId`, `parentName`) when editing a record that only stored names.
+   */
+  async searchNodes(query: SearchTaxonomyNodeDto) {
+    const categoryId = query.categoryId?.trim() || undefined;
+    const q = query.q?.trim();
+    let parentId = query.parentId?.trim() || undefined;
+    // The edit forms only hold the parent's *name*, so resolve the `SUB` node
+    // id from the (category, name) pair before filtering its tags.
+    if (!parentId && query.level === 'TAG' && categoryId && query.parentName) {
+      const parent = await this.prisma.businessTaxonomyNode.findFirst({
+        where: { level: 'SUB', categoryId, name: query.parentName.trim() },
+        select: { id: true },
+      });
+      parentId = parent?.id ?? '__missing__';
+    }
+    return this.prisma.businessTaxonomyNode.findMany({
+      where: {
+        level: query.level,
+        isActive: true,
+        // `TAG` nodes are anchored to their `SUB` parent when known, else to
+        // their main category; `SUB` nodes to their main category. This keeps
+        // the quick-pick list short.
+        ...(query.level === 'TAG'
+          ? parentId
+            ? { parentId }
+            : categoryId
+              ? { categoryId }
+              : {}
+          : categoryId
+            ? { categoryId }
+            : {}),
+        // A text query is still honoured even without a parent (the pickers
+        // only send one once the user has typed something).
+        ...(q ? { name: { contains: q, mode: 'insensitive' } } : {}),
+      },
+      orderBy: { name: 'asc' },
+      take: Math.min(Math.max(query.limit ?? 20, 1), 50),
+      select: { id: true, name: true, parentId: true, categoryId: true },
     });
   }
 

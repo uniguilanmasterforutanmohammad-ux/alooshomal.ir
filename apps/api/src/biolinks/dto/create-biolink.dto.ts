@@ -117,6 +117,18 @@ export class CreateBiolinkDto {
   @IsString()
   businessId?: string;
 
+  @ApiPropertyOptional({ example: 'تعمیرات موبایل', description: 'زیردسته (انتخاب از جستجو)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  subCategory?: string;
+
+  @ApiPropertyOptional({ example: 'تعمیرکار موبایل', description: 'زیرشاخه (انتخاب از جستجو)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  subSubCategory?: string;
+
   @ApiPropertyOptional({
     description:
       'شناسه کارت ویزیتِ خودِ کاربر برای اتصال به این بیولینک (خالی = قطع اتصال)',

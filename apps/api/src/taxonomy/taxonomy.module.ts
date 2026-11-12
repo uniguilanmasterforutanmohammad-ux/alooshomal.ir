@@ -4,6 +4,7 @@ import { TaxonomyService } from './taxonomy.service';
 import {
   AdminBusinessesController,
   AdminCitiesController,
+  BusinessTaxonomyController,
   BusinessesController,
   CitiesController,
 } from './taxonomy.controller';
@@ -12,6 +13,7 @@ import {
   controllers: [
     CitiesController,
     BusinessesController,
+    BusinessTaxonomyController,
     AdminCitiesController,
     AdminBusinessesController,
   ],

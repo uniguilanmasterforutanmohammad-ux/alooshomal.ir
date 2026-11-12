@@ -25,6 +25,10 @@ export interface Biolink {
   publishedAt?: string | null;
   cityId?: string | null;
   businessId?: string | null;
+  /** «زیردسته» — optional deeper taxonomy pick (searchable in the builder) */
+  subCategory?: string | null;
+  /** «زیرشاخه» — optional deeper taxonomy pick (searchable in the builder) */
+  subSubCategory?: string | null;
   city?: { id: string; name: string } | null;
   business?: { id: string; name: string } | null;
   /** owner's subscription plan name, shown on the public page */
@@ -60,6 +64,20 @@ export interface TaxonomyItem {
   name: string;
   isActive: boolean;
   createdAt?: string;
+}
+
+/**
+ * One hit of the «زیردسته»/«زیرشاخه» type-ahead search
+ * (`GET /business-taxonomy/search`). Only the deeper levels are searchable —
+ * the main categories stay in `business_categories` and drive the filters.
+ */
+export interface TaxonomyNodeSearchResult {
+  id: string;
+  name: string;
+  /** parent `SUB` node for a `TAG`, `null` for a `SUB` */
+  parentId: string | null;
+  /** id of the main category the node belongs to */
+  categoryId: string;
 }
 
 export interface DirectoryBiolink {
@@ -175,6 +193,10 @@ export interface BusinessCard {
   publishedAt?: string | null;
  cityId?: string | null;
  businessId?: string | null;
+ /** «زیردسته» — optional deeper taxonomy pick (searchable in the builder) */
+ subCategory?: string | null;
+ /** «زیرشاخه» — optional deeper taxonomy pick (searchable in the builder) */
+ subSubCategory?: string | null;
  city?: { id: string; name: string } | null;
  business?: { id: string; name: string } | null;
  /** owner's subscription plan name, shown on the public page */

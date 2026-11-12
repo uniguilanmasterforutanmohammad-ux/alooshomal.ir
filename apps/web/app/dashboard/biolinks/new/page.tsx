@@ -136,6 +136,8 @@ export default function NewBiolinkPage() {
                     template: draft.template ?? undefined,
                     cityId: draft.cityId ?? '',
                     businessId: draft.businessId ?? '',
+                    subCategory: draft.subCategory ?? '',
+                    subSubCategory: draft.subSubCategory ?? '',
                     businessCardId: draft.businessCard?.id ?? '',
                     avatarUrl: draft.avatarUrl ?? '',
                     logoUrl: draft.logoUrl ?? '',

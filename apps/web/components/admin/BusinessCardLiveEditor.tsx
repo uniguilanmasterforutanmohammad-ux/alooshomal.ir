@@ -43,6 +43,8 @@ const toFormValues = (businessCard: AdminBusinessCardFull): BusinessCardFormValu
   template: businessCard.template ?? 'glassmorphism',
   cityId: businessCard.cityId ?? '',
   businessId: businessCard.businessId ?? '',
+  subCategory: businessCard.subCategory ?? '',
+  subSubCategory: businessCard.subSubCategory ?? '',
   biolinkId: '',
   avatarUrl: businessCard.avatarUrl ?? '',
   logoUrl: businessCard.logoUrl ?? '',

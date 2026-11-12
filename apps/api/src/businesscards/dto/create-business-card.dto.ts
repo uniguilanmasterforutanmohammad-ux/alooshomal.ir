@@ -139,6 +139,18 @@ export class CreateBusinessCardDto {
   @IsString()
   businessId?: string;
 
+  @ApiPropertyOptional({ example: 'تعمیرات موبایل', description: 'زیردسته (انتخاب از جستجو)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  subCategory?: string;
+
+  @ApiPropertyOptional({ example: 'تعمیرکار موبایل', description: 'زیرشاخه (انتخاب از جستجو)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  subSubCategory?: string;
+
   @ApiPropertyOptional({
     description:
       'شناسه بیولینکِ خودِ کاربر برای اتصال به این کارت ویزیت (خالی = قطع اتصال)',

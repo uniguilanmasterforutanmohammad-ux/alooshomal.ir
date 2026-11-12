@@ -4,9 +4,11 @@
 
 Two independent inputs (from the sibling `behtarino/` extraction project):
 
-  * ``behtarino-categories.csv``   — the complete job taxonomy (main category,
-    subcategory and tag names). Every distinct name becomes a row in
-    ``business_categories`` so the directory can offer the full list.
+  * ``behtarino-categories.json``  — the complete job taxonomy. Only the *main*
+    categories become ``business_categories`` rows: they are the only level the
+    public site shows (listings, filters, search). The «زیردسته» and «زیرشاخه»
+    names go into ``business_taxonomy_nodes`` and are offered exclusively by the
+    *searchable* pickers in the biolink / business-card builders.
   * ``behtarino-mazandaran-businesses.json`` — the Mazandaran businesses. Each
     one becomes an APPROVED + published ``business_cards`` row owned by a
     placeholder account, flagged ``isUnclaimed`` so the public page can show the
@@ -20,12 +22,18 @@ Usage:
   python3 scripts/import_behtarino.py categories
   python3 scripts/import_behtarino.py businesses
   python3 scripts/import_behtarino.py all
+  python3 scripts/import_behtarino.py all --purge
 
 Options:
   --source-dir DIR   folder holding the Behtarino files
                      (default: ../behtarino next to this repo)
   --limit N          import only the first N businesses (smoke-testing)
   --clear            delete previously imported (isUnclaimed) cards first
+  --purge            local-only clean slate: drop EVERY pre-existing business
+                     card and every category that is not one of the file's main
+                     categories, so only this file's data remains. Existing
+                     biolinks survive (their category link is cleared when the
+                     old category row disappears).
 """
 from __future__ import annotations
 
@@ -105,43 +113,48 @@ def sql_quote(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
-def read_categories(source_dir: str) -> list[str]:
-    """Every distinct name in the taxonomy, most-specific level included."""
-    path = os.path.join(source_dir, "behtarino-categories.csv")
-    names: list[str] = []
-    seen: set[str] = set()
-    with open(path, encoding="utf-8-sig", newline="") as handle:
-        for row in csv.DictReader(handle):
-            for column in ("دسته اصلی", "زیردسته", "زیرشاخه"):
-                name = (row.get(column) or "").strip()
-                if name and name not in seen:
-                    seen.add(name)
-                    names.append(name)
-    return names
+def read_category_tree(
+    source_dir: str,
+) -> tuple[list[str], list[tuple[str, str]], list[tuple[str, str, str]]]:
+    """The JSON taxonomy as `(mains, subcategories, tags)`.
+
+    A subcategory is the pair ``(main, sub)`` and a tag the triple
+    ``(main, sub, tag)``; duplicates are removed defensively.
+    """
+    path = os.path.join(source_dir, "behtarino-categories.json")
+    with open(path, encoding="utf-8") as handle:
+        payload = json.load(handle)
+    categories = payload["categories"] if isinstance(payload, dict) else payload
+    mains: list[str] = []
+    subs: list[tuple[str, str]] = []
+    tags: list[tuple[str, str, str]] = []
+    seen_subs: set[tuple[str, str]] = set()
+    seen_tags: set[tuple[str, str, str]] = set()
+    for category in categories:
+        main = (category.get("title") or "").strip()
+        if not main:
+            continue
+        if main not in mains:
+            mains.append(main)
+        for sub in category.get("subcategories") or []:
+            sub_name = (sub.get("title") or "").strip()
+            if not sub_name:
+                continue
+            if (main, sub_name) not in seen_subs:
+                seen_subs.add((main, sub_name))
+                subs.append((main, sub_name))
+            for tag in sub.get("tags") or []:
+                tag_name = (tag.get("title") or "").strip()
+                if not tag_name:
+                    continue
+                key = (main, sub_name, tag_name)
+                if key not in seen_tags:
+                    seen_tags.add(key)
+                    tags.append(key)
+    return mains, subs, tags
 
 
-def import_categories(source_dir: str, rng: random.Random) -> dict[str, str]:
-    """Insert every taxonomy name; returns name → id for the whole table."""
-    names = read_categories(source_dir)
-    stamp = now_stamp()
-    batch = 800
-    for start in range(0, len(names), batch):
-        chunk = names[start:start + batch]
-        values = ", ".join(
-            "(" + ", ".join([
-                sql_quote(cuid(rng)),
-                sql_quote(name),
-                "true",
-                sql_quote(stamp),
-                sql_quote(stamp),
-            ]) + ")"
-            for name in chunk
-        )
-        psql(
-            'INSERT INTO "business_categories" '
-            '(id, name, "isActive", "createdAt", "updatedAt") VALUES '
-            f"{values} ON CONFLICT (name) DO NOTHING;"
-        )
+def category_id_map() -> dict[str, str]:
     rows = psql('SELECT name || \'|\' || id FROM "business_categories"')
     mapping: dict[str, str] = {}
     for line in rows.splitlines():
@@ -149,6 +162,86 @@ def import_categories(source_dir: str, rng: random.Random) -> dict[str, str]:
             name, ident = line.split("|", 1)
             mapping[name.strip()] = ident.strip()
     return mapping
+
+
+def insert_main_categories(mains: list[str], rng: random.Random) -> dict[str, str]:
+    """Insert the file's main categories (idempotent by name)."""
+    stamp = now_stamp()
+    for name in mains:
+        psql(
+            'INSERT INTO "business_categories" '
+            '(id, name, "isActive", "createdAt", "updatedAt") VALUES '
+            f"({sql_quote(cuid(rng))}, {sql_quote(name)}, true, "
+            f"{sql_quote(stamp)}, {sql_quote(stamp)}) ON CONFLICT (name) DO NOTHING;"
+        )
+    return category_id_map()
+
+
+def import_categories(source_dir: str, rng: random.Random) -> dict[str, str]:
+    """Load the file's taxonomy: mains into `business_categories`, the deeper
+    levels («زیردسته»/«زیرشاخه») into `business_taxonomy_nodes`."""
+    mains, subs, tags = read_category_tree(source_dir)
+    mapping = insert_main_categories(mains, rng)
+    import_taxonomy(mains, subs, tags, mapping, rng)
+    return mapping
+
+
+def import_taxonomy(
+    mains: list[str],
+    subs: list[tuple[str, str]],
+    tags: list[tuple[str, str, str]],
+    category_ids: dict[str, str],
+    rng: random.Random,
+) -> None:
+    """Rebuild the «زیردسته»/«زیرشاخه» tree (derived data, safe to recreate)."""
+    psql('DELETE FROM "business_taxonomy_nodes";')
+    stamp = now_stamp()
+    sub_ids: dict[tuple[str, str], str] = {}
+    rows: list[list[str]] = []
+    for main, sub in subs:
+        category_id = category_ids.get(main)
+        if not category_id:
+            continue
+        node_id = cuid(rng)
+        sub_ids[(main, sub)] = node_id
+        rows.append([node_id, sub, "SUB", category_id, ""])
+    for main, sub, tag in tags:
+        category_id = category_ids.get(main)
+        parent_id = sub_ids.get((main, sub))
+        if not category_id or not parent_id:
+            continue
+        rows.append([cuid(rng), tag, "TAG", category_id, parent_id])
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\n")
+    for row in rows:
+        writer.writerow([*row, "true", stamp, stamp])
+    copy_sql = (
+        '\\copy business_taxonomy_nodes '
+        '(id, name, level, "categoryId", "parentId", "isActive", "createdAt", "updatedAt") '
+        "FROM STDIN WITH (FORMAT csv, NULL '')"
+    )
+    psql(copy_sql + "\n" + buffer.getvalue() + "\\.\n")
+    print(f"taxonomy nodes: {len(subs)} زیردسته + {len(tags)} زیرشاخه")
+
+
+def purge_legacy(source_dir: str, rng: random.Random) -> None:
+    """Local-only clean slate: keep only this file's categories and cards."""
+    mains, _, _ = read_category_tree(source_dir)
+    # 1) Insert the mains *first* so a legacy category whose name matches one of
+    #    them keeps its id — existing rows that reference it stay valid.
+    insert_main_categories(mains, rng)
+    # 2) Drop every category that is not part of the file (referencing rows'
+    #    `businessId` is set to NULL by the FK, exactly as requested).
+    kept = ", ".join(sql_quote(name) for name in mains) or "''"
+    gone = psql(
+        f'DELETE FROM "business_categories" WHERE name NOT IN ({kept}) RETURNING id'
+    )
+    print(f"removed {len(gone.splitlines())} legacy categories")
+    # 3) Drop every pre-existing business card; the `businesses` step right
+    #    after re-imports this file's cards.
+    removed = psql('DELETE FROM "business_cards" RETURNING id')
+    print(f"removed {len(removed.splitlines())} legacy business cards")
 
 
 def ensure_import_user(rng: random.Random) -> str:
@@ -334,24 +427,9 @@ def import_businesses(source_dir: str, rng: random.Random, limit: int | None) ->
         },
         rng,
     )
-    category_names = {(b.get("category") or "").strip() for b in businesses}
-    existing = psql('SELECT name || \'|\' || id FROM "business_categories"')
-    business_ids: dict[str, str] = {}
-    for line in existing.splitlines():
-        if "|" in line:
-            cname, ident = line.split("|", 1)
-            business_ids[cname.strip()] = ident.strip()
-    stamp = now_stamp()
-    for cname in sorted(category_names):
-        if not cname or cname in business_ids:
-            continue
-        ident = cuid(rng)
-        psql(
-            'INSERT INTO "business_categories" (id, name, "isActive", "createdAt", "updatedAt") '
-            f"VALUES ({sql_quote(ident)}, {sql_quote(cname)}, true, {sql_quote(stamp)}, {sql_quote(stamp)}) "
-            "ON CONFLICT (name) DO NOTHING;"
-        )
-        business_ids[cname] = ident
+    # Cards are only tagged with the file's *main* categories; a business whose
+    # category is missing is skipped rather than inventing a new category.
+    business_ids = category_id_map()
 
     rows = build_card_rows(businesses, user_id, city_ids, business_ids, rng)
     buffer = io.StringIO()
@@ -382,14 +460,22 @@ def main() -> int:
     parser.add_argument("--source-dir", default=DEFAULT_SOURCE)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--clear", action="store_true")
+    parser.add_argument(
+        "--purge",
+        action="store_true",
+        help="local-only clean slate: drop every pre-existing card and every "
+        "category that is not one of the file's main categories",
+    )
     args = parser.parse_args()
 
     rng = random.Random(1405)
     if args.clear:
         clear_imported()
+    if args.purge:
+        purge_legacy(args.source_dir, rng)
     if args.mode in ("categories", "all"):
         mapping = import_categories(args.source_dir, rng)
-        print(f"categories in database: {len(mapping)}")
+        print(f"main categories in database: {len(mapping)}")
     if args.mode in ("businesses", "all"):
         import_businesses(args.source_dir, rng, args.limit)
     return 0
