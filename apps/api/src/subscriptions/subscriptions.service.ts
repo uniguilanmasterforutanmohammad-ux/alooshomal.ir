@@ -85,9 +85,10 @@ export class SubscriptionsService implements OnModuleInit {
   }
 
   /**
-   * The free plan now also hides the e-mail. Plans that already carry the
-   * legacy link-field list (without `email`) get it appended; the update is
-   * targeted so it never touches a custom list an admin curated.
+   * Keep link-hiding plans in sync as new contact/social fields are added
+   * (e-mail, the five Iranian networks, …). Only plans whose
+   * `showSocialLinks` is false are touched, and missing keys are appended so
+   * a custom list an admin curated is never replaced.
    */
   private async backfillFreeEmailHidden() {
     const plans = await this.prisma.subscriptionPlan.findMany({
@@ -96,10 +97,13 @@ export class SubscriptionsService implements OnModuleInit {
     });
     for (const plan of plans) {
       const hidden = Array.isArray(plan.hiddenFields) ? plan.hiddenFields : [];
-      if (hidden.length === 0 || hidden.includes('email')) continue;
+      const missing = DEFAULT_HIDDEN_LINK_FIELDS.filter(
+        (field) => !hidden.includes(field),
+      );
+      if (missing.length === 0) continue;
       await this.prisma.subscriptionPlan.update({
         where: { id: plan.id },
-        data: { hiddenFields: [...hidden, 'email'] },
+        data: { hiddenFields: [...hidden, ...missing] },
       });
     }
   }

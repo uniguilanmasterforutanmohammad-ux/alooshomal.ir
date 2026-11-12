@@ -24,6 +24,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { SessionsService } from '../sessions/sessions.service';
 import { SettingsService } from '../settings/settings.service';
 import { StorageService } from '../uploads/storage.service';
+import { PLAN_FIELDS, planLimitsFrom } from '../common/plans';
 import { ModerateBiolinkDto } from './dto/moderate-biolink.dto';
 import { notifyUser } from './admin-notify';
 
@@ -311,6 +312,7 @@ export class AdminService {
     return {
       items: items.map((item) => ({
         ...item,
+        isClaimedImport: Boolean(item.importBatchId) && !item.isUnclaimed,
         decidedBy: decisions.get(item.id) ?? null,
       })),
       meta: {
@@ -407,12 +409,44 @@ export class AdminService {
   async getBusinessCard(businessCardId: string) {
     const businessCard = await this.prisma.businessCard.findUnique({
       where: { id: businessCardId },
-      include: { city: true, business: true },
+      include: {
+        city: true,
+        business: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            plan: {
+              select: {
+                name: true,
+                maxBiolinks: true,
+                maxBusinessCards: true,
+                showSocialLinks: true,
+                hiddenFields: true,
+              },
+            },
+          },
+        },
+        importBatch: {
+          select: { id: true, label: true, source: true, createdAt: true },
+        },
+      },
     });
     if (!businessCard) {
       throw new NotFoundException('کارت ویزیت یافت نشد');
     }
-    return businessCard;
+    const limits = planLimitsFrom(businessCard.user?.plan);
+    return {
+      ...businessCard,
+      isClaimedImport: Boolean(businessCard.importBatchId) && !businessCard.isUnclaimed,
+      ownerPlan: {
+        ...limits,
+        hiddenLabels: limits.hiddenFields.map(
+          (key) => PLAN_FIELDS.find((field) => field.key === key)?.label ?? key,
+        ),
+      },
+    };
   }
 
   async updateBusinessCard(businessCardId: string, dto: UpdateBusinessCardDto) {
@@ -441,10 +475,9 @@ export class AdminService {
         ...fields,
         ...(workingHours !== undefined ? { workingHours } : {}),
       },
-      include: { city: true, business: true },
     });
     this.facetsCache.invalidateDirectory('businesscard');
-    return updated;
+    return this.getBusinessCard(updated.id);
   }
 
   async stats() {

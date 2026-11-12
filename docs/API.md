@@ -208,6 +208,22 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 | `GET` | `/admin/claim-requests` | فهرست درخواست‌ها (حداکثر ۱۰۰ مورد، جدیدترین اول) با پارامتر اختیاری `status` (`PENDING` \| `APPROVED` \| `REJECTED` \| `ALL`). خروجی `{ items, total, pending }` و هر مورد شامل کاربر درخواست‌دهنده، کارت، وضعیت و یادداشت تصمیم است. |
 | `POST` | `/admin/claim-requests/:id/decide` | تأیید یا رد درخواست با `{ approve: boolean, note?: string }`. تأیید مالکیت را مثل تصاحب تأییدشده منتقل می‌کند و سایر درخواست‌های در انتظار همان کارت را خودکار رد می‌کند؛ رد، وضعیت را `REJECTED` می‌کند و به کاربر اعلان می‌فرستد. درخواست ناموجود `404` و درخواست بررسی‌شده `409` برمی‌گرداند. |
 
+### مدیریت کارت‌های ویزیت تصاحب‌شده (`/api/admin/business-cards`)
+
+کارت‌هایی که از یک دسته‌ی ایمپورت آمده‌اند و صاحبشان آن‌ها را تصاحب کرده
+(`importBatchId != null` و `isUnclaimed = false`) در پنل مدیر با نشان
+«تصاحب‌شده از ایمپورت» مشخص می‌شوند. ویرایش صاحب کارت روی وضعیت `PENDING`
+قرار می‌گیرد؛ پس از تأیید مدیر، صفحه‌ی عمومی اطلاعات را مطابق **اشتراک همان
+صاحب کارت** (`user.plan`) نمایش می‌دهد و فیلدهای پنهانِ آن اشتراک ماسک می‌شوند.
+همه‌ی مسیرها فقط برای نقش `ADMIN` هستند.
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET` | `/admin/business-cards` | فهرست صفحه‌بندی‌شده با فیلترهای `status` (از `BiolinkStatus`)، `search`، `page` و `limit`. هر مورد علاوه بر خود کارت شامل `isClaimedImport` (کارت ایمپورت‌شده‌ای که تصاحب شده) و `decidedBy` است. |
+| `GET` | `/admin/business-cards/:id` | جزئیات کامل برای ویرایش/بررسی؛ علاوه بر `isClaimedImport`، ردیف `importBatch` (`id`، `label`، `source`، `createdAt`)، `user` (`id`، `email`، `fullName`، `plan`) و `ownerPlan` را برمی‌گرداند. `ownerPlan` شامل `name`، `maxBiolinks`، `maxBusinessCards`، `showSocialLinks`، `hiddenFields` و `hiddenLabels` است تا پنل بتواند پیش از تأیید نشان دهد چه فیلدهایی ماسک خواهند شد. |
+| `PATCH` | `/admin/business-cards/:id` | ویرایش زنده‌ی فیلدهای کارت توسط مدیر؛ خروجی همان شکل غنی‌شده‌ی `GET /admin/business-cards/:id` است. |
+| `PATCH` | `/admin/business-cards/:id/moderate` | تأیید یا رد (`{ decision: 'APPROVED' \| 'REJECTED', reason? }`). با تأیید، `status=APPROVED`، `isPublished=true` و زمان تأیید/انتشار ثبت می‌شود و سپس ماسک `ownerPlan` در خواندن‌های عمومی اعمال می‌شود؛ با رد، کارت منتشرنمی‌شود و دلیل در اعلان کاربر می‌آید. |
+
 ### درگاه پرداخت پی‌پینگ (`payping`)
 
 پنل مدیر «درگاه پرداخت» با توکن پذیرنده‌ی پی‌پینگ (متغیر محیطی `PAYPING_TOKEN`)

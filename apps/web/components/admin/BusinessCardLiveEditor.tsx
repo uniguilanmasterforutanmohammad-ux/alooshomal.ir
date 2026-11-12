@@ -1,14 +1,35 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Check, X } from 'lucide-react';
+import { BadgeCheck, Check, Sparkles, X } from 'lucide-react';
 
 import { BusinessCardForm, type BusinessCardFormValues } from '@/components/businesscard/BusinessCardForm';
-import { api, type BusinessCard, type TaxonomyItem } from '@/lib/api';
+import { api, type BusinessCard } from '@/lib/api';
 
 interface AdminBusinessCardFull extends BusinessCard {
   city?: { id: string; name: string } | null;
   business?: { id: string; name: string } | null;
+  isClaimedImport?: boolean;
+  importBatchId?: string | null;
+  importBatch?: {
+    id: string;
+    label: string;
+    source: string | null;
+    createdAt: string;
+  } | null;
+  user?: {
+    id: string;
+    email: string;
+    fullName: string | null;
+  } | null;
+  ownerPlan?: {
+    name: string;
+    showSocialLinks: boolean;
+    hiddenFields: string[];
+    hiddenLabels: string[];
+    maxBiolinks: number;
+    maxBusinessCards: number;
+  };
 }
 
 interface Props {
@@ -150,6 +171,46 @@ export function BusinessCardLiveEditor({
         <p className="mx-4 mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700">
           {message}
         </p>
+      ) : null}
+
+      {businessCard.isClaimedImport ? (
+        <div className="mx-4 mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
+          <p className="flex items-center gap-1.5 font-extrabold">
+            <BadgeCheck className="size-4" aria-hidden />
+            این کارت از کارت‌های ایمپورت‌شده است و صاحبش آن را تصاحب کرده
+          </p>
+          <p className="mt-1">
+            دسته‌ی ایمپورت: {businessCard.importBatch?.label ?? '—'}
+            {businessCard.user?.email ? (
+              <>
+                {' '}
+                — صاحب فعلی:{' '}
+                <span dir="ltr" className="font-bold">
+                  {businessCard.user.email}
+                </span>
+              </>
+            ) : null}
+          </p>
+          <p className="mt-1">
+            {businessCard.status === 'PENDING'
+              ? 'ویرایش صاحب کارت در انتظار بررسی است؛ با تأیید، مالکیت و نمایش اطلاعات همان صاحب کارت اعمال می‌شود.'
+              : 'مالکیت این کارت به صاحبش منتقل شده و نمایش اطلاعات آن از اشتراک همین کاربر پیروی می‌کند.'}
+          </p>
+        </div>
+      ) : null}
+
+      {businessCard.ownerPlan ? (
+        <div className="mx-4 mt-3 rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-3 text-xs leading-6 text-muted">
+          <p className="flex items-center gap-1.5 font-extrabold text-ink">
+            <Sparkles className="size-4 text-brand" aria-hidden />
+            نمایش پس از تأیید مطابق اشتراک «{businessCard.ownerPlan.name}»
+          </p>
+          <p className="mt-1">
+            {businessCard.ownerPlan.hiddenLabels.length
+              ? `این فیلدها در صفحه‌ی عمومی نمایش داده نمی‌شوند: ${businessCard.ownerPlan.hiddenLabels.join('، ')}`
+              : 'همه‌ی فیلدهای ثبت‌شده در صفحه‌ی عمومی نمایش داده می‌شوند.'}
+          </p>
+        </div>
       ) : null}
 
       <div className="p-4">

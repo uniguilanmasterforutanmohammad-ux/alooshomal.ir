@@ -20,6 +20,9 @@ export interface AdminBiolink {
   isPublished: boolean;
   /** imported, not-yet-claimed business cards (business-card rows only) */
   isUnclaimed?: boolean;
+  /** this card came from an import batch and has since been claimed */
+  isClaimedImport?: boolean;
+  importBatchId?: string | null;
   user: { email: string; fullName: string | null };
   decidedBy?: { id: string; fullName: string | null; email: string | null } | null;
 }

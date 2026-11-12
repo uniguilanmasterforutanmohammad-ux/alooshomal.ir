@@ -364,7 +364,16 @@ export function useAdminConsole() {
     {
       key: 'status',
       label: 'وضعیت',
-      render: (item) => <BusinessCardStatusBadge status={item.status} />,
+      render: (item) => (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <BusinessCardStatusBadge status={item.status} />
+          {item.isClaimedImport ? (
+            <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+              تصاحب‌شده از ایمپورت
+            </span>
+          ) : null}
+        </div>
+      ),
     },
     {
       key: 'approver',

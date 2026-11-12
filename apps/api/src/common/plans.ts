@@ -23,6 +23,7 @@ export const PLAN_FIELDS: Array<{ key: string; label: string }> = [
   { key: 'company', label: 'شرکت' },
   { key: 'bio', label: 'درباره من' },
   { key: 'phone', label: 'تلفن همراه / ثابت' },
+  { key: 'otherPhones', label: 'تلفن‌های دیگر' },
   { key: 'email', label: 'ایمیل' },
   { key: 'website', label: 'وب‌سایت' },
   { key: 'address', label: 'آدرس' },
@@ -33,6 +34,11 @@ export const PLAN_FIELDS: Array<{ key: string; label: string }> = [
   { key: 'telegram', label: 'تلگرام' },
   { key: 'twitter', label: 'ایکس (توییتر)' },
   { key: 'whatsapp', label: 'واتساپ' },
+  { key: 'bale', label: 'بله' },
+  { key: 'eitaa', label: 'ایتا' },
+  { key: 'rubika', label: 'روبیکا' },
+  { key: 'igap', label: 'آی‌گپ' },
+  { key: 'soroush', label: 'سروش' },
 ];
 
 export const PLAN_FIELD_KEYS: string[] = PLAN_FIELDS.map((field) => field.key);
@@ -51,6 +57,11 @@ export const DEFAULT_HIDDEN_LINK_FIELDS = [
   'telegram',
   'twitter',
   'whatsapp',
+  'bale',
+  'eitaa',
+  'rubika',
+  'igap',
+  'soroush',
 ];
 
 export interface PlanDefinition {
@@ -221,7 +232,10 @@ export function applyContactFieldMask<T extends Record<string, unknown>>(
   hidden: string[],
 ): T {
   const masked = applyHiddenFields(item, hidden) as Record<string, unknown>;
-  if (hidden?.includes('phone') && 'mobile' in masked) masked.mobile = null;
+  if (hidden?.includes('phone')) {
+    if ('mobile' in masked) masked.mobile = null;
+    if ('otherPhones' in masked) masked.otherPhones = [];
+  }
   return masked as T;
 }
 
