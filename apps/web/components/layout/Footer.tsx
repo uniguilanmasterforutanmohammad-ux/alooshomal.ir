@@ -7,7 +7,9 @@ import {
   IdCard,
   LifeBuoy,
   Mail,
+  MessageCircle,
   MessageCircleQuestion,
+  Phone,
   ScrollText,
 } from 'lucide-react';
 
@@ -57,18 +59,31 @@ const SUPPORT_TILES = [
   { href: '/contact', label: 'تماس با ما', Icon: Mail },
 ];
 
-/** Contact rows in the last column, each with a leading icon. */
+/** Direct contact channels (always available). */
+const PHONE_DISPLAY = '۰۹۲۰۷۸۱۸۳۸۹';
+const BALE_CHAT_HREF = 'https://ble.ir/09207818389';
+const DIRECT_CONTACTS = [
+  { href: 'tel:+989207818389', label: PHONE_DISPLAY, Icon: Phone, ltr: true },
+  {
+    href: 'mailto:support@shomalicard.ir',
+    label: 'support@shomalicard.ir',
+    Icon: Mail,
+    ltr: true,
+  },
+  { href: BALE_CHAT_HREF, label: 'چت در پیام‌رسان بله', Icon: MessageCircle, external: true },
+];
+
+/** Support shortcuts shown under the direct contacts. */
 const CONTACT_ROWS = [
   { href: '/dashboard/support', label: 'گفتگوی آنلاین با پشتیبانی', Icon: MessageCircleQuestion },
   { href: '/dashboard/tickets', label: 'ثبت تیکت پشتیبانی', Icon: LifeBuoy },
-  { href: '/guide', label: 'راهنمای استفاده', Icon: BookOpen },
-  { href: '/rules', label: 'قوانین و مقررات', Icon: ScrollText },
 ];
 
 /**
  * Site footer — mirrors the reference layout: a light panel with a brand row
  * (logo + icon tiles), four columns (owner links, site pages, quick links and
- * contact rows) and a centered copyright line.
+ * contact rows), and a centered copyright line. The e-namad seal lives inside
+ * the contact column so it does not add a separate full-width row.
  *
  * Links go through `showNav` so an admin-disabled section disappears from the
  * footer too, exactly like the header and the mobile bar. Support/contact
@@ -122,8 +137,8 @@ export function Footer({ showEnamad = false }: { showEnamad?: boolean }) {
           </div>
         </div>
 
-        {/* Link columns */}
-        <div className="grid gap-6 py-6 md:grid-cols-2 lg:grid-cols-4">
+        {/* Link columns: two tidy columns on phones/tablets, four on desktop. */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 py-6 lg:grid-cols-4">
           <div>
             <h3 className="mb-3 text-sm font-bold text-[var(--footer-ink)]">
               صاحب کسب‌وکار هستید؟
@@ -155,7 +170,7 @@ export function Footer({ showEnamad = false }: { showEnamad?: boolean }) {
             <h3 className="mb-3 text-sm font-bold text-[var(--footer-ink)]">
               صفحه‌های شمالی کارت
             </h3>
-            <ul className="grid grid-cols-2 gap-x-3 gap-y-2 leading-6">
+            <ul className="grid gap-y-2 leading-6 lg:grid-cols-2 lg:gap-x-3">
               {siteLinks.map((item) => (
                 <li key={item.href}>
                   <Link
@@ -194,6 +209,26 @@ export function Footer({ showEnamad = false }: { showEnamad?: boolean }) {
               ارتباط با ما
             </h3>
             <ul className="space-y-2 text-xs leading-6 text-[var(--footer-muted)]">
+              {DIRECT_CONTACTS.map(({ href, label, Icon, external, ltr }) => (
+                <li key={href}>
+                  <a
+                    href={href}
+                    {...(external
+                      ? { target: '_blank', rel: 'noopener noreferrer' }
+                      : {})}
+                    dir={ltr ? 'ltr' : undefined}
+                    className="flex items-center gap-1.5 transition hover:text-[var(--footer-brand)]"
+                  >
+                    <Icon
+                      className="size-3.5 shrink-0 text-[var(--footer-brand-light)]"
+                      aria-hidden
+                    />
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+            <ul className="mt-3 space-y-2 text-xs leading-6 text-[var(--footer-muted)]">
               {CONTACT_ROWS.map(({ href, label, Icon }) => (
                 <li key={href}>
                   <Link
@@ -210,6 +245,11 @@ export function Footer({ showEnamad = false }: { showEnamad?: boolean }) {
                 </li>
               ))}
             </ul>
+            {showEnamad ? (
+              <div className="mt-4 flex justify-center lg:justify-start">
+                <EnamadBadge className="shrink-0" />
+              </div>
+            ) : null}
           </div>
         </div>
 
@@ -226,13 +266,6 @@ export function Footer({ showEnamad = false }: { showEnamad?: boolean }) {
           </p>
         </div>
 
-        {/* Official e-namad trust seal (home page only). The markup is fixed by
-            enamad.ir and must not be edited. */}
-        {showEnamad ? (
-          <div className="mt-4 flex justify-center">
-            <EnamadBadge className="shrink-0" />
-          </div>
-        ) : null}
       </div>
     </footer>
   );
