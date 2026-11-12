@@ -26,12 +26,11 @@ export default async function HomePage() {
   const { suggested, latest } = splitHomeBusinessCards(businessCards);
 
   return (
-    /* The shell reserves the height left by the chrome — the 56px fixed bottom
-       nav on phones/tablets (already padded by `body`) or the 66px sticky
+    /* The shell reserves the height left by the chrome — the 66px sticky
        header on desktop — plus the sticky «توقف موقت» notice strip when one is
        showing (`--feature-notice-h`), so a sparse page still pins the footer to
        the bottom. The hero occupies the first screen; the two rails follow. */
-    <div className="home-shell flex min-h-[calc(100dvh-56px-var(--feature-notice-h))] flex-col lg:min-h-[calc(100dvh-66px-var(--feature-notice-h))]">
+    <div className="home-shell flex min-h-[calc(100dvh-var(--feature-notice-h))] flex-col lg:min-h-[calc(100dvh-66px-var(--feature-notice-h))]">
       <Header />
 
       <main className="flex flex-1 flex-col">

@@ -9,7 +9,7 @@ import type { PublicFeatures } from '@/lib/features-store';
  *
  * The root layout (a server component) reads `GET /settings/public` and passes
  * it here, so the client components that decide what to show — `Header`,
- * `MobileNav`, `Footer`, `FeatureNoticeBar` — already know the hidden nav
+ * `Footer`, `FeatureNoticeBar` — already know the hidden nav
  * hrefs during the *server* render. That removes the flash where a disabled
  * section briefly appeared in the header before the client fetch resolved.
  */

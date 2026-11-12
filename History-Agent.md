@@ -20,7 +20,32 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.34.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.34.3**.
+
+## ۱۴۰۵/۰۸/۲۰ — حذف کامل نوار ناوبری پایین موبایل — نسخه `v3.34.3`
+
+**هدف:** حذف `MobileNav` (نوار ناوبری ثابت پایین در موبایل/تبلت) از همه‌ی
+صفحه‌ها و پاک‌سازی فضاهای رزروشده برای آن.
+
+**تغییرات:**
+- `apps/web/app/layout.tsx`: حذف ایمپورت و رندر `MobileNav`.
+- `apps/web/components/layout/MobileNav.tsx`: حذف فایل (دیگر استفاده نمی‌شد).
+- `apps/web/app/globals.css`: حذف `padding-bottom` بدنه در موبایل، حذف
+  `--dir-bottom` از `directory-shell`، حذف رزرو ۵۶px در `card-public-page` و
+  `blt-page`، حذف استایل دارک نوار پایین و به‌روزرسانی توضیحات.
+- `apps/web/app/page.tsx`: حذف ۵۶px رزروشده‌ی نوار پایین از ارتفاع کمینه‌ی
+  `home-shell`.
+- `apps/web/components/layout/Header.tsx` و
+  `apps/web/components/layout/FeaturesProvider.tsx`: به‌روزرسانی توضیحات.
+- `apps/web/lib/version.ts`: ارتقای نسخه به `v3.34.3`.
+
+**تأیید/تست:**
+- `./node_modules/.bin/tsc --noEmit -p tsconfig.json` در `apps/web` → بدون خطا.
+- `npx eslint` روی فایل‌های تغییریافته → بدون خطا.
+- `curl` روی `/`، `/services`، `/business-cards`، `/biolinks` و `/pulse` →
+  هیچ‌کدام `ناوبری پایین` در HTML ندارند.
+- CSS کامپایل‌شده‌ی dev server دیگر `padding-bottom:calc(56px...)`، `dir-bottom`
+  و `100dvh - 56px` ندارد.
 
 ## ۱۴۰۵/۰۸/۲۰ — حذف هدر و فوتر از صفحه‌ی خدمات — نسخه `v3.34.2`
 

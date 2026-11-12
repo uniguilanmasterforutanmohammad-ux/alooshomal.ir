@@ -12,7 +12,7 @@ import { HEADER_NAV } from '@/lib/nav';
 import { cn } from '@/lib/utils';
 
 /**
- * Public top navigation (desktop only; phones/tablets use `MobileNav`).
+ * Public top navigation (desktop only).
  *
  * The action buttons are auth-aware:
  *   - signed out: «رایگان شروع کنید» → login (with `next=/dashboard/business-cards`)

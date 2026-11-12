@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from 'next';
 import { OfflineBanner } from '@/components/ui/OfflineBanner';
 import { FeatureNoticeBar } from '@/components/layout/FeatureNoticeBar';
 import { ToastViewport } from '@/components/ui/ToastViewport';
-import { MobileNav } from '@/components/layout/MobileNav';
 import { SupportChatWidget } from '@/components/support/SupportChatWidget';
 import { SessionWatcher } from '@/components/ui/SessionWatcher';
 import { PaypingOAuthCatcher } from '@/components/admin/PaypingOAuthCatcher';
@@ -106,7 +105,6 @@ export default async function RootLayout({
           {children}
           <SessionWatcher />
           <PaypingOAuthCatcher />
-          <MobileNav />
           <SupportChatWidget />
           <ToastViewport />
         </FeaturesProvider>

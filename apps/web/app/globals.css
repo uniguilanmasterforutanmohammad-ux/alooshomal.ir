@@ -194,41 +194,27 @@ body > .home-shell {
   --feature-notice-h: 0px;
 }
 
-/* Phone + tablet: leave room for the fixed bottom navigation so the last
-   content is never hidden behind it (plus the device safe-area inset). The
-   header/top-nav is hidden up to `lg` (1024px), so the bottom bar covers
-   phones and tablets alike. */
-@media (max-width: 1023px) {
-  body {
-    padding-bottom: calc(56px + env(safe-area-inset-bottom));
-  }
-}
-
 /* Directory pages (/biolinks, /business-cards): the heading, filters and
    pagination stay put and only the card list scrolls — on every breakpoint.
-   `directory-shell` fills the viewport minus the fixed bottom nav (phones /
-   tablets) or the sticky top header (desktop); `directory-list` is the one
-   scrollable region.
+   `directory-shell` fills the viewport minus the sticky top header (desktop);
+   `directory-list` is the one scrollable region.
 
-   `--dir-top`/`--dir-bottom` reserve those chrome heights so the shell plus the
-   in-flow header/nav always add up to exactly 100dvh and the page itself never
-   scrolls. The footer is intentionally omitted on these pages (see the pages
-   themselves) so it cannot stretch the layout. */
+   `--dir-top` reserves that chrome height so the shell plus the in-flow header
+   always adds up to exactly 100dvh and the page itself never scrolls. The
+   footer is intentionally omitted on these pages (see the pages themselves) so
+   it cannot stretch the layout. */
 .directory-shell {
   --dir-top: 0px;
-  --dir-bottom: calc(56px + env(safe-area-inset-bottom));
-  height: calc(100dvh - var(--dir-top) - var(--dir-bottom));
+  height: calc(100dvh - var(--dir-top));
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
-/* Desktop shows the sticky top header (h-16 = 64px + 2px dashed border)
-   instead of the bottom nav. */
+/* Desktop shows the sticky top header (h-16 = 64px + 2px dashed border). */
 @media (min-width: 1024px) {
   .directory-shell {
     --dir-top: calc(66px + var(--feature-notice-h));
-    --dir-bottom: 0px;
   }
 }
 
@@ -701,10 +687,10 @@ header.bg-white {
 
 /* ---- Home hero ----
    The home page is a one-screen flex column (`home-shell` in `app/page.tsx`):
-   the shell reserves exactly the height left by the fixed bottom nav
-   (phones/tablets) or the sticky 66px header (desktop), and the hero grows into
-   the leftover height after the invitation box and the footer. So the whole
-   page lands in a single viewport instead of the hero pushing it past it. */
+   the shell reserves exactly the height left by the sticky 66px header
+   (desktop), and the hero grows into the leftover height after the invitation
+   box and the footer. So the whole page lands in a single viewport instead of
+   the hero pushing it past it. */
 .home-hero {
   /* `flex-shrink: 0` keeps the hero at least as tall as its own content —
      `overflow: hidden` otherwise zeroes its automatic minimum size and the
@@ -1097,14 +1083,6 @@ html[data-theme] .home-shell footer.site-footer,
   display: flex;
   flex-direction: column;
   overflow: hidden;
-}
-
-/* Phones / tablets reserve the fixed bottom navigation (same 56px the body
-   already reserves), so the shell plus that chrome add up to exactly 100dvh. */
-@media (max-width: 1023px) {
-  .card-public-page {
-    height: calc(100dvh - 56px - env(safe-area-inset-bottom));
-  }
 }
 
 .card-public-inner {
@@ -2214,12 +2192,6 @@ html.dark footer.site-footer .border-white\/20 {
   border-color: rgba(243, 217, 191, 0.18);
 }
 
-/* ---- Mobile bottom nav in dark ---- */
-html.dark nav[aria-label="ناوبری پایین"] {
-  background-color: rgba(26, 18, 13, 0.95);
-  border-top-color: #8a4020;
-}
-
 /* Admin sidebar: the nav can be taller than the viewport, so it scrolls on its
    own with a thin themed scrollbar (the rest of the page stays put). */
 .admin-sidebar {
@@ -2816,11 +2788,6 @@ html.dark .blt { box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); }
   justify-content: center;
   padding: 16px;
 }
-@media (max-width: 1023px) {
-  .blt-page {
-    min-height: calc(100dvh - 56px - env(safe-area-inset-bottom));
-  }
-}
 .blt-page-inner {
   display: flex;
   min-height: 0;
@@ -2832,11 +2799,9 @@ html.dark .blt { box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); }
 }
 
 /* ---- Ready-made design mode: full-screen box on phones/tablets ---- */
-/* Phones and tablets reserve the fixed bottom nav (56px). */
 @media (max-width: 1023px) {
   .blt-page {
     padding: 0;
-    min-height: calc(100dvh - 56px - env(safe-area-inset-bottom));
     align-items: stretch;
   }
   .blt-page-inner {
@@ -6356,8 +6321,8 @@ html[data-theme='bazaar'] .bizcard-avatar {
   }
 }
 
-/* Phones / tablets hide the sticky top header and use the bottom nav instead,
-   so the section tabs stick to the very top of the viewport. */
+/* Phones / tablets hide the sticky top header, so the section tabs stick to the
+   very top of the viewport. */
 @media (max-width: 1023px) {
   .biz-tabs {
     top: var(--feature-notice-h);
