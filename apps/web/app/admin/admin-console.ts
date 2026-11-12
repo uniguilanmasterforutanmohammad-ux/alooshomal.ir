@@ -51,6 +51,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'overview',
   'biolinks',
   'business-cards',
+  'claim-requests',
   'subscriptions',
   'boosts',
   'ads',
@@ -102,6 +103,10 @@ export function isAdminSection(value: string): value is AdminSection {
     'business-cards': {
       title: 'بررسی کارت‌های ویزیت',
       sub: 'تأیید، رد و ویرایش کارت‌های ویزیت',
+    },
+    'claim-requests': {
+      title: 'درخواست‌های تصاحب',
+      sub: 'بررسی درخواست تصاحب کارت‌های ایمپورت‌شده‌ی بدون راه ارتباطی',
     },
     subscriptions: { title: 'اشتراک‌ها', sub: 'مدیریت بسته‌ها و تأیید درخواست کاربران' },
     boosts: { title: 'افزایش بازدید', sub: 'بررسی و تأیید درخواست‌های پله' },

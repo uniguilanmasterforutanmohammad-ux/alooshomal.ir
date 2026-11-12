@@ -20,7 +20,68 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.47.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.48.0**.
+
+## ۱۴۰۵/۰۸/۲۱ — تأیید مالکیت با کد یکبارمصرف و صف بررسی مدیر — نسخه `v3.48.0`
+
+**هدف:** در صفحه‌ی کارت‌های ایمپورت‌شده، تصاحب با یک کلیک حذف شود. اگر کارت
+موبایل دارد کد یکبارمصرف پیامکی، در غیر این صورت اگر ایمیل معتبر دارد کد
+ایمیلی ارسال شود؛ کارتی که هیچ راه ارتباطی قابل تأیید ندارد باید درخواستش به
+مدیر برود تا پس از بررسی و تأیید، مالکیت منتقل شود.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل `BusinessCardClaimRequest` (درخواست
+  تصاحب بدون راه ارتباطی، وضعیت `PENDING/APPROVED/REJECTED`، یادداشت و تصمیم
+  مدیر) و رابطه‌های آن با `BusinessCard` و `User`.
+- `apps/api/src/auth/otp.service.ts`: هدف `claim` به کدهای یکبارمصرف اضافه شد؛
+  `issueClaimCode`/`verifyClaimCode` کد را به «کارت + کانال + مقصد» قید می‌کنند،
+  کد پیامکی با موبایل نرمال‌شده و کد ایمیلی با ایمیل ارسال می‌شود و در حالت
+  توسعه‌ی بدون SMS/ایمیل کد آزمایشی `123456` برمی‌گردد.
+- `apps/api/src/auth/mail.service.ts`: برچسب ایمیل کد «تصاحب کسب‌وکار».
+- `apps/api/src/businesscards/business-card-claims.service.ts`: سرویس تازه‌ی
+  شروع/تأیید تصاحب، صف درخواست مدیر، انتقال مالکیت، اعلان کاربر/مدیران و ثبت
+  فعالیت؛ ترتیب انتخاب کانال: موبایل ← ایمیل ← مدیریت.
+- `apps/api/src/businesscards/business-cards.controller.ts`: `POST
+  /business-cards/:id/claim` به سرویس تازه وصل شد و مسیر
+  `POST /business-cards/:id/claim/verify` اضافه شد.
+- `apps/api/src/businesscards/dto/verify-business-card-claim.dto.ts`: DTO کد
+  ۶ رقمی با مستندات Swagger.
+- `apps/api/src/businesscards/business-cards.service.ts`: مسیر تصاحب فوری قبلی
+  حذف شد تا هیچ راهی بدون تأیید کد/مدیر باقی نماند.
+- `apps/api/src/businesscards/business-cards.module.ts` و
+  `apps/api/src/admin/admin.module.ts`: ثبت سرویس/وابستگی‌های تازه.
+- `apps/api/src/admin/admin.controller.ts` و
+  `apps/api/src/admin/dto/decide-claim-request.dto.ts`: مشاهده‌ی درخواست‌های
+  تصاحب و تأیید/رد آن‌ها توسط مدیر.
+- `apps/web/components/business/ClaimBusinessCardButton.tsx`: جریان دو مرحله‌ای
+  ارسال و تأیید کد (پیامک/ایمیل)، نمایش کد آزمایشی در توسعه، شمارش معکوس ارسال
+  دوباره و پیام «در انتظار بررسی مدیر» برای کارت‌های بدون راه ارتباطی.
+- `apps/web/components/admin/AdminClaimRequests.tsx`: فهرست و بررسی درخواست‌های
+  تصاحب، فیلتر وضعیت، شمارنده‌ی در انتظار، لینک صفحه‌ی کارت و تأیید/رد با
+  یادداشت.
+- `apps/web/components/admin/AdminShell.tsx`، `apps/web/app/admin/admin-console.ts`
+  و `apps/web/app/admin/page.tsx`: بخش «بررسی محتوا ← درخواست‌های تصاحب».
+- `docs/API.md`: مستندسازی مسیر تأیید کد و مسیرهای مدیریت درخواست‌ها.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit`: بدون خطا.
+- `docker exec alooshomal-api npx eslint <فایل‌های تغییریافته>`: بدون خطا
+  (فقط یک هشدار هم‌سبک با سایر پنل‌های ادمین در `AdminClaimRequests.tsx`).
+- `python3 scripts/check_api_docs.py`: خروجی «کنترلرها: 37 | مسیرها: 408» و
+  exit 0.
+- تست زنده‌ی مسیر پیامکی با کارت دارای موبایل: شروع تصاحب کد آزمایشی `123456`
+  برگرداند، کد اشتباه `400` و کد صحیح مالکیت را منتقل کرد.
+- تست زنده‌ی مسیر ایمیلی با کارت آزمایشی دارای ایمیل: شروع تصاحب
+  `channel: "email"` برگرداند و لاگ ارسال ایمیل ثبت شد؛ کد اشتباه `400` و پس از
+  قراردادن هش کد شناخته‌شده، تأیید صحیح مالکیت را منتقل کرد.
+- تست زنده‌ی کارت بدون موبایل/ایمیل: شروع تصاحب `channel: "admin"` و شناسه‌ی
+  درخواست برگرداند؛ `GET /api/admin/claim-requests?status=PENDING` درخواست را
+  نشان داد؛ تأیید مدیر مالکیت را منتقل کرد (`isUnclaimed=false`، وضعیت
+  `PENDING`) و رد درخواست دوم وضعیت را `REJECTED` کرد بدون تغییر مالکیت.
+- پس از تست، کارت‌ها و درخواست‌های آزمایشی به وضعیت اولیه برگردانده/حذف شدند.
+- `curl` صفحات `/business/tkotgykyectunfhh` و
+  `/admin?section=claim-requests` هر دو `200` برگرداندند.
 
 ## ۱۴۰۵/۰۸/۲۱ — ایمپورت مستقل شهر/محله و مشاغل از پنل — نسخه `v3.47.0`
 

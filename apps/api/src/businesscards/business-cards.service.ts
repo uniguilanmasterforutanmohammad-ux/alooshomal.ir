@@ -520,62 +520,6 @@ export class BusinessCardsService {
   }
 
   /**
-   * «شما صاحب این کسب‌وکار هستید؟» — a signed-in visitor takes ownership of a
-   * system-imported profile (`isUnclaimed`). Imported cards are unpublished
-   * until claimed; claiming moves the card into the normal moderation flow
-   * (like a freshly created card) and it is no longer part of any rollback.
-   */
-  async claim(id: string, userId: string) {
-    await this.settings.assertFeatureEnabled(
-      'featureBusinessClaim',
-      'تصاحب کسب‌وکارهای ثبت‌شده‌ی سیستمی موقتاً غیرفعال است.',
-    );
-    const card = await this.prisma.businessCard.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        slug: true,
-        fullName: true,
-        userId: true,
-        isUnclaimed: true,
-        isPublished: true,
-        status: true,
-      },
-    });
-    if (!card) {
-      throw new NotFoundException('کسب‌وکار مورد نظر یافت نشد');
-    }
-    if (card.userId === userId) {
-      return { claimed: true, id: card.id, slug: card.slug };
-    }
-    if (!card.isUnclaimed) {
-      throw new ConflictException('این کسب‌وکار قبلاً توسط صاحبش ثبت شده است');
-    }
-    await this.prisma.businessCard.update({
-      where: { id },
-      data: {
-        userId,
-        isUnclaimed: false,
-        ...(card.isPublished
-          ? {}
-          : {
-              status: BiolinkStatus.PENDING,
-              isPublished: false,
-              approvedAt: null,
-              publishedAt: null,
-            }),
-      },
-    });
-    await this.activity.log({
-      action: 'BUSINESS_CARD_CLAIMED',
-      summary: `تصاحب کسب‌وکار «${card.fullName}» توسط کاربر`,
-      entityType: 'BUSINESS_CARD',
-      entityId: card.id,
-    });
-    return { claimed: true, id: card.id, slug: card.slug };
-  }
-
-  /**
    * The most recently published business cards, used by the home-page slider.
    * The projection carries only the fields the slider cards show (name, role,
    * company, city, business and a contact line), so six cards stay cheap.

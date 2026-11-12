@@ -63,6 +63,7 @@ export class MailService {
     if (purpose === 'email-change') return 'تغییر ایمیل';
     if (purpose === 'password-reset') return 'تغییر رمز عبور';
     if (purpose === 'admin-login') return 'ورود مدیران';
+    if (purpose === 'claim') return 'تصاحب کسب‌وکار';
     if (purpose === 'register') return 'ثبت‌نام';
     if (purpose === 'system-alert') return 'هشدار منابع سرور';
     return 'ورود به سایت';
@@ -103,6 +104,7 @@ export class MailService {
       | 'email-change'
       | 'password-reset'
       | 'admin-login'
+      | 'claim'
       | 'register' = 'login',
   ): Promise<boolean> {
     if (!this.enabled) {

@@ -22,6 +22,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { UpdateBiolinkDto } from '../biolinks/dto/update-biolink.dto';
 import { UpdateBusinessCardDto } from '../businesscards/dto/update-business-card.dto';
+import { BusinessCardClaimsService } from '../businesscards/business-card-claims.service';
 import { BoostsReviewService } from '../boosts/boosts-review.service';
 import { DecideBoostDto } from '../boosts/dto/decide-boost.dto';
 import { AdsReviewService } from '../ads/ads-review.service';
@@ -56,6 +57,7 @@ import {
 import { ModerateBiolinkDto } from './dto/moderate-biolink.dto';
 import { ModerateBusinessCardDto } from './dto/moderate-business-card.dto';
 import { ImportBusinessBatchDto } from './dto/import-business-batch.dto';
+import { DecideClaimRequestDto } from './dto/decide-claim-request.dto';
 import {
   CreateModeratorDto,
   UpdateModeratorDto,
@@ -76,6 +78,7 @@ export class AdminController {
     private readonly boostsReview: BoostsReviewService,
     private readonly adsReview: AdsReviewService,
     private readonly bulkService: BulkService,
+    private readonly claims: BusinessCardClaimsService,
     private readonly permissions: PermissionsService,
   ) {}
 
@@ -225,6 +228,28 @@ export class AdminController {
   @ApiOperation({ summary: 'جزئیات کامل کارت ویزیت برای بررسی مدیر' })
   businessCard(@Param('id') id: string) {
     return this.adminService.getBusinessCard(id);
+  }
+
+  @Get('claim-requests')
+  @ApiOperation({
+    summary:
+      'درخواست‌های تصاحب کسب‌وکارهای بدون راه ارتباطی (پیش‌فرض همه؛ با ?status=PENDING فقط در انتظار)',
+  })
+  claimRequests(@Query('status') status?: string) {
+    return this.claims.listRequests(status);
+  }
+
+  @Post('claim-requests/:id/decide')
+  @ApiOperation({
+    summary:
+      'تأیید یا رد درخواست تصاحب؛ تأیید مالکیت را مثل تصاحب تأییدشده منتقل می‌کند',
+  })
+  decideClaimRequest(
+    @CurrentUser() admin: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: DecideClaimRequestDto,
+  ) {
+    return this.claims.decide(admin.id, id, dto.approve, dto.note);
   }
 
   @Patch('business-cards/:id')

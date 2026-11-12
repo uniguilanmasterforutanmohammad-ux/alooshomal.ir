@@ -23,6 +23,7 @@ import { ProfileCompleteGuard } from '../common/guards/profile-complete.guard';
 import { RequirePermission } from '../auth/permissions.decorator';
 import { visitorKeyFrom } from '../common/visitor-key';
 import { BusinessCardsEngagementService } from './business-cards-engagement.service';
+import { BusinessCardClaimsService } from './business-card-claims.service';
 import { BusinessCardsService } from './business-cards.service';
 import { BusinessCardsDirectoryService } from './business-cards-directory.service';
 import { CreateBusinessCardDto } from './dto/create-business-card.dto';
@@ -30,12 +31,14 @@ import { PublicBusinessCardQueryDto } from './dto/public-business-card-query.dto
 import { PublicPhonebookQueryDto } from './dto/public-phonebook-query.dto';
 import { ReportBusinessCardDto } from './dto/report-business-card.dto';
 import { UpdateBusinessCardDto } from './dto/update-business-card.dto';
+import { VerifyBusinessCardClaimDto } from './dto/verify-business-card-claim.dto';
 
 @ApiTags('business-cards')
 @Controller('business-cards')
 export class BusinessCardsController {
   constructor(
     private readonly businessCardsService: BusinessCardsService,
+    private readonly claims: BusinessCardClaimsService,
     private readonly directoryService: BusinessCardsDirectoryService,
     private readonly engagement: BusinessCardsEngagementService,
   ) {}
@@ -53,10 +56,23 @@ export class BusinessCardsController {
   @ApiBearerAuth()
   @ApiOperation({
     summary:
-      'تصاحب کسب‌وکار ثبت‌شده‌ی سیستمی («شما صاحب این کسب‌وکار هستید؟») و انتقال مالکیت به کاربر',
+      'شروع تصاحب کسب‌وکار سیستمی: ارسال کد یکبارمصرف به موبایل، در نبود موبایل به ایمیل، و در نبود هر دو ثبت درخواست برای مدیر',
   })
   claim(@CurrentUser() user: AuthUser, @Param('id') id: string) {
-    return this.businessCardsService.claim(id, user.id);
+    return this.claims.start(id, user.id);
+  }
+
+  @Post(':id/claim/verify')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'تأیید کد یکبارمصرف تصاحب کسب‌وکار و انتقال مالکیت به کاربر',
+  })
+  verifyClaim(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: VerifyBusinessCardClaimDto,
+  ) {
+    return this.claims.verify(id, user.id, dto.code);
   }
 
   @Get('mine')

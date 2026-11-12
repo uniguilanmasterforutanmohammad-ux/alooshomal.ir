@@ -41,12 +41,23 @@ export const DEV_OTP_CODE = '123456';
  * action (e.g. sign-in) can never be replayed to authorise another (e.g.
  * changing the account phone/email).
  */
-export type OtpPurpose = 'login' | 'phone-change' | 'email-change';
+export type OtpPurpose = 'login' | 'phone-change' | 'email-change' | 'claim';
 
 const keyPrefix = (purpose: OtpPurpose) => `otp:${purpose}:phone:`;
 const passwordResetKey = (userId: string) => `otp:password-reset:user:${userId}`;
 const emailChangeKey = (userId: string) => `otp:email-change:user:${userId}`;
 const emailLoginKey = (userId: string) => `otp:email-login:user:${userId}`;
+const claimUserCooldownKey = (userId: string) => `otp:claim:user:${userId}:issued`;
+
+/**
+ * Claim codes are bound to the card *and* the channel target, so a code issued
+ * for one business can never be replayed on another (even by the same user).
+ */
+const claimKey = (
+  businessCardId: string,
+  channel: 'sms' | 'email',
+  target: string,
+) => `otp:claim:${channel}:${businessCardId}:${target.trim().toLowerCase()}`;
 
 interface OtpRecord {
   hash: string;
@@ -582,6 +593,117 @@ export class OtpService {
       throw new BadRequestException('تعداد تلاش‌ها بیش از حد مجاز است');
     }
     if (record.hash !== this.hash(code.trim())) {
+      await this.writeKey(key, {
+        hash: record.hash,
+        attempts: record.attempts + 1,
+      });
+      throw new BadRequestException('کد وارد‌شده صحیح نیست');
+    }
+    await this.clearKey(key);
+  }
+
+  /**
+   * Sends a one-time code to the **business card's own** mobile/e-mail, used
+   * before an owner can take over an imported profile. The key carries the card
+   * id, so a code issued for one business can never verify another. A per-user
+   * cooldown prevents a signed-in account from spraying SMS across cards.
+   */
+  async issueClaimCode(input: {
+    businessCardId: string;
+    userId: string;
+    channel: 'sms' | 'email';
+    phone?: string | null;
+    email?: string | null;
+  }): Promise<IssuedOtp> {
+    const target = (input.channel === 'sms' ? input.phone : input.email)?.trim();
+    if (!target) {
+      throw new BadRequestException('راه ارتباطی برای ارسال کد وجود ندارد');
+    }
+    if (await this.recentlyIssuedKey(claimUserCooldownKey(input.userId))) {
+      throw new BadRequestException(
+        'کد قبلی هنوز معتبر است؛ لطفاً کمی بعد دوباره تلاش کنید',
+      );
+    }
+
+    let code: string;
+    let sent = false;
+    let emailSent = false;
+    if (input.channel === 'sms') {
+      if (this.sms.enabled) {
+        const remote = await this.sms.sendOtp(target);
+        if (!remote) {
+          throw new ServiceUnavailableException(
+            'ارسال پیامک در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
+          );
+        }
+        code = remote;
+        sent = true;
+      } else if (this.isDev) {
+        code = DEV_OTP_CODE;
+        this.logger.log(
+          `[dev] claim OTP for ${target} is ${code} (SMS disabled)`,
+        );
+      } else {
+        throw new ServiceUnavailableException(
+          'ارسال پیامک در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
+        );
+      }
+    } else {
+      code = String(randomInt(100_000, 1_000_000));
+      if (this.mail.enabled) {
+        try {
+          emailSent = await this.mail.sendOtp(target, code, 'claim');
+        } catch (error) {
+          this.logger.error(
+            `claim OTP email to ${target} failed: ${
+              error instanceof Error ? error.message : 'unknown error'
+            }`,
+          );
+        }
+        if (!emailSent && !this.isDev) {
+          throw new ServiceUnavailableException('ارسال کد تأیید به ایمیل ناموفق بود');
+        }
+      } else if (this.isDev) {
+        code = DEV_OTP_CODE;
+        this.logger.log(
+          `[dev] claim OTP for ${target} is ${code} (email disabled)`,
+        );
+      } else {
+        throw new ServiceUnavailableException(
+          'ارسال ایمیل در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
+        );
+      }
+    }
+
+    const key = claimKey(input.businessCardId, input.channel, target);
+    await this.writeKey(key, { hash: this.hash(code), attempts: 0 });
+    await this.markIssuedKey(`${key}:issued`);
+    await this.markIssuedKey(claimUserCooldownKey(input.userId));
+    return {
+      resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
+      sent,
+      emailSent,
+      ...(this.isDev && !sent && !emailSent ? { devCode: code } : {}),
+    };
+  }
+
+  /** Verifies a claim code bound to `businessCardId` + the channel target. */
+  async verifyClaimCode(input: {
+    businessCardId: string;
+    channel: 'sms' | 'email';
+    target: string;
+    code: string;
+  }): Promise<void> {
+    const key = claimKey(input.businessCardId, input.channel, input.target);
+    const record = await this.readKey(key);
+    if (!record) {
+      throw new BadRequestException('کد منقضی شده است؛ دوباره درخواست کنید');
+    }
+    if (record.attempts >= OTP_MAX_ATTEMPTS) {
+      await this.clearKey(key);
+      throw new BadRequestException('تعداد تلاش‌ها بیش از حد مجاز است');
+    }
+    if (record.hash !== this.hash(input.code.trim())) {
       await this.writeKey(key, {
         hash: record.hash,
         attempts: record.attempts + 1,

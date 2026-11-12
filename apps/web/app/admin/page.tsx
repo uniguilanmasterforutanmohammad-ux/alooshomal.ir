@@ -8,6 +8,7 @@ import { AdminAds } from '@/components/admin/AdminAds';
 import { AdminBlogPanel } from '@/components/admin/AdminBlogPanel';
 import { AdminBoosts } from '@/components/admin/AdminBoosts';
 import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
+import { AdminClaimRequests } from '@/components/admin/AdminClaimRequests';
 import { AdminEmails } from '@/components/admin/AdminEmails';
 import { AdminFeeds } from '@/components/admin/AdminFeeds';
 import { AdminFinance } from '@/components/admin/AdminFinance';
@@ -78,6 +79,7 @@ function AdminContent() {
       {section === 'business-cards' ? (
         <BusinessCardsSection state={state} />
       ) : null}
+      {section === 'claim-requests' ? <AdminClaimRequests /> : null}
       {section === 'users' ? <UsersSection state={state} /> : null}
       {section === 'emails' ? <AdminEmails /> : null}
       {section === 'subscriptions' ? <AdminSubscriptions /> : null}

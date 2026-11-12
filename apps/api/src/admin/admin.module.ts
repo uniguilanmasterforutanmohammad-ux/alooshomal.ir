@@ -7,6 +7,7 @@ import { SettingsModule } from '../settings/settings.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { UploadsModule } from '../uploads/uploads.module';
 import { SessionsModule } from '../sessions/sessions.module';
+import { BusinessCardsModule } from '../businesscards/business-cards.module';
 import { AdminController } from './admin.controller';
 import { AdminRevenueService } from './admin-revenue.service';
 import { AdminService } from './admin.service';
@@ -22,6 +23,7 @@ import { BulkService } from './bulk.service';
     SettingsModule,
     UploadsModule,
     SessionsModule,
+    BusinessCardsModule,
   ],
   controllers: [AdminController],
   providers: [AdminService, AdminRevenueService, AdminUsersService, BulkService],

@@ -482,6 +482,8 @@ model User {
   feedSaves         FeedSave[]
   feedComments      FeedComment[]
   businessReviews   BusinessReview[]
+  businessCardClaimRequests  BusinessCardClaimRequest[] @relation("BusinessCardClaimRequests")
+  businessCardClaimDecisions BusinessCardClaimRequest[] @relation("BusinessCardClaimDecisions")
   feedCommentDecisions FeedComment[] @relation("FeedCommentDecisions")
   feedTagDecisions  FeedPost[]   @relation("FeedTagDecisions")
   blogPosts         BlogPost[]   @relation("BlogCreatedBy")
@@ -1128,6 +1130,7 @@ model BusinessCard {
   saves       BusinessCardSave[]
   feedTags    FeedPost[]         @relation("FeedTagBusinessCard")
   reviews     BusinessReview[]
+  claimRequests BusinessCardClaimRequest[]
 
   @@index([userId])
   @@index([slug])
@@ -1140,6 +1143,31 @@ model BusinessCard {
   @@index([isUnclaimed])
   @@index([importBatchId])
   @@map("business_cards")
+}
+
+/// A request to take over an imported business card that has **no verifiable
+/// contact channel** (no mobile and no e-mail). The user cannot prove ownership
+/// with a one-time code, so an admin reviews the request; approving it transfers
+/// ownership exactly like a verified claim.
+model BusinessCardClaimRequest {
+  id             String   @id @default(cuid())
+  businessCardId String
+  userId         String
+  /// `PENDING` | `APPROVED` | `REJECTED`
+  status         String   @default("PENDING")
+  note           String?
+  createdAt      DateTime @default(now())
+  decidedAt      DateTime?
+  decidedById    String?
+
+  businessCard BusinessCard @relation(fields: [businessCardId], references: [id], onDelete: Cascade)
+  user         User         @relation("BusinessCardClaimRequests", fields: [userId], references: [id], onDelete: Cascade)
+  decidedBy    User?        @relation("BusinessCardClaimDecisions", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([businessCardId])
+  @@index([userId])
+  @@map("business_card_claim_requests")
 }
 
 /// One run of the external business importer. The admin panel lists these

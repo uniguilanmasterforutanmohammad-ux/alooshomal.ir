@@ -33,6 +33,7 @@ import {
   Receipt,
   Share2,
   ShieldCheck,
+  ShieldQuestion,
   Sparkles,
   ToggleRight,
   TrendingUp,
@@ -51,6 +52,7 @@ export type AdminSection =
   | 'overview'
   | 'biolinks'
   | 'business-cards'
+  | 'claim-requests'
   | 'subscriptions'
   | 'boosts'
   | 'ads'
@@ -116,6 +118,7 @@ const NAV_GROUPS: Array<{
     items: [
       { key: 'biolinks', label: 'بیولینک‌ها', icon: IdCard },
       { key: 'business-cards', label: 'کارت‌های ویزیت', icon: IdCard },
+      { key: 'claim-requests', label: 'درخواست‌های تصاحب', icon: ShieldQuestion },
       { key: 'feeds', label: 'فیدها', icon: ImagePlus },
       { key: 'news', label: 'شهروند خبرنگار', icon: Newspaper },
       { key: 'blog', label: 'بلاگ', icon: BookOpen },
