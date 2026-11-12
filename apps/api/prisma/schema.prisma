@@ -1041,6 +1041,11 @@ model BusinessCard {
   /// Seeded by the admin bulk importer for load-testing; safe to delete en masse.
   isTestData Boolean @default(false)
 
+  /// «ثبت سیستمی» — true for rows imported from an external directory (e.g.
+  /// Behtarino). They are owned by a placeholder account until the real owner
+  /// claims the profile from the public page («شما صاحب این کسب‌وکار هستید؟»).
+  isUnclaimed Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1062,6 +1067,7 @@ model BusinessCard {
   @@index([boostedUntil])
   @@index([pinnedAt])
   @@index([isTestData])
+  @@index([isUnclaimed])
   @@map("business_cards")
 }
 

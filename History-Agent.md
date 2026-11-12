@@ -20,7 +20,51 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.36.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.37.0**.
+
+## ۱۴۰۵/۰۸/۲۰ — ایمپورت کسب‌وکارهای مازندران + دکمه‌ی «شما صاحب این کسب‌وکار هستید» — نسخه `v3.37.0`
+
+**هدف:** ثبت سیستمی ۹۸۱۵ کسب‌وکار مازندران از داده‌ی به‌ترینو در دیتابیس لوکال و
+افزودن دکمه‌ی تصاحب مالکیت برای آن‌ها، تا صاحب واقعی بتواند مشخصات را کامل کند.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن فیلد `isUnclaimed` (به‌همراه ایندکس) به
+  `BusinessCard` برای نشانه‌گذاری ردیف‌های وارد‌شده‌ی سیستمی.
+- `apps/api/src/businesscards/business-cards.service.ts`: متد `claim` برای انتقال
+  مالکیت با کنترل ویژگی `featureBusinessClaim` و ثبت فعالیت.
+- `apps/api/src/businesscards/business-cards.controller.ts`: مسیر
+  `POST /business-cards/:id/claim` با `@ApiBearerAuth` و `@ApiOperation`.
+- `apps/api/src/settings/settings.constants.ts`: افزودن فلگ `featureBusinessClaim`
+  به رجیستری ویژگی‌ها (سوئیچ فعال/نمایش خودکار در پنل مدیر).
+- `apps/web/components/business/ClaimBusinessCardButton.tsx`: بنر و دکمه‌ی تصاحب؛
+  مهمان به ورود هدایت می‌شود و کاربر وارد‌شده پس از تصاحب به فرم ویرایش می‌رود.
+- `apps/web/app/business/[slug]/page.tsx` و
+  `apps/web/components/businesscard/PublicBusinessCardView.tsx`: نمایش دکمه روی
+  کارت‌های `isUnclaimed`.
+- `apps/web/lib/api/types/catalog.ts`: افزودن `isUnclaimed` به تایپ `BusinessCard`.
+- `scripts/import_behtarino.py`: ایمپورت کارت‌ها با `\copy` (شهر/دسته‌ی خودکار،
+  کاربر جای‌گزین `imported@alooshomal.local` روی پلن «اکو»، ساعت کاری و شبکه‌های
+  اجتماعی نرمال‌شده).
+- `docs/API.md`: مستندسازی مسیر `claim`؛ `BACKLOG.md`: ثبت دو مورد معوق (تأیید
+  مالکیت پیش از تصاحب، و کاهش حجم صفحه‌ی `/categories`).
+- `apps/web/lib/version.ts`: ارتقای نسخه به `v3.37.0`.
+
+**تأیید/تست:**
+- `python3 scripts/import_behtarino.py businesses --clear` → ۹۸۱۵ کارت درج شد؛
+  `business_cards` شامل ۹۸۱۵ ردیف `isUnclaimed` با وضعیت `APPROVED`/منتشرشده،
+  ۱۰۵۸ ردیف ساعت کاری و ۴۰۲۵ شماره‌ی همراه.
+- `docker exec alooshomal-api npx tsc --noEmit` → بدون خطا؛
+  `python3 scripts/check_api_docs.py` → ۳۷ کنترلر و ۳۹۱ مسیر بدون خطا؛
+  `eslint` روی فایل‌های وب تغییریافته → بدون خطا.
+- `GET /api/business-cards/public/kdpsvwytub` → `isUnclaimed: true`؛
+  `POST /api/business-cards/:id/claim` با توکن → ۲۰۱ و انتقال `userId`؛ تصاحب
+  دوباره توسط مالک ۲۰۱ (idempotent)، کارت متعلق به دیگری ۴۰۹ و بدون توکن ۴۰۱.
+  (پس از تست، کارت به حالت `isUnclaimed` برگردانده شد.)
+- Chrome headless: دکمه‌ی «شما صاحب این کسب‌وکار هستید» روی `/business/<slug>` و
+  `/business-cards/<slug>` برای مهمان دیده می‌شود و به
+  `/login?next=/business/<slug>` اشاره می‌کند؛ روی کارت غیرسیستمی نمایش داده
+  نمی‌شود و سرریز افقی ندارد.
+- `GET /categories/آموزش` → ۲۱۴ کسب‌وکار؛ `/business-cards` و `/` بدون خطا.
 
 ## ۱۴۰۵/۰۸/۲۰ — اسکریپت ایمپورت به‌ترینو + ثبت کامل دسته‌بندی مشاغل (لوکال) — نسخه `v3.36.0`
 

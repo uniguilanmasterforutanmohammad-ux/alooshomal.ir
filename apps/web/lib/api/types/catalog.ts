@@ -185,6 +185,8 @@ export interface BusinessCard {
  planHidesFields?: boolean;
  /** id of the owner account (public payload only, used to detect "my card") */
  userId?: string | null;
+  /** system-imported profile not yet claimed by its real owner */
+  isUnclaimed?: boolean;
  /** published biolink this card is linked to (public pages only) */
  linkedBiolink?: LinkedCounterpart | null;
   /** the linked biolink on the owner's own card (edit form) */

@@ -38,6 +38,7 @@ import random
 import shutil
 import subprocess
 import sys
+import uuid
 from datetime import datetime, timezone
 
 DEFAULT_SOURCE = os.path.abspath(
@@ -56,8 +57,6 @@ IMPORT_USER_PLAN_SORT = 2
 
 PSQL_CMD = shutil.which("psql")
 
-ID_ALPHABET = "abcdefghijklmnopqrstuvwxyz0123456789"
-
 WEEKDAYS = {
     "شنبه": "saturday",
     "یک‌شنبه": "sunday",
@@ -73,8 +72,9 @@ WEEKDAYS = {
 }
 
 
-def cuid(rng: random.Random) -> str:
-    return "c" + "".join(rng.choice(ID_ALPHABET) for _ in range(24))
+def cuid(_rng: random.Random | None = None) -> str:
+    """A cuid-shaped, collision-free id (uuid-based; Prisma only needs `text`)."""
+    return "c" + uuid.uuid4().hex[:24]
 
 
 def now_stamp() -> str:
@@ -362,7 +362,9 @@ def import_businesses(source_dir: str, rng: random.Random, limit: int | None) ->
         "\\copy business_cards (" + ", ".join(f'"{c}"' for c in COPY_COLUMNS) +
         ") FROM STDIN WITH (FORMAT csv)"
     )
-    psql(copy_sql, stdin=buffer.getvalue())
+    # `\copy … FROM STDIN` reads its data from psql's standard input, so the
+    # command and the CSV payload travel together on the same stream.
+    psql(copy_sql + "\n" + buffer.getvalue() + "\\.\n")
     print(f"imported {len(rows)} business cards "
           f"(skipped {len(businesses) - len(rows)})")
 

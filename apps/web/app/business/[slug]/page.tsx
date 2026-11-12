@@ -22,6 +22,7 @@ import {
 import { BusinessGallery } from '@/components/business/BusinessGallery';
 import { BusinessReviews } from '@/components/business/BusinessReviews';
 import { BusinessSectionNav } from '@/components/business/BusinessSectionNav';
+import { ClaimBusinessCardButton } from '@/components/business/ClaimBusinessCardButton';
 import { RatingStars } from '@/components/business/RatingStars';
 import { WorkingHoursTable } from '@/components/business/WorkingHoursTable';
 import { Footer } from '@/components/layout/Footer';
@@ -397,6 +398,12 @@ export default async function BusinessProfilePage({
             </div>
           </div>
         </section>
+
+        <ClaimBusinessCardButton
+          businessCardId={card.id}
+          slug={card.slug}
+          isUnclaimed={card.isUnclaimed}
+        />
 
         <BusinessSectionNav />
 

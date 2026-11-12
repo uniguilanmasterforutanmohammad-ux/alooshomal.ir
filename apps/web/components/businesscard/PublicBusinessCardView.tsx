@@ -27,6 +27,7 @@ import {
   type BizCardSocial,
 } from '@/components/businesscard/BusinessCardFace';
 import { CardFit } from '@/components/ui/CardFit';
+import { ClaimBusinessCardButton } from '@/components/business/ClaimBusinessCardButton';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
@@ -156,6 +157,12 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
           <PlanUpgradeNotice
             ownerUserId={businessCard.userId}
             hidesFields={businessCard.planHidesFields}
+          />
+          <ClaimBusinessCardButton
+            businessCardId={businessCard.id}
+            slug={businessCard.slug}
+            isUnclaimed={businessCard.isUnclaimed}
+            className="shrink-0"
           />
 
           {/* One aligned row: back link · plan badge · home link. */}

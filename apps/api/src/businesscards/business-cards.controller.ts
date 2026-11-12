@@ -48,6 +48,16 @@ export class BusinessCardsController {
     return this.businessCardsService.create(user.id, dto);
   }
 
+  @Post(':id/claim')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'تصاحب کسب‌وکار ثبت‌شده‌ی سیستمی («شما صاحب این کسب‌وکار هستید؟») و انتقال مالکیت به کاربر',
+  })
+  claim(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.businessCardsService.claim(id, user.id);
+  }
+
   @Get('mine')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'کارت ویزیت‌های من (صفحه‌بندی‌شده)' })

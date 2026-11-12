@@ -367,6 +367,14 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     default: true,
   },
   {
+    key: 'featureBusinessClaim',
+    label: 'تصاحب کسب‌وکارهای ثبت‌شده‌ی سیستمی',
+    description:
+      'اگر خاموش باشد، دکمه‌ی «شما صاحب این کسب‌وکار هستید؟» روی کسب‌وکارهای وارد‌شده‌ی سیستمی نمایش داده نمی‌شود و امکان انتقال مالکیت وجود ندارد.',
+    group: 'ساخت محتوا',
+    default: true,
+  },
+  {
     key: 'featureBlog',
     label: 'بلاگ سایت',
     description:
