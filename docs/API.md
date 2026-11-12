@@ -44,6 +44,10 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
    `POST /api/auth/admin/phone/request-code` و
    `POST /api/auth/admin/phone/verify` (موبایل + کد). این مسیرها فقط
    حساب‌های `ADMIN`/`MODERATOR` را می‌پذیرند و هرگز حساب جدید نمی‌سازند.
+   در محیط توسعه/لوکال (`NODE_ENV !== production`) ارسال کد این دو مسیر
+   **شبیه‌سازی** می‌شود: هیچ ایمیل/پیامکی ارسال نمی‌شود و پاسخ شامل
+   `devCode: "123456"` و `simulated: true` است. در پروداکشن همین مسیرها
+   از SMTP/ملی‌پیامک تنظیم‌شده ارسال می‌کنند.
    در جریان `POST /api/auth/phone/request-code` می‌توانید فیلد اختیاری `email`
    را هم بفرستید؛ همان کد یکبارمصرف علاوه بر پیامک به آن ایمیل هم ارسال می‌شود
    (برای کاربران موجود، ایمیل حساب ملاک است).

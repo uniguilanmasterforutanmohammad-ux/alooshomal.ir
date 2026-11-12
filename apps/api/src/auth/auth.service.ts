@@ -321,6 +321,7 @@ export class AuthService {
       user.id,
       user.email,
       user.phone,
+      'login',
     );
     return {
       requiresOtp: true,
@@ -397,6 +398,8 @@ export class AuthService {
       user.id,
       user.email,
       user.phone,
+      'login',
+      { simulateDelivery: true },
     );
     return {
       requiresOtp: true,
@@ -449,6 +452,7 @@ export class AuthService {
     }
     const issued = await this.otp.issue(phone, 'login', {
       email: user.email,
+      simulateDelivery: true,
     });
     return { phone: maskPhone(phone), ...issued };
   }

@@ -56,6 +56,8 @@ interface OtpRecord {
 export interface IssuedOtp {
   /** Present only in dev (no real SMS) so the UI can show the code. */
   devCode?: string;
+  /** True when this environment deliberately skipped real SMS/email delivery. */
+  simulated?: boolean;
   /** Seconds the client should wait before allowing a resend. */
   resendAfter: number;
   /** True when the code was actually sent by SMS. */
@@ -214,7 +216,7 @@ export class OtpService {
   async issue(
     phone: string,
     purpose: OtpPurpose = 'login',
-    options: { email?: string | null } = {},
+    options: { email?: string | null; simulateDelivery?: boolean } = {},
   ): Promise<IssuedOtp> {
     if (await this.recentlyIssued(purpose, phone)) {
       throw new BadRequestException(
@@ -222,9 +224,17 @@ export class OtpService {
       );
     }
 
+    // Admin sign-in on a developer machine must never hit the real gateway,
+    // even when SMTP/Melipayamak credentials are present in `.env`.
+    const simulate = this.isDev && options.simulateDelivery === true;
     let code: string;
     let sent = false;
-    if (this.sms.enabled) {
+    if (simulate) {
+      code = DEV_OTP_CODE;
+      this.logger.log(
+        `[dev] ${purpose} OTP for ${phone} is ${code} (delivery simulated)`,
+      );
+    } else if (this.sms.enabled) {
       const remote = await this.sms.sendOtp(phone);
       if (!remote) {
         // Configured but the gateway returned no code — never fall back to a
@@ -258,7 +268,7 @@ export class OtpService {
     // went out, so it is logged and swallowed.
     let emailSent = false;
     const email = options.email?.trim();
-    if (email && this.mail.enabled) {
+    if (!simulate && email && this.mail.enabled) {
       try {
         emailSent = await this.mail.sendOtp(email, code, purpose);
       } catch (error) {
@@ -274,6 +284,7 @@ export class OtpService {
       resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
       sent,
       emailSent,
+      ...(simulate ? { simulated: true } : {}),
       ...(sent ? {} : { devCode: code }),
     };
   }
@@ -487,6 +498,7 @@ export class OtpService {
     email: string | null,
     phone: string | null,
     purpose: 'login' | 'register' = 'login',
+    options: { simulateDelivery?: boolean } = {},
   ): Promise<IssuedOtp> {
     const key = emailLoginKey(userId);
     if (await this.recentlyIssuedKey(`${key}:issued`)) {
@@ -495,9 +507,17 @@ export class OtpService {
       );
     }
 
+    // Only the local/dev admin sign-in passes `simulateDelivery`; production
+    // still delivers through the configured channels.
+    const simulate = this.isDev && options.simulateDelivery === true;
     let code: string;
     let sent = false;
-    if (phone && this.sms.enabled) {
+    if (simulate) {
+      code = DEV_OTP_CODE;
+      this.logger.log(
+        `[dev] admin-login OTP for ${userId} is ${code} (delivery simulated)`,
+      );
+    } else if (phone && this.sms.enabled) {
       const remote = await this.sms.sendOtp(phone);
       if (!remote) {
         throw new ServiceUnavailableException(
@@ -515,7 +535,7 @@ export class OtpService {
     }
 
     let emailSent = false;
-    if (email && this.mail.enabled) {
+    if (!simulate && email && this.mail.enabled) {
       try {
         emailSent = await this.mail.sendOtp(email, code, purpose);
       } catch (error) {
@@ -545,6 +565,7 @@ export class OtpService {
       resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
       sent,
       emailSent,
+      ...(simulate ? { simulated: true } : {}),
       ...(this.isDev && !sent && !emailSent ? { devCode: code } : {}),
     };
   }

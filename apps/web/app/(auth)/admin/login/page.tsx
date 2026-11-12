@@ -17,6 +17,7 @@ interface OtpStart {
   resendAfter: number;
   sent: boolean;
   emailSent?: boolean;
+  simulated?: boolean;
   devCode?: string;
 }
 
@@ -149,15 +150,26 @@ function AdminLoginContent() {
           {otpStep ? (
             <form onSubmit={verify} className="flex flex-col gap-4">
               <p className="rounded-lg bg-black/5 p-3 text-xs leading-6 text-muted">
-                کد یکبارمصرف به{' '}
-                <span dir="ltr" className="font-bold text-ink">
-                  {target}
-                </span>{' '}
-                ارسال شد.
+                {devCode ? (
+                  <>
+                    حالت توسعه: ارسال واقعی انجام نشد. حساب:{' '}
+                    <span dir="ltr" className="font-bold text-ink">
+                      {target}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    کد یکبارمصرف به{' '}
+                    <span dir="ltr" className="font-bold text-ink">
+                      {target}
+                    </span>{' '}
+                    ارسال شد.
+                  </>
+                )}
               </p>
               {devCode ? (
                 <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-                  حالت توسعه: کد شما{' '}
+                  کد آزمایشی شما{' '}
                   <span dir="ltr" className="font-bold">
                     {devCode}
                   </span>{' '}
