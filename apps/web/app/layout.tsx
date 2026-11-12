@@ -5,6 +5,7 @@ import { ToastViewport } from '@/components/ui/ToastViewport';
 import { SupportChatWidget } from '@/components/support/SupportChatWidget';
 import { SessionWatcher } from '@/components/ui/SessionWatcher';
 import { PaypingOAuthCatcher } from '@/components/admin/PaypingOAuthCatcher';
+import { MobileNav } from '@/components/layout/MobileNav';
 import { SITE_URL } from '@/lib/site';
 import {
   getSiteTheme,
@@ -105,6 +106,7 @@ export default async function RootLayout({
           {children}
           <SessionWatcher />
           <PaypingOAuthCatcher />
+          <MobileNav />
           <SupportChatWidget />
           <ToastViewport />
         </FeaturesProvider>
