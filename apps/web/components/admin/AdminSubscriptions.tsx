@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 import {
@@ -165,6 +166,9 @@ export function AdminSubscriptions() {
   async function savePlan(event: React.FormEvent) {
     event.preventDefault();
     setError(null);
+    const isNew = !editingId;
+    const isActive = form.isActive;
+    const planName = form.name;
     try {
       const payload = {
         name: form.name,
@@ -185,6 +189,13 @@ export function AdminSubscriptions() {
       }
       resetForm();
       await loadPlans();
+      setNotice(
+        isNew
+          ? isActive
+            ? `بسته‌ی «${planName}» ساخته شد و در صفحه‌ی تعرفه نمایش داده می‌شود.`
+            : `بسته‌ی «${planName}» ساخته شد ولی چون غیرفعال است در صفحه‌ی تعرفه نمایش داده نمی‌شود.`
+          : `بسته‌ی «${planName}» ذخیره شد.`,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در ذخیره اشتراک');
     }
@@ -236,7 +247,9 @@ export function AdminSubscriptions() {
           <p className="font-extrabold text-ink">
             {plan.name}
             {!plan.isActive ? (
-              <span className="ms-2 text-xs font-bold text-muted">(غیرفعال)</span>
+              <span className="ms-2 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                غیرفعال — در تعرفه نمایش داده نمی‌شود
+              </span>
             ) : null}
           </p>
           {plan.description ? (
@@ -442,7 +455,20 @@ export function AdminSubscriptions() {
       ) : tab === 'plans' ? (
         <div className="indeed-panel overflow-hidden">
           <div className="flex items-center justify-between border-b border-dashed border-[var(--vintage-border)] px-5 py-3">
-            <h3 className="text-sm font-extrabold text-ink">بسته‌های اشتراک</h3>
+            <div>
+              <h3 className="text-sm font-extrabold text-ink">بسته‌های اشتراک</h3>
+              <p className="mt-0.5 text-[11px] text-muted">
+                فقط بسته‌های فعال در{' '}
+                <Link
+                  href="/pricing"
+                  target="_blank"
+                  className="font-bold text-brand hover:underline"
+                >
+                  صفحه‌ی تعرفه
+                </Link>{' '}
+                نمایش داده می‌شوند.
+              </p>
+            </div>
             <button
               type="button"
               onClick={() => (showPlanForm ? resetForm() : startCreate())}

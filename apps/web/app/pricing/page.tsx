@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { BadgeCheck, Check, Crown, ShieldCheck, Sparkles } from 'lucide-react';
 
@@ -45,22 +45,43 @@ export default function PricingPage() {
     ? '/dashboard/onboarding'
     : '/login?next=/dashboard/onboarding';
 
-  useEffect(() => {
-    Promise.all([
-      api.get<PricingService[]>('/zohal/pricing'),
-      api.get<SubscriptionPlan[]>('/subscriptions/plans'),
-    ])
-      .then(([serviceList, planList]) => {
-        setServices(serviceList);
-        setPlans(planList);
-      })
-      .catch((err) =>
-        setError(
-          err instanceof Error ? err.message : 'خطا در بارگذاری تعرفه‌ها',
-        ),
-      )
-      .finally(() => setLoading(false));
+  const load = useCallback(async (showSpinner = false) => {
+    if (showSpinner) setLoading(true);
+    try {
+      const [serviceList, planList] = await Promise.all([
+        api.get<PricingService[]>('/zohal/pricing'),
+        api.get<SubscriptionPlan[]>('/subscriptions/plans'),
+      ]);
+      setServices(serviceList);
+      setPlans(planList);
+      setError(null);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'خطا در بارگذاری تعرفه‌ها',
+      );
+    } finally {
+      if (showSpinner) setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void load(true);
+  }, [load]);
+
+  // The page may stay open in a tab while the admin creates or activates a
+  // plan in another tab. Refresh silently whenever the visitor returns, so a
+  // newly published plan appears without a manual reload.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    return () => {
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [load]);
 
   const groups = useMemo(() => {
     const byGroup = new Map<string, PricingService[]>();
