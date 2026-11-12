@@ -17,6 +17,7 @@ import {
 } from 'class-validator';
 
 import { Roles } from '../common/decorators/roles.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { MAX_PRICE } from '../settings/settings.service';
 import { PricingService } from './pricing.service';
@@ -41,6 +42,21 @@ class UpdatePricingDto {
   @ValidateNested({ each: true })
   @Type(() => PricingEntryDto)
   items!: PricingEntryDto[];
+}
+
+@ApiTags('pricing')
+@Public()
+@Controller('pricing')
+export class PublicPricingController {
+  constructor(private readonly pricing: PricingService) {}
+
+  @Get()
+  @ApiOperation({
+    summary: 'تعرفه‌ی عمومی همه‌ی خدمات فعال (اشتراک‌ها، استعلام‌ها و بازاریابی)',
+  })
+  list() {
+    return this.pricing.listPublic();
+  }
 }
 
 @ApiTags('pricing')

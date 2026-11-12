@@ -144,6 +144,22 @@ export class PricingService {
     return { items, settlementDays, maxPrice: MAX_PRICE };
   }
 
+  /**
+   * Public version of the catalogue: same prices the admin edits, but with
+   * inactive plans/packages/services removed so the pricing page never offers
+   * something that cannot be bought or requested.
+   */
+  async listPublic(): Promise<{
+    items: PricingItem[];
+    settlementDays: number;
+  }> {
+    const { items, settlementDays } = await this.list();
+    return {
+      items: items.filter((item) => item.active !== false),
+      settlementDays,
+    };
+  }
+
   async update(items: PricingUpdate[]): Promise<Awaited<ReturnType<PricingService['list']>>> {
     if (!Array.isArray(items) || items.length === 0) {
       throw new BadRequestException('فهرست قیمت‌ها خالی است.');
