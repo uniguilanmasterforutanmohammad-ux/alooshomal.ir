@@ -215,12 +215,26 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 و تأیید با `POST /v3/pay/verify` انجام می‌شود و فعال‌سازی بسته فقط پس از تأیید
 موفق و مطابقت مبلغ/شناسه‌ی ارجاع است.
 
+هر بسته می‌تواند چهار دوره‌ی قابل‌خرید داشته باشد: ماهانه (`1`)، سه‌ماهه (`3`)،
+شش‌ماهه (`6`) و یک‌ساله (`12`). قیمت هر دوره = «قیمت ماهانه × تعداد ماه» منهای
+«درصد تخفیف همان دوره» (`SubscriptionPlan.discount3Months` /
+`discount6Months` / `discount12Months` که مدیر در پنل تنظیم می‌کند). طول دوره با
+پارامتر `months` (مجاز: `1/3/6/12`، پیش‌فرض `1`) در `request` و `checkout`
+انتخاب می‌شود. پرداخت موفق، `UserSubscription.months`/`expiresAt` و همچنین
+`User.planExpiresAt` را پر می‌کند؛ تمدید همان بسته پیش از انقضا از تاریخ پایان
+فعلی محاسبه می‌شود و انقضای دوره به‌صورت خودکار کاربر را به بسته‌ی «رایگان»
+برمی‌گرداند.
+
+**ارتقا فقط:** کاربر هرگز نمی‌تواند به بسته‌ی پایین‌ترِ خود (بر اساس `sortOrder`)
+برود؛ مثلاً از «بلاس» به «اکو». این محدودیت هم در مسیر پرداخت (`checkout`) و هم
+در `POST /subscriptions/request` با خطای ۴۰۰ اعمال می‌شود.
+
 | متد | مسیر | توضیح |
 | --- | --- | --- |
 | `GET` | `/subscriptions/plans` | فهرست بسته‌های فعال (عمومی). |
-| `GET` | `/subscriptions/me` | بسته‌ی فعلی، درخواست‌ها و ۲۰ پرداخت آخر کاربر. |
-| `POST` | `/subscriptions/request` | درخواست اشتراک رایگان/بدون پرداخت (در انتظار تأیید مدیر). |
-| `POST` | `/subscriptions/:planId/checkout` | شروع پرداخت آنلاین؛ خروجی `{ paymentId, amount, url, paymentCode, paypingProductCode }`. کاربر باید به `url` هدایت شود. |
+| `GET` | `/subscriptions/me` | بسته‌ی فعلی (به‌همراه `planExpiresAt`)، درخواست‌ها و ۲۰ پرداخت آخر کاربر. |
+| `POST` | `/subscriptions/request` | درخواست اشتراک رایگان/بدون پرداخت (در انتظار تأیید مدیر)؛ بدنه‌ی اختیاری `{ planId, note, months }`. |
+| `POST` | `/subscriptions/:planId/checkout` | شروع پرداخت آنلاین؛ بدنه‌ی اختیاری `{ months }` (۱/۳/۶/۱۲)، خروجی `{ paymentId, amount, months, url, paymentCode, paypingProductCode }`. کاربر باید به `url` هدایت شود. |
 | `GET` | `/subscriptions/payments/callback` | آدرس بازگشت عمومی پی‌پینگ (`paymentCode`، `refId`، `clientRefId`)؛ تراکنش را تأیید و سپس به `/dashboard/subscriptions?payment=...` هدایت می‌کند. |
 | `POST` | `/admin/plans/:id/payping-product` | ساخت/همگام‌سازی محصول پی‌پینگ یک بسته (فقط مدیر). |
 

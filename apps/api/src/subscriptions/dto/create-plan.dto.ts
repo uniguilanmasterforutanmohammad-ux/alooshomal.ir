@@ -5,6 +5,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Max,
   MaxLength,
   Min,
 } from 'class-validator';
@@ -58,6 +59,36 @@ export class CreatePlanDto {
   @IsArray()
   @IsString({ each: true })
   features?: string[];
+
+  @ApiPropertyOptional({
+    description: 'درصد تخفیف دوره‌ی سه‌ماهه (۰ تا ۱۰۰) بر پایه‌ی قیمت یک‌ماهه',
+    default: 0,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  discount3Months?: number;
+
+  @ApiPropertyOptional({
+    description: 'درصد تخفیف دوره‌ی شش‌ماهه (۰ تا ۱۰۰) بر پایه‌ی قیمت یک‌ماهه',
+    default: 0,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  discount6Months?: number;
+
+  @ApiPropertyOptional({
+    description: 'درصد تخفیف دوره‌ی یک‌ساله (۰ تا ۱۰۰) بر پایه‌ی قیمت یک‌ماهه',
+    default: 0,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  discount12Months?: number;
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()

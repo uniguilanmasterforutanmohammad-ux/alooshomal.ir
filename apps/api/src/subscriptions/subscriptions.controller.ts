@@ -21,6 +21,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { ProfileCompleteGuard } from '../common/guards/profile-complete.guard';
 import { SubscriptionsService } from './subscriptions.service';
 import { SubscriptionsPaymentService } from './subscriptions-payment.service';
+import { CheckoutSubscriptionDto } from './dto/checkout-subscription.dto';
 import { RequestSubscriptionDto } from './dto/request-subscription.dto';
 
 @ApiTags('subscriptions')
@@ -56,12 +57,16 @@ export class SubscriptionsController {
   @Post(':planId/checkout')
   @UseGuards(ProfileCompleteGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'شروع پرداخت آنلاین اشتراک با درگاه پی‌پینگ' })
+  @ApiOperation({
+    summary:
+      'شروع پرداخت آنلاین اشتراک با درگاه پی‌پینگ؛ `months` دوره را تعیین می‌کند (۱/۳/۶/۱۲) و مبلغ با تخفیف دوره محاسبه می‌شود',
+  })
   checkout(
     @CurrentUser() user: AuthUser,
     @Param('planId') planId: string,
+    @Body() dto: CheckoutSubscriptionDto,
   ) {
-    return this.payments.checkout(user.id, planId);
+    return this.payments.checkout(user.id, planId, dto?.months ?? 1);
   }
 
   /**

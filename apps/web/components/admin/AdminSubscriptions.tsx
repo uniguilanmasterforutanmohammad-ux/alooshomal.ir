@@ -32,6 +32,10 @@ interface PlanFormState {
   maxBiolinks: number;
   maxBusinessCards: number;
   isActive: boolean;
+  /** درصد تخفیف دوره‌های سه‌ماهه/شش‌ماهه/یک‌ساله (بر پایه‌ی قیمت ماهانه) */
+  discount3Months: number;
+  discount6Months: number;
+  discount12Months: number;
   /** keys hidden on this plan (a field is shown unless it is listed here) */
   hidden: string[];
 }
@@ -43,6 +47,9 @@ const EMPTY_FORM: PlanFormState = {
   maxBiolinks: 1,
   maxBusinessCards: 1,
   isActive: true,
+  discount3Months: 0,
+  discount6Months: 0,
+  discount12Months: 0,
   hidden: [],
 };
 
@@ -137,6 +144,9 @@ export function AdminSubscriptions() {
       maxBiolinks: plan.maxBiolinks,
       maxBusinessCards: plan.maxBusinessCards,
       isActive: plan.isActive,
+      discount3Months: plan.discount3Months ?? 0,
+      discount6Months: plan.discount6Months ?? 0,
+      discount12Months: plan.discount12Months ?? 0,
       hidden: plan.hiddenFields ?? [],
     });
     setEditingId(plan.id);
@@ -163,6 +173,9 @@ export function AdminSubscriptions() {
         maxBiolinks: Number(form.maxBiolinks),
         maxBusinessCards: Number(form.maxBusinessCards),
         isActive: form.isActive,
+        discount3Months: Number(form.discount3Months),
+        discount6Months: Number(form.discount6Months),
+        discount12Months: Number(form.discount12Months),
         hiddenFields: form.hidden,
       };
       if (editingId) {
@@ -260,7 +273,17 @@ export function AdminSubscriptions() {
       key: 'price',
       label: 'قیمت (تومان)',
       render: (plan) => (
-        <span className="text-xs text-muted">{plan.price.toLocaleString('fa-IR')}</span>
+        <div className="flex flex-col gap-0.5">
+          <span className="text-xs text-muted">
+            ماهانه: {plan.price.toLocaleString('fa-IR')}
+          </span>
+          <span className="text-[11px] text-muted">
+            تخفیف ۳/۶/۱۲ ماهه:{' '}
+            {(plan.discount3Months ?? 0).toLocaleString('fa-IR')}٪ /{' '}
+            {(plan.discount6Months ?? 0).toLocaleString('fa-IR')}٪ /{' '}
+            {(plan.discount12Months ?? 0).toLocaleString('fa-IR')}٪
+          </span>
+        </div>
       ),
     },
     {
@@ -466,6 +489,36 @@ export function AdminSubscriptions() {
                     className="indeed-input"
                   />
                 </label>
+                <div className="md:col-span-2">
+                  <p className="text-xs text-muted">
+                    درصد تخفیف دوره‌های بلندمدت بر پایه‌ی قیمت ماهانه؛ مثلاً با
+                    تخفیف ۲۰٪، دوره‌ی سه‌ماهه با قیمت «قیمت ماهانه × ۳ منهای ۲۰٪»
+                    فروخته می‌شود.
+                  </p>
+                  <div className="mt-2 grid grid-cols-3 gap-3">
+                    {(
+                      [
+                        ['discount3Months', 'تخفیف سه‌ماهه (٪)'],
+                        ['discount6Months', 'تخفیف شش‌ماهه (٪)'],
+                        ['discount12Months', 'تخفیف یک‌ساله (٪)'],
+                      ] as const
+                    ).map(([key, label]) => (
+                      <label key={key} className="flex flex-col gap-1 text-sm">
+                        <span className="font-bold text-ink">{label}</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={form[key]}
+                          onChange={(e) =>
+                            setForm({ ...form, [key]: Number(e.target.value) })
+                          }
+                          className="indeed-input"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <label className="flex flex-col gap-1 text-sm">
                     <span className="font-bold text-ink">حداکثر بیولینک</span>

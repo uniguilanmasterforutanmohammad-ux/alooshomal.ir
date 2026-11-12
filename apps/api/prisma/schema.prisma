@@ -439,6 +439,9 @@ model User {
   deactivatedAt     DateTime?
   adminComment      String?
   planId       String?
+  /// End of the paid subscription term (null = free plan / no expiry).
+  /// When it passes, the account falls back to the free plan lazily.
+  planExpiresAt DateTime?
   /// running total of the points ledger; kept in sync with every ledger write
   pointsBalance Int     @default(0)
   createdAt    DateTime @default(now())
@@ -1243,6 +1246,11 @@ model SubscriptionPlan {
   /// legacy `showSocialLinks` toggle but the two stay in sync for back-compat.
   hiddenFields      String[] @default([])
   features          String[] @default([])
+  /// درصد تخفیف دوره‌های چندماهه (۰ تا ۱۰۰) بر پایه‌ی قیمت یک‌ماهه. قیمت هر
+  /// دوره = `price × تعداد ماه × (۱۰۰ − درصد) ÷ ۱۰۰`.
+  discount3Months   Int      @default(0)
+  discount6Months   Int      @default(0)
+  discount12Months  Int      @default(0)
   isActive          Boolean  @default(true)
   sortOrder         Int      @default(0)
   createdAt         DateTime @default(now())
@@ -1264,6 +1272,10 @@ model UserSubscription {
   userId      String
   planId      String
   status      SubscriptionStatus @default(PENDING)
+  /// طول دوره‌ی خریداری‌شده به ماه (۱ = ماهانه، ۳/۶/۱۲ = دوره‌های تخفیف‌دار)
+  months      Int                @default(1)
+  /// پایان دوره پس از فعال‌سازی (null = بدون انقضا/رایگان)
+  expiresAt   DateTime?
   requestedAt DateTime           @default(now())
   decidedAt   DateTime?
   decidedById String?
@@ -1291,6 +1303,8 @@ model SubscriptionPayment {
   planId        String
   /// Amount in Toman, snapshotted from the plan at checkout time.
   amount        Int
+  /// Purchased term length in months (1 = monthly; 3/6/12 = discounted terms).
+  months        Int           @default(1)
   status        PaymentStatus @default(PENDING)
   clientRefId   String        @unique
   /// PayPing payment code returned by `POST /v3/pay`.

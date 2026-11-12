@@ -116,6 +116,65 @@ export const DEFAULT_PLANS: PlanDefinition[] = [
 
 export const FREE_PLAN_KEY: PlanKey = 'free';
 
+/**
+ * Billable terms of a plan. The monthly price is the base; the longer terms
+ * apply the admin's per-plan discount percentage on top of
+ * `price × months`.
+ */
+export const PLAN_PERIOD_MONTHS = [1, 3, 6, 12] as const;
+export type PlanPeriodMonths = (typeof PLAN_PERIOD_MONTHS)[number];
+
+export function isPlanPeriodMonths(value: number): value is PlanPeriodMonths {
+  return (PLAN_PERIOD_MONTHS as readonly number[]).includes(value);
+}
+
+/** The discount percentage an admin set for a given term (0 when unknown). */
+export function planDiscountPercent(
+  plan: {
+    discount3Months?: number | null;
+    discount6Months?: number | null;
+    discount12Months?: number | null;
+  },
+  months: number,
+): number {
+  const raw =
+    months === 3
+      ? plan.discount3Months
+      : months === 6
+        ? plan.discount6Months
+        : months === 12
+          ? plan.discount12Months
+          : 0;
+  const value = Number(raw ?? 0);
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(Math.max(Math.round(value), 0), 100);
+}
+
+/** Price of a plan for `months`, after the term discount (rounded to Toman). */
+export function planPriceForMonths(
+  plan: {
+    price: number;
+    discount3Months?: number | null;
+    discount6Months?: number | null;
+    discount12Months?: number | null;
+  },
+  months: number,
+): number {
+  const full = plan.price * months;
+  const discount = planDiscountPercent(plan, months);
+  return Math.round((full * (100 - discount)) / 100);
+}
+
+/** Adds whole months to a date (month-end safe). */
+export function addMonths(from: Date, months: number): Date {
+  const date = new Date(from.getTime());
+  const day = date.getDate();
+  date.setMonth(date.getMonth() + months);
+  // e.g. 31 Jan + 1 month → 3 Mar; pull back to the last day of the target month.
+  if (date.getDate() < day) date.setDate(0);
+  return date;
+}
+
 /** Fallback limits used when a user has no plan row yet (brand new account). */
 export const DEFAULT_PLAN: PlanDefinition = DEFAULT_PLANS[0];
 

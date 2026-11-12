@@ -20,7 +20,55 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.41.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.42.0**.
+
+## ۱۴۰۵/۰۸/۲۱ — دوره‌های سه/شش/یک‌ساله‌ی اشتراک با تخفیف و ممنوعیت تنزل — نسخه `v3.42.0`
+
+**هدف:** کاربر نتواند از اشتراک بالاتر به پایین‌تر برود (مثلاً از «بلاس» به
+«اکو»)؛ و برای «اکو» و «بلاس» دوره‌های سه‌ماهه، شش‌ماهه و یک‌ساله اضافه شود که
+قیمت‌شان بر پایه‌ی قیمت ماهانه محاسبه و مدیر برای هر دوره یک درصد تخفیف تعیین کند.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `User.planExpiresAt`؛
+  `SubscriptionPlan.discount3Months/discount6Months/discount12Months`؛
+  `UserSubscription.months`/`expiresAt`؛ `SubscriptionPayment.months`.
+- `apps/api/src/common/plans.ts` (جدید): `PLAN_PERIOD_MONTHS` (۱/۳/۶/۱۲)،
+  `isPlanPeriodMonths`، `planDiscountPercent`، `planPriceForMonths`، `addMonths`.
+- `apps/api/src/subscriptions/dto/create-plan.dto.ts`: فیلدهای درصد تخفیف دوره‌ها.
+- `apps/api/src/subscriptions/dto/request-subscription.dto.ts`: پارامتر `months`.
+- `apps/api/src/subscriptions/dto/checkout-subscription.dto.ts` (جدید): پارامتر
+  `months` برای پرداخت آنلاین.
+- `apps/api/src/subscriptions/subscriptions.service.ts`: `assertNotDowngrade`،
+  `applyPlanToUser`، بازگشت خودکار به بسته‌ی رایگان هنگام انقضای دوره، خروجی
+  `planExpiresAt` در `/me`، اعمال `months` در درخواست/تأیید مدیر.
+- `apps/api/src/subscriptions/subscriptions-payment.service.ts`: محاسبه‌ی مبلغ با
+  تخفیف دوره، ذخیره‌ی `months`، ممانعت از تنزل در مسیر پرداخت، تمدید از تاریخ
+  پایان فعلی، و تنظیم انقضا پس از پرداخت/کیف پول.
+- `apps/api/src/subscriptions/subscriptions.controller.ts`: دریافت `months` در
+  `checkout` و به‌روزرسانی `summary`.
+- `apps/web/lib/plan-periods.ts` (جدید): آینه‌ی محاسبات دوره/تخفیف سمت وب.
+- `apps/web/app/dashboard/subscriptions/page.tsx`: انتخاب دوره (ماهانه/سه/شش/
+  یک‌ساله)، نمایش قیمت دوره و برچسب تخفیف، غیرفعال‌کردن بسته‌های پایین‌تر، نمایش
+  انقضا و تمدید، و نمایش «دوره‌ی N ماهه» در پرداخت‌ها.
+- `apps/web/components/admin/AdminSubscriptions.tsx`: فیلدهای درصد تخفیف ۳/۶/۱۲
+  در فرم ساخت/ویرایش بسته و نمایش آن در ستون قیمت.
+- `apps/web/lib/api/types/subscriptions.ts`: فیلدهای `discount*`، `months`،
+  `expiresAt` و `planExpiresAt`.
+- `docs/API.md`: مستندسازی دوره‌ها، تخفیف‌ها، `months` و قاعده‌ی «ارتقا فقط».
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- `docker exec alooshomal-api npx prisma generate && npx prisma db push` موفق.
+- `curl` روی لوکال: PATCH مدیر تخفیف اکو ۲۰/۳۰/۴۰ و بلاس ۱۰/۲۵/۵۰ را ست کرد؛
+  `checkout` بلاس ۳ ماه → مبلغ ۵۳۷٬۳۰۰ و `months:3`؛ ۶ ماه → ۸۹۵٬۵۰۰؛
+  `months:5` → خطای ۴۰۰ اعتبارسنجی؛ تنزل به «رایگان» → خطای ۴۰۰ «امکان تغییر از
+  اشتراک …».
+- بررسی مرورگری (Chrome headless + CDP): صفحه‌ی `/dashboard/subscriptions`
+  دوره‌ها را نشان می‌دهد؛ بسته‌ی «رایگان» برای کاربر «اکو» غیرفعال با متن
+  «امکان تنزل اشتراک وجود ندارد»؛ با انتخاب دوره‌ی سه‌ماهه قیمت اکو
+  ‎۹۹٬۰۰۰×۳ − ۲۰٪ = ‎۲۳۷٬۶۰۰ با برچسب «۲۰٪ تخفیف» نمایش داده شد؛ بدون خطای JS.
+- `python3 scripts/check_api_docs.py` با خروجی ۰ (۳۹۵ مسیر، ۳۷ کنترلر).
 
 ## ۱۴۰۵/۰۸/۲۱ — دکمه‌ی «گزارش» روی کارت‌های عمومی — نسخه `v3.41.0`
 

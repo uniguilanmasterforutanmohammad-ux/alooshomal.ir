@@ -12,6 +12,13 @@ import {
   type SubscriptionPlan,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import {
+  PLAN_PERIODS,
+  PLAN_PERIOD_LABELS,
+  planDiscountPercent,
+  planPriceForMonths,
+  type PlanPeriodMonths,
+} from '@/lib/plan-periods';
 import { cn } from '@/lib/utils';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -48,6 +55,7 @@ export default function SubscriptionsPage() {
   const [mine, setMine] = useState<MySubscriptions | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
+  const [months, setMonths] = useState<PlanPeriodMonths>(1);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -105,9 +113,11 @@ export default function SubscriptionsPage() {
     setMessage(null);
     setError(null);
     try {
-      if (plan.price >= 1000) {
+      const amount = planPriceForMonths(plan, months);
+      if (amount >= 1000) {
         const checkout = await api.post<SubscriptionCheckout>(
           `/subscriptions/${plan.id}/checkout`,
+          { months },
         );
         if (checkout?.wallet) {
           setMessage(
@@ -122,7 +132,7 @@ export default function SubscriptionsPage() {
         window.location.href = checkout.url;
         return;
       }
-      await api.post('/subscriptions/request', { planId: plan.id });
+      await api.post('/subscriptions/request', { planId: plan.id, months });
       setMessage(
         'درخواست شما ثبت شد. پس از تأیید مدیر، اشتراک شما فعال می‌شود.',
       );
@@ -137,6 +147,7 @@ export default function SubscriptionsPage() {
   }
 
   const currentPlanId = mine?.plan?.id ?? null;
+  const currentSortOrder = mine?.plan?.sortOrder ?? 0;
   const pendingPlanId =
     mine?.requests.find((request) => request.status === 'PENDING')?.planId ?? null;
 
@@ -154,6 +165,31 @@ export default function SubscriptionsPage() {
         </p>
       </div>
 
+      <div className="indeed-panel flex flex-wrap items-center gap-2 p-4">
+        <span className="text-sm font-bold text-ink">دوره‌ی پرداخت:</span>
+        {PLAN_PERIODS.map((period) => (
+          <button
+            key={period}
+            type="button"
+            onClick={() => setMonths(period)}
+            aria-pressed={months === period}
+            className={cn(
+              'rounded-full border px-3 py-1.5 text-xs font-bold transition',
+              months === period
+                ? 'border-brand bg-brand text-white'
+                : 'border-[var(--vintage-border)] text-muted hover:border-brand hover:text-brand',
+            )}
+          >
+            {PLAN_PERIOD_LABELS[period]}
+            {period > 1 ? <span className="ms-1 font-normal">({period} ماه)</span> : null}
+          </button>
+        ))}
+        <span className="w-full text-xs text-muted sm:w-auto">
+          دوره‌های سه‌ماهه، شش‌ماهه و یک‌ساله بر پایه‌ی قیمت ماهانه و با تخفیف
+          محاسبه می‌شوند.
+        </span>
+      </div>
+
       {mine?.plan ? (
         <div className="indeed-panel flex items-center gap-3 p-4">
           <span className="vintage-avatar flex size-10 items-center justify-center">
@@ -162,6 +198,11 @@ export default function SubscriptionsPage() {
           <div>
             <p className="text-xs text-muted">اشتراک فعال شما</p>
             <p className="text-lg font-extrabold text-ink">{mine.plan.name}</p>
+            {mine.planExpiresAt ? (
+              <p className="mt-1 text-xs text-muted">
+                اعتبار تا {faDateTime(mine.planExpiresAt)}
+              </p>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -177,12 +218,21 @@ export default function SubscriptionsPage() {
         {plans.map((plan) => {
           const isCurrent = plan.id === currentPlanId;
           const isPending = plan.id === pendingPlanId;
+          // «ارتقا فقط»: a lower plan cannot be bought from a higher one.
+          const isDowngrade = !isCurrent && plan.sortOrder < currentSortOrder;
+          // The current plan can be re-bought (term extension) once it has an
+          // expiry; a permanent/free plan has nothing to renew.
+          const canRenew = isCurrent && Boolean(mine?.planExpiresAt);
+          const amount = planPriceForMonths(plan, months);
+          const discount = planDiscountPercent(plan, months);
+          const busy = busyPlanId === plan.id;
           return (
             <div
               key={plan.id}
               className={cn(
                 'indeed-panel flex flex-col p-5',
                 isCurrent && 'border-brand ring-2 ring-brand/30',
+                isDowngrade && 'opacity-60',
               )}
             >
               <div className="flex items-center justify-between">
@@ -200,8 +250,20 @@ export default function SubscriptionsPage() {
               ) : null}
 
               <p className="mt-3 text-2xl font-extrabold text-brand">
-                {faPrice(plan.price)}
+                {faPrice(amount)}
               </p>
+              {months > 1 && plan.price > 0 ? (
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+                  <span>
+                    {plan.price.toLocaleString('fa-IR')} تومان × {months} ماه
+                  </span>
+                  {discount > 0 ? (
+                    <span className="rounded-full bg-green-50 px-2 py-0.5 font-bold text-green-700">
+                      {discount.toLocaleString('fa-IR')}٪ تخفیف
+                    </span>
+                  ) : null}
+                </p>
+              ) : null}
 
               <ul className="mt-4 flex flex-1 flex-col gap-2 text-sm">
                 {plan.features.map((feature) => (
@@ -214,27 +276,32 @@ export default function SubscriptionsPage() {
 
               <button
                 type="button"
-                disabled={isCurrent || isPending || busyPlanId === plan.id}
+                disabled={(isCurrent && !canRenew) || isPending || isDowngrade || busy}
                 onClick={() => startPlan(plan)}
                 className={cn(
                   'indeed-btn mt-5 w-full py-2 text-sm',
                   isCurrent
                     ? 'indeed-btn-secondary'
                     : 'indeed-btn-primary',
-                  (isCurrent || isPending) && 'opacity-70',
+                  ((isCurrent && !canRenew) || isPending || isDowngrade) &&
+                    'opacity-70',
                 )}
               >
                 {isCurrent
-                  ? 'اشتراک فعلی شما'
-                  : isPending
-                    ? 'در انتظار تأیید مدیر'
-                    : busyPlanId === plan.id
-                      ? plan.price >= 1000
-                        ? 'در حال انتقال به درگاه...'
-                        : 'در حال ثبت...'
-                      : plan.price >= 1000
-                        ? 'پرداخت و فعال‌سازی'
-                        : 'درخواست اشتراک'}
+                  ? canRenew
+                    ? 'تمدید اشتراک'
+                    : 'اشتراک فعلی شما'
+                  : isDowngrade
+                    ? 'امکان تنزل اشتراک وجود ندارد'
+                    : isPending
+                      ? 'در انتظار تأیید مدیر'
+                      : busy
+                        ? amount >= 1000
+                          ? 'در حال انتقال به درگاه...'
+                          : 'در حال ثبت...'
+                        : amount >= 1000
+                          ? 'پرداخت و فعال‌سازی'
+                          : 'درخواست اشتراک'}
               </button>
             </div>
           );
@@ -322,6 +389,9 @@ export default function SubscriptionsPage() {
                 </span>
                 <span className="w-full text-xs text-muted">
                   تاریخ: {faDateTime(payment.createdAt)}
+                  {payment.months && payment.months > 1
+                    ? ` · دوره‌ی ${payment.months} ماهه`
+                    : ''}
                   {payment.refId ? ` · کد رهگیری: ${payment.refId}` : ''}
                 </span>
                 {payment.failureReason ? (

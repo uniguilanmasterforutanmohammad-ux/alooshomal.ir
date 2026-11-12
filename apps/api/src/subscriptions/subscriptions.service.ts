@@ -9,6 +9,7 @@ import {
 import { NotificationType, Prisma, SubscriptionStatus } from '@prisma/client';
 
 import {
+  addMonths,
   DEFAULT_PLAN,
   DEFAULT_PLANS,
   DEFAULT_HIDDEN_LINK_FIELDS,
@@ -185,6 +186,9 @@ export class SubscriptionsService implements OnModuleInit {
         showSocialLinks: !hiddenFields.includes('website'),
         hiddenFields,
         features: dto.features ?? [],
+        discount3Months: dto.discount3Months ?? 0,
+        discount6Months: dto.discount6Months ?? 0,
+        discount12Months: dto.discount12Months ?? 0,
         isActive: dto.isActive ?? true,
         sortOrder: dto.sortOrder ?? 99,
       },
@@ -249,19 +253,88 @@ export class SubscriptionsService implements OnModuleInit {
   /** The plan limits currently in force for a user. */
   async limitsForUser(userId: string): Promise<PlanLimits> {
     await this.ensureDefaultPlanForUser(userId);
-    const user = await this.prisma.user.findUnique({
+    let user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { plan: true },
     });
+    // A finished paid term falls back to the free plan lazily, so the quota
+    // gate never keeps serving a plan the user no longer pays for.
+    if (user?.planExpiresAt && user.planExpiresAt.getTime() <= Date.now()) {
+      const free = await this.prisma.subscriptionPlan.findFirst({
+        where: { name: DEFAULT_PLAN.name },
+        select: { id: true },
+      });
+      user = await this.prisma.user.update({
+        where: { id: userId },
+        data: { planId: free?.id ?? null, planExpiresAt: null },
+        include: { plan: true },
+      });
+    }
     return planLimitsFrom(user?.plan ?? null);
+  }
+
+  /**
+   * «ارتقا فقط»: a user may never move to a *lower* plan (e.g. از بلاس به اکو).
+   * Sideways/upward moves and the free-plan upgrade path stay allowed.
+   */
+  async assertNotDowngrade(userId: string, targetPlanId: string): Promise<void> {
+    const [user, target] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { plan: { select: { name: true, sortOrder: true } } },
+      }),
+      this.prisma.subscriptionPlan.findUnique({
+        where: { id: targetPlanId },
+        select: { sortOrder: true },
+      }),
+    ]);
+    const current = user?.plan;
+    if (!current || !target) return;
+    if (target.sortOrder < current.sortOrder) {
+      throw new BadRequestException(
+        `امکان تغییر از اشتراک «${current.name}» به اشتراک پایین‌تر وجود ندارد؛ فقط ارتقا به بسته‌های بالاتر ممکن است.`,
+      );
+    }
+  }
+
+  /**
+   * Applies a plan — plus the term the user bought — to an account. Buying the
+   * same plan again before its term ends extends from the current expiry.
+   */
+  async applyPlanToUser(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    planId: string,
+    months = 1,
+    at: Date = new Date(),
+  ): Promise<Date | null> {
+    const current = await tx.user.findUnique({
+      where: { id: userId },
+      select: { planId: true, planExpiresAt: true },
+    });
+    let expiresAt: Date | null = null;
+    if (months > 0) {
+      const activeTerm =
+        current?.planId === planId &&
+        current.planExpiresAt &&
+        current.planExpiresAt.getTime() > at.getTime()
+          ? current.planExpiresAt
+          : at;
+      expiresAt = addMonths(activeTerm, months);
+    }
+    await tx.user.update({
+      where: { id: userId },
+      data: { planId, planExpiresAt: expiresAt },
+    });
+    return expiresAt;
   }
 
   async mySubscriptions(userId: string) {
     await this.ensureDefaultPlanForUser(userId);
-    const [plan, requests, payments] = await Promise.all([
+    const [account, requests, payments] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
-        include: { plan: true },
+        select: { plan: true, planExpiresAt: true },
       }),
       this.prisma.userSubscription.findMany({
         where: { userId },
@@ -276,7 +349,12 @@ export class SubscriptionsService implements OnModuleInit {
         take: 20,
       }),
     ]);
-    return { plan: plan?.plan ?? null, requests, payments };
+    return {
+      plan: account?.plan ?? null,
+      planExpiresAt: account?.planExpiresAt ?? null,
+      requests,
+      payments,
+    };
   }
 
   /**
@@ -292,13 +370,19 @@ export class SubscriptionsService implements OnModuleInit {
     if (user?.planId === plan.id) {
       throw new BadRequestException('شما در حال حاضر مشترک این بسته هستید');
     }
+    await this.assertNotDowngrade(userId, plan.id);
 
     await this.prisma.userSubscription.deleteMany({
       where: { userId, status: SubscriptionStatus.PENDING },
     });
 
     const request = await this.prisma.userSubscription.create({
-      data: { userId, planId: plan.id, note: dto.note },
+      data: {
+        userId,
+        planId: plan.id,
+        note: dto.note,
+        months: dto.months ?? 1,
+      },
       include: { plan: true },
     });
 
@@ -419,10 +503,13 @@ export class SubscriptionsService implements OnModuleInit {
       });
 
       if (dto.status === SubscriptionStatus.ACTIVE) {
-        await tx.user.update({
-          where: { id: request.userId },
-          data: { planId: request.planId },
-        });
+        await this.applyPlanToUser(
+          tx,
+          request.userId,
+          request.planId,
+          request.months ?? 1,
+          now,
+        );
         // supersede any other pending requests for this user
         await tx.userSubscription.updateMany({
           where: {
@@ -474,7 +561,9 @@ export class SubscriptionsService implements OnModuleInit {
     const plan = planId ? await this.getPlan(planId) : null;
     const updated = await this.prisma.user.update({
       where: { id: userId },
-      data: { planId },
+      // A direct admin assignment is permanent (no term): clearing the expiry
+      // keeps the plan from lapsing back to free afterwards.
+      data: { planId, planExpiresAt: null },
       select: { id: true, email: true, fullName: true, planId: true },
     });
 

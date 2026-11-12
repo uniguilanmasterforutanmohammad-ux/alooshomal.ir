@@ -18,6 +18,7 @@ import {
 import { randomBytes } from 'node:crypto';
 
 import { ActivityService } from '../activity/activity.service';
+import { addMonths, isPlanPeriodMonths, planPriceForMonths } from '../common/plans';
 import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
 import { FinanceService } from '../finance/finance.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -54,6 +55,27 @@ export class SubscriptionsPaymentService {
       throw new NotFoundException('اشتراک یافت نشد');
     }
     return plan;
+  }
+
+  /** «ارتقا فقط»: moving to a lower plan is refused on the paid path too. */
+  private async assertNotDowngrade(userId: string, planId: string) {
+    const [user, target] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { plan: { select: { name: true, sortOrder: true } } },
+      }),
+      this.prisma.subscriptionPlan.findUnique({
+        where: { id: planId },
+        select: { sortOrder: true },
+      }),
+    ]);
+    const current = user?.plan;
+    if (!current || !target) return;
+    if (target.sortOrder < current.sortOrder) {
+      throw new BadRequestException(
+        `امکان تغییر از اشتراک «${current.name}» به اشتراک پایین‌تر وجود ندارد؛ فقط ارتقا به بسته‌های بالاتر ممکن است.`,
+      );
+    }
   }
 
   // -------------------------------------------------------------------------
@@ -162,12 +184,16 @@ export class SubscriptionsPaymentService {
    * Start an online payment for a paid plan. Returns the PayPing gateway URL;
    * the plan is activated only after the callback verifies the transaction.
    */
-  async checkout(userId: string, planId: string) {
+  async checkout(userId: string, planId: string, requestedMonths = 1) {
     const plan = await this.requirePlan(planId);
     if (!plan.isActive) {
       throw new BadRequestException('این اشتراک در حال حاضر فعال نیست');
     }
-    if (plan.price < 1000) {
+    // Only the four billable terms are accepted; anything else falls back to
+    // the monthly price so a bogus value can never under-charge a purchase.
+    const months = isPlanPeriodMonths(requestedMonths) ? requestedMonths : 1;
+    const amount = planPriceForMonths(plan, months);
+    if (amount < 1000) {
       throw new BadRequestException(
         'مبلغ این اشتراک برای پرداخت آنلاین معتبر نیست؛ از درخواست اشتراک استفاده کنید.',
       );
@@ -186,13 +212,21 @@ export class SubscriptionsPaymentService {
       throw new NotFoundException('کاربر یافت نشد');
     }
     if (user.planId === plan.id) {
-      throw new BadRequestException('شما در حال حاضر مشترک این بسته هستید');
+      // Re-buying the same plan is allowed only to extend its term.
+      const active = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { planExpiresAt: true },
+      });
+      if (!active?.planExpiresAt) {
+        throw new BadRequestException('شما در حال حاضر مشترک این بسته هستید');
+      }
     }
+    await this.assertNotDowngrade(userId, plan.id);
 
     // With the wallet switched on, the plan is activated right away and its
     // price is added to the user's tab instead of a per-purchase gateway call.
     if (await this.settings.isFeatureEnabled('featureWallet')) {
-      return this.purchaseViaWallet(userId, plan);
+      return this.purchaseViaWallet(userId, plan, months);
     }
 
     // The simulator has no merchant account to mirror plans into.
@@ -214,7 +248,8 @@ export class SubscriptionsPaymentService {
       data: {
         userId,
         planId,
-        amount: plan.price,
+        amount,
+        months,
         clientRefId,
         payerName: user.fullName ?? undefined,
       },
@@ -225,13 +260,13 @@ export class SubscriptionsPaymentService {
     try {
       result = this.simulator.isEnabled
         ? this.simulator.createPayment({
-            amount: plan.price,
+            amount,
             returnUrl,
             clientRefId,
             description: `اشتراک ${plan.name} — شمالی‌کارت`,
           })
         : ((await this.payping.createPayment({
-            amount: plan.price,
+            amount,
             returnUrl,
             payerIdentity: user.phone ?? user.email ?? undefined,
             payerName: user.fullName ?? undefined,
@@ -272,6 +307,7 @@ export class SubscriptionsPaymentService {
     return {
       paymentId: updated.id,
       amount: updated.amount,
+      months: updated.months,
       paymentCode: updated.paymentCode,
       url: updated.gatewayUrl,
       paypingProductCode,
@@ -284,41 +320,57 @@ export class SubscriptionsPaymentService {
    * the user can keep buying (blue tick, subscriptions, …) and settle
    * everything with one payment before the wallet due date.
    */
-  private async purchaseViaWallet(userId: string, plan: SubscriptionPlan) {
-    const previousPlanId =
-      (
-        await this.prisma.user.findUnique({
-          where: { id: userId },
-          select: { planId: true },
-        })
-      )?.planId ?? null;
+  private async purchaseViaWallet(
+    userId: string,
+    plan: SubscriptionPlan,
+    months = 1,
+  ) {
+    const previous = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { planId: true, planExpiresAt: true },
+    });
+    const previousPlanId = previous?.planId ?? null;
+    const amount = planPriceForMonths(plan, months);
     const now = new Date();
     const subscription = await this.prisma.$transaction(async (tx) => {
       await tx.userSubscription.deleteMany({
         where: { userId, status: SubscriptionStatus.PENDING },
       });
+      // Renewing the same plan before its term ends extends the current term.
+      const base =
+        previousPlanId === plan.id &&
+        previous?.planExpiresAt &&
+        previous.planExpiresAt.getTime() > now.getTime()
+          ? previous.planExpiresAt
+          : now;
+      const expiresAt = addMonths(base, months);
       const created = await tx.userSubscription.create({
         data: {
           userId,
           planId: plan.id,
           status: SubscriptionStatus.ACTIVE,
+          months,
+          expiresAt,
           decidedAt: now,
           adminNote: 'فعال‌سازی با کیف پول (تسویه یک‌جا در سررسید)',
         },
       });
       await tx.user.update({
         where: { id: userId },
-        data: { planId: plan.id },
+        data: { planId: plan.id, planExpiresAt: expiresAt },
       });
       return created;
     });
-    let amount = 0;
+    let charged = 0;
     try {
-      amount = await this.wallet.charge({
+      charged = await this.wallet.charge({
         userId,
         kind: WalletEntryKind.SUBSCRIPTION,
-        amount: plan.price,
-        title: `خرید اشتراک «${plan.name}»`,
+        amount,
+        title:
+          months > 1
+            ? `خرید اشتراک «${plan.name}» (${months} ماهه)`
+            : `خرید اشتراک «${plan.name}»`,
         sourceType: 'SUBSCRIPTION_PLAN',
         sourceId: subscription.id,
         idempotencyKey: `subscription:${subscription.id}`,
@@ -329,40 +381,42 @@ export class SubscriptionsPaymentService {
         this.prisma.userSubscription.delete({ where: { id: subscription.id } }),
         this.prisma.user.update({
           where: { id: userId },
-          data: { planId: previousPlanId },
+          data: { planId: previousPlanId, planExpiresAt: previous?.planExpiresAt ?? null },
         }),
       ]);
       throw error;
     }
+    const periodNote = months > 1 ? ` برای دوره‌ی ${months} ماهه` : '';
     await this.notifications.notify({
       userId,
       type: NotificationType.SUCCESS,
       title: 'اشتراک شما فعال شد',
       body:
-        amount > 0
-          ? `بسته «${plan.name}» فعال شد و مبلغ ${amount.toLocaleString('fa-IR')} تومان به بدهی کیف پول شما اضافه شد؛ تا سررسید یک‌جا پرداخت کنید.`
-          : `بسته «${plan.name}» روی حساب شما فعال شد.`,
+        charged > 0
+          ? `بسته «${plan.name}»${periodNote} فعال شد و مبلغ ${charged.toLocaleString('fa-IR')} تومان به بدهی کیف پول شما اضافه شد؛ تا سررسید یک‌جا پرداخت کنید.`
+          : `بسته «${plan.name}»${periodNote} روی حساب شما فعال شد.`,
       link: '/dashboard/subscriptions',
     });
     await this.notifications.notifyAdmins({
       category: 'SUBSCRIPTION',
       scope: 'SUBSCRIPTION',
       title: 'خرید اشتراک از کیف پول',
-      body: `بسته «${plan.name}» فعال شد و مبلغ ${amount.toLocaleString('fa-IR')} تومان به کیف پول کاربر اضافه شد.`,
+      body: `بسته «${plan.name}»${periodNote} فعال شد و مبلغ ${charged.toLocaleString('fa-IR')} تومان به کیف پول کاربر اضافه شد.`,
       type: NotificationType.INFO,
       link: '/admin?section=wallets',
       actorId: userId,
     });
     await this.activity.log({
       action: 'SUBSCRIPTION_APPROVED',
-      summary: `فعال‌سازی اشتراک «${plan.name}» با کیف پول`,
+      summary: `فعال‌سازی اشتراک «${plan.name}»${periodNote} با کیف پول`,
       entityType: 'SUBSCRIPTION',
       entityId: subscription.id,
     });
     return {
       wallet: true,
       paymentId: null,
-      amount,
+      amount: charged,
+      months,
       paymentCode: null,
       url: null,
       plan: { id: plan.id, name: plan.name },
@@ -557,18 +611,32 @@ export class SubscriptionsPaymentService {
     const now = new Date();
     const paidAt = verified?.payedDate ? new Date(verified.payedDate) : now;
     const subscription = await this.prisma.$transaction(async (tx) => {
+      const months = payment.months || 1;
+      const account = await tx.user.findUnique({
+        where: { id: payment.userId },
+        select: { planId: true, planExpiresAt: true },
+      });
+      const base =
+        account?.planId === payment.planId &&
+        account.planExpiresAt &&
+        account.planExpiresAt.getTime() > now.getTime()
+          ? account.planExpiresAt
+          : now;
+      const expiresAt = addMonths(base, months);
       const created = await tx.userSubscription.create({
         data: {
           userId: payment.userId,
           planId: payment.planId,
           status: SubscriptionStatus.ACTIVE,
+          months,
+          expiresAt,
           decidedAt: now,
           adminNote: 'پرداخت آنلاین پی‌پینگ',
         },
       });
       await tx.user.update({
         where: { id: payment.userId },
-        data: { planId: payment.planId },
+        data: { planId: payment.planId, planExpiresAt: expiresAt },
       });
       await tx.userSubscription.updateMany({
         where: {

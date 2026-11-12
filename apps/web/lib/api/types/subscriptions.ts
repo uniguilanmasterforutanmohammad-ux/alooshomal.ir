@@ -8,6 +8,10 @@ export interface SubscriptionPlan {
   showSocialLinks: boolean;
   hiddenFields: string[];
   features: string[];
+  /** درصد تخفیف دوره‌های چندماهه (۰ تا ۱۰۰) بر پایه‌ی قیمت یک‌ماهه */
+  discount3Months: number;
+  discount6Months: number;
+  discount12Months: number;
   isActive: boolean;
   sortOrder: number;
   /** PayPing «آیتم مالی» code mirrored from this plan, when synced. */
@@ -25,6 +29,10 @@ export interface UserSubscription {
   userId: string;
   planId: string;
   status: SubscriptionStatus;
+  /** طول دوره به ماه (۱ = ماهانه، ۳/۶/۱۲ = دوره‌های تخفیف‌دار) */
+  months?: number;
+  /** پایان دوره پس از فعال‌سازی (null = بدون انقضا) */
+  expiresAt?: string | null;
   requestedAt: string;
   decidedAt: string | null;
   note: string | null;
@@ -35,6 +43,8 @@ export interface UserSubscription {
 
 export interface MySubscriptions {
   plan: SubscriptionPlan | null;
+  /** پایان دوره‌ی اشتراک فعلی (null = بدون انقضا) */
+  planExpiresAt?: string | null;
   requests: UserSubscription[];
   payments?: SubscriptionPayment[];
 }
@@ -50,6 +60,8 @@ export interface SubscriptionPayment {
   userId: string;
   planId: string;
   amount: number;
+  /** طول دوره‌ی خریداری‌شده به ماه */
+  months?: number;
   status: SubscriptionPaymentStatus;
   clientRefId: string;
   paymentCode: string | null;
@@ -65,6 +77,8 @@ export interface SubscriptionPayment {
 export interface SubscriptionCheckout {
   paymentId: string | null;
   amount: number;
+  /** طول دوره‌ی انتخاب‌شده به ماه */
+  months?: number;
   paymentCode: string | null;
   url: string | null;
   paypingProductCode?: string | null;
