@@ -91,7 +91,10 @@ export class SmsService {
 
   /** True when a Melipayamak *simple send* path is configured. */
   get textEnabled(): boolean {
-    return Boolean(process.env.MELIPAYAMAK_SMS_PATH?.trim());
+    return Boolean(
+      process.env.MELIPAYAMAK_SMS_PATH?.trim() &&
+        process.env.MELIPAYAMAK_SMS_FROM?.trim(),
+    );
   }
 
   /**
@@ -99,14 +102,18 @@ export class SmsService {
    * send endpoint. Used by the resource monitor for admin alerts.
    *
    * The path (which embeds the token) lives in `MELIPAYAMAK_SMS_PATH`, e.g.
-   * `/api/send/simple/<token>`. Never throws: monitoring must not crash when
-   * SMS is unavailable; the caller just gets `false`.
+   * `/api/send/simple/<token>`, and the sender line must be provided in
+   * `MELIPAYAMAK_SMS_FROM` — Melipayamak's simple-send contract requires both
+   * `from` and `to` in the JSON body (see `console.melipayamak.com/send/simple`).
+   * Never throws: monitoring must not crash when SMS is unavailable; the
+   * caller just gets `false`.
    */
   async sendText(phone: string, text: string): Promise<boolean> {
     const path = process.env.MELIPAYAMAK_SMS_PATH?.trim();
-    if (!path) {
+    const from = process.env.MELIPAYAMAK_SMS_FROM?.trim();
+    if (!path || !from) {
       this.logger.warn(
-        `MELIPAYAMAK_SMS_PATH is not set — SMS to ${SmsService.maskPhone(phone)} was not sent.`,
+        `MELIPAYAMAK_SMS_PATH and MELIPAYAMAK_SMS_FROM must both be set — SMS to ${SmsService.maskPhone(phone)} was not sent.`,
       );
       return false;
     }
@@ -117,7 +124,7 @@ export class SmsService {
       const response = await fetch(`https://console.melipayamak.com${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: phone, text }),
+        body: JSON.stringify({ from, to: phone, text }),
         signal: controller.signal,
       });
 

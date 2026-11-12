@@ -112,6 +112,8 @@ services:
       # Melipayamak simple-send path (includes the token) used by server
       # alerts and the support-chat SMS; empty = those SMSes are skipped.
       MELIPAYAMAK_SMS_PATH: ${MELIPAYAMAK_SMS_PATH:-}
+      # Sender line for simple-send (the `from` field in Melipayamak's body).
+      MELIPAYAMAK_SMS_FROM: ${MELIPAYAMAK_SMS_FROM:-}
       # Optional fallback line for support-chat SMS. The admin-panel value
       # wins; when both are empty the oldest admin account's phone is used.
       SUPPORT_CHAT_ALERT_PHONE: ${SUPPORT_CHAT_ALERT_PHONE:-}
