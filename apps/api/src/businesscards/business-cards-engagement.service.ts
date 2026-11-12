@@ -1,11 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import * as QRCode from 'qrcode';
 
+import { NotificationType } from '@prisma/client';
+
+import { ActivityService } from '../activity/activity.service';
 import { appUrl } from '../common/app-url';
 import { paginationMeta } from '../common/pagination-meta';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { BusinessCardsService } from './business-cards.service';
+import {
+  BUSINESS_CARD_REPORT_REASON_LABELS,
+  ReportBusinessCardDto,
+} from './dto/report-business-card.dto';
 
 /**
  * Public engagement and share assets of a business card: view counters,
@@ -19,7 +27,58 @@ export class BusinessCardsEngagementService {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly businessCards: BusinessCardsService,
+    private readonly notifications: NotificationsService,
+    private readonly activity: ActivityService,
   ) {}
+
+  /**
+   * A visitor reports a public card («محتوای نامناسب»، «این کسب‌وکار برای من
+   * است» و …). Nothing is changed on the card itself: the report only reaches
+   * the admin team (notification + activity log) so they can review it.
+   */
+  async report(
+    slug: string,
+    reporter: { userId?: string | null; visitorKey: string },
+    dto: ReportBusinessCardDto,
+  ) {
+    await this.settings.assertFeatureEnabled(
+      'featureBusinessReports',
+      'ثبت گزارش موقتاً توسط مدیر غیرفعال شده است.',
+    );
+    const card = await this.businessCards.findPublicBySlug(slug);
+    const reason = BUSINESS_CARD_REPORT_REASON_LABELS[dto.reason];
+    const note = dto.note?.trim();
+    const who = reporter.userId
+      ? `کاربر «${(
+          await this.prisma.user.findUnique({
+            where: { id: reporter.userId },
+            select: { email: true },
+          })
+        )?.email ?? reporter.userId}»`
+      : 'یک بازدیدکننده‌ی مهمان';
+
+    await this.notifications.notifyAdmins({
+      category: 'REPORT',
+      scope: 'BUSINESS_CARD',
+      type: NotificationType.WARNING,
+      title: 'گزارش تازه‌ی کارت ویزیت',
+      body:
+        `${who} کارت «${card.fullName}» را با دلیل «${reason}» گزارش کرد.` +
+        (note ? ` توضیح: ${note}` : ''),
+      link: '/admin?section=business-cards',
+      actorId: reporter.userId ?? null,
+    });
+
+    await this.activity.log({
+      actor: reporter.userId ? { id: reporter.userId } : undefined,
+      action: 'BUSINESS_CARD_REPORTED',
+      summary: `گزارش کارت «${card.fullName}» — ${reason}${note ? `: ${note}` : ''}`,
+      entityType: 'BUSINESS_CARD',
+      entityId: card.id,
+    });
+
+    return { reported: true };
+  }
 
   async recordScan(
     businessCardId: string,

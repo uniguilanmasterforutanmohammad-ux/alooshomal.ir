@@ -101,6 +101,7 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 | `POST` | `/business-reviews/public/:slug` | ثبت یا ویرایش دیدگاه کاربر جاری؛ بدنه `{ rating: 1..5, comment? }`. ثبت برای مالک همان کسب‌وکار مجاز نیست. |
 | `DELETE` | `/business-reviews/public/:slug/mine` | حذف دیدگاه کاربر جاری و به‌روزرسانی میانگین امتیاز. |
 | `POST` | `/business-cards/:id/claim` | تصاحب کسب‌وکارهای ثبت‌شده‌ی سیستمی (`isUnclaimed`) توسط کاربر وارد‌شده؛ مالکیت انتقال می‌یابد و کارت منتشرشده می‌ماند. در صورت متعلق‌بودن به کاربر دیگر `409` و اگر ویژگی `featureBusinessClaim` خاموش باشد `403` برمی‌گرداند. |
+| `POST` | `/business-cards/public/:slug/report` | گزارش کارت عمومی توسط بازدیدکننده (ورود اختیاری؛ مهمان هم می‌تواند). بدنه `{ reason: 'INAPPROPRIATE' \| 'OWNERSHIP' \| 'WRONG_INFO' \| 'SPAM' \| 'OTHER', note? }`. گزارش با اعلان دسته‌ی `REPORT` برای مدیران و ثبت در لاگ فعالیت همراه می‌شود؛ اگر ویژگی `featureBusinessReports` خاموش باشد `403` برمی‌گرداند. |
 | `POST` | `/uploads/gallery` | آپلود تصویر گالری کسب‌وکار (WebP)؛ خروجی `url` در فیلد `gallery` کارت ویزیت ذخیره می‌شود. |
 
 فیلدهای جدید کارت ویزیت در `CreateBusinessCardDto`/`UpdateBusinessCardDto`:

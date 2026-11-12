@@ -375,6 +375,14 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     default: true,
   },
   {
+    key: 'featureBusinessReports',
+    label: 'گزارش کارت کسب‌وکار توسط بازدیدکننده',
+    description:
+      'دکمه‌ی «گزارش» روی کارت‌های عمومی (محتوای نامناسب، «این کسب‌وکار برای من است» و …). گزارش برای مدیران ارسال می‌شود؛ خاموش‌کردن «نمایش» دکمه را پنهان می‌کند و خاموش‌کردن خودِ کلید ثبت گزارش را می‌بندد.',
+    group: 'ساخت محتوا',
+    default: true,
+  },
+  {
     key: 'featureBlog',
     label: 'بلاگ سایت',
     description:
@@ -485,5 +493,6 @@ export const ADMIN_NOTIFY_CATEGORIES = [
   'SECURITY',
   'SYSTEM',
   'TAXONOMY',
+  'REPORT',
 ] as const;
 export type AdminNotifyCategory = (typeof ADMIN_NOTIFY_CATEGORIES)[number];

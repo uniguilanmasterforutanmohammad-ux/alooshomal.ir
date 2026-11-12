@@ -20,7 +20,39 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.40.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.41.0**.
+
+## ۱۴۰۵/۰۸/۲۱ — دکمه‌ی «گزارش» روی کارت‌های عمومی — نسخه `v3.41.0`
+
+**هدف:** بازدیدکننده بتواند کارت را گزارش دهد (محتوای نامناسب، «این کسب‌وکار
+برای من است» و …) و گزارش به مدیران برسد.
+
+**تغییرات:**
+- `apps/api/src/businesscards/dto/report-business-card.dto.ts` (جدید): دلایل
+  مجاز گزارش و برچسب فارسی آن‌ها.
+- `apps/api/src/businesscards/business-cards-engagement.service.ts`: متد
+  `report` (اعلان مدیران با دسته‌ی `REPORT` + لاگ `BUSINESS_CARD_REPORTED`).
+- `apps/api/src/businesscards/business-cards.controller.ts`: مسیر
+  `POST /business-cards/public/:slug/report` با `@OptionalAuth()` تا هم کاربر
+  واردشده و هم مهمان بتواند گزارش دهد.
+- `apps/api/src/settings/settings.constants.ts`: دسته‌ی اعلان `REPORT` و
+  کلید ویژگی `featureBusinessReports` (فعال/نمایش).
+- `apps/web/components/businesscard/ReportBusinessCardButton.tsx` (جدید):
+  آیکن گزارش + مودال انتخاب دلیل و توضیح.
+- `apps/web/components/businesscard/PublicBusinessCardView.tsx`: افزودن دکمه
+  به ردیف اکشن‌های کارت عمومی.
+- `apps/web/components/admin/AdminNotificationSettings.tsx`: برچسب دسته‌ی
+  «گزارش کارت‌ها».
+- `docs/API.md`: مستندسازی مسیر گزارش.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- `curl -X POST /api/business-cards/public/<slug>/report` (مهمان) →
+  `{"reported":true}` و ثبت اعلان مدیر + فعالیت.
+- بررسی مرورگری (Chrome headless + CDP) روی `/business-cards/<slug>`:
+  دکمه دیده می‌شود، مودال با ۵ دلیل باز می‌شود، ثبت گزارش مودال را می‌بندد و
+  اعلان «اطلاعات نادرست» با نام کاربر در دیتابیس ثبت شد.
 
 ## ۱۴۰۵/۰۸/۲۱ — ترتیب شهرها، حذف «شهر/منطقه» و افزودن تگ «محله» — نسخه `v3.40.0`
 

@@ -17,7 +17,8 @@ type Category =
   | 'TICKET'
   | 'SECURITY'
   | 'SYSTEM'
-  | 'TAXONOMY';
+  | 'TAXONOMY'
+  | 'REPORT';
 
 const LABELS: Record<Category, { title: string; hint: string }> = {
   NEW_USER: { title: 'ثبت‌نام کاربر جدید', hint: 'وقتی کاربر تازه‌ای عضو می‌شود' },
@@ -44,6 +45,10 @@ const LABELS: Record<Category, { title: string; hint: string }> = {
     title: 'درخواست دسته‌بندی تازه',
     hint: 'کاربر در کادر زیردسته/زیرشاخه چیزی پیدا نکرده و درخواست داده است',
   },
+  REPORT: {
+    title: 'گزارش کارت‌ها',
+    hint: 'بازدیدکننده کارتی را گزارش کرده (محتوای نامناسب، «این کسب‌وکار برای من است» و …)',
+  },
 };
 
 const ORDER: Category[] = [
@@ -59,6 +64,7 @@ const ORDER: Category[] = [
   'SECURITY',
   'SYSTEM',
   'TAXONOMY',
+  'REPORT',
 ];
 
 interface SettingsPayload {

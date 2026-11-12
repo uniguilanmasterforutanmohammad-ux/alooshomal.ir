@@ -31,6 +31,7 @@ import { ClaimBusinessCardButton } from '@/components/business/ClaimBusinessCard
 import { LikeButton } from '@/components/ui/LikeButton';
 import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
+import { ReportBusinessCardButton } from '@/components/businesscard/ReportBusinessCardButton';
 import { SaveButton } from '@/components/ui/SaveButton';
 import { ShareButton } from '@/components/ui/ShareButton';
 import type { BusinessCard } from '@/lib/api';
@@ -294,6 +295,11 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
                   size="md"
                 />
                 <ShareButton url={link} title={headline} size="md" iconOnly />
+                <ReportBusinessCardButton
+                  slug={businessCard.slug}
+                  title={headline}
+                  size="md"
+                />
                 <SaveButton
                   kind="business-cards"
                   slug={businessCard.slug}

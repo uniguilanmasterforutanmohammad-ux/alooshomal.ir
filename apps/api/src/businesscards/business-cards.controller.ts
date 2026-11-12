@@ -28,6 +28,7 @@ import { BusinessCardsDirectoryService } from './business-cards-directory.servic
 import { CreateBusinessCardDto } from './dto/create-business-card.dto';
 import { PublicBusinessCardQueryDto } from './dto/public-business-card-query.dto';
 import { PublicPhonebookQueryDto } from './dto/public-phonebook-query.dto';
+import { ReportBusinessCardDto } from './dto/report-business-card.dto';
 import { UpdateBusinessCardDto } from './dto/update-business-card.dto';
 
 @ApiTags('business-cards')
@@ -219,6 +220,25 @@ export class BusinessCardsController {
   @ApiOperation({ summary: 'دریافت فایل vCard' })
   async vcard(@Param('slug') slug: string) {
     return this.engagement.buildVCard(slug);
+  }
+
+  @OptionalAuth()
+  @Post('public/:slug/report')
+  @ApiOperation({
+    summary:
+      'گزارش کارت ویزیت عمومی توسط بازدیدکننده (محتوای نامناسب، «این کسب‌وکار برای من است» و …)',
+  })
+  report(
+    @Param('slug') slug: string,
+    @Body() dto: ReportBusinessCardDto,
+    @Req() request: Request,
+    @CurrentUser() user?: AuthUser,
+  ) {
+    return this.engagement.report(
+      slug,
+      { userId: user?.id ?? null, visitorKey: visitorKeyFrom(request) },
+      dto,
+    );
   }
 
   @Public()
