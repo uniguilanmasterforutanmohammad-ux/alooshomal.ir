@@ -10,12 +10,18 @@ Two independent inputs (from the sibling `behtarino/` extraction project):
     names go into ``business_taxonomy_nodes`` and are offered exclusively by the
     *searchable* pickers in the biolink / business-card builders.
   * ``behtarino-mazandaran-businesses.json`` — the Mazandaran businesses. Each
-    one becomes an APPROVED + published ``business_cards`` row owned by a
+    one becomes an APPROVED but *unpublished* ``business_cards`` row owned by a
     placeholder account, flagged ``isUnclaimed`` so the public page can show the
     «شما صاحب این کسب‌وکار هستید؟» button and let the real owner take it over.
-    Its «محله» is kept so the public card can show it as a tag, while the
-    scraped «شهر/منطقه» column is *not* stored: it only decides which real city
-    a business belongs to (the merged «تنکابن، شیرود» bucket is split by it).
+    Unpublished imported cards stay out of the directory but their direct link
+    still works, so the importer can send it to the owner.
+
+    Every run also creates a ``business_card_import_batches`` row (label +
+    import date/time). The admin panel lists these batches as separate boxes and
+    can roll back one batch or all imports at once; claimed cards are excluded
+    from rollback. Its «محله» is kept while the scraped «شهر/منطقه» column is
+    *not* stored: it only decides which real city a business belongs to (the
+    merged «تنکابن، شیرود» bucket is split by it).
 
 Nothing here touches production: the script talks to the local Postgres
 container (``alooshomal-db``) through ``psql``, exactly like
@@ -32,6 +38,7 @@ Options:
                      (default: ../behtarino next to this repo)
   --limit N          import only the first N businesses (smoke-testing)
   --clear            delete previously imported (isUnclaimed) cards first
+  --batch-label TXT  label of this import batch (default: «ایمپورت به‌ترینو»)
   --purge            local-only clean slate: drop EVERY pre-existing business
                      card and every category that is not one of the file's main
                      categories, so only this file's data remains. Existing
@@ -244,6 +251,7 @@ def purge_legacy(source_dir: str, rng: random.Random) -> None:
     # 3) Drop every pre-existing business card; the `businesses` step right
     #    after re-imports this file's cards.
     removed = psql('DELETE FROM "business_cards" RETURNING id')
+    delete_empty_batches()
     print(f"removed {len(removed.splitlines())} legacy business cards")
 
 
@@ -295,6 +303,33 @@ def ensure_cities(names: set[str], rng: random.Random) -> dict[str, str]:
         )
         mapping[name] = ident
     return mapping
+
+
+def create_import_batch(
+    label: str,
+    rng: random.Random,
+    source: str = "behtarino",
+    note: str = "",
+) -> str:
+    """Create the batch row that groups this import run (with its date/time)."""
+    batch_id = cuid(rng)
+    stamp = now_stamp()
+    psql(
+        'INSERT INTO "business_card_import_batches" '
+        '(id, label, source, note, "createdAt") VALUES '
+        f"({sql_quote(batch_id)}, {sql_quote(label)}, {sql_quote(source)}, "
+        f"{sql_quote(note)}, {sql_quote(stamp)});"
+    )
+    return batch_id
+
+
+def delete_empty_batches() -> None:
+    """Drop batch rows left without any card (e.g. after a local --clear)."""
+    psql(
+        'DELETE FROM "business_card_import_batches" b '
+        'WHERE NOT EXISTS (SELECT 1 FROM "business_cards" c '
+        'WHERE c."importBatchId" = b.id)'
+    )
 
 
 # The site keeps only these four cities; every other scraped «شهر/منطقه» is a
@@ -436,6 +471,7 @@ def build_card_rows(
     user_id: str,
     city_ids: dict[str, str],
     business_ids: dict[str, str],
+    batch_id: str,
     rng: random.Random,
     taken_slugs: set[str] | None = None,
 ) -> list[list[str]]:
@@ -494,15 +530,16 @@ def build_card_rows(
             whatsapp_url(business.get("whatsapp") or ""),
             (business.get("linkedin") or "").strip(),
             json.dumps(working_hours, ensure_ascii=False) if working_hours else "",
-            "true",
+            "false",
             "APPROVED",
             stamp,
-            stamp,
+            "",  # publishedAt — imported cards stay unpublished
             stamp,
             "true",
             stamp,
             stamp,
             neighborhood,
+            batch_id,
         ])
     return rows
 
@@ -512,11 +549,16 @@ COPY_COLUMNS = [
     "company", "bio", "phone", "mobile", "email", "website", "address",
     "instagram", "telegram", "whatsapp", "linkedin", "workingHours",
     "isPublished", "status", "approvedAt", "publishedAt", "pinnedAt",
-    "isUnclaimed", "createdAt", "updatedAt", "neighborhood",
+    "isUnclaimed", "createdAt", "updatedAt", "neighborhood", "importBatchId",
 ]
 
 
-def import_businesses(source_dir: str, rng: random.Random, limit: int | None) -> None:
+def import_businesses(
+    source_dir: str,
+    rng: random.Random,
+    limit: int | None,
+    batch_label: str | None = None,
+) -> None:
     path = os.path.join(source_dir, "behtarino-mazandaran-businesses.json")
     with open(path, encoding="utf-8") as handle:
         businesses = json.load(handle)
@@ -524,6 +566,12 @@ def import_businesses(source_dir: str, rng: random.Random, limit: int | None) ->
         businesses = businesses[:limit]
 
     user_id = ensure_import_user(rng)
+    label = (batch_label or "").strip() or "ایمپورت به‌ترینو"
+    batch_id = create_import_batch(
+        f"{label} — {now_stamp()}",
+        rng,
+        note="کارت‌های واردشده از به‌ترینو (منتشرنشده تا زمان تصاحب صاحب)",
+    )
     city_ids = ensure_cities(
         {
             resolve_city_name(b)
@@ -541,8 +589,15 @@ def import_businesses(source_dir: str, rng: random.Random, limit: int | None) ->
         if line.strip()
     }
     rows = build_card_rows(
-        businesses, user_id, city_ids, business_ids, rng, existing_slugs
+        businesses, user_id, city_ids, business_ids, batch_id, rng, existing_slugs
     )
+    if not rows:
+        psql(
+            'DELETE FROM "business_card_import_batches" WHERE id = '
+            + sql_quote(batch_id)
+        )
+        print("no business cards imported; empty batch removed")
+        return
     buffer = io.StringIO()
     writer = csv.writer(buffer, lineterminator="\n")
     for row in rows:
@@ -557,12 +612,14 @@ def import_businesses(source_dir: str, rng: random.Random, limit: int | None) ->
     prune_noncanonical_cities()
     print(f"imported {len(rows)} business cards "
           f"(skipped {len(businesses) - len(rows)})")
+    print(f"import batch: {batch_id} — {label}")
 
 
 def clear_imported() -> None:
     removed = psql(
         'DELETE FROM "business_cards" WHERE "isUnclaimed" = true RETURNING id'
     )
+    delete_empty_batches()
     print(f"removed {len(removed.splitlines())} unclaimed cards")
 
 
@@ -572,6 +629,11 @@ def main() -> int:
     parser.add_argument("--source-dir", default=DEFAULT_SOURCE)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--clear", action="store_true")
+    parser.add_argument(
+        "--batch-label",
+        default=None,
+        help="label of this import batch (default: «ایمپورت به‌ترینو»)",
+    )
     parser.add_argument(
         "--purge",
         action="store_true",
@@ -589,7 +651,7 @@ def main() -> int:
         mapping = import_categories(args.source_dir, rng)
         print(f"main categories in database: {len(mapping)}")
     if args.mode in ("businesses", "all"):
-        import_businesses(args.source_dir, rng, args.limit)
+        import_businesses(args.source_dir, rng, args.limit, args.batch_label)
     return 0
 
 

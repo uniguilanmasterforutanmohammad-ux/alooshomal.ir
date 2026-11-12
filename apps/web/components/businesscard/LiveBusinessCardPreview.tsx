@@ -148,7 +148,6 @@ export function LiveBusinessCardPreview({
       jobTitle={values.jobTitle || null}
       bio={values.bio}
       cityName={cityName}
-      neighborhood={values.neighborhood || null}
       businessName={businessName}
       avatarUrl={values.avatarUrl || null}
       rows={rows}

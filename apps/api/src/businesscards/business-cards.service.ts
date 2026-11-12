@@ -447,11 +447,22 @@ export class BusinessCardsService {
   }
 
   /**
-   * Publicly visible businessCard by slug. Only approved + published businessCards are returned.
+   * Publicly visible businessCard by slug.
+   *
+   * Approved + published cards are always returned. System-imported cards are
+   * also returned while they are still unclaimed, even though they are kept
+   * out of the public directory: the importer sends their direct link to the
+   * owner so they can claim and complete the profile.
    */
   async findPublicBySlug(slug: string) {
     const businessCard = await this.prisma.businessCard.findFirst({
-      where: { slug, status: BiolinkStatus.APPROVED, isPublished: true },
+      where: {
+        slug,
+        OR: [
+          { status: BiolinkStatus.APPROVED, isPublished: true },
+          { isUnclaimed: true },
+        ],
+      },
       include: {
         city: { select: { id: true, name: true } },
         business: { select: { id: true, name: true } },
@@ -510,9 +521,9 @@ export class BusinessCardsService {
 
   /**
    * «شما صاحب این کسب‌وکار هستید؟» — a signed-in visitor takes ownership of a
-   * system-imported profile (`isUnclaimed`). The card keeps its published state
-   * so the directory never loses it; the new owner completes the remaining
-   * details from the dashboard (and any edit re-enters moderation, as usual).
+   * system-imported profile (`isUnclaimed`). Imported cards are unpublished
+   * until claimed; claiming moves the card into the normal moderation flow
+   * (like a freshly created card) and it is no longer part of any rollback.
    */
   async claim(id: string, userId: string) {
     await this.settings.assertFeatureEnabled(
@@ -521,7 +532,15 @@ export class BusinessCardsService {
     );
     const card = await this.prisma.businessCard.findUnique({
       where: { id },
-      select: { id: true, slug: true, fullName: true, userId: true, isUnclaimed: true },
+      select: {
+        id: true,
+        slug: true,
+        fullName: true,
+        userId: true,
+        isUnclaimed: true,
+        isPublished: true,
+        status: true,
+      },
     });
     if (!card) {
       throw new NotFoundException('کسب‌وکار مورد نظر یافت نشد');
@@ -534,7 +553,18 @@ export class BusinessCardsService {
     }
     await this.prisma.businessCard.update({
       where: { id },
-      data: { userId, isUnclaimed: false },
+      data: {
+        userId,
+        isUnclaimed: false,
+        ...(card.isPublished
+          ? {}
+          : {
+              status: BiolinkStatus.PENDING,
+              isPublished: false,
+              approvedAt: null,
+              publishedAt: null,
+            }),
+      },
     });
     await this.activity.log({
       action: 'BUSINESS_CARD_CLAIMED',

@@ -7,6 +7,7 @@ import { BiolinkStatus } from '@prisma/client';
 import * as ExcelJS from 'exceljs';
 
 import { ActivityService } from '../activity/activity.service';
+import { appUrl } from '../common/app-url';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -57,6 +58,11 @@ function normalizeHeader(value: string): string {
 
 function randomSuffix(): string {
   return Math.random().toString(36).slice(2, 8);
+}
+
+function csvCell(value: string | null | undefined): string {
+  const text = value ?? '';
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 /**
@@ -261,5 +267,164 @@ export class BulkService {
     this.facetsCache.invalidateDirectory('biolink');
     this.facetsCache.invalidateDirectory('businesscard');
     return { deleted };
+  }
+
+  /**
+   * Import batches created by the external business importer. Each batch has
+   * its own label and import date/time, so different runs never mix. `total`
+   * counts every card that came from the batch, while `remaining` counts only
+   * the still-unclaimed ones that a rollback would actually delete.
+   */
+  async listImportBatches() {
+    const batches = await this.prisma.businessCardImportBatch.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+    const [totalRows, remainingRows] = await Promise.all([
+      this.prisma.businessCard.groupBy({
+        by: ['importBatchId'],
+        where: { importBatchId: { not: null } },
+        _count: { _all: true },
+      }),
+      this.prisma.businessCard.groupBy({
+        by: ['importBatchId'],
+        where: { importBatchId: { not: null }, isUnclaimed: true },
+        _count: { _all: true },
+      }),
+    ]);
+    const totalByBatch = new Map(
+      totalRows
+        .filter((row) => row.importBatchId)
+        .map((row) => [row.importBatchId as string, row._count._all]),
+    );
+    const remainingByBatch = new Map(
+      remainingRows
+        .filter((row) => row.importBatchId)
+        .map((row) => [row.importBatchId as string, row._count._all]),
+    );
+
+    const items = batches.map((batch) => {
+      const total = totalByBatch.get(batch.id) ?? 0;
+      const remaining = remainingByBatch.get(batch.id) ?? 0;
+      return {
+        ...batch,
+        total,
+        remaining,
+        claimed: Math.max(total - remaining, 0),
+      };
+    });
+
+    return {
+      items,
+      totals: {
+        batches: items.length,
+        total: items.reduce((sum, item) => sum + item.total, 0),
+        remaining: items.reduce((sum, item) => sum + item.remaining, 0),
+        claimed: items.reduce((sum, item) => sum + item.claimed, 0),
+      },
+    };
+  }
+
+  /**
+   * Roll back one import batch. Only rows still tagged `isUnclaimed` are
+   * deleted, so a card whose owner has claimed/edited it is never touched.
+   */
+  async rollbackImportBatch(id: string) {
+    const batch = await this.prisma.businessCardImportBatch.findUnique({
+      where: { id },
+      select: { id: true, label: true },
+    });
+    if (!batch) {
+      throw new NotFoundException('دسته‌ی ایمپورت پیدا نشد');
+    }
+    const deleted = await this.prisma.businessCard.deleteMany({
+      where: { importBatchId: id, isUnclaimed: true },
+    });
+    await this.prisma.businessCardImportBatch.update({
+      where: { id },
+      data: { rolledBackAt: new Date(), rolledBackCount: deleted.count },
+    });
+    await this.activity.log({
+      action: 'IMPORT_BATCH_ROLLBACK',
+      summary: `بازگردانی دسته‌ی ایمپورت «${batch.label}»: ${deleted.count} کارت حذف شد`,
+      entityType: 'BUSINESS_CARD',
+      entityId: id,
+    });
+    this.facetsCache.invalidateDirectory('businesscard');
+    return { deleted: deleted.count };
+  }
+
+  /**
+   * Roll back every imported business card in one click. Claimed cards are
+   * excluded because they are no longer `isUnclaimed`.
+   */
+  async rollbackAllImports() {
+    const now = new Date();
+    const deleted = await this.prisma.$transaction(async (tx) => {
+      const counts = await tx.businessCard.groupBy({
+        by: ['importBatchId'],
+        where: { importBatchId: { not: null }, isUnclaimed: true },
+        _count: { _all: true },
+      });
+      const result = await tx.businessCard.deleteMany({
+        where: { isUnclaimed: true },
+      });
+      for (const row of counts) {
+        if (!row.importBatchId) continue;
+        await tx.businessCardImportBatch.update({
+          where: { id: row.importBatchId },
+          data: { rolledBackAt: now, rolledBackCount: row._count._all },
+        });
+      }
+      await tx.businessCardImportBatch.updateMany({
+        where: { rolledBackAt: null },
+        data: { rolledBackAt: now },
+      });
+      return result.count;
+    });
+
+    await this.activity.log({
+      action: 'IMPORT_ROLLBACK_ALL',
+      summary: `بازگردانی همه‌ی ایمپورت‌های کسب‌وکار: ${deleted} کارت حذف شد`,
+      entityType: 'BUSINESS_CARD',
+    });
+    this.facetsCache.invalidateDirectory('businesscard');
+    return { deleted };
+  }
+
+  /**
+   * CSV of phone numbers + public links for the still-unclaimed cards of one
+   * batch (or every batch when `batchId` is omitted), ready to send to owners.
+   */
+  async exportImportBatchCsv(batchId?: string): Promise<string> {
+    const cards = await this.prisma.businessCard.findMany({
+      where: {
+        isUnclaimed: true,
+        ...(batchId ? { importBatchId: batchId } : {}),
+      },
+      orderBy: { fullName: 'asc' },
+      select: {
+        fullName: true,
+        mobile: true,
+        phone: true,
+        slug: true,
+        city: { select: { name: true } },
+        business: { select: { name: true } },
+      },
+    });
+    const base = appUrl().replace(/\/$/, '');
+    const header = 'نام,تلفن همراه,تلفن ثابت,شهر,کسب و کار,لینک\n';
+    const lines = cards.map((card) =>
+      [
+        card.fullName,
+        card.mobile,
+        card.phone,
+        card.city?.name,
+        card.business?.name,
+        `${base}/business-cards/${card.slug}`,
+      ]
+        .map(csvCell)
+        .join(','),
+    );
+    return '\uFEFF' + header + lines.join('\n') + (lines.length ? '\n' : '');
   }
 }

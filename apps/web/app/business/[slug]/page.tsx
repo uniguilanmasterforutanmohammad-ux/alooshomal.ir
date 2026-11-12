@@ -336,10 +336,10 @@ export default async function BusinessProfilePage({
                   {card.business.name}
                 </Link>
               ) : null}
-              {card.neighborhood || card.city?.name ? (
+              {card.city?.name ? (
                 <span className="inline-flex items-center gap-1 text-muted">
                   <MapPin className="size-3.5" aria-hidden />
-                  {card.neighborhood || card.city?.name}
+                  {card.city?.name}
                 </span>
               ) : null}
               <a href="#reviews" className="inline-flex items-center gap-1 text-muted hover:text-brand">

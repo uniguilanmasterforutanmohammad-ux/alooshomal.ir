@@ -20,7 +20,77 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.44.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.45.0**.
+
+## ۱۴۰۵/۰۸/۲۱ — نمایش شهر روی کارت، چیدمان فرم و دسته‌بندی ایمپورت‌های کسب‌وکار — نسخه `v3.45.0`
+
+**هدف:** در پیش‌نمایش و کارت‌های کسب‌وکار به‌جای «محله» تگ «شهر» نمایش داده
+شود؛ در فرم ساخت، «محله» زیر انتخاب شهر و «زیردسته» زیر انتخاب کسب‌وکار
+بشیند؛ و کسب‌وکارهای ایمپورت‌شده به‌صورت منتشرنشده با لینک مستقیم وارد شوند،
+در دسته‌های مستقل با تاریخ/ساعت ایمپورت نگه داشته شوند و از پنل مدیر با یک
+دکمه (همه یا هر دسته) قابل بازگردانی باشند، بدون آسیب به کارت‌هایی که صاحبشان
+تصاحب کرده است.
+
+**تغییرات:**
+- `apps/web/components/businesscard/BusinessCardFace.tsx`: تگ مکان کارت فقط از
+  `cityName` ساخته می‌شود و `neighborhood` از این چهره حذف شد.
+- `apps/web/components/businesscard/LiveBusinessCardPreview.tsx`،
+  `apps/web/components/businesscard/PublicBusinessCardView.tsx`،
+  `apps/web/components/businesscard/DirectoryBusinessCardTile.tsx`،
+  `apps/web/components/businesscard/DirectoryBusinessCardDetail.tsx` و
+  `apps/web/app/business/[slug]/page.tsx`: حذف استفاده از «محله» در تگ کارت و
+  نمایش «شهر».
+- `apps/web/components/businesscard/BusinessCardForm.tsx`: چیدمان دو ستونی
+  تازه؛ «محله» مستقیماً زیر شهر و «زیردسته/زیرشاخه» مستقیماً زیر کسب‌وکار
+  (در دسکتاپ و موبایل).
+- `apps/api/prisma/schema.prisma`: افزودن `BusinessCardImportBatch` و رابطه‌ی
+  `importBatchId` روی `BusinessCard` با ایندکس.
+- `apps/api/prisma/bootstrap.sql`: ساخت دسته‌ی «ایمپورت اولیه به‌ترینو» برای
+  ردیف‌های قدیمی، اتصال کارت‌های تصاحب‌نشده به آن و منتشرنشدن همه‌ی
+  کارت‌های `isUnclaimed` (اجرای idempotent در هر استارت).
+- `apps/api/src/admin/bulk.service.ts`: فهرست دسته‌ها با تعداد کل/باقی‌مانده/
+  تصاحب‌شده، بازگردانی یک دسته، بازگردانی همه، و خروجی CSV شماره‌تماس + لینک.
+- `apps/api/src/admin/admin.controller.ts`: مسیرهای
+  `GET/DELETE /admin/import-batches`، `DELETE /admin/import-batches/:id` و
+  دو مسیر CSV با `@ApiOperation`.
+- `apps/api/src/businesscards/business-cards.service.ts`: لینک مستقیم
+  کارت‌های `isUnclaimed` حتی وقتی منتشر نشده‌اند؛ تصاحب آن‌ها را به جریان
+  عادی تأیید (`PENDING`/منتشرنشده) می‌برد و از بازگردانی خارج می‌کند.
+- `apps/web/components/admin/AdminImportBatches.tsx` (جدید): جعبه‌های دسته‌ی
+  ایمپورت با تاریخ/ساعت شمسی، دکمه‌ی بازگردانی همان دسته/همه و دانلود CSV
+  لینک‌ها؛ به‌همراه بخش تازه‌ی «ایمپورت کسب‌وکارها» در
+  `apps/web/components/admin/AdminShell.tsx`، `apps/web/app/admin/page.tsx` و
+  حذف رندر آن از `apps/web/components/admin/AdminBulkTools.tsx`.
+- `apps/web/app/admin/admin-console.ts` و
+  `apps/web/app/admin/use-admin-console.tsx`: نمایش لینک کارت‌های
+  تصاحب‌نشده‌ی منتشرنشده در پنل.
+- `scripts/import_behtarino.py`: ساخت دسته‌ی ایمپورت با برچسب/تاریخ، درج
+  `importBatchId`، ثبت کارت‌ها با `isPublished=false` و `publishedAt=null`،
+  و گزینه‌ی `--batch-label`.
+- `docs/API.md`: مستندسازی مسیرهای دسته‌های ایمپورت و تغییر رفتار لینک
+  عمومی/تصاحب.
+- `apps/web/lib/version.ts` و `install.sh` (همگام‌سازی): نسخه `v3.45.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx prisma db push` و `npx prisma generate` →
+  اسکیمای محلی همگام شد.
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit` → بدون خطا.
+- `npx eslint` روی فایل‌های تغییریافته → ۰ خطا (فقط هشدارهای از قبل موجود).
+- اجرای `bootstrap.sql` روی دیتابیس محلی → ۹۸۱۵ کارت `isUnclaimed` منتشرنشده
+  شدند و همه به دسته‌ی `legacy-behtarino-import` وصل شدند.
+- `GET /api/business-cards/public/<slug>` برای یک کارت ایمپورت‌شده →
+  `200` با `isPublished=false` و `isUnclaimed=true`؛ همان slug در
+  `GET /api/business-cards/public?limit=1` دیده نشد.
+- `python3 scripts/import_behtarino.py businesses --limit 2 --batch-label ...`
+  → دو کارت با `isPublished=false` در یک دسته‌ی تازه؛ سپس
+  `DELETE /api/admin/import-batches/<id>` → `deleted: 2`.
+- تست بازگردانی با یک کارت تصاحب‌نشده و یک کارت تصاحب‌شده در یک دسته →
+  فقط کارت تصاحب‌نشده حذف شد و `rolledBackCount=1` ثبت شد.
+- `GET /api/admin/import-batches` و `/export` → فهرست دسته و CSV با BOM،
+  شماره تماس و لینک عمومی درست.
+- `python3 scripts/check_api_docs.py` → ۴۰۰ مسیر، همه با `@ApiOperation`.
+- `python3 scripts/sync_install.py` و سپس `--check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۱ — بازگرداندن آیکن‌های نوار پایین (فوتر موبایل/تبلت) — نسخه `v3.44.0`
 

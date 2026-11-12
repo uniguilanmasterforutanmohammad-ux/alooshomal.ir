@@ -279,51 +279,60 @@ export function BusinessCardForm({
                 value={values.fullName}
                 onChange={(event) => setField('fullName', event.target.value)}
               />
-              <label className="flex flex-col gap-1.5">
-                <span className="text-sm font-bold text-ink">انتخاب شهر *</span>
-                <select
-                  required
-                  className="indeed-input"
-                  value={values.cityId}
-                  onChange={(event) => setField('cityId', event.target.value)}
-                >
-                  <option value="">انتخاب شهر...</option>
-                  {cities.map((city) => (
-                    <option key={city.id} value={city.id}>
-                      {city.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col gap-1.5">
-                <span className="text-sm font-bold text-ink">انتخاب کسب‌وکار *</span>
-                <select
-                  required
-                  className="indeed-input"
-                  value={values.businessId}
-                  onChange={(event) => setBusinessCategory(event.target.value)}
-                >
-                  <option value="">انتخاب کسب‌وکار...</option>
-                  {businesses.map((business) => (
-                    <option key={business.id} value={business.id}>
-                      {business.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <BusinessTaxonomyFields
-                businessId={values.businessId}
-                subCategory={values.subCategory}
-                subSubCategory={values.subSubCategory}
-                onChange={({ subCategory, subSubCategory }) =>
-                  setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
-                }
-              />
-              <NeighborhoodPicker
-                cityId={values.cityId}
-                value={values.neighborhood}
-                onChange={(neighborhood) => setField('neighborhood', neighborhood)}
-              />
+              {/* City and business each own a vertical stack so «محله» sits
+                  directly under the city and «زیردسته» directly under the
+                  business, on both desktop and mobile. */}
+              <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
+                <div className="flex flex-col gap-4">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-sm font-bold text-ink">انتخاب شهر *</span>
+                    <select
+                      required
+                      className="indeed-input"
+                      value={values.cityId}
+                      onChange={(event) => setField('cityId', event.target.value)}
+                    >
+                      <option value="">انتخاب شهر...</option>
+                      {cities.map((city) => (
+                        <option key={city.id} value={city.id}>
+                          {city.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <NeighborhoodPicker
+                    cityId={values.cityId}
+                    value={values.neighborhood}
+                    onChange={(neighborhood) => setField('neighborhood', neighborhood)}
+                  />
+                </div>
+                <div className="flex flex-col gap-4">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-sm font-bold text-ink">انتخاب کسب‌وکار *</span>
+                    <select
+                      required
+                      className="indeed-input"
+                      value={values.businessId}
+                      onChange={(event) => setBusinessCategory(event.target.value)}
+                    >
+                      <option value="">انتخاب کسب‌وکار...</option>
+                      {businesses.map((business) => (
+                        <option key={business.id} value={business.id}>
+                          {business.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <BusinessTaxonomyFields
+                    businessId={values.businessId}
+                    subCategory={values.subCategory}
+                    subSubCategory={values.subSubCategory}
+                    onChange={({ subCategory, subSubCategory }) =>
+                      setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
+                    }
+                  />
+                </div>
+              </div>
               <Input
                 label="تلفن همراه *"
                 required
@@ -569,49 +578,55 @@ export function BusinessCardForm({
               value={values.address}
               onChange={(event) => setField('address', event.target.value)}
             />
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-bold text-ink">شهر</span>
-              <select
-                className="indeed-input"
-                value={values.cityId}
-                onChange={(event) => setField('cityId', event.target.value)}
-              >
-                <option value="">انتخاب شهر...</option>
-                {cities.map((city) => (
-                  <option key={city.id} value={city.id}>
-                    {city.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-bold text-ink">کسب و کار</span>
-              <select
-                className="indeed-input"
-                value={values.businessId}
-                onChange={(event) => setBusinessCategory(event.target.value)}
-              >
-                <option value="">انتخاب کسب و کار...</option>
-                {businesses.map((business) => (
-                  <option key={business.id} value={business.id}>
-                    {business.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <BusinessTaxonomyFields
-              businessId={values.businessId}
-              subCategory={values.subCategory}
-              subSubCategory={values.subSubCategory}
-              onChange={({ subCategory, subSubCategory }) =>
-                setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
-              }
-            />
-            <NeighborhoodPicker
-              cityId={values.cityId}
-              value={values.neighborhood}
-              onChange={(neighborhood) => setField('neighborhood', neighborhood)}
-            />
+            <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
+              <div className="flex flex-col gap-4">
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-sm font-bold text-ink">شهر</span>
+                  <select
+                    className="indeed-input"
+                    value={values.cityId}
+                    onChange={(event) => setField('cityId', event.target.value)}
+                  >
+                    <option value="">انتخاب شهر...</option>
+                    {cities.map((city) => (
+                      <option key={city.id} value={city.id}>
+                        {city.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <NeighborhoodPicker
+                  cityId={values.cityId}
+                  value={values.neighborhood}
+                  onChange={(neighborhood) => setField('neighborhood', neighborhood)}
+                />
+              </div>
+              <div className="flex flex-col gap-4">
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-sm font-bold text-ink">کسب و کار</span>
+                  <select
+                    className="indeed-input"
+                    value={values.businessId}
+                    onChange={(event) => setBusinessCategory(event.target.value)}
+                  >
+                    <option value="">انتخاب کسب و کار...</option>
+                    {businesses.map((business) => (
+                      <option key={business.id} value={business.id}>
+                        {business.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <BusinessTaxonomyFields
+                  businessId={values.businessId}
+                  subCategory={values.subCategory}
+                  subSubCategory={values.subSubCategory}
+                  onChange={({ subCategory, subSubCategory }) =>
+                    setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
+                  }
+                />
+              </div>
+            </div>
           </div>
           <label className="mt-4 flex flex-col gap-1.5">
             <span className="text-sm font-bold text-ink">درباره من</span>

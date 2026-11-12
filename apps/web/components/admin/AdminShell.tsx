@@ -27,6 +27,7 @@ import {
   Menu,
   Bell,
   Newspaper,
+  PackageOpen,
   FlaskConical,
   Palette,
   Receipt,
@@ -66,6 +67,7 @@ export type AdminSection =
   | 'tickets'
   | 'support-chat'
   | 'reports'
+  | 'imports'
   | 'tools'
   | 'news'
   | 'blog'
@@ -168,6 +170,7 @@ const NAV_GROUPS: Array<{
       { key: 'monitoring', label: 'پایش منابع', icon: Activity },
       { key: 'storage', label: 'فضای سرور', icon: HardDrive },
       { key: 'reports', label: 'گزارش‌های سیستم', icon: BarChart3 },
+      { key: 'imports', label: 'ایمپورت کسب‌وکارها', icon: PackageOpen },
       { key: 'tools', label: 'ابزار تست', icon: FlaskConical },
     ],
   },

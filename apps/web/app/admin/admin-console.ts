@@ -18,6 +18,8 @@ export interface AdminBiolink {
   company: string | null;
   status: string;
   isPublished: boolean;
+  /** imported, not-yet-claimed business cards (business-card rows only) */
+  isUnclaimed?: boolean;
   user: { email: string; fullName: string | null };
   decidedBy?: { id: string; fullName: string | null; email: string | null } | null;
 }
@@ -71,6 +73,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'storage',
   'monitoring',
   'reports',
+  'imports',
   'tools',
   'notifications',
   'settings',
@@ -163,6 +166,10 @@ export function isAdminSection(value: string): value is AdminSection {
     reports: {
       title: 'گزارش‌های سیستم',
       sub: 'تاریخچه‌ی رویدادها و اقدامات ثبت‌شده در پلتفرم',
+    },
+    imports: {
+      title: 'ایمپورت کسب‌وکارها',
+      sub: 'دسته‌های ایمپورت با تاریخ/ساعت، لینک تماس صاحبان و بازگردانی گروهی',
     },
     tools: { title: 'ابزار تست', sub: 'ایمپورت گروهی، حذف داده‌های تستی و قفل ساخت' },
     notifications: {

@@ -177,7 +177,6 @@ export function DirectoryBusinessCardDetail({ slug, onClose, hideHeader }: Props
 
         <DetailTags
           cityName={businessCard.city?.name}
-          neighborhood={businessCard.neighborhood}
           businessName={businessCard.business?.name}
         />
 

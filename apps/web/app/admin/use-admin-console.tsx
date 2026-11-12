@@ -382,7 +382,7 @@ export function useAdminConsole() {
       label: 'عملیات',
       render: (item) => (
         <div className="flex items-center gap-2">
-          {item.isPublished ? (
+          {item.isPublished || item.isUnclaimed ? (
             <a
               href={`/business-cards/${item.slug}`}
               target="_blank"

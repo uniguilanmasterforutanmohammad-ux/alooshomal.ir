@@ -212,7 +212,6 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
               jobTitle={businessCard.jobTitle}
               bio={businessCard.bio}
               cityName={businessCard.city?.name}
-              neighborhood={businessCard.neighborhood}
               businessName={businessCard.business?.name}
               avatarUrl={businessCard.avatarUrl}
               rows={rows}

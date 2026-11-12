@@ -82,7 +82,7 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 | متد | مسیر | توضیح |
 | --- | --- | --- |
 | `GET` | `/business-cards/public/phonebook` | فهرست صفحه‌بندی‌شده‌ی تماس کارت‌ویزیت‌های منتشرشده‌ای که شماره دارند. پارامترهای `page`/`limit` (مشترک با `PaginationDto`) و `sort` (`alpha` پیش‌فرض / `recent`) را می‌پذیرد؛ `q` جستجو در نام/شغل/شرکت/شماره است. مرتب‌سازی الفبایی با collation فارسی در سرور انجام می‌شود (سقف ۲۰۰۰ ردیف نامزد). |
-| `GET` | `/business-cards/public/:slug` | جزئیات کامل هر مخاطب (مقصد لینک «مشاهدهٔ کارت ویزیت کامل»). |
+| `GET` | `/business-cards/public/:slug` | جزئیات کامل هر مخاطب (مقصد لینک «مشاهدهٔ کارت ویزیت کامل»). کارت‌های ایمپورت‌شده‌ی تصاحب‌نشده هم با لینک مستقیم برگردانده می‌شوند، هرچند از دایرکتوری پنهان‌اند. |
 
 ### دسته‌بندی مشاغل و صفحه‌ی کسب‌وکار
 
@@ -100,7 +100,7 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 | `GET` | `/business-reviews/public/:slug/mine` | دیدگاه کاربر جاری برای پیش‌پرکردن فرم (نیازمند ورود؛ در غیر این صورت `{ review: null }`). |
 | `POST` | `/business-reviews/public/:slug` | ثبت یا ویرایش دیدگاه کاربر جاری؛ بدنه `{ rating: 1..5, comment? }`. ثبت برای مالک همان کسب‌وکار مجاز نیست. |
 | `DELETE` | `/business-reviews/public/:slug/mine` | حذف دیدگاه کاربر جاری و به‌روزرسانی میانگین امتیاز. |
-| `POST` | `/business-cards/:id/claim` | تصاحب کسب‌وکارهای ثبت‌شده‌ی سیستمی (`isUnclaimed`) توسط کاربر وارد‌شده؛ مالکیت انتقال می‌یابد و کارت منتشرشده می‌ماند. در صورت متعلق‌بودن به کاربر دیگر `409` و اگر ویژگی `featureBusinessClaim` خاموش باشد `403` برمی‌گرداند. |
+| `POST` | `/business-cards/:id/claim` | تصاحب کسب‌وکارهای ثبت‌شده‌ی سیستمی (`isUnclaimed`) توسط کاربر وارد‌شده؛ مالکیت انتقال می‌یابد و کارت از دسته‌ی ایمپورت (بازگردانی) خارج می‌شود. کارت‌های ایمپورت‌شده‌ی منتشرنشده پس از تصاحب مثل یک کارت تازه به صف تأیید (`PENDING`) می‌روند. در صورت متعلق‌بودن به کاربر دیگر `409` و اگر ویژگی `featureBusinessClaim` خاموش باشد `403` برمی‌گرداند. |
 | `POST` | `/business-cards/public/:slug/report` | گزارش کارت عمومی توسط بازدیدکننده (ورود اختیاری؛ مهمان هم می‌تواند). بدنه `{ reason: 'INAPPROPRIATE' \| 'OWNERSHIP' \| 'WRONG_INFO' \| 'SPAM' \| 'OTHER', note? }`. گزارش با اعلان دسته‌ی `REPORT` برای مدیران و ثبت در لاگ فعالیت همراه می‌شود؛ اگر ویژگی `featureBusinessReports` خاموش باشد `403` برمی‌گرداند. |
 | `POST` | `/uploads/gallery` | آپلود تصویر گالری کسب‌وکار (WebP)؛ خروجی `url` در فیلد `gallery` کارت ویزیت ذخیره می‌شود. |
 
@@ -152,6 +152,22 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 `/api/send/simple/<token>`) استفاده می‌کند و ایمیل از همان `MAIL_*` موجود.
 در صورت تنظیم‌نبودن هر کانال، هشدار درون‌برنامه‌ای (دسته‌ی `SYSTEM`) همچنان ثبت
 می‌شود.
+
+### دسته‌های ایمپورت کسب‌وکار (`/api/admin/import-batches`)
+
+هر اجرای ایمپورت کسب‌وکارهای بیرونی (`scripts/import_behtarino.py`) یک ردیف در
+`business_card_import_batches` می‌سازد. کارت‌های آن دسته با `importBatchId`
+به همان ردیف وصل می‌شوند و تا زمانی که صاحبشان آن‌ها را تصاحب نکرده‌اند
+`isUnclaimed=true` و `isPublished=false` می‌مانند (لینک مستقیم‌شان کار می‌کند).
+همه‌ی مسیرها فقط برای `ADMIN` هستند.
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET` | `/admin/import-batches` | فهرست جعبه‌های ایمپورت با `label`، `source`، `createdAt` (تاریخ/ساعت)، `total`، `remaining` (تصاحب‌نشده) و `claimed`؛ به‌همراه `totals`. |
+| `DELETE` | `/admin/import-batches/:id` | بازگردانی یک دسته؛ فقط کارت‌های `isUnclaimed=true` همان دسته حذف می‌شوند و کارت‌های تصاحب‌شده دست‌نخورده می‌مانند. |
+| `DELETE` | `/admin/import-batches` | بازگردانی همه‌ی ایمپورت‌ها؛ همه‌ی کارت‌های تصاحب‌نشده حذف و همه‌ی دسته‌ها «بازگردانی‌شده» علامت می‌خورند. |
+| `GET` | `/admin/import-batches/:id/export` | خروجی CSV (با BOM) شامل نام، تلفن همراه، تلفن ثابت، شهر، کسب‌وکار و لینک عمومی کارت‌های تصاحب‌نشده‌ی همان دسته. |
+| `GET` | `/admin/import-batches/export` | همان CSV برای همه‌ی کارت‌های تصاحب‌نشده در همه‌ی دسته‌ها. |
 
 ### درگاه پرداخت پی‌پینگ (`payping`)
 

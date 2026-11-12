@@ -1091,10 +1091,16 @@ model BusinessCard {
   /// claims the profile from the public page («شما صاحب این کسب‌وکار هستید؟»).
   isUnclaimed Boolean @default(false)
 
+  /// The admin import batch this row came from. A batch groups one import run
+  /// (with its own date/time and label) so it can be rolled back on its own;
+  /// claimed cards keep the link for history but are never deleted by rollback.
+  importBatchId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  importBatch BusinessCardImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
   city        City?           @relation(fields: [cityId], references: [id], onDelete: SetNull)
   business    BusinessCategory? @relation(fields: [businessId], references: [id], onDelete: SetNull)
   linkedBiolinks Biolink[]    @relation("BiolinkBusinessCard")
@@ -1113,7 +1119,27 @@ model BusinessCard {
   @@index([pinnedAt])
   @@index([isTestData])
   @@index([isUnclaimed])
+  @@index([importBatchId])
   @@map("business_cards")
+}
+
+/// One run of the external business importer. The admin panel lists these
+/// batches as separate boxes (label + import date/time) and can roll back one
+/// batch or every import at once. Rollback only deletes rows that are still
+/// unclaimed, so a card whose owner has claimed/edited it survives.
+model BusinessCardImportBatch {
+  id              String    @id @default(cuid())
+  label           String
+  source          String?
+  note            String?
+  createdAt       DateTime  @default(now())
+  rolledBackAt    DateTime?
+  rolledBackCount Int       @default(0)
+
+  cards BusinessCard[]
+
+  @@index([createdAt])
+  @@map("business_card_import_batches")
 }
 
 /// One public review (rating + optional comment) by a signed-in user for a

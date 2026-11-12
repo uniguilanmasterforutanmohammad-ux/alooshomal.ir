@@ -8,6 +8,7 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -15,6 +16,7 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AdPlacement, BoostStatus, SubscriptionStatus } from '@prisma/client';
+import type { Response } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
@@ -369,6 +371,52 @@ export class AdminController {
   @ApiOperation({ summary: 'حذف گروهی داده‌های تستی ایمپورت‌شده' })
   bulkDelete(@Query('kind') kind?: BulkKind | 'ALL') {
     return this.bulkService.deleteTestData(kind ?? 'ALL');
+  }
+
+  @Get('import-batches')
+  @ApiOperation({
+    summary: 'فهرست دسته‌های ایمپورت کسب‌وکارها (با تاریخ/ساعت و تعداد باقی‌مانده)',
+  })
+  importBatches() {
+    return this.bulkService.listImportBatches();
+  }
+
+  @Delete('import-batches')
+  @ApiOperation({
+    summary: 'بازگردانی همه‌ی ایمپورت‌های کسب‌وکار (فقط کارت‌های تصاحب‌نشده)',
+  })
+  rollbackAllImports() {
+    return this.bulkService.rollbackAllImports();
+  }
+
+  @Delete('import-batches/:id')
+  @ApiOperation({
+    summary: 'بازگردانی یک دسته‌ی ایمپورت (فقط کارت‌های تصاحب‌نشده)',
+  })
+  rollbackImportBatch(@Param('id') id: string) {
+    return this.bulkService.rollbackImportBatch(id);
+  }
+
+  @Get('import-batches/export')
+  @ApiOperation({
+    summary: 'خروجی CSV شماره تماس و لینک همه‌ی کارت‌های ایمپورت‌شده‌ی تصاحب‌نشده',
+  })
+  async exportAllImports(@Res() res: Response) {
+    const csv = await this.bulkService.exportImportBatchCsv();
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="imported-cards.csv"');
+    res.send(csv);
+  }
+
+  @Get('import-batches/:id/export')
+  @ApiOperation({
+    summary: 'خروجی CSV شماره تماس و لینک کارت‌های تصاحب‌نشده‌ی یک دسته‌ی ایمپورت',
+  })
+  async exportImportBatch(@Param('id') id: string, @Res() res: Response) {
+    const csv = await this.bulkService.exportImportBatchCsv(id);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="import-batch-${id}.csv"`);
+    res.send(csv);
   }
 
   // ----- Role permission matrix -----

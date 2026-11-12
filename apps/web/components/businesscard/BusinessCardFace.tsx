@@ -27,8 +27,6 @@ interface Props {
   fullName: string;
   jobTitle?: string | null;
   cityName?: string | null;
-  /** «محله» — when set it becomes the location tag (instead of the city) */
-  neighborhood?: string | null;
   businessName?: string | null;
   bio?: string | null;
   avatarUrl?: string | null;
@@ -61,7 +59,6 @@ export function BusinessCardFace({
   fullName,
   jobTitle,
   cityName,
-  neighborhood,
   businessName,
   bio,
   avatarUrl,
@@ -80,9 +77,9 @@ export function BusinessCardFace({
     .map((part) => part.slice(0, 1))
     .join('');
   const Heading = headingLevel;
-  // «شهر/منطقه» is not surfaced on the card; the neighbourhood takes its place
-  // as the location tag whenever the owner filled it in.
-  const locationLabel = neighborhood?.trim() || cityName?.trim() || null;
+  // The card's location tag is always the city; «محله» stays an internal
+  // detail and is not advertised on the business-card face.
+  const locationLabel = cityName?.trim() || null;
   const hasTags = Boolean(locationLabel || businessName);
 
   return (

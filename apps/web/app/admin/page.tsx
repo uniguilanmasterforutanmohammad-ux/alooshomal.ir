@@ -11,6 +11,7 @@ import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
 import { AdminEmails } from '@/components/admin/AdminEmails';
 import { AdminFeeds } from '@/components/admin/AdminFeeds';
 import { AdminFinance } from '@/components/admin/AdminFinance';
+import { AdminImportBatches } from '@/components/admin/AdminImportBatches';
 import { AdminModerators } from '@/components/admin/AdminModerators';
 import { AdminMonitoringPanel } from '@/components/admin/AdminMonitoringPanel';
 import { AdminNewsPanel } from '@/components/admin/AdminNewsPanel';
@@ -93,6 +94,7 @@ function AdminContent() {
       {section === 'tickets' ? <TicketsSection state={state} /> : null}
       {section === 'support-chat' ? <AdminSupportChat /> : null}
       {section === 'reports' ? <ActivityLogPanel /> : null}
+      {section === 'imports' ? <AdminImportBatches /> : null}
       {section === 'news' ? <AdminNewsPanel /> : null}
       {section === 'blog' ? <AdminBlogPanel /> : null}
       {section === 'permissions' ? <AdminPermissionsMatrix /> : null}
