@@ -447,7 +447,8 @@ export class AdminController {
 
   @Get('import-batches/export')
   @ApiOperation({
-    summary: 'خروجی CSV شماره تماس و لینک همه‌ی کارت‌های ایمپورت‌شده‌ی تصاحب‌نشده',
+    summary:
+      'خروجی CSV کامل (تماس، ایمیل، وب‌سایت، شبکه‌های اجتماعی، ساعات کاری و لینک) همه‌ی کارت‌های ایمپورت‌شده‌ی تصاحب‌نشده',
   })
   async exportAllImports(@Res() res: Response) {
     const csv = await this.bulkService.exportImportBatchCsv();
@@ -458,7 +459,8 @@ export class AdminController {
 
   @Get('import-batches/:id/export')
   @ApiOperation({
-    summary: 'خروجی CSV شماره تماس و لینک کارت‌های تصاحب‌نشده‌ی یک دسته‌ی ایمپورت',
+    summary:
+      'خروجی CSV کامل (تماس، ایمیل، وب‌سایت، شبکه‌های اجتماعی، ساعات کاری و لینک) کارت‌های تصاحب‌نشده‌ی یک دسته‌ی ایمپورت',
   })
   async exportImportBatch(@Param('id') id: string, @Res() res: Response) {
     const csv = await this.bulkService.exportImportBatchCsv(id);

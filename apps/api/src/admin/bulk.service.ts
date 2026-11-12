@@ -64,6 +64,7 @@ const COLUMN_ALIASES: Record<string, string> = {
   'نوع کسب و کار': 'business',
   business: 'business',
   'تلفن': 'phone',
+  'تلفن ثابت': 'phone',
   phone: 'phone',
   'ایمیل': 'email',
   email: 'email',
@@ -380,6 +381,36 @@ function randomSuffix(): string {
 function csvCell(value: string | null | undefined): string {
   const text = value ?? '';
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+const WORKING_HOURS_LABELS: Array<[string, string]> = [
+  ['saturday', 'شنبه'],
+  ['sunday', 'یک‌شنبه'],
+  ['monday', 'دوشنبه'],
+  ['tuesday', 'سه‌شنبه'],
+  ['wednesday', 'چهارشنبه'],
+  ['thursday', 'پنجشنبه'],
+  ['friday', 'جمعه'],
+];
+
+/** Stored weekly JSON → the `شنبه: 08:00-18:00 | …` text the importer reads. */
+function formatWorkingHours(value: unknown): string {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return '';
+  const hours = value as Record<
+    string,
+    { open?: string; close?: string; closed?: boolean } | undefined
+  >;
+  const parts: string[] = [];
+  for (const [key, label] of WORKING_HOURS_LABELS) {
+    const day = hours[key];
+    if (!day) continue;
+    if (day.closed) {
+      parts.push(`${label}: تعطیل`);
+    } else if (day.open && day.close) {
+      parts.push(`${label}: ${day.open}-${day.close}`);
+    }
+  }
+  return parts.join(' | ');
 }
 
 /**
@@ -1082,8 +1113,9 @@ export class BulkService {
   }
 
   /**
-   * CSV of phone numbers + public links for the still-unclaimed cards of one
-   * batch (or every batch when `batchId` is omitted), ready to send to owners.
+   * CSV of every contact field + the public link for the still-unclaimed cards
+   * of one batch (or every batch when `batchId` is omitted), ready to send to
+   * owners. The headers match the importer, so the file can round-trip.
    */
   async exportImportBatchCsv(batchId?: string): Promise<string> {
     const cards = await this.prisma.businessCard.findMany({
@@ -1094,28 +1126,106 @@ export class BulkService {
       orderBy: { fullName: 'asc' },
       select: {
         fullName: true,
+        subCategory: true,
+        mainTag: true,
+        neighborhood: true,
+        address: true,
         mobile: true,
         phone: true,
+        otherPhones: true,
+        email: true,
+        website: true,
+        instagram: true,
+        telegram: true,
+        whatsapp: true,
+        bale: true,
+        eitaa: true,
+        rubika: true,
+        igap: true,
+        soroush: true,
+        linkedin: true,
+        bio: true,
+        workingHours: true,
+        latitude: true,
+        longitude: true,
+        subscriptionType: true,
+        features: true,
+        tags: true,
         slug: true,
         city: { select: { name: true } },
         business: { select: { name: true } },
       },
     });
     const base = appUrl().replace(/\/$/, '');
-    const header = 'نام,تلفن همراه,تلفن ثابت,شهر,کسب و کار,لینک\n';
+    const header = [
+      'نام کسب‌وکار',
+      'دسته اصلی',
+      'زیردسته',
+      'نوع کسب‌وکار (main_tag)',
+      'شهر',
+      'محله',
+      'آدرس',
+      'تلفن همراه',
+      'تلفن ثابت',
+      'تلفن‌های دیگر',
+      'ایمیل',
+      'وب‌سایت',
+      'اینستاگرام',
+      'تلگرام',
+      'واتساپ',
+      'بله',
+      'ایتا',
+      'روبیکا',
+      'آی‌گپ',
+      'سروش',
+      'لینکدین',
+      'توضیحات',
+      'ساعات کاری',
+      'عرض جغرافیایی',
+      'طول جغرافیایی',
+      'نوع اشتراک',
+      'ویژگی‌ها',
+      'برچسب‌ها',
+      'لینک',
+    ]
+      .map(csvCell)
+      .join(',');
     const lines = cards.map((card) =>
       [
         card.fullName,
+        card.business?.name,
+        card.subCategory,
+        card.mainTag,
+        card.city?.name,
+        card.neighborhood,
+        card.address,
         card.mobile,
         card.phone,
-        card.city?.name,
-        card.business?.name,
+        card.otherPhones.join('، '),
+        card.email,
+        card.website,
+        card.instagram,
+        card.telegram,
+        card.whatsapp,
+        card.bale,
+        card.eitaa,
+        card.rubika,
+        card.igap,
+        card.soroush,
+        card.linkedin,
+        card.bio,
+        formatWorkingHours(card.workingHours),
+        card.latitude === null ? '' : String(card.latitude),
+        card.longitude === null ? '' : String(card.longitude),
+        card.subscriptionType,
+        card.features.join('، '),
+        card.tags.join('، '),
         `${base}/business-cards/${card.slug}`,
       ]
         .map(csvCell)
         .join(','),
     );
-    return '\uFEFF' + header + lines.join('\n') + (lines.length ? '\n' : '');
+    return '\uFEFF' + header + '\n' + lines.join('\n') + (lines.length ? '\n' : '');
   }
 
   /**

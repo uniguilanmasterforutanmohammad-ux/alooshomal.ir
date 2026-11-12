@@ -59,9 +59,10 @@ function timeOf(iso: string): string {
 
 /**
  * «دسته‌های ایمپورت کسب‌وکار» — each external import run is its own box with
- * the import date/time, counts, a CSV of phone numbers + public links, and a
- * one-click rollback. Rollback only removes cards that are still unclaimed, so
- * a card whose owner has claimed/edited it is never deleted.
+ * the import date/time, counts, a full contact CSV (phones, e-mail, website,
+ * socials, hours and public links), and a one-click rollback. Rollback only
+ * removes cards that are still unclaimed, so a card whose owner has claimed or
+ * edited it is never deleted.
  */
 export function AdminImportBatches() {
   const [data, setData] = useState<ImportBatchesResponse | null>(null);
@@ -271,8 +272,8 @@ export function AdminImportBatches() {
           <p className="mt-1 text-xs text-muted">
             هر ایمپورت یک جعبه‌ی جدا با تاریخ و ساعت است. کارت‌های ایمپورت‌شده تا
             وقتی صاحبشان آن‌ها را تصاحب نکند منتشر نمی‌شوند، اما لینک مستقیمشان کار
-            می‌کند. با هر جعبه می‌توانید فایل شماره تماس + لینک را بگیرید یا همان
-            دسته را بازگردانی کنید.
+            می‌کند. با هر جعبه می‌توانید فایل کامل اطلاعات تماس، شبکه‌های اجتماعی
+            و لینک را بگیرید یا همان دسته را بازگردانی کنید.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -283,7 +284,7 @@ export function AdminImportBatches() {
             className="indeed-btn indeed-btn-secondary py-2 text-xs disabled:opacity-60"
           >
             <Download className="size-4" aria-hidden />
-            CSV همه‌ی لینک‌ها
+            CSV کامل اطلاعات تماس
           </button>
           <button
             type="button"
@@ -380,7 +381,7 @@ export function AdminImportBatches() {
                   className="indeed-btn indeed-btn-secondary py-1.5 text-xs disabled:opacity-60"
                 >
                   <Download className="size-3.5" aria-hidden />
-                  CSV شماره + لینک
+                  CSV اطلاعات کامل
                 </button>
                 <button
                   type="button"
