@@ -185,6 +185,17 @@ export interface BusinessCard {
   workingHours?: WorkingHours | null;
   /** public gallery image URLs */
   gallery?: string[];
+  /** extra phone numbers imported from a directory */
+  otherPhones?: string[];
+  /** feature labels imported from a directory */
+  features?: string[];
+  /** source-directory tags */
+  tags?: string[];
+  /** exact source business type (`main_tag`) */
+  mainTag?: string | null;
+  subscriptionType?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   /** aggregate rating kept in sync by the reviews service */
   ratingAvg?: number;
   ratingCount?: number;
@@ -193,6 +204,11 @@ export interface BusinessCard {
   telegram: string | null;
   twitter: string | null;
   whatsapp: string | null;
+  bale?: string | null;
+  eitaa?: string | null;
+  rubika?: string | null;
+  igap?: string | null;
+  soroush?: string | null;
   primaryColor: string;
   template: string;
   isPublished: boolean;

@@ -7,6 +7,7 @@ import {
   Globe,
   Home,
   IdCard,
+  Link2,
   Mail,
   MapPin,
   MessageCircle,
@@ -107,6 +108,16 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
       Icon: MapPin,
     });
   }
+  for (const [index, extraPhone] of (businessCard.otherPhones ?? []).entries()) {
+    rows.push({
+      key: `other-phone-${index}`,
+      label: 'تلفن دیگر',
+      value: extraPhone,
+      href: `tel:${extraPhone}`,
+      dir: 'ltr',
+      Icon: Phone,
+    });
+  }
 
   const socials: BizCardSocial[] = [
     businessCard.whatsapp
@@ -147,6 +158,46 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
           label: 'ایکس',
           href: socialNetworkHref('twitter', businessCard.twitter),
           Icon: TwitterIcon,
+        }
+      : null,
+    businessCard.bale
+      ? {
+          key: 'bale',
+          label: 'بله',
+          href: socialHref(businessCard.bale),
+          Icon: Link2,
+        }
+      : null,
+    businessCard.eitaa
+      ? {
+          key: 'eitaa',
+          label: 'ایتا',
+          href: socialHref(businessCard.eitaa),
+          Icon: Link2,
+        }
+      : null,
+    businessCard.rubika
+      ? {
+          key: 'rubika',
+          label: 'روبیکا',
+          href: socialHref(businessCard.rubika),
+          Icon: Link2,
+        }
+      : null,
+    businessCard.igap
+      ? {
+          key: 'igap',
+          label: 'آی‌گپ',
+          href: socialHref(businessCard.igap),
+          Icon: Link2,
+        }
+      : null,
+    businessCard.soroush
+      ? {
+          key: 'soroush',
+          label: 'سروش',
+          href: socialHref(businessCard.soroush),
+          Icon: Link2,
         }
       : null,
   ].filter((entry): entry is BizCardSocial => Boolean(entry));

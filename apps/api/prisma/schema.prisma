@@ -1070,6 +1070,19 @@ model BusinessCard {
   workingHours Json?
   /// «گالری تصاویر» — public image URLs uploaded by the owner.
   gallery     String[] @default([])
+  /// «تلفن‌های دیگر» — extra contact numbers imported from a directory.
+  otherPhones String[] @default([])
+  /// «ویژگی‌ها» — free-form feature labels from an imported directory.
+  features    String[] @default([])
+  /// «برچسب‌ها» — the source directory's tags for this business.
+  tags        String[] @default([])
+  /// «نوع کسب‌وکار (main_tag)» — the source's exact business type label.
+  mainTag     String?
+  /// «نوع اشتراک» in the source directory (free, plus, …).
+  subscriptionType String?
+  /// Geographic coordinates from the source directory.
+  latitude  Float?
+  longitude Float?
 
   /// Aggregate review rating kept in sync by the reviews service, so directory
   /// and category listings can sort/show stars without a per-row aggregate.
@@ -1082,6 +1095,11 @@ model BusinessCard {
   telegram  String?
   twitter   String?
   whatsapp  String?
+  bale      String?
+  eitaa     String?
+  rubika    String?
+  igap      String?
+  soroush   String?
 
   // appearance
   theme          String  @default("light")

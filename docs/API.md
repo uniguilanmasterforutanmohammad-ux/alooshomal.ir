@@ -130,6 +130,12 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 میانگین و تعداد امتیاز (`ratingAvg`/`ratingCount`) روی خود کارت ذخیره و پس از
 هر ثبت/ویرایش/حذف دیدگاه به‌صورت تراکنشی به‌روز می‌شود.
 
+کارت‌های ویزیت در payload عمومی این فیلدهای تکمیلی را هم برمی‌گردانند:
+`otherPhones` (آرایه‌ی تلفن‌های دیگر)، `features`، `tags`، `mainTag`،
+`subscriptionType`، `latitude`/`longitude` و شبکه‌های `bale`، `eitaa`،
+`rubika`، `igap` و `soroush` (همه به‌صورت URL کامل). فایل ۲۷ ستونی ایمپورت
+کسب‌وکارها و نگاشت این فیلدها در `docs/import/README.md` توضیح داده شده است.
+
 ### تم سراسری سایت (`siteTheme`)
 
 | متد | مسیر | توضیح |

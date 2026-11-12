@@ -94,6 +94,7 @@ const BUSINESS_COLUMN_ALIASES: Record<string, string> = {
   'دسته': 'business',
   'دسته‌بندی': 'business',
   'دسته بندی': 'business',
+  'دسته اصلی': 'business',
   'کسب‌وکار': 'business',
   category: 'business',
   'زیردسته': 'subCategory',
@@ -109,8 +110,32 @@ const BUSINESS_COLUMN_ALIASES: Record<string, string> = {
   'برچسب‌ها': 'tags',
   tags: 'tags',
   slug: 'slug',
+  'لینک صفحه': 'sourceUrl',
+  source_url: 'sourceUrl',
   listed_city: 'city',
+  'شهر (جست‌وجو)': 'city',
   city_name: 'cityAlt',
+  'شهر / منطقه': 'cityAlt',
+  'تلفن‌های دیگر': 'otherPhones',
+  phones_other: 'otherPhones',
+  'نوع کسب‌وکار (main_tag)': 'mainTag',
+  'ویژگی‌ها': 'features',
+  'نوع اشتراک': 'subscriptionType',
+  subscription: 'subscriptionType',
+  'عرض جغرافیایی': 'latitude',
+  lat: 'latitude',
+  'طول جغرافیایی': 'longitude',
+  lng: 'longitude',
+  'بله': 'bale',
+  bale: 'bale',
+  'ایتا': 'eitaa',
+  eitaa: 'eitaa',
+  'روبیکا': 'rubika',
+  rubika: 'rubika',
+  'آی‌گپ': 'igap',
+  igap: 'igap',
+  'سروش': 'soroush',
+  soroush: 'soroush',
   'توضیحات': 'bio',
   description: 'bio',
   instagram: 'instagram',
@@ -160,6 +185,55 @@ function slugifyValue(value: string): string {
 
 function normalizeHeader(value: string): string {
   return value.trim().toLowerCase();
+}
+
+/**
+ * A small RFC-4180 CSV parser that keeps every cell as a string.
+ *
+ * ExcelJS' CSV reader turns `01154236657` into the number `1154236657`, which
+ * destroys the leading zero of every landline. Reading the CSV ourselves keeps
+ * phone numbers exactly as exported.
+ */
+function parseCsvGrid(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let quoted = false;
+  const source = text.replace(/^\uFEFF/, '');
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    if (quoted) {
+      if (character === '"') {
+        if (source[index + 1] === '"') {
+          field += '"';
+          index += 1;
+        } else {
+          quoted = false;
+        }
+      } else {
+        field += character;
+      }
+      continue;
+    }
+    if (character === '"') {
+      quoted = true;
+    } else if (character === ',') {
+      row.push(field);
+      field = '';
+    } else if (character === '\n') {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = '';
+    } else if (character !== '\r') {
+      field += character;
+    }
+  }
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
 }
 
 /** Persian/Arabic digits → ASCII, so `۰۹۱۲…` and `0912…` behave the same. */
@@ -239,6 +313,46 @@ function whatsappUrl(value?: string): string | null {
   return digits ? `https://wa.me/${digits}` : null;
 }
 
+function urlOrBase(base: string, value?: string): string | null {
+  const text = (value ?? '').trim();
+  if (!text) return null;
+  if (/^https?:\/\//i.test(text)) return text;
+  const handle = text.replace(/^[@/]+/, '');
+  return handle ? `${base}${handle}` : null;
+}
+
+function splitList(value?: string): string[] {
+  return (value ?? '')
+    .split(/[,،\n]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function splitPhoneList(value?: string): string[] {
+  return (value ?? '')
+    .split(/[,،;/\n]/)
+    .map((item) => latinDigits(item).replace(/[^\d+]/g, ''))
+    .filter(Boolean);
+}
+
+function numberOrNull(value?: string): number | null {
+  const text = latinDigits((value ?? '').trim()).replace(',', '.');
+  if (!text) return null;
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function cardKey(
+  name: string,
+  cityId: string,
+  phone: string | null,
+  mobile: string | null,
+  address: string | null,
+): string {
+  const contact = mobile || phone || address || '';
+  return `${name.trim().toLowerCase()}|${cityId}|${contact.trim().toLowerCase()}`;
+}
+
 function splitMergedCity(name?: string): string[] {
   return (name ?? '')
     .replace(/،/g, ',')
@@ -291,20 +405,37 @@ export class BulkService {
       message: 'ستون «نام» در فایل پیدا نشد. حداقل یک ستون با عنوان «نام» لازم است.',
     },
   ): Promise<Record<string, string>[]> {
-    const workbook = new ExcelJS.Workbook();
     const isCsv = buffer.slice(0, 4).toString('utf8').toLowerCase().includes('name')
       || buffer.toString('utf8', 0, 200).includes(',');
 
     if (isCsv && buffer[0] !== 0x50) {
-      // CSV path — exceljs' csv reader
-      const { Readable } = await import('node:stream');
-      const stream = Readable.from(buffer.toString('utf8'));
-      await workbook.csv.read(stream);
-    } else {
-      // XLSX (and any caller that handed us a real workbook buffer)
-      await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
+      const grid = parseCsvGrid(buffer.toString('utf8'));
+      if (grid.length === 0) {
+        throw new BadRequestException('فایل CSV خالی است');
+      }
+      const headerMap = new Map<number, string>();
+      grid[0].forEach((raw, index) => {
+        const canonical = aliases[normalizeHeader(raw)];
+        if (canonical) headerMap.set(index, canonical);
+      });
+      if (![...headerMap.values()].includes(required.field)) {
+        throw new BadRequestException(required.message);
+      }
+      const csvRows: Record<string, string>[] = [];
+      for (const cells of grid.slice(1)) {
+        if (csvRows.length >= maxRows) break;
+        const record: Record<string, string> = {};
+        headerMap.forEach((field, index) => {
+          record[field] = (cells[index] ?? '').trim();
+        });
+        if (record[required.field]) csvRows.push(record);
+      }
+      return csvRows;
     }
 
+    const workbook = new ExcelJS.Workbook();
+    // XLSX (and any caller that handed us a real workbook buffer)
+    await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
     const sheet = workbook.worksheets[0];
     if (!sheet) {
       throw new BadRequestException('فایل ورودی هیچ شیتی ندارد');
@@ -498,10 +629,25 @@ export class BulkService {
           .filter(Boolean);
     const subCategory = text('subcategory');
     const bio = text('description') || tags.join('، ');
+    const rawOtherPhones = values.get('phones_other');
+    const otherPhones = Array.isArray(rawOtherPhones)
+      ? rawOtherPhones.map((phone) => String(phone).trim()).filter(Boolean)
+      : text('phones_other')
+          .split(/[,،;/\n]/)
+          .map((phone) => phone.trim())
+          .filter(Boolean);
+    const rawFeatures = values.get('features');
+    const features = Array.isArray(rawFeatures)
+      ? rawFeatures.map((feature) => String(feature).trim()).filter(Boolean)
+      : text('features')
+          .split(/[,،\n]/)
+          .map((feature) => feature.trim())
+          .filter(Boolean);
 
     return {
       fullName: text('name'),
       jobTitle: text('main_tag') || subCategory || text('guild'),
+      mainTag: text('main_tag'),
       company: text('company'),
       business: text('category'),
       subCategory,
@@ -516,12 +662,23 @@ export class BulkService {
       address: text('address'),
       bio,
       tags: tags.join('، '),
+      features: features.join('، '),
+      otherPhones: otherPhones.join('، '),
       slug: text('slug'),
+      sourceUrl: text('url'),
       instagram: text('instagram'),
       telegram: text('telegram'),
       whatsapp: text('whatsapp'),
       linkedin: text('linkedin'),
+      bale: text('bale'),
+      eitaa: text('eitaa'),
+      rubika: text('rubika'),
+      igap: text('igap'),
+      soroush: text('soroush'),
       workingHours: text('working_hours') || text('workinghours'),
+      latitude: text('lat'),
+      longitude: text('lng'),
+      subscriptionType: text('subscription'),
     };
   }
 
@@ -599,7 +756,16 @@ export class BulkService {
     const [cities, businesses, existingCards] = await Promise.all([
       this.prisma.city.findMany(),
       this.prisma.businessCategory.findMany(),
-      this.prisma.businessCard.findMany({ select: { slug: true } }),
+      this.prisma.businessCard.findMany({
+        select: {
+          slug: true,
+          fullName: true,
+          cityId: true,
+          phone: true,
+          mobile: true,
+          address: true,
+        },
+      }),
     ]);
     const cityByName = new Map(
       cities.map((city) => [city.name.trim().toLowerCase(), city.id]),
@@ -608,6 +774,11 @@ export class BulkService {
       businesses.map((business) => [business.name.trim().toLowerCase(), business.id]),
     );
     const usedSlugs = new Set(existingCards.map((card) => card.slug));
+    const existingKeys = new Set(
+      existingCards.map((card) =>
+        cardKey(card.fullName, card.cityId ?? '', card.phone, card.mobile, card.address),
+      ),
+    );
 
     const resolveCity = async (name?: string): Promise<string | null> => {
       const key = (name ?? '').trim();
@@ -695,32 +866,62 @@ export class BulkService {
           phone = split.phone;
           mobile = split.mobile;
         }
+        const extraPhones = splitPhoneList(row.otherPhones);
+        const address = (row.address ?? '').trim() || null;
+        const key = cardKey(name, cityId, phone, mobile, address);
+        if (existingKeys.has(key)) {
+          fail(name, 'این کسب‌وکار قبلاً ثبت/ایمپورت شده است');
+          continue;
+        }
+        const sourceSlug =
+          (row.slug ?? '').trim() ||
+          (row.sourceUrl ?? '').match(/\/p\/([^~/?]+)/)?.[1] ||
+          '';
+        if (sourceSlug && usedSlugs.has(sourceSlug)) {
+          fail(name, 'این کسب‌وکار قبلاً با همین شناسه ایمپورت شده است');
+          continue;
+        }
+        existingKeys.add(key);
 
         const subCategory = (row.subCategory ?? '').trim() || null;
-        const tags = (row.tags ?? '').trim();
+        const tags = splitList(row.tags);
+        const features = splitList(row.features);
         const workingHours = parseWorkingHours(row.workingHours);
+        const mainTag = (row.mainTag ?? '').trim() || null;
 
         pending.push({
           userId: ownerUserId,
-          slug: uniqueSlug(row.slug || name),
+          slug: uniqueSlug(sourceSlug || name),
           cityId,
           businessId,
           subCategory,
           subSubCategory: (row.subSubCategory ?? '').trim() || null,
           neighborhood: (row.neighborhood ?? '').trim() || null,
           fullName: name,
-          jobTitle: (row.jobTitle ?? '').trim() || subCategory,
+          jobTitle: (row.jobTitle ?? '').trim() || mainTag || subCategory,
+          mainTag,
           company: (row.company ?? '').trim() || null,
-          bio: (row.bio ?? '').trim() || tags || null,
+          bio: (row.bio ?? '').trim() || tags.join('، ') || null,
           phone,
           mobile,
+          otherPhones: extraPhones,
           email: (row.email ?? '').trim() || null,
           website: (row.website ?? '').trim() || null,
-          address: (row.address ?? '').trim() || null,
+          address,
           instagram: socialUrl('instagram', row.instagram),
           telegram: socialUrl('telegram', row.telegram),
           whatsapp: whatsappUrl(row.whatsapp),
           linkedin: (row.linkedin ?? '').trim() || null,
+          bale: urlOrBase('https://ble.ir/', row.bale),
+          eitaa: urlOrBase('https://eitaa.com/', row.eitaa),
+          rubika: urlOrBase('https://rubika.ir/', row.rubika),
+          igap: urlOrBase('https://igap.net/', row.igap),
+          soroush: urlOrBase('https://splus.ir/', row.soroush),
+          features,
+          tags,
+          subscriptionType: (row.subscriptionType ?? '').trim() || null,
+          latitude: numberOrNull(row.latitude),
+          longitude: numberOrNull(row.longitude),
           workingHours: workingHours ?? undefined,
           status: BiolinkStatus.APPROVED,
           isPublished: false,
