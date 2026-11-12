@@ -507,12 +507,21 @@ PY
 | `GET` | `/support/chat/me/stream?ticket=…` | عمومی (با تیکت) | جریان زنده‌ی پیام‌های من. |
 | `GET` | `/admin/support/chat` | ADMIN | فهرست گفتگوها با فیلتر `status` و جستجوی `q`. |
 | `GET` | `/admin/support/chat/unread-count` | ADMIN | مجموع پیام‌های خوانده‌نشده و تعداد گفتگوهای باز. |
+| `GET` | `/admin/support/chat/sms-settings` | ADMIN | تنظیمات پیامک هشدار: `enabled`، `phone` (مقدار ذخیره‌شده)، `resolvedPhone` (شماره‌ی مؤثر)، `phoneFromAdminAccount` و `channelReady` (آماده‌بودن `MELIPAYAMAK_SMS_PATH`). |
+| `PATCH` | `/admin/support/chat/sms-settings` | ADMIN | ذخیره‌ی `{ enabled?, phone? }`؛ `phone` خالی یعنی استفاده از `SUPPORT_CHAT_ALERT_PHONE` و سپس شماره‌ی قدیمی‌ترین ادمین فعال. |
 | `GET` | `/admin/support/chat/:id` | ADMIN | جزئیات کامل گفتگو. |
 | `POST` | `/admin/support/chat/:id/messages` | ADMIN | پاسخ مدیر (گفتگو در صورت بسته‌بودن باز می‌شود). |
 | `POST` | `/admin/support/chat/:id/read` | ADMIN | خواندن پیام‌های کاربر. |
 | `PATCH` | `/admin/support/chat/:id` | ADMIN | تغییر وضعیت (`OPEN`/`CLOSED`) یا `assignToMe`. |
 | `GET` | `/admin/support/chat/stream-ticket` | ADMIN | صدور تیکت برای جریان زنده‌ی صندوق پشتیبانی. |
 | `GET` | `/admin/support/chat/stream?ticket=…` | عمومی (با تیکت) | جریان زنده‌ی همه‌ی گفتگوها برای مدیران. |
+
+با ارسال نخستین پیام خوانده‌نشده‌ی هر دسته (گفتگوی تازه یا بعد از خواندن
+پیام‌های قبلی توسط ادمین)، علاوه بر اعلان داخل پنل یک پیامک کوتاه شامل نام
+کاربر، خلاصه‌ی پیام و لینک صندوق پشتیبانی به شماره‌ی مؤثر ارسال می‌شود. پیام‌های
+بعدی همان دسته پیامک تکراری نمی‌فرستند. ارسال واقعی فقط وقتی انجام می‌شود که
+`MELIPAYAMAK_SMS_PATH` روی سرور تنظیم شده باشد؛ در غیر این صورت تنظیمات ذخیره
+می‌شود ولی کانال پیامک خاموش می‌ماند.
 
 **نکته‌ی حقوقی/دسترسی:** پشتیبانی و همه‌ی راه‌های تماس با پشتیبان مطابق
 `AGENTS.md` همیشه فعال هستند و سوئیچ ویژگی نمی‌گیرند. هر کاربر فقط به گفتگوهای

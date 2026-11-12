@@ -19,6 +19,7 @@ import {
 } from '@/lib/api';
 import { SUPPORT_POLL_MS } from '@/lib/support-chat';
 import { cn } from '@/lib/utils';
+import { AdminSupportSmsSettings } from './AdminSupportSmsSettings';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api';
 
@@ -290,7 +291,9 @@ export function AdminSupportChat() {
   const closed = conversation?.status === 'CLOSED';
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[22rem_1fr]">
+    <div className="flex flex-col gap-4">
+      <AdminSupportSmsSettings />
+      <div className="grid gap-4 lg:grid-cols-[22rem_1fr]">
       <div className="indeed-panel flex max-h-[42rem] flex-col overflow-hidden">
         <div className="border-b-2 border-dashed border-[var(--vintage-accent-hover)] p-3">
           <div className="flex items-center justify-between gap-2">
@@ -628,6 +631,7 @@ export function AdminSupportChat() {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }

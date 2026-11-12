@@ -21,6 +21,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { ListSupportConversationsDto } from './dto/list-support-conversations.dto';
 import { SendSupportMessageDto } from './dto/send-support-message.dto';
+import { UpdateSupportSmsDto } from './dto/update-support-sms.dto';
 import { UpdateSupportConversationDto } from './dto/update-support-conversation.dto';
 import {
   SupportChatEventsService,
@@ -170,6 +171,23 @@ export class AdminSupportChatController {
   @ApiOperation({ summary: 'تعداد پیام‌های خوانده‌نشده و گفتگوهای باز (مدیر)' })
   unread() {
     return this.chat.unreadForAdmin();
+  }
+
+  @Get('sms-settings')
+  @ApiOperation({
+    summary: 'تنظیمات پیامک هشدار پیام جدید پشتیبانی (شماره و فعال‌بودن)',
+  })
+  smsSettings() {
+    return this.chat.getSmsSettings();
+  }
+
+  @Patch('sms-settings')
+  @ApiOperation({
+    summary:
+      'ذخیره‌ی شماره‌ی خط ادمین و سوئیچ پیامک هشدار پشتیبانی (خالی = شماره‌ی حساب ادمین)',
+  })
+  updateSmsSettings(@Body() dto: UpdateSupportSmsDto) {
+    return this.chat.updateSmsSettings(dto);
   }
 
   @Get('stream-ticket')

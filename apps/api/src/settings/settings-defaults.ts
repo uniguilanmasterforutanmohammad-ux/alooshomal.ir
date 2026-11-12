@@ -42,6 +42,9 @@ import {
   NEWS_HEADLINE_COUNT_KEY,
   PHONE_LOGIN_ENABLED_KEY,
   POINTS_PER_NEWS_KEY,
+  DEFAULT_SUPPORT_CHAT_SMS_ENABLED,
+  SUPPORT_CHAT_SMS_ENABLED_KEY,
+  SUPPORT_CHAT_SMS_PHONE_KEY,
 } from './settings.constants';
 
 const ADMIN_NOTIFY_KEY_PREFIX = 'notifyAdmin.';
@@ -146,6 +149,19 @@ export async function ensureSettingsDefaults(
           key: PHONE_LOGIN_ENABLED_KEY,
           value: DEFAULT_PHONE_LOGIN_ENABLED ? 'true' : 'false',
         },
+      }),
+      prisma.setting.upsert({
+        where: { key: SUPPORT_CHAT_SMS_ENABLED_KEY },
+        update: {},
+        create: {
+          key: SUPPORT_CHAT_SMS_ENABLED_KEY,
+          value: DEFAULT_SUPPORT_CHAT_SMS_ENABLED ? 'true' : 'false',
+        },
+      }),
+      prisma.setting.upsert({
+        where: { key: SUPPORT_CHAT_SMS_PHONE_KEY },
+        update: {},
+        create: { key: SUPPORT_CHAT_SMS_PHONE_KEY, value: '' },
       }),
       prisma.setting.upsert({
         where: { key: AD_DURATION_DAYS_KEY },

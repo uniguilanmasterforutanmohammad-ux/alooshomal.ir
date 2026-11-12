@@ -112,6 +112,12 @@ services:
       # on the server to enable real SMS. If it stays empty in production the
       # phone flow returns 503 instead of leaking the dev code (123456).
       MELIPAYAMAK_OTP_PATH: ${MELIPAYAMAK_OTP_PATH:-}
+      # Melipayamak simple-send path (includes the token) used by server
+      # alerts and the support-chat SMS; empty = those SMSes are skipped.
+      MELIPAYAMAK_SMS_PATH: ${MELIPAYAMAK_SMS_PATH:-}
+      # Optional fallback line for support-chat SMS. The admin-panel value
+      # wins; when both are empty the oldest admin account's phone is used.
+      SUPPORT_CHAT_ALERT_PHONE: ${SUPPORT_CHAT_ALERT_PHONE:-}
       # SMTP account used to deliver the same OTP by email. Leave empty to
       # keep the flow SMS-only; see MAIL_* in .env.example.
       MAIL_HOST: ${MAIL_HOST:-}

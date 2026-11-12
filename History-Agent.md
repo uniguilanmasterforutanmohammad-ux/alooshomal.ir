@@ -20,7 +20,45 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.50.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.51.0**.
+
+## ۱۴۰۵/۰۸/۲۱ — پیامک هشدار پیام جدید پشتیبانی آنلاین — نسخه `v3.51.0`
+
+**هدف:** وقتی کاربر در پشتیبانی آنلاین پیام تازه می‌فرستد، یک پیامک کوتاه به
+خط ادمین برسد تا پیام‌ها فقط به اعلان داخل پنل وابسته نباشند.
+
+**تغییرات:**
+- `apps/api/src/settings/settings.constants.ts` و
+  `apps/api/src/settings/settings-defaults.ts`: افزودن کلیدهای
+  `supportChatSmsEnabled` و `supportChatSmsPhone` همراه مقدار پیش‌فرض.
+- `apps/api/src/support-chat/support-chat.service.ts`: خواندن/ذخیره‌ی تنظیمات،
+  نرمال‌سازی شماره (۰۹…)، انتخاب خط مؤثر (پنل ← `SUPPORT_CHAT_ALERT_PHONE` ←
+  قدیمی‌ترین ادمین فعال) و ارسال پیامک فقط برای نخستین پیام خوانده‌نشده‌ی هر
+  دسته؛ خطای پیامک هرگز مسیر گفتگو را نمی‌شکند.
+- `apps/api/src/support-chat/support-chat.controller.ts`: مسیرهای
+  `GET/PATCH /admin/support/chat/sms-settings` (پیش از مسیر `:id`).
+- `apps/api/src/support-chat/dto/update-support-sms.dto.ts`: اعتبارسنجی شماره و
+  امکان خالی‌کردن آن.
+- `apps/api/src/support-chat/support-chat.module.ts`: واردکردن `AuthModule` برای
+  دسترسی به `SmsService`.
+- `apps/web/components/admin/AdminSupportSmsSettings.tsx` و
+  `apps/web/components/admin/AdminSupportChat.tsx`: کارت تنظیم عدد/سوئیچ در
+  «پشتیبانی آنلاین» با نمایش شماره‌ی مؤثر و هشدار نبود کانال پیامک.
+- `docker-compose.yml` و `docker-compose.prod.yml`: عبور `MELIPAYAMAK_SMS_PATH`
+  و `SUPPORT_CHAT_ALERT_PHONE` به کانتینر API؛ `.env.example` هم به‌روز شد.
+- `docs/API.md`: مستندسازی دو مسیر تازه و رفتار ارسال.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit`: بدون خطا.
+- ESLint روی فایل‌های تغییریافته: بدون خطا (فقط هشدارهای از قبل موجود
+  `set-state-in-effect`).
+- `python3 scripts/check_api_docs.py`: ۳۷ کنترلر / ۴۱۰ مسیر، exit 0.
+- `GET /api/admin/support/chat/sms-settings` مقدار پیش‌فرض را برگرداند؛
+  `PATCH` با `09121234567` و `+989121234567` هر دو را به `09121234567`
+  نرمال کرد؛ شماره‌ی نامعتبر `400` داد و خالی‌کردن شماره موفق بود.
+- ارسال یک پیام واقعی به `POST /api/support/chat/me/messages` با کانال پیامک
+  خاموش، پاسخ `201` و بدون خطا در لاگ API برگرداند؛ پیام و نشست تست سپس حذف شد.
 
 ## ۱۴۰۵/۰۸/۲۱ — نمایش کارت‌های تصاحب‌شده و اعمال اشتراک مالک پس از تأیید — نسخه `v3.50.0`
 

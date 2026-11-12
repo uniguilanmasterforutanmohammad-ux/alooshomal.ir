@@ -474,6 +474,21 @@ export const DEFAULT_PHONE_LOGIN_ENABLED = true;
 export const EMAIL_LOGIN_ENABLED_KEY = 'authEmailLoginEnabled';
 export const DEFAULT_EMAIL_LOGIN_ENABLED = true;
 
+// ---------------------------------------------------------------------------
+//  Support-chat SMS alerts
+// ---------------------------------------------------------------------------
+
+/**
+ * Sends one SMS to the admin line whenever a user starts a new support-chat
+ * burst (first unread message). The phone below wins; when it is empty the
+ * service falls back to `SUPPORT_CHAT_ALERT_PHONE`, then to the oldest active
+ * admin account's phone. No SMS is attempted when Melipayamak's simple-send
+ * path (`MELIPAYAMAK_SMS_PATH`) is not configured.
+ */
+export const SUPPORT_CHAT_SMS_ENABLED_KEY = 'supportChatSmsEnabled';
+export const DEFAULT_SUPPORT_CHAT_SMS_ENABLED = true;
+export const SUPPORT_CHAT_SMS_PHONE_KEY = 'supportChatSmsPhone';
+
 /**
  * Categories of admin-facing notifications. Each one can be muted from the
  * admin settings panel: a muted category is skipped at creation time, so no

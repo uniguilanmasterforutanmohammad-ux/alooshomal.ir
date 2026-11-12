@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import {
@@ -12,15 +13,34 @@ import {
 } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
+import { SmsService } from '../auth/sms.service';
+import { appUrl } from '../common/app-url';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
+import {
+  DEFAULT_SUPPORT_CHAT_SMS_ENABLED,
+  SUPPORT_CHAT_SMS_ENABLED_KEY,
+  SUPPORT_CHAT_SMS_PHONE_KEY,
+} from '../settings/settings.constants';
 import { ListSupportConversationsDto } from './dto/list-support-conversations.dto';
 import { SendSupportMessageDto } from './dto/send-support-message.dto';
+import { UpdateSupportSmsDto } from './dto/update-support-sms.dto';
 import { UpdateSupportConversationDto } from './dto/update-support-conversation.dto';
 import { SupportChatEventsService } from './support-chat-events.service';
 
 const WELCOME_MESSAGE =
   'سلام! به پشتیبانی آنلاین شمالی کارت خوش آمدید. پیام خود را بنویسید؛ همکاران ما در اولین فرصت پاسخ می‌دهند.';
+
+/** Normalise Iranian mobile numbers to the `09xxxxxxxxx` form Melipayamak uses. */
+function normalisePhone(raw: string | null | undefined): string {
+  const digits = (raw ?? '').replace(/[\s\-()]/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('+98')) return `0${digits.slice(3)}`;
+  if (digits.startsWith('0098')) return `0${digits.slice(4)}`;
+  if (digits.startsWith('98') && digits.length === 12) return `0${digits.slice(2)}`;
+  if (digits.startsWith('9') && digits.length === 10) return `0${digits}`;
+  return digits;
+}
 
 const senderSelect = {
   id: true,
@@ -57,11 +77,14 @@ const listInclude = {
 
 @Injectable()
 export class SupportChatService {
+  private readonly logger = new Logger(SupportChatService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly events: SupportChatEventsService,
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
+    private readonly sms: SmsService,
   ) {}
 
   /** The open conversation, or the most recent one when the user has none open. */
@@ -183,6 +206,9 @@ export class SupportChatService {
         link: '/admin?section=support-chat',
         actorId: userId,
       });
+      // The in-app bell is easy to miss when the admin is away, so the first
+      // unread message of each burst also reaches the configured admin line.
+      void this.sendSupportSms(updated, body);
     }
     if (created) {
       void this.activity.log({
@@ -389,6 +415,98 @@ export class SupportChatService {
       _sum: { userUnread: true },
     });
     return { unread: aggregate._sum.userUnread ?? 0 };
+  }
+
+  /** Current SMS-alert configuration, including the effective phone number. */
+  async getSmsSettings() {
+    const rows = await this.prisma.setting.findMany({
+      where: {
+        key: { in: [SUPPORT_CHAT_SMS_ENABLED_KEY, SUPPORT_CHAT_SMS_PHONE_KEY] },
+      },
+    });
+    const byKey = new Map(rows.map((row) => [row.key, row.value]));
+    const storedEnabled = byKey.get(SUPPORT_CHAT_SMS_ENABLED_KEY);
+    const enabled =
+      storedEnabled === undefined
+        ? DEFAULT_SUPPORT_CHAT_SMS_ENABLED
+        : storedEnabled !== 'false';
+    const phone = normalisePhone(byKey.get(SUPPORT_CHAT_SMS_PHONE_KEY));
+    const fallback = await this.resolveSmsFallback();
+    return {
+      enabled,
+      phone,
+      resolvedPhone: phone || fallback.phone,
+      phoneFromAdminAccount: !phone && fallback.fromAdmin,
+      channelReady: this.sms.textEnabled,
+    };
+  }
+
+  /** Save the admin line and on/off switch for support SMS alerts. */
+  async updateSmsSettings(dto: UpdateSupportSmsDto) {
+    const writes: Array<[string, string]> = [];
+    if (dto.enabled !== undefined) {
+      writes.push([SUPPORT_CHAT_SMS_ENABLED_KEY, dto.enabled ? 'true' : 'false']);
+    }
+    if (dto.phone !== undefined) {
+      writes.push([SUPPORT_CHAT_SMS_PHONE_KEY, normalisePhone(dto.phone)]);
+    }
+    await Promise.all(
+      writes.map(([key, value]) =>
+        this.prisma.setting.upsert({
+          where: { key },
+          update: { value },
+          create: { key, value },
+        }),
+      ),
+    );
+    return this.getSmsSettings();
+  }
+
+  /** Where the SMS goes: panel value wins, then env, then the oldest admin. */
+  private async resolveSmsFallback(): Promise<{
+    phone: string;
+    fromAdmin: boolean;
+  }> {
+    const envPhone = normalisePhone(process.env.SUPPORT_CHAT_ALERT_PHONE);
+    if (envPhone) return { phone: envPhone, fromAdmin: false };
+    const admin = await this.prisma.user.findFirst({
+      where: { role: 'ADMIN', isActive: true },
+      orderBy: { createdAt: 'asc' },
+      select: { phone: true },
+    });
+    return { phone: normalisePhone(admin?.phone), fromAdmin: Boolean(admin?.phone) };
+  }
+
+  /** Fire-and-forget SMS for the first unread message of a conversation burst. */
+  private async sendSupportSms(
+    conversation: {
+      user?: {
+        fullName: string | null;
+        email: string | null;
+      } | null;
+    },
+    body: string,
+  ): Promise<void> {
+    try {
+      const config = await this.getSmsSettings();
+      if (!config.enabled || !config.resolvedPhone || !config.channelReady) return;
+      const who =
+        conversation.user?.fullName ?? conversation.user?.email ?? 'یک کاربر';
+      const oneLine = body.replace(/\s+/g, ' ').trim();
+      const preview =
+        oneLine.length > 70 ? `${oneLine.slice(0, 67)}…` : oneLine;
+      const link = `${appUrl().replace(/\/$/, '')}/admin?section=support-chat`;
+      await this.sms.sendText(
+        config.resolvedPhone,
+        `پیام جدید پشتیبانی آنلاین\n${who}: ${preview}\n${link}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Support-chat SMS failed: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
   }
 
   async updateForAdmin(
