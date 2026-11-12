@@ -6417,6 +6417,7 @@ html.dark .text-amber-700 {
   --footer-faint: #747576;
   --footer-brand: #0e187b;
   --footer-brand-light: #3a43a1;
+  --footer-brand-pale: #e6e8ff;
   --footer-tile: #ffffff;
   --footer-on-brand: #ffffff;
   --footer-thumb: #eff0f6;
@@ -6443,6 +6444,7 @@ html.dark .footer-palette {
   --footer-faint: #9ba0b3;
   --footer-brand: #aab1f0;
   --footer-brand-light: #8f98e8;
+  --footer-brand-pale: #232a4d;
   --footer-tile: #1f2230;
   --footer-on-brand: #101223;
   --footer-thumb: #232637;

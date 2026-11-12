@@ -7,7 +7,9 @@ import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
 import { HomeSearchBox } from '@/components/home/HomeSearchBox';
 import { HomeHeadline } from '@/components/home/HomeHeadline';
 import { HomeBusinessSections } from '@/components/home/HomeBusinessSections';
+import { PopularCategories } from '@/components/category/PopularCategories';
 import { fetchHomeBusinessCards, splitHomeBusinessCards } from '@/lib/home-server';
+import { fetchBusinessCategories } from '@/lib/catalog-server';
 import { BadgeCheck, BriefcaseBusiness, Smartphone } from 'lucide-react';
 
 /**
@@ -22,8 +24,15 @@ export default async function HomePage() {
   const stopped = await getStoppedSections();
   const showCards = !isRouteStopped(stopped, '/business-cards');
   const showBiolinks = !isRouteStopped(stopped, '/biolinks');
+  const showCategories = !isRouteStopped(stopped, '/categories');
   const businessCards = showCards ? await fetchHomeBusinessCards(12) : [];
   const { suggested, latest } = splitHomeBusinessCards(businessCards);
+  const categories = showCategories
+    ? ((await fetchBusinessCategories()) ?? [])
+        .filter((category) => category.count > 0)
+        .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'fa'))
+        .slice(0, 8)
+    : [];
 
   return (
     /* The shell reserves the height left by the chrome — the 66px sticky
@@ -80,6 +89,12 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+
+        {showCategories ? (
+          <div className="mx-auto mt-6 w-full max-w-7xl px-4 lg:px-6">
+            <PopularCategories categories={categories} />
+          </div>
+        ) : null}
 
         {showCards ? (
           <HomeBusinessSections suggested={suggested} latest={latest} />
