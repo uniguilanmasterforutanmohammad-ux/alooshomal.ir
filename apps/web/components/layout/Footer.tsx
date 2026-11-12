@@ -35,7 +35,6 @@ const SITE_LINKS = [
   { href: '/feeds', label: 'پست‌ها' },
   { href: '/pulse', label: 'اخبار' },
   { href: '/blog', label: 'بلاگ' },
-  { href: '/services', label: 'خدمات' },
 ];
 
 /** Help/legal shortcuts (support and contact are always reachable). */

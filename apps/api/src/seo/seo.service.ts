@@ -77,7 +77,7 @@ export class SeoService {
       // (`?view=notebook`), so it no longer needs its own sitemap entry.
       { path: '/feeds', lastModified: '', changeFrequency: 'daily', priority: 0.8 },
       { path: '/pulse', lastModified: '', changeFrequency: 'daily', priority: 0.7 },
-      { path: '/services', lastModified: '', changeFrequency: 'weekly', priority: 0.7 },
+      { path: '/pricing', lastModified: '', changeFrequency: 'weekly', priority: 0.7 },
       { path: '/guide', lastModified: '', changeFrequency: 'monthly', priority: 0.5 },
       { path: '/rules', lastModified: '', changeFrequency: 'monthly', priority: 0.4 },
     ];

@@ -15,7 +15,6 @@ import {
   Newspaper,
   PenLine,
   ScrollText,
-  Wrench,
 } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -30,7 +29,6 @@ const ICONS: Record<string, typeof Home> = {
   '/feeds': PenLine,
   '/pulse': Newspaper,
   '/blog': BookOpen,
-  '/services': Wrench,
   '/guide': HelpCircle,
   '/rules': ScrollText,
   '/contact': Mail,
