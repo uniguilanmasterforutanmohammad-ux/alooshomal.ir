@@ -846,9 +846,28 @@ model City {
 
   biolinks      Biolink[]
   businessCards BusinessCard[]
+  neighborhoods Neighborhood[]
 
   @@index([name])
   @@map("cities")
+}
+
+/// «محله»های هر شهر. The builder's neighbourhood box stays free-text, but these
+/// rows seed its suggestions (next to the neighbourhoods already present on
+/// published cards) and are what the admin «شهرها و محله‌ها» importer fills.
+model Neighborhood {
+  id        String   @id @default(cuid())
+  name      String
+  cityId    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  city City @relation(fields: [cityId], references: [id], onDelete: Cascade)
+
+  @@unique([cityId, name])
+  @@index([cityId])
+  @@map("neighborhoods")
 }
 
 model BusinessCategory {

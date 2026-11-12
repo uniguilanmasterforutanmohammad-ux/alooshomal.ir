@@ -20,7 +20,65 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.46.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.47.0**.
+
+## ۱۴۰۵/۰۸/۲۱ — ایمپورت مستقل شهر/محله و مشاغل از پنل — نسخه `v3.47.0`
+
+**هدف:** در «تنظیمات ← شهرها و کسب‌وکارها» مثل بخش ایمپورت کسب‌وکارها، حالت
+آپلود فایل اضافه شود تا شهرها و محله‌ها و هم مشاغل (دسته اصلی + زیردسته +
+زیرشاخه) مستقل و تکرارپذیر ایمپورت شوند. دو فایل آماده از وضعیت فعلی لوکال
+هم در مخزن قرار گرفت.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل تازه‌ی `Neighborhood` (نام، `cityId`،
+  `isActive`، یکتای `cityId+name`) و رابطه‌ی `City.neighborhoods`. تغییر
+  افزایشی است و با `prisma db push` خودکار ساخته می‌شود.
+- `apps/api/prisma/bootstrap.sql`: seed کردن جدول محله‌ها از محله‌های موجود
+  روی کارت‌ها (idempotent با `ON CONFLICT`)، تا نصب‌های فعلی پیشنهادهای
+  محله‌شان را از دست ندهند.
+- `apps/api/src/taxonomy/taxonomy.service.ts`: `searchNeighborhoods` حالا
+  اجتماع محله‌های کارت‌های منتشرشده با محله‌های ایمپورت‌شده‌ی همان شهر را
+  برمی‌گرداند.
+- `apps/api/src/admin/bulk.service.ts`: افزودن `importCityNeighborhoods`،
+  `importBusinessTaxonomy`، `exportCityNeighborhoodsCsv` و
+  `exportBusinessTaxonomyCsv`؛ پارس CSV/Excel با نام‌ستون‌های فارسی و
+  انگلیسی، تطبیق بدون‌حساسیت به حروف، عدم ساخت رکورد تکراری، اتصال
+  زیرشاخه به زیردسته‌ی والد و درج دسته‌ای زیرشاخه‌ها. `parseWorkbook` برای
+  تعیین ستون اجباری عمومی شد (رفتار قبلی ایمپورت کارت‌ها حفظ شد).
+- `apps/api/src/admin/admin.controller.ts`: چهار مسیر
+  `POST /admin/taxonomy/import/{cities,businesses}` و
+  `GET /admin/taxonomy/export/{cities,businesses}` با `FileInterceptor`
+  (سقف ۱۰ مگابایت) و `@ApiOperation`.
+- `apps/web/components/admin/AdminTaxonomyImport.tsx` (تازه): دو جعبه‌ی
+  آپلود مستقل با ورودی فایل، دکمه‌ی ایمپورت، پیام نتیجه/خطا و دکمه‌ی
+  «دانلود فایل فعلی».
+- `apps/web/app/admin/sections.tsx`: قرار دادن پنل ایمپورت بالای دو
+  مدیریت شهر/کسب‌وکار در بخش «شهرها و کسب‌وکارها».
+- `docs/import/cities-neighborhoods.csv` و
+  `docs/import/business-taxonomy.csv` (تازه): snapshot فعلی لوکال؛ ۱۱۳
+  محله در ۴ شهر و ۵۸۸۲ ردیف تاکسونومی (۸۸۰ زیردسته / ۵۷۴۱ زیرشاخه) در
+  قالب ایمپورت. `docs/import/README.md` قالب هر دو فایل را توضیح می‌دهد.
+- `docs/API.md`: مستندسازی چهار مسیر و به‌روزرسانی توضیح
+  `/business-taxonomy/neighborhoods`.
+- `apps/web/lib/version.ts` و `install.sh` (همگام‌سازی): نسخه `v3.47.0`.
+
+**تأیید/تست:**
+- `npx prisma validate` و `npx prisma generate` و `npx prisma db push` در
+  کانتینر API → موفق؛ اجرای `bootstrap.sql` → ۱۱۳ محله از کارت‌ها seed شد.
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit` → بدون خطا.
+- `npx eslint` روی فایل‌های تغییریافته → بدون خطا.
+- خروجی CSV با توکن ادمین: `cities-neighborhoods.csv` (۱۱۳ محله) و
+  `business-taxonomy.csv` (۵۸۸۲ ردیف) دانلود و بدون تغییر در `docs/import/`
+  ذخیره شد؛ ایمپورت دوباره‌ی هر دو فایل → همه‌ی شمارنده‌ها صفر (بدون تکرار).
+- ایمپورت فایل آزمایشی شامل شهر/محله و دسته/زیردسته/زیرشاخه‌ی تازه → هر سه
+  سطح در DB ساخته شد؛ `GET /business-taxonomy/neighborhoods?cityId=…`
+  محله‌ی ایمپورت‌شده را برگرداند؛ سپس رکوردهای آزمایشی حذف شدند.
+- ایمپورت دوباره‌ی دو رکورد به‌ترینو با `POST /admin/import-batches` و
+  بازگردانی همان دسته → بدون خطا (رگرسیون پارس فایل رخ نداد).
+- `python3 scripts/check_api_docs.py` → ۴۰۵ مسیر، همه با `@ApiOperation`
+  (exit 0).
+- `python3 scripts/sync_install.py` و سپس `--check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۱ — نمایش «سایر دسته‌بندی‌ها» با آیکن مثل بقیه — نسخه `v3.46.1`
 

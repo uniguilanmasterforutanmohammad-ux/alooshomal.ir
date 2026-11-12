@@ -54,3 +54,20 @@ WHERE "isUnclaimed" = true AND "importBatchId" IS NULL;
 UPDATE "business_cards"
 SET "isPublished" = false
 WHERE "isUnclaimed" = true AND "isPublished" = true;
+
+-- Seed the «محله» table from the neighbourhoods already stored on cards, so
+-- existing installs keep their current suggestions before anyone imports a
+-- city/neighbourhood file. The importer and the builder's search both read it.
+INSERT INTO "neighborhoods" (id, name, "cityId", "isActive", "createdAt", "updatedAt")
+SELECT
+  'nb-' || md5(c."cityId" || '|' || btrim(c.neighborhood)),
+  btrim(c.neighborhood),
+  c."cityId",
+  true,
+  now(),
+  now()
+FROM "business_cards" c
+WHERE c."cityId" IS NOT NULL
+  AND btrim(coalesce(c.neighborhood, '')) <> ''
+GROUP BY c."cityId", btrim(c.neighborhood)
+ON CONFLICT ("cityId", name) DO NOTHING;

@@ -31,6 +31,7 @@ import { AdminProfileRequests } from '@/components/admin/AdminProfileRequests';
 import { AdminRevenue } from '@/components/admin/AdminRevenue';
 import { AdminStoragePanel } from '@/components/admin/AdminStoragePanel';
 import { AdminSubscriptions } from '@/components/admin/AdminSubscriptions';
+import { AdminTaxonomyImport } from '@/components/admin/AdminTaxonomyImport';
 import { AdminTicketPanel } from '@/components/admin/AdminTicketPanel';
 import {
   EMPTY_SIGNUP_SERIES,
@@ -461,6 +462,9 @@ export function SettingsDirectorySection() {
 export function SettingsTaxonomySection() {
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <div className="lg:col-span-2">
+        <AdminTaxonomyImport />
+      </div>
       <TaxonomyManager
         title="مدیریت شهرها"
         description="شهرهای قابل انتخاب در فرم ساخت بیولینک"

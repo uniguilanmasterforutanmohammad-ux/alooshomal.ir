@@ -442,6 +442,57 @@ export class AdminController {
     res.send(csv);
   }
 
+  // ----- Taxonomy import / export (cities + neighbourhoods, businesses) -----
+
+  @Post('taxonomy/import/cities')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @ApiOperation({
+    summary:
+      'ایمپورت شهرها و محله‌ها از فایل CSV/Excel (ستون‌های «شهر» و «محله») — تکرارپذیر و بدون رکورد تکراری',
+  })
+  importTaxonomyCities(@UploadedFile() file: Express.Multer.File) {
+    if (!file?.buffer) {
+      throw new BadRequestException('فایلی آپلود نشده است');
+    }
+    return this.bulkService.importCityNeighborhoods(file.buffer);
+  }
+
+  @Post('taxonomy/import/businesses')
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }))
+  @ApiOperation({
+    summary:
+      'ایمپورت مشاغل از فایل CSV/Excel (ستون‌های «کسب و کار»، «زیردسته»، «زیرشاخه») — دسته، زیردسته و زیرشاخه را می‌سازد',
+  })
+  importTaxonomyBusinesses(@UploadedFile() file: Express.Multer.File) {
+    if (!file?.buffer) {
+      throw new BadRequestException('فایلی آپلود نشده است');
+    }
+    return this.bulkService.importBusinessTaxonomy(file.buffer);
+  }
+
+  @Get('taxonomy/export/cities')
+  @ApiOperation({
+    summary: 'خروجی CSV شهرهای فعال و محله‌هایشان، آماده برای ایمپورت دوباره',
+  })
+  async exportTaxonomyCities(@Res() res: Response) {
+    const csv = await this.bulkService.exportCityNeighborhoodsCsv();
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="cities-neighborhoods.csv"');
+    res.send(csv);
+  }
+
+  @Get('taxonomy/export/businesses')
+  @ApiOperation({
+    summary:
+      'خروجی CSV مشاغل فعال (دسته اصلی، زیردسته، زیرشاخه)، آماده برای ایمپورت دوباره',
+  })
+  async exportTaxonomyBusinesses(@Res() res: Response) {
+    const csv = await this.bulkService.exportBusinessTaxonomyCsv();
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="business-taxonomy.csv"');
+    res.send(csv);
+  }
+
   // ----- Role permission matrix -----
 
   // ----- Limited admin accounts («کاربر ادمین») -----

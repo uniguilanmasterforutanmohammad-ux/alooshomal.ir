@@ -172,23 +172,48 @@ export class TaxonomyService {
     const cityId = query.cityId?.trim() || undefined;
     const q = query.q?.trim();
     const take = Math.min(Math.max(query.limit ?? 20, 1), 50);
-    const rows = await this.prisma.businessCard.findMany({
-      where: {
-        neighborhood: q
-          ? { not: null, contains: q, mode: 'insensitive' as const }
-          : { not: null },
-        status: BiolinkStatus.APPROVED,
-        isPublished: true,
-        ...(cityId ? { cityId } : {}),
-      },
-      select: { neighborhood: true },
-      distinct: ['neighborhood'],
-      orderBy: { neighborhood: 'asc' },
-      take,
-    });
-    return rows
-      .map((row) => row.neighborhood?.trim())
-      .filter((value): value is string => Boolean(value));
+    const [fromCards, fromTable] = await Promise.all([
+      this.prisma.businessCard.findMany({
+        where: {
+          neighborhood: q
+            ? { not: null, contains: q, mode: 'insensitive' as const }
+            : { not: null },
+          status: BiolinkStatus.APPROVED,
+          isPublished: true,
+          ...(cityId ? { cityId } : {}),
+        },
+        select: { neighborhood: true },
+        distinct: ['neighborhood'],
+        orderBy: { neighborhood: 'asc' },
+        take,
+      }),
+      // Imported/curated neighbourhoods (admin «شهرها و محله‌ها» importer) are
+      // offered even when no published card mentions them yet.
+      this.prisma.neighborhood.findMany({
+        where: {
+          isActive: true,
+          ...(cityId ? { cityId } : {}),
+          ...(q
+            ? { name: { contains: q, mode: 'insensitive' as const } }
+            : {}),
+        },
+        select: { name: true },
+        orderBy: { name: 'asc' },
+        take,
+      }),
+    ]);
+    const names = new Set<string>();
+    for (const row of fromCards) {
+      const value = row.neighborhood?.trim();
+      if (value) names.add(value);
+    }
+    for (const row of fromTable) {
+      const value = row.name.trim();
+      if (value) names.add(value);
+    }
+    return [...names]
+      .sort((a, b) => new Intl.Collator('fa').compare(a, b))
+      .slice(0, take);
   }
 
   /**

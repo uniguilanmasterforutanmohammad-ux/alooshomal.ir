@@ -9,6 +9,7 @@ import * as ExcelJS from 'exceljs';
 
 import { ActivityService } from '../activity/activity.service';
 import { appUrl } from '../common/app-url';
+import { MAIN_CITY_ORDER } from '../common/cities';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -25,6 +26,21 @@ export interface BusinessBatchImportResult {
   batchId: string;
   label: string;
   imported: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface TaxonomyCityImportResult {
+  citiesCreated: number;
+  neighborhoodsCreated: number;
+  skipped: number;
+  errors: string[];
+}
+
+export interface TaxonomyBusinessImportResult {
+  categoriesCreated: number;
+  subCategoriesCreated: number;
+  subSubCategoriesCreated: number;
   skipped: number;
   errors: string[];
 }
@@ -101,6 +117,32 @@ const BUSINESS_COLUMN_ALIASES: Record<string, string> = {
   telegram: 'telegram',
   whatsapp: 'whatsapp',
   linkedin: 'linkedin',
+};
+
+/** Headers accepted by the «شهرها و محله‌ها» import file. */
+const TAXONOMY_CITY_ALIASES: Record<string, string> = {
+  'شهر': 'city',
+  city: 'city',
+  'محله': 'neighborhood',
+  'منطقه': 'neighborhood',
+  neighborhood: 'neighborhood',
+};
+
+/** Headers accepted by the «مشاغل» import file (main → sub → sub-sub). */
+const TAXONOMY_BUSINESS_ALIASES: Record<string, string> = {
+  'کسب و کار': 'business',
+  'کسب‌وکار': 'business',
+  'دسته اصلی': 'business',
+  'دسته': 'business',
+  business: 'business',
+  category: 'business',
+  'زیردسته': 'subCategory',
+  'زیر دسته': 'subCategory',
+  subcategory: 'subCategory',
+  'زیرشاخه': 'subSubCategory',
+  'زیر شاخه': 'subSubCategory',
+  subsubcategory: 'subSubCategory',
+  tag: 'subSubCategory',
 };
 
 const MAX_ROWS = 5000;
@@ -244,6 +286,10 @@ export class BulkService {
     buffer: Buffer,
     aliases: Record<string, string> = COLUMN_ALIASES,
     maxRows = MAX_ROWS,
+    required: { field: string; message: string } = {
+      field: 'fullName',
+      message: 'ستون «نام» در فایل پیدا نشد. حداقل یک ستون با عنوان «نام» لازم است.',
+    },
   ): Promise<Record<string, string>[]> {
     const workbook = new ExcelJS.Workbook();
     const isCsv = buffer.slice(0, 4).toString('utf8').toLowerCase().includes('name')
@@ -272,10 +318,8 @@ export class BulkService {
       if (canonical) headerMap.set(colNumber, canonical);
     });
 
-    if (![...headerMap.values()].includes('fullName')) {
-      throw new BadRequestException(
-        'ستون «نام» در فایل پیدا نشد. حداقل یک ستون با عنوان «نام» لازم است.',
-      );
+    if (![...headerMap.values()].includes(required.field)) {
+      throw new BadRequestException(required.message);
     }
 
     const rows: Record<string, string>[] = [];
@@ -290,7 +334,7 @@ export class BulkService {
             ? ''
             : String(value).trim();
       });
-      if (record.fullName) rows.push(record);
+      if (record[required.field]) rows.push(record);
     });
 
     return rows;
@@ -871,5 +915,285 @@ export class BulkService {
         .join(','),
     );
     return '\uFEFF' + header + lines.join('\n') + (lines.length ? '\n' : '');
+  }
+
+  /**
+   * «شهرها و محله‌ها» import: one row per neighbourhood (city repeated), or a
+   * lone city row when it has no neighbourhood. Cities and neighbourhoods are
+   * matched case-insensitively, so re-importing the same file is idempotent.
+   */
+  async importCityNeighborhoods(buffer: Buffer): Promise<TaxonomyCityImportResult> {
+    const rows = await this.parseWorkbook(buffer, TAXONOMY_CITY_ALIASES, MAX_ROWS, {
+      field: 'city',
+      message: 'ستون «شهر» در فایل پیدا نشد. حداقل یک ستون با عنوان «شهر» لازم است.',
+    });
+    if (rows.length === 0) {
+      throw new BadRequestException('فایل هیچ ردیف معتبری ندارد');
+    }
+
+    const [cities, neighborhoods] = await Promise.all([
+      this.prisma.city.findMany(),
+      this.prisma.neighborhood.findMany({
+        select: { cityId: true, name: true },
+      }),
+    ]);
+    const cityByName = new Map(
+      cities.map((city) => [city.name.trim().toLowerCase(), city]),
+    );
+    const neighborhoodKeys = new Set(
+      neighborhoods.map(
+        (item) => `${item.cityId}|${item.name.trim().toLowerCase()}`,
+      ),
+    );
+
+    const result: TaxonomyCityImportResult = {
+      citiesCreated: 0,
+      neighborhoodsCreated: 0,
+      skipped: 0,
+      errors: [],
+    };
+    const fail = (name: string, message: string) => {
+      result.skipped += 1;
+      if (result.errors.length < 5) {
+        result.errors.push(`ردیف «${name}»: ${message}`);
+      }
+    };
+
+    for (const row of rows) {
+      const cityName = (row.city ?? '').trim();
+      if (!cityName) {
+        fail('بدون شهر', 'نام شهر خالی است');
+        continue;
+      }
+      try {
+        let city = cityByName.get(cityName.toLowerCase());
+        if (!city) {
+          city = await this.prisma.city.create({ data: { name: cityName } });
+          cityByName.set(cityName.toLowerCase(), city);
+          result.citiesCreated += 1;
+        }
+
+        const neighborhood = (row.neighborhood ?? '').trim();
+        if (!neighborhood) continue;
+        const key = `${city.id}|${neighborhood.toLowerCase()}`;
+        if (neighborhoodKeys.has(key)) continue;
+        await this.prisma.neighborhood.create({
+          data: { name: neighborhood, cityId: city.id },
+        });
+        neighborhoodKeys.add(key);
+        result.neighborhoodsCreated += 1;
+      } catch (error) {
+        fail(cityName, error instanceof Error ? error.message : 'خطای نامشخص');
+      }
+    }
+
+    await this.activity.log({
+      action: 'TAXONOMY_CITIES_IMPORT',
+      summary: `ایمپورت شهرها و محله‌ها: ${result.citiesCreated} شهر و ${result.neighborhoodsCreated} محله‌ی تازه (${result.skipped} ردیف رد شد)`,
+      entityType: 'CITY',
+    });
+    this.facetsCache.invalidate();
+    return result;
+  }
+
+  /**
+   * «مشاغل» import: each row is `main category, sub-category, sub-sub`.
+   * A row may stop at the sub-category (sub-sub left empty); the sub-category
+   * is created once and every sub-sub is attached to it. Existing names are
+   * reused, so importing the same file twice creates no duplicates.
+   */
+  async importBusinessTaxonomy(
+    buffer: Buffer,
+  ): Promise<TaxonomyBusinessImportResult> {
+    const rows = await this.parseWorkbook(
+      buffer,
+      TAXONOMY_BUSINESS_ALIASES,
+      MAX_BUSINESS_ROWS,
+      {
+        field: 'business',
+        message:
+          'ستون «کسب و کار» در فایل پیدا نشد. حداقل یک ستون با عنوان «کسب و کار» لازم است.',
+      },
+    );
+    if (rows.length === 0) {
+      throw new BadRequestException('فایل هیچ ردیف معتبری ندارد');
+    }
+
+    const [categories, nodes] = await Promise.all([
+      this.prisma.businessCategory.findMany(),
+      this.prisma.businessTaxonomyNode.findMany({
+        select: { id: true, name: true, level: true, categoryId: true, parentId: true },
+      }),
+    ]);
+    const categoryByName = new Map(
+      categories.map((category) => [category.name.trim().toLowerCase(), category]),
+    );
+    const subKey = (categoryId: string, name: string) =>
+      `${categoryId}|SUB|${name.trim().toLowerCase()}`;
+    const tagKey = (parentId: string, name: string) =>
+      `${parentId}|TAG|${name.trim().toLowerCase()}`;
+    const subByName = new Map<string, string>();
+    const tagKeys = new Set<string>();
+    for (const node of nodes) {
+      if (node.level === 'SUB') {
+        subByName.set(subKey(node.categoryId, node.name), node.id);
+      } else if (node.level === 'TAG' && node.parentId) {
+        tagKeys.add(tagKey(node.parentId, node.name));
+      }
+    }
+
+    const result: TaxonomyBusinessImportResult = {
+      categoriesCreated: 0,
+      subCategoriesCreated: 0,
+      subSubCategoriesCreated: 0,
+      skipped: 0,
+      errors: [],
+    };
+    const fail = (name: string, message: string) => {
+      result.skipped += 1;
+      if (result.errors.length < 5) {
+        result.errors.push(`ردیف «${name}»: ${message}`);
+      }
+    };
+    const pendingTags: Prisma.BusinessTaxonomyNodeCreateManyInput[] = [];
+
+    for (const row of rows) {
+      const categoryName = (row.business ?? '').trim();
+      if (!categoryName) {
+        fail('بدون دسته', 'نام کسب‌وکار خالی است');
+        continue;
+      }
+      try {
+        let category = categoryByName.get(categoryName.toLowerCase());
+        if (!category) {
+          category = await this.prisma.businessCategory.create({
+            data: { name: categoryName },
+          });
+          categoryByName.set(categoryName.toLowerCase(), category);
+          result.categoriesCreated += 1;
+        }
+
+        const subName = (row.subCategory ?? '').trim();
+        if (!subName) continue;
+        let subId = subByName.get(subKey(category.id, subName));
+        if (!subId) {
+          const created = await this.prisma.businessTaxonomyNode.create({
+            data: { name: subName, level: 'SUB', categoryId: category.id },
+          });
+          subId = created.id;
+          subByName.set(subKey(category.id, subName), subId);
+          result.subCategoriesCreated += 1;
+        }
+
+        const tagName = (row.subSubCategory ?? '').trim();
+        if (!tagName) continue;
+        const key = tagKey(subId, tagName);
+        if (tagKeys.has(key)) continue;
+        tagKeys.add(key);
+        pendingTags.push({
+          name: tagName,
+          level: 'TAG',
+          categoryId: category.id,
+          parentId: subId,
+        });
+      } catch (error) {
+        fail(categoryName, error instanceof Error ? error.message : 'خطای نامشخص');
+      }
+    }
+
+    for (let index = 0; index < pendingTags.length; index += 500) {
+      const chunk = pendingTags.slice(index, index + 500);
+      await this.prisma.businessTaxonomyNode.createMany({ data: chunk });
+      result.subSubCategoriesCreated += chunk.length;
+    }
+
+    await this.activity.log({
+      action: 'TAXONOMY_BUSINESS_IMPORT',
+      summary: `ایمپورت مشاغل: ${result.categoriesCreated} دسته، ${result.subCategoriesCreated} زیردسته و ${result.subSubCategoriesCreated} زیرشاخه‌ی تازه (${result.skipped} ردیف رد شد)`,
+      entityType: 'BUSINESS_CATEGORY',
+    });
+    this.facetsCache.invalidate();
+    return result;
+  }
+
+  /** CSV of the current active cities + their neighbourhoods, import-ready. */
+  async exportCityNeighborhoodsCsv(): Promise<string> {
+    const cities = await this.prisma.city.findMany({
+      where: { isActive: true },
+      select: {
+        name: true,
+        neighborhoods: {
+          where: { isActive: true },
+          select: { name: true },
+          orderBy: { name: 'asc' },
+        },
+      },
+    });
+    const collator = new Intl.Collator('fa');
+    const ordered = [...cities].sort((a, b) => {
+      const rank = (name: string) =>
+        MAIN_CITY_ORDER.indexOf(name.trim() as (typeof MAIN_CITY_ORDER)[number]);
+      const byRank =
+        (rank(a.name) === -1 ? MAIN_CITY_ORDER.length : rank(a.name)) -
+        (rank(b.name) === -1 ? MAIN_CITY_ORDER.length : rank(b.name));
+      return byRank || collator.compare(a.name, b.name);
+    });
+    const lines: string[] = [];
+    for (const city of ordered) {
+      if (city.neighborhoods.length === 0) {
+        lines.push([city.name, ''].map(csvCell).join(','));
+        continue;
+      }
+      for (const neighborhood of city.neighborhoods) {
+        lines.push([city.name, neighborhood.name].map(csvCell).join(','));
+      }
+    }
+    return '\uFEFF' + 'شهر,محله\n' + lines.join('\n') + (lines.length ? '\n' : '');
+  }
+
+  /** CSV of the current active taxonomy: main category, sub, sub-sub. */
+  async exportBusinessTaxonomyCsv(): Promise<string> {
+    const categories = await this.prisma.businessCategory.findMany({
+      where: { isActive: true },
+      select: {
+        name: true,
+        taxonomyNodes: {
+          where: { isActive: true },
+          select: { id: true, name: true, level: true, parentId: true },
+        },
+      },
+    });
+    const collator = new Intl.Collator('fa');
+    const lines: string[] = [];
+    for (const category of [...categories].sort((a, b) =>
+      collator.compare(a.name, b.name),
+    )) {
+      const subs = category.taxonomyNodes
+        .filter((node) => node.level === 'SUB')
+        .sort((a, b) => collator.compare(a.name, b.name));
+      for (const sub of subs) {
+        const tags = category.taxonomyNodes
+          .filter((node) => node.level === 'TAG' && node.parentId === sub.id)
+          .sort((a, b) => collator.compare(a.name, b.name));
+        if (tags.length === 0) {
+          lines.push([category.name, sub.name, ''].map(csvCell).join(','));
+          continue;
+        }
+        for (const tag of tags) {
+          lines.push(
+            [category.name, sub.name, tag.name].map(csvCell).join(','),
+          );
+        }
+      }
+      if (subs.length === 0) {
+        lines.push([category.name, '', ''].map(csvCell).join(','));
+      }
+    }
+    return (
+      '\uFEFF' +
+      'کسب و کار,زیردسته,زیرشاخه\n' +
+      lines.join('\n') +
+      (lines.length ? '\n' : '')
+    );
   }
 }
