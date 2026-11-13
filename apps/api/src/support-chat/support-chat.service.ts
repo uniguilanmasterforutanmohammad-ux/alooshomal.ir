@@ -14,7 +14,6 @@ import {
 
 import { ActivityService } from '../activity/activity.service';
 import { SmsService } from '../auth/sms.service';
-import { appUrl } from '../common/app-url';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -513,10 +512,11 @@ export class SupportChatService {
       const oneLine = body.replace(/\s+/g, ' ').trim();
       const preview =
         oneLine.length > 70 ? `${oneLine.slice(0, 67)}…` : oneLine;
-      const link = `${appUrl().replace(/\/$/, '')}/admin?section=support-chat`;
+      // Melipayamak rejects texts containing links (RetStatus 14), so point
+      // the admin to the panel in words instead of appending a URL.
       const sent = await this.sms.sendText(
         config.resolvedPhone,
-        `پیام جدید پشتیبانی آنلاین\n${who}: ${preview}\n${link}`,
+        `پیام جدید پشتیبانی آنلاین\n${who}: ${preview}\nپنل مدیریت، بخش پشتیبانی آنلاین`,
       );
       if (!sent) {
         this.logger.warn('Support-chat SMS was not delivered by Melipayamak');

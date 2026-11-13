@@ -75,6 +75,26 @@ export class SmsService {
   }
 
   /**
+   * Melipayamak refuses texts that contain a link (RetStatus 14 — «متن پیامک
+   * حاوی لینک است»). SMS copy is written without URLs, and this filter is a
+   * safety net for any caller that slips one in: `http(s)://…`, `www.…` and
+   * bare domains such as `alooshomal.ir/admin?section=…` are removed.
+   */
+  private static stripLinks(text: string): string {
+    return text
+      .replace(/\bhttps?:\/\/\S+/giu, '')
+      .replace(/\bwww\.\S+/giu, '')
+      .replace(
+        /\b(?:[\p{L}\p{N}-]+\.)+(?:ir|com|net|org|io|dev|app|me|co|info|site|online|xyz|shop|store|blog|news|tech|ai)(?:\/\S*)?\b/giu,
+        '',
+      )
+      .replace(/[ \t]{2,}/g, ' ')
+      .replace(/[ \t]+$/gm, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  /**
    * Console endpoints are configured as a path (`/api/send/otp/<token>`), but
    * a full URL (or a URL pasted after the path) is a common mistake. Keep only
    * the last `/api/send/...` segment so both forms work.
@@ -240,6 +260,7 @@ export class SmsService {
    * `false`.
    */
   async sendText(phone: string, text: string): Promise<boolean> {
+    const safeText = SmsService.stripLinks(text);
     const path = SmsService.consolePath(process.env.MELIPAYAMAK_SMS_PATH);
     const from = SmsService.textFrom();
     const credentials = SmsService.restCredentials();
@@ -248,7 +269,7 @@ export class SmsService {
         ...credentials,
         to: phone,
         from,
-        text,
+        text: safeText,
         isflash: 'false',
       });
       if (result.ok) {
@@ -280,7 +301,7 @@ export class SmsService {
       const response = await fetch(`https://console.melipayamak.com${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to: phone, text }),
+        body: JSON.stringify({ from, to: phone, text: safeText }),
         signal: controller.signal,
       });
 
@@ -373,6 +394,8 @@ export class SmsService {
         return 'اعتبار حساب ملی‌پیامک کافی نیست';
       case 5:
         return 'خط فرستنده‌ی ملی‌پیامک معتبر نیست';
+      case 14:
+        return 'متن پیامک حاوی لینک است؛ لینک‌ها باید از متن حذف شوند';
       case 35:
         return 'تنظیمات ملی‌پیامک نامعتبر است (خط فرستنده و API Key را بررسی کنید)';
       case 108:
