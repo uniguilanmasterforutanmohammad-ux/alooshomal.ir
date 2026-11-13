@@ -4187,9 +4187,10 @@ html[data-theme='modern'] .directory-shell .directory-list {
    ---------------------------------------------------------------------
    The root layout writes `data-theme="modern"` + `data-skin="twitter"` for
    this option, so every structural rule of the modern theme still applies and
-   only the palette/accents below change. Design language: flat white (or pure
-   black) canvas, hairline #eff3f4/#2f3336 dividers, pill controls and the
-   signature #1d9bf0 blue.
+   only the palette/accents below change. Light mode keeps the flat X look
+   (white canvas, #eff3f4 hairlines, #1d9bf0 blue); dark mode uses the
+   Kloude-inspired navy canvas (#07080f grid), #0d0f1a 16px cards, #1c4d8d
+   actions and #6f9fe0 highlights.
    ===================================================================== */
 
 html[data-skin='twitter'] {
@@ -4213,20 +4214,20 @@ html[data-skin='twitter'] {
 
 html[data-skin='twitter'].dark {
   color-scheme: dark;
-  --vintage-paper: #000000;
-  --vintage-surface: #16181c;
-  --vintage-ring: #2f3336;
-  --vintage-accent: #1d9bf0;
-  --vintage-accent-dark: #4db5f5;
-  --vintage-accent-hover: #1a8cd8;
-  --vintage-ink: #e7e9ea;
-  --vintage-ink-soft: #71767b;
-  --vintage-border: #2f3336;
-  --indeed-blue-light: #0a2739;
-  --modern-shadow: 0 1px 2px rgba(0, 0, 0, 0.4),
-    0 16px 36px -26px rgba(0, 0, 0, 0.8);
-  --modern-shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.45),
-    0 30px 60px -32px rgba(0, 0, 0, 0.9);
+  --vintage-paper: #07080f;
+  --vintage-surface: #0d0f1a;
+  --vintage-ring: rgba(255, 255, 255, 0.1);
+  --vintage-accent: #6f9fe0;
+  --vintage-accent-dark: #8ab4f8;
+  --vintage-accent-hover: #4d6bff;
+  --vintage-ink: #e2e8f4;
+  --vintage-ink-soft: #94a3b8;
+  --vintage-border: rgba(255, 255, 255, 0.07);
+  --indeed-blue-light: rgba(28, 77, 141, 0.16);
+  --modern-shadow: 0 1px 2px rgba(0, 0, 0, 0.35),
+    0 18px 40px -30px rgba(0, 0, 0, 0.8);
+  --modern-shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.4),
+    0 30px 60px -34px rgba(0, 0, 0, 0.9);
 }
 
 /* ---- flat canvas ---- */
@@ -4280,9 +4281,18 @@ html[data-skin='twitter'].dark button[type='submit'].indeed-btn-primary,
 html[data-skin='twitter'].dark form button[type='submit'].indeed-btn,
 html[data-skin='twitter'].dark .home-hero button[type='submit'] {
   color: #ffffff;
-  background-color: #1d9bf0;
+  background-color: #1c4d8d;
   background-image: none;
-  box-shadow: 0 10px 24px -16px rgba(29, 155, 240, 0.7);
+  border-color: #1c4d8d;
+  box-shadow: none;
+}
+
+html[data-skin='twitter'].dark .indeed-btn-primary:hover,
+html[data-skin='twitter'].dark button[type='submit'].indeed-btn-primary:hover,
+html[data-skin='twitter'].dark form button[type='submit'].indeed-btn:hover,
+html[data-skin='twitter'].dark .home-hero button[type='submit']:hover {
+  background-color: #255a9f;
+  filter: none;
 }
 
 html[data-skin='twitter'] .vintage-avatar {
@@ -4309,8 +4319,9 @@ html[data-skin='twitter'] .home-hero form[role='search'] {
 }
 
 html[data-skin='twitter'].dark .home-hero form[role='search'] {
-  background: #16181c;
-  border-color: #2f3336;
+  background: #0d0f1a;
+  border-color: rgba(255, 255, 255, 0.07);
+  box-shadow: 0 18px 40px -28px rgba(0, 0, 0, 0.8);
 }
 
 html[data-skin='twitter'] .home-hero .indeed-btn {
@@ -4344,6 +4355,233 @@ html[data-skin='twitter'] .bizcard-side {
       var(--bizcard-accent) 55%,
       color-mix(in srgb, var(--bizcard-accent) 55%, #1d9bf0) 100%
     );
+}
+
+/* ---- Kloude-style dark canvas and cards -------------------------------
+   The dark Twitter skin borrows the reference site's near-black blue canvas
+   (#07080f) with a 64px hairline grid, #0d0f1a cards framed by a 1px white/7%
+   border and 16px radius, and the deep #1c4d8d action colour with #6f9fe0
+   highlights. Scoped to `html[data-skin='twitter'].dark`, so the light
+   Twitter skin and every other theme stay untouched. */
+html[data-skin='twitter'].dark body {
+  background-color: #07080f;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.016) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.016) 1px, transparent 1px);
+  background-size: 64px 64px;
+  background-attachment: fixed;
+}
+
+html[data-skin='twitter'].dark header.sticky {
+  background-color: rgba(7, 8, 15, 0.72);
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+  box-shadow: none;
+  backdrop-filter: blur(16px);
+}
+
+html[data-skin='twitter'].dark nav[aria-label='ناوبری پایین'] {
+  background-color: rgba(7, 8, 15, 0.88);
+  border-top-color: rgba(255, 255, 255, 0.07);
+  box-shadow: none;
+  backdrop-filter: blur(16px);
+}
+
+html[data-skin='twitter'].dark .indeed-btn-secondary {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  box-shadow: none;
+}
+
+html[data-skin='twitter'].dark .indeed-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(111, 159, 224, 0.35);
+  color: #e2e8f4;
+  transform: none;
+}
+
+/* Solid brand fills (search button, chat bubbles, play button) need the deep
+   action blue so white text stays readable; #6f9fe0 is reserved for text and
+   outlines. */
+html[data-skin='twitter'].dark .bg-brand,
+html[data-skin='twitter'].dark .bg-brand\/90 {
+  background-color: #1c4d8d;
+}
+
+html[data-skin='twitter'].dark .hover\:bg-brand-hover:hover {
+  background-color: #255a9f;
+}
+
+html[data-skin='twitter'].dark .indeed-input,
+html[data-skin='twitter'].dark .rich-editor {
+  background: #0d0f1a;
+  border-color: rgba(255, 255, 255, 0.07);
+  color: #e2e8f4;
+}
+
+html[data-skin='twitter'].dark .indeed-input:focus,
+html[data-skin='twitter'].dark .rich-editor:focus {
+  border-color: #1c4d8d;
+  box-shadow: 0 0 0 3px rgba(28, 77, 141, 0.25);
+}
+
+/* Cards: one-pixel frames and 16px corners replace the dashed vintage boxes. */
+html[data-skin='twitter'].dark .indeed-panel,
+html[data-skin='twitter'].dark .home-section-frame,
+html[data-skin='twitter'].dark .record-card,
+html[data-skin='twitter'].dark .record-panel,
+html[data-skin='twitter'].dark .bizcard,
+html[data-skin='twitter'].dark .tw-card {
+  background: #0d0f1a;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  box-shadow: none;
+}
+
+html[data-skin='twitter'].dark .home-section-frame::before {
+  display: none;
+}
+
+html[data-skin='twitter'].dark .tw-main {
+  background: transparent;
+  border-inline: 0;
+}
+
+html[data-skin='twitter'].dark .tw-header {
+  margin: 12px 14px 0;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  background: rgba(13, 15, 26, 0.86);
+  backdrop-filter: blur(16px);
+}
+
+html[data-skin='twitter'].dark .tw-composer {
+  margin: 12px 14px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  background: #0d0f1a;
+}
+
+html[data-skin='twitter'].dark .tw-post {
+  margin: 10px 14px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  background: #0d0f1a;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+html[data-skin='twitter'].dark .tw-post:hover {
+  border-color: rgba(28, 77, 141, 0.45);
+  background: #0f1220;
+}
+
+html[data-skin='twitter'].dark .tw-composer-prompt {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #64748b;
+}
+
+html[data-skin='twitter'].dark .tw-composer-prompt:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(28, 77, 141, 0.4);
+  color: #94a3b8;
+}
+
+html[data-skin='twitter'].dark .tw-search {
+  background: #0d0f1a;
+  border-color: rgba(255, 255, 255, 0.07);
+}
+
+html[data-skin='twitter'].dark .tw-search:focus-within {
+  border-color: #1c4d8d;
+  background: #0d0f1a;
+  box-shadow: 0 0 0 3px rgba(28, 77, 141, 0.2);
+}
+
+html[data-skin='twitter'].dark .tw-rail-link {
+  color: #94a3b8;
+}
+
+html[data-skin='twitter'].dark .tw-rail-link:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #e2e8f4;
+}
+
+html[data-skin='twitter'].dark .tw-rail-link[aria-current='page'] {
+  color: #6f9fe0;
+}
+
+html[data-skin='twitter'].dark .tw-topic-chip {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+}
+
+html[data-skin='twitter'].dark .tw-topic-chip:hover {
+  background: rgba(28, 77, 141, 0.14);
+  border-color: rgba(111, 159, 224, 0.35);
+  color: #6f9fe0;
+}
+
+html[data-skin='twitter'].dark .tw-topic-chip[data-active='true'] {
+  background: #1c4d8d;
+  border-color: #1c4d8d;
+  color: #ffffff;
+}
+
+html[data-skin='twitter'].dark .tw-icon-btn,
+html[data-skin='twitter'].dark .tw-action {
+  color: #94a3b8;
+}
+
+html[data-skin='twitter'].dark .tw-icon-btn:hover,
+html[data-skin='twitter'].dark .tw-action:hover {
+  background: rgba(28, 77, 141, 0.16);
+  color: #6f9fe0;
+}
+
+html[data-skin='twitter'].dark .tw-avatar-me {
+  background: rgba(28, 77, 141, 0.2);
+  color: #6f9fe0;
+}
+
+html[data-skin='twitter'].dark .tw-card-more {
+  color: #6f9fe0;
+}
+
+html[data-skin='twitter'].dark .record-head {
+  background: linear-gradient(135deg, #0f2a4d 0%, #1c4d8d 55%, #2a5fa8 100%);
+}
+
+html[data-skin='twitter'].dark .bizcard-side {
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(111, 159, 224, 0.22), transparent 55%),
+    linear-gradient(155deg, #0f2a4d 0%, #1c4d8d 55%, #2a5fa8 100%);
+}
+
+html[data-skin='twitter'].dark .vintage-avatar {
+  background: linear-gradient(135deg, #1c4d8d, #4d6bff);
+  box-shadow: 0 8px 22px -12px rgba(77, 107, 255, 0.75);
+}
+
+/* The home hero becomes a dark canvas with a soft blue glow, like the
+   reference site, instead of the bright blue block used in light mode. */
+html[data-skin='twitter'].dark .home-hero {
+  background-color: #07080f;
+  background-image:
+    radial-gradient(60% 80% at 12% 18%, rgba(111, 159, 224, 0.16), transparent 62%),
+    radial-gradient(52% 72% at 88% 4%, rgba(77, 107, 255, 0.12), transparent 60%),
+    linear-gradient(rgba(255, 255, 255, 0.016) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.016) 1px, transparent 1px);
+  background-size: auto, auto, 64px 64px, 64px 64px;
+  box-shadow: none;
+}
+
+html[data-skin='twitter'].dark .tw-media {
+  background: #0d0f1a;
+  border-color: rgba(255, 255, 255, 0.07);
 }
 
 /* =====================================================================

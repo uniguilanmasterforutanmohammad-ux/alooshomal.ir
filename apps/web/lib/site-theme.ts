@@ -93,7 +93,8 @@ export const SITE_THEME_OPTIONS: Array<{
   {
     key: 'twitter',
     name: 'توییتر (روشن/تیره)',
-    description: 'ظاهر تخت و مینیمال توییتر/X؛ زمینه‌ی سفید یا مشکی، خطوط نازک و آبی #1d9bf0.',
+    description:
+      'ظاهر تخت و مینیمال توییتر/X؛ زمینه‌ی روشن یا سرمه‌ای تیره با کارت‌های ۱۶px و آبی #1c4d8d.',
   },
   ...EXTRA_SITE_THEMES.map((theme) => ({
     key: theme.key,

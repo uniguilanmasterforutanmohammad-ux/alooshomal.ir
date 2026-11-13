@@ -244,15 +244,17 @@ function ThemePreview({ variant }: { variant: SiteTheme }) {
               <span className="mt-1 block h-1.5 w-2/3 rounded-full bg-[#cfd9de]" />
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-lg bg-[#0f1419] px-2 py-1.5">
-            <span className="size-3 rounded-full bg-[#1d9bf0]" />
-            <span className="h-1.5 w-10 rounded-full bg-[#536471]" />
-            <span className="ms-auto h-1.5 w-6 rounded-full bg-[#71767b]" />
+          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#0d0f1a] px-2 py-1.5">
+            <span className="size-3 rounded-full bg-[#1c4d8d]" />
+            <span className="h-1.5 w-10 rounded-full bg-[#6f9fe0]/70" />
+            <span className="ms-auto h-1.5 w-6 rounded-full bg-[#94a3b8]" />
           </div>
         </div>
         <div className="mt-1.5 flex items-center gap-1 px-1">
-          <span className="size-2 rounded-full bg-[#1d9bf0]" />
-          <span className="text-[8px] font-bold text-[#536471]">سفید / مشکی · آبی X</span>
+          <span className="size-2 rounded-full bg-[#1c4d8d]" />
+          <span className="text-[8px] font-bold text-[#536471]">
+            سفید / سرمه‌ای · کارت‌های کلود
+          </span>
         </div>
       </div>
     );

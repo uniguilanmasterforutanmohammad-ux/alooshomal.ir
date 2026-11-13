@@ -23,9 +23,10 @@ interface Props {
 /**
  * One post in the Twitter/X-style `/feeds` timeline: a flat row (no card box)
  * with a round avatar on the inline-start side, the author line, the text and
- * images, and an evenly spaced icon action bar underneath. The row itself is
- * not a link because it holds interactive buttons; the avatar, timestamp and
- * comment action open the single-post page.
+ * images, and an evenly spaced icon action bar underneath. The dark Twitter
+ * skin frames the row as a card, matching the reference cloud-console look.
+ * The row itself is not a link because it holds interactive buttons; the
+ * avatar, timestamp and comment action open the single-post page.
  */
 export function FeedCard({ post, compact = false }: Props) {
   const now = new Date();
