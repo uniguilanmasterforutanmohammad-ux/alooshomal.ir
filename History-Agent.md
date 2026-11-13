@@ -20,7 +20,36 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.55.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.55.1**.
+
+## ۱۴۰۵/۰۸/۲۲ — ارسال API Key ملی‌پیامک در پارامتر `password` — نسخه `v3.55.1`
+
+**هدف:** پیام آزمایشی «پشتیبانی آنلاین» و کد ورود هنوز ارسال نمی‌شد. لاگ پنل
+ملی‌پیامک برای `POST rest.payamak-panel.com/api/SendSMS/SendSMS` نشان می‌داد
+`password: null` و خروجی `RetStatus 35 / InvalidData` است. علت: کد کلید API را
+در فیلد جداگانه‌ی `apiKey` می‌فرستاد، ولی ملی‌پیامک کلید را فقط در پارامتر
+`password` می‌پذیرد و فیلد ناشناخته را بی‌صدا دور می‌ریزد.
+
+**تغییرات:**
+- `apps/api/src/auth/sms.service.ts`: `restCredentials()` حالا
+  `{ username, password: MELIPAYAMAK_API_KEY }` برمی‌گرداند تا کلید API دقیقاً
+  در پارامتر `password` وب‌سرویس REST برود؛ نام فیلد `isFlash` هم مطابق قرارداد
+  ملی‌پیامک به `isflash` اصلاح شد. توضیح متد به‌روز شد که فیلد `apiKey` توسط
+  ارائه‌دهنده نادیده گرفته می‌شود.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v3.55.1`.
+
+**تأیید/تست:**
+- فراخوانی مستقیم REST با همان مقادیر `.env` و `password` = API Key →
+  `{"Value":"11","RetStatus":1,"StrRetStatus":"Ok"}` (پیامک واقعی تحویل شد).
+- اجرای خود `SmsService.sendText` روی سورس بازسازی‌شده در کانتینر API (با
+  تزریق `MELIPAYAMAK_USERNAME`/`MELIPAYAMAK_API_KEY`/`MELIPAYAMAK_SMS_FROM`)
+  → `enabled true` و `Alert SMS sent` و خروجی `true`.
+- اجرای `SmsService.sendOtp` با همان تنظیمات → `code delivered` (مسیر
+  `SendOtp`/`SendSMS` با کلید در `password` کار می‌کند).
+- `docker exec alooshomal-api npx tsc --noEmit` → exit 0.
+- توجه: کانتینر محلی فقط `MELIPAYAMAK_OTP_PATH` را داشت چون پیش از افزودن
+  متغیرهای جدید بالا آمده بود؛ در استقرار بعدی، متغیرها از `.env` سرور به
+  کانتینر می‌رسند.
 
 ## ۱۴۰۵/۰۸/۲۲ — هم‌خوان‌سازی حالت تیره‌ی تم توییتر با استایل کلود — نسخه `v3.55.0`
 

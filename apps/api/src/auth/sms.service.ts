@@ -31,17 +31,19 @@ export class SmsService {
 
   /**
    * Credentials for Melipayamak's REST web service (`rest.payamak-panel.com`).
-   * The API key is sent in the `password` parameter, exactly as the panel
+   * The API key must travel in the `password` parameter, exactly as the panel
    * instructs ("برای استفاده از APIKey مقدار آن را به‌جای رمز عبور در پارامتر
-   * Password بفرستید").
+   * Password بفرستید"). Sending it as a separate `apiKey` field is silently
+   * ignored by the provider, which then answers `InvalidData` (RetStatus 35)
+   * because `password` arrives null.
    */
   private static restCredentials(): {
     username: string;
-    apiKey: string;
+    password: string;
   } | null {
     const username = process.env.MELIPAYAMAK_USERNAME?.trim();
     const apiKey = process.env.MELIPAYAMAK_API_KEY?.trim();
-    return username && apiKey ? { username, apiKey } : null;
+    return username && apiKey ? { username, password: apiKey } : null;
   }
 
   /**
@@ -134,7 +136,7 @@ export class SmsService {
         to: phone,
         from,
         text: `کد ورود شما به الوشمال: ${code}`,
-        isFlash: 'false',
+        isflash: 'false',
       });
       if (textResult.ok) return code;
 
@@ -247,7 +249,7 @@ export class SmsService {
         to: phone,
         from,
         text,
-        isFlash: 'false',
+        isflash: 'false',
       });
       if (result.ok) {
         this.logger.log(`Alert SMS sent to ${SmsService.maskPhone(phone)}`);
