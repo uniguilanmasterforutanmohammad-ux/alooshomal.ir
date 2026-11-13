@@ -261,10 +261,10 @@ export class OtpService {
       code = DEV_OTP_CODE;
       this.logger.log(`[dev] OTP for ${phone} is ${code} (SMS disabled)`);
     } else {
-      // Production without a Melipayamak path: refuse instead of handing out
-      // the fixed dev code to real users.
+      // Production without any Melipayamak transport (token path or REST
+      // username/APIKey): refuse instead of handing out the fixed dev code.
       this.logger.error(
-        `OTP request for ${phone} rejected: MELIPAYAMAK_OTP_PATH is not set in production`,
+        `OTP request for ${phone} rejected: no Melipayamak transport is configured in production`,
       );
       throw new ServiceUnavailableException(
         'ارسال پیامک در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',

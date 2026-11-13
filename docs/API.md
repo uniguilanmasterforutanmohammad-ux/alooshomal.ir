@@ -161,7 +161,10 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 
 کانال پیامک از `MELIPAYAMAK_SMS_PATH` (مسیر ساده‌ی ارسال، مثل
 `/api/send/simple/<token>`) و `MELIPAYAMAK_SMS_FROM` (خط فرستنده، همان مقدار
-`from` در بدنه‌ی درخواست) استفاده می‌کند و ایمیل از همان `MAIL_*` موجود.
+`from` در بدنه‌ی درخواست) استفاده می‌کند؛ اگر مسیر توکنی تنظیم نشده باشد،
+همین ارسال از وب‌سرویس REST ملی‌پیامک با `MELIPAYAMAK_USERNAME` +
+`MELIPAYAMAK_API_KEY` (APIKey در پارامتر `password`) انجام می‌شود. ایمیل از
+همان `MAIL_*` موجود.
 در صورت تنظیم‌نبودن هر کانال، هشدار درون‌برنامه‌ای (دسته‌ی `SYSTEM`) همچنان ثبت
 می‌شود.
 
@@ -519,7 +522,7 @@ PY
 | `GET` | `/support/chat/me/stream?ticket=…` | عمومی (با تیکت) | جریان زنده‌ی پیام‌های من. |
 | `GET` | `/admin/support/chat` | ADMIN | فهرست گفتگوها با فیلتر `status` و جستجوی `q`. |
 | `GET` | `/admin/support/chat/unread-count` | ADMIN | مجموع پیام‌های خوانده‌نشده و تعداد گفتگوهای باز. |
-| `GET` | `/admin/support/chat/sms-settings` | ADMIN | تنظیمات پیامک هشدار: `enabled`، `phone` (مقدار ذخیره‌شده)، `resolvedPhone` (شماره‌ی مؤثر)، `phoneFromAdminAccount` و `channelReady` (آماده‌بودن `MELIPAYAMAK_SMS_PATH` و `MELIPAYAMAK_SMS_FROM`). |
+| `GET` | `/admin/support/chat/sms-settings` | ADMIN | تنظیمات پیامک هشدار: `enabled`، `phone` (مقدار ذخیره‌شده)، `resolvedPhone` (شماره‌ی مؤثر)، `phoneFromAdminAccount` و `channelReady` (آماده‌بودن مسیر توکنی یا نام کاربری/APIKey همراه خط فرستنده). |
 | `PATCH` | `/admin/support/chat/sms-settings` | ADMIN | ذخیره‌ی `{ enabled?, phone? }`؛ `phone` خالی یعنی استفاده از `SUPPORT_CHAT_ALERT_PHONE` و سپس شماره‌ی قدیمی‌ترین ادمین فعال. |
 | `GET` | `/admin/support/chat/:id` | ADMIN | جزئیات کامل گفتگو. |
 | `POST` | `/admin/support/chat/:id/messages` | ADMIN | پاسخ مدیر (گفتگو در صورت بسته‌بودن باز می‌شود). |
@@ -532,7 +535,8 @@ PY
 پیام‌های قبلی توسط ادمین)، علاوه بر اعلان داخل پنل یک پیامک کوتاه شامل نام
 کاربر، خلاصه‌ی پیام و لینک صندوق پشتیبانی به شماره‌ی مؤثر ارسال می‌شود. پیام‌های
 بعدی همان دسته پیامک تکراری نمی‌فرستند. ارسال واقعی فقط وقتی انجام می‌شود که
-`MELIPAYAMAK_SMS_PATH` و `MELIPAYAMAK_SMS_FROM` روی سرور تنظیم شده باشند؛ در
+`MELIPAYAMAK_SMS_PATH` و `MELIPAYAMAK_SMS_FROM` (یا `MELIPAYAMAK_USERNAME` +
+`MELIPAYAMAK_API_KEY` + `MELIPAYAMAK_SMS_FROM`) روی سرور تنظیم شده باشند؛ در
 غیر این صورت تنظیمات ذخیره می‌شود ولی کانال پیامک خاموش می‌ماند.
 
 **نکته‌ی حقوقی/دسترسی:** پشتیبانی و همه‌ی راه‌های تماس با پشتیبان مطابق

@@ -149,9 +149,12 @@ export function AdminSupportSmsSettings() {
 
           {!settings.channelReady ? (
             <p className="mt-3 rounded-lg bg-amber-50 p-2 text-[11px] leading-5 text-amber-800">
-              ارسال واقعی پیامک نیازمند تنظیم <code>MELIPAYAMAK_SMS_PATH</code>{' '}
-              و <code>MELIPAYAMAK_SMS_FROM</code> (خط فرستنده) روی سرور است. تا
-              آن زمان تنظیمات ذخیره می‌شود ولی پیامکی ارسال نمی‌شود.
+              ارسال واقعی پیامک نیازمند تنظیم <code>MELIPAYAMAK_SMS_FROM</code>{' '}
+              (خط فرستنده) و یکی از دو روش{' '}
+              <code>MELIPAYAMAK_SMS_PATH</code> یا{' '}
+              <code>MELIPAYAMAK_USERNAME</code> +{' '}
+              <code>MELIPAYAMAK_API_KEY</code> روی سرور است. تا آن زمان
+              تنظیمات ذخیره می‌شود ولی پیامکی ارسال نمی‌شود.
             </p>
           ) : null}
 

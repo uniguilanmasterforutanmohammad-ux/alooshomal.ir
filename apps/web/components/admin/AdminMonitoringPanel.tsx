@@ -488,7 +488,7 @@ export function AdminMonitoringPanel() {
               )}
               {snapshot.channels.sms
                 ? 'ارسال پیامک تنظیم شده است.'
-                : 'MELIPAYAMAK_SMS_PATH تنظیم نشده؛ پیامک ارسال نمی‌شود.'}
+                : 'کانال پیامک تنظیم نشده (مسیر توکنی یا نام کاربری/APIKey)؛ پیامک ارسال نمی‌شود.'}
             </span>
           </div>
 

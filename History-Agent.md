@@ -20,7 +20,46 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.52.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.53.0**.
+
+## ۱۴۰۵/۰۸/۲۲ — پشتیبانی از ارسال پیامک ملی‌پیامک با نام کاربری + APIKey — نسخه `v3.53.0`
+
+**هدف:** کاربر یک API جدید از ملی‌پیامک گرفت که مطابق راهنمای پنل، به‌جای رمز
+عبور باید `APIKey` در پارامتر `Password` متدها فرستاده شود. پیاده‌سازی قبلی
+فقط مسیر توکنی کنسول (`MELIPAYAMAK_OTP_PATH`) را می‌شناخت، بنابراین ارسال کد
+با کلید جدید کار نمی‌کرد.
+
+**تغییرات:**
+- `apps/api/src/auth/sms.service.ts`: افزودن حالت دوم ارسال از وب‌سرویس REST
+  ملی‌پیامک (`rest.payamak-panel.com/api/SendSMS/...`). برای OTP خودمان کد
+  شش‌رقمی می‌سازیم و با متد `SendOtp` می‌فرستیم؛ برای پیامک ساده از `SendSMS`
+  استفاده می‌شود. `MELIPAYAMAK_API_KEY` در پارامتر `password` قرار می‌گیرد.
+  `enabled`/`textEnabled` حالا هر دو حالت (مسیر توکنی یا نام کاربری + APIKey)
+  را پوشش می‌دهند و حالت APIKey در صورت کامل‌بودن اولویت دارد.
+- `apps/api/src/auth/otp.service.ts`: پیام خطای پروداکشن حالا «نبود هر دو
+  روش» را گزارش می‌کند، نه فقط نبود `MELIPAYAMAK_OTP_PATH`.
+- `docker-compose.yml` و `docker-compose.prod.yml`: عبور
+  `MELIPAYAMAK_USERNAME`، `MELIPAYAMAK_API_KEY` و `MELIPAYAMAK_OTP_FROM` به
+  کانتینر API.
+- `.env.example` و `docs/DEPLOY.md`: مستندسازی متغیرهای جدید و اولویت حالت
+  توکنی.
+- `docs/API.md`: به‌روزرسانی توضیح کانال پیامک پایش/پشتیبانی و `channelReady`.
+- `apps/web/components/admin/AdminSupportSmsSettings.tsx` و
+  `apps/web/components/admin/AdminMonitoringPanel.tsx`: پیام هشدار نبود کانال
+  حالا هر دو روش تنظیم را نام می‌برد.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v3.53.0`.
+
+**تأیید/تست:**
+- شکل پاسخ REST با درخواست بدون اعتبار بررسی شد:
+  `POST https://rest.payamak-panel.com/api/SendSMS/SendOtp` →
+  `{"Value":"0","RetStatus":35,"StrRetStatus":"InvalidData"}`؛ کد موفقیت
+  (`RetStatus === 1`) و کدهای خطا مطابق مستندات ملی‌پیامک در سرویس لحاظ شد.
+- `apps/api/node_modules/.bin/tsc --noEmit` برای فایل تغییرکرده خطای جدیدی
+  نشان نداد (خطاهای موجود `wallet`/`taxonomy` از قبل و مربوط به Prisma client
+  قدیمی‌اند).
+- `apps/web/node_modules/.bin/tsc --noEmit` برای دو کامپوننت تغییریافته بدون
+  خطا بود.
+- `python3 scripts/sync_install.py --check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۱ — اصلاح بدنه‌ی ارسال پیامک ساده‌ی ملی‌پیامک (`from`) — نسخه `v3.52.1`
 
