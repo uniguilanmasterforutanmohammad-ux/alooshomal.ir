@@ -100,10 +100,13 @@ MINIO_PUBLIC_URL=https://alooshomal.ir/media
 MELIPAYAMAK_OTP_PATH=/api/send/otp/<توکن-اختصاصی-شما>
 # روش جایگزین (وب‌سرویس REST ملی‌پیامک): نام کاربری پنل + APIKey.
 # APIKey دقیقاً در پارامتر Password همین درخواست‌ها فرستاده می‌شود.
-# اگر این روش کامل ست باشد، بر MELIPAYAMAK_OTP_PATH اولویت دارد.
+# اگر این روش کامل ست باشد، بر MELIPAYAMAK_OTP_PATH اولویت دارد؛ ولی اگر
+# SendOtp رد شود (مثلاً InvalidData)، ارسال با SendSMS ساده و سپس مسیر کنسول
+# دوباره تلاش می‌شود. پس MELIPAYAMAK_OTP_PATH را به‌عنوان پشتیبان نگه دارید.
 MELIPAYAMAK_USERNAME=<نام-کاربری-پنل>
 MELIPAYAMAK_API_KEY=<APIKey-پنل>
 # خط فرستنده برای OTP در حالت REST؛ خالی یعنی از MELIPAYAMAK_SMS_FROM استفاده شود.
+# باید عددی باشد (مثل 500010605021)؛ مقدار جای‌نگهدار «خط-فرستنده» نادیده گرفته می‌شود.
 MELIPAYAMAK_OTP_FROM=<خط-فرستنده>
 # مسیر ارسال پیامک متنی ساده (برای هشدار منابع سرور) — اختیاری
 MELIPAYAMAK_SMS_PATH=/api/send/simple/<توکن-اختصاصی-شما>
@@ -140,7 +143,12 @@ EOF
 > اگر به‌جای مسیر توکنی، `MELIPAYAMAK_USERNAME` و `MELIPAYAMAK_API_KEY` (و یک خط
 > فرستنده در `MELIPAYAMAK_OTP_FROM` یا `MELIPAYAMAK_SMS_FROM`) تنظیم شوند، API خودش
 > کد را می‌سازد و با متد `SendOtp` وب‌سرویس REST (`rest.payamak-panel.com`) می‌فرستد؛
-> در این حالت APIKey در پارامتر `password` قرار می‌گیرد.
+> در این حالت APIKey در پارامتر `password` قرار می‌گیرد. اگر `SendOtp` با
+> `InvalidData` رد شود، همان کد با `SendSMS` ساده دوباره فرستاده می‌شود و در صورت
+> شکست، مسیر کنسول (`MELIPAYAMAK_OTP_PATH`) به‌عنوان پشتیبان استفاده می‌شود.
+> APIKey باید از «توسعه‌دهندگان ← تنظیمات وب‌سرویس» پنل گرفته شده باشد و IP سرور
+> در فهرست IPهای مجاز همان بخش ثبت شده باشد؛ در غیر این صورت ملی‌پیامک
+> `InvalidData` برمی‌گرداند.
 > فعال/غیرفعال بودن کل این روش از پنل مدیر → «تنظیمات» → «روش‌های ورود و ثبت‌نام» قابل
 > کنترل است.
 
