@@ -190,6 +190,14 @@ export class AdminSupportChatController {
     return this.chat.updateSmsSettings(dto);
   }
 
+  @Post('sms-test')
+  @ApiOperation({
+    summary: 'ارسال پیامک آزمایشی به خط هشدار پیام جدید پشتیبانی',
+  })
+  testSms() {
+    return this.chat.sendTestSms();
+  }
+
   @Get('stream-ticket')
   @ApiOperation({ summary: 'صدور تیکت یک‌بارمصرف برای جریان زنده‌ی صندوق پشتیبانی' })
   streamTicket(@CurrentUser() admin: AuthUser) {

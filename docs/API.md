@@ -524,6 +524,7 @@ PY
 | `GET` | `/admin/support/chat/unread-count` | ADMIN | مجموع پیام‌های خوانده‌نشده و تعداد گفتگوهای باز. |
 | `GET` | `/admin/support/chat/sms-settings` | ADMIN | تنظیمات پیامک هشدار: `enabled`، `phone` (مقدار ذخیره‌شده)، `resolvedPhone` (شماره‌ی مؤثر)، `phoneFromAdminAccount` و `channelReady` (آماده‌بودن مسیر توکنی یا نام کاربری/APIKey همراه خط فرستنده). |
 | `PATCH` | `/admin/support/chat/sms-settings` | ADMIN | ذخیره‌ی `{ enabled?, phone? }`؛ `phone` خالی یعنی استفاده از `SUPPORT_CHAT_ALERT_PHONE` و سپس شماره‌ی قدیمی‌ترین ادمین فعال. |
+| `POST` | `/admin/support/chat/sms-test` | ADMIN | ارسال پیامک آزمایشی به شماره‌ی مؤثر و برگرداندن `{ sent, phone, channelReady, enabled }`. |
 | `GET` | `/admin/support/chat/:id` | ADMIN | جزئیات کامل گفتگو. |
 | `POST` | `/admin/support/chat/:id/messages` | ADMIN | پاسخ مدیر (گفتگو در صورت بسته‌بودن باز می‌شود). |
 | `POST` | `/admin/support/chat/:id/read` | ADMIN | خواندن پیام‌های کاربر. |
@@ -535,9 +536,12 @@ PY
 پیام‌های قبلی توسط ادمین)، علاوه بر اعلان داخل پنل یک پیامک کوتاه شامل نام
 کاربر، خلاصه‌ی پیام و لینک صندوق پشتیبانی به شماره‌ی مؤثر ارسال می‌شود. پیام‌های
 بعدی همان دسته پیامک تکراری نمی‌فرستند. ارسال واقعی فقط وقتی انجام می‌شود که
-`MELIPAYAMAK_SMS_PATH` و `MELIPAYAMAK_SMS_FROM` (یا `MELIPAYAMAK_USERNAME` +
-`MELIPAYAMAK_API_KEY` + `MELIPAYAMAK_SMS_FROM`) روی سرور تنظیم شده باشند؛ در
-غیر این صورت تنظیمات ذخیره می‌شود ولی کانال پیامک خاموش می‌ماند.
+یک خط فرستنده‌ی عددی (`MELIPAYAMAK_SMS_FROM` یا `MELIPAYAMAK_OTP_FROM`) و یکی
+از دو روش `MELIPAYAMAK_SMS_PATH` یا `MELIPAYAMAK_USERNAME` +
+`MELIPAYAMAK_API_KEY` روی سرور تنظیم شده باشند؛ در غیر این صورت تنظیمات ذخیره
+می‌شود ولی کانال پیامک خاموش می‌ماند. اگر REST رد شود، ارسال از مسیر کنسول
+دوباره تلاش می‌شود و `POST /admin/support/chat/sms-test` نتیجه‌ی واقعی را
+برمی‌گرداند.
 
 **نکته‌ی حقوقی/دسترسی:** پشتیبانی و همه‌ی راه‌های تماس با پشتیبان مطابق
 `AGENTS.md` همیشه فعال هستند و سوئیچ ویژگی نمی‌گیرند. هر کاربر فقط به گفتگوهای

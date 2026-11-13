@@ -20,7 +20,46 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.53.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.54.0**.
+
+## ۱۴۰۵/۰۸/۲۲ — رفع ارسال‌نشدن پیامک هشدار پشتیبانی و افزودن تست کانال — نسخه `v3.54.0`
+
+**هدف:** با ارسال پیام تازه در «پشتیبانی آنلاین» هیچ پیامکی به شماره‌ی ادمین
+نمی‌رسید. علت‌های ممکن متعدد بود: رد شدن اعتبارنامه‌ی REST ملی‌پیامک بدون
+هیچ مسیر پشتیبان، نبود لاگ برای رد شدن هشدار (خاموشی/نبود شماره/نبود کانال)،
+پشتیبانی‌نشدن ارقام فارسی در شماره، و نبود راهی برای تست واقعی کانال از پنل.
+
+**تغییرات:**
+- `apps/api/src/auth/sms.service.ts`: اگر `SendSMS` در حالت REST رد شود، حالا
+  همان متن از مسیر کنسول (`MELIPAYAMAK_SMS_PATH`) دوباره ارسال می‌شود. خط
+  فرستنده‌ی پیامک ساده هم می‌تواند از `MELIPAYAMAK_OTP_FROM` بیاید و
+  `textEnabled`/لاگ‌ها همین را منعکس می‌کنند.
+- `apps/api/src/support-chat/support-chat.service.ts`: شماره‌های فارسی/عربی
+  نرمال می‌شوند؛ دلیل رد شدن هر هشدار (خاموش، نبود شماره، نبود کانال) و
+  ارسال‌نشدن توسط ملی‌پیامک در لاگ ثبت می‌شود؛ متد `sendTestSms()` برای ارسال
+  پیام آزمایشی به خط مؤثر اضافه شد.
+- `apps/api/src/support-chat/support-chat.controller.ts`: مسیر
+  `POST /api/admin/support/chat/sms-test` با `@ApiOperation` اضافه شد.
+- `apps/web/components/admin/AdminSupportSmsSettings.tsx`: دکمه‌ی «ارسال پیامک
+  آزمایشی» و نمایش نتیجه/علت شکست؛ هشدار نبود کانال حالا
+  `MELIPAYAMAK_OTP_FROM` را هم نام می‌برد.
+- `docs/API.md`: ثبت مسیر تست با خروجی `{ sent, phone, channelReady, enabled }`.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v3.54.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit` → exit 0.
+- ESLint روی سه فایل API و کامپوننت پنل → بدون خطا (فقط هشدار از قبل موجود
+  `set-state-in-effect`).
+- `python3 scripts/check_api_docs.py` → ۳۷ کنترلر / ۴۱۲ مسیر، exit 0.
+- تست `sendText` با `fetch` جعلی: شکست REST → فراخوانی مسیر کنسول و `true`؛
+  موفقیت REST → بدون فراخوانی کنسول؛ رد شدن هر دو → `false`.
+- تست `textEnabled` فقط با `MELIPAYAMAK_OTP_FROM` (بدون `MELIPAYAMAK_SMS_FROM`)
+  → `true` و ارسال از REST.
+- فراخوانی واقعی مسیر جدید روی API لوکال با نشست موقت ادمین →
+  `{"sent":false,"phone":"","channelReady":false,"enabled":true}` (چون
+  متغیرهای ملی‌پیامک در کانتینر لوکال تنظیم نیستند). نشست تستی حذف شد.
+- `python3 scripts/sync_install.py --check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۲ — رفع خطای `InvalidData` در ارسال OTP و افزودن مسیر پشتیبان — نسخه `v3.53.1`
 

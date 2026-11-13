@@ -33,7 +33,10 @@ const WELCOME_MESSAGE =
 
 /** Normalise Iranian mobile numbers to the `09xxxxxxxxx` form Melipayamak uses. */
 function normalisePhone(raw: string | null | undefined): string {
-  const digits = (raw ?? '').replace(/[\s\-()]/g, '');
+  const digits = (raw ?? '')
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[\s\-()]/g, '');
   if (!digits) return '';
   if (digits.startsWith('+98')) return `0${digits.slice(3)}`;
   if (digits.startsWith('0098')) return `0${digits.slice(4)}`;
@@ -489,17 +492,35 @@ export class SupportChatService {
   ): Promise<void> {
     try {
       const config = await this.getSmsSettings();
-      if (!config.enabled || !config.resolvedPhone || !config.channelReady) return;
+      if (!config.enabled) {
+        this.logger.debug('Support-chat SMS skipped: disabled in settings');
+        return;
+      }
+      if (!config.resolvedPhone) {
+        this.logger.warn(
+          'Support-chat SMS skipped: no recipient phone (panel, SUPPORT_CHAT_ALERT_PHONE and admin account are all empty)',
+        );
+        return;
+      }
+      if (!config.channelReady) {
+        this.logger.warn(
+          'Support-chat SMS skipped: Melipayamak channel is not configured',
+        );
+        return;
+      }
       const who =
         conversation.user?.fullName ?? conversation.user?.email ?? 'یک کاربر';
       const oneLine = body.replace(/\s+/g, ' ').trim();
       const preview =
         oneLine.length > 70 ? `${oneLine.slice(0, 67)}…` : oneLine;
       const link = `${appUrl().replace(/\/$/, '')}/admin?section=support-chat`;
-      await this.sms.sendText(
+      const sent = await this.sms.sendText(
         config.resolvedPhone,
         `پیام جدید پشتیبانی آنلاین\n${who}: ${preview}\n${link}`,
       );
+      if (!sent) {
+        this.logger.warn('Support-chat SMS was not delivered by Melipayamak');
+      }
     } catch (error) {
       this.logger.error(
         `Support-chat SMS failed: ${
@@ -507,6 +528,37 @@ export class SupportChatService {
         }`,
       );
     }
+  }
+
+  /**
+   * Sends a test SMS to the configured support line so an admin can verify the
+   * provider credentials instead of waiting for a real user message.
+   */
+  async sendTestSms(): Promise<{
+    sent: boolean;
+    phone: string;
+    channelReady: boolean;
+    enabled: boolean;
+  }> {
+    const config = await this.getSmsSettings();
+    if (!config.enabled || !config.resolvedPhone || !config.channelReady) {
+      return {
+        sent: false,
+        phone: config.resolvedPhone,
+        channelReady: config.channelReady,
+        enabled: config.enabled,
+      };
+    }
+    const sent = await this.sms.sendText(
+      config.resolvedPhone,
+      'پیام آزمایشی پشتیبانی آنلاین شمالی کارت\nاگر این پیام را دریافت کردید، کانال پیامک درست تنظیم شده است.',
+    );
+    return {
+      sent,
+      phone: config.resolvedPhone,
+      channelReady: config.channelReady,
+      enabled: config.enabled,
+    };
   }
 
   async updateForAdmin(

@@ -63,6 +63,15 @@ export class SmsService {
     return candidates.find((value) => SmsService.isSenderLine(value))?.trim() ?? '';
   }
 
+  /** Sender line for plain-text SMS; falls back to the OTP line. */
+  private static textFrom(): string {
+    const candidates = [
+      process.env.MELIPAYAMAK_SMS_FROM,
+      process.env.MELIPAYAMAK_OTP_FROM,
+    ];
+    return candidates.find((value) => SmsService.isSenderLine(value))?.trim() ?? '';
+  }
+
   /**
    * Console endpoints are configured as a path (`/api/send/otp/<token>`), but
    * a full URL (or a URL pasted after the path) is a common mistake. Keep only
@@ -206,11 +215,11 @@ export class SmsService {
 
   /** True when a Melipayamak *simple send* path is configured. */
   get textEnabled(): boolean {
-    const from = process.env.MELIPAYAMAK_SMS_FROM?.trim();
+    const from = SmsService.textFrom();
     return Boolean(
       (SmsService.consolePath(process.env.MELIPAYAMAK_SMS_PATH) &&
-        SmsService.isSenderLine(from)) ||
-        (SmsService.restCredentials() && SmsService.isSenderLine(from)),
+        from) ||
+        (SmsService.restCredentials() && from),
     );
   }
 
@@ -221,17 +230,18 @@ export class SmsService {
    * for admin alerts.
    *
    * The path (which embeds the token) lives in `MELIPAYAMAK_SMS_PATH`, e.g.
-   * `/api/send/simple/<token>`, and the sender line must be provided in
-   * `MELIPAYAMAK_SMS_FROM` — Melipayamak's simple-send contract requires both
-   * `from` and `to` in the JSON body (see `console.melipayamak.com/send/simple`).
-   * Never throws: monitoring must not crash when SMS is unavailable; the
-   * caller just gets `false`.
+   * `/api/send/simple/<token>`, and the sender line comes from
+   * `MELIPAYAMAK_SMS_FROM` (falling back to `MELIPAYAMAK_OTP_FROM`) —
+   * Melipayamak's simple-send contract requires both `from` and `to` in the
+   * JSON body (see `console.melipayamak.com/send/simple`). Never throws:
+   * monitoring must not crash when SMS is unavailable; the caller just gets
+   * `false`.
    */
   async sendText(phone: string, text: string): Promise<boolean> {
     const path = SmsService.consolePath(process.env.MELIPAYAMAK_SMS_PATH);
-    const from = process.env.MELIPAYAMAK_SMS_FROM?.trim() ?? '';
+    const from = SmsService.textFrom();
     const credentials = SmsService.restCredentials();
-    if (credentials && SmsService.isSenderLine(from)) {
+    if (credentials && from) {
       const result = await this.postRest('SendSMS', {
         ...credentials,
         to: phone,
@@ -241,13 +251,23 @@ export class SmsService {
       });
       if (result.ok) {
         this.logger.log(`Alert SMS sent to ${SmsService.maskPhone(phone)}`);
+        return true;
       }
-      return result.ok;
+
+      if (!path) {
+        this.logger.error(
+          `Melipayamak SendSMS failed (${result.status}); no console path configured`,
+        );
+        return false;
+      }
+      this.logger.warn(
+        `Melipayamak SendSMS failed (${result.status}); falling back to the console simple-send path`,
+      );
     }
 
-    if (!path || !SmsService.isSenderLine(from)) {
+    if (!path || !from) {
       this.logger.warn(
-        `SMS is not configured (need MELIPAYAMAK_SMS_PATH + MELIPAYAMAK_SMS_FROM or MELIPAYAMAK_USERNAME + MELIPAYAMAK_API_KEY + MELIPAYAMAK_SMS_FROM) — SMS to ${SmsService.maskPhone(phone)} was not sent.`,
+        `SMS is not configured (need a numeric MELIPAYAMAK_SMS_FROM or MELIPAYAMAK_OTP_FROM, plus MELIPAYAMAK_SMS_PATH or MELIPAYAMAK_USERNAME + MELIPAYAMAK_API_KEY) — SMS to ${SmsService.maskPhone(phone)} was not sent.`,
       );
       return false;
     }

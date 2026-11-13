@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { MessageSquareText, Save } from 'lucide-react';
+import { MessageSquareText, Save, Send } from 'lucide-react';
 
 import { api } from '@/lib/api';
 
@@ -23,8 +23,10 @@ export function AdminSupportSmsSettings() {
   const [enabled, setEnabled] = useState(true);
   const [phone, setPhone] = useState('');
   const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -61,6 +63,40 @@ export function AdminSupportSmsSettings() {
       setError(err instanceof Error ? err.message : 'ذخیره تنظیمات ناموفق بود');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function testSms() {
+    setTesting(true);
+    setError(null);
+    setMessage(null);
+    setTestResult(null);
+    try {
+      const result = await api.post<{
+        sent: boolean;
+        phone: string;
+        channelReady: boolean;
+        enabled: boolean;
+      }>('/admin/support/chat/sms-test');
+      if (result.sent) {
+        setTestResult(`پیامک آزمایشی به ${result.phone} ارسال شد.`);
+      } else if (!result.enabled) {
+        setTestResult('ارسال پیامک در تنظیمات خاموش است.');
+      } else if (!result.channelReady) {
+        setTestResult('کانال پیامک ملی‌پیامک روی سرور تنظیم نشده است.');
+      } else if (!result.phone) {
+        setTestResult('شماره‌ی دریافت پیامک تنظیم نشده است.');
+      } else {
+        setTestResult(
+          `ارسال به ${result.phone} ناموفق بود؛ لاگ سرور را بررسی کنید.`,
+        );
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'ارسال پیامک آزمایشی ناموفق بود',
+      );
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -149,8 +185,9 @@ export function AdminSupportSmsSettings() {
 
           {!settings.channelReady ? (
             <p className="mt-3 rounded-lg bg-amber-50 p-2 text-[11px] leading-5 text-amber-800">
-              ارسال واقعی پیامک نیازمند تنظیم <code>MELIPAYAMAK_SMS_FROM</code>{' '}
-              (خط فرستنده) و یکی از دو روش{' '}
+              ارسال واقعی پیامک نیازمند تنظیم{' '}
+              <code>MELIPAYAMAK_SMS_FROM</code> یا{' '}
+              <code>MELIPAYAMAK_OTP_FROM</code> (خط فرستنده) و یکی از دو روش{' '}
               <code>MELIPAYAMAK_SMS_PATH</code> یا{' '}
               <code>MELIPAYAMAK_USERNAME</code> +{' '}
               <code>MELIPAYAMAK_API_KEY</code> روی سرور است. تا آن زمان
@@ -167,9 +204,23 @@ export function AdminSupportSmsSettings() {
             <Save className="size-4" aria-hidden />
             ذخیره
           </button>
+          <button
+            type="button"
+            onClick={testSms}
+            disabled={testing || busy}
+            className="indeed-btn mt-2 py-2 text-sm disabled:opacity-60"
+          >
+            <Send className="size-4" aria-hidden />
+            {testing ? 'در حال ارسال...' : 'ارسال پیامک آزمایشی'}
+          </button>
         </>
       )}
 
+      {testResult ? (
+        <p className="mt-3 rounded-lg bg-sky-50 p-2 text-xs text-sky-800">
+          {testResult}
+        </p>
+      ) : null}
       {message ? (
         <p className="mt-3 rounded-lg bg-green-50 p-2 text-xs text-green-700">
           {message}
