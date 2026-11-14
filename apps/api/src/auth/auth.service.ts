@@ -148,6 +148,31 @@ export class AuthService {
   }
 
   /**
+   * Development-only helper for the shared admin-notification template. Sends
+   * a real SMS with `bodyId=586239` and the given `{0}`/`{1}` values so the
+   * channel can be verified locally; production responds 404.
+   */
+  async sendDevAdminSmsTest(input: {
+    phone: string;
+    section?: string;
+    subject?: string;
+  }) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new NotFoundException('مسیر یافت نشد');
+    }
+    const phone = OtpService.normalizePhone(input.phone);
+    const section = input.section?.trim() || 'پشتیبانی';
+    const subject = input.subject?.trim() || 'پشتیبانی آنلاین';
+    const sent = await this.sms.sendAdminNotification(phone, section, subject, {
+      force: true,
+    });
+    if (!sent) {
+      throw new ServiceUnavailableException('ارسال پیامک ناموفق بود');
+    }
+    return { phone: maskPhone(phone), sent: true, section, subject };
+  }
+
+  /**
    * Step 2 of the phone flow: verify the code and either sign the existing
    * user in or create a new account from the phone alone. The identity fields
    * (first/last name, national code) are completed later on the profile page.

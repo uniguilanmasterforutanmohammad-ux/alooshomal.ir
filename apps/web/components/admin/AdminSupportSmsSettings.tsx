@@ -20,6 +20,9 @@ interface SupportSmsSettings {
  * phone.
  */
 export function AdminSupportSmsSettings() {
+  // The test button sends a real shared-template SMS in local dev too; make
+  // that explicit so nobody mistakes it for a simulation.
+  const isDev = process.env.NODE_ENV !== 'production';
   const [settings, setSettings] = useState<SupportSmsSettings | null>(null);
   const [enabled, setEnabled] = useState(true);
   const [phone, setPhone] = useState('');
@@ -28,6 +31,11 @@ export function AdminSupportSmsSettings() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [testResult, setTestResult] = useState<string | null>(null);
+  const [devSection, setDevSection] = useState('پشتیبانی');
+  const [devSubject, setDevSubject] = useState('پشتیبانی آنلاین');
+  const [devTesting, setDevTesting] = useState(false);
+  const [devResult, setDevResult] = useState<string | null>(null);
+  const [devError, setDevError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -98,6 +106,38 @@ export function AdminSupportSmsSettings() {
       );
     } finally {
       setTesting(false);
+    }
+  }
+
+  async function testSharedTemplate() {
+    const target = phone.trim() || settings?.resolvedPhone || '';
+    if (!target) {
+      setDevError('اول شماره‌ی دریافت پیامک را وارد کنید');
+      return;
+    }
+    setDevTesting(true);
+    setDevError(null);
+    setDevResult(null);
+    try {
+      const result = await api.post<{
+        sent: boolean;
+        phone: string;
+        section: string;
+        subject: string;
+      }>('/auth/dev/admin-sms-test', {
+        phone: target,
+        section: devSection,
+        subject: devSubject,
+      });
+      setDevResult(
+        `پیامک قالب مشترک به ${result.phone} ارسال شد (${result.section} / ${result.subject}).`,
+      );
+    } catch (err) {
+      setDevError(
+        err instanceof Error ? err.message : 'ارسال پیامک آزمایشی ناموفق بود',
+      );
+    } finally {
+      setDevTesting(false);
     }
   }
 
@@ -211,6 +251,54 @@ export function AdminSupportSmsSettings() {
             <Send className="size-4" aria-hidden />
             {testing ? 'در حال ارسال...' : 'ارسال پیامک آزمایشی'}
           </button>
+          {isDev ? (
+            <p className="mt-2 rounded-lg border border-dashed border-amber-300 bg-amber-50/70 p-2 text-[11px] leading-5 text-amber-900">
+              حالت توسعه: دکمه‌ی آزمایشی یک پیامک واقعی از مسیر قالب مشترک
+              می‌فرستد (<code>bodyId=586239</code>،{' '}
+              <code>{'{0}=پشتیبانی'}</code>،{' '}
+              <code>{'{1}=پیام آزمایشی پشتیبانی آنلاین'}</code>). ارسال خودکار
+              اطلاع‌رسانی‌ها در لوکال خاموش است.
+            </p>
+          ) : null}
+          {isDev ? (
+            <div className="mt-3 rounded-lg border border-dashed border-sky-300 bg-sky-50/60 p-2">
+              <p className="text-[11px] font-bold text-sky-900">
+                تست قالب مشترک با {`{0}`} و {`{1}`} دلخواه (فقط محیط توسعه)
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <input
+                  value={devSection}
+                  onChange={(event) => setDevSection(event.target.value)}
+                  placeholder="{0} بخش"
+                  className="indeed-input py-1.5 text-xs"
+                />
+                <input
+                  value={devSubject}
+                  onChange={(event) => setDevSubject(event.target.value)}
+                  placeholder="{1} موضوع"
+                  className="indeed-input py-1.5 text-xs"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={testSharedTemplate}
+                disabled={devTesting}
+                className="indeed-btn mt-2 w-full py-1.5 text-xs disabled:opacity-60"
+              >
+                {devTesting ? 'در حال ارسال...' : 'ارسال با قالب مشترک'}
+              </button>
+              {devResult ? (
+                <p className="mt-2 text-[11px] font-bold text-emerald-700">
+                  {devResult}
+                </p>
+              ) : null}
+              {devError ? (
+                <p className="mt-2 text-[11px] font-bold text-red-700">
+                  {devError}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </>
       )}
 

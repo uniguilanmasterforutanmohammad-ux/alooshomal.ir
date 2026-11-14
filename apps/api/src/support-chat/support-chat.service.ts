@@ -437,7 +437,11 @@ export class SupportChatService {
       phone,
       resolvedPhone: phone || fallback.phone,
       phoneFromAdminAccount: !phone && fallback.fromAdmin,
-      channelReady: this.sms.adminNotificationsEnabled,
+      // In local dev the shared path is normally off, but the explicit test
+      // button is allowed to force a real send (see `sendTestSms`).
+      channelReady:
+        this.sms.adminNotificationsEnabled ||
+        process.env.NODE_ENV !== 'production',
     };
   }
 
@@ -500,6 +504,7 @@ export class SupportChatService {
       config.resolvedPhone,
       'پشتیبانی',
       'پیام آزمایشی پشتیبانی آنلاین',
+      { force: process.env.NODE_ENV !== 'production' },
     );
     return {
       sent,

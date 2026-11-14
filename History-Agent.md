@@ -20,7 +20,41 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.2.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.2.2**.
+
+## ۱۴۰۵/۰۸/۲۳ — تأیید و تست لوکال پیامک اطلاع‌رسانی مدیران (قالب مشترک) — نسخه `v4.2.2`
+
+**هدف:** پس از تأیید موفق OTP، همان الگو برای پیامک اطلاع‌رسانی مدیران با
+قالب مشترک ملی‌پیامک (`bodyId=586239`) پیاده و در لوکال قابل تست شود.
+
+**تغییرات:**
+- `apps/api/src/auth/sms.service.ts`: `sharedPath()` و `sendAdminNotification()`
+  گزینه‌ی `force` گرفتند تا دکمه‌ی تست در لوکال ارسال واقعی انجام دهد؛ در
+  جریان عادی لوکال همچنان خاموش است.
+- `apps/api/src/auth/auth.service.ts` و
+  `apps/api/src/auth/auth.controller.ts`: مسیر
+  `POST /api/auth/dev/admin-sms-test` (فقط غیرپروداکشن؛ در پروداکشن ۴۰۴) با
+  `{ phone, section?, subject? }`.
+- `apps/api/src/auth/dto/dev-admin-sms-test.dto.ts`: DTO مستندشده با
+  `@ApiProperty` برای Swagger.
+- `apps/api/src/support-chat/support-chat.service.ts`: در لوکال
+  `channelReady` برای دکمه‌ی تست true می‌شود و ارسال آزمایشی با `force` انجام
+  می‌گیرد.
+- `apps/web/components/admin/AdminSupportSmsSettings.tsx`: باکس «تست قالب
+  مشترک» با `{0}` و `{1}` دلخواه (فقط محیط توسعه) و توضیح ارسال واقعی.
+- `docs/SMS.md`: ثبت وضعیت تأییدشده‌ی OTP و قالب مشترک، شکل پاسخ `recId` و
+  روش تست لوکال هر دو کانال.
+- `docs/API.md`: مستندسازی دو مسیر `dev/sms-test` و `dev/admin-sms-test`.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.2.2`.
+
+**تأیید/تست:**
+- `curl` مستقیم روی endpoint قالب مشترک → `{"recId":5706386831989792449,"status":"عملیات موفق"}`.
+- `POST /api/auth/dev/admin-sms-test` با `{phone:"09123456789",section:"پشتیبانی",subject:"پشتیبانی آنلاین"}`
+  → `HTTP 200` و `{"sent":true}`؛ لاگ `Admin notification SMS sent` ثبت شد.
+- `POST /api/auth/dev/sms-test` (OTP) → `HTTP 200` و کد واقعی از ملی‌پیامک.
+- `tsc` API داخل کانتینر و `tsc` وب → exit 0.
+- `python3 scripts/check_api_docs.py` → exit 0.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۳ — حذف کامل APIKey و برگشت OTP به مسیر کنسول + دکمه‌ی تست لوکال — نسخه `v4.2.1`
 

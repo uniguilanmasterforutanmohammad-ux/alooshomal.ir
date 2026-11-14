@@ -15,6 +15,7 @@ import {
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RequestCodeDto } from './dto/request-code.dto';
+import { DevAdminSmsTestDto } from './dto/dev-admin-sms-test.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
@@ -226,6 +227,17 @@ export class AuthController {
   })
   devSmsTest(@Body() dto: RequestCodeDto) {
     return this.authService.sendDevTestOtp(dto.phone);
+  }
+
+  @Public()
+  @Post('dev/admin-sms-test')
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'ارسال پیامک آزمایشی قالب مشترک مدیران (فقط محیط توسعه؛ در پروداکشن ۴۰۴)',
+  })
+  devAdminSmsTest(@Body() dto: DevAdminSmsTestDto) {
+    return this.authService.sendDevAdminSmsTest(dto);
   }
 
   @Public()

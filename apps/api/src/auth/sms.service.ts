@@ -108,15 +108,20 @@ export class SmsService {
     return '';
   }
 
-  /** Shared-template endpoint used for every admin notification SMS. */
-  private static sharedPath(): string {
+  /**
+   * Shared-template endpoint used for every admin notification SMS. `force`
+   * ignores the dev bypass so the admin panel's test button can send a real
+   * message locally.
+   */
+  private static sharedPath(force = false): string {
     const configured = SmsService.consolePath(
       process.env.MELIPAYAMAK_SHARED_PATH,
     );
     if (configured) return configured;
-    return process.env.NODE_ENV === 'production'
-      ? SmsService.DEFAULT_SHARED_PATH
-      : '';
+    if (force || process.env.NODE_ENV === 'production') {
+      return SmsService.DEFAULT_SHARED_PATH;
+    }
+    return '';
   }
 
   /** True when OTP delivery is configured (console token path). */
@@ -283,8 +288,9 @@ export class SmsService {
     phone: string,
     section: string,
     subject: string,
+    options: { force?: boolean } = {},
   ): Promise<boolean> {
-    const path = SmsService.sharedPath();
+    const path = SmsService.sharedPath(options.force === true);
     if (!path) {
       this.logger.warn(
         `Admin SMS is not configured — notification for ${SmsService.maskPhone(phone)} was not sent.`,
