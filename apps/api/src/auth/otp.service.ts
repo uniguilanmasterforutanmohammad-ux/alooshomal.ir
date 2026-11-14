@@ -123,11 +123,15 @@ export class OtpService {
    * Delivers one OTP to `phone`, preferring Bale and falling back to SMS.
    * Returns the code that was actually sent (Bale needs the caller to generate
    * it; Melipayamak generates its own) or `null` when neither channel works.
+   *
+   * `preferred` lets the caller skip Bale (the login page's «ارسال با پیامک»
+   * button) while keeping SMS as the automatic fallback.
    */
   private async deliverPhoneCode(
     phone: string,
+    preferred: 'bale' | 'sms' = 'bale',
   ): Promise<{ code: string; channel: 'bale' | 'sms' } | null> {
-    if (this.bale.isEnabled) {
+    if (preferred === 'bale' && this.bale.isEnabled) {
       const code = String(randomInt(100_000, 1_000_000));
       if (await this.bale.sendOtp(phone, code)) {
         return { code, channel: 'bale' };
@@ -268,9 +272,16 @@ export class OtpService {
   async issue(
     phone: string,
     purpose: OtpPurpose = 'login',
-    options: { email?: string | null; simulateDelivery?: boolean } = {},
+    options: {
+      email?: string | null;
+      simulateDelivery?: boolean;
+      /** Force one phone channel; omitted = Bale first, then SMS. */
+      channel?: 'bale' | 'sms';
+      /** Allow replacing a code that is still inside the resend cooldown. */
+      resend?: boolean;
+    } = {},
   ): Promise<IssuedOtp> {
-    if (await this.recentlyIssued(purpose, phone)) {
+    if (!options.resend && (await this.recentlyIssued(purpose, phone))) {
       throw new BadRequestException(
         'کد قبلی هنوز معتبر است؛ لطفاً کمی بعد دوباره تلاش کنید',
       );
@@ -289,7 +300,7 @@ export class OtpService {
         `[dev] ${purpose} OTP for ${phone} is ${code} (delivery simulated)`,
       );
     } else if (this.phoneChannelEnabled) {
-      const delivered = await this.deliverPhoneCode(phone);
+      const delivered = await this.deliverPhoneCode(phone, options.channel);
       if (!delivered) {
         // Configured but the gateway returned no code — never fall back to a
         // hard-coded value.

@@ -58,6 +58,10 @@ export function AuthForm({
   const [code, setCode] = useState('');
   const [devCode, setDevCode] = useState<string | null>(null);
   const [channel, setChannel] = useState<'bale' | 'sms' | 'dev' | null>(null);
+  // Once the user explicitly asks for SMS, later resends stay on SMS.
+  const [preferredChannel, setPreferredChannel] = useState<'auto' | 'sms'>(
+    'auto',
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -90,6 +94,7 @@ export function AuthForm({
       setPhone(result.phone);
       setDevCode(result.devCode ?? null);
       setChannel(result.channel ?? null);
+      setPreferredChannel('auto');
       setSecondsLeft(result.expiresIn ?? 90);
       setStep('code');
     } catch (err) {
@@ -106,7 +111,10 @@ export function AuthForm({
     try {
       const result = await api.post<RequestCodeResult>(
         '/auth/phone/request-code',
-        { phone },
+        {
+          phone,
+          ...(preferredChannel === 'sms' ? { channel: 'sms' as const } : {}),
+        },
       );
       setPhone(result.phone);
       setDevCode(result.devCode ?? null);
@@ -115,6 +123,31 @@ export function AuthForm({
       setCode('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ارسال کد ناموفق بود');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /**
+   * The code went out through Bale; this asks the API to deliver the same
+   * sign-in code by SMS instead (the previous code is replaced).
+   */
+  async function sendViaSms() {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await api.post<RequestCodeResult>(
+        '/auth/phone/request-code',
+        { phone, channel: 'sms' },
+      );
+      setPhone(result.phone);
+      setDevCode(result.devCode ?? null);
+      setChannel(result.channel ?? null);
+      setPreferredChannel('sms');
+      setSecondsLeft(result.expiresIn ?? 90);
+      setCode('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ارسال پیامک ناموفق بود');
     } finally {
       setLoading(false);
     }
@@ -232,9 +265,19 @@ export function AuthForm({
           را وارد کنید.
         </p>
         {channel === 'bale' ? (
-          <p className="text-xs font-bold text-emerald-600">
-            کد در پیام‌رسان بله برای شما ارسال شد.
-          </p>
+          <div className="flex flex-col gap-2">
+            <p className="text-xs font-bold text-emerald-600">
+              کد در پیام‌رسان بله برای شما ارسال شد.
+            </p>
+            <button
+              type="button"
+              onClick={() => void sendViaSms()}
+              disabled={loading}
+              className="w-full rounded-md border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm font-bold text-brand disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              ارسال با پیامک
+            </button>
+          </div>
         ) : channel === 'sms' ? (
           <p className="text-xs font-bold text-muted">کد پیامکی ارسال شد.</p>
         ) : null}

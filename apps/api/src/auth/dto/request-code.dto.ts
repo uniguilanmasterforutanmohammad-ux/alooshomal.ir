@@ -1,5 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+} from 'class-validator';
 
 export class RequestCodeDto {
   @ApiProperty({ example: '09123456789' })
@@ -19,4 +26,13 @@ export class RequestCodeDto {
   @IsEmail({}, { message: 'ایمیل معتبر نیست' })
   @MaxLength(254)
   email?: string;
+
+  @ApiPropertyOptional({
+    enum: ['bale', 'sms'],
+    description:
+      'کانال دلخواه ارسال کد. پیش‌فرض: بله و در صورت نبود حساب بله، پیامک. مقدار «sms» ارسال پیامکی را اجباری می‌کند (دکمه‌ی «ارسال با پیامک» در صفحه‌ی ورود).',
+  })
+  @IsOptional()
+  @IsIn(['bale', 'sms'], { message: 'کانال ارسال کد معتبر نیست' })
+  channel?: 'bale' | 'sms';
 }

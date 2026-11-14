@@ -121,6 +121,10 @@ export class AuthService {
     });
     const issued = await this.otp.issue(phone, 'login', {
       email: existing?.email ?? requestedEmail,
+      channel: dto.channel,
+      // Asking for SMS right after a Bale message must not hit the resend
+      // cooldown; the per-phone rate limit still caps repeated requests.
+      resend: dto.channel === 'sms',
     });
     // Do not reveal whether the number already has an account: the response is
     // identical for new and returning users (the verify step asks for the
