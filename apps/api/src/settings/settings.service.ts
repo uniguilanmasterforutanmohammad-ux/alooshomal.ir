@@ -8,6 +8,8 @@ import {
   ACTIVITY_RETENTION_MONTHS_KEY,
   ADMIN_LIST_PAGE_SIZE_KEY,
   ADMIN_NOTIFY_CATEGORIES,
+  ADMIN_NOTIFY_KEY_PREFIX,
+  ADMIN_NOTIFY_SMS_KEY_PREFIX,
   AD_DAILY_SLOTS_KEY,
   AD_DIRECTORY_DURATION_DAYS_KEY,
   AD_DIRECTORY_PRICE_KEY,
@@ -82,8 +84,6 @@ import {
 
 export * from './settings.constants';
 
-const ADMIN_NOTIFY_KEY_PREFIX = 'notifyAdmin.';
-
 /** How long a notification preference is cached before re-reading the DB. */
 const NOTIFY_PREF_TTL_MS = 10_000;
 
@@ -92,6 +92,11 @@ export class SettingsService implements OnModuleInit {
   constructor(private readonly prisma: PrismaService) {}
 
   private notifyPrefCache: {
+    at: number;
+    values: Record<AdminNotifyCategory, boolean>;
+  } | null = null;
+
+  private adminSmsPrefCache: {
     at: number;
     values: Record<AdminNotifyCategory, boolean>;
   } | null = null;
@@ -146,7 +151,64 @@ export class SettingsService implements OnModuleInit {
       ),
     );
     this.notifyPrefCache = null;
+    // Missing SMS rows follow the notification switch, so refresh both caches.
+    this.adminSmsPrefCache = null;
     return this.getAdminNotifyPrefs();
+  }
+
+  /**
+   * Per-category SMS switches. A missing row follows the matching in-app
+   * notification switch, so muting a category keeps the old behaviour (no SMS)
+   * until the admin explicitly turns the SMS back on.
+   */
+  async getAdminSmsPrefs(): Promise<Record<AdminNotifyCategory, boolean>> {
+    const cached = this.adminSmsPrefCache;
+    if (cached && Date.now() - cached.at < NOTIFY_PREF_TTL_MS) {
+      return cached.values;
+    }
+    const [rows, notifyPrefs] = await Promise.all([
+      this.prisma.setting.findMany({
+        where: { key: { startsWith: ADMIN_NOTIFY_SMS_KEY_PREFIX } },
+      }),
+      this.getAdminNotifyPrefs(),
+    ]);
+    const byKey = new Map(rows.map((row) => [row.key, row.value]));
+    const values = {} as Record<AdminNotifyCategory, boolean>;
+    for (const category of ADMIN_NOTIFY_CATEGORIES) {
+      const key = ADMIN_NOTIFY_SMS_KEY_PREFIX + category;
+      values[category] = byKey.has(key)
+        ? byKey.get(key) !== 'false'
+        : notifyPrefs[category];
+    }
+    this.adminSmsPrefCache = { at: Date.now(), values };
+    return values;
+  }
+
+  async isAdminSmsEnabled(category: AdminNotifyCategory): Promise<boolean> {
+    const prefs = await this.getAdminSmsPrefs();
+    return prefs[category];
+  }
+
+  async setAdminSmsPrefs(
+    prefs: Partial<Record<AdminNotifyCategory, boolean>>,
+  ): Promise<Record<AdminNotifyCategory, boolean>> {
+    const entries = ADMIN_NOTIFY_CATEGORIES.filter(
+      (category) => prefs[category] !== undefined,
+    );
+    await Promise.all(
+      entries.map((category) =>
+        this.prisma.setting.upsert({
+          where: { key: ADMIN_NOTIFY_SMS_KEY_PREFIX + category },
+          update: { value: prefs[category] ? 'true' : 'false' },
+          create: {
+            key: ADMIN_NOTIFY_SMS_KEY_PREFIX + category,
+            value: prefs[category] ? 'true' : 'false',
+          },
+        }),
+      ),
+    );
+    this.adminSmsPrefCache = null;
+    return this.getAdminSmsPrefs();
   }
 
   async getDirectoryPageSize(): Promise<number> {

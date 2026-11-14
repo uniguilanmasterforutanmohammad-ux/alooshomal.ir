@@ -20,7 +20,50 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.9.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.10.0**.
+
+## ۱۴۰۵/۰۸/۲۳ — نمایش و کنترل جداگانه‌ی اعلان و پیامک هر رویداد مدیر — نسخه `v4.10.0`
+
+**هدف:** مدیر بتواند ببیند برای چه رویدادهایی به مدیریت اعلان/پیامک می‌رود و
+برای هر رویداد، اعلان داخل پنل و پیامک را جداگانه روشن یا خاموش کند.
+
+**تغییرات:**
+- `apps/api/src/notifications/admin-sms.ts`: افزودن `ADMIN_NOTIFY_REGISTRY` به
+ ‌عنوان مرجع یکتای برچسب/توضیح/قالب `{0}` و `{1}` هر دسته؛
+  `ADMIN_SMS_BY_CATEGORY` از همان رجیستری ساخته می‌شود.
+- `apps/api/src/settings/settings.constants.ts`: افزودن دسته‌های `NEWS` و
+  `PROFILE` و ثابت‌های `ADMIN_NOTIFY_KEY_PREFIX` و
+  `ADMIN_NOTIFY_SMS_KEY_PREFIX`.
+- `apps/api/src/settings/settings.service.ts`: افزودن
+  `getAdminSmsPrefs`/`isAdminSmsEnabled`/`setAdminSmsPrefs`؛ اگر ردیف
+  `notifyAdminSms.<CATEGORY>` نباشد، مقدار پیامک از سوئیچ اعلان همان دسته
+  پیروی می‌کند.
+- `apps/api/src/settings/settings-defaults.ts`: استفاده از پیشوند مشترک
+  `ADMIN_NOTIFY_KEY_PREFIX`.
+- `apps/api/src/notifications/notifications.service.ts`: ارسال پیامک مستقل از
+  ساخت ردیف اعلان و با احترام به سوئیچ پیامک همان دسته.
+- `apps/api/src/settings/settings.controller.ts`: افزودن
+  `adminSmsNotifications` و `adminNotifyRegistry` به `GET /admin/settings` و
+  پذیرش `adminSmsNotifications` در `PATCH /admin/settings`.
+- `apps/api/src/news/news.service.ts` و `apps/api/src/profile/profile.service.ts`:
+  دادن دسته‌ی `NEWS`/`PROFILE` به اطلاع‌رسانی‌هایی که قبلاً دسته نداشتند.
+- `apps/web/components/admin/AdminNotificationSettings.tsx`: بازطراحی پنل به
+  فهرست کامل رویدادها با دو کلید «اعلان» و «پیامک»، نمایش قالب پیامک و وضعیت
+  کانال/شماره‌ی گیرنده.
+- `apps/web/app/jga4rm8j/sections.tsx`: به‌روزرسانی توضیح بخش «اعلان‌ها».
+- `docs/API.md` و `docs/SMS.md`: مستندسازی سوئیچ‌های جدید و جدول کامل رویدادها.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.10.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` → exit 0.
+- `docker exec alooshomal-web npx tsc --noEmit` → فقط خطاهای از پیش موجود
+  `.next/types/validator.ts`.
+- `docker exec alooshomal-api npx eslint …` روی فایل‌های تغییریافته → exit 0.
+- `GET /api/admin/settings` با توکن ادمین → `adminNotifications`،
+  `adminSmsNotifications` و `adminNotifyRegistry` با ۱۵ دسته برگشت.
+- `PATCH` خاموش‌کردن پیامک `TICKET` → `false` شد؛ خاموش‌کردن اعلان `REPORT`
+  باعث `false` شدن پیامک همان دسته شد؛ سپس هر دو به `true` برگشتند.
+- `python3 scripts/check_api_docs.py` → exit 0.
 
 ## ۱۴۰۵/۰۸/۲۳ — ارسال کد یکبارمصرف با پیام‌رسان بله (سفیر) — نسخه `v4.9.0`
 

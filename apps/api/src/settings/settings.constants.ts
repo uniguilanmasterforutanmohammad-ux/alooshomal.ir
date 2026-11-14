@@ -506,6 +506,8 @@ export const SUPPORT_CHAT_SMS_PHONE_KEY = 'supportChatSmsPhone';
  */
 export const ADMIN_NOTIFY_CATEGORIES = [
   'NEW_USER',
+  'NEWS',
+  'PROFILE',
   'BIOLINK',
   'BUSINESS_CARD',
   'SUBSCRIPTION',
@@ -520,3 +522,13 @@ export const ADMIN_NOTIFY_CATEGORIES = [
   'REPORT',
 ] as const;
 export type AdminNotifyCategory = (typeof ADMIN_NOTIFY_CATEGORIES)[number];
+
+/** Key prefix for the per-category in-app notification switch. */
+export const ADMIN_NOTIFY_KEY_PREFIX = 'notifyAdmin.';
+
+/**
+ * Key prefix for the per-category *SMS* switch. Independent from
+ * `ADMIN_NOTIFY_KEY_PREFIX`: the admin may keep the in-app bell quiet but still
+ * receive an SMS for a case (or the other way around).
+ */
+export const ADMIN_NOTIFY_SMS_KEY_PREFIX = 'notifyAdminSms.';

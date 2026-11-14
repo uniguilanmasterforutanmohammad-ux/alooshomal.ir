@@ -20,6 +20,7 @@ import { Type } from 'class-transformer';
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import { ADMIN_NOTIFY_REGISTRY } from '../notifications/admin-sms';
 import {
   ADMIN_NOTIFY_CATEGORIES,
   AdminNotifyCategory,
@@ -91,6 +92,10 @@ class UpdateSettingsDto {
 
   @IsOptional()
   adminNotifications?: Partial<Record<AdminNotifyCategory, boolean>>;
+
+  /** Per-category switches for the admin SMS (independent from the bell). */
+  @IsOptional()
+  adminSmsNotifications?: Partial<Record<AdminNotifyCategory, boolean>>;
 
   @IsOptional()
   @IsBoolean()
@@ -281,6 +286,9 @@ export class AdminSettingsController {
       adminListPageSize: await this.settingsService.getAdminListPageSize(),
       myListPageSize: await this.settingsService.getMyListPageSize(),
       adminNotifications: await this.settingsService.getAdminNotifyPrefs(),
+      adminSmsNotifications:
+        await this.settingsService.getAdminSmsPrefs(),
+      adminNotifyRegistry: ADMIN_NOTIFY_REGISTRY,
       newsHeadlineCount: await this.settingsService.getNewsHeadlineCount(),
       newsAccessLevel: await this.settingsService.getNewsAccessLevel(),
       phoneLoginEnabled: await this.settingsService.getPhoneLoginEnabled(),
@@ -331,6 +339,7 @@ export class AdminSettingsController {
       biolinkDirectoryViews?: string[];
       siteTheme?: SiteTheme;
       adminNotifications?: Record<AdminNotifyCategory, boolean>;
+      adminSmsNotifications?: Record<AdminNotifyCategory, boolean>;
       allowBiolinkCreation?: boolean;
       allowBusinessCardCreation?: boolean;
       features?: Record<string, boolean>;
@@ -404,6 +413,16 @@ export class AdminSettingsController {
       }
       result.adminNotifications =
         await this.settingsService.setAdminNotifyPrefs(clean);
+    }
+    if (dto.adminSmsNotifications !== undefined) {
+      const clean: Partial<Record<AdminNotifyCategory, boolean>> = {};
+      for (const [key, value] of Object.entries(dto.adminSmsNotifications)) {
+        if (ADMIN_NOTIFY_CATEGORY_SET.has(key) && typeof value === 'boolean') {
+          clean[key as AdminNotifyCategory] = value;
+        }
+      }
+      result.adminSmsNotifications =
+        await this.settingsService.setAdminSmsPrefs(clean);
     }
     if (
       dto.allowBiolinkCreation !== undefined ||

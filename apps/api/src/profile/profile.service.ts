@@ -995,6 +995,7 @@ export class ProfileService {
     }
     const created = await this.fileChangeRequest(userId, { fullName: fullName.trim() });
     await this.notifications.notifyAdmins({
+      category: 'PROFILE',
       title: 'درخواست تغییر پروفایل',
       body: `«${user.fullName ?? user.email}» درخواست تغییر نام به «${fullName.trim()}» دارد.`,
       link: '/jga4rm8j?section=users',

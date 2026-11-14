@@ -111,7 +111,10 @@ export class NotificationsService {
       userId: null,
       audience: 'ADMIN',
     });
-    if (created && !payload.skipSms) {
+    // The SMS switch is independent from the in-app bell: an admin may keep a
+    // category out of the notification list but still want its SMS (or vice
+    // versa). `sendAdminSms` enforces the per-category SMS preference.
+    if (!payload.skipSms) {
       void this.sendAdminSms(payload);
     }
     return created;
@@ -120,8 +123,8 @@ export class NotificationsService {
   /**
    * Fire-and-forget SMS for an admin notification. The recipient is the same
    * admin line configured for support-chat alerts (panel setting → env →
-   * oldest active admin). A muted category never reaches this method because
-   * `notify()` returns null first.
+   * oldest active admin). Each category has its own SMS switch so the admin
+   * can silence one case without touching the others.
    */
   private async sendAdminSms(
     payload: Omit<NotifyPayload, 'userId' | 'audience'>,
@@ -130,6 +133,12 @@ export class NotificationsService {
       if (!this.sms.adminNotificationsEnabled) return;
       const content = adminSmsContent(payload.category, payload.sms);
       if (!content) return;
+      if (payload.category) {
+        const categoryEnabled = await this.settings.isAdminSmsEnabled(
+          payload.category,
+        );
+        if (!categoryEnabled) return;
+      }
       const enabled = await this.adminSmsEnabled();
       if (!enabled) return;
       const phone = await this.resolveAdminSmsPhone();

@@ -393,7 +393,7 @@ const SETTINGS_PANELS: Array<{
   {
     section: 'settings-notifications',
     title: 'اعلان‌ها',
-    description: 'دسته‌بندی اعلان‌های مدیر',
+    description: 'اعلان و پیامک هر رویداد',
   },
   {
     section: 'settings-news',

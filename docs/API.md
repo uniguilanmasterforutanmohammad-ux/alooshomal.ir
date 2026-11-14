@@ -170,6 +170,21 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 به‌روز می‌کند؛ حالت روشن/تیره همچنان ترجیح جداگانه‌ی هر بازدیدکننده است.
 راهنمای افزودن/حذف تم‌های ماژولار در `docs/THEMES.md` آمده است.
 
+### اعلان‌ها و پیامک‌های مدیر (`adminNotifications` / `adminSmsNotifications`)
+
+هر رویداد مدیریتی یک دسته‌ی اعلان دارد (`ADMIN_NOTIFY_CATEGORIES`) و دو سوئیچ
+مستقل:
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET` | `/admin/settings` | علاوه بر `adminNotifications` (اعلان زنگوله)، فیلد `adminSmsNotifications` (پیامک هر دسته) و `adminNotifyRegistry` (برچسب، توضیح و `{0}`/`{1}` قالب پیامک هر دسته) را برمی‌گرداند. فقط مدیر. |
+| `PATCH` | `/admin/settings` | بدنه‌ی `{ adminNotifications?: Record<Category, boolean>, adminSmsNotifications?: Record<Category, boolean> }`. کلید ناشناخته نادیده گرفته می‌شود. فقط مدیر. |
+
+پیش‌فرض هر دو سوئیچ روشن است. اگر برای یک دسته ردیف `notifyAdminSms.<CATEGORY>`
+ذخیره نشده باشد، مقدار پیامک از سوئیچ اعلان همان دسته پیروی می‌کند. سوئیچ
+سراسری پیامک و شماره‌ی گیرنده در `/admin/support/chat/sms-settings` است.
+فهرست کامل رویدادها و قالب پیامک در `docs/SMS.md` آمده است.
+
 ### پایش منابع سرور (`monitoring`)
 
 سامانه‌ی پایش، مصرف رم/پردازنده/دیسک کانتینر را هر چند ثانیه نمونه‌برداری می‌کند

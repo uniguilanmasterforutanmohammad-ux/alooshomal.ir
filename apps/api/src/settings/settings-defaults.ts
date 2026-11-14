@@ -4,6 +4,7 @@ import {
   ACTIVITY_RETENTION_MONTHS_KEY,
   ADMIN_LIST_PAGE_SIZE_KEY,
   ADMIN_NOTIFY_CATEGORIES,
+  ADMIN_NOTIFY_KEY_PREFIX,
   AD_DAILY_SLOTS_KEY,
   AD_DIRECTORY_DURATION_DAYS_KEY,
   AD_DIRECTORY_PRICE_KEY,
@@ -46,8 +47,6 @@ import {
   SUPPORT_CHAT_SMS_ENABLED_KEY,
   SUPPORT_CHAT_SMS_PHONE_KEY,
 } from './settings.constants';
-
-const ADMIN_NOTIFY_KEY_PREFIX = 'notifyAdmin.';
 
 /**
  * Idempotent seeding of every `Setting` row with its default value. Split out of
