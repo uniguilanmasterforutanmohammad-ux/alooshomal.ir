@@ -83,7 +83,8 @@ export function HomeSearchBox() {
             onChange={(event) => setCityId(event.target.value)}
             aria-label="انتخاب شهر"
           >
-            <option value="">شهر</option>
+            {/* Empty placeholder kept out of the list so only real cities show. */}
+            <option value="" hidden></option>
             {cities.map((city) => (
               <option key={city.id} value={city.id}>
                 {city.name}
