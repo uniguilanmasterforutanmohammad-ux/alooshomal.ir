@@ -128,9 +128,10 @@ const LOG_STATUS_LABEL: Record<IdentityLog['status'], string> = {
 };
 
 const LOG_STATUS_CLASS: Record<IdentityLog['status'], string> = {
-  SUCCESS: 'bg-emerald-50 text-emerald-700',
-  FAILED: 'bg-red-50 text-red-600',
-  CACHED: 'bg-sky-50 text-sky-700',
+  SUCCESS:
+    'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+  FAILED: 'bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-300',
+  CACHED: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300',
 };
 
 const STEP_ICON: Record<StepKind, typeof Sparkles> = {
@@ -416,9 +417,9 @@ export function OnboardingWizard() {
   }
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-[var(--vintage-border)] bg-white shadow-[0_24px_70px_-40px_rgba(58,40,28,0.55)]">
+    <section className="overflow-hidden rounded-3xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] shadow-[0_24px_70px_-40px_rgba(58,40,28,0.55)] dark:shadow-[0_24px_70px_-40px_rgba(0,0,0,0.8)]">
       {/* progress header */}
-      <header className="relative overflow-hidden border-b border-[var(--vintage-border)] bg-gradient-to-l from-brand/15 via-brand-light/70 to-white p-5 sm:p-6">
+      <header className="relative overflow-hidden border-b border-[var(--vintage-border)] bg-gradient-to-l from-brand/15 via-brand-light/70 to-[var(--vintage-surface)] p-5 sm:p-6">
         <div
           aria-hidden
           className="pointer-events-none absolute -left-10 -top-16 size-48 rounded-full bg-brand/10 blur-2xl"
@@ -430,12 +431,12 @@ export function OnboardingWizard() {
             </span>
             شروع آسان
           </span>
-          <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-bold text-brand shadow-sm ring-1 ring-brand/10">
+          <span className="rounded-full bg-[var(--vintage-surface)] px-3 py-1 text-xs font-bold text-brand shadow-sm ring-1 ring-brand/10">
             مرحله‌ی {(safeIndex + 1).toLocaleString('fa-IR')} از{' '}
             {steps.length.toLocaleString('fa-IR')}
           </span>
         </div>
-        <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-white/90 ring-1 ring-brand/10">
+        <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-[var(--vintage-surface)] ring-1 ring-brand/10">
           <div
             className="h-full rounded-full bg-gradient-to-l from-brand to-brand-hover transition-all duration-500"
             style={{ width: `${percent}%` }}
@@ -460,10 +461,10 @@ export function OnboardingWizard() {
                   active
                     ? 'border-brand bg-brand text-white shadow-sm'
                     : entry.done
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
                       : unlocked
-                        ? 'border-[var(--vintage-border)] bg-white text-muted hover:border-brand/50 hover:text-brand'
-                        : 'cursor-not-allowed border-[var(--vintage-border)] bg-white/60 text-muted/60',
+                        ? 'border-[var(--vintage-border)] bg-[var(--vintage-surface)] text-muted hover:border-brand/50 hover:text-brand'
+                        : 'cursor-not-allowed border-[var(--vintage-border)] bg-[var(--vintage-paper)] text-muted/60',
                 )}
               >
                 <span
@@ -472,7 +473,7 @@ export function OnboardingWizard() {
                     active
                       ? 'bg-white/20'
                       : entry.done
-                        ? 'bg-emerald-100'
+                        ? 'bg-emerald-100 dark:bg-emerald-900/50'
                         : 'bg-[var(--vintage-paper)]',
                   )}
                 >
@@ -492,7 +493,7 @@ export function OnboardingWizard() {
       </header>
 
       {/* the single step card */}
-      <div className="bg-gradient-to-b from-white to-[var(--vintage-paper)]/30 p-5 sm:p-6">
+      <div className="bg-gradient-to-b from-[var(--vintage-surface)] to-[var(--vintage-paper)]/30 p-5 sm:p-6">
         <div
           className={cn(
             'mx-auto flex flex-col gap-4',
@@ -506,7 +507,7 @@ export function OnboardingWizard() {
               className={cn(
                 'flex size-12 shrink-0 items-center justify-center rounded-2xl border text-sm font-extrabold shadow-sm',
                 step.done
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
                   : 'border-brand/20 bg-brand-light text-brand',
               )}
             >
@@ -516,11 +517,11 @@ export function OnboardingWizard() {
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="text-lg font-extrabold leading-7 text-ink">{step.title}</h2>
                 {step.done ? (
-                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
                     تکمیل شد
                   </span>
                 ) : isOptional ? (
-                  <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700">
+                  <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
                     اختیاری
                   </span>
                 ) : (
@@ -536,7 +537,7 @@ export function OnboardingWizard() {
           <div className="h-px bg-[var(--vintage-border)]" />
 
           {!canEnter(safeIndex) ? (
-            <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
+            <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
               <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
               برای ورود به این مرحله، ابتدا مراحل قبلی را کامل کنید.
             </div>
@@ -584,7 +585,7 @@ export function OnboardingWizard() {
           {step.kind === 'identity' ? (
             <div className="flex flex-col gap-3">
               {payload.identity?.verified ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs leading-6 text-emerald-800">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs leading-6 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200">
                   <b className="flex items-center gap-1.5">
                     <BadgeCheck className="size-4" aria-hidden />
                     هویت شما تأیید شد؛ تیک سفید دریافت کردید.
@@ -600,13 +601,13 @@ export function OnboardingWizard() {
                       ? ` — کد ملی: ${payload.identity.nationalCode}`
                       : ''}
                   </p>
-                  <p className="mt-1 text-[11px] text-emerald-700">
+                  <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300">
                     این اطلاعات ذخیره شده است و با تغییر ظاهر یا قابلیت‌ها از بین
                     نمی‌رود و هزینه‌ی مجددی ثبت نمی‌شود.
                   </p>
                 </div>
               ) : payload.identity?.phoneMatched ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs leading-6 text-emerald-800">
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs leading-6 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200">
                   <b>مالکیت شماره موبایل با کد ملی تأیید شده است.</b>
                   {payload.identity.nationalCode
                     ? ` کد ملی: ${payload.identity.nationalCode}.`
@@ -640,7 +641,7 @@ export function OnboardingWizard() {
                 </div>
               )}
 
-              <div className="overflow-hidden rounded-2xl border border-[var(--vintage-border)] bg-white">
+              <div className="overflow-hidden rounded-2xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)]">
                 <div className="flex items-center justify-between border-b border-[var(--vintage-border)] bg-[var(--vintage-paper)]/60 px-4 py-2.5">
                   <span className="text-xs font-extrabold text-ink">
                     صورتحساب استعلام
@@ -719,8 +720,8 @@ export function OnboardingWizard() {
               ) : null}
 
               {payload.identity?.verified && debt > 0 ? (
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <span className="text-xs font-bold text-amber-800">
+                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800/60 dark:bg-amber-950/40">
+                  <span className="text-xs font-bold text-amber-800 dark:text-amber-200">
                     بدهی کیف پول: {faPrice(debt)}
                   </span>
                   <button
@@ -761,7 +762,7 @@ export function OnboardingWizard() {
 
           {step.kind === 'documents' ? (
             <div className="flex flex-col gap-3">
-              <div className="rounded-2xl border border-[var(--vintage-border)] bg-white p-4">
+              <div className="rounded-2xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="flex items-center gap-2 text-sm font-extrabold text-ink">
@@ -822,7 +823,7 @@ export function OnboardingWizard() {
                           type="button"
                           onClick={() => void removeDocument(doc.id)}
                           aria-label={`حذف ${doc.name}`}
-                          className="shrink-0 rounded-md p-1 text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+                          className="shrink-0 rounded-md p-1 text-neutral-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-300"
                         >
                           <Trash2 className="size-3.5" aria-hidden />
                         </button>
@@ -872,9 +873,9 @@ export function OnboardingWizard() {
                       <div
                         key={plan.id}
                         className={cn(
-                          'flex flex-col rounded-2xl border bg-white p-4 transition',
+                          'flex flex-col rounded-2xl border bg-[var(--vintage-surface)] p-4 transition',
                           isCurrent
-                            ? 'border-brand shadow-[0_10px_30px_-20px_rgba(139,58,26,0.6)] ring-1 ring-brand/30'
+                            ? 'border-brand shadow-[0_10px_30px_-20px_rgba(139,58,26,0.6)] ring-1 ring-brand/30 dark:shadow-none'
                             : 'border-[var(--vintage-border)] hover:border-brand/40',
                         )}
                       >
@@ -953,25 +954,25 @@ export function OnboardingWizard() {
           {step.kind === 'approval' ? (
             canEnter(safeIndex) ? (
             <div className="flex flex-col gap-3">
-              <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-l from-emerald-50 via-emerald-50/70 to-white p-5 text-center">
-                <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+              <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-l from-emerald-50 via-emerald-50/70 to-[var(--vintage-surface)] p-5 text-center dark:border-emerald-800/60 dark:from-emerald-950/40 dark:via-emerald-950/30 dark:to-[var(--vintage-surface)]">
+                <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-300">
                   <PartyPopper className="size-7" aria-hidden />
                 </span>
-                <h3 className="mt-3 text-base font-extrabold text-emerald-900">
+                <h3 className="mt-3 text-base font-extrabold text-emerald-900 dark:text-emerald-100">
                   همه‌ی مراحل کامل شد!
                 </h3>
-                <p className="mx-auto mt-1.5 max-w-md text-xs leading-6 text-emerald-800">
+                <p className="mx-auto mt-1.5 max-w-md text-xs leading-6 text-emerald-800 dark:text-emerald-200">
                   کسب‌وکار شما ثبت شد و پس از تأیید مدیر در صفحه‌ی مشاغل و
                   دایرکتوری نمایش داده می‌شود. می‌توانید وضعیت را از پنل پیگیری
                   کنید.
                 </p>
-                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--vintage-surface)] px-3 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200 dark:text-emerald-300 dark:ring-emerald-800/60">
                   <Clock className="size-3.5" aria-hidden />
                   در انتظار تأیید مدیر
                 </span>
               </div>
 
-              <div className="rounded-2xl border border-[var(--vintage-border)] bg-white p-4">
+              <div className="rounded-2xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="text-xs font-extrabold text-ink">وضعیت کیف پول</p>
@@ -1013,7 +1014,7 @@ export function OnboardingWizard() {
               </Link>
             </div>
             ) : (
-              <p className="rounded-2xl border border-dashed border-[var(--vintage-border)] bg-white p-5 text-center text-xs leading-6 text-muted">
+              <p className="rounded-2xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-5 text-center text-xs leading-6 text-muted">
                 این پیام پس از تکمیل همه‌ی مراحل قبلی نمایش داده می‌شود.
               </p>
             )
@@ -1052,7 +1053,7 @@ export function OnboardingWizard() {
               مرحله قبل
             </button>
             {isLast ? (
-              <span className="text-xs font-bold text-emerald-600">
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
                 {payload.completed === payload.total
                   ? 'همه‌ی مراحل تکمیل شد 🎉'
                   : 'آخرین مرحله'}
@@ -1060,7 +1061,7 @@ export function OnboardingWizard() {
             ) : (
               <div className="flex items-center gap-3">
                 {!stepUnlocked ? (
-                  <span className="hidden text-[10px] font-bold text-amber-700 sm:inline">
+                  <span className="hidden text-[10px] font-bold text-amber-700 sm:inline dark:text-amber-300">
                     ابتدا این مرحله را کامل کنید
                   </span>
                 ) : null}
@@ -1104,7 +1105,7 @@ export function OnboardingWizard() {
               {payload.history.map((log) => (
                 <li
                   key={log.id}
-                  className="rounded-lg border border-[var(--vintage-border)] bg-white p-3 text-[11px] leading-6"
+                  className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-3 text-[11px] leading-6"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <span

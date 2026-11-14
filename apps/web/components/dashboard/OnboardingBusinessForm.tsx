@@ -283,7 +283,7 @@ export function OnboardingBusinessForm({
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 rounded-xl border border-[var(--vintage-border)] bg-white p-4 text-xs text-muted">
+      <div className="flex items-center gap-2 rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-4 text-xs text-muted">
         <Loader2 className="size-4 animate-spin" aria-hidden />
         در حال بارگذاری اطلاعات کسب‌وکار...
       </div>
@@ -293,9 +293,9 @@ export function OnboardingBusinessForm({
   return (
     <div className="flex flex-col gap-4">
       {debt > 0 ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-          <Wallet className="size-5 text-amber-600" aria-hidden />
-          <p className="min-w-0 flex-1 text-xs leading-6 text-amber-800">
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800/60 dark:bg-amber-950/40">
+          <Wallet className="size-5 text-amber-600 dark:text-amber-300" aria-hidden />
+          <p className="min-w-0 flex-1 text-xs leading-6 text-amber-800 dark:text-amber-200">
             برای ثبت کسب‌وکار ابتدا بدهی کیف پول را تسویه کنید.
             <b className="ms-1">بدهی فعلی: {faPrice(debt)}</b>
           </p>
@@ -312,7 +312,7 @@ export function OnboardingBusinessForm({
       ) : null}
 
       {card ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200">
           <Check className="size-4" aria-hidden />
           <span>
             کارت ویزیت «{card.jobTitle || card.fullName}» ثبت شده است؛ تغییرات این
@@ -322,13 +322,13 @@ export function OnboardingBusinessForm({
       ) : null}
 
       {error ? (
-        <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-6 text-red-700">
+        <div className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs leading-6 text-red-700 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-200">
           <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
           <span>{error}</span>
         </div>
       ) : null}
 
-      <div className="rounded-xl border border-[var(--vintage-border)] bg-white p-4">
+      <div className="rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-4">
         <h3 className="flex items-center gap-2 text-sm font-extrabold text-ink">
           <Building2 className="size-4 text-brand" aria-hidden />
           عنوان و اطلاعات اصلی
@@ -461,7 +461,7 @@ export function OnboardingBusinessForm({
       </div>
 
       {!requiredOnly ? (
-        <div className="rounded-xl border border-[var(--vintage-border)] bg-white p-4">
+        <div className="rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-4">
           <h3 className="text-sm font-extrabold text-ink">
             شبکه‌های اجتماعی و لینک‌های اختیاری
           </h3>
@@ -499,7 +499,7 @@ export function OnboardingBusinessForm({
             : 'ثبت کسب‌وکار و ارسال برای تأیید'}
       </button>
       {debt > 0 ? (
-        <p className="text-[11px] text-amber-700">
+        <p className="text-[11px] text-amber-700 dark:text-amber-300">
           پس از تسویه‌ی بدهی، همین دکمه فعال می‌شود.
         </p>
       ) : null}
