@@ -477,6 +477,7 @@ model User {
   sessions          Session[]
   wallet            UserWallet?
   walletPayments    WalletPayment[]   @relation("UserWalletPayments")
+  servicePayments   ServicePayment[]  @relation("UserServicePayments")
   pointsLedger      PointsLedger[]
   rewardRedemptions RewardRedemption[]
   feedSubscriptions UserFeedSubscription[] @relation("UserFeedSubscriptions")
@@ -1355,6 +1356,11 @@ model SubscriptionPlan {
   rewards           Reward[]
   /// PayPing «آیتم مالی» code mirrored from this plan (`POST /v1/product`).
   paypingProductCode String? @unique
+  /// Per-term PayPing product codes (the monthly one above is the 1-month
+  /// product). Each term has its own amount after the term discount.
+  paypingProductCode3Months  String? @unique
+  paypingProductCode6Months  String? @unique
+  paypingProductCode12Months String? @unique
   payments           SubscriptionPayment[]
 
   @@index([isActive, sortOrder])
@@ -1605,6 +1611,41 @@ model WalletPayment {
   @@index([status])
   @@index([nationalCode])
   @@map("wallet_payments")
+}
+
+/// One-off online payment for a paid service (currently the combined
+/// «شاهکار + استعلام هویتی» bundle). Unlike `WalletPayment`, this never
+/// touches the wallet balance: the service runs only after the gateway
+/// verifies the transaction.
+model ServicePayment {
+  id            String        @id @default(cuid())
+  userId        String
+  /// Stable service identifier, e.g. `identity_bundle`.
+  serviceKey    String
+  amount        Int
+  /// Identity inputs snapshotted at checkout so the callback can run the
+  /// inquiries even if the user edits their profile meanwhile.
+  nationalCode  String?
+  birthDate     String?
+  status        PaymentStatus @default(PENDING)
+  clientRefId   String        @unique
+  paymentCode   String?       @unique
+  refId         String?
+  gatewayUrl    String?
+  paidAt        DateTime?
+  verifiedAt    DateTime?
+  /// Set once the paid service actually ran, so a retry never re-charges.
+  consumedAt    DateTime?
+  failureReason String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user User @relation("UserServicePayments", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([serviceKey])
+  @@map("service_payments")
 }
 
 // ---------------------------------------------------------------------------

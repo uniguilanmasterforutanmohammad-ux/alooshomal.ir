@@ -20,7 +20,57 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.7.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.8.0**.
+
+## ۱۴۰۵/۰۸/۲۳ — پرداخت فقط آنلاین، محصولات دوره‌ای اشتراک و محصول واحد استعلام هویت — نسخه `v4.8.0`
+
+**هدف:** پرداخت اشتراک‌ها و خدمات در همان مرحله و فقط از درگاه انجام شود و
+کیف پول بدهکار نشود؛ برای هر دوره‌ی ۱/۳/۶/۱۲ ماهه یک محصول پی‌پینگ ساخته شود و
+دو استعلام «شاهکار + هویتی» به‌صورت یک محصول و یک پرداخت واحد فروخته شوند.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن کد محصول پی‌پینگ دوره‌های ۳/۶/۱۲ ماهه
+  به `SubscriptionPlan` و مدل `ServicePayment` برای پرداخت یک‌باره‌ی خدمات
+  (با `nationalCode`/`birthDate`/`consumedAt`).
+- `apps/api/src/settings/*`: تنظیم `paymentsOnlineOnly` (پیش‌فرض روشن) برای
+  موقت‌کردن حالت «پرداخت فقط آنلاین».
+- `apps/api/src/subscriptions/subscriptions-payment.service.ts`: ساخت/همگام‌سازی
+  محصول پی‌پینگ برای هر چهار دوره با مبلغ تخفیف‌خورده، و حذف مسیر کیف پول در
+  حالت آنلاین‌فقط.
+- `apps/api/src/subscriptions/subscriptions.service.ts`: همگام‌سازی همه‌ی
+  دوره‌ها هنگام ساخت/ویرایش بسته.
+- `apps/api/src/zohal/zohal.service.ts` و `zohal.controller.ts`: ساخت محصول
+  پی‌پینگ برای همه‌ی خدمات فعال و یک محصول واحد برای جمع تعرفه‌ی شاهکار و
+  استعلام هویتی؛ مسیر `POST /admin/zohal/payping-products`.
+- `apps/api/src/profile/*`: مسیرهای `identity/checkout`، `identity/verify` و
+  callback پرداخت استعلام هویت؛ اجرای هر دو استعلام فقط پس از تأیید تراکنش و
+  بدون کسر از کیف پول. مسیرهای قدیمی در حالت آنلاین‌فقط خطای راهنما می‌دهند.
+- `apps/api/src/pricing/*`: افزودن `onlineOnly` به خروجی و ورودی پنل قیمت‌ها.
+- `apps/web/components/admin/AdminPricingPanel.tsx`: کلید «پرداخت فقط آنلاین».
+- `apps/web/components/admin/AdminSubscriptions.tsx`: نمایش و همگام‌سازی کد
+  محصول هر چهار دوره.
+- `apps/web/components/admin/AdminZohal.tsx`: دکمه‌ی همگام‌سازی محصولات درگاه.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: دکمه‌ی واحد «پرداخت و
+  استعلام هویت»، هدایت به درگاه و پیام بازگشت.
+- `apps/web/lib/api/types/subscriptions.ts` و `docs/API.md`: به‌روزرسانی types
+  و مستندات.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.8.0`.
+
+**تأیید/تست:**
+- `npx prisma generate` و `npx prisma db push` در کانتینر API → موفق.
+- `tsc --noEmit` در API و `npm run typecheck --workspace @alooshomal/web` → exit 0.
+- `POST /api/profile/identity/checkout` با کاربر تست → مبلغ `۷۵٬۱۰۰` تومان
+  (۲۵٬۶۰۰ + ۴۹٬۵۰۰)، ساخت `ServicePayment` و URL شبیه‌ساز درگاه.
+- `POST /api/profile/identity/verify` بدون پرداخت → خطای ۴۰۰ راهنما؛ callback
+  پرداخت تأییدشده → ریدایرکت `?identity=success`.
+- `POST /api/subscriptions/:id/checkout` برای اکو و بلاس در دوره‌های ۱/۳/۶/۱۲:
+  مبالغ `۹۹٬۰۰۰/۲۳۷٬۶۰۰/۴۱۵٬۸۰۰/۷۱۲٬۸۰۰` و
+  `۱۹۹٬۰۰۰/۵۳۷٬۳۰۰/۸۹۵٬۵۰۰/۱٬۱۹۴٬۰۰۰` و همه با `online` (بدون کیف پول).
+- `GET/PATCH /api/admin/pricing` → `onlineOnly` خوانده و روشن/خاموش شد.
+- `POST /api/admin/zohal/payping-products` → محصول واحد با مبلغ `۷۵٬۱۰۰`
+  (کد محصول به‌دلیل محدودیت IP محیط توسعه `null` شد؛ روی سرور مجاز ساخته می‌شود).
+- `python3 scripts/check_api_docs.py` → exit 0؛ `sync_install.py --check` →
+  بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۳ — هم‌رنگ‌سازی صفحه‌ی «شروع آسان» با تم تیره‌ی توییتر — نسخه `v4.7.1`
 

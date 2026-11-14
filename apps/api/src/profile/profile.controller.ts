@@ -1,13 +1,26 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { NewsStatus } from '@prisma/client';
+import type { Response } from 'express';
 
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
+import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { RequirePermission } from '../auth/permissions.decorator';
 import {
   DecideProfileChangeDto,
+  IdentityCheckoutDto,
   MatchIdentityPhoneDto,
   RequestContactOtpDto,
   RequestProfileChangeDto,
@@ -64,6 +77,48 @@ export class ProfileController {
   })
   inquiryIdentity(@CurrentUser() user: AuthUser) {
     return this.profile.inquiryIdentity(user.id);
+  }
+
+  @Post('identity/checkout')
+  @ApiOperation({
+    summary:
+      'شروع پرداخت آنلاین استعلام هویت (شاهکار + هویتی) به‌صورت یک محصول واحد',
+  })
+  identityCheckout(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: IdentityCheckoutDto,
+  ) {
+    return this.profile.identityCheckout(user.id, dto);
+  }
+
+  @Post('identity/verify')
+  @ApiOperation({
+    summary: 'اجرای استعلام هویت پس از پرداخت موفق (بدون کسر مجدد)',
+  })
+  verifyIdentityPayment(@CurrentUser() user: AuthUser) {
+    return this.profile.verifyIdentityPayment(user.id);
+  }
+
+  @Public()
+  @Get('identity/payments/callback')
+  @ApiOperation({ summary: 'بازگشت از درگاه و تأیید پرداخت استعلام هویت' })
+  @ApiQuery({ name: 'paymentCode', required: false })
+  @ApiQuery({ name: 'refId', required: false })
+  @ApiQuery({ name: 'clientRefId', required: false })
+  async identityPaymentCallback(
+    @Query('paymentCode') paymentCode: string | undefined,
+    @Query('code') code: string | undefined,
+    @Query('refId') refId: string | undefined,
+    @Query('paymentRefId') paymentRefId: string | undefined,
+    @Query('clientRefId') clientRefId: string | undefined,
+    @Res() res: Response,
+  ) {
+    const result = await this.profile.handleIdentityPaymentCallback({
+      paymentCode: paymentCode ?? code,
+      refId: refId ?? paymentRefId,
+      clientRefId,
+    });
+    res.redirect(302, result.redirectUrl);
   }
 
   @Post('change-request')

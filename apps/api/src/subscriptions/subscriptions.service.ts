@@ -215,14 +215,9 @@ export class SubscriptionsService implements OnModuleInit {
         showSocialLinks: !hiddenFields.includes('website'),
       },
     });
-    if (
-      updated.paypingProductCode &&
-      (dto.price !== undefined || dto.name !== undefined || dto.description !== undefined)
-    ) {
-      await this.payments.syncPlanProductQuietly(updated);
-    } else if (!updated.paypingProductCode) {
-      await this.payments.syncPlanProductQuietly(updated);
-    }
+    // Best-effort: keep every term's PayPing product (1/3/6/12 months) in
+    // sync with the plan's current price and discounts.
+    await this.payments.syncPlanProductQuietly(updated);
     return updated;
   }
 

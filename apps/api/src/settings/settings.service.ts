@@ -47,6 +47,7 @@ import {
   DEFAULT_NEWS_HEADLINE_COUNT,
   DEFAULT_PHONE_LOGIN_ENABLED,
   DEFAULT_POINTS_PER_NEWS,
+  DEFAULT_PAYMENTS_ONLINE_ONLY,
   DEFAULT_SITE_THEME,
   DEFAULT_WALLET_SETTLEMENT_DAYS,
   DIRECTORY_DISPLAY_MODES,
@@ -70,6 +71,7 @@ import {
   NEWS_HEADLINE_COUNT_KEY,
   NewsAccessLevel,
   PHONE_LOGIN_ENABLED_KEY,
+  PAYMENTS_ONLINE_ONLY_KEY,
   POINTS_PER_NEWS_KEY,
   SITE_THEMES,
   SITE_THEME_KEY,
@@ -848,6 +850,24 @@ export class SettingsService implements OnModuleInit {
       create: { key: WALLET_SETTLEMENT_DAYS_KEY, value: String(clamped) },
     });
     return clamped;
+  }
+
+  /** Whether paid flows must be settled online at the same step. */
+  async getPaymentsOnlineOnly(): Promise<boolean> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: PAYMENTS_ONLINE_ONLY_KEY },
+    });
+    if (!setting) return DEFAULT_PAYMENTS_ONLINE_ONLY;
+    return setting.value !== 'false';
+  }
+
+  async setPaymentsOnlineOnly(value: boolean): Promise<boolean> {
+    await this.prisma.setting.upsert({
+      where: { key: PAYMENTS_ONLINE_ONLY_KEY },
+      update: { value: value ? 'true' : 'false' },
+      create: { key: PAYMENTS_ONLINE_ONLY_KEY, value: value ? 'true' : 'false' },
+    });
+    return value;
   }
 
   /** Points credited per approved «نبض شهر» news item. */

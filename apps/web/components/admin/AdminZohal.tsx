@@ -100,6 +100,7 @@ export function AdminZohal() {
   const [testResult, setTestResult] = useState<ZohalCallResult | null>(null);
   const [blueTick, setBlueTick] = useState<BlueTickResponse | null>(null);
   const [blueTickBusy, setBlueTickBusy] = useState<string | null>(null);
+  const [syncingProducts, setSyncingProducts] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -212,6 +213,24 @@ export function AdminZohal() {
     setTestPayload(initial);
   }
 
+  async function syncPaypingProducts() {
+    setSyncingProducts(true);
+    try {
+      const result = await api.post<{
+        products: Record<string, string | null>;
+        identityBundleAmount: number;
+      }>('/admin/zohal/payping-products');
+      const count = Object.values(result.products).filter(Boolean).length;
+      toast.success(
+        `${count} محصول پی‌پینگ ساخته/همگام شد؛ محصول واحد استعلام هویت: ${result.identityBundleAmount.toLocaleString('fa-IR')} تومان.`,
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'همگام‌سازی محصولات ناموفق بود');
+    } finally {
+      setSyncingProducts(false);
+    }
+  }
+
   async function runTest(service: ZohalService) {
     const payload: Record<string, unknown> = {};
     for (const field of service.fields) {
@@ -269,14 +288,29 @@ export function AdminZohal() {
             <ShieldCheck className="size-5 text-brand" aria-hidden />
             <h2 className="text-sm font-extrabold text-ink">اتصال سرویس زحل</h2>
           </div>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="indeed-btn indeed-btn-secondary py-1 text-xs"
-          >
-            <RefreshCw className="size-3.5" aria-hidden />
-            بروزرسانی
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void syncPaypingProducts()}
+              disabled={syncingProducts}
+              className="indeed-btn indeed-btn-secondary py-1 text-xs"
+            >
+              {syncingProducts ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                <BadgeCheck className="size-3.5" aria-hidden />
+              )}
+              همگام‌سازی محصولات درگاه
+            </button>
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="indeed-btn indeed-btn-secondary py-1 text-xs"
+            >
+              <RefreshCw className="size-3.5" aria-hidden />
+              بروزرسانی
+            </button>
+          </div>
         </div>
         <div className="mt-3 grid gap-3 text-xs sm:grid-cols-3">
           <div className="rounded-lg border border-line bg-surface p-3">

@@ -217,11 +217,18 @@ export function AdminSubscriptions() {
     setError(null);
     setNotice(null);
     try {
-      const result = await api.post<{ paypingProductCode: string }>(
+      const result = await api.post<{
+        paypingProductCode: string | null;
+        paypingProductCodes: Record<string, string | null>;
+      }>(
         `/admin/plans/${plan.id}/payping-product`,
       );
+      const codes = Object.entries(result.paypingProductCodes ?? {})
+        .filter(([, code]) => Boolean(code))
+        .map(([months, code]) => `${months} ماهه: ${code}`)
+        .join(' · ');
       setNotice(
-        `محصول پی‌پینگ بسته «${plan.name}» ساخته/همگام شد (کد: ${result.paypingProductCode}).`,
+        `محصولات پی‌پینگ بسته «${plan.name}» ساخته/همگام شد${codes ? ` (${codes})` : ''}.`,
       );
       await loadPlans();
     } catch (err) {
@@ -302,13 +309,20 @@ export function AdminSubscriptions() {
     {
       key: 'payping',
       label: 'محصول پی‌پینگ',
-      render: (plan) => (
+      render: (plan) => {
+        const codes: Array<[string, string | null | undefined]> = [
+          ['۱ ماهه', plan.paypingProductCode],
+          ['۳ ماهه', plan.paypingProductCode3Months],
+          ['۶ ماهه', plan.paypingProductCode6Months],
+          ['۱۲ ماهه', plan.paypingProductCode12Months],
+        ];
+        return (
         <div className="flex flex-col items-start gap-1">
-          <span className="text-xs text-muted">
-            {plan.paypingProductCode
-              ? `کد: ${plan.paypingProductCode}`
-              : 'ساخته نشده'}
-          </span>
+          {codes.map(([label, code]) => (
+            <span key={label} className="text-[11px] text-muted">
+              {label}: {code || 'ساخته نشده'}
+            </span>
+          ))}
           {plan.price >= 1000 ? (
             <button
               type="button"
@@ -320,7 +334,8 @@ export function AdminSubscriptions() {
             </button>
           ) : null}
         </div>
-      ),
+        );
+      },
     },
     {
       key: 'actions',

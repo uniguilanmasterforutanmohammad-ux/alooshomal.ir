@@ -20,6 +20,7 @@ interface PricingPayload {
   items: PricingItem[];
   settlementDays: number;
   maxPrice: number;
+  onlineOnly: boolean;
 }
 
 function faPrice(value: number): string {
@@ -37,6 +38,7 @@ export function AdminPricingPanel() {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [onlineOnly, setOnlineOnly] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -45,6 +47,7 @@ export function AdminPricingPanel() {
     try {
       const result = await api.get<PricingPayload>('/admin/pricing');
       setData(result);
+      setOnlineOnly(result.onlineOnly);
       setDraft(
         Object.fromEntries(result.items.map((item) => [item.key, String(item.price)])),
       );
@@ -77,7 +80,7 @@ export function AdminPricingPanel() {
   }, [data, draft]);
 
   async function save() {
-    if (changed.length === 0) {
+    if (changed.length === 0 && onlineOnly === data?.onlineOnly) {
       setNotice('تغییری برای ذخیره وجود ندارد.');
       return;
     }
@@ -91,8 +94,10 @@ export function AdminPricingPanel() {
     try {
       const result = await api.patch<PricingPayload>('/admin/pricing', {
         items: changed,
+        onlineOnly,
       });
       setData(result);
+      setOnlineOnly(result.onlineOnly);
       setDraft(
         Object.fromEntries(result.items.map((item) => [item.key, String(item.price)])),
       );
@@ -123,6 +128,22 @@ export function AdminPricingPanel() {
         <b className="text-ink">{faPrice(data?.settlementDays ?? 7)} روز</b> است و از
         بخش «کیف پول» تنظیمات قابل تغییر است.
       </div>
+
+      <label className="indeed-panel flex items-start gap-3 p-4 text-xs leading-6 text-muted">
+        <input
+          type="checkbox"
+          checked={onlineOnly}
+          onChange={(event) => setOnlineOnly(event.target.checked)}
+          className="mt-1 size-4 accent-[var(--vintage-accent)]"
+        />
+        <span>
+          <b className="text-ink">پرداخت فقط آنلاین</b>
+          <br />
+          اشتراک‌ها و استعلام هویت در همان مرحله از درگاه پرداخت می‌شوند و کیف پول
+          منفی نمی‌شود. برای بازگشت موقت به پرداخت اعتباری، این گزینه را خاموش کنید
+          و ذخیره بزنید.
+        </span>
+      </label>
 
       {groups.map(([group, items]) => (
         <div key={group} className="indeed-panel overflow-hidden">
@@ -175,11 +196,13 @@ export function AdminPricingPanel() {
         <button
           type="button"
           onClick={() => void save()}
-          disabled={saving || changed.length === 0}
+          disabled={saving || (changed.length === 0 && onlineOnly === data?.onlineOnly)}
           className="indeed-btn indeed-btn-primary"
         >
           <Save className="size-4" aria-hidden />
-          {saving ? 'در حال ذخیره...' : `ذخیره ${changed.length || ''} تغییر`}
+          {saving
+            ? 'در حال ذخیره...'
+            : `ذخیره ${changed.length || ''} تغییر`}
         </button>
         {changed.length > 0 ? (
           <span className="text-xs text-muted">{changed.length} ردیف تغییر کرده است.</span>

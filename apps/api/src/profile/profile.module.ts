@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ActivityModule } from '../activity/activity.module';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { PaypingModule } from '../payping/payping.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SettingsModule } from '../settings/settings.module';
 import { WalletModule } from '../wallet/wallet.module';
@@ -19,6 +20,7 @@ import { ProfileService } from './profile.service';
     SettingsModule,
     ZohalModule,
     WalletModule,
+    PaypingModule,
   ],
   controllers: [ProfileController, AdminProfileController],
   providers: [ProfileService],

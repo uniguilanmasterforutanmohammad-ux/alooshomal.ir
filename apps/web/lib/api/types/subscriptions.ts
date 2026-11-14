@@ -16,6 +16,9 @@ export interface SubscriptionPlan {
   sortOrder: number;
   /** PayPing «آیتم مالی» code mirrored from this plan, when synced. */
   paypingProductCode?: string | null;
+  paypingProductCode3Months?: string | null;
+  paypingProductCode6Months?: string | null;
+  paypingProductCode12Months?: string | null;
 }
 
 export type SubscriptionStatus =

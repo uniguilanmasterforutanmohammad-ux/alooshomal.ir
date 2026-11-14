@@ -327,9 +327,9 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 | `GET` | `/subscriptions/plans` | فهرست بسته‌های فعال (عمومی). |
 | `GET` | `/subscriptions/me` | بسته‌ی فعلی (به‌همراه `planExpiresAt`)، درخواست‌ها و ۲۰ پرداخت آخر کاربر. |
 | `POST` | `/subscriptions/request` | درخواست اشتراک رایگان/بدون پرداخت (در انتظار تأیید مدیر)؛ بدنه‌ی اختیاری `{ planId, note, months }`. |
-| `POST` | `/subscriptions/:planId/checkout` | شروع پرداخت آنلاین؛ بدنه‌ی اختیاری `{ months }` (۱/۳/۶/۱۲)، خروجی `{ paymentId, amount, months, url, paymentCode, paypingProductCode }`. کاربر باید به `url` هدایت شود. |
+| `POST` | `/subscriptions/:planId/checkout` | شروع پرداخت آنلاین؛ بدنه‌ی اختیاری `{ months }` (۱/۳/۶/۱۲)، خروجی `{ paymentId, amount, months, url, paymentCode, paypingProductCode }`. در حالت «پرداخت فقط آنلاین» همیشه به درگاه می‌رود و کیف پول بدهکار نمی‌شود. کاربر باید به `url` هدایت شود. |
 | `GET` | `/subscriptions/payments/callback` | آدرس بازگشت عمومی پی‌پینگ (`paymentCode`، `refId`، `clientRefId`)؛ تراکنش را تأیید و سپس به `/dashboard/subscriptions?payment=...` هدایت می‌کند. |
-| `POST` | `/admin/plans/:id/payping-product` | ساخت/همگام‌سازی محصول پی‌پینگ یک بسته (فقط مدیر). |
+| `POST` | `/admin/plans/:id/payping-product` | ساخت/همگام‌سازی محصولات پی‌پینگ همه‌ی دوره‌های ۱/۳/۶/۱۲ ماهه‌ی یک بسته (فقط مدیر)؛ خروجی `{ paypingProductCode, paypingProductCodes }`. |
 
 **آدرس بازگشت:** `${NEXT_PUBLIC_APP_URL}/api/subscriptions/payments/callback`
 است؛ پس دامنه‌ی عمومی سایت باید در `NEXT_PUBLIC_APP_URL` سرور درست تنظیم شده
@@ -426,8 +426,8 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 
 | متد | مسیر | توضیح |
 | --- | --- | --- |
-| `GET` | `/admin/pricing` | همه‌ی اقلام دارای هزینه (پلن‌ها، بسته‌های فید، سرویس‌های زحل، پله، تبلیغ صفحه اصلی/دایرکتوری، تگ فید) با `price`، `group` و `settlementDays`. |
-| `PATCH` | `/admin/pricing` | به‌روزرسانی گروهی `{ items: [{ key, price }] }`؛ کلیدها به شکل `setting:*`، `zohal:*`، `plan:*` و `feedPackage:*` هستند. |
+| `GET` | `/admin/pricing` | همه‌ی اقلام دارای هزینه (پلن‌ها، بسته‌های فید، سرویس‌های زحل، پله، تبلیغ صفحه اصلی/دایرکتوری، تگ فید) با `price`، `group`، `settlementDays` و `onlineOnly`. |
+| `PATCH` | `/admin/pricing` | به‌روزرسانی گروهی `{ items?: [{ key, price }], onlineOnly? }`؛ کلیدها به شکل `setting:*`، `zohal:*`، `plan:*` و `feedPackage:*` هستند. `onlineOnly=true` پرداخت اشتراک و استعلام هویت را در همان مرحله به درگاه می‌فرستد و کیف پول را بدهکار نمی‌کند. |
 
 ## مالیات و بایگانی مالی (`/api/admin/finance`)
 
@@ -462,12 +462,16 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 | `PATCH` | `/admin/zohal/services/:key` | ADMIN | فعال/غیرفعال‌کردن یک سرویس (`{ enabled }`). |
 | `GET` | `/zohal/pricing` | عمومی | تعرفه‌ی عمومی سرویس‌های استعلام؛ فقط سرویس‌های فعال و دارای قیمت بیشتر از صفر برمی‌گردند (سرویس غیرفعال از صفحه‌ی «تعرفه‌ها» حذف می‌شود). |
 | `POST` | `/admin/zohal/services/:key/test` | ADMIN | فراخوانی آزمایشی واقعی (هزینه‌زا) با `{ payload }`. |
+| `POST` | `/admin/zohal/payping-products` | ADMIN | ساخت/همگام‌سازی محصول پی‌پینگ همه‌ی خدمات فعال؛ دو استعلام «شاهکار» و «هویتی» به‌صورت یک محصول واحد با مبلغ جمع دو تعرفه ساخته می‌شوند. |
 | `GET` | `/admin/zohal/blue-tick` | ADMIN | درخواست‌های تیک آبی در انتظار بررسی + آخرین حساب‌های تأییدشده. |
 | `PATCH` | `/admin/zohal/blue-tick/:id` | ADMIN | تأیید/رد درخواست تیک آبی (`{ decision, reason? }`). |
 | `GET` | `/profile/identity-inquiry/status` | کاربر | آیا استعلام خودکار هویت در دسترس است؟ |
 | `GET` | `/profile/identity/status` | کاربر | وضعیت دو مرحله‌ی هویت (`phoneMatched`، `verified`) و مشخصات ذخیره‌شده. |
-| `POST` | `/profile/identity/phone-match` | کاربر | مرحله ۱: `{ nationalCode, birthDate }`؛ تطبیق شاهکار، ذخیره‌ی تاریخ تولد و ثبت هزینه در کیف پول. |
-| `POST` | `/profile/identity/inquiry` | کاربر | مرحله ۲: استعلام هویت با کد ملی/تاریخ تولد ذخیره‌شده، ذخیره‌ی نام/نام پدر و ثبت هزینه. |
+| `POST` | `/profile/identity/checkout` | کاربر | شروع پرداخت آنلاین محصول واحد «شاهکار + استعلام هویتی»؛ بدنه‌ی اختیاری `{ nationalCode, birthDate }`. خروجی `{ url, amount, paid, alreadyVerified }`. در حالت پرداخت فقط آنلاین، کیف پول بدهکار نمی‌شود. |
+| `POST` | `/profile/identity/verify` | کاربر | اجرای هر دو استعلام پس از پرداخت موفق، بدون کسر مجدد (برای تلاش دوباره پس از خطای موقت). |
+| `GET` | `/profile/identity/payments/callback` | عمومی | بازگشت از درگاه؛ تراکنش را تأیید، هر دو استعلام را اجرا و به `/dashboard/onboarding?identity=success|failed` هدایت می‌کند. |
+| `POST` | `/profile/identity/phone-match` | کاربر | مسیر قدیمی مرحله ۱؛ در حالت «پرداخت فقط آنلاین» با خطا کاربر را به `identity/checkout` هدایت می‌کند. |
+| `POST` | `/profile/identity/inquiry` | کاربر | مسیر قدیمی مرحله ۲؛ در حالت «پرداخت فقط آنلاین» با خطا کاربر را به `identity/checkout` هدایت می‌کند. |
 | `POST` | `/profile/blue-tick/request` | کاربر | ثبت درخواست تیک آبی پس از استعلام هویت. |
 
 `PATCH /profile/me` فقط برای حالت جایگزین (وقتی استعلام زحل خاموش است) باقی

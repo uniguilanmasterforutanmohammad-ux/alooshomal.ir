@@ -53,6 +53,15 @@ export class AdminZohalController {
     return this.zohal.call(key, dto.payload ?? {}, { force: true });
   }
 
+  @Post('payping-products')
+  @ApiOperation({
+    summary:
+      'ساخت/همگام‌سازی محصول پی‌پینگ همه‌ی خدمات فعال (دو استعلام هویتی به‌صورت یک محصول واحد)',
+  })
+  syncPaypingProducts() {
+    return this.zohal.syncPaypingProducts();
+  }
+
   @Get('blue-tick')
   @ApiOperation({ summary: 'درخواست‌های تیک آبی در انتظار بررسی' })
   blueTickRequests() {

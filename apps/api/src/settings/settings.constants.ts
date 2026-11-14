@@ -94,6 +94,14 @@ export const MAX_PRICE = 1_000_000_000;
 export const WALLET_SETTLEMENT_DAYS_KEY = 'walletSettlementDays';
 export const DEFAULT_WALLET_SETTLEMENT_DAYS = 7;
 
+/**
+ * Temporary payment policy: when on, the billable flows that support it
+ * (subscriptions and the identity inquiry bundle) must be paid online at the
+ * same step instead of accruing a negative wallet balance.
+ */
+export const PAYMENTS_ONLINE_ONLY_KEY = 'paymentsOnlineOnly';
+export const DEFAULT_PAYMENTS_ONLINE_ONLY = true;
+
 // ---------------------------------------------------------------------------
 //  «امتیاز» (points) — earned by approved «نبض شهر» news, spent on rewards
 // ---------------------------------------------------------------------------

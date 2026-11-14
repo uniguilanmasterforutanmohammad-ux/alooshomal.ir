@@ -90,41 +90,50 @@ export class SubscriptionsPaymentService {
   }
 
   /**
-   * Mirror a plan into a PayPing «آیتم مالی» so every subscription has its own
-   * product in the merchant account. The code is cached on the plan row and
-   * reused for later checkouts.
+   * Mirror one plan term into a PayPing «آیتم مالی» so every purchasable
+   * period (1/3/6/12 months) has its own product in the merchant account. The
+   * code is cached on the plan row and reused for later checkouts.
    */
-  private async ensurePlanProduct(plan: SubscriptionPlan): Promise<string> {
+  private async ensurePlanProduct(
+    plan: SubscriptionPlan,
+    months = 1,
+  ): Promise<string> {
     if (!this.payping.configured) {
       throw new ServiceUnavailableException(
         'توکن درگاه پرداخت پی‌پینگ تنظیم نشده است. مقدار PAYPING_TOKEN را در محیط سرور قرار دهید.',
       );
     }
+    const amount = planPriceForMonths(plan, months);
+    const term = months === 1 ? 'یک‌ماهه' : `${months} ماهه`;
     const payload = {
-      title: `اشتراک ${plan.name} — شمالی‌کارت`,
-      description: plan.description ?? undefined,
-      amount: plan.price,
+      title: `اشتراک ${plan.name} — ${term} — شمالی‌کارت`,
+      description: plan.description
+        ? `${plan.description} (دوره‌ی ${term})`
+        : `دوره‌ی ${term}`,
+      amount,
       defineAmountByUser: false,
       haveTax: false,
       unlimited: true,
     };
 
-    if (plan.paypingProductCode) {
+    const codeField = this.planProductCodeField(months);
+    const existingCode = plan[codeField];
+    if (existingCode) {
       // Keep the remote product price/title in sync with the plan. A failure
       // here must not block a checkout that already has a valid product code.
       try {
         await this.payping.updateProduct({
           ...payload,
-          code: plan.paypingProductCode,
+          code: existingCode,
         });
       } catch (error) {
         this.logger.warn(
-          `PayPing product ${plan.paypingProductCode} sync failed: ${
+          `PayPing product ${existingCode} sync failed: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
       }
-      return plan.paypingProductCode;
+      return existingCode;
     }
 
     const created = (await this.payping.createProduct(payload)) as {
@@ -137,47 +146,74 @@ export class SubscriptionsPaymentService {
     }
     await this.prisma.subscriptionPlan.update({
       where: { id: plan.id },
-      data: { paypingProductCode: created.code },
+      data: { [codeField]: created.code },
     });
     return created.code;
   }
 
-  /** Best-effort product sync used by plan create/update (never throws). */
+  /** Prisma column that stores the PayPing product code of one term. */
+  private planProductCodeField(
+    months: number,
+  ):
+    | 'paypingProductCode'
+    | 'paypingProductCode3Months'
+    | 'paypingProductCode6Months'
+    | 'paypingProductCode12Months' {
+    if (months === 3) return 'paypingProductCode3Months';
+    if (months === 6) return 'paypingProductCode6Months';
+    if (months === 12) return 'paypingProductCode12Months';
+    return 'paypingProductCode';
+  }
+
+  /** Best-effort product sync for every billable term (never throws). */
   async syncPlanProductQuietly(plan: SubscriptionPlan): Promise<void> {
-    if (this.simulator.isEnabled || !this.payping.configured || plan.price < 1000)
-      return;
-    try {
-      await this.ensurePlanProduct(plan);
-    } catch (error) {
-      this.logger.warn(
-        `PayPing product sync for plan ${plan.id} failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
+    if (this.simulator.isEnabled || !this.payping.configured) return;
+    for (const months of [1, 3, 6, 12] as const) {
+      if (planPriceForMonths(plan, months) < 1000) continue;
+      try {
+        await this.ensurePlanProduct(plan, months);
+      } catch (error) {
+        this.logger.warn(
+          `PayPing product sync for plan ${plan.id} (${months}m) failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
     }
   }
 
-  /** Admin action: create/refresh the PayPing product of one plan. */
+  /** Admin action: create/refresh the PayPing products of every plan term. */
   async syncPaypingProduct(planId: string) {
     const plan = await this.requirePlan(planId);
-    if (plan.price < 1000) {
+    if (planPriceForMonths(plan, 1) < 1000) {
       throw new BadRequestException(
         'برای ساخت محصول پی‌پینگ، قیمت اشتراک باید حداقل ۱۰۰۰ تومان باشد.',
       );
     }
     // Mirroring the plan as a PayPing product is desirable but not required by
     // `/v3/pay`; a restricted merchant token must not block a real payment.
-    let paypingProductCode: string | null = null;
-    try {
-      paypingProductCode = await this.ensurePlanProduct(plan);
-    } catch (error) {
-      this.logger.warn(
-        `PayPing product for plan ${plan.id} unavailable: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
+    const paypingProductCodes: Record<string, string | null> = {};
+    for (const months of [1, 3, 6, 12] as const) {
+      if (planPriceForMonths(plan, months) < 1000) {
+        paypingProductCodes[months] = null;
+        continue;
+      }
+      try {
+        paypingProductCodes[months] = await this.ensurePlanProduct(plan, months);
+      } catch (error) {
+        this.logger.warn(
+          `PayPing product for plan ${plan.id} (${months}m) unavailable: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        paypingProductCodes[months] = null;
+      }
     }
-    return { planId, paypingProductCode };
+    return {
+      planId,
+      paypingProductCode: paypingProductCodes[1] ?? null,
+      paypingProductCodes,
+    };
   }
 
   /**
@@ -223,16 +259,17 @@ export class SubscriptionsPaymentService {
     }
     await this.assertNotDowngrade(userId, plan.id);
 
-    // With the wallet switched on, the plan is activated right away and its
-    // price is added to the user's tab instead of a per-purchase gateway call.
-    if (await this.settings.isFeatureEnabled('featureWallet')) {
+    // Online-only mode (the current policy) always goes through the gateway,
+    // so a purchase can never leave a negative wallet balance behind.
+    const onlineOnly = await this.settings.getPaymentsOnlineOnly();
+    if (!onlineOnly && (await this.settings.isFeatureEnabled('featureWallet'))) {
       return this.purchaseViaWallet(userId, plan, months);
     }
 
     // The simulator has no merchant account to mirror plans into.
     const paypingProductCode = this.simulator.isEnabled
       ? null
-      : await this.ensurePlanProduct(plan);
+      : await this.ensurePlanProduct(plan, months);
 
     // Supersede any previous unpaid attempt for the same plan.
     await this.prisma.subscriptionPayment.updateMany({

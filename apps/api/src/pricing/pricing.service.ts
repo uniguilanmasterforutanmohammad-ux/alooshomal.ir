@@ -50,6 +50,7 @@ export class PricingService {
     items: PricingItem[];
     settlementDays: number;
     maxPrice: number;
+    onlineOnly: boolean;
   }> {
     const [
       boostPrice,
@@ -57,6 +58,7 @@ export class PricingService {
       adDirectoryPrice,
       feedTagPrice,
       settlementDays,
+      onlineOnly,
       plans,
       packages,
       zohal,
@@ -66,6 +68,7 @@ export class PricingService {
       this.settings.getAdDirectoryPrice(),
       this.settings.getFeedTagPrice(),
       this.settings.getWalletSettlementDays(),
+      this.settings.getPaymentsOnlineOnly(),
       this.prisma.subscriptionPlan.findMany({
         orderBy: [{ sortOrder: 'asc' }, { price: 'asc' }],
       }),
@@ -151,7 +154,7 @@ export class PricingService {
         })),
     ];
 
-    return { items, settlementDays, maxPrice: MAX_PRICE };
+    return { items, settlementDays, maxPrice: MAX_PRICE, onlineOnly };
   }
 
   /**
@@ -175,8 +178,14 @@ export class PricingService {
     };
   }
 
-  async update(items: PricingUpdate[]): Promise<Awaited<ReturnType<PricingService['list']>>> {
-    if (!Array.isArray(items) || items.length === 0) {
+  async update(
+    items: PricingUpdate[],
+    onlineOnly?: boolean,
+  ): Promise<Awaited<ReturnType<PricingService['list']>>> {
+    if (!Array.isArray(items)) {
+      throw new BadRequestException('فهرست قیمت‌ها نامعتبر است.');
+    }
+    if (items.length === 0 && onlineOnly === undefined) {
       throw new BadRequestException('فهرست قیمت‌ها خالی است.');
     }
     for (const item of items) {
@@ -218,6 +227,9 @@ export class PricingService {
       } else {
         throw new BadRequestException('کلید قیمت نامعتبر است.');
       }
+    }
+    if (onlineOnly !== undefined) {
+      await this.settings.setPaymentsOnlineOnly(onlineOnly);
     }
     return this.list();
   }

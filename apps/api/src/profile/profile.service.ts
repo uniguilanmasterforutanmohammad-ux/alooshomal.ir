@@ -4,18 +4,23 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   IdentityInquiryKind,
   IdentityInquiryStatus,
   NewsStatus,
   NotificationType,
+  PaymentStatus,
   Prisma,
   WalletEntryKind,
 } from '@prisma/client';
+import { randomBytes } from 'node:crypto';
 
 import { ActivityService } from '../activity/activity.service';
 import { OtpService } from '../auth/otp.service';
 import { isProfileComplete, isValidNationalCode } from '../common/national-code';
+import { PaymentSimulatorService } from '../payping/payment-simulator.service';
+import { PaypingService } from '../payping/payping.service';
 import { SettingsService } from '../settings/settings.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -49,6 +54,9 @@ export class ProfileService {
     private readonly settings: SettingsService,
     private readonly zohal: ZohalService,
     private readonly wallet: WalletService,
+    private readonly payping: PaypingService,
+    private readonly simulator: PaymentSimulatorService,
+    private readonly config: ConfigService,
   ) {}
 
   /** Contact changes rely on the same OTP delivery as phone sign-in. */
@@ -175,7 +183,16 @@ export class ProfileService {
   async matchIdentityPhone(
     userId: string,
     dto: { nationalCode: string; birthDate: string },
+    options: { skipOnlineGuard?: boolean; skipWallet?: boolean; force?: boolean } = {},
   ) {
+    if (
+      !options.skipOnlineGuard &&
+      (await this.settings.getPaymentsOnlineOnly())
+    ) {
+      throw new BadRequestException(
+        'پرداخت استعلام هویت فقط به‌صورت آنلاین انجام می‌شود؛ از دکمه‌ی «پرداخت و استعلام» استفاده کنید.',
+      );
+    }
     await this.settings.assertFeatureEnabled(
       'featureIdentityInquiry',
       'استعلام هویت موقتاً توسط مدیر غیرفعال شده است.',
@@ -212,6 +229,7 @@ export class ProfileService {
     // account, so nothing is re-sent upstream and nothing is charged. The row
     // is still logged (CACHED) so the history shows what happened.
     if (
+      !options.force &&
       me.phoneMatchVerifiedAt &&
       me.nationalCode === nationalCode &&
       me.birthDate === birthDate
@@ -244,7 +262,7 @@ export class ProfileService {
     // Charge only when Zohal actually answered; a network/timeout failure never
     // consumed the paid inquiry, so the user must not be billed for it.
     let charged = 0;
-    if (inquiry.httpStatus !== null) {
+    if (inquiry.httpStatus !== null && !options.skipWallet) {
       charged = await this.wallet.charge({
         userId,
         kind: WalletEntryKind.PHONE_MATCH,
@@ -337,7 +355,18 @@ export class ProfileService {
    * the account as identity-verified. Idempotent once verified: a second call
    * returns the stored result without charging again.
    */
-  async inquiryIdentity(userId: string) {
+  async inquiryIdentity(
+    userId: string,
+    options: { skipOnlineGuard?: boolean; skipWallet?: boolean } = {},
+  ) {
+    if (
+      !options.skipOnlineGuard &&
+      (await this.settings.getPaymentsOnlineOnly())
+    ) {
+      throw new BadRequestException(
+        'پرداخت استعلام هویت فقط به‌صورت آنلاین انجام می‌شود؛ از دکمه‌ی «پرداخت و استعلام» استفاده کنید.',
+      );
+    }
     await this.settings.assertFeatureEnabled(
       'featureIdentityInquiry',
       'استعلام هویت موقتاً توسط مدیر غیرفعال شده است.',
@@ -391,7 +420,7 @@ export class ProfileService {
     const price = await this.zohal.getServicePrice('national_identity_inquiry');
     // Same rule as step 1: bill only a call that Zohal actually answered.
     let charged = 0;
-    if (inquiry.httpStatus !== null) {
+    if (inquiry.httpStatus !== null && !options.skipWallet) {
       charged = await this.wallet.charge({
         userId,
         kind: WalletEntryKind.IDENTITY_INQUIRY,
@@ -483,6 +512,343 @@ export class ProfileService {
       raw: inquiry.data ?? null,
     });
     return { ...updated, charged };
+  }
+
+  // -------------------------------------------------------------------------
+  //  Online payment for the identity bundle (شاهکار + استعلام هویتی)
+  // -------------------------------------------------------------------------
+
+  private appUrl(): string {
+    return (
+      this.config.get<string>('NEXT_PUBLIC_APP_URL') ?? 'http://localhost:3000'
+    ).replace(/\/+$/, '');
+  }
+
+  /**
+   * Start the single online payment that covers both identity inquiries.
+   * The wallet is never touched: the inquiries run only after the gateway
+   * verifies the transaction.
+   */
+  async identityCheckout(
+    userId: string,
+    dto: { nationalCode?: string; birthDate?: string } = {},
+  ) {
+    await this.settings.assertFeatureEnabled(
+      'featureIdentityInquiry',
+      'استعلام هویت موقتاً توسط مدیر غیرفعال شده است.',
+    );
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        phone: true,
+        phoneVerified: true,
+        nationalCode: true,
+        birthDate: true,
+        identityVerifiedAt: true,
+        fullName: true,
+        email: true,
+      },
+    });
+    if (!user) throw new NotFoundException('کاربر یافت نشد');
+    if (user.identityVerifiedAt) {
+      return { alreadyVerified: true, amount: 0, url: null, paid: false };
+    }
+    if (!user.phone || !user.phoneVerified) {
+      throw new BadRequestException(
+        'برای استعلام هویت، ابتدا باید شماره موبایل حساب تأیید شده باشد.',
+      );
+    }
+
+    const nationalCode = (dto.nationalCode ?? user.nationalCode ?? '').trim();
+    if (!isValidNationalCode(nationalCode)) {
+      throw new BadRequestException('کد ملی وارد‌شده معتبر نیست');
+    }
+    const birthDate = (dto.birthDate ?? user.birthDate ?? '').trim();
+    if (!birthDate) {
+      throw new BadRequestException('برای استعلام هویت، تاریخ تولد را انتخاب کنید.');
+    }
+    const owner = await this.prisma.user.findUnique({
+      where: { nationalCode },
+      select: { id: true },
+    });
+    if (owner && owner.id !== userId) {
+      throw new ConflictException('این کد ملی قبلاً برای حساب دیگری ثبت شده است');
+    }
+
+    // A verified-but-not-yet-consumed payment is reused, so a browser refresh
+    // or a retry never charges the user twice.
+    const paid = await this.prisma.servicePayment.findFirst({
+      where: {
+        userId,
+        serviceKey: 'identity_bundle',
+        status: PaymentStatus.PAID,
+        consumedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (paid) {
+      return {
+        paymentId: paid.id,
+        amount: paid.amount,
+        url: null,
+        paid: true,
+        paymentCode: paid.paymentCode,
+      };
+    }
+
+    const { total } = await this.zohal.identityBundlePrice();
+    if (total < 1000) {
+      throw new BadRequestException(
+        'تعرفه‌ی استعلام هویت برای پرداخت آنلاین معتبر نیست؛ با پشتیبانی تماس بگیرید.',
+      );
+    }
+    const productCode = await this.zohal
+      .ensureIdentityBundleProduct()
+      .catch(() => null);
+
+    await this.prisma.servicePayment.updateMany({
+      where: { userId, serviceKey: 'identity_bundle', status: PaymentStatus.PENDING },
+      data: {
+        status: PaymentStatus.CANCELED,
+        failureReason: 'پرداخت جدید جایگزین شد',
+      },
+    });
+    const clientRefId = randomBytes(16).toString('hex');
+    const payment = await this.prisma.servicePayment.create({
+      data: {
+        userId,
+        serviceKey: 'identity_bundle',
+        amount: total,
+        nationalCode,
+        birthDate,
+        clientRefId,
+      },
+    });
+
+    const returnUrl = `${this.appUrl()}/api/profile/identity/payments/callback`;
+    let result: { paymentCode?: string; url?: string } | null = null;
+    try {
+      result = this.simulator.isEnabled
+        ? this.simulator.createPayment({
+            amount: total,
+            returnUrl,
+            clientRefId,
+            description: 'استعلام هویت (شاهکار + هویتی) — شمالی‌کارت',
+          })
+        : ((await this.payping.createPayment({
+            amount: total,
+            returnUrl,
+            payerIdentity: user.phone ?? user.email ?? undefined,
+            payerName: user.fullName ?? undefined,
+            description: 'استعلام هویت (شاهکار + هویتی) — شمالی‌کارت',
+            clientRefId,
+            isReversible: false,
+          })) as { paymentCode?: string; url?: string } | null);
+    } catch (error) {
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.FAILED,
+          failureReason:
+            error instanceof Error
+              ? error.message.slice(0, 300)
+              : 'ساخت پرداخت ناموفق بود',
+        },
+      });
+      throw error;
+    }
+    if (!result?.paymentCode || !result?.url) {
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.FAILED,
+          failureReason: 'پاسخ نامعتبر از درگاه',
+        },
+      });
+      throw new BadRequestException('ساخت پرداخت در درگاه ناموفق بود');
+    }
+    const updated = await this.prisma.servicePayment.update({
+      where: { id: payment.id },
+      data: { paymentCode: result.paymentCode, gatewayUrl: result.url },
+    });
+    return {
+      paymentId: updated.id,
+      amount: updated.amount,
+      url: updated.gatewayUrl,
+      paid: false,
+      paymentCode: updated.paymentCode,
+      productCode,
+    };
+  }
+
+  /** Run both inquiries once the bundle payment is confirmed. */
+  private async performIdentityBundle(
+    userId: string,
+    nationalCode: string | null,
+    birthDate: string | null,
+  ) {
+    if (!nationalCode || !birthDate) {
+      throw new BadRequestException('اطلاعات هویتی پرداخت ناقص است.');
+    }
+    await this.matchIdentityPhone(
+      userId,
+      { nationalCode, birthDate },
+      { skipOnlineGuard: true, skipWallet: true, force: true },
+    );
+    return this.inquiryIdentity(userId, {
+      skipOnlineGuard: true,
+      skipWallet: true,
+    });
+  }
+
+  /** Retry the paid bundle without charging again (used after a failed call). */
+  async verifyIdentityPayment(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { identityVerifiedAt: true },
+    });
+    if (!user) throw new NotFoundException('کاربر یافت نشد');
+    if (user.identityVerifiedAt) {
+      return { alreadyVerified: true, charged: 0 };
+    }
+    const paid = await this.prisma.servicePayment.findFirst({
+      where: {
+        userId,
+        serviceKey: 'identity_bundle',
+        status: PaymentStatus.PAID,
+        consumedAt: null,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!paid) {
+      throw new BadRequestException(
+        'پرداخت آنلاین استعلام هویت انجام نشده است؛ ابتدا مبلغ را پرداخت کنید.',
+      );
+    }
+    const result = await this.performIdentityBundle(
+      userId,
+      paid.nationalCode,
+      paid.birthDate,
+    );
+    await this.prisma.servicePayment.update({
+      where: { id: paid.id },
+      data: { consumedAt: new Date() },
+    });
+    return result;
+  }
+
+  /**
+   * Gateway return URL. Verifies the transaction, runs both inquiries and
+   * redirects the browser back to the onboarding step.
+   */
+  async handleIdentityPaymentCallback(params: {
+    paymentCode?: string;
+    refId?: string;
+    clientRefId?: string;
+  }) {
+    const successUrl = `${this.appUrl()}/dashboard/onboarding?identity=success`;
+    const failedUrl = `${this.appUrl()}/dashboard/onboarding?identity=failed`;
+    const paymentCode = params.paymentCode?.trim() || undefined;
+    const refId = params.refId?.trim() || undefined;
+    const clientRefId = params.clientRefId?.trim() || undefined;
+    const payment = paymentCode
+      ? await this.prisma.servicePayment.findUnique({ where: { paymentCode } })
+      : clientRefId
+        ? await this.prisma.servicePayment.findUnique({ where: { clientRefId } })
+        : null;
+    if (!payment) return { redirectUrl: failedUrl };
+    if (payment.status === PaymentStatus.PAID) {
+      if (!payment.consumedAt) {
+        try {
+          await this.performIdentityBundle(
+            payment.userId,
+            payment.nationalCode,
+            payment.birthDate,
+          );
+          await this.prisma.servicePayment.update({
+            where: { id: payment.id },
+            data: { consumedAt: new Date() },
+          });
+        } catch {
+          return { redirectUrl: failedUrl };
+        }
+      }
+      return { redirectUrl: successUrl };
+    }
+    if (payment.status === PaymentStatus.CANCELED) {
+      return { redirectUrl: failedUrl };
+    }
+    if (!refId || !payment.paymentCode) {
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: { status: PaymentStatus.FAILED, failureReason: 'اطلاعات بازگشتی ناقص است' },
+      });
+      return { redirectUrl: failedUrl };
+    }
+
+    type VerifyResult = { amount?: number };
+    let verified: VerifyResult | null = null;
+    try {
+      verified = this.simulator.handles(payment.paymentCode)
+        ? this.simulator.verifyPayment({
+            paymentCode: payment.paymentCode,
+            amount: payment.amount,
+            clientRefId: payment.clientRefId,
+          })
+        : ((await this.payping.verifyPayment({
+            paymentRefId: Number(refId),
+            paymentCode: payment.paymentCode,
+            amount: payment.amount,
+          })) as VerifyResult | null);
+    } catch (error) {
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.FAILED,
+          failureReason:
+            error instanceof Error ? error.message.slice(0, 300) : 'تأیید پرداخت ناموفق بود',
+        },
+      });
+      return { redirectUrl: failedUrl };
+    }
+    if (!verified || Number(verified.amount ?? 0) !== payment.amount) {
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: { status: PaymentStatus.FAILED, failureReason: 'مبلغ تأییدشده مطابق نیست' },
+      });
+      return { redirectUrl: failedUrl };
+    }
+
+    await this.prisma.servicePayment.update({
+      where: { id: payment.id },
+      data: {
+        status: PaymentStatus.PAID,
+        refId,
+        paidAt: new Date(),
+        verifiedAt: new Date(),
+      },
+    });
+    try {
+      await this.performIdentityBundle(
+        payment.userId,
+        payment.nationalCode,
+        payment.birthDate,
+      );
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: { consumedAt: new Date() },
+      });
+      return { redirectUrl: successUrl };
+    } catch (error) {
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: {
+          failureReason:
+            error instanceof Error ? error.message.slice(0, 300) : 'اجرای استعلام ناموفق بود',
+        },
+      });
+      return { redirectUrl: failedUrl };
+    }
   }
 
   /**

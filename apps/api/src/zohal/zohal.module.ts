@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { ActivityModule } from '../activity/activity.module';
+import { PaypingModule } from '../payping/payping.module';
 import { SettingsModule } from '../settings/settings.module';
 import { WalletModule } from '../wallet/wallet.module';
 import {
@@ -11,7 +12,7 @@ import { ZohalPricingController } from './zohal-pricing.controller';
 import { ZohalService } from './zohal.service';
 
 @Module({
-  imports: [ActivityModule, SettingsModule, WalletModule],
+  imports: [ActivityModule, PaypingModule, SettingsModule, WalletModule],
   controllers: [
     AdminZohalController,
     ZohalProfileController,

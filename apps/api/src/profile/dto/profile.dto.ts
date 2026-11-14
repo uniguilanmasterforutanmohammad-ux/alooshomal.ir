@@ -68,6 +68,23 @@ export class MatchIdentityPhoneDto {
   birthDate!: string;
 }
 
+/** Body of `POST /profile/identity/checkout` — optional when already saved. */
+export class IdentityCheckoutDto {
+  @ApiPropertyOptional({ example: '0012345678' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{10}$/, { message: 'کد ملی باید دقیقاً ۱۰ رقم باشد' })
+  nationalCode?: string;
+
+  @ApiPropertyOptional({ example: '1370/01/01' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}[/-]\d{1,2}[/-]\d{1,2}$/, {
+    message: 'تاریخ تولد باید به شکل ۱۳۷۰/۰۱/۰۱ باشد',
+  })
+  birthDate?: string;
+}
+
 export class RequestProfileChangeDto {
   @ApiProperty({ example: 'علی رضایی' })
   @IsString()

@@ -226,6 +226,28 @@ export function OnboardingWizard() {
       .catch(() => setMyPlanId(null));
   }, [load]);
 
+  // The identity gateway callback returns here with `?identity=success|failed`.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('identity');
+    if (!status) return;
+    if (status === 'success') {
+      toast.success('پرداخت انجام شد و استعلام هویت شما تکمیل شد.');
+      void load();
+    } else {
+      toast.error(
+        'پرداخت یا استعلام هویت کامل نشد؛ اگر مبلغ کسر شده، دوباره روی «پرداخت و استعلام» بزنید.',
+      );
+    }
+    params.delete('identity');
+    const query = params.toString();
+    window.history.replaceState(
+      {},
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}`,
+    );
+  }, [load]);
+
   async function completeIdentity() {
     if (!/^\d{10}$/.test(nationalCode.trim())) {
       toast.error('کد ملی باید دقیقاً ۱۰ رقم باشد.');
@@ -239,12 +261,25 @@ export function OnboardingWizard() {
     const birthDate = `${jalali.year}/${String(jalali.month).padStart(2, '0')}/${String(jalali.day).padStart(2, '0')}`;
     setIdentityBusy(true);
     try {
-      await api.post('/profile/identity/phone-match', {
+      const result = await api.post<{
+        url?: string | null;
+        paid?: boolean;
+        alreadyVerified?: boolean;
+      }>('/profile/identity/checkout', {
         nationalCode: nationalCode.trim(),
         birthDate,
       });
-      await api.post('/profile/identity/inquiry', {});
-      toast.success('هویت شما استعلام شد (تیک سفید).');
+      if (result?.url) {
+        window.location.href = result.url;
+        return;
+      }
+      if (result?.alreadyVerified) {
+        toast.success('هویت شما قبلاً استعلام شده است.');
+        await load();
+        return;
+      }
+      await api.post('/profile/identity/verify', {});
+      toast.success('پرداخت انجام شد و هویت شما استعلام شد (تیک سفید).');
       await load();
     } catch {
       /* api layer surfaces the error */
@@ -257,15 +292,22 @@ export function OnboardingWizard() {
   async function continueIdentityInquiry() {
     setIdentityBusy(true);
     try {
-      const result = await api.post<{ alreadyVerified?: boolean }>(
-        '/profile/identity/inquiry',
-        {},
-      );
-      toast.success(
-        result?.alreadyVerified
-          ? 'هویت شما قبلاً استعلام شده بود؛ هزینه‌ی مجدد ثبت نشد.'
-          : 'استعلام هویت انجام شد (تیک سفید).',
-      );
+      const result = await api.post<{
+        url?: string | null;
+        paid?: boolean;
+        alreadyVerified?: boolean;
+      }>('/profile/identity/checkout', {});
+      if (result?.url) {
+        window.location.href = result.url;
+        return;
+      }
+      if (result?.alreadyVerified) {
+        toast.success('هویت شما قبلاً استعلام شده بود؛ هزینه‌ی مجدد ثبت نشد.');
+        await load();
+        return;
+      }
+      await api.post('/profile/identity/verify', {});
+      toast.success('پرداخت انجام شد و استعلام هویت تکمیل شد (تیک سفید).');
       await load();
     } catch {
       /* api layer surfaces the error */
@@ -683,8 +725,8 @@ export function OnboardingWizard() {
                 </div>
                 {identityTotal > 0 ? (
                   <p className="border-t border-dashed border-[var(--vintage-border)] px-4 py-2 text-[10px] leading-5 text-muted">
-                    مبلغ ابتدا به‌صورت بدهی در کیف پول ثبت می‌شود و می‌توانید
-                    همان‌جا پرداخت کنید یا بعداً تسویه کنید.
+                    هر دو استعلام (شاهکار + هویتی) با یک پرداخت آنلاین انجام
+                    می‌شوند و مبلغی به‌صورت بدهی در کیف پول ثبت نمی‌شود.
                   </p>
                 ) : null}
               </div>
@@ -701,7 +743,7 @@ export function OnboardingWizard() {
                   ) : (
                     <BadgeCheck className="size-4" aria-hidden />
                   )}
-                  {identityBusy ? 'در حال استعلام...' : 'تأیید و پرداخت'}
+                  {identityBusy ? 'در حال انتقال به درگاه...' : 'پرداخت و استعلام هویت'}
                 </button>
               ) : !payload.identity?.verified ? (
                 <button
@@ -715,7 +757,7 @@ export function OnboardingWizard() {
                   ) : (
                     <BadgeCheck className="size-4" aria-hidden />
                   )}
-                  {identityBusy ? 'در حال استعلام...' : 'ادامه: استعلام و ثبت هویت'}
+                  {identityBusy ? 'در حال انتقال به درگاه...' : 'پرداخت و تکمیل استعلام هویت'}
                 </button>
               ) : null}
 

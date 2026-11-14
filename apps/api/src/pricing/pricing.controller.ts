@@ -3,13 +3,15 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiProperty,
+  ApiPropertyOptional,
   ApiTags,
 } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
-  ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsInt,
+  IsOptional,
   IsString,
   Max,
   Min,
@@ -36,12 +38,20 @@ class PricingEntryDto {
 }
 
 class UpdatePricingDto {
-  @ApiProperty({ type: [PricingEntryDto] })
+  @ApiPropertyOptional({ type: [PricingEntryDto] })
+  @IsOptional()
   @IsArray()
-  @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => PricingEntryDto)
-  items!: PricingEntryDto[];
+  items?: PricingEntryDto[];
+
+  @ApiPropertyOptional({
+    description:
+      'پرداخت فقط آنلاین: اشتراک و استعلام هویت در همان مرحله از درگاه پرداخت می‌شوند و کیف پول منفی نمی‌شود.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  onlineOnly?: boolean;
 }
 
 @ApiTags('pricing')
@@ -78,6 +88,6 @@ export class AdminPricingController {
   @Patch()
   @ApiOperation({ summary: 'به‌روزرسانی یک‌جای مبالغ خدمات دارای هزینه' })
   update(@Body() dto: UpdatePricingDto) {
-    return this.pricing.update(dto.items);
+    return this.pricing.update(dto.items ?? [], dto.onlineOnly);
   }
 }

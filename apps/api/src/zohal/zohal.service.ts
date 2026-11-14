@@ -11,6 +11,7 @@ import { WalletEntryKind } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
 import { FacetsCacheService } from '../common/facets-cache.service';
+import { PaypingService } from '../payping/payping.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { WalletService } from '../wallet/wallet.service';
@@ -27,6 +28,12 @@ import type {
 
 /** How long one Zohal call may take before it is abandoned. */
 const REQUEST_TIMEOUT_MS = 25_000;
+
+/** Setting prefix for the PayPing product mirrored from one Zohal service. */
+const PAYPING_PRODUCT_SETTING_PREFIX = 'payping.product.zohal.';
+/** One product for the two identity inquiries that always run together. */
+const IDENTITY_BUNDLE_KEY = 'identity_bundle';
+const IDENTITY_SERVICE_KEYS = ['shahkar', 'national_identity_inquiry'] as const;
 
 /** Admin-facing description of the Zohal connection. */
 export interface ZohalStatus {
@@ -62,6 +69,7 @@ export class ZohalService {
     private readonly activity: ActivityService,
     private readonly wallet: WalletService,
     private readonly facets: FacetsCacheService,
+    private readonly payping: PaypingService,
   ) {
     this.baseUrl = (
       config.get<string>('ZOHAL_BASE_URL') ?? 'https://service.zohal.io'
@@ -262,6 +270,154 @@ export class ZohalService {
       description: service.description,
       price: prices[service.key],
     }));
+  }
+
+  // -------------------------------------------------------------------------
+  //  PayPing products (آیتم‌های مالی)
+  // -------------------------------------------------------------------------
+
+  private productSettingKey(key: string) {
+    return `${PAYPING_PRODUCT_SETTING_PREFIX}${key}`;
+  }
+
+  /**
+   * Create or refresh one PayPing product and cache its code in settings.
+   * Returns `null` when the gateway is unavailable or the amount is below the
+   * gateway minimum, so callers can keep working without a product.
+   */
+  private async ensureProduct(
+    key: string,
+    title: string,
+    amount: number,
+    description?: string | null,
+  ): Promise<string | null> {
+    if (!this.payping.configured || amount < 1000) return null;
+    const settingKey = this.productSettingKey(key);
+    const row = await this.prisma.setting.findUnique({ where: { key: settingKey } });
+    const payload = {
+      title,
+      description: description ?? undefined,
+      amount,
+      defineAmountByUser: false,
+      haveTax: false,
+      unlimited: true,
+    };
+
+    if (row?.value) {
+      try {
+        await this.payping.updateProduct({ ...payload, code: row.value });
+      } catch (error) {
+        this.logger.warn(
+          `PayPing product ${row.value} sync failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+      return row.value;
+    }
+
+    const created = (await this.payping.createProduct(payload)) as {
+      code?: string;
+    } | null;
+    if (!created?.code) return null;
+    await this.prisma.setting.upsert({
+      where: { key: settingKey },
+      create: { key: settingKey, value: created.code },
+      update: { value: created.code },
+    });
+    return created.code;
+  }
+
+  /** Current price of the two identity inquiries and their combined total. */
+  async identityBundlePrice(): Promise<{
+    shahkar: number;
+    identity: number;
+    total: number;
+  }> {
+    const [shahkar, identity] = await Promise.all([
+      this.getServicePrice('shahkar'),
+      this.getServicePrice('national_identity_inquiry'),
+    ]);
+    return { shahkar, identity, total: shahkar + identity };
+  }
+
+  /**
+   * The single PayPing product for «شاهکار + استعلام هویتی». Both inquiries
+   * must run for a verified identity, so they are sold as one product whose
+   * amount is the sum of the two service prices.
+   */
+  async ensureIdentityBundleProduct(): Promise<string | null> {
+    const { total } = await this.identityBundlePrice();
+    return this.ensureProduct(
+      IDENTITY_BUNDLE_KEY,
+      'استعلام هویت (شاهکار + هویتی) — شمالی‌کارت',
+      total,
+      'تطبیق شماره موبایل با کد ملی و استعلام اطلاعات هویتی در یک پرداخت.',
+    );
+  }
+
+  /**
+   * Admin action: mirror every enabled, priced service into PayPing. The two
+   * identity inquiries are intentionally merged into one bundle product.
+   */
+  async syncPaypingProducts(): Promise<{
+    products: Record<string, string | null>;
+    identityBundleAmount: number;
+  }> {
+    const [enabled, prices] = await Promise.all([
+      this.getEnabledMap(),
+      this.getPriceMap(),
+    ]);
+    const products: Record<string, string | null> = {};
+
+    for (const service of ZOHAL_SERVICES) {
+      if (
+        IDENTITY_SERVICE_KEYS.includes(
+          service.key as (typeof IDENTITY_SERVICE_KEYS)[number],
+        )
+      ) {
+        continue;
+      }
+      if (!enabled[service.key]) continue;
+      const price = prices[service.key] ?? 0;
+      if (price < 1000) continue;
+      try {
+        products[service.key] = await this.ensureProduct(
+          service.key,
+          `${service.label} — شمالی‌کارت`,
+          price,
+          service.description,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `PayPing product for Zohal ${service.key} failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        products[service.key] = null;
+      }
+    }
+
+    const identityBundleAmount =
+      (prices.shahkar ?? 0) + (prices.national_identity_inquiry ?? 0);
+    if (
+      enabled.shahkar &&
+      enabled.national_identity_inquiry &&
+      identityBundleAmount >= 1000
+    ) {
+      try {
+        products[IDENTITY_BUNDLE_KEY] = await this.ensureIdentityBundleProduct();
+      } catch (error) {
+        this.logger.warn(
+          `PayPing identity bundle product failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        products[IDENTITY_BUNDLE_KEY] = null;
+      }
+    }
+
+    return { products, identityBundleAmount };
   }
 
   // -------------------------------------------------------------------------
