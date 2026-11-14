@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Input } from '@/components/ui/Input';
@@ -14,9 +14,18 @@ interface OtpStart {
   email: string | null;
   phone: string | null;
   resendAfter: number;
+  /** Seconds until the code expires; drives the on-screen countdown. */
+  expiresIn?: number;
   sent: boolean;
   emailSent?: boolean;
   devCode?: string;
+}
+
+/** `90` → `1:30`. */
+function formatSeconds(total: number): string {
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 /**
@@ -37,6 +46,16 @@ export function UserEmailAuth({ next }: { next: string }) {
   const [devCode, setDevCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
+  // Count down the email code's validity; resend unlocks at zero.
+  useEffect(() => {
+    if (!otpStep) return;
+    const timer = setInterval(() => {
+      setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [otpStep]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -48,9 +67,29 @@ export function UserEmailAuth({ next }: { next: string }) {
       setTarget(data.email ?? email);
       setDevCode(data.devCode ?? null);
       setCode('');
+      setSecondsLeft(data.expiresIn ?? 90);
       setOtpStep(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'عملیات ناموفق بود');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function resend() {
+    if (secondsLeft > 0) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.post<OtpStart>('/auth/email', { email, password });
+      // Keep the original flow: a re-issued code for a brand-new account must
+      // still finish through `register/verify` (default plan + admin notice).
+      setTarget(data.email ?? email);
+      setDevCode(data.devCode ?? null);
+      setCode('');
+      setSecondsLeft(data.expiresIn ?? 90);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ارسال کد ناموفق بود');
     } finally {
       setLoading(false);
     }
@@ -83,6 +122,17 @@ export function UserEmailAuth({ next }: { next: string }) {
           </span>{' '}
           ارسال شد.
         </p>
+        <p
+          className={
+            secondsLeft > 0
+              ? 'text-xs font-bold text-muted'
+              : 'text-xs font-bold text-red-600'
+          }
+        >
+          {secondsLeft > 0
+            ? `اعتبار کد: ${formatSeconds(secondsLeft)}`
+            : 'کد منقضی شده است؛ کد جدید بگیرید.'}
+        </p>
         {devCode ? (
           <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
             حالت توسعه: کد شما{' '}
@@ -108,10 +158,20 @@ export function UserEmailAuth({ next }: { next: string }) {
         ) : null}
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || secondsLeft === 0}
           className="indeed-btn indeed-btn-primary w-full"
         >
           {loading ? 'در حال بررسی...' : 'تأیید و ورود'}
+        </button>
+        <button
+          type="button"
+          onClick={resend}
+          disabled={loading || secondsLeft > 0}
+          className="w-full rounded-md border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm font-bold text-brand disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {secondsLeft > 0
+            ? `ارسال مجدد کد تا ${formatSeconds(secondsLeft)}`
+            : 'ارسال مجدد کد'}
         </button>
         <button
           type="button"
