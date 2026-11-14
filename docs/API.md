@@ -38,6 +38,10 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
    (بدون توکن). سپس `POST /api/auth/login/verify` با `{ email, code }` نشست را
    صادر می‌کند. ثبت‌نام با ایمیل هم همین دو مرحله را دارد:
    `POST /api/auth/register` → `POST /api/auth/register/verify`.
+   فرم یکپارچه‌ی «ورود یا ثبت‌نام» وب از `POST /api/auth/email` استفاده می‌کند:
+   اگر ایمیل وجود داشته باشد رمز بررسی و کد ورود ارسال می‌شود (`flow: "login"`)،
+   وگرنه حساب ساخته و کد ثبت‌نام ارسال می‌شود (`flow: "register"`). مرحله‌ی
+   دوم همان `login/verify` یا `register/verify` است.
    ورود ادمین و مدیران صفحه‌ی مجزای `/admin/login` دارد و از این مسیرها
    استفاده می‌کند: `POST /api/auth/admin/login` و
    `POST /api/auth/admin/login/verify` (ایمیل/رمز + کد)، و

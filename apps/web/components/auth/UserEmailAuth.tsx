@@ -6,10 +6,10 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
 import { api, type AuthResponse } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { cn } from '@/lib/utils';
 
 interface OtpStart {
   requiresOtp: true;
+  flow?: 'login' | 'register';
   email: string | null;
   phone: string | null;
   resendAfter: number;
@@ -19,16 +19,15 @@ interface OtpStart {
 }
 
 /**
- * Email + password sign-in / sign-up for regular users. Both flows are
- * two-step: the password (or the new account) is confirmed with a one-time
- * code sent to the address before a session is created.
+ * Unified email + password entry point for regular users: the API signs an
+ * existing account in or creates a new one, then both flows finish with the
+ * same one-time code sent to the address.
  */
 export function UserEmailAuth({ next }: { next: string }) {
   const router = useRouter();
   const setSession = useAuth((state) => state.setSession);
 
-  const [kind, setKind] = useState<'login' | 'register'>('login');
-  const [fullName, setFullName] = useState('');
+  const [flow, setFlow] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [otpStep, setOtpStep] = useState(false);
@@ -38,24 +37,13 @@ export function UserEmailAuth({ next }: { next: string }) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  function switchKind(nextKind: 'login' | 'register') {
-    setKind(nextKind);
-    setOtpStep(false);
-    setCode('');
-    setError(null);
-  }
-
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setLoading(true);
     setError(null);
     try {
-      const path = kind === 'login' ? '/auth/login' : '/auth/register';
-      const body =
-        kind === 'login'
-          ? { email, password }
-          : { email, password, fullName: fullName.trim() || undefined };
-      const data = await api.post<OtpStart>(path, body);
+      const data = await api.post<OtpStart>('/auth/email', { email, password });
+      setFlow(data.flow === 'register' ? 'register' : 'login');
       setTarget(data.email ?? email);
       setDevCode(data.devCode ?? null);
       setCode('');
@@ -73,7 +61,7 @@ export function UserEmailAuth({ next }: { next: string }) {
     setError(null);
     try {
       const path =
-        kind === 'login' ? '/auth/login/verify' : '/auth/register/verify';
+        flow === 'login' ? '/auth/login/verify' : '/auth/register/verify';
       const data = await api.post<AuthResponse>(path, { email, code });
       setSession(data.accessToken, data.user);
       router.replace(next);
@@ -122,11 +110,7 @@ export function UserEmailAuth({ next }: { next: string }) {
           disabled={loading}
           className="indeed-btn indeed-btn-primary w-full"
         >
-          {loading
-            ? 'در حال بررسی...'
-            : kind === 'login'
-              ? 'تأیید و ورود'
-              : 'تأیید و ساخت حساب'}
+          {loading ? 'در حال بررسی...' : 'تأیید و ورود'}
         </button>
         <button
           type="button"
@@ -145,36 +129,6 @@ export function UserEmailAuth({ next }: { next: string }) {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-2 rounded-lg bg-black/5 p-1">
-        {(
-          [
-            ['login', 'ورود'],
-            ['register', 'ثبت‌نام'],
-          ] as const
-        ).map(([key, label]) => (
-          <button
-            key={key}
-            type="button"
-            onClick={() => switchKind(key)}
-            className={cn(
-              'rounded-md px-3 py-2 text-sm font-bold',
-              kind === key ? 'bg-white text-brand shadow-sm' : 'text-muted',
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {kind === 'register' ? (
-        <Input
-          label="نام و نام خانوادگی"
-          required
-          value={fullName}
-          onChange={(event) => setFullName(event.target.value)}
-          placeholder="سارا محمدی"
-        />
-      ) : null}
       <Input
         label="ایمیل"
         type="email"
@@ -205,15 +159,10 @@ export function UserEmailAuth({ next }: { next: string }) {
         disabled={loading}
         className="indeed-btn indeed-btn-primary w-full"
       >
-        {loading
-          ? 'در حال ارسال کد...'
-          : kind === 'login'
-            ? 'ورود با ایمیل'
-            : 'ثبت‌نام با ایمیل'}
+        {loading ? 'در حال ارسال کد...' : 'ادامه'}
       </button>
       <p className="text-xs leading-6 text-muted">
-        پس از این مرحله، یک کد یکبارمصرف به ایمیل شما ارسال می‌شود و ورود/ثبت‌نام
-        فقط با تأیید آن کامل می‌شود.
+        کد یکبارمصرف به ایمیل ارسال می‌گردد.
       </p>
     </form>
   );

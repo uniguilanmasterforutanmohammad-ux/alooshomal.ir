@@ -332,6 +332,80 @@ export class AuthService {
   }
 
   /**
+   * Unified email entry point used by the combined «ورود یا ثبت‌نام» form.
+   * An existing account is signed in after checking its password; a new email
+   * creates the account. Both paths then issue the same one-time code, and the
+   * returned `flow` tells the client which verify endpoint to call.
+   */
+  async emailStart(dto: LoginDto, context: SessionContext = {}) {
+    await this.assertEmailLoginEnabled();
+    if (context.ip) await this.rateLimit.hit(RATE_LIMITS.login, context.ip);
+    const email = dto.email.toLowerCase().trim();
+    await this.rateLimit.hit(
+      RATE_LIMITS.loginEmail,
+      createHash('sha256').update(email).digest('hex'),
+    );
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    if (!user) {
+      if (context.ip) {
+        await this.rateLimit.hit(RATE_LIMITS.register, context.ip);
+      }
+      const passwordHash = await bcrypt.hash(dto.password, SALT_ROUNDS);
+      const created = await this.prisma.user.create({
+        data: { email, passwordHash },
+        select: {
+          id: true,
+          email: true,
+          phone: true,
+          fullName: true,
+          role: true,
+        },
+      });
+      const issued = await this.otp.issueEmailLogin(
+        created.id,
+        created.email,
+        created.phone,
+        'register',
+      );
+      return {
+        requiresOtp: true as const,
+        flow: 'register' as const,
+        email: maskEmail(created.email),
+        phone: maskPhone(created.phone),
+        ...issued,
+      };
+    }
+
+    // Compare against a dummy hash when the account has no password so the
+    // response time stays constant, exactly like `login`.
+    const hash = user.passwordHash ?? DUMMY_BCRYPT_HASH;
+    const valid = await bcrypt.compare(dto.password, hash);
+    if (!user.isActive || !user.passwordHash || !valid) {
+      throw new UnauthorizedException('ایمیل یا رمز عبور اشتباه است');
+    }
+    if (ADMIN_LOGIN_ROLES.has(user.role)) {
+      throw new ForbiddenException(
+        'این حساب مدیریتی است؛ لطفاً از صفحه‌ی ورود مدیران استفاده کنید',
+      );
+    }
+
+    const issued = await this.otp.issueEmailLogin(
+      user.id,
+      user.email,
+      user.phone,
+      'login',
+    );
+    return {
+      requiresOtp: true as const,
+      flow: 'login' as const,
+      email: maskEmail(user.email),
+      phone: maskPhone(user.phone),
+      ...issued,
+    };
+  }
+
+  /**
    * Step 2 of the email/password flow: verifies the one-time code issued by
    * `login` and only then creates the session.
    */

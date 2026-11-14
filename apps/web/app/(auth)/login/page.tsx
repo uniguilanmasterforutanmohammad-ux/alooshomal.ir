@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowRight, Mail, ShieldCheck, Smartphone } from 'lucide-react';
+import { ArrowRight, Mail, Smartphone } from 'lucide-react';
 
 import { AuthForm } from '@/components/auth/AuthForm';
 import { UserEmailAuth } from '@/components/auth/UserEmailAuth';
@@ -14,8 +14,8 @@ import { cn } from '@/lib/utils';
 
 /**
  * Public sign-in / sign-up for regular users. Both methods (mobile + OTP and
- * email + password) finish with a one-time code. Admins and managers use the
- * separate `/admin/login` page.
+ * email + password) finish with a one-time code. The admin sign-in page is not
+ * linked from here on purpose.
  */
 function AuthPageContent() {
   const router = useRouter();
@@ -112,13 +112,6 @@ function AuthPageContent() {
           )}
         </div>
 
-        <Link
-          href="/admin/login"
-          className="mt-6 flex items-center justify-center gap-1.5 text-xs font-bold text-muted transition hover:text-brand"
-        >
-          <ShieldCheck className="size-3.5" aria-hidden />
-          ورود مدیران و ادمین‌ها
-        </Link>
       </div>
     </div>
   );

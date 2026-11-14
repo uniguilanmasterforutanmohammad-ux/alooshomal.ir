@@ -106,6 +106,20 @@ export class AuthController {
     return this.withRefreshCookie(res, payload);
   }
 
+  @Public()
+  @Post('email')
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'ورود یا ثبت‌نام یک‌مرحله‌ای با ایمیل و رمز عبور (ارسال کد یکبارمصرف)',
+  })
+  emailStart(@Body() dto: LoginDto, @Req() req: Request) {
+    return this.authService.emailStart(dto, {
+      userAgent: clientUserAgent(req),
+      ip: clientIp(req),
+    });
+  }
+
   // -------------------------------------------------------------------------
   //  Admin / manager sign-in — a separate page (`/admin/login`)
   // -------------------------------------------------------------------------
