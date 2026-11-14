@@ -78,7 +78,7 @@ export class SmsService {
    * Melipayamak refuses texts that contain a link (RetStatus 14 — «متن پیامک
    * حاوی لینک است»). SMS copy is written without URLs, and this filter is a
    * safety net for any caller that slips one in: `http(s)://…`, `www.…` and
-   * bare domains such as `alooshomal.ir/admin?section=…` are removed.
+   * bare domains such as `alooshomal.ir/jga4rm8j?section=…` are removed.
    */
   private static stripLinks(text: string): string {
     return text

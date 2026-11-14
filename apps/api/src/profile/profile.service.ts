@@ -627,7 +627,7 @@ export class ProfileService {
     await this.notifications.notifyAdmins({
       title: 'درخواست تغییر پروفایل',
       body: `«${user.fullName ?? user.email}» درخواست تغییر نام به «${fullName.trim()}» دارد.`,
-      link: '/admin?section=users',
+      link: '/jga4rm8j?section=users',
       type: NotificationType.INFO,
       actorId: userId,
     });
@@ -699,7 +699,7 @@ export class ProfileService {
       type: NotificationType.INFO,
       title: 'درخواست تغییر شماره موبایل',
       body: `${me.fullName ?? me.email ?? me.phone} درخواست تغییر شماره به ${phone} دارد (کد تأیید شده).`,
-      link: '/admin?section=users',
+      link: '/jga4rm8j?section=users',
       actorId: userId,
     });
     await this.activity.log({
@@ -897,7 +897,7 @@ export class ProfileService {
         type: NotificationType.SUCCESS,
         title: 'تغییر تماس کاربر تأیید شد',
         body: `تغییر ${changedLabels.join(' و ') || 'پروفایل'} برای «${request.user.fullName ?? request.user.email}» اعمال شد.`,
-        link: '/admin?section=reports',
+        link: '/jga4rm8j?section=reports',
         actorId: adminId,
       });
     }

@@ -199,7 +199,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
 
           {user?.role === 'ADMIN' ? (
             <Link
-              href="/admin"
+              href="/jga4rm8j"
               prefetch={false}
               className="flex items-center gap-3 rounded-lg border border-transparent px-3 py-2.5 text-sm font-semibold text-muted transition hover:border-[var(--vintage-border)] hover:bg-[var(--vintage-paper)]"
             >

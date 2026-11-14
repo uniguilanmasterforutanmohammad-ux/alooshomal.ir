@@ -18,11 +18,11 @@ export function SessionWatcher() {
     function onExpired() {
       const path = window.location.pathname + window.location.search;
       clear();
-      if (!path.startsWith('/login') && !path.startsWith('/admin/login')) {
+      if (!path.startsWith('/login') && !path.startsWith('/jga4rm8j/login')) {
         // Admin/manager areas return to their own sign-in page.
         const base =
-          path.startsWith('/admin') || path.startsWith('/moderator')
-            ? '/admin/login'
+          path.startsWith('/jga4rm8j') || path.startsWith('/moderator')
+            ? '/jga4rm8j/login'
             : '/login';
         router.replace(`${base}?next=${encodeURIComponent(path)}`);
       }

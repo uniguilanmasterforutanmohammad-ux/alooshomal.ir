@@ -205,7 +205,7 @@ export class SupportChatService {
         title: 'گفتگوی پشتیبانی جدید',
         body: `${updated.user?.fullName ?? updated.user?.email ?? 'یک کاربر'}: ${this.preview(body)}`,
         type: NotificationType.INFO,
-        link: '/admin?section=support-chat',
+        link: '/jga4rm8j?section=support-chat',
         actorId: userId,
       });
       // The in-app bell is easy to miss when the admin is away, so the first

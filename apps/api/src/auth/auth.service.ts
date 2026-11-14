@@ -197,7 +197,7 @@ export class AuthService {
       category: 'NEW_USER',
       title: 'کاربر جدید ثبت‌نام کرد',
       body: `${user.fullName ?? phone} با موبایل به پلتفرم پیوست.`,
-      link: '/admin?section=users',
+      link: '/jga4rm8j?section=users',
       actorId: user.id,
     });
     await this.activity.log({
@@ -272,7 +272,7 @@ export class AuthService {
       category: 'NEW_USER',
       title: 'کاربر جدید ثبت‌نام کرد',
       body: `${user.fullName ?? user.email} به پلتفرم پیوست.`,
-      link: '/admin?section=users',
+      link: '/jga4rm8j?section=users',
       actorId: user.id,
     });
 
@@ -307,7 +307,7 @@ export class AuthService {
     if (!user || !user.isActive || !user.passwordHash || !valid) {
       throw new UnauthorizedException('ایمیل یا رمز عبور اشتباه است');
     }
-    // `/login` is the public user page; managers have their own `/admin/login`.
+    // `/login` is the public user page; managers have their own `/jga4rm8j/login`.
     if (ADMIN_LOGIN_ROLES.has(user.role)) {
       throw new ForbiddenException(
         'این حساب مدیریتی است؛ لطفاً از صفحه‌ی ورود مدیران استفاده کنید',
@@ -444,7 +444,7 @@ export class AuthService {
   }
 
   // -------------------------------------------------------------------------
-  //  Admin / manager sign-in (`/admin/login`)
+  //  Admin / manager sign-in (`/jga4rm8j/login`)
   // -------------------------------------------------------------------------
 
   /**

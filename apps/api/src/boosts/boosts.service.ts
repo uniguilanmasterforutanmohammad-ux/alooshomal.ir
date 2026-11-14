@@ -393,7 +393,7 @@ export class BoostsService {
         title: 'درخواست پله جدید',
         body: `یک درخواست «پله» برای ${boostKindLabel(dto.kind)} ثبت شد.`,
         type: NotificationType.INFO,
-        link: '/admin?section=boosts',
+        link: '/jga4rm8j?section=boosts',
         actorId: userId,
       });
     }

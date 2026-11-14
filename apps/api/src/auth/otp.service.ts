@@ -497,7 +497,7 @@ export class OtpService {
 
   /**
    * Issues the second-factor code after an email + password check (regular
-   * users on `/login`, admins/managers on `/admin/login`) or after an email
+   * users on `/login`, admins/managers on `/jga4rm8j/login`) or after an email
    * sign-up.
    *
    * Keyed by user id (not phone) so accounts without a verified phone still

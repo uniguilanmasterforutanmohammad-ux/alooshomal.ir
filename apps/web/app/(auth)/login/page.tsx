@@ -37,7 +37,7 @@ function AuthPageContent() {
       next === '/dashboard' && user?.role === 'MODERATOR'
         ? '/moderator'
         : next === '/dashboard' && user?.role === 'ADMIN'
-          ? '/admin'
+          ? '/jga4rm8j'
           : next;
     router.replace(target);
   }, [hydrated, token, user?.role, next, router]);

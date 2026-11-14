@@ -140,7 +140,7 @@ export class BiolinksService {
         title: 'بیولینک جدید در انتظار تأیید',
         body: `بیولینک «${biolink.fullName}» برای بررسی ثبت شد.`,
         type: NotificationType.INFO,
-        link: '/admin?section=biolinks',
+        link: '/jga4rm8j?section=biolinks',
         actorId: userId,
       });
     }
@@ -361,7 +361,7 @@ export class BiolinksService {
         title: 'ویرایش بیولینک در انتظار تأیید',
         body: `بیولینک «${biolink.fullName}» ویرایش شد و نیازمند بررسی مجدد است.`,
         type: NotificationType.WARNING,
-        link: '/admin?section=biolinks',
+        link: '/jga4rm8j?section=biolinks',
         actorId: userId,
       });
     }

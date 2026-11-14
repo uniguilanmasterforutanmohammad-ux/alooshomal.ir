@@ -237,7 +237,7 @@ export class TaxonomyService {
       body: category
         ? `کاربر «${user.email ?? user.id}» عبارت «${term}» را در دسته‌ی «${category.name}» پیدا نکرد.`
         : `کاربر «${user.email ?? user.id}» عبارت «${term}» را در دسته‌بندی‌ها پیدا نکرد.`,
-      link: '/admin?section=notifications',
+      link: '/jga4rm8j?section=notifications',
       actorId: user.id,
     });
 

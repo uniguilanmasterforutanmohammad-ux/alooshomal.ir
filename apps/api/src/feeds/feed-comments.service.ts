@@ -127,7 +127,7 @@ export class FeedCommentsService {
       title: 'کامنت جدید در انتظار تأیید',
       body: 'یک کامنت برای بررسی ثبت شد.',
       type: NotificationType.INFO,
-      link: '/admin?section=comments',
+      link: '/jga4rm8j?section=comments',
       actorId: userId,
     });
     // Tell the post author someone replied (best-effort).

@@ -396,7 +396,7 @@ export class SubscriptionsService implements OnModuleInit {
       title: 'درخواست اشتراک جدید',
       body: `${user?.fullName ?? user?.email ?? 'کاربر'} درخواست بسته «${plan.name}» را ثبت کرد.`,
       type: NotificationType.INFO,
-      link: '/admin?section=subscriptions',
+      link: '/jga4rm8j?section=subscriptions',
       actorId: userId,
     });
 

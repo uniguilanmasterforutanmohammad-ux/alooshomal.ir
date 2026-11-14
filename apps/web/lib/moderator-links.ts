@@ -1,6 +1,6 @@
 /**
- * Map an admin notification link (`/admin?section=…`) to the equivalent
- * limited «کاربر ادمین» review queue. A moderator has no access to `/admin`, so
+ * Map an admin notification link (`/jga4rm8j?section=…`) to the equivalent
+ * limited «کاربر ادمین» review queue. A moderator has no access to `/jga4rm8j`, so
  * without this the bell/inbox links would dead-end on a redirect.
  */
 const ADMIN_SECTION_TO_SCOPE: Record<string, string> = {
@@ -14,7 +14,7 @@ const ADMIN_SECTION_TO_SCOPE: Record<string, string> = {
 };
 
 export function moderatorNotificationLink(link: string): string {
-  const match = /^\/admin\?(?:.*&)?section=([^&]+)/.exec(link);
+  const match = /^\/jga4rm8j\?(?:.*&)?section=([^&]+)/.exec(link);
   const section = match?.[1];
   // Directory ads share the `ads` section but belong to their own queue.
   if (section === 'ads' && /placement=directory/.test(link)) {

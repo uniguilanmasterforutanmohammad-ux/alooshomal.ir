@@ -140,7 +140,7 @@ export class NewsService {
       title: 'درخواست شهروند خبرنگار جدید',
       body: `«${user?.fullName ?? user?.email ?? 'کاربر'}» درخواست نقش شهروند خبرنگار ثبت کرد.`,
       type: NotificationType.INFO,
-      link: '/admin?section=news',
+      link: '/jga4rm8j?section=news',
       actorId: userId,
     });
     await this.activity.log({
@@ -216,7 +216,7 @@ export class NewsService {
       scope: 'NEWS',
       title: 'خبر جدید در انتظار تأیید',
       body: `خبر «${item.title}» ثبت شد و در انتظار بررسی است.`,
-      link: '/admin?section=news',
+      link: '/jga4rm8j?section=news',
       type: NotificationType.INFO,
       actorId: userId,
     });

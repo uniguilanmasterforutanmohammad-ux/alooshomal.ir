@@ -37,14 +37,14 @@ export function PaypingOAuthCatcher() {
         await api.post('/admin/payping-oauth/callback', { code, state });
         cleanUrl();
         toast.success('اتصال به پی‌پینگ با موفقیت انجام شد.', 'پی‌پینگ');
-        window.location.href = '/admin?section=payping-oauth';
+        window.location.href = '/jga4rm8j?section=payping-oauth';
       } catch (error) {
         cleanUrl();
         toast.error(
           error instanceof Error ? error.message : 'اتصال به پی‌پینگ ناموفق بود.',
           'پی‌پینگ',
         );
-        window.location.href = '/admin?section=payping-oauth';
+        window.location.href = '/jga4rm8j?section=payping-oauth';
       }
     })();
   }, []);

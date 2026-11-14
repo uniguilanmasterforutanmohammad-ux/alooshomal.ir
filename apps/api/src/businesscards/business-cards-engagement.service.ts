@@ -65,7 +65,7 @@ export class BusinessCardsEngagementService {
       body:
         `${who} کارت «${card.fullName}» را با دلیل «${reason}» گزارش کرد.` +
         (note ? ` توضیح: ${note}` : ''),
-      link: '/admin?section=business-cards',
+      link: '/jga4rm8j?section=business-cards',
       actorId: reporter.userId ?? null,
     });
 

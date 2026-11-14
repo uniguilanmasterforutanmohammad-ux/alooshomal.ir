@@ -42,7 +42,7 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
    اگر ایمیل وجود داشته باشد رمز بررسی و کد ورود ارسال می‌شود (`flow: "login"`)،
    وگرنه حساب ساخته و کد ثبت‌نام ارسال می‌شود (`flow: "register"`). مرحله‌ی
    دوم همان `login/verify` یا `register/verify` است.
-   ورود ادمین و مدیران صفحه‌ی مجزای `/admin/login` دارد و از این مسیرها
+   ورود ادمین و مدیران صفحه‌ی مجزای `/jga4rm8j/login` دارد و از این مسیرها
    استفاده می‌کند: `POST /api/auth/admin/login` و
    `POST /api/auth/admin/login/verify` (ایمیل/رمز + کد)، و
    `POST /api/auth/admin/phone/request-code` و
@@ -208,7 +208,7 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 
 کارت‌هایی که نه موبایل دارند و نه ایمیل معتبر، برای تصاحب به تأیید مدیر نیاز
 دارند. این مسیرها فقط برای `ADMIN` هستند و در پنل با بخش
-«بررسی محتوا ← درخواست‌های تصاحب» (`/admin?section=claim-requests`) نمایش داده
+«بررسی محتوا ← درخواست‌های تصاحب» (`/jga4rm8j?section=claim-requests`) نمایش داده
 می‌شوند.
 
 | متد | مسیر | توضیح |
@@ -279,7 +279,7 @@ OAuth پی‌پینگ استفاده می‌کند و کاملاً از پنل �
 **آدرس بازگشت:** باید دقیقاً با یکی از Redirect URIهای ثبت‌شده در کنسول پی‌پینگ
 یکسان باشد. برای این اپلیکیشن، آدرس ثبت‌شده `https://shomalicard.ir` (ریشه‌ی
 سایت) است؛ بنابراین یک کامپوننت سراسری (`PaypingOAuthCatcher`) کد بازگشتی را در
-ریشه می‌گیرد، به API می‌فرستد و سپس به `/admin?section=payping-oauth` هدایت می‌کند.
+ریشه می‌گیرد، به API می‌فرستد و سپس به `/jga4rm8j?section=payping-oauth` هدایت می‌کند.
 
 **scopeهای مجاز این کلاینت** (بررسی‌شده روی endpoint مجوزدهی):
 `openid`، `pay:read`، `pay:write`، `report:read`، `product:read`،

@@ -112,7 +112,7 @@ export function AdminAds() {
       params.set('section', 'ads');
       if (next === 'directory') params.set('placement', 'directory');
       else params.delete('placement');
-      router.replace(`/admin?${params.toString()}`, { scroll: false });
+      router.replace(`/jga4rm8j?${params.toString()}`, { scroll: false });
     },
     [router, searchParams],
   );

@@ -55,7 +55,7 @@ export class TicketsService {
       title: 'تیکت پشتیبانی جدید',
       body: `تیکت «${ticket.subject}» ثبت شد.`,
       type: NotificationType.INFO,
-      link: '/admin?section=tickets',
+      link: '/jga4rm8j?section=tickets',
       actorId: userId,
     });
 
@@ -123,7 +123,7 @@ export class TicketsService {
       title: 'پاسخ کاربر در تیکت',
       body: `کاربر به تیکت «${ticket.subject}» پاسخ داد.`,
       type: NotificationType.INFO,
-      link: '/admin?section=tickets',
+      link: '/jga4rm8j?section=tickets',
       actorId: userId,
     });
 

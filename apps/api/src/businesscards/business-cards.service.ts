@@ -170,7 +170,7 @@ export class BusinessCardsService {
         title: 'کارت ویزیت جدید در انتظار تأیید',
         body: `کارت ویزیت «${businessCard.fullName}» برای بررسی ثبت شد.`,
         type: NotificationType.INFO,
-        link: '/admin?section=business-cards',
+        link: '/jga4rm8j?section=business-cards',
         actorId: userId,
       });
     }
@@ -416,7 +416,7 @@ export class BusinessCardsService {
         title: 'ویرایش کارت ویزیت در انتظار تأیید',
         body: `کارت ویزیت «${businessCard.fullName}» ویرایش شد و نیازمند بررسی مجدد است.`,
         type: NotificationType.WARNING,
-        link: '/admin?section=business-cards',
+        link: '/jga4rm8j?section=business-cards',
         actorId: userId,
       });
     }

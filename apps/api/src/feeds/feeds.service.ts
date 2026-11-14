@@ -310,7 +310,7 @@ export class FeedsService implements OnModuleInit {
       title: exhausted ? 'درخواست ارتقای اشتراک فید' : 'درخواست اشتراک فید جدید',
       body: `درخواست بسته «${pkg.name}» برای فید ثبت شد.`,
       type: NotificationType.INFO,
-      link: '/admin?section=feeds',
+      link: '/jga4rm8j?section=feeds',
       actorId: userId,
     });
     await this.activity.log({
@@ -402,7 +402,7 @@ export class FeedsService implements OnModuleInit {
         ? 'یک پست فید همراه با تگ کارت/بیولینک برای بررسی ثبت شد.'
         : 'یک پست فید برای بررسی ثبت شد.',
       type: NotificationType.INFO,
-      link: '/admin?section=feeds',
+      link: '/jga4rm8j?section=feeds',
       actorId: userId,
     });
     await this.activity.log({

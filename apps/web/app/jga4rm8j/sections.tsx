@@ -408,7 +408,7 @@ export function SettingsSection() {
       {SETTINGS_PANELS.map((panel) => (
         <Link
           key={panel.section}
-          href={`/admin?section=${panel.section}`}
+          href={`/jga4rm8j?section=${panel.section}`}
           className="indeed-panel p-4 transition hover:border-brand"
         >
           <b className="text-sm font-extrabold text-ink">{panel.title}</b>

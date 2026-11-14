@@ -313,8 +313,8 @@ export class AdsService {
         type: NotificationType.INFO,
         link:
           placement === AdPlacement.DIRECTORY
-            ? '/admin?section=ads&placement=directory'
-            : '/admin?section=ads',
+            ? '/jga4rm8j?section=ads&placement=directory'
+            : '/jga4rm8j?section=ads',
         actorId: userId,
       });
     }

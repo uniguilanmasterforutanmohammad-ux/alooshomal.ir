@@ -14,9 +14,9 @@ interface Props {
    * moderator's bell only counts the queues they were granted.
    */
   scope?: 'user' | 'admin';
-  /** override the "مشاهده تمامی اعلانات" destination (moderators have no /admin) */
+  /** override the "مشاهده تمامی اعلانات" destination (moderators have no admin panel) */
   allPath?: string;
-  /** rewrite an individual notification link (e.g. /admin?section=… → /moderator?scope=…) */
+  /** rewrite an individual notification link (e.g. /jga4rm8j?section=… → /moderator?scope=…) */
   linkMapper?: (link: string) => string;
 }
 
@@ -53,7 +53,7 @@ export function NotificationBell({
   const ticketPath = `${streamPath}-ticket`;
   const allPath =
     allPathProp ??
-    (scope === 'admin' ? '/admin?section=notifications' : '/dashboard/notifications');
+    (scope === 'admin' ? '/jga4rm8j?section=notifications' : '/dashboard/notifications');
 
   const load = useCallback(async () => {
     try {

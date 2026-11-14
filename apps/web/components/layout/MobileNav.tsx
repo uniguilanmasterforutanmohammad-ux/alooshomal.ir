@@ -39,7 +39,7 @@ export function MobileNav() {
   const hideOnAuth =
     pathname === '/login' ||
     pathname === '/register' ||
-    pathname === '/admin/login';
+    pathname === '/jga4rm8j/login';
 
   const allItems: Item[] = [
     { href: '/', label: 'خانه', icon: Home, exact: true },

@@ -11,7 +11,7 @@ import { Pagination } from '@/components/ui/Pagination';
 interface Props {
   /** admin panel shows the shared ADMIN feed */
   scope?: 'user' | 'admin';
-  /** rewrite an individual notification link (e.g. /admin?section=… → /moderator?scope=…) */
+  /** rewrite an individual notification link (e.g. /jga4rm8j?section=… → /moderator?scope=…) */
   linkMapper?: (link: string) => string;
 }
 

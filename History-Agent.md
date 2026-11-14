@@ -20,7 +20,44 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v3.56.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.0.0**.
+
+## ۱۴۰۵/۰۸/۲۳ — انتقال پنل مدیریت به مسیر تصادفی ۸ کاراکتری — نسخه `v4.0.0`
+
+**هدف:** به درخواست کاربر، آدرس `/admin` برای امنیت بیشتر به یک عبارت تصادفی
+۸ کاراکتری تغییر کند تا مسیر پنل مدیریت حدس‌زدنی نباشد.
+
+**تغییرات:**
+- `apps/web/app/admin/` → `apps/web/app/jga4rm8j/` (کل کنسول مدیریت).
+- `apps/web/app/(auth)/admin/login/page.tsx` →
+  `apps/web/app/(auth)/jga4rm8j/login/page.tsx` (ورود مدیران).
+- `apps/web/app/(auth)/login/page.tsx`، `apps/web/app/jga4rm8j/*`،
+  `apps/web/components/admin/*`، `apps/web/components/ui/*`،
+  `apps/web/components/moderator/*`، `apps/web/components/layout/MobileNav.tsx`،
+  `apps/web/components/dashboard/UserShell.tsx`،
+  `apps/web/components/support/SupportChatWidget.tsx` و
+  `apps/web/app/moderator/notifications/page.tsx`: همه‌ی لینک‌ها و ریدایرکت‌های
+  صفحه‌ی مدیریت به `/jga4rm8j` و `/jga4rm8j/login` منتقل شدند.
+- `apps/web/lib/moderator-links.ts`: الگوی تبدیل لینک اعلان ادمین به صف
+  مدیر به مسیر جدید به‌روزرسانی شد.
+- `apps/web/app/robots.ts`: مسیر پنهان‌شده‌ی جدید در `disallow` قرار گرفت.
+- `apps/api/src/**`: لینک اعلان‌های ادمین در ۱۹ سرویس از
+  `/admin?section=…` به `/jga4rm8j?section=…` تغییر کرد.
+- `docs/API.md`، `docs/FINANCE.md` و `docs/import/README.md`: ارجاع‌های
+  مسیر پنل به‌روزرسانی شدند.
+- `install.sh`: مسیر `apps/web/app/jga4rm8j` در درخت پوشه‌ها ثبت شد.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.0.0` (تغییر شکننده‌ی مسیر).
+
+**تأیید/تست:**
+- `cd apps/web && ./node_modules/.bin/tsc --noEmit` → exit 0.
+- `python3 scripts/check_api_docs.py` → exit 0.
+- `curl` روی کانتینر توسعه: `/login` → 200، `/admin` → 404،
+  `/jga4rm8j` → 200 و `/jga4rm8j/login` → 200.
+- `POST /api/auth/email` با بدنه‌ی خالی → 400 (مسیر وجود دارد و اعتبارسنجی
+  DTO را اجرا می‌کند).
+- `rg` روی `apps/web` هیچ لینک صفحه‌ای به `/admin`، `/admin/login` یا
+  `/admin?section=…` باقی نگذاشت.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۳ — یکپارچه‌سازی ورود/ثبت‌نام ایمیل و حذف لینک ورود مدیران — نسخه `v3.56.0`
 

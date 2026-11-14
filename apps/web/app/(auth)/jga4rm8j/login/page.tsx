@@ -22,7 +22,7 @@ interface OtpStart {
 }
 
 /**
- * Dedicated sign-in for admins and managers (`/admin/login`). Two methods,
+ * Dedicated sign-in for admins and managers (`/jga4rm8j/login`). Two methods,
  * both finished with a one-time code: email + password, or the phone number on
  * the account. Regular users sign in on `/login` instead.
  */
@@ -44,7 +44,7 @@ function AdminLoginContent() {
 
   useEffect(() => {
     if (!hydrated || !token) return;
-    if (user?.role === 'ADMIN') router.replace('/admin');
+    if (user?.role === 'ADMIN') router.replace('/jga4rm8j');
     else if (user?.role === 'MODERATOR') router.replace('/moderator');
   }, [hydrated, token, user?.role, router]);
 
@@ -95,7 +95,7 @@ function AdminLoginContent() {
       const body = mode === 'email' ? { email, code } : { phone, code };
       const data = await api.post<AuthResponse>(path, body);
       setSession(data.accessToken, data.user);
-      router.replace(data.user.role === 'MODERATOR' ? '/moderator' : '/admin');
+      router.replace(data.user.role === 'MODERATOR' ? '/moderator' : '/jga4rm8j');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تأیید کد ناموفق بود');
     } finally {

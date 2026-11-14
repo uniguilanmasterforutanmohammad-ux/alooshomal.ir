@@ -403,7 +403,7 @@ export class SubscriptionsPaymentService {
       title: 'خرید اشتراک از کیف پول',
       body: `بسته «${plan.name}»${periodNote} فعال شد و مبلغ ${charged.toLocaleString('fa-IR')} تومان به کیف پول کاربر اضافه شد.`,
       type: NotificationType.INFO,
-      link: '/admin?section=wallets',
+      link: '/jga4rm8j?section=wallets',
       actorId: userId,
     });
     await this.activity.log({
@@ -687,7 +687,7 @@ export class SubscriptionsPaymentService {
       title: 'پرداخت آنلاین اشتراک',
       body: `${payment.user?.fullName ?? payment.user?.email ?? 'کاربر'} بسته «${payment.plan.name}» را به مبلغ ${payment.amount.toLocaleString('fa-IR')} تومان خریداری کرد.`,
       type: NotificationType.SUCCESS,
-      link: '/admin?section=subscriptions',
+      link: '/jga4rm8j?section=subscriptions',
       actorId: payment.userId,
     });
     await this.activity.log({

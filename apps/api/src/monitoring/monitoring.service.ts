@@ -503,7 +503,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
         category: 'SYSTEM',
         title: subject,
         body,
-        link: '/admin?section=monitoring',
+        link: '/jga4rm8j?section=monitoring',
       }),
     );
     // Each transport already swallows its own errors; allSettled guards the rest.

@@ -309,7 +309,7 @@ export class WalletService implements OnModuleInit {
       title: 'سررسید کیف پول کاربر',
       body: `${wallet.user?.fullName ?? 'کاربر'} بدهی سررسیدشده‌ی ${Math.abs(wallet.balance).toLocaleString('fa-IR')} تومانی دارد.`,
       type: NotificationType.WARNING,
-      link: '/admin?section=wallets',
+      link: '/jga4rm8j?section=wallets',
       actorId: wallet.userId,
     });
   }

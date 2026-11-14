@@ -342,7 +342,7 @@ export class BusinessCardClaimsService {
       type: NotificationType.WARNING,
       title: 'درخواست تصاحب بدون راه ارتباطی',
       body: `«${card.fullName}» موبایل/ایمیل قابل تأیید ندارد؛ درخواست کاربر را بررسی کنید.`,
-      link: '/admin?section=claim-requests',
+      link: '/jga4rm8j?section=claim-requests',
     });
     await this.activity.log({
       action: 'BUSINESS_CARD_CLAIM_REQUESTED',

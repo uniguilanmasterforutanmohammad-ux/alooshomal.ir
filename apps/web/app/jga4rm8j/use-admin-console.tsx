@@ -126,7 +126,7 @@ export function useAdminConsole() {
       return;
     }
     if (!token) {
-      router.replace('/admin/login');
+      router.replace('/jga4rm8j/login');
       return;
     }
     if (user && user.role === 'MODERATOR') {
@@ -156,7 +156,7 @@ export function useAdminConsole() {
   // Selecting a panel simply navigates; the URL is the state.
   const setSection = useCallback(
     (next: AdminSection) => {
-      const target = next === 'overview' ? '/admin' : `/admin?section=${next}`;
+      const target = next === 'overview' ? '/jga4rm8j' : `/jga4rm8j?section=${next}`;
       router.replace(target, { scroll: false });
     },
     [router],

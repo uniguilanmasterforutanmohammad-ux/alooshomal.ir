@@ -389,10 +389,10 @@ export class RequestPaymentsService {
       const label = await this.targetLabel(request.kind, request.targetId);
       const isDirectory = payment.target === RequestPaymentTarget.AD_DIRECTORY;
       const link = isBoost
-        ? '/admin?section=boosts'
+        ? '/jga4rm8j?section=boosts'
         : isDirectory
-          ? '/admin?section=ads&placement=directory'
-          : '/admin?section=ads';
+          ? '/jga4rm8j?section=ads&placement=directory'
+          : '/jga4rm8j?section=ads';
       const title = isBoost
         ? 'درخواست پله پرداخت شد'
         : isDirectory
