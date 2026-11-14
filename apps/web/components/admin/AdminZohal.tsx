@@ -47,6 +47,10 @@ interface ZohalStatus {
 interface ZohalServicesResponse {
   status: ZohalStatus;
   services: ZohalService[];
+  payping?: {
+    products: Record<string, string | null>;
+    identityBundleAmount: number;
+  };
 }
 
 interface ZohalCallResult {
@@ -224,6 +228,7 @@ export function AdminZohal() {
       toast.success(
         `${count} محصول پی‌پینگ ساخته/همگام شد؛ محصول واحد استعلام هویت: ${result.identityBundleAmount.toLocaleString('fa-IR')} تومان.`,
       );
+      await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'همگام‌سازی محصولات ناموفق بود');
     } finally {
@@ -335,6 +340,85 @@ export function AdminZohal() {
           هر فراخوانی واقعی زحل از کیف پول حساب کسر می‌شود. دکمه‌ی «آزمایش» یک
           درخواست واقعی است؛ فقط هنگام نیاز از آن استفاده کنید.
         </p>
+      </div>
+
+      <div className="indeed-panel p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-extrabold text-ink">
+              <BadgeCheck className="size-4 text-brand" aria-hidden />
+              محصولات پی‌پینگ خدمات و استعلام‌ها
+            </h2>
+            <p className="mt-1 text-xs leading-6 text-muted">
+              برای هر خدمت فعال یک محصول در درگاه ساخته می‌شود. دو استعلام
+              «شاهکار» و «استعلام هویتی» با هم ادغام می‌شوند و مبلغشان جمع شده و
+              به‌صورت یک محصول واحد ساخته می‌شود.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void syncPaypingProducts()}
+            disabled={syncingProducts}
+            className="indeed-btn indeed-btn-primary py-2 text-xs"
+          >
+            {syncingProducts ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <BadgeCheck className="size-4" aria-hidden />
+            )}
+            {syncingProducts
+              ? 'در حال ساخت محصولات...'
+              : 'ساخت/همگام‌سازی محصولات درگاه'}
+          </button>
+        </div>
+
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[36rem] border-collapse text-xs">
+            <thead>
+              <tr className="text-muted">
+                <th className="border-b border-line p-2 text-right">خدمت</th>
+                <th className="border-b border-line p-2 text-right">مبلغ (تومان)</th>
+                <th className="border-b border-line p-2 text-right">کد محصول</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data?.services ?? [])
+                .filter(
+                  (service) =>
+                    service.enabled &&
+                    service.price > 0 &&
+                    service.key !== 'shahkar' &&
+                    service.key !== 'national_identity_inquiry',
+                )
+                .map((service) => (
+                  <tr key={service.key}>
+                    <td className="border-b border-line p-2 text-ink">
+                      {service.label}
+                    </td>
+                    <td className="border-b border-line p-2 text-muted">
+                      {service.price.toLocaleString('fa-IR')}
+                    </td>
+                    <td className="border-b border-line p-2 text-muted" dir="ltr">
+                      {data?.payping?.products?.[service.key] ?? 'ساخته نشده'}
+                    </td>
+                  </tr>
+                ))}
+              <tr>
+                <td className="p-2 text-ink">
+                  استعلام هویت (شاهکار + هویتی) — محصول واحد
+                </td>
+                <td className="p-2 text-muted">
+                  {(data?.payping?.identityBundleAmount ?? 0).toLocaleString(
+                    'fa-IR',
+                  )}
+                </td>
+                <td className="p-2 text-muted" dir="ltr">
+                  {data?.payping?.products?.identity_bundle ?? 'ساخته نشده'}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <div className="indeed-panel p-5">

@@ -221,10 +221,15 @@ export class ZohalService {
   async listServices(): Promise<{
     status: ZohalStatus;
     services: Array<ZohalServiceDef & { enabled: boolean; price: number }>;
+    payping: {
+      products: Record<string, string | null>;
+      identityBundleAmount: number;
+    };
   }> {
-    const [enabled, prices] = await Promise.all([
+    const [enabled, prices, payping] = await Promise.all([
       this.getEnabledMap(),
       this.getPriceMap(),
+      this.getPaypingProducts(),
     ]);
     const services = ZOHAL_SERVICES.map((service) => ({
       ...service,
@@ -239,7 +244,38 @@ export class ZohalService {
         total: services.length,
       },
       services,
+      payping,
     };
+  }
+
+  /** Codes of the PayPing products already mirrored from Zohal services. */
+  async getPaypingProducts(): Promise<{
+    products: Record<string, string | null>;
+    identityBundleAmount: number;
+  }> {
+    const rows = await this.prisma.setting.findMany({
+      where: { key: { startsWith: PAYPING_PRODUCT_SETTING_PREFIX } },
+    });
+    const byKey = new Map(
+      rows.map((row) => [
+        row.key.slice(PAYPING_PRODUCT_SETTING_PREFIX.length),
+        row.value,
+      ]),
+    );
+    const products: Record<string, string | null> = {};
+    for (const service of ZOHAL_SERVICES) {
+      if (
+        IDENTITY_SERVICE_KEYS.includes(
+          service.key as (typeof IDENTITY_SERVICE_KEYS)[number],
+        )
+      ) {
+        continue;
+      }
+      products[service.key] = byKey.get(service.key) ?? null;
+    }
+    products[IDENTITY_BUNDLE_KEY] = byKey.get(IDENTITY_BUNDLE_KEY) ?? null;
+    const { total } = await this.identityBundlePrice();
+    return { products, identityBundleAmount: total };
   }
 
   /**
