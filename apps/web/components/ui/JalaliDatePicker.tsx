@@ -5,8 +5,6 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
   X,
 } from 'lucide-react';
 
@@ -89,6 +87,16 @@ export function JalaliDatePicker({
 
   const selected = useMemo(() => isoToJalali(value), [value]);
   const today = useMemo(() => isoToJalali(todayIso()), []);
+  // A generous range around today (or the explicit min/max) so the year
+  // dropdown works for birth dates and scheduled dates alike.
+  const years = useMemo(() => {
+    const todayYear = today?.year ?? 1400;
+    const minYear = min ? isoToJalali(min)?.year : undefined;
+    const maxYear = max ? isoToJalali(max)?.year : undefined;
+    const start = Math.min(minYear ?? todayYear - 100, view.year);
+    const end = Math.max(maxYear ?? todayYear + 10, view.year);
+    return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+  }, [today, min, max, view.year]);
 
   function showCalendar() {
     if (disabled) return;
@@ -194,23 +202,48 @@ export function JalaliDatePicker({
           <div className="mb-2 flex items-center justify-between gap-1">
             <button
               type="button"
-              onClick={() => shiftMonth(-12)}
-              aria-label="سال قبل"
-              className="rounded-md p-1 text-neutral-500 hover:bg-neutral-100"
-            >
-              <ChevronsRight className="size-4" aria-hidden />
-            </button>
-            <button
-              type="button"
               onClick={() => shiftMonth(-1)}
               aria-label="ماه قبل"
               className="rounded-md p-1 text-neutral-500 hover:bg-neutral-100"
             >
               <ChevronRight className="size-4" aria-hidden />
             </button>
-            <span className="text-sm font-bold">
-              {JALALI_MONTHS[view.month - 1]} {faDigits(view.year)}
-            </span>
+            <div className="flex flex-1 items-center justify-center gap-1">
+              <select
+                value={view.month}
+                onChange={(event) =>
+                  setView((current) => ({
+                    ...current,
+                    month: Number(event.target.value),
+                  }))
+                }
+                aria-label="انتخاب ماه"
+                className="rounded-md border border-neutral-200 bg-white px-1.5 py-1 text-xs font-bold text-ink outline-none"
+              >
+                {JALALI_MONTHS.map((month, index) => (
+                  <option key={month} value={index + 1}>
+                    {month}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={view.year}
+                onChange={(event) =>
+                  setView((current) => ({
+                    ...current,
+                    year: Number(event.target.value),
+                  }))
+                }
+                aria-label="انتخاب سال"
+                className="rounded-md border border-neutral-200 bg-white px-1.5 py-1 text-xs font-bold text-ink outline-none"
+              >
+                {years.map((year) => (
+                  <option key={year} value={year}>
+                    {faDigits(year)}
+                  </option>
+                ))}
+              </select>
+            </div>
             <button
               type="button"
               onClick={() => shiftMonth(1)}
@@ -218,14 +251,6 @@ export function JalaliDatePicker({
               className="rounded-md p-1 text-neutral-500 hover:bg-neutral-100"
             >
               <ChevronLeft className="size-4" aria-hidden />
-            </button>
-            <button
-              type="button"
-              onClick={() => shiftMonth(12)}
-              aria-label="سال بعد"
-              className="rounded-md p-1 text-neutral-500 hover:bg-neutral-100"
-            >
-              <ChevronsLeft className="size-4" aria-hidden />
             </button>
           </div>
 
