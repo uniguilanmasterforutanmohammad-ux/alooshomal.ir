@@ -9,7 +9,13 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiQuery,
+  ApiTags,
+} from '@nestjs/swagger';
 import { NewsStatus } from '@prisma/client';
 import type { Response } from 'express';
 
@@ -18,6 +24,11 @@ import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { RequirePermission } from '../auth/permissions.decorator';
+import {
+  GATEWAY_CALLBACK_BODY_SCHEMA,
+  parseGatewayCallback,
+  type GatewayCallbackPayload,
+} from '../payping/gateway-callback';
 import {
   DecideProfileChangeDto,
   IdentityCheckoutDto,
@@ -101,23 +112,35 @@ export class ProfileController {
 
   @Public()
   @Get('identity/payments/callback')
-  @ApiOperation({ summary: 'بازگشت از درگاه و تأیید پرداخت استعلام هویت' })
+  @ApiOperation({ summary: 'بازگشت GET از درگاه و تأیید پرداخت استعلام هویت' })
   @ApiQuery({ name: 'paymentCode', required: false })
   @ApiQuery({ name: 'refId', required: false })
   @ApiQuery({ name: 'clientRefId', required: false })
-  async identityPaymentCallback(
-    @Query('paymentCode') paymentCode: string | undefined,
-    @Query('code') code: string | undefined,
-    @Query('refId') refId: string | undefined,
-    @Query('paymentRefId') paymentRefId: string | undefined,
-    @Query('clientRefId') clientRefId: string | undefined,
+  async identityPaymentCallbackGet(
+    @Query() query: Record<string, unknown>,
     @Res() res: Response,
   ) {
-    const result = await this.profile.handleIdentityPaymentCallback({
-      paymentCode: paymentCode ?? code,
-      refId: refId ?? paymentRefId,
-      clientRefId,
-    });
+    return this.finishIdentityCallback(parseGatewayCallback(query, null), res);
+  }
+
+  /** PayPing sends the result as a form-encoded POST (see gateway-callback.ts). */
+  @Public()
+  @Post('identity/payments/callback')
+  @ApiOperation({ summary: 'بازگشت POST از درگاه و تأیید پرداخت استعلام هویت' })
+  @ApiBody({ schema: GATEWAY_CALLBACK_BODY_SCHEMA })
+  async identityPaymentCallbackPost(
+    @Body() body: Record<string, unknown>,
+    @Query() query: Record<string, unknown>,
+    @Res() res: Response,
+  ) {
+    return this.finishIdentityCallback(parseGatewayCallback(query, body), res);
+  }
+
+  private async finishIdentityCallback(
+    payload: GatewayCallbackPayload,
+    res: Response,
+  ) {
+    const result = await this.profile.handleIdentityPaymentCallback(payload);
     res.redirect(302, result.redirectUrl);
   }
 

@@ -4,7 +4,6 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   BoostTargetKind,
   NotificationScope,
@@ -14,6 +13,7 @@ import {
 } from '@prisma/client';
 import { randomBytes } from 'crypto';
 
+import { paypingReturnBaseUrl } from '../common/app-url';
 import { NotificationsService } from '../notifications/notifications.service';
 import { FinanceService } from '../finance/finance.service';
 import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
@@ -48,17 +48,9 @@ export class RequestPaymentsService {
     private readonly prisma: PrismaService,
     private readonly payping: PaypingService,
     private readonly simulator: PaymentSimulatorService,
-    private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
     private readonly finance: FinanceService,
   ) {}
-
-  /** Site origin used for the gateway return URL. */
-  private appUrl(): string {
-    return (
-      this.config.get<string>('NEXT_PUBLIC_APP_URL') ?? 'http://localhost:3000'
-    ).replace(/\/+$/, '');
-  }
 
   /** Whether a request with this price must be paid before admin review. */
   isRequired(amount: number): boolean {
@@ -134,7 +126,7 @@ export class RequestPaymentsService {
           data: { ...base, ...requestKey },
         });
 
-    const returnUrl = `${this.appUrl()}/api/payments/request-callback`;
+    const returnUrl = `${paypingReturnBaseUrl()}/api/payments/request-callback`;
     let result: { paymentCode?: string; url?: string } | null = null;
     try {
       result = this.simulator.isEnabled
@@ -181,6 +173,7 @@ export class RequestPaymentsService {
     paymentCode?: string;
     refId?: string;
     clientRefId?: string;
+    status?: number;
   }): Promise<{ status: 'success' | 'failed' | 'pending'; message: string; redirectUrl: string }> {
     const paymentCode = params.paymentCode?.trim() || undefined;
     const clientRefId = params.clientRefId?.trim() || undefined;
@@ -200,6 +193,16 @@ export class RequestPaymentsService {
     }
     if (payment.status === PaymentStatus.CANCELED) {
       return this.result('failed', 'این پرداخت لغو شده است.');
+    }
+    if (params.status === 0) {
+      await this.markFailed(
+        payment.id,
+        'پرداخت توسط کاربر لغو شد یا درگاه آن را ناموفق اعلام کرد',
+      );
+      return this.result(
+        'failed',
+        'پرداخت انجام نشد یا لغو شد. در صورت کسر وجه، مبلغ تا ۷۲ ساعت به حساب شما بازمی‌گردد.',
+      );
     }
     if (!refId || !payment.paymentCode) {
       await this.markFailed(payment.id, 'اطلاعات بازگشتی درگاه ناقص است');
@@ -279,7 +282,7 @@ export class RequestPaymentsService {
     return {
       status,
       message,
-      redirectUrl: `${this.appUrl()}/dashboard/boost?${params.toString()}`,
+      redirectUrl: `${paypingReturnBaseUrl()}/dashboard/boost?${params.toString()}`,
     };
   }
 

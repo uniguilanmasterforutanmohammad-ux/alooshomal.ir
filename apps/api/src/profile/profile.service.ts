@@ -4,7 +4,6 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   IdentityInquiryKind,
   IdentityInquiryStatus,
@@ -18,6 +17,7 @@ import { randomBytes } from 'node:crypto';
 
 import { ActivityService } from '../activity/activity.service';
 import { OtpService } from '../auth/otp.service';
+import { paypingReturnBaseUrl } from '../common/app-url';
 import { isProfileComplete, isValidNationalCode } from '../common/national-code';
 import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
@@ -56,7 +56,6 @@ export class ProfileService {
     private readonly wallet: WalletService,
     private readonly payping: PaypingService,
     private readonly simulator: PaymentSimulatorService,
-    private readonly config: ConfigService,
   ) {}
 
   /** Contact changes rely on the same OTP delivery as phone sign-in. */
@@ -518,12 +517,6 @@ export class ProfileService {
   //  Online payment for the identity bundle (شاهکار + استعلام هویتی)
   // -------------------------------------------------------------------------
 
-  private appUrl(): string {
-    return (
-      this.config.get<string>('NEXT_PUBLIC_APP_URL') ?? 'http://localhost:3000'
-    ).replace(/\/+$/, '');
-  }
-
   /**
    * Start the single online payment that covers both identity inquiries.
    * The wallet is never touched: the inquiries run only after the gateway
@@ -625,7 +618,7 @@ export class ProfileService {
       },
     });
 
-    const returnUrl = `${this.appUrl()}/api/profile/identity/payments/callback`;
+    const returnUrl = `${paypingReturnBaseUrl()}/api/profile/identity/payments/callback`;
     let result: { paymentCode?: string; url?: string } | null = null;
     try {
       result = this.simulator.isEnabled
@@ -745,9 +738,10 @@ export class ProfileService {
     paymentCode?: string;
     refId?: string;
     clientRefId?: string;
+    status?: number;
   }) {
-    const successUrl = `${this.appUrl()}/dashboard/onboarding?identity=success`;
-    const failedUrl = `${this.appUrl()}/dashboard/onboarding?identity=failed`;
+    const successUrl = `${paypingReturnBaseUrl()}/dashboard/onboarding?identity=success`;
+    const failedUrl = `${paypingReturnBaseUrl()}/dashboard/onboarding?identity=failed`;
     const paymentCode = params.paymentCode?.trim() || undefined;
     const refId = params.refId?.trim() || undefined;
     const clientRefId = params.clientRefId?.trim() || undefined;
@@ -776,6 +770,16 @@ export class ProfileService {
       return { redirectUrl: successUrl };
     }
     if (payment.status === PaymentStatus.CANCELED) {
+      return { redirectUrl: failedUrl };
+    }
+    if (params.status === 0) {
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.FAILED,
+          failureReason: 'پرداخت توسط کاربر لغو شد یا درگاه آن را ناموفق اعلام کرد',
+        },
+      });
       return { redirectUrl: failedUrl };
     }
     if (!refId || !payment.paymentCode) {

@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiQuery,
   ApiTags,
@@ -19,6 +20,11 @@ import type { Response } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { ProfileCompleteGuard } from '../common/guards/profile-complete.guard';
+import {
+  GATEWAY_CALLBACK_BODY_SCHEMA,
+  parseGatewayCallback,
+  type GatewayCallbackPayload,
+} from '../payping/gateway-callback';
 import { SubscriptionsService } from './subscriptions.service';
 import { SubscriptionsPaymentService } from './subscriptions-payment.service';
 import { CheckoutSubscriptionDto } from './dto/checkout-subscription.dto';
@@ -70,31 +76,45 @@ export class SubscriptionsController {
   }
 
   /**
-   * Public return URL registered with PayPing. PayPing appends `paymentCode`
-   * and `refId` (and echoes `clientRefId`) to this address. We verify the
-   * transaction server-side and redirect the browser to the dashboard.
+   * Public return URL registered with PayPing. The gateway normally calls it
+   * with a form-encoded POST (see below), but a GET with query parameters is
+   * kept for older integrations and manual retries.
    */
   @Public()
   @Get('payments/callback')
-  @ApiOperation({ summary: 'بازگشت از درگاه پی‌پینگ و تأیید پرداخت اشتراک' })
+  @ApiOperation({ summary: 'بازگشت GET از درگاه پی‌پینگ و تأیید پرداخت اشتراک' })
   @ApiQuery({ name: 'paymentCode', required: false })
   @ApiQuery({ name: 'refId', required: false })
   @ApiQuery({ name: 'paymentRefId', required: false })
   @ApiQuery({ name: 'clientRefId', required: false })
-  async paymentCallback(
-    @Query('paymentCode') paymentCode: string | undefined,
-    @Query('code') code: string | undefined,
-    @Query('refId') refId: string | undefined,
-    @Query('paymentRefId') paymentRefId: string | undefined,
-    @Query('refid') refid: string | undefined,
-    @Query('clientRefId') clientRefId: string | undefined,
+  async paymentCallbackGet(
+    @Query() query: Record<string, unknown>,
     @Res() res: Response,
   ) {
-    const result = await this.payments.handlePaymentCallback({
-      paymentCode: paymentCode ?? code,
-      refId: refId ?? paymentRefId ?? refid,
-      clientRefId,
-    });
+    return this.finishPaymentCallback(parseGatewayCallback(query, null), res);
+  }
+
+  /**
+   * PayPing returns the browser with a form-encoded POST (not a GET). The
+   * fields live inside a JSON `data` body, so both shapes are normalised.
+   */
+  @Public()
+  @Post('payments/callback')
+  @ApiOperation({ summary: 'بازگشت POST از درگاه پی‌پینگ و تأیید پرداخت اشتراک' })
+  @ApiBody({ schema: GATEWAY_CALLBACK_BODY_SCHEMA })
+  async paymentCallbackPost(
+    @Body() body: Record<string, unknown>,
+    @Query() query: Record<string, unknown>,
+    @Res() res: Response,
+  ) {
+    return this.finishPaymentCallback(parseGatewayCallback(query, body), res);
+  }
+
+  private async finishPaymentCallback(
+    payload: GatewayCallbackPayload,
+    res: Response,
+  ) {
+    const result = await this.payments.handlePaymentCallback(payload);
     res.redirect(302, result.redirectUrl);
   }
 }

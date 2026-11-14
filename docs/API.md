@@ -331,10 +331,21 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 | `GET` | `/subscriptions/payments/callback` | آدرس بازگشت عمومی پی‌پینگ (`paymentCode`، `refId`، `clientRefId`)؛ تراکنش را تأیید و سپس به `/dashboard/subscriptions?payment=...` هدایت می‌کند. |
 | `POST` | `/admin/plans/:id/payping-product` | ساخت/همگام‌سازی محصولات پی‌پینگ همه‌ی دوره‌های ۱/۳/۶/۱۲ ماهه‌ی یک بسته (فقط مدیر)؛ خروجی `{ paypingProductCode, paypingProductCodes }`. |
 
-**آدرس بازگشت:** `${NEXT_PUBLIC_APP_URL}/api/subscriptions/payments/callback`
-است؛ پس دامنه‌ی عمومی سایت باید در `NEXT_PUBLIC_APP_URL` سرور درست تنظیم شده
-باشد (مثلاً `https://shomalicard.ir`). اگر `PAYPING_TOKEN` تنظیم نشده باشد،
-`checkout` با خطای ۵۰۳ و پیام راهنما پاسخ می‌دهد.
+**آدرس بازگشت:** `${PAYPING_RETURN_BASE_URL}/api/subscriptions/payments/callback`
+است. اگر `PAYPING_RETURN_BASE_URL` خالی باشد، ابتدا origin مرورگر
+(`Origin`/`Referer`) و سپس دامنه‌ی درخواست (`X-Forwarded-Host`/`Host`) استفاده
+می‌شود و در نهایت `NEXT_PUBLIC_APP_URL`.
+دامنه‌ی انتخاب‌شده باید دقیقاً همان دامنه‌ای باشد که در پنل پی‌پینگ برای پذیرنده
+ثبت شده است؛ در غیر این صورت پی‌پینگ خطای «آدرس بازگشت پذیرنده معتبر نمی‌باشد
+(کد 105)» برمی‌گرداند. برای سایت چنددامنه‌ای، مقدار
+`PAYPING_RETURN_BASE_URL=https://shomalicard.ir` را در `.env` سرور بگذارید.
+
+پی‌پینگ نتیجه‌ی پرداخت را به‌صورت **POST** با
+`Content-Type: application/x-www-form-urlencoded` و بدنه‌ی
+`status=1&errorCode=&data={"paymentCode":…,"paymentRefId":…,"clientRefId":…}` به
+همین آدرس می‌فرستد؛ هر چهار کال‌بک (`subscriptions`، `wallet`، `profile` و
+`payments`) هم `GET` و هم `POST` را می‌پذیرند. اگر `PAYPING_TOKEN` تنظیم نشده
+باشد، `checkout` با خطای ۵۰۳ و پیام راهنما پاسخ می‌دهد.
 
 ### پرداخت پیش‌از‌تأیید افزایش بازدید (`payments`)
 

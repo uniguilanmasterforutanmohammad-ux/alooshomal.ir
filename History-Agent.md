@@ -20,7 +20,55 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.8.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.8.3**.
+
+## ۱۴۰۵/۰۸/۲۳ — رفع خطای ۱۰۵ پی‌پینگ و پذیرش کال‌بک POST — نسخه `v4.8.3`
+
+**هدف:** رفع خطای «آدرس بازگشت پذیرنده معتبر نمی‌باشد (کد 105)» هنگام پرداخت
+آنلاین. علت این بود که آدرس بازگشت از `NEXT_PUBLIC_APP_URL` ساخته می‌شد و در
+پروداکشن روی `https://alooshomal.ir` پخته شده بود، در حالی که پذیرنده‌ی پی‌پینگ
+روی دامنه‌ی `shomalicard.ir` ثبت شده است. ضمناً پی‌پینگ نتیجه‌ی پرداخت را با
+**POST** و `application/x-www-form-urlencoded` (فیلد JSON داخل `data`) برمی‌گرداند،
+اما کال‌بک‌ها فقط `GET` بودند.
+
+**تغییرات:**
+- `apps/api/src/common/request-origin.ts`: افزودن middleware با
+  `AsyncLocalStorage` برای نگه‌داشتن origin عمومی همان درخواست؛ اولویت
+  `Origin`/`Referer` مرورگر (دامنه‌ای که کاربر واقعاً روی آن است) و سپس
+  `X-Forwarded-Host`/`Host` و `X-Forwarded-Proto` برای کال‌بک سروربه‌سرور درگاه.
+  `Origin`/`Referer` فقط وقتی پذیرفته می‌شوند که در `CORS_ORIGIN`/دامنه‌ی
+  کانونیکال باشند تا Referer خود درگاه باعث ریدایرکت اشتباه نشود.
+- `apps/api/src/common/app-url.ts`: افزودن `isPublicOrigin` و
+  `paypingReturnBaseUrl` با اولویت `PAYPING_RETURN_BASE_URL` → origin درخواست →
+  `NEXT_PUBLIC_APP_URL`؛ رد دامنه‌های loopback و نام‌های داخلی Docker.
+- `apps/api/src/main.ts`: فعال‌سازی `requestOriginMiddleware`.
+- `apps/api/src/payping/gateway-callback.ts`: پارس یکسان query/body و JSON داخل
+  `data` (شامل `paymentCode`، `paymentRefId`، `clientRefId` و `status`).
+- `apps/api/src/payping/payping.service.ts`: اعتبارسنجی `returnUrl` پیش از
+  فراخوانی `/v3/pay` و لاگ آدرس ارسالی؛ پیام خطای فارسی برای دامنه‌ی نامعتبر.
+- کنترلرهای `subscriptions`، `wallet`، `profile` و `request-payments`: افزودن
+  مسیر `POST` کنار `GET` و استفاده از پارسر مشترک.
+- سرویس‌های چهار جریان پرداخت: ساخت آدرس بازگشت/ریدایرکت با
+  `paypingReturnBaseUrl` و مدیریت `status=0` (لغو/ناموفق) بدون تلاش برای verify.
+- `docker-compose.yml`، `docker-compose.prod.yml` و `.env.example`: افزودن
+  `PAYPING_RETURN_BASE_URL`.
+- `docs/API.md` و `docs/DEPLOY.md`: توضیح خطای ۱۰۵، اولویت آدرس بازگشت و
+  شکل POST کال‌بک.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.8.3`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` → exit 0.
+- `POST /api/subscriptions/payments/callback` با بدنه‌ی
+  `status=1&data={"paymentCode":"SIM-…","paymentRefId":…,"clientRefId":"…"}` →
+  `302` به `…?payment=success` و تغییر وضعیت ردیف به `PAID`.
+- `POST` روی هر چهار کال‌بک با `status=0` → `302` به صفحه‌ی failed مربوطه.
+- `POST /api/subscriptions/:planId/checkout` با هدرهای
+  `Origin: https://shomalicard.ir` و `X-Forwarded-Host: alooshomal.ir` →
+  `returnUrl=https://shomalicard.ir/api/subscriptions/payments/callback`.
+- `POST /api/profile/identity/checkout` با همان هدرها →
+  `returnUrl=https://shomalicard.ir/api/profile/identity/payments/callback`.
+- `python3 scripts/check_api_docs.py` → exit 0.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۳ — اصلاح متن توضیح پرداخت استعلام هویت — نسخه `v4.8.2`
 

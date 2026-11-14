@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiQuery,
   ApiTags,
@@ -23,6 +24,11 @@ import {
 import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
+import {
+  GATEWAY_CALLBACK_BODY_SCHEMA,
+  parseGatewayCallback,
+  type GatewayCallbackPayload,
+} from '../payping/gateway-callback';
 import { AdjustWalletDto, CheckoutWalletDto } from './dto/wallet.dto';
 import { WalletService } from './wallet.service';
 
@@ -50,26 +56,39 @@ export class WalletController {
    */
   @Public()
   @Get('payments/callback')
-  @ApiOperation({ summary: 'بازگشت از درگاه پرداخت و تسویه بدهی کیف پول' })
+  @ApiOperation({ summary: 'بازگشت GET از درگاه پرداخت و تسویه بدهی کیف پول' })
   @ApiQuery({ name: 'paymentCode', required: false })
   @ApiQuery({ name: 'refId', required: false })
   @ApiQuery({ name: 'paymentRefId', required: false })
   @ApiQuery({ name: 'clientRefId', required: false })
-  async callback(
-    @Query('paymentCode') paymentCode: string | undefined,
-    @Query('code') code: string | undefined,
-    @Query('refId') refId: string | undefined,
-    @Query('paymentRefId') paymentRefId: string | undefined,
-    @Query('refid') refid: string | undefined,
-    @Query('clientRefId') clientRefId: string | undefined,
+  async callbackGet(
+    @Query() query: Record<string, unknown>,
     @Query('returnTo') returnTo: string | undefined,
     @Res() res: Response,
   ) {
-    const result = await this.wallet.handleCallback({
-      paymentCode: paymentCode ?? code,
-      refId: refId ?? paymentRefId ?? refid,
-      clientRefId,
-    });
+    return this.finishCallback(parseGatewayCallback(query, null), returnTo, res);
+  }
+
+  /** PayPing sends the result as a form-encoded POST (see gateway-callback.ts). */
+  @Public()
+  @Post('payments/callback')
+  @ApiOperation({ summary: 'بازگشت POST از درگاه پرداخت و تسویه بدهی کیف پول' })
+  @ApiBody({ schema: GATEWAY_CALLBACK_BODY_SCHEMA })
+  async callbackPost(
+    @Body() body: Record<string, unknown>,
+    @Query() query: Record<string, unknown>,
+    @Query('returnTo') returnTo: string | undefined,
+    @Res() res: Response,
+  ) {
+    return this.finishCallback(parseGatewayCallback(query, body), returnTo, res);
+  }
+
+  private async finishCallback(
+    payload: GatewayCallbackPayload,
+    returnTo: string | undefined,
+    res: Response,
+  ) {
+    const result = await this.wallet.handleCallback(payload);
     res.redirect(302, withReturnTo(result.redirectUrl, result.status, returnTo));
   }
 }

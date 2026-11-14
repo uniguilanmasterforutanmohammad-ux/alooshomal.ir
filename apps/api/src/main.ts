@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
+import { requestOriginMiddleware } from './common/request-origin';
 
 /**
  * Version shown in the Swagger UI. The single source of truth for the product
@@ -40,6 +41,9 @@ async function bootstrap(): Promise<void> {
   }
 
   app.use(helmet());
+  // Capture the public origin early so payment callbacks can use the domain the
+  // customer is actually on (see `paypingReturnBaseUrl`).
+  app.use(requestOriginMiddleware);
   const allowedOrigins = corsOrigin
     .split(',')
     .map((origin) => origin.trim())

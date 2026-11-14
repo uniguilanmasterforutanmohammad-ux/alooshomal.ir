@@ -8,6 +8,8 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+import { isPublicOrigin } from '../common/app-url';
+
 interface RequestOptions {
   query?: object;
   body?: unknown;
@@ -443,6 +445,26 @@ export class PaypingService {
   // -------------------------------------------------------------------------
 
   createPayment(dto: unknown) {
+    const returnUrl = (dto as { returnUrl?: unknown } | null)?.returnUrl;
+    if (typeof returnUrl !== 'string' || !returnUrl.trim()) {
+      throw new BadRequestException(
+        'آدرس بازگشت پرداخت مشخص نشده است؛ مقدار NEXT_PUBLIC_APP_URL یا PAYPING_RETURN_BASE_URL را تنظیم کنید.',
+      );
+    }
+    let parsed: URL;
+    try {
+      parsed = new URL(returnUrl);
+    } catch {
+      throw new BadRequestException(
+        `آدرس بازگشت پرداخت نامعتبر است (${returnUrl}).`,
+      );
+    }
+    if (!isPublicOrigin(parsed.origin)) {
+      throw new BadRequestException(
+        `آدرس بازگشت پرداخت (${returnUrl}) عمومی نیست. پی‌پینگ فقط دامنه‌ی ثبت‌شده‌ی پذیرنده را می‌پذیرد؛ مقدار PAYPING_RETURN_BASE_URL را روی دامنه‌ی صحیح (مثلاً https://shomalicard.ir) تنظیم کنید.`,
+      );
+    }
+    this.logger.log(`PayPing createPayment returnUrl=${returnUrl}`);
     return this.request('POST', '/v3/pay', { body: dto });
   }
 

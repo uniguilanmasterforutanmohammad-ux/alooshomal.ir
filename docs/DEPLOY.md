@@ -39,6 +39,11 @@
 > این دو مورد باید از نوع **Variable** (نه Secret) باشند تا به‌عنوان `build-arg` به ایمیج برسند.
 > اگر خالی بمانند، پیش‌فرض کد `http://localhost:4000/api` استفاده می‌شود که در پروداکشن غلط است.
 
+> 💳 اگر سایت با چند دامنه (مثل `alooshomal.ir` و `shomalicard.ir`) سرو می‌شود،
+> `PAYPING_RETURN_BASE_URL` را در `.env` سرور روی همان دامنه‌ای بگذارید که در پنل
+> پی‌پینگ ثبت شده است؛ وگرنه پی‌پینگ خطای «آدرس بازگشت پذیرنده معتبر نمی‌باشد
+> (کد 105)» می‌دهد. این متغیر سمت API خوانده می‌شود و به بیلد وب ربطی ندارد.
+
 ### دسترسی‌ها
 
 `Settings → Actions → General → Workflow permissions` را روی **Read and write permissions** بگذارید
@@ -117,6 +122,8 @@ MONITORING_ALERT_PHONE=
 # فقط سمت سرور استفاده می‌شود؛ هرگز در گیت یا مرورگر قرار نگیرد.
 PAYPING_TOKEN=<توکن-اختصاصی-شما>
 PAYPING_BASE_URL=https://api.payping.ir
+# دامنه‌ای که در پنل پی‌پینگ ثبت شده است (خطای 105 بدون آن رخ می‌دهد)
+PAYPING_RETURN_BASE_URL=https://shomalicard.ir
 
 # اپلیکیشن OAuth پی‌پینگ (ClientId/ClientSecret) برای پنل جداگانه‌ی «درگاه پرداخت (OAuth)»
 # آدرس بازگشت باید دقیقاً با Redirect URI ثبت‌شده در کنسول پی‌پینگ یکسان باشد.

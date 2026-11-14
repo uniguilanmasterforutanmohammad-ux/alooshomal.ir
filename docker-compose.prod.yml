@@ -142,6 +142,9 @@ services:
       # token stays server-side (never shipped to the browser).
       PAYPING_TOKEN: ${PAYPING_TOKEN:-}
       PAYPING_BASE_URL: ${PAYPING_BASE_URL:-https://api.payping.ir}
+      # Public origin used in PayPing `returnUrl`. Must match the merchant's
+      # registered domain; empty = the origin of the incoming request.
+      PAYPING_RETURN_BASE_URL: ${PAYPING_RETURN_BASE_URL:-}
       # PayPing OAuth application (authorization-code + PKCE) used by the
       # separate «درگاه پرداخت (OAuth)» panel.
       PAYPING_OAUTH_CLIENT_ID: ${PAYPING_OAUTH_CLIENT_ID:-}

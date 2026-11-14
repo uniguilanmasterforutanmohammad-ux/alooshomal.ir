@@ -9,7 +9,6 @@ import {
   OnModuleInit,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   NotificationType,
   PaymentStatus,
@@ -18,6 +17,7 @@ import {
 import { randomBytes } from 'node:crypto';
 
 import { ActivityService } from '../activity/activity.service';
+import { paypingReturnBaseUrl } from '../common/app-url';
 import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
 import { FinanceService } from '../finance/finance.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -65,7 +65,6 @@ export class WalletService implements OnModuleInit {
     private readonly settings: SettingsService,
     private readonly payping: PaypingService,
     private readonly simulator: PaymentSimulatorService,
-    private readonly config: ConfigService,
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
     private readonly finance: FinanceService,
@@ -134,12 +133,6 @@ export class WalletService implements OnModuleInit {
       select: { nationalCode: true },
     });
     return user?.nationalCode ?? null;
-  }
-
-  private appUrl(): string {
-    return (
-      this.config.get<string>('NEXT_PUBLIC_APP_URL') ?? 'http://localhost:3000'
-    ).replace(/\/+$/, '');
   }
 
   private gatewayAvailable(): boolean {
@@ -360,7 +353,7 @@ export class WalletService implements OnModuleInit {
     // wizard can come back to the same step after a simulated/local payment.
     const safeReturnTo =
       returnTo && /^\/(?!\/)/.test(returnTo) ? returnTo : null;
-    const returnUrl = `${this.appUrl()}/api/wallet/payments/callback${
+    const returnUrl = `${paypingReturnBaseUrl()}/api/wallet/payments/callback${
       safeReturnTo ? `?returnTo=${encodeURIComponent(safeReturnTo)}` : ''
     }`;
     let result: { paymentCode?: string; url?: string } | null = null;
@@ -424,6 +417,7 @@ export class WalletService implements OnModuleInit {
     paymentCode?: string;
     refId?: string;
     clientRefId?: string;
+    status?: number;
   }) {
     const paymentCode = params.paymentCode?.trim() || undefined;
     const refId = params.refId?.trim() || undefined;
@@ -443,6 +437,16 @@ export class WalletService implements OnModuleInit {
     }
     if (payment.status === PaymentStatus.CANCELED) {
       return this.result('failed', 'این پرداخت لغو شده است.');
+    }
+    if (params.status === 0) {
+      await this.markFailed(
+        payment.id,
+        'پرداخت توسط کاربر لغو شد یا درگاه آن را ناموفق اعلام کرد',
+      );
+      return this.result(
+        'failed',
+        'پرداخت انجام نشد یا لغو شد. در صورت کسر وجه، مبلغ تا ۷۲ ساعت به حساب شما بازمی‌گردد.',
+      );
     }
     if (!refId || !payment.paymentCode) {
       await this.markFailed(payment.id, 'اطلاعات بازگشتی درگاه ناقص است');
@@ -525,7 +529,7 @@ export class WalletService implements OnModuleInit {
     return {
       status,
       message,
-      redirectUrl: `${this.appUrl()}/dashboard/wallet?payment=${status}`,
+      redirectUrl: `${paypingReturnBaseUrl()}/dashboard/wallet?payment=${status}`,
     };
   }
 

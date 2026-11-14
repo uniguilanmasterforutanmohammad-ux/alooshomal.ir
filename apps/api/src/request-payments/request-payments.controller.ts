@@ -1,8 +1,13 @@
-import { Controller, Get, Query, Res } from '@nestjs/common';
-import { ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, Post, Query, Res } from '@nestjs/common';
+import { ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { Public } from '../common/decorators/public.decorator';
+import {
+  GATEWAY_CALLBACK_BODY_SCHEMA,
+  parseGatewayCallback,
+  type GatewayCallbackPayload,
+} from '../payping/gateway-callback';
 import { RequestPaymentsService } from './request-payments.service';
 
 @ApiTags('payments')
@@ -17,25 +22,36 @@ export class RequestPaymentsController {
    */
   @Public()
   @Get('request-callback')
-  @ApiOperation({ summary: 'بازگشت از درگاه پی‌پینگ و تأیید پرداخت درخواست پله/تبلیغ' })
+  @ApiOperation({ summary: 'بازگشت GET از درگاه پی‌پینگ و تأیید پرداخت درخواست پله/تبلیغ' })
   @ApiQuery({ name: 'paymentCode', required: false })
   @ApiQuery({ name: 'refId', required: false })
   @ApiQuery({ name: 'paymentRefId', required: false })
   @ApiQuery({ name: 'clientRefId', required: false })
-  async callback(
-    @Query('paymentCode') paymentCode: string | undefined,
-    @Query('code') code: string | undefined,
-    @Query('refId') refId: string | undefined,
-    @Query('paymentRefId') paymentRefId: string | undefined,
-    @Query('refid') refid: string | undefined,
-    @Query('clientRefId') clientRefId: string | undefined,
+  async callbackGet(
+    @Query() query: Record<string, unknown>,
     @Res() res: Response,
   ) {
-    const result = await this.payments.handleCallback({
-      paymentCode: paymentCode ?? code,
-      refId: refId ?? paymentRefId ?? refid,
-      clientRefId,
-    });
+    return this.finishCallback(parseGatewayCallback(query, null), res);
+  }
+
+  /** PayPing sends the result as a form-encoded POST (see gateway-callback.ts). */
+  @Public()
+  @Post('request-callback')
+  @ApiOperation({ summary: 'بازگشت POST از درگاه پی‌پینگ و تأیید پرداخت درخواست پله/تبلیغ' })
+  @ApiBody({ schema: GATEWAY_CALLBACK_BODY_SCHEMA })
+  async callbackPost(
+    @Body() body: Record<string, unknown>,
+    @Query() query: Record<string, unknown>,
+    @Res() res: Response,
+  ) {
+    return this.finishCallback(parseGatewayCallback(query, body), res);
+  }
+
+  private async finishCallback(
+    payload: GatewayCallbackPayload,
+    res: Response,
+  ) {
+    const result = await this.payments.handleCallback(payload);
     res.redirect(302, result.redirectUrl);
   }
 }
