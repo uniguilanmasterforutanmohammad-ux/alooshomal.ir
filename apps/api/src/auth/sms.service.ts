@@ -212,7 +212,8 @@ export class SmsService {
 
   /**
    * Sends a plain-text SMS (no generated code) through Melipayamak's simple
-   * send endpoint. Used by the resource monitor for admin alerts.
+   * send endpoint. Kept for providers/accounts where simple-send is enabled;
+   * the resource monitor no longer uses it (see `sendMonitoringAlert`).
    *
    * The path (which embeds the token) lives in `MELIPAYAMAK_SMS_PATH`, e.g.
    * `/api/send/simple/<token>`, and the sender line comes from
@@ -272,6 +273,26 @@ export class SmsService {
   /** True when the shared admin-notification template is available. */
   get adminNotificationsEnabled(): boolean {
     return Boolean(SmsService.sharedPath());
+  }
+
+  /**
+   * True when monitoring alerts can go out over the shared admin template.
+   * This is the same approved channel as every other admin notification, so
+   * the panel can show an honest «پیامک فعال است» state.
+   */
+  get monitoringSmsEnabled(): boolean {
+    return Boolean(SmsService.sharedPath());
+  }
+
+  /**
+   * Sends a server-resource alert through the approved shared template
+   * (`bodyId=586239`). Simple-send is not enabled for this Melipayamak
+   * account, so monitoring rides the same channel as the rest of the admin
+   * notifications: `{0}` is the fixed section and `{1}` the short alert
+   * subject (e.g. «حافظه (RAM) — ۸۵٪»).
+   */
+  async sendMonitoringAlert(phone: string, subject: string): Promise<boolean> {
+    return this.sendAdminNotification(phone, 'پایش منابع سرور', subject);
   }
 
   /**

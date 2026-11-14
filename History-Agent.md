@@ -20,7 +20,36 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.11.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.11.1**.
+
+## ۱۴۰۵/۰۸/۲۳ — ارسال پیامک هشدار پایش منابع با قالب مشترک — نسخه `v4.11.1`
+
+**هدف:** پیامک هشدار منابع سرور ارسال نمی‌شد چون به مسیر simple-send ملی‌پیامک
+وابسته بود که برای این حساب فعال نیست؛ هشدارها به همان کانال تأییدشده‌ی
+اطلاع‌رسانی مدیران (قالب مشترک `bodyId=586239`) منتقل شدند.
+
+**تغییرات:**
+- `apps/api/src/auth/sms.service.ts`: افزودن `monitoringSmsEnabled` و
+  `sendMonitoringAlert()` که از `sendAdminNotification` (قالب مشترک) استفاده
+  می‌کند؛ توضیح `sendText` به‌روز شد که دیگر مصرف‌کننده ندارد.
+- `apps/api/src/monitoring/monitoring.service.ts`: `dispatch` و `sendTest` از
+  `sendText` به `sendMonitoringAlert` تغییر کردند، موضوع کوتاه پیامک
+  (منبع + درصد) اضافه شد و `channels.sms` بر اساس در دسترس بودن قالب مشترک
+  گزارش می‌شود.
+- `apps/web/components/admin/AdminMonitoringPanel.tsx`: متن وضعیت کانال پیامک
+  و توضیح قالب ثابت به‌روز شد.
+- `docs/SMS.md`، `docs/API.md` و `docs/DEPLOY.md`: مستندسازی کانال جدید پایش.
+- `BACKLOG.md`: مورد «پیامک ساده‌ی ملی‌پیامک» به `انجام‌شده` تغییر کرد.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` → بدون خطا.
+- `docker exec alooshomal-web npx tsc --noEmit` → فقط خطاهای از پیش موجود
+  `.next/types/validator.ts`.
+- اجرای اسکریپت ts-node با `fetch` بدلی: `monitoringSmsEnabled=true` و بدنه‌ی
+  درخواست `{"bodyId":586239,"to":"09121234567","args":["پایش منابع سرور","حافظه (RAM) — ۸۵٪"]}`
+  روی `https://console.melipayamak.com/api/send/shared/token` ارسال شد.
+- ESLint فایل‌های تغییر‌یافته: بدون خطا (فقط هشدار از پیش موجود
+  `react-hooks/set-state-in-effect` در پنل).
 
 ## ۱۴۰۵/۰۸/۲۳ — بهبود شروع آسان، تمدید/تغییر اشتراک و فاکتور خدمات — نسخه `v4.11.0`
 

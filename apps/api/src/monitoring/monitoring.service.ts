@@ -305,7 +305,8 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
       },
       channels: {
         email: this.mail.enabled,
-        sms: this.sms.textEnabled,
+        // Alerts ride the approved shared admin template, not simple-send.
+        sms: this.sms.monitoringSmsEnabled,
       },
       current: metrics,
       lastAlerts,
@@ -455,6 +456,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
               `لطفاً وضعیت سرور را بررسی کنید.`,
             key,
             value,
+            `${labels[key]} — ${value.toLocaleString('fa-IR')}٪`,
           );
         } else {
           this.aboveSince.delete(key);
@@ -469,6 +471,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
               `مصرف ${labels[key]} به ${value}٪ کاهش یافت و از آستانه‌ی ${threshold}٪ پایین‌تر آمد.`,
               key,
               value,
+              `${labels[key]} — بازگشت به حالت عادی`,
             );
           }
         }
@@ -489,6 +492,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
     body: string,
     metric: MetricKey,
     value: number,
+    smsSubject: string,
   ): Promise<void> {
     const recipients = await this.resolveRecipients();
     const tasks: Array<Promise<unknown>> = [];
@@ -496,7 +500,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
       tasks.push(this.mail.sendAlert(recipients.email, subject, body));
     }
     if (recipients.phone) {
-      tasks.push(this.sms.sendText(recipients.phone, `${subject}\n${body}`));
+      tasks.push(this.sms.sendMonitoringAlert(recipients.phone, smsSubject));
     }
     tasks.push(
       this.notifications.notifyAdmins({
@@ -504,7 +508,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
         title: subject,
         body,
         link: '/jga4rm8j?section=monitoring',
-        // Monitoring already sends its own detailed SMS above.
+        // Monitoring already texts the alert recipients above (shared template).
         skipSms: true,
       }),
     );
@@ -525,7 +529,7 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
         ? this.mail.sendAlert(recipients.email, subject, body)
         : Promise.resolve(false),
       recipients.phone
-        ? this.sms.sendText(recipients.phone, `${subject}\n${body}`)
+        ? this.sms.sendMonitoringAlert(recipients.phone, subject)
         : Promise.resolve(false),
     ]);
     return { email, sms };

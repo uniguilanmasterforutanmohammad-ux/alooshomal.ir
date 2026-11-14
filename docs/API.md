@@ -197,10 +197,11 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 | `PATCH` | `/admin/monitoring` | بدنه‌ی `UpdateMonitoringDto`: `enabled`، `ramThreshold`، `cpuThreshold`، `diskThreshold` (۱ تا ۱۰۰)، `sustainMinutes` (۰ تا ۱۲۰؛ مدت ماندگاری بالای آستانه پیش از هشدار)، `cooldownMinutes` (۵ تا ۱۴۴۰)، `intervalSeconds` (۳۰ تا ۳۶۰۰)، `alertEmail`، `alertPhone`. مقدار خالی ایمیل/موبایل یعنی استفاده از حساب ادمین اصلی. فقط مدیر. |
 | `POST` | `/admin/monitoring/test` | ارسال پیام آزمایشی به کانال‌های تنظیم‌شده و برگرداندن `{ email, sms }` (موفق/ناموفق). فقط مدیر. |
 
-کانال پیامک از `MELIPAYAMAK_SMS_PATH` (مسیر ساده‌ی ارسال، مثل
-`/api/send/simple/<token>`) و `MELIPAYAMAK_SMS_FROM` (خط فرستنده، همان مقدار
-`from` در بدنه‌ی درخواست) استفاده می‌کند. وب‌سرویس REST و APIKey حذف شده‌اند؛
-تنها روش ارسال، مسیرهای توکنی کنسول ملی‌پیامک است. ایمیل از همان `MAIL_*` موجود.
+کانال پیامک از **قالب مشترک اطلاع‌رسانی مدیران** استفاده می‌کند
+(`MELIPAYAMAK_SHARED_PATH` با `bodyId=586239`، همان کانال تأییدشده‌ی سایر
+اعلان‌ها) و دیگر به simple-send وابسته نیست. `{0}` ثابت «پایش منابع سرور» و
+`{1}` منبع و درصد مصرف است. فیلد `channels.sms` در `GET /admin/monitoring`
+یعنی «قالب مشترک در دسترس است». ایمیل از همان `MAIL_*` موجود استفاده می‌کند.
 در صورت تنظیم‌نبودن هر کانال، هشدار درون‌برنامه‌ای (دسته‌ی `SYSTEM`) همچنان ثبت
 می‌شود.
 
