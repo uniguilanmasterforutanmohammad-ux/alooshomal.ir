@@ -115,6 +115,14 @@ if command -v npx >/dev/null 2>&1; then
   npx prisma db push --accept-data-loss
 fi
 
+# Apply a pending admin-email rename (ADMIN_EMAIL / ADMIN_PREVIOUS_EMAIL).
+# `ADMIN_EMAIL` in .env only seeds the admin; the real sign-in email lives in
+# the database, so this idempotent step makes a .env change take effect on the
+# next deploy. It never creates or deletes accounts and never blocks startup.
+if [ -n "${DATABASE_URL:-}" ] && [ -n "${ADMIN_EMAIL:-}" ] && [ -f "prisma/ensure-admin-email.mjs" ]; then
+  node prisma/ensure-admin-email.mjs || log "admin email migration failed (continuing)"
+fi
+
 if [ -n "${DATABASE_URL:-}" ] && [ -f "prisma/bootstrap.sql" ]; then
   CLEAN_URL="$(printf '%s' "$DATABASE_URL" | sed 's/?.*$//')"
   if psql "$CLEAN_URL" -v ON_ERROR_STOP=1 -q -f prisma/bootstrap.sql >/dev/null 2>&1; then

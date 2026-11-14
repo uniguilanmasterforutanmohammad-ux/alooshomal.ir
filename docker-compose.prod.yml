@@ -87,6 +87,8 @@ services:
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@alooshomal.local}
+      # Optional: old admin email to rename to ADMIN_EMAIL on startup.
+      ADMIN_PREVIOUS_EMAIL: ${ADMIN_PREVIOUS_EMAIL:-}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD must be set in production}
       ENABLE_SWAGGER: ${ENABLE_SWAGGER:-false}
       # Trust exactly one reverse-proxy hop (nginx) so `req.ip` is the real

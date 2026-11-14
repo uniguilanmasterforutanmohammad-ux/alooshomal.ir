@@ -20,7 +20,36 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.3.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.4.0**.
+
+## ۱۴۰۵/۰۸/۲۳ — مهاجرت خودکار ایمیل ادمین هنگام استقرار — نسخه `v4.4.0`
+
+**هدف:** تغییر `ADMIN_EMAIL` در `.env` فقط مقدار seed است و ایمیل ورود در
+جدول `users` می‌ماند؛ بنابراین تغییر `.env` به‌تنهایی ادمین را تغییر نام
+نمی‌داد و اجرای seed هم ادمین دوم می‌ساخت. حالا استقرار بعدی، همان رکورد ادمین
+را به ایمیل جدید تغییر می‌دهد.
+
+**تغییرات:**
+- `apps/api/prisma/ensure-admin-email.mjs`: اسکریپت idempotent که اگر کاربری با
+  `ADMIN_EMAIL` نبود، ادمین `ADMIN_PREVIOUS_EMAIL` را تغییر نام می‌دهد یا اگر
+  فقط یک ادمین وجود داشته باشد همان را. هرگز حساب جدید نمی‌سازد.
+- `apps/api/docker-entrypoint.sh`: اجرای اسکریپت بالا بعد از `prisma db push`
+  (خطا فقط لاگ می‌شود و مانع بالا آمدن API نیست).
+- `apps/api/prisma/seed.ts`: همان منطق تغییر نام پیش از `upsert` تا اجرای
+  دستی seed هم ادمین دوم نسازد.
+- `docker-compose.yml`، `docker-compose.prod.yml`، `.env.example`،
+  `apps/api/.env.example` و `docs/DEPLOY.md`: افزودن `ADMIN_PREVIOUS_EMAIL` و
+  مستندسازی روش تغییر ایمیل ادمین.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.4.0`.
+
+**تأیید/تست:**
+- `docker exec -e ADMIN_EMAIL=admin@alooshomal.local alooshomal-api node prisma/ensure-admin-email.mjs`
+  → «already exists» و exit 0.
+- تست تغییر نام: `ADMIN_EMAIL=temp-admin-test@alooshomal.local` +
+  `ADMIN_PREVIOUS_EMAIL=admin@alooshomal.local` → `renamed 1 admin(s)` و سپس
+  بازگرداندن به `admin@alooshomal.local` → تأیید با `SELECT email FROM users`.
+- `tsc` API داخل کانتینر → exit 0.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۳ — شمارش معکوس اعتبار کد و ارسال مجدد در `/login` — نسخه `v4.3.0`
 
