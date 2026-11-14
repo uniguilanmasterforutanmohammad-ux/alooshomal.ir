@@ -207,10 +207,8 @@ export class SupportChatService {
         type: NotificationType.INFO,
         link: '/jga4rm8j?section=support-chat',
         actorId: userId,
+        sms: { section: 'پشتیبانی', subject: 'پشتیبانی آنلاین' },
       });
-      // The in-app bell is easy to miss when the admin is away, so the first
-      // unread message of each burst also reaches the configured admin line.
-      void this.sendSupportSms(updated, body);
     }
     if (created) {
       void this.activity.log({
@@ -439,7 +437,7 @@ export class SupportChatService {
       phone,
       resolvedPhone: phone || fallback.phone,
       phoneFromAdminAccount: !phone && fallback.fromAdmin,
-      channelReady: this.sms.textEnabled,
+      channelReady: this.sms.adminNotificationsEnabled,
     };
   }
 
@@ -479,57 +477,6 @@ export class SupportChatService {
     return { phone: normalisePhone(admin?.phone), fromAdmin: Boolean(admin?.phone) };
   }
 
-  /** Fire-and-forget SMS for the first unread message of a conversation burst. */
-  private async sendSupportSms(
-    conversation: {
-      user?: {
-        fullName: string | null;
-        email: string | null;
-      } | null;
-    },
-    body: string,
-  ): Promise<void> {
-    try {
-      const config = await this.getSmsSettings();
-      if (!config.enabled) {
-        this.logger.debug('Support-chat SMS skipped: disabled in settings');
-        return;
-      }
-      if (!config.resolvedPhone) {
-        this.logger.warn(
-          'Support-chat SMS skipped: no recipient phone (panel, SUPPORT_CHAT_ALERT_PHONE and admin account are all empty)',
-        );
-        return;
-      }
-      if (!config.channelReady) {
-        this.logger.warn(
-          'Support-chat SMS skipped: Melipayamak channel is not configured',
-        );
-        return;
-      }
-      const who =
-        conversation.user?.fullName ?? conversation.user?.email ?? 'یک کاربر';
-      const oneLine = body.replace(/\s+/g, ' ').trim();
-      const preview =
-        oneLine.length > 70 ? `${oneLine.slice(0, 67)}…` : oneLine;
-      // Melipayamak rejects texts containing links (RetStatus 14), so point
-      // the admin to the panel in words instead of appending a URL.
-      const sent = await this.sms.sendText(
-        config.resolvedPhone,
-        `پیام جدید پشتیبانی آنلاین\n${who}: ${preview}\nپنل مدیریت، بخش پشتیبانی آنلاین`,
-      );
-      if (!sent) {
-        this.logger.warn('Support-chat SMS was not delivered by Melipayamak');
-      }
-    } catch (error) {
-      this.logger.error(
-        `Support-chat SMS failed: ${
-          error instanceof Error ? error.message : 'unknown error'
-        }`,
-      );
-    }
-  }
-
   /**
    * Sends a test SMS to the configured support line so an admin can verify the
    * provider credentials instead of waiting for a real user message.
@@ -549,9 +496,10 @@ export class SupportChatService {
         enabled: config.enabled,
       };
     }
-    const sent = await this.sms.sendText(
+    const sent = await this.sms.sendAdminNotification(
       config.resolvedPhone,
-      'پیام آزمایشی پشتیبانی آنلاین شمالی کارت\nاگر این پیام را دریافت کردید، کانال پیامک درست تنظیم شده است.',
+      'پشتیبانی',
+      'پیام آزمایشی پشتیبانی آنلاین',
     );
     return {
       sent,

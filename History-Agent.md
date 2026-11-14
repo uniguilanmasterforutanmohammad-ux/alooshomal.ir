@@ -20,7 +20,52 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.1.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.2.0**.
+
+## ۱۴۰۵/۰۸/۲۳ — پیامک OTP و اطلاع‌رسانی مدیران با قالب مشترک ملی‌پیامک — نسخه `v4.2.0`
+
+**هدف:** کد یکبارمصرف از مسیر اختصاصی OTP ملی‌پیامک ارسال شود و همه‌ی
+اطلاع‌رسانی‌های سایت به مدیران (پشتیبانی، تیکت، بیولینک، کارت ویزیت، اشتراک،
+تبلیغ، پله، فید، اخبار، …) از مسیر قالب مشترک با `bodyId` ثابت استفاده کنند.
+
+**تغییرات:**
+- `apps/api/src/auth/sms.service.ts`: مسیرهای پیش‌فرض پروداکشن برای OTP
+  (`/api/send/otp/18ab83118e8740d3b2ee9aa59bf1a6e2`) و قالب مشترک
+  (`/api/send/shared/18ab83118e8740d3b2ee9aa59bf1a6e2`) اضافه شد؛
+  `sendAdminNotification()` با `bodyId = 586239` (ثابت و تغییرناپذیر) و
+  `args: [section, subject]` پیاده‌سازی شد؛ `otpPath()`/`sharedPath()` و
+  `adminNotificationsEnabled` اضافه شدند.
+- `apps/api/src/sms/sms.module.ts`: ماژول `@Global` برای `SmsService` تا
+  auth، پشتیبانی و اعلان‌ها بدون وابستگی چرخه‌ای از آن استفاده کنند.
+- `apps/api/src/app.module.ts` و `apps/api/src/auth/auth.module.ts`: ثبت
+  `SmsModule` و حذف provider/export قبلی `SmsService` از `AuthModule`.
+- `apps/api/src/notifications/admin-sms.ts`: نگاشت دسته‌ی اعلان به دو
+  placeholder قالب (`{0}` بخش، `{1}` موضوع) و تابع `adminSmsContent()`.
+- `apps/api/src/notifications/notifications.service.ts`: `notifyAdmins()` پس
+  از ساخت اعلان، پیامک قالب مشترک را best-effort ارسال می‌کند؛ گیرنده از
+  تنظیمات پنل → `SUPPORT_CHAT_ALERT_PHONE` → قدیمی‌ترین ادمین فعال؛ سوئیچ
+  `SUPPORT_CHAT_SMS_ENABLED_KEY` و `skipSms` پشتیبانی می‌شوند.
+- `apps/api/src/support-chat/support-chat.service.ts`: ارسال پیامک ساده‌ی
+  اختصاصی حذف و به قالب مشترک (`پشتیبانی` / `پشتیبانی آنلاین`) منتقل شد؛
+  تست پیامک هم از همان مسیر استفاده می‌کند.
+- `apps/api/src/monitoring/monitoring.service.ts` (`skipSms: true`)،
+  `apps/api/src/news/news.service.ts` و `apps/api/src/profile/profile.service.ts`:
+  تنظیم متن مناسب برای هر رویداد.
+- `apps/api/src/settings/settings.constants.ts` و
+  `apps/web/components/admin/AdminSupportSmsSettings.tsx`: متن راهنما به
+  «پیامک اطلاع‌رسانی مدیران» و قالب مشترک به‌روزرسانی شد.
+- `docs/SMS.md`: سند مرجع کامل دو کانال، قالب، `bodyId`، ترتیب گیرنده و
+  روش افزودن اطلاع‌رسانی جدید.
+- `docs/API.md`، `docs/DEPLOY.md`، `.env.example`، `docker-compose.yml` و
+  `docker-compose.prod.yml`: مستندسازی و متغیر `MELIPAYAMAK_SHARED_PATH`.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.2.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api ./node_modules/.bin/tsc --noEmit -p tsconfig.json`
+  → exit 0 (کلاینت Prisma داخل کانتینر به‌روز است).
+- `cd apps/web && ./node_modules/.bin/tsc --noEmit` → exit 0.
+- `python3 scripts/check_api_docs.py` → exit 0 (مسیر API جدیدی اضافه نشد).
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۳ — یکپارچه‌سازی ورود مدیران در صفحه‌ی `/login` — نسخه `v4.1.0`
 

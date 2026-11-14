@@ -504,6 +504,8 @@ export class MonitoringService implements OnModuleInit, OnModuleDestroy {
         title: subject,
         body,
         link: '/jga4rm8j?section=monitoring',
+        // Monitoring already sends its own detailed SMS above.
+        skipSms: true,
       }),
     );
     // Each transport already swallows its own errors; allSettled guards the rest.

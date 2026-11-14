@@ -9,7 +9,6 @@ import { jwtSignOptions, resolveJwtSecret } from './jwt.config';
 import { MailService } from './mail.service';
 import { OtpService } from './otp.service';
 import { PermissionsGuard } from './permissions.guard';
-import { SmsService } from './sms.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
@@ -33,7 +32,7 @@ import { CommonModule } from '../common/common.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, PermissionsGuard, OtpService, SmsService, MailService],
-  exports: [AuthService, OtpService, MailService, SmsService],
+  providers: [AuthService, JwtStrategy, PermissionsGuard, OtpService, MailService],
+  exports: [AuthService, OtpService, MailService],
 })
 export class AuthModule {}

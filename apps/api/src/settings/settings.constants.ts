@@ -479,11 +479,12 @@ export const DEFAULT_EMAIL_LOGIN_ENABLED = true;
 // ---------------------------------------------------------------------------
 
 /**
- * Sends one SMS to the admin line whenever a user starts a new support-chat
- * burst (first unread message). The phone below wins; when it is empty the
- * service falls back to `SUPPORT_CHAT_ALERT_PHONE`, then to the oldest active
- * admin account's phone. No SMS is attempted when Melipayamak's simple-send
- * path (`MELIPAYAMAK_SMS_PATH`) is not configured.
+ * Sends one SMS to the admin line for every site notification addressed to
+ * admins (support chat, tickets, biolinks, business cards, subscriptions, ads,
+ * boosts, feeds, …). The phone below wins; when it is empty the service falls
+ * back to `SUPPORT_CHAT_ALERT_PHONE`, then to the oldest active admin account's
+ * phone. No SMS is attempted when Melipayamak's shared-template endpoint
+ * (`MELIPAYAMAK_SHARED_PATH`) is not configured.
  */
 export const SUPPORT_CHAT_SMS_ENABLED_KEY = 'supportChatSmsEnabled';
 export const DEFAULT_SUPPORT_CHAT_SMS_ENABLED = true;

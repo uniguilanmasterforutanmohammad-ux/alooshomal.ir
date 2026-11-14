@@ -142,6 +142,7 @@ export class NewsService {
       type: NotificationType.INFO,
       link: '/jga4rm8j?section=news',
       actorId: userId,
+      sms: { section: 'اخبار', subject: 'درخواست شهروند خبرنگار' },
     });
     await this.activity.log({
       actor: { id: userId },
@@ -219,6 +220,7 @@ export class NewsService {
       link: '/jga4rm8j?section=news',
       type: NotificationType.INFO,
       actorId: userId,
+      sms: { section: 'اخبار', subject: 'خبر جدید در انتظار تأیید' },
     });
     await this.activity.log({
       actor: { id: userId },

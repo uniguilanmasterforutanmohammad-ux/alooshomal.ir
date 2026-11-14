@@ -14,9 +14,10 @@ interface SupportSmsSettings {
 }
 
 /**
- * Configuration for the SMS that alerts the admin line whenever a user starts
- * a new support-chat burst. The phone is optional: leaving it empty falls back
- * to SUPPORT_CHAT_ALERT_PHONE and then to the oldest active admin's phone.
+ * Configuration for the SMS that alerts the admin line for every site
+ * notification addressed to admins. The phone is optional: leaving it empty
+ * falls back to SUPPORT_CHAT_ALERT_PHONE and then to the oldest active admin's
+ * phone.
  */
 export function AdminSupportSmsSettings() {
   const [settings, setSettings] = useState<SupportSmsSettings | null>(null);
@@ -58,7 +59,7 @@ export function AdminSupportSmsSettings() {
       setSettings(result);
       setEnabled(result.enabled);
       setPhone(result.phone);
-      setMessage('تنظیمات پیامک پشتیبانی ذخیره شد.');
+      setMessage('تنظیمات پیامک اطلاع‌رسانی ذخیره شد.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره تنظیمات ناموفق بود');
     } finally {
@@ -105,13 +106,13 @@ export function AdminSupportSmsSettings() {
       <div className="flex items-center gap-2">
         <MessageSquareText className="size-5 text-brand" aria-hidden />
         <h3 className="text-sm font-extrabold text-ink">
-          پیامک پیام جدید پشتیبانی
+          پیامک اطلاع‌رسانی مدیران
         </h3>
       </div>
       <p className="mt-1 text-xs leading-6 text-muted">
-        با هر پیام تازه‌ی کاربر (شروع هر دسته پیام) یک پیامک به خط ادمین ارسال
-        می‌شود. برای پیام‌های بعدی تا وقتی ادمین آن‌ها را نخوانده، پیامک تکراری
-        نمی‌آید.
+        با هر اطلاع‌رسانی سایت به مدیران (پشتیبانی آنلاین، تیکت، بیولینک، کارت
+        ویزیت، اشتراک، تبلیغ، پله، فید و …) یک پیامک با قالب ثابت به خط ادمین
+        ارسال می‌شود.
       </p>
 
       {!settings ? (
@@ -124,8 +125,8 @@ export function AdminSupportSmsSettings() {
                 ارسال پیامک فعال باشد
               </span>
               <span className="block text-[11px] text-muted">
-                خاموش‌کردن این گزینه فقط پیامک را متوقف می‌کند؛ اعلان داخل پنل
-                همچنان ثبت می‌شود.
+                خاموش‌کردن این گزینه فقط پیامک اطلاع‌رسانی را متوقف می‌کند؛
+                اعلان داخل پنل همچنان ثبت می‌شود.
               </span>
             </span>
             <button
@@ -185,13 +186,10 @@ export function AdminSupportSmsSettings() {
 
           {!settings.channelReady ? (
             <p className="mt-3 rounded-lg bg-amber-50 p-2 text-[11px] leading-5 text-amber-800">
-              ارسال واقعی پیامک نیازمند تنظیم{' '}
-              <code>MELIPAYAMAK_SMS_FROM</code> یا{' '}
-              <code>MELIPAYAMAK_OTP_FROM</code> (خط فرستنده) و یکی از دو روش{' '}
-              <code>MELIPAYAMAK_SMS_PATH</code> یا{' '}
-              <code>MELIPAYAMAK_USERNAME</code> +{' '}
-              <code>MELIPAYAMAK_API_KEY</code> روی سرور است. تا آن زمان
-              تنظیمات ذخیره می‌شود ولی پیامکی ارسال نمی‌شود.
+              در پروداکشن، مسیر قالب مشترک ملی‌پیامک به‌صورت پیش‌فرض تنظیم است.
+              برای تغییر آن می‌توانید <code>MELIPAYAMAK_SHARED_PATH</code> را
+              روی سرور تنظیم کنید. تا زمانی که کانال آماده نباشد، تنظیمات
+              ذخیره می‌شود ولی پیامکی ارسال نمی‌شود.
             </p>
           ) : null}
 

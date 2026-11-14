@@ -630,6 +630,7 @@ export class ProfileService {
       link: '/jga4rm8j?section=users',
       type: NotificationType.INFO,
       actorId: userId,
+      sms: { section: 'کاربران', subject: 'درخواست تغییر پروفایل' },
     });
     await this.activity.log({
       actor: { id: userId },

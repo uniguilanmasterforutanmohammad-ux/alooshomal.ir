@@ -22,6 +22,17 @@ export class SmsService {
   private readonly logger = new Logger(SmsService.name);
   private static readonly REST_BASE_URL =
     'https://rest.payamak-panel.com/api/SendSMS';
+  /**
+   * Project-specific Melipayamak console endpoints. They are used as defaults
+   * in production so the service works without extra server configuration;
+   * `MELIPAYAMAK_OTP_PATH` / `MELIPAYAMAK_SHARED_PATH` can override them.
+   */
+  private static readonly DEFAULT_OTP_PATH =
+    '/api/send/otp/18ab83118e8740d3b2ee9aa59bf1a6e2';
+  private static readonly DEFAULT_SHARED_PATH =
+    '/api/send/shared/18ab83118e8740d3b2ee9aa59bf1a6e2';
+  /** Fixed template id for admin notifications; never change it. */
+  private static readonly ADMIN_NOTIFY_BODY_ID = 586239;
 
   /** Keep phone numbers out of logs: 0912***4567. */
   private static maskPhone(phone: string): string {
@@ -106,10 +117,36 @@ export class SmsService {
     return marker >= 0 ? value.slice(marker) : value;
   }
 
+  /**
+   * OTP endpoint. The configured path wins; in production the project token is
+   * the fallback, while local development keeps the no-SMS bypass unless the
+   * env var is set explicitly.
+   */
+  private static otpPath(): string {
+    const configured = SmsService.consolePath(
+      process.env.MELIPAYAMAK_OTP_PATH,
+    );
+    if (configured) return configured;
+    return process.env.NODE_ENV === 'production'
+      ? SmsService.DEFAULT_OTP_PATH
+      : '';
+  }
+
+  /** Shared-template endpoint used for every admin notification SMS. */
+  private static sharedPath(): string {
+    const configured = SmsService.consolePath(
+      process.env.MELIPAYAMAK_SHARED_PATH,
+    );
+    if (configured) return configured;
+    return process.env.NODE_ENV === 'production'
+      ? SmsService.DEFAULT_SHARED_PATH
+      : '';
+  }
+
   /** True when OTP delivery is configured (token path or API key). */
   get enabled(): boolean {
     return Boolean(
-      process.env.MELIPAYAMAK_OTP_PATH?.trim() ||
+      SmsService.otpPath() ||
         (SmsService.restCredentials() && SmsService.otpFrom()),
     );
   }
@@ -131,7 +168,7 @@ export class SmsService {
    * Returns `null` when SMS is not configured (dev) — caller uses the bypass.
    */
   async sendOtp(phone: string): Promise<string | null> {
-    const path = SmsService.consolePath(process.env.MELIPAYAMAK_OTP_PATH);
+    const path = SmsService.otpPath();
     const credentials = SmsService.restCredentials();
     const from = SmsService.otpFrom();
 
@@ -322,6 +359,80 @@ export class SmsService {
     } catch (error) {
       this.logger.error(
         `Melipayamak simple-send failed for ${SmsService.maskPhone(phone)}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+      return false;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /** True when the shared admin-notification template is available. */
+  get adminNotificationsEnabled(): boolean {
+    return Boolean(SmsService.sharedPath());
+  }
+
+  /**
+   * Sends one admin notification through Melipayamak's shared-template
+   * endpoint. The provider owns the text:
+   *
+   *   کاربر مدیریت بخش {0} شما یک درخواست با موضوع {1} دارید. shomalicard
+   *
+   * `bodyId` is fixed by the project (586239) and must not be changed.
+   * Never throws: notifications are best-effort and must not break the action
+   * that triggered them.
+   */
+  async sendAdminNotification(
+    phone: string,
+    section: string,
+    subject: string,
+  ): Promise<boolean> {
+    const path = SmsService.sharedPath();
+    if (!path) {
+      this.logger.warn(
+        `Admin SMS is not configured — notification for ${SmsService.maskPhone(phone)} was not sent.`,
+      );
+      return false;
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch(`https://console.melipayamak.com${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bodyId: SmsService.ADMIN_NOTIFY_BODY_ID,
+          to: phone,
+          args: [section, subject],
+        }),
+        signal: controller.signal,
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | { recId?: number | string; status?: string }
+        | null;
+
+      const status = payload?.status?.trim();
+      const ok =
+        response.ok &&
+        (payload?.recId !== undefined || status === 'عملیات موفق');
+      if (!ok) {
+        this.logger.error(
+          `Melipayamak shared-send failed for ${SmsService.maskPhone(phone)}: ${
+            status || `HTTP ${response.status}`
+          }`,
+        );
+        return false;
+      }
+      this.logger.log(
+        `Admin notification SMS sent to ${SmsService.maskPhone(phone)} (${section} / ${subject})`,
+      );
+      return true;
+    } catch (error) {
+      this.logger.error(
+        `Melipayamak shared-send failed for ${SmsService.maskPhone(phone)}: ${
           error instanceof Error ? error.message : 'unknown error'
         }`,
       );

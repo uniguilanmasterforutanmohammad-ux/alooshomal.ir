@@ -1,14 +1,33 @@
 import { Injectable } from '@nestjs/common';
 import { NotificationScope, NotificationType, Prisma } from '@prisma/client';
 
+import { SmsService } from '../auth/sms.service';
 import { SCOPE_TO_NOTIFICATION } from '../auth/moderator-scope-map';
 import { MODERATOR_SCOPES } from '../auth/moderator-scopes';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AdminNotifyCategory,
+  DEFAULT_SUPPORT_CHAT_SMS_ENABLED,
+  SUPPORT_CHAT_SMS_ENABLED_KEY,
+  SUPPORT_CHAT_SMS_PHONE_KEY,
   SettingsService,
 } from '../settings/settings.service';
+import { adminSmsContent, type AdminSmsContent } from './admin-sms';
 import { NotificationsEventsService } from './notifications-events.service';
+
+/** Normalise Iranian mobile numbers to the `09xxxxxxxxx` form Melipayamak uses. */
+function normaliseMobile(raw: string | null | undefined): string {
+  const digits = (raw ?? '')
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[\s\-()]/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('+98')) return `0${digits.slice(3)}`;
+  if (digits.startsWith('0098')) return `0${digits.slice(4)}`;
+  if (digits.startsWith('98') && digits.length === 12) return `0${digits.slice(2)}`;
+  if (digits.startsWith('9') && digits.length === 10) return `0${digits}`;
+  return digits;
+}
 
 export interface NotifyPayload {
   /** specific user; omit to notify the admin team */
@@ -31,6 +50,13 @@ export interface NotifyPayload {
    * notification is dropped before it is written (no row, no client poll hit).
    */
   category?: AdminNotifyCategory;
+  /**
+   * Optional override for the two placeholders of the admin SMS template.
+   * When omitted, `ADMIN_SMS_BY_CATEGORY` supplies a sensible default.
+   */
+  sms?: AdminSmsContent;
+  /** Skip the SMS for notifications that already alert the admin elsewhere. */
+  skipSms?: boolean;
 }
 
 /**
@@ -44,6 +70,7 @@ export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
+    private readonly sms: SmsService,
     private readonly events: NotificationsEventsService,
   ) {}
 
@@ -78,8 +105,69 @@ export class NotificationsService {
   }
 
   /** Notify the whole admin team (userId is null, audience = ADMIN). */
-  notifyAdmins(payload: Omit<NotifyPayload, 'userId' | 'audience'>) {
-    return this.notify({ ...payload, userId: null, audience: 'ADMIN' });
+  async notifyAdmins(payload: Omit<NotifyPayload, 'userId' | 'audience'>) {
+    const created = await this.notify({
+      ...payload,
+      userId: null,
+      audience: 'ADMIN',
+    });
+    if (created && !payload.skipSms) {
+      void this.sendAdminSms(payload);
+    }
+    return created;
+  }
+
+  /**
+   * Fire-and-forget SMS for an admin notification. The recipient is the same
+   * admin line configured for support-chat alerts (panel setting → env →
+   * oldest active admin). A muted category never reaches this method because
+   * `notify()` returns null first.
+   */
+  private async sendAdminSms(
+    payload: Omit<NotifyPayload, 'userId' | 'audience'>,
+  ): Promise<void> {
+    try {
+      if (!this.sms.adminNotificationsEnabled) return;
+      const content = adminSmsContent(payload.category, payload.sms);
+      if (!content) return;
+      const enabled = await this.adminSmsEnabled();
+      if (!enabled) return;
+      const phone = await this.resolveAdminSmsPhone();
+      if (!phone) return;
+      await this.sms.sendAdminNotification(
+        phone,
+        content.section,
+        content.subject,
+      );
+    } catch {
+      // Notifications must never break the business action.
+    }
+  }
+
+  /** Reuses the support-chat SMS switch as the global admin SMS switch. */
+  private async adminSmsEnabled(): Promise<boolean> {
+    const row = await this.prisma.setting.findUnique({
+      where: { key: SUPPORT_CHAT_SMS_ENABLED_KEY },
+    });
+    if (!row) return DEFAULT_SUPPORT_CHAT_SMS_ENABLED;
+    return row.value !== 'false';
+  }
+
+  /** Panel phone → env fallback → oldest active admin's phone. */
+  private async resolveAdminSmsPhone(): Promise<string | null> {
+    const row = await this.prisma.setting.findUnique({
+      where: { key: SUPPORT_CHAT_SMS_PHONE_KEY },
+    });
+    const stored = normaliseMobile(row?.value);
+    if (stored) return stored;
+    const env = normaliseMobile(process.env.SUPPORT_CHAT_ALERT_PHONE);
+    if (env) return env;
+    const admin = await this.prisma.user.findFirst({
+      where: { role: 'ADMIN', isActive: true },
+      orderBy: { createdAt: 'asc' },
+      select: { phone: true },
+    });
+    return normaliseMobile(admin?.phone) || null;
   }
 
   /**
