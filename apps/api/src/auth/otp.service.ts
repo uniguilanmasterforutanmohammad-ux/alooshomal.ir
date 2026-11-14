@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 
 import { RedisService } from '../redis/redis.service';
+import { BaleService } from '../bale/bale.service';
 import { MailService } from './mail.service';
 import { SmsService } from './sms.service';
 
@@ -23,11 +24,12 @@ import { SmsService } from './sms.service';
  * Without that rule, flushing Redis (or an operator deleting a key) would not
  * take effect and an already-consumed code could still be replayed.
  *
- * Local dev never sends real SMS: when Melipayamak is not configured *and* the
- * app is not running in production, the service mints a fixed `DEV_OTP_CODE`,
- * logs it, and returns it in the API response so the developer can complete the
- * flow without a real phone. In production the same missing configuration is a
- * hard error — the fixed code must never be handed out on a real deployment.
+ * Local dev never sends real SMS/Bale messages: when no phone transport is
+ * enabled *and* the app is not running in production, the service mints a fixed
+ * `DEV_OTP_CODE`, logs it, and returns it in the API response so the developer
+ * can complete the flow without a real phone. In production the same missing
+ * configuration is a hard error — the fixed code must never be handed out on a
+ * real deployment.
  */
 const OTP_TTL_SECONDS = 90;
 const OTP_RESEND_COOLDOWN_SECONDS = 60;
@@ -35,6 +37,11 @@ const OTP_MAX_ATTEMPTS = 5;
 
 /** Fixed code used when SMS delivery is disabled (local dev). */
 export const DEV_OTP_CODE = '123456';
+
+function maskPhone(phone: string): string {
+  if (phone.length <= 6) return '***';
+  return `${phone.slice(0, 4)}***${phone.slice(-3)}`;
+}
 
 /**
  * OTP purposes. Each flow gets its own key namespace so a code issued for one
@@ -73,8 +80,10 @@ export interface IssuedOtp {
   resendAfter: number;
   /** Seconds until the issued code expires (the code's validity window). */
   expiresIn: number;
-  /** True when the code was actually sent by SMS. */
+  /** True when the code was actually sent through a phone channel. */
   sent: boolean;
+  /** Phone channel that delivered the code (Bale first, then SMS). */
+  channel?: 'bale' | 'sms' | 'dev';
   /** True when the same code was also delivered to the account's email. */
   emailSent?: boolean;
 }
@@ -100,9 +109,39 @@ export class OtpService {
 
   constructor(
     private readonly redis: RedisService,
+    private readonly bale: BaleService,
     private readonly sms: SmsService,
     private readonly mail: MailService,
   ) {}
+
+  /** True when at least one phone transport is available. */
+  private get phoneChannelEnabled(): boolean {
+    return this.bale.isEnabled || this.sms.enabled;
+  }
+
+  /**
+   * Delivers one OTP to `phone`, preferring Bale and falling back to SMS.
+   * Returns the code that was actually sent (Bale needs the caller to generate
+   * it; Melipayamak generates its own) or `null` when neither channel works.
+   */
+  private async deliverPhoneCode(
+    phone: string,
+  ): Promise<{ code: string; channel: 'bale' | 'sms' } | null> {
+    if (this.bale.isEnabled) {
+      const code = String(randomInt(100_000, 1_000_000));
+      if (await this.bale.sendOtp(phone, code)) {
+        return { code, channel: 'bale' };
+      }
+      this.logger.warn(
+        `Bale OTP to ${maskPhone(phone)} failed; falling back to SMS`,
+      );
+    }
+    if (this.sms.enabled) {
+      const remote = await this.sms.sendOtp(phone);
+      if (remote) return { code: remote, channel: 'sms' };
+    }
+    return null;
+  }
 
   /**
    * Normalises an Iranian mobile number to the canonical `09xxxxxxxxx` form.
@@ -242,31 +281,35 @@ export class OtpService {
     const simulate = this.isDev && options.simulateDelivery === true;
     let code: string;
     let sent = false;
+    let channel: 'bale' | 'sms' | 'dev' | undefined;
     if (simulate) {
       code = DEV_OTP_CODE;
+      channel = 'dev';
       this.logger.log(
         `[dev] ${purpose} OTP for ${phone} is ${code} (delivery simulated)`,
       );
-    } else if (this.sms.enabled) {
-      const remote = await this.sms.sendOtp(phone);
-      if (!remote) {
+    } else if (this.phoneChannelEnabled) {
+      const delivered = await this.deliverPhoneCode(phone);
+      if (!delivered) {
         // Configured but the gateway returned no code — never fall back to a
         // hard-coded value.
         throw new ServiceUnavailableException(
-          'ارسال پیامک در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
+          'ارسال کد تأیید در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
         );
       }
-      code = remote;
+      code = delivered.code;
+      channel = delivered.channel;
       sent = true;
     } else if (this.isDev) {
       // Dev bypass: fixed code, no network, printed to the API log.
       code = DEV_OTP_CODE;
+      channel = 'dev';
       this.logger.log(`[dev] OTP for ${phone} is ${code} (SMS disabled)`);
     } else {
-      // Production without the Melipayamak console OTP token: refuse instead
-      // of handing out the fixed dev code.
+      // Production without any phone transport (Bale or Melipayamak): refuse
+      // instead of handing out the fixed dev code.
       this.logger.error(
-        `OTP request for ${phone} rejected: no Melipayamak transport is configured in production`,
+        `OTP request for ${maskPhone(phone)} rejected: no Bale/SMS transport is configured in production`,
       );
       throw new ServiceUnavailableException(
         'ارسال پیامک در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
@@ -297,6 +340,7 @@ export class OtpService {
       resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
       expiresIn: OTP_TTL_SECONDS,
       sent,
+      ...(channel ? { channel } : {}),
       emailSent,
       ...(simulate ? { simulated: true } : {}),
       ...(sent ? {} : { devCode: code }),
@@ -353,18 +397,21 @@ export class OtpService {
 
     let code: string;
     let sent = false;
-    if (sendToPhone && phone && this.sms.enabled) {
-      const remote = await this.sms.sendOtp(phone);
-      if (!remote) {
+    let channel: 'bale' | 'sms' | 'dev' | undefined;
+    if (sendToPhone && phone && this.phoneChannelEnabled) {
+      const delivered = await this.deliverPhoneCode(phone);
+      if (!delivered) {
         throw new ServiceUnavailableException(
-          'ارسال پیامک در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
+          'ارسال کد تأیید در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
         );
       }
-      code = remote;
+      code = delivered.code;
+      channel = delivered.channel;
       sent = true;
     } else if (this.isDev && !this.mail.enabled) {
       // Local dev without SMTP: same fixed-code bypass as the login flow.
       code = DEV_OTP_CODE;
+      channel = 'dev';
       this.logger.log(`[dev] password-reset OTP for ${userId} is ${code}`);
     } else {
       code = String(randomInt(100_000, 1_000_000));
@@ -400,6 +447,7 @@ export class OtpService {
       resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
       expiresIn: OTP_TTL_SECONDS,
       sent,
+      ...(channel ? { channel } : {}),
       emailSent,
       ...(this.isDev && !sent && !emailSent ? { devCode: code } : {}),
     };
@@ -528,23 +576,27 @@ export class OtpService {
     const simulate = this.isDev && options.simulateDelivery === true;
     let code: string;
     let sent = false;
+    let channel: 'bale' | 'sms' | 'dev' | undefined;
     if (simulate) {
       code = DEV_OTP_CODE;
+      channel = 'dev';
       this.logger.log(
         `[dev] admin-login OTP for ${userId} is ${code} (delivery simulated)`,
       );
-    } else if (phone && this.sms.enabled) {
-      const remote = await this.sms.sendOtp(phone);
-      if (!remote) {
+    } else if (phone && this.phoneChannelEnabled) {
+      const delivered = await this.deliverPhoneCode(phone);
+      if (!delivered) {
         throw new ServiceUnavailableException(
-          'ارسال پیامک در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
+          'ارسال کد تأیید در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
         );
       }
-      code = remote;
+      code = delivered.code;
+      channel = delivered.channel;
       sent = true;
     } else if (this.isDev && !this.mail.enabled) {
       // Local dev without SMTP: same fixed-code bypass as the other flows.
       code = DEV_OTP_CODE;
+      channel = 'dev';
       this.logger.log(`[dev] ${purpose} OTP for ${userId} is ${code}`);
     } else {
       code = String(randomInt(100_000, 1_000_000));
@@ -581,6 +633,7 @@ export class OtpService {
       resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
       expiresIn: OTP_TTL_SECONDS,
       sent,
+      ...(channel ? { channel } : {}),
       emailSent,
       ...(simulate ? { simulated: true } : {}),
       ...(this.isDev && !sent && !emailSent ? { devCode: code } : {}),
@@ -633,19 +686,22 @@ export class OtpService {
 
     let code: string;
     let sent = false;
+    let channel: 'bale' | 'sms' | 'dev' | undefined;
     let emailSent = false;
     if (input.channel === 'sms') {
-      if (this.sms.enabled) {
-        const remote = await this.sms.sendOtp(target);
-        if (!remote) {
+      if (this.phoneChannelEnabled) {
+        const delivered = await this.deliverPhoneCode(target);
+        if (!delivered) {
           throw new ServiceUnavailableException(
-            'ارسال پیامک در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
+            'ارسال کد تأیید در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
           );
         }
-        code = remote;
+        code = delivered.code;
+        channel = delivered.channel;
         sent = true;
       } else if (this.isDev) {
         code = DEV_OTP_CODE;
+        channel = 'dev';
         this.logger.log(
           `[dev] claim OTP for ${target} is ${code} (SMS disabled)`,
         );
@@ -689,6 +745,7 @@ export class OtpService {
       resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
       expiresIn: OTP_TTL_SECONDS,
       sent,
+      ...(channel ? { channel } : {}),
       emailSent,
       ...(this.isDev && !sent && !emailSent ? { devCode: code } : {}),
     };

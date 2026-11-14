@@ -125,6 +125,12 @@ PAYPING_BASE_URL=https://api.payping.ir
 # دامنه‌ای که در پنل پی‌پینگ ثبت شده است (خطای 105 بدون آن رخ می‌دهد)
 PAYPING_RETURN_BASE_URL=https://shomalicard.ir
 
+# پیام‌رسان بله (سرویس سفیر) برای ارسال کد یکبارمصرف؛ در نبود حساب بله،
+# پیامک ملی‌پیامک به‌عنوان fallback استفاده می‌شود.
+BALE_API_SHOMALICARDBOT=<api-access-key>
+BOT_ID=<bot-id>
+BALE_OTP_ENABLED=true
+
 # اپلیکیشن OAuth پی‌پینگ (ClientId/ClientSecret) برای پنل جداگانه‌ی «درگاه پرداخت (OAuth)»
 # آدرس بازگشت باید دقیقاً با Redirect URI ثبت‌شده در کنسول پی‌پینگ یکسان باشد.
 PAYPING_OAUTH_CLIENT_ID=<client-id>

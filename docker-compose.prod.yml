@@ -145,6 +145,11 @@ services:
       # Public origin used in PayPing `returnUrl`. Must match the merchant's
       # registered domain; empty = the origin of the incoming request.
       PAYPING_RETURN_BASE_URL: ${PAYPING_RETURN_BASE_URL:-}
+      # Bale «Safir» OTP delivery (falls back to Melipayamak SMS).
+      BALE_API_SHOMALICARDBOT: ${BALE_API_SHOMALICARDBOT:-}
+      BOT_ID: ${BOT_ID:-}
+      BALE_OTP_ENABLED: ${BALE_OTP_ENABLED:-}
+      BALE_SAFIR_BASE_URL: ${BALE_SAFIR_BASE_URL:-https://safir.bale.ai}
       # PayPing OAuth application (authorization-code + PKCE) used by the
       # separate «درگاه پرداخت (OAuth)» panel.
       PAYPING_OAUTH_CLIENT_ID: ${PAYPING_OAUTH_CLIENT_ID:-}

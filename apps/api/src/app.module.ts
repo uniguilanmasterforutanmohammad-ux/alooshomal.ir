@@ -11,6 +11,7 @@ import { AdminModule } from './admin/admin.module';
 import { ActivityModule } from './activity/activity.module';
 import { AdsModule } from './ads/ads.module';
 import { AuthModule } from './auth/auth.module';
+import { BaleModule } from './bale/bale.module';
 import { BiolinksModule } from './biolinks/biolinks.module';
 import { BlogModule } from './blog/blog.module';
 import { BoostsModule } from './boosts/boosts.module';
@@ -53,6 +54,7 @@ import { ZohalModule } from './zohal/zohal.module';
     SessionsModule,
     CommonModule,
     SmsModule,
+    BaleModule,
     ActivityModule,
     AuthModule,
     UsersModule,

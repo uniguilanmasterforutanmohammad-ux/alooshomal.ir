@@ -20,7 +20,43 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.8.3**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.9.0**.
+
+## ۱۴۰۵/۰۸/۲۳ — ارسال کد یکبارمصرف با پیام‌رسان بله (سفیر) — نسخه `v4.9.0`
+
+**هدف:** ارسال OTP از طریق پیام‌رسان بله با سرویس «سفیر» و استفاده از پیامک
+ملی‌پیامک به‌عنوان fallback. کدها فقط پس از ارسال موفق در Redis ذخیره می‌شوند و
+هیچ کد ثابتی در پروداکشن برگردانده نمی‌شود.
+
+**تغییرات:**
+- `apps/api/src/bale/bale.service.ts`: کلاینت `POST
+  https://safir.bale.ai/api/v3/send_message` با هدر `api-access-key`، بدنه‌ی
+  `otp_message`، نرمال‌سازی شماره به `98…`، تایم‌اوت ۱۵ ثانیه و لاگ ماسک‌شده.
+  در پروداکشن با وجود `BALE_API_SHOMALICARDBOT` و `BOT_ID` خودکار فعال است؛ در
+  توسعه فقط با `BALE_OTP_ENABLED=true`.
+- `apps/api/src/bale/bale.module.ts`: ماژول Global برای تزریق در همه‌ی جریان‌های OTP.
+- `apps/api/src/app.module.ts`: ثبت `BaleModule`.
+- `apps/api/src/auth/otp.service.ts`: ترجیح بله و fallback خودکار به SMS؛ افزودن
+  `channel` (`bale`/`sms`/`dev`) به پاسخ؛ اعمال همین منطق در ورود، بازیابی رمز،
+  ورود ایمیلی و کد Claim.
+- `apps/web/components/auth/AuthForm.tsx`: نمایش «کد در پیام‌رسان بله ارسال شد»
+  بر اساس `channel`.
+- `docker-compose.yml`، `docker-compose.prod.yml` و `.env.example`: افزودن
+  `BALE_API_SHOMALICARDBOT`، `BOT_ID`، `BALE_OTP_ENABLED` و
+  `BALE_SAFIR_BASE_URL`.
+- `docs/API.md` و `docs/DEPLOY.md`: مستندسازی کانال بله، fallback پیامک و
+  متغیرهای محیطی.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.9.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` → exit 0.
+- `docker exec alooshomal-api npx eslint …` روی فایل‌های تغییریافته → exit 0.
+- فراخوانی واقعی Safir با کلید و `bot_id` موجود در `.env` و نمونه‌ی
+  `phone_number=989117818389` → `HTTP 200` و `message_id`.
+- تست واحد دستی `OtpService.issue` با Bale موفق → `channel: "bale"`.
+- تست fallback با شکست Bale → `channel: "sms"` و ارسال از ملی‌پیامک.
+- `python3 scripts/check_api_docs.py` → exit 0.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۳ — رفع خطای ۱۰۵ پی‌پینگ و پذیرش کال‌بک POST — نسخه `v4.8.3`
 

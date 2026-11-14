@@ -13,6 +13,8 @@ interface RequestCodeResult {
   phone: string;
   sent: boolean;
   resendAfter: number;
+  /** Phone channel used for delivery: Bale first, then SMS. */
+  channel?: 'bale' | 'sms' | 'dev';
   /** Seconds until the code expires; drives the on-screen countdown. */
   expiresIn?: number;
   /** Present only when SMS is disabled (local dev) so the code is visible. */
@@ -55,6 +57,7 @@ export function AuthForm({
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [devCode, setDevCode] = useState<string | null>(null);
+  const [channel, setChannel] = useState<'bale' | 'sms' | 'dev' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(0);
@@ -86,6 +89,7 @@ export function AuthForm({
       );
       setPhone(result.phone);
       setDevCode(result.devCode ?? null);
+      setChannel(result.channel ?? null);
       setSecondsLeft(result.expiresIn ?? 90);
       setStep('code');
     } catch (err) {
@@ -106,6 +110,7 @@ export function AuthForm({
       );
       setPhone(result.phone);
       setDevCode(result.devCode ?? null);
+      setChannel(result.channel ?? null);
       setSecondsLeft(result.expiresIn ?? 90);
       setCode('');
     } catch (err) {
@@ -226,6 +231,13 @@ export function AuthForm({
           کد ارسال‌شده به <span dir="ltr" className="font-bold text-ink">{phone}</span>
           را وارد کنید.
         </p>
+        {channel === 'bale' ? (
+          <p className="text-xs font-bold text-emerald-600">
+            کد در پیام‌رسان بله برای شما ارسال شد.
+          </p>
+        ) : channel === 'sms' ? (
+          <p className="text-xs font-bold text-muted">کد پیامکی ارسال شد.</p>
+        ) : null}
         <p
           className={
             secondsLeft > 0
@@ -239,7 +251,7 @@ export function AuthForm({
         </p>
         {devCode ? (
           <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
-            حالت توسعه: پیامک ارسال نشد. کد شما{' '}
+            حالت توسعه: کد ارسال نشد. کد شما{' '}
             <span dir="ltr" className="font-bold">{devCode}</span> است.
           </p>
         ) : null}
