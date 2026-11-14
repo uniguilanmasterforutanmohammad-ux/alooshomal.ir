@@ -6,7 +6,12 @@ import {
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
-import { NotificationType, Prisma, SubscriptionStatus } from '@prisma/client';
+import {
+  NotificationType,
+  PaymentStatus,
+  Prisma,
+  SubscriptionStatus,
+} from '@prisma/client';
 
 import {
   addMonths,
@@ -306,11 +311,12 @@ export class SubscriptionsService implements OnModuleInit {
     planId: string,
     months = 1,
     at: Date = new Date(),
-  ): Promise<Date | null> {
+  ): Promise<{ startsAt: Date | null; expiresAt: Date | null }> {
     const current = await tx.user.findUnique({
       where: { id: userId },
       select: { planId: true, planExpiresAt: true },
     });
+    let startsAt: Date | null = null;
     let expiresAt: Date | null = null;
     if (months > 0) {
       const activeTerm =
@@ -319,13 +325,14 @@ export class SubscriptionsService implements OnModuleInit {
         current.planExpiresAt.getTime() > at.getTime()
           ? current.planExpiresAt
           : at;
+      startsAt = activeTerm;
       expiresAt = addMonths(activeTerm, months);
     }
     await tx.user.update({
       where: { id: userId },
       data: { planId, planExpiresAt: expiresAt },
     });
-    return expiresAt;
+    return { startsAt, expiresAt };
   }
 
   async mySubscriptions(userId: string) {
@@ -337,7 +344,12 @@ export class SubscriptionsService implements OnModuleInit {
       }),
       this.prisma.userSubscription.findMany({
         where: { userId },
-        include: { plan: true },
+        include: {
+          plan: true,
+          payment: {
+            select: { id: true, status: true, amount: true, paidAt: true },
+          },
+        },
         orderBy: { requestedAt: 'desc' },
         take: 20,
       }),
@@ -348,12 +360,95 @@ export class SubscriptionsService implements OnModuleInit {
         take: 20,
       }),
     ]);
+    const activeStarts = requests
+      .filter(
+        (request) =>
+          request.status === SubscriptionStatus.ACTIVE &&
+          request.planId === account?.plan?.id &&
+          request.startsAt,
+      )
+      .map((request) => request.startsAt as Date);
+    const planStartedAt =
+      activeStarts.length > 0
+        ? new Date(Math.min(...activeStarts.map((date) => date.getTime())))
+        : null;
     return {
       plan: account?.plan ?? null,
+      planStartedAt,
       planExpiresAt: account?.planExpiresAt ?? null,
       requests,
       payments,
     };
+  }
+
+  /**
+   * Confirm a paid-but-pending subscription (a cross-plan purchase made while
+   * another paid term was still active). Activating it replaces the current
+   * plan, so the remaining days of the old term are intentionally dropped.
+   */
+  async activatePaidPending(userId: string, subscriptionId: string) {
+    const request = await this.prisma.userSubscription.findFirst({
+      where: { id: subscriptionId, userId },
+      include: {
+        plan: true,
+        payment: { select: { id: true, status: true, amount: true } },
+      },
+    });
+    if (!request) {
+      throw new NotFoundException('اشتراک یافت نشد');
+    }
+    if (request.status !== SubscriptionStatus.PENDING) {
+      throw new BadRequestException('این اشتراک در انتظار فعال‌سازی نیست');
+    }
+    if (request.payment?.status !== PaymentStatus.PAID) {
+      throw new BadRequestException('پرداخت این اشتراک هنوز تأیید نشده است');
+    }
+
+    const now = new Date();
+    const months = request.months || 1;
+    const startsAt = now;
+    const expiresAt = addMonths(now, months);
+    const updated = await this.prisma.$transaction(async (tx) => {
+      await tx.userSubscription.updateMany({
+        where: { userId, status: SubscriptionStatus.ACTIVE },
+        data: {
+          status: SubscriptionStatus.CANCELLED,
+          decidedAt: now,
+          adminNote: 'با فعال‌سازی اشتراک جدید لغو شد',
+        },
+      });
+      const row = await tx.userSubscription.update({
+        where: { id: request.id },
+        data: {
+          status: SubscriptionStatus.ACTIVE,
+          startsAt,
+          expiresAt,
+          decidedAt: now,
+          adminNote: 'فعال‌سازی توسط کاربر پس از پرداخت آنلاین',
+        },
+        include: { plan: true },
+      });
+      await tx.user.update({
+        where: { id: userId },
+        data: { planId: request.planId, planExpiresAt: expiresAt },
+      });
+      return row;
+    });
+
+    await this.notifications.notify({
+      userId,
+      type: NotificationType.SUCCESS,
+      title: 'اشتراک جدید فعال شد',
+      body: `بسته «${request.plan.name}» روی حساب شما فعال شد.`,
+      link: '/dashboard/subscriptions',
+    });
+    await this.activity.log({
+      action: 'SUBSCRIPTION_ACTIVATED',
+      summary: `فعال‌سازی اشتراک «${request.plan.name}» توسط کاربر`,
+      entityType: 'SUBSCRIPTION',
+      entityId: request.id,
+    });
+    return updated;
   }
 
   /**
@@ -371,9 +466,20 @@ export class SubscriptionsService implements OnModuleInit {
     }
     await this.assertNotDowngrade(userId, plan.id);
 
-    await this.prisma.userSubscription.deleteMany({
+    // Never delete a paid activation that is waiting for the user's
+    // confirmation; only unpaid pending requests are replaced.
+    const pending = await this.prisma.userSubscription.findMany({
       where: { userId, status: SubscriptionStatus.PENDING },
+      select: { id: true, payment: { select: { status: true } } },
     });
+    const replaceable = pending
+      .filter((row) => row.payment?.status !== PaymentStatus.PAID)
+      .map((row) => row.id);
+    if (replaceable.length > 0) {
+      await this.prisma.userSubscription.deleteMany({
+        where: { id: { in: replaceable } },
+      });
+    }
 
     const request = await this.prisma.userSubscription.create({
       data: {
@@ -490,42 +596,53 @@ export class SubscriptionsService implements OnModuleInit {
 
     const now = new Date();
     const updated = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.userSubscription.update({
-        where: { id: requestId },
-        data: {
-          status: dto.status,
-          decidedAt: now,
-          decidedById: adminId,
-          adminNote: dto.adminNote ?? null,
-        },
-        include: { plan: true },
-      });
-
+      let term: { startsAt: Date | null; expiresAt: Date | null } | null = null;
       if (dto.status === SubscriptionStatus.ACTIVE) {
-        await this.applyPlanToUser(
+        term = await this.applyPlanToUser(
           tx,
           request.userId,
           request.planId,
           request.months ?? 1,
           now,
         );
-        // supersede any other pending requests for this user
-        await tx.userSubscription.updateMany({
+        // Supersede other *unpaid* pending requests. A paid activation that is
+        // waiting for the user's confirmation must never be discarded here.
+        const others = await tx.userSubscription.findMany({
           where: {
             userId: request.userId,
             status: SubscriptionStatus.PENDING,
             id: { not: requestId },
           },
-          data: {
-            status: SubscriptionStatus.CANCELLED,
-            decidedAt: now,
-            decidedById: adminId,
-            adminNote: 'با تأیید درخواست دیگر لغو شد',
-          },
+          select: { id: true, payment: { select: { status: true } } },
         });
+        const cancellable = others
+          .filter((row) => row.payment?.status !== PaymentStatus.PAID)
+          .map((row) => row.id);
+        if (cancellable.length > 0) {
+          await tx.userSubscription.updateMany({
+            where: { id: { in: cancellable } },
+            data: {
+              status: SubscriptionStatus.CANCELLED,
+              decidedAt: now,
+              decidedById: adminId,
+              adminNote: 'با تأیید درخواست دیگر لغو شد',
+            },
+          });
+        }
       }
 
-      return updated;
+      return tx.userSubscription.update({
+        where: { id: requestId },
+        data: {
+          status: dto.status,
+          startsAt: term?.startsAt ?? null,
+          expiresAt: term?.expiresAt ?? null,
+          decidedAt: now,
+          decidedById: adminId,
+          adminNote: dto.adminNote ?? null,
+        },
+        include: { plan: true },
+      });
     });
 
     const approved = dto.status === SubscriptionStatus.ACTIVE;

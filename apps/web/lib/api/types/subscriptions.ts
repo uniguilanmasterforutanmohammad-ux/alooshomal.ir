@@ -34,6 +34,8 @@ export interface UserSubscription {
   status: SubscriptionStatus;
   /** طول دوره به ماه (۱ = ماهانه، ۳/۶/۱۲ = دوره‌های تخفیف‌دار) */
   months?: number;
+  /** شروع دوره پس از فعال‌سازی */
+  startsAt?: string | null;
   /** پایان دوره پس از فعال‌سازی (null = بدون انقضا) */
   expiresAt?: string | null;
   requestedAt: string;
@@ -41,11 +43,19 @@ export interface UserSubscription {
   note: string | null;
   adminNote: string | null;
   plan?: SubscriptionPlan;
+  payment?: {
+    id: string;
+    status: SubscriptionPaymentStatus;
+    amount: number;
+    paidAt: string | null;
+  } | null;
   user?: { id: string; email: string; fullName: string | null };
 }
 
 export interface MySubscriptions {
   plan: SubscriptionPlan | null;
+  /** شروع دوره‌ی اشتراک فعلی */
+  planStartedAt?: string | null;
   /** پایان دوره‌ی اشتراک فعلی (null = بدون انقضا) */
   planExpiresAt?: string | null;
   requests: UserSubscription[];

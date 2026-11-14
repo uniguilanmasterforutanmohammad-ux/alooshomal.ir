@@ -212,7 +212,12 @@ export class SubscriptionsPaymentService {
    * Start an online payment for a paid plan. Returns the PayPing gateway URL;
    * the plan is activated only after the callback verifies the transaction.
    */
-  async checkout(userId: string, planId: string, requestedMonths = 1) {
+  async checkout(
+    userId: string,
+    planId: string,
+    requestedMonths = 1,
+    returnTo?: string,
+  ) {
     const plan = await this.requirePlan(planId);
     if (!plan.isActive) {
       throw new BadRequestException('این اشتراک در حال حاضر فعال نیست');
@@ -220,6 +225,12 @@ export class SubscriptionsPaymentService {
     // Only the four billable terms are accepted; anything else falls back to
     // the monthly price so a bogus value can never under-charge a purchase.
     const months = isPlanPeriodMonths(requestedMonths) ? requestedMonths : 1;
+    // Only same-site absolute paths are stored; anything else falls back to
+    // the default subscriptions page.
+    const safeReturnTo =
+      returnTo && /^\/(?!\/)/.test(returnTo)
+        ? returnTo.slice(0, 200)
+        : null;
     const amount = planPriceForMonths(plan, months);
     if (amount < 1000) {
       throw new BadRequestException(
@@ -280,6 +291,7 @@ export class SubscriptionsPaymentService {
         amount,
         months,
         clientRefId,
+        returnTo: safeReturnTo,
         payerName: user.fullName ?? undefined,
       },
     });
@@ -362,9 +374,18 @@ export class SubscriptionsPaymentService {
     const amount = planPriceForMonths(plan, months);
     const now = new Date();
     const subscription = await this.prisma.$transaction(async (tx) => {
-      await tx.userSubscription.deleteMany({
+      const pending = await tx.userSubscription.findMany({
         where: { userId, status: SubscriptionStatus.PENDING },
+        select: { id: true, payment: { select: { status: true } } },
       });
+      const replaceable = pending
+        .filter((row) => row.payment?.status !== PaymentStatus.PAID)
+        .map((row) => row.id);
+      if (replaceable.length > 0) {
+        await tx.userSubscription.deleteMany({
+          where: { id: { in: replaceable } },
+        });
+      }
       // Renewing the same plan before its term ends extends the current term.
       const base =
         previousPlanId === plan.id &&
@@ -379,6 +400,7 @@ export class SubscriptionsPaymentService {
           planId: plan.id,
           status: SubscriptionStatus.ACTIVE,
           months,
+          startsAt: base,
           expiresAt,
           decidedAt: now,
           adminNote: 'فعال‌سازی با کیف پول (تسویه یک‌جا در سررسید)',
@@ -481,29 +503,33 @@ export class SubscriptionsPaymentService {
     if (!payment) {
       return this.callbackResult('failed', 'پرداخت موردنظر پیدا نشد.');
     }
+    /** Reply helper that keeps the buyer on the page they started from. */
+    const reply = (
+      status: 'success' | 'failed' | 'pending',
+      message: string,
+      activation?: 'pending',
+    ) =>
+      this.callbackResult(status, message, payment.plan.name, {
+        returnTo: payment.returnTo,
+        activation,
+      });
     if (payment.status === PaymentStatus.PAID) {
-      return this.callbackResult(
+      return reply(
         'success',
         'این پرداخت قبلاً تأیید شده و اشتراک شما فعال است.',
-        payment.plan.name,
       );
     }
     if (payment.status === PaymentStatus.CANCELED) {
-      return this.callbackResult(
-        'failed',
-        'این پرداخت لغو شده است.',
-        payment.plan.name,
-      );
+      return reply('failed', 'این پرداخت لغو شده است.');
     }
     if (params.status === 0) {
       await this.markPaymentFailed(
         payment.id,
         'پرداخت توسط کاربر لغو شد یا درگاه آن را ناموفق اعلام کرد',
       );
-      return this.callbackResult(
+      return reply(
         'failed',
         'پرداخت انجام نشد یا لغو شد. در صورت کسر وجه، مبلغ تا ۷۲ ساعت به حساب شما بازمی‌گردد.',
-        payment.plan.name,
       );
     }
     if (!refId || !payment.paymentCode) {
@@ -511,10 +537,9 @@ export class SubscriptionsPaymentService {
         payment.id,
         'اطلاعات بازگشتی درگاه ناقص است',
       );
-      return this.callbackResult(
+      return reply(
         'failed',
         'اطلاعات بازگشتی درگاه ناقص بود؛ در صورت کسر وجه با پشتیبانی تماس بگیرید.',
-        payment.plan.name,
       );
     }
 
@@ -542,11 +567,7 @@ export class SubscriptionsPaymentService {
         where: { id: payment.id },
       });
       if (current?.status === PaymentStatus.PAID) {
-        return this.callbackResult(
-          'success',
-          'پرداخت شما تأیید شد و اشتراک فعال است.',
-          payment.plan.name,
-        );
+        return reply('success', 'پرداخت شما تأیید شد و اشتراک فعال است.');
       }
       const upstreamStatus = (error as { paypingStatus?: number }).paypingStatus;
       const status =
@@ -557,23 +578,28 @@ export class SubscriptionsPaymentService {
       if (status === 409) {
         // PayPing code 110: this transaction was already verified (e.g. a
         // duplicated callback). Treat it as success instead of failing it.
-        await this.activatePaidSubscription(payment.id, refId, null);
-        return this.callbackResult(
+        const activation = await this.activatePaidSubscription(
+          payment.id,
+          refId,
+          null,
+        );
+        return reply(
           'success',
-          'پرداخت شما تأیید شد و اشتراک فعال است.',
-          payment.plan.name,
+          activation.pendingActivation
+            ? 'پرداخت شما تأیید شد؛ برای فعال‌سازی اشتراک جدید به صفحه‌ی اشتراک‌ها بروید.'
+            : 'پرداخت شما تأیید شد و اشتراک فعال است.',
+          activation.pendingActivation ? 'pending' : undefined,
         );
       }
       if (status >= 500) {
         // PayPing returns 202/502 while verification is still processing.
-        return this.callbackResult(
+        return reply(
           'pending',
           'تأیید پرداخت در حال پردازش است؛ چند لحظه بعد صفحه را دوباره باز کنید.',
-          payment.plan.name,
         );
       }
       await this.markPaymentFailed(payment.id, message);
-      return this.callbackResult('failed', message, payment.plan.name);
+      return reply('failed', message);
     }
 
     if (
@@ -584,10 +610,9 @@ export class SubscriptionsPaymentService {
         payment.id,
         `مبلغ پرداخت‌شده (${verified.amount}) با مبلغ سفارش (${payment.amount}) مطابقت ندارد`,
       );
-      return this.callbackResult(
+      return reply(
         'failed',
         'مبلغ پرداخت‌شده با مبلغ اشتراک مطابقت ندارد؛ با پشتیبانی تماس بگیرید.',
-        payment.plan.name,
       );
     }
     if (
@@ -598,18 +623,20 @@ export class SubscriptionsPaymentService {
         payment.id,
         'شناسه ارجاع بازگشتی با سفارش مطابقت ندارد',
       );
-      return this.callbackResult(
-        'failed',
-        'شناسه‌ی پرداخت با سفارش شما مطابقت ندارد.',
-        payment.plan.name,
-      );
+      return reply('failed', 'شناسه‌ی پرداخت با سفارش شما مطابقت ندارد.');
     }
 
-    await this.activatePaidSubscription(payment.id, refId, verified);
-    return this.callbackResult(
+    const activation = await this.activatePaidSubscription(
+      payment.id,
+      refId,
+      verified,
+    );
+    return reply(
       'success',
-      `پرداخت با موفقیت انجام شد و اشتراک «${payment.plan.name}» فعال شد.`,
-      payment.plan.name,
+      activation.pendingActivation
+        ? `پرداخت با موفقیت انجام شد؛ برای فعال‌سازی اشتراک «${payment.plan.name}» به صفحه‌ی اشتراک‌ها بروید.`
+        : `پرداخت با موفقیت انجام شد و اشتراک «${payment.plan.name}» فعال شد.`,
+      activation.pendingActivation ? 'pending' : undefined,
     );
   }
 
@@ -617,13 +644,20 @@ export class SubscriptionsPaymentService {
     status: 'success' | 'failed' | 'pending',
     message: string,
     planName?: string,
+    options?: { returnTo?: string | null; activation?: 'pending' },
   ) {
     const params = new URLSearchParams({ payment: status });
     if (planName) params.set('plan', planName);
+    if (options?.activation) params.set('activation', options.activation);
+    const safeReturnTo =
+      options?.returnTo && /^\/(?!\/)/.test(options.returnTo)
+        ? options.returnTo
+        : '/dashboard/subscriptions';
+    const separator = safeReturnTo.includes('?') ? '&' : '?';
     return {
       status,
       message,
-      redirectUrl: `${paypingReturnBaseUrl()}/dashboard/subscriptions?${params.toString()}`,
+      redirectUrl: `${paypingReturnBaseUrl()}${safeReturnTo}${separator}${params.toString()}`,
     };
   }
 
@@ -637,52 +671,80 @@ export class SubscriptionsPaymentService {
   /**
    * Mark the payment paid and activate the plan in one transaction. Safe to
    * call twice: a payment that is already PAID is returned untouched.
+   *
+   * Buying the *same* plan extends the current term from its expiry. Buying a
+   * *different* plan while another paid term is still active does not silently
+   * throw the remaining days away: the new term is stored as a paid, pending
+   * activation that the user must confirm from the subscriptions page.
    */
   private async activatePaidSubscription(
     paymentId: string,
     refId: string,
     verified: { payedDate?: string } | null,
-  ) {
+  ): Promise<{ subscriptionId: string | null; pendingActivation: boolean }> {
     const payment = await this.prisma.subscriptionPayment.findUnique({
       where: { id: paymentId },
       include: { plan: true, user: { select: { fullName: true, email: true } } },
     });
-    if (!payment || payment.status === PaymentStatus.PAID) return;
+    if (!payment) return { subscriptionId: null, pendingActivation: false };
+    if (payment.status === PaymentStatus.PAID) {
+      return {
+        subscriptionId: payment.subscriptionId,
+        pendingActivation: false,
+      };
+    }
 
     const now = new Date();
     const paidAt = verified?.payedDate ? new Date(verified.payedDate) : now;
-    const subscription = await this.prisma.$transaction(async (tx) => {
-      const months = payment.months || 1;
+    const months = payment.months || 1;
+    const term = this.planTermLabel(months);
+    const result = await this.prisma.$transaction(async (tx) => {
       const account = await tx.user.findUnique({
         where: { id: payment.userId },
         select: { planId: true, planExpiresAt: true },
       });
+      const activeOtherPlan = Boolean(
+        account?.planId &&
+          account.planId !== payment.planId &&
+          account.planExpiresAt &&
+          account.planExpiresAt.getTime() > now.getTime(),
+      );
+      const pendingActivation = activeOtherPlan;
       const base =
         account?.planId === payment.planId &&
         account.planExpiresAt &&
         account.planExpiresAt.getTime() > now.getTime()
           ? account.planExpiresAt
           : now;
-      const expiresAt = addMonths(base, months);
+      const startsAt = pendingActivation ? null : base;
+      const expiresAt = pendingActivation ? null : addMonths(base, months);
       const created = await tx.userSubscription.create({
         data: {
           userId: payment.userId,
           planId: payment.planId,
-          status: SubscriptionStatus.ACTIVE,
+          status: pendingActivation
+            ? SubscriptionStatus.PENDING
+            : SubscriptionStatus.ACTIVE,
           months,
+          startsAt,
           expiresAt,
           decidedAt: now,
-          adminNote: 'پرداخت آنلاین پی‌پینگ',
+          adminNote: pendingActivation
+            ? 'پرداخت آنلاین پی‌پینگ — در انتظار فعال‌سازی توسط کاربر'
+            : 'پرداخت آنلاین پی‌پینگ',
         },
       });
-      await tx.user.update({
-        where: { id: payment.userId },
-        data: { planId: payment.planId, planExpiresAt: expiresAt },
-      });
+      if (!pendingActivation) {
+        await tx.user.update({
+          where: { id: payment.userId },
+          data: { planId: payment.planId, planExpiresAt: expiresAt },
+        });
+      }
       await tx.userSubscription.updateMany({
         where: {
           userId: payment.userId,
           status: SubscriptionStatus.PENDING,
+          id: { not: created.id },
         },
         data: {
           status: SubscriptionStatus.CANCELLED,
@@ -715,39 +777,57 @@ export class SubscriptionsPaymentService {
       return created;
     });
 
+    const pendingActivation = result.status === SubscriptionStatus.PENDING;
+    const termNote = ` (${term})`;
     await this.notifications.notify({
       userId: payment.userId,
       type: NotificationType.SUCCESS,
-      title: 'اشتراک شما فعال شد',
-      body: `پرداخت آنلاین انجام شد و بسته «${payment.plan.name}» روی حساب شما فعال شد.`,
+      title: pendingActivation
+        ? 'پرداخت اشتراک جدید انجام شد'
+        : 'اشتراک شما فعال شد',
+      body: pendingActivation
+        ? `پرداخت بسته «${payment.plan.name}»${termNote} انجام شد. برای فعال‌سازی آن به صفحه‌ی اشتراک‌ها بروید؛ با فعال‌سازی، روزهای باقی‌مانده‌ی اشتراک فعلی شما از بین می‌رود.`
+        : `پرداخت آنلاین انجام شد و بسته «${payment.plan.name}»${termNote} روی حساب شما فعال شد.`,
       link: '/dashboard/subscriptions',
     });
     await this.notifications.notifyAdmins({
       category: 'SUBSCRIPTION',
       scope: 'SUBSCRIPTION',
       title: 'پرداخت آنلاین اشتراک',
-      body: `${payment.user?.fullName ?? payment.user?.email ?? 'کاربر'} بسته «${payment.plan.name}» را به مبلغ ${payment.amount.toLocaleString('fa-IR')} تومان خریداری کرد.`,
+      body: `${payment.user?.fullName ?? payment.user?.email ?? 'کاربر'} بسته «${payment.plan.name}»${termNote} را به مبلغ ${payment.amount.toLocaleString('fa-IR')} تومان خریداری کرد.`,
       type: NotificationType.SUCCESS,
       link: '/jga4rm8j?section=subscriptions',
       actorId: payment.userId,
     });
     await this.activity.log({
-      action: 'SUBSCRIPTION_PAID',
-      summary: `پرداخت آنلاین اشتراک «${payment.plan.name}»`,
+      action: pendingActivation
+        ? 'SUBSCRIPTION_PAID_PENDING'
+        : 'SUBSCRIPTION_PAID',
+      summary: `پرداخت آنلاین اشتراک «${payment.plan.name}»${termNote}${
+        pendingActivation ? ' — در انتظار فعال‌سازی' : ''
+      }`,
       entityType: 'SUBSCRIPTION',
-      entityId: subscription.id,
+      entityId: result.id,
     });
     try {
       await this.finance.recordSale({
         sourceType: FINANCE_SOURCE_TYPES.SUBSCRIPTION,
         sourceId: payment.id,
-        title: `خرید اشتراک «${payment.plan.name}»`,
+        title: `خرید اشتراک «${payment.plan.name}» — ${term}`,
         amount: payment.amount,
         paidAt: Number.isNaN(paidAt.getTime()) ? now : paidAt,
         userId: payment.userId,
         customerName: payment.user?.fullName ?? null,
         customerEmail: payment.user?.email ?? null,
-        metadata: { planId: payment.planId, refId },
+        metadata: {
+          planId: payment.planId,
+          months,
+          term,
+          startsAt: result.startsAt?.toISOString() ?? null,
+          expiresAt: result.expiresAt?.toISOString() ?? null,
+          pendingActivation,
+          refId,
+        },
       });
     } catch (error) {
       this.logger.warn(
@@ -756,5 +836,14 @@ export class SubscriptionsPaymentService {
         }`,
       );
     }
+    return { subscriptionId: result.id, pendingActivation };
+  }
+
+  /** Persian label for a billable term, used in invoices and notifications. */
+  private planTermLabel(months: number): string {
+    if (months === 3) return 'سه‌ماهه';
+    if (months === 6) return 'شش‌ماهه';
+    if (months === 12) return 'یک‌ساله';
+    return 'یک‌ماهه';
   }
 }

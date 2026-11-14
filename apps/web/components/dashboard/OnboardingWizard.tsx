@@ -33,7 +33,12 @@ import {
   type SubscriptionPlan,
 } from '@/lib/api';
 import { isoToJalali } from '@/lib/jalali';
-import { planPriceForMonths } from '@/lib/plan-periods';
+import {
+  PLAN_PERIODS,
+  PLAN_PERIOD_LABELS,
+  planPriceForMonths,
+  type PlanPeriodMonths,
+} from '@/lib/plan-periods';
 import { toast } from '@/lib/toast';
 import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
 import { OnboardingBusinessForm } from '@/components/dashboard/OnboardingBusinessForm';
@@ -187,6 +192,8 @@ export function OnboardingWizard() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [myPlanId, setMyPlanId] = useState<string | null>(null);
   const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
+  const [planMonths, setPlanMonths] = useState<PlanPeriodMonths>(1);
+  const [advanceAfterLoad, setAdvanceAfterLoad] = useState(false);
   const jumpedToPending = useRef(false);
 
   const load = useCallback(async () => {
@@ -247,6 +254,41 @@ export function OnboardingWizard() {
       `${window.location.pathname}${query ? `?${query}` : ''}`,
     );
   }, [load]);
+
+  // A subscription paid from the onboarding plan step returns here. Refresh
+  // progress and move to the next step once the paid plan is active.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get('payment');
+    if (!payment) return;
+    if (payment === 'success') {
+      toast.success('پرداخت انجام شد و اشتراک شما به‌روزرسانی شد.');
+      setAdvanceAfterLoad(true);
+      void load();
+    } else if (payment === 'pending') {
+      toast.success('تأیید پرداخت در حال پردازش است؛ چند لحظه بعد دوباره تلاش کنید.');
+      void load();
+    } else {
+      toast.error('پرداخت اشتراک انجام نشد یا لغو شد.');
+    }
+    params.delete('payment');
+    params.delete('plan');
+    params.delete('activation');
+    const query = params.toString();
+    window.history.replaceState(
+      {},
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}`,
+    );
+  }, [load]);
+
+  useEffect(() => {
+    if (!advanceAfterLoad || !payload) return;
+    setAdvanceAfterLoad(false);
+    const planIndex = payload.steps.findIndex((entry) => entry.kind === 'plan');
+    const next = planIndex >= 0 ? planIndex + 1 : index + 1;
+    if (next < payload.steps.length) setIndex(next);
+  }, [advanceAfterLoad, payload, index]);
 
   async function completeIdentity() {
     if (!/^\d{10}$/.test(nationalCode.trim())) {
@@ -373,16 +415,17 @@ export function OnboardingWizard() {
   async function choosePlan(plan: SubscriptionPlan) {
     setBusyPlanId(plan.id);
     try {
-      const amount = planPriceForMonths(plan, 1);
+      const amount = planPriceForMonths(plan, planMonths);
       if (amount >= 1000) {
         const checkout = await api.post<SubscriptionCheckout>(
           `/subscriptions/${plan.id}/checkout`,
-          { months: 1 },
+          { months: planMonths, returnTo: '/dashboard/onboarding' },
         );
         if (checkout?.wallet) {
           toast.success('اشتراک فعال شد و هزینه به کیف پول اضافه شد.');
           setMyPlanId(plan.id);
           await load();
+          setAdvanceAfterLoad(true);
           return;
         }
         if (checkout?.url) {
@@ -392,10 +435,14 @@ export function OnboardingWizard() {
         toast.error('لینک پرداخت از درگاه دریافت نشد.');
         return;
       }
-      await api.post('/subscriptions/request', { planId: plan.id, months: 1 });
+      await api.post('/subscriptions/request', {
+        planId: plan.id,
+        months: planMonths,
+      });
       toast.success('درخواست اشتراک ثبت شد و در انتظار تأیید مدیر است.');
       setMyPlanId(plan.id);
       await load();
+      setAdvanceAfterLoad(true);
     } catch {
       /* api layer surfaces the error */
     } finally {
@@ -643,10 +690,6 @@ export function OnboardingWizard() {
                       ? ` — کد ملی: ${payload.identity.nationalCode}`
                       : ''}
                   </p>
-                  <p className="mt-1 text-[11px] text-emerald-700 dark:text-emerald-300">
-                    این اطلاعات ذخیره شده است و با تغییر ظاهر یا قابلیت‌ها از بین
-                    نمی‌رود و هزینه‌ی مجددی ثبت نمی‌شود.
-                  </p>
                 </div>
               ) : payload.identity?.phoneMatched ? (
                 <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs leading-6 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200">
@@ -798,7 +841,9 @@ export function OnboardingWizard() {
               debt={debt}
               paying={paying}
               onPay={() => void payInvoice()}
-              onSaved={() => void load()}
+              onSaved={() => {
+                void load().then(() => goTo(safeIndex + 1));
+              }}
             />
           ) : null}
 
@@ -880,13 +925,6 @@ export function OnboardingWizard() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <Link
-                  href="/dashboard/profile"
-                  className="indeed-btn indeed-btn-secondary py-2 text-xs"
-                >
-                  <BadgeCheck className="size-4" aria-hidden />
-                  ثبت درخواست تیک آبی در پروفایل
-                </Link>
                 {isOptional && !step.done ? (
                   <button
                     type="button"
@@ -907,10 +945,33 @@ export function OnboardingWizard() {
                   در حال بارگذاری طرح‌ها...
                 </p>
               ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="flex flex-col gap-3">
+                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-2">
+                    <span className="text-[11px] font-bold text-muted">
+                      دوره‌ی پرداخت:
+                    </span>
+                    {PLAN_PERIODS.map((period) => (
+                      <button
+                        key={period}
+                        type="button"
+                        onClick={() => setPlanMonths(period)}
+                        aria-pressed={planMonths === period}
+                        className={cn(
+                          'rounded-full border px-2.5 py-1 text-[11px] font-bold transition',
+                          planMonths === period
+                            ? 'border-brand bg-brand text-white'
+                            : 'border-[var(--vintage-border)] text-muted hover:border-brand hover:text-brand',
+                        )}
+                      >
+                        {PLAN_PERIOD_LABELS[period]}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
                   {plans.map((plan) => {
                     const isCurrent = plan.id === myPlanId;
                     const busy = busyPlanId === plan.id;
+                    const amount = planPriceForMonths(plan, planMonths);
                     return (
                       <div
                         key={plan.id}
@@ -938,11 +999,11 @@ export function OnboardingWizard() {
                           </p>
                         ) : null}
                         <p className="mt-2 text-lg font-extrabold text-brand">
-                          {faPrice(planPriceForMonths(plan, 1))}
+                          {faPrice(amount)}
                           {plan.price > 0 ? (
                             <span className="text-[10px] font-normal text-muted">
                               {' '}
-                              / ماه
+                              / {PLAN_PERIOD_LABELS[planMonths]}
                             </span>
                           ) : null}
                         </p>
@@ -961,11 +1022,11 @@ export function OnboardingWizard() {
                         ) : null}
                         <button
                           type="button"
-                          disabled={isCurrent || busy}
+                          disabled={busy || (isCurrent && plan.price <= 0)}
                           onClick={() => void choosePlan(plan)}
                           className={cn(
                             'indeed-btn mt-3 w-full py-2 text-xs',
-                            isCurrent
+                            isCurrent && plan.price <= 0
                               ? 'indeed-btn-secondary'
                               : 'indeed-btn-primary',
                           )}
@@ -975,20 +1036,22 @@ export function OnboardingWizard() {
                           ) : (
                             <CreditCard className="size-4" aria-hidden />
                           )}
-                          {isCurrent
+                          {isCurrent && plan.price <= 0
                             ? 'اشتراک فعلی شما'
-                            : planPriceForMonths(plan, 1) >= 1000
+                            : amount >= 1000
                               ? 'پرداخت و فعال‌سازی'
                               : 'درخواست اشتراک'}
                         </button>
                       </div>
                     );
                   })}
+                  </div>
                 </div>
               )}
               <p className="text-[10px] leading-5 text-muted">
-                طرح‌های پولی با پرداخت آنلاین بلافاصله فعال می‌شوند و طرح رایگان
-                پس از تأیید مدیر.
+                با اشتراک رایگان هم می‌توانید مرحله بعد بروید. طرح‌های پولی با
+                پرداخت آنلاین بلافاصله فعال می‌شوند و طرح رایگان پس از تأیید
+                مدیر.
               </p>
             </div>
           ) : null}
@@ -1014,44 +1077,11 @@ export function OnboardingWizard() {
                 </span>
               </div>
 
-              <div className="rounded-2xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-extrabold text-ink">وضعیت کیف پول</p>
-                    <p className="mt-1 text-[11px] text-muted">
-                      {debt > 0
-                        ? `بدهی فعلی: ${faPrice(debt)}`
-                        : 'بدهی فعالی ندارید.'}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {debt > 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => void payInvoice()}
-                        disabled={paying}
-                        className="indeed-btn indeed-btn-primary py-2 text-xs"
-                      >
-                        <CreditCard className="size-4" aria-hidden />
-                        {paying ? 'در حال انتقال...' : 'پرداخت آنلاین'}
-                      </button>
-                    ) : null}
-                    <Link
-                      href="/dashboard/wallet"
-                      className="indeed-btn indeed-btn-secondary py-2 text-xs"
-                    >
-                      <Wallet className="size-4" aria-hidden />
-                      کیف پول و پرداخت
-                    </Link>
-                  </div>
-                </div>
-              </div>
-
               <Link
                 href="/dashboard/business-cards"
-                className="indeed-btn indeed-btn-secondary w-fit py-2 text-xs"
+                className="indeed-btn indeed-btn-primary w-fit py-2 text-xs"
               >
-                مشاهده‌ی کسب‌وکار من
+                اتمام مراحل
                 <ArrowLeft className="size-4" aria-hidden />
               </Link>
             </div>

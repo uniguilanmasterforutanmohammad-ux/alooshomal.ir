@@ -486,13 +486,15 @@ export class OnboardingService implements OnModuleInit {
       Boolean(user.blueTickRequestedAt || user.verifiedAt) ||
         this.parseDocuments(user.documents).length > 0,
     );
-    // New accounts get the free plan assigned automatically, so an explicit
-    // plan choice (an approved subscription, or a non-default plan) is what
-    // completes this step — not the auto-assigned default.
-    const hasExplicitPlan =
-      user.subscriptions.length > 0 ||
-      (Boolean(user.planId) && user.planId !== defaultPlan?.id);
-    map.set('plan', hasExplicitPlan);
+    // New accounts get the free plan assigned automatically. The free plan is
+    // a valid choice for onboarding, so having any plan (including the default)
+    // completes this step; the user can still upgrade from the same screen.
+    map.set(
+      'plan',
+      Boolean(user.planId) ||
+        user.subscriptions.length > 0 ||
+        Boolean(defaultPlan?.id),
+    );
     map.set(
       'approval',
       cards.some((card) => card.status === BiolinkStatus.APPROVED),

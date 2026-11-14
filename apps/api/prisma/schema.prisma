@@ -1374,6 +1374,8 @@ model UserSubscription {
   status      SubscriptionStatus @default(PENDING)
   /// طول دوره‌ی خریداری‌شده به ماه (۱ = ماهانه، ۳/۶/۱۲ = دوره‌های تخفیف‌دار)
   months      Int                @default(1)
+  /// شروع دوره پس از فعال‌سازی (null = هنوز فعال نشده/رایگان)
+  startsAt    DateTime?
   /// پایان دوره پس از فعال‌سازی (null = بدون انقضا/رایگان)
   expiresAt   DateTime?
   requestedAt DateTime           @default(now())
@@ -1412,6 +1414,9 @@ model SubscriptionPayment {
   /// PayPing tracking id (`paymentRefId`) returned on the callback.
   refId         String?
   gatewayUrl    String?
+  /// Internal page to return to after a successful/failed payment (e.g.
+  /// `/dashboard/onboarding`). Only relative paths are accepted.
+  returnTo      String?
   payerName     String?
   paidAt        DateTime?
   verifiedAt    DateTime?

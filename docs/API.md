@@ -348,11 +348,19 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 | متد | مسیر | توضیح |
 | --- | --- | --- |
 | `GET` | `/subscriptions/plans` | فهرست بسته‌های فعال (عمومی). |
-| `GET` | `/subscriptions/me` | بسته‌ی فعلی (به‌همراه `planExpiresAt`)، درخواست‌ها و ۲۰ پرداخت آخر کاربر. |
+| `GET` | `/subscriptions/me` | بسته‌ی فعلی (به‌همراه `planStartedAt`/`planExpiresAt`)، درخواست‌ها (با `startsAt`/`expiresAt` و وضعیت پرداخت) و ۲۰ پرداخت آخر کاربر. |
 | `POST` | `/subscriptions/request` | درخواست اشتراک رایگان/بدون پرداخت (در انتظار تأیید مدیر)؛ بدنه‌ی اختیاری `{ planId, note, months }`. |
-| `POST` | `/subscriptions/:planId/checkout` | شروع پرداخت آنلاین؛ بدنه‌ی اختیاری `{ months }` (۱/۳/۶/۱۲)، خروجی `{ paymentId, amount, months, url, paymentCode, paypingProductCode }`. در حالت «پرداخت فقط آنلاین» همیشه به درگاه می‌رود و کیف پول بدهکار نمی‌شود. کاربر باید به `url` هدایت شود. |
-| `GET` | `/subscriptions/payments/callback` | آدرس بازگشت عمومی پی‌پینگ (`paymentCode`، `refId`، `clientRefId`)؛ تراکنش را تأیید و سپس به `/dashboard/subscriptions?payment=...` هدایت می‌کند. |
+| `POST` | `/subscriptions/:planId/checkout` | شروع پرداخت آنلاین؛ بدنه‌ی اختیاری `{ months, returnTo }` (۱/۳/۶/۱۲)، خروجی `{ paymentId, amount, months, url, paymentCode, paypingProductCode }`. `returnTo` یک مسیر داخلی مثل `/dashboard/onboarding` است و پس از کال‌بک همان‌جا برگردانده می‌شود. در حالت «پرداخت فقط آنلاین» همیشه به درگاه می‌رود و کیف پول بدهکار نمی‌شود. |
+| `POST` | `/subscriptions/:id/activate` | فعال‌سازی اشتراک پرداخت‌شده‌ای که به‌دلیل وجود یک دوره‌ی فعال دیگر، در وضعیت `PENDING` مانده است. با فعال‌سازی، دوره‌ی قبلی لغو و مانده‌ی روزهایش حذف می‌شود. |
+| `GET` | `/subscriptions/payments/callback` | آدرس بازگشت عمومی پی‌پینگ (`paymentCode`، `refId`، `clientRefId`)؛ تراکنش را تأیید و سپس به `returnTo` (پیش‌فرض `/dashboard/subscriptions`) با `payment=...` هدایت می‌کند. برای خرید طرح دیگر پیش از پایان دوره، `activation=pending` هم اضافه می‌شود. |
 | `POST` | `/admin/plans/:id/payping-product` | ساخت/همگام‌سازی محصولات پی‌پینگ همه‌ی دوره‌های ۱/۳/۶/۱۲ ماهه‌ی یک بسته (فقط مدیر)؛ خروجی `{ paypingProductCode, paypingProductCodes }`. |
+
+**تمدید و تغییر طرح:** خرید همان بسته پیش از پایان دوره، ماه‌های خریداری‌شده را
+از تاریخ انقضای فعلی اضافه می‌کند (`startsAt` دوره‌ی جدید = انقضای قبلی). خرید
+بسته‌ی دیگر در حالی که دوره‌ی فعلی هنوز فعال است، بلافاصله جایگزین نمی‌شود؛
+پرداخت تأیید و یک `UserSubscription` با وضعیت `PENDING` ثبت می‌شود تا کاربر با
+`POST /subscriptions/:id/activate` آن را فعال کند. هنگام فعال‌سازی، دوره‌ی قبلی
+`CANCELLED` می‌شود و مانده‌ی روزهایش از بین می‌رود.
 
 **آدرس بازگشت:** `${PAYPING_RETURN_BASE_URL}/api/subscriptions/payments/callback`
 است. اگر `PAYPING_RETURN_BASE_URL` خالی باشد، ابتدا origin مرورگر
@@ -483,6 +491,14 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 | `DELETE` | `/admin/finance/expenses/:id` | ابطال نرم هزینه (حذف نمی‌شود؛ `voidedAt` ثبت می‌شود). |
 | `GET` | `/admin/finance/expenses/export` | خروجی CSV هزینه‌ها. |
 | `POST` | `/admin/finance/backfill` | ساخت فاکتور برای تراکنش‌های پرداخت‌شده‌ی قبلی که فاکتور ندارند (idempotent). |
+
+هر پرداخت موفق کاربر به‌صورت خودکار فاکتور می‌گیرد: اشتراک
+(`SUBSCRIPTION_PAYMENT`)، پله/تبلیغ (`BOOST_PAYMENT`، `AD_HOME_PAYMENT`،
+`AD_DIRECTORY_PAYMENT`)، تگ فید (`FEED_TAG`)، خدمات و استعلام
+(`SERVICE_PAYMENT`) و تسویه کیف پول (`WALLET_PAYMENT`). عنوان فاکتور اشتراک
+شامل مدت دوره است (مثلاً «خرید اشتراک «اکو» — سه‌ماهه») و `metadata` نیز
+`months`، `term`، `startsAt` و `expiresAt` را نگه می‌دارد. `backfill` علاوه بر
+ساخت فاکتورهای جاافتاده، عنوان/مدت فاکتورهای قدیمی اشتراک را هم تکمیل می‌کند.
 
 ## استعلام‌های زحل (`/api/admin/zohal`) و تیک آبی
 

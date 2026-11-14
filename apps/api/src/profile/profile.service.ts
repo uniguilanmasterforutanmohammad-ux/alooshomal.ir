@@ -19,6 +19,8 @@ import { ActivityService } from '../activity/activity.service';
 import { OtpService } from '../auth/otp.service';
 import { paypingReturnBaseUrl } from '../common/app-url';
 import { isProfileComplete, isValidNationalCode } from '../common/national-code';
+import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
+import { FinanceService } from '../finance/finance.service';
 import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
 import { SettingsService } from '../settings/settings.service';
@@ -56,6 +58,7 @@ export class ProfileService {
     private readonly wallet: WalletService,
     private readonly payping: PaypingService,
     private readonly simulator: PaymentSimulatorService,
+    private readonly finance: FinanceService,
   ) {}
 
   /** Contact changes rely on the same OTP delivery as phone sign-in. */
@@ -832,6 +835,19 @@ export class ProfileService {
         verifiedAt: new Date(),
       },
     });
+    try {
+      await this.finance.recordSale({
+        sourceType: FINANCE_SOURCE_TYPES.SERVICE_PAYMENT,
+        sourceId: payment.id,
+        title: 'استعلام هویت (شاهکار + هویتی)',
+        amount: payment.amount,
+        paidAt: new Date(),
+        userId: payment.userId,
+        metadata: { serviceKey: payment.serviceKey, refId },
+      });
+    } catch {
+      // Invoicing is best-effort; the paid inquiry must still run.
+    }
     try {
       await this.performIdentityBundle(
         payment.userId,

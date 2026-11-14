@@ -20,7 +20,62 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.10.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.11.0**.
+
+## ۱۴۰۵/۰۸/۲۳ — بهبود شروع آسان، تمدید/تغییر اشتراک و فاکتور خدمات — نسخه `v4.11.0`
+
+**هدف:** ساده‌سازی مراحل شروع آسان، نمایش همه‌ی دوره‌های اشتراک، ثبت درست
+تاریخ شروع/انقضا، افزودن مانده‌ی دوره در تمدید هم‌طرح، فعال‌سازی تأییدی هنگام
+تغییر طرح، و صدور فاکتور برای همه‌ی پرداخت‌ها (از جمله استعلام هویت) با ذکر مدت
+اشتراک.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `UserSubscription.startsAt` و
+  `SubscriptionPayment.returnTo`.
+- `apps/api/src/onboarding/onboarding.service.ts`: اشتراک رایگان (پلن پیش‌فرض)
+  مرحله‌ی «طرح» را تکمیل‌شده حساب می‌کند تا کاربر بتواند به مرحله بعد برود.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: حذف متن اضافه‌ی مرحله
+  هویت، رفتن خودکار به مرحله بعد پس از ذخیره‌ی کسب‌وکار، حذف دکمه‌ی تیک آبی از
+  مرحله مدارک، نمایش دوره‌های ۱/۳/۶/۱۲ ماهه در مرحله طرح، بازگشت به همان صفحه
+  پس از پرداخت، حذف باکس کیف پول از مرحله پایانی و افزودن دکمه‌ی «اتمام مراحل»
+  به کارت‌های ویزیت.
+- `apps/api/src/subscriptions/dto/checkout-subscription.dto.ts` و
+  `subscriptions.controller.ts`: پذیرش `returnTo` امن و مسیر
+  `POST /subscriptions/:id/activate`.
+- `apps/api/src/subscriptions/subscriptions-payment.service.ts`: ذخیره‌ی
+  `returnTo`، تمدید هم‌طرح از تاریخ انقضا، ثبت `startsAt`، و نگه‌داشتن خرید
+  طرح دیگر به‌صورت `PENDING` تا تأیید کاربر؛ عنوان فاکتور شامل مدت دوره.
+- `apps/api/src/subscriptions/subscriptions.service.ts`: بازگرداندن
+  `planStartedAt` و وضعیت پرداخت در `me`، فعال‌سازی اشتراک پرداخت‌شده‌ی معلق،
+  و ثبت `startsAt`/`expiresAt` در تأیید مدیر.
+- `apps/web/app/dashboard/subscriptions/page.tsx` و
+  `apps/web/lib/api/types/subscriptions.ts`: نمایش تاریخ شروع، فعال‌کردن خرید
+  دوره‌های مختلف همان طرح، کارت هشدار و دکمه‌ی فعال‌سازی اشتراک معلق.
+- `apps/api/src/profile/profile.service.ts` و `profile.module.ts`: صدور فاکتور
+  برای پرداخت موفق استعلام هویت (`SERVICE_PAYMENT`).
+- `apps/api/src/finance/finance.constants.ts` و `finance.service.ts`: منبع
+  `SERVICE_PAYMENT`، عنوان فاکتور اشتراک با مدت دوره، و تکمیل فاکتورهای قدیمی
+  در `backfill`.
+- `docs/API.md`: مستندسازی `returnTo`، `activate`، تاریخ‌های اشتراک و فاکتور
+  خدمات/استعلام.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.11.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` → exit 0.
+- `docker exec alooshomal-web npx tsc --noEmit` → فقط خطاهای از پیش موجود
+  `.next/types/validator.ts`.
+- `npx prisma db push` و `prisma generate` → دیتابیس و کلاینت همگام شدند.
+- خرید اکو سه‌ماهه با شبیه‌ساز: `planExpiresAt` از ۲۰۲۶-۱۲-۱۴ به
+  ۲۰۲۷-۰۳-۱۴ رسید و `startsAt` دوره‌ی جدید برابر انقضای قبلی ثبت شد.
+- خرید بلاس یک‌ساله روی اکو فعال: کال‌بک با `activation=pending` برگشت، کاربر
+  روی اکو ماند و ردیف `PENDING` با پرداخت `PAID` ساخته شد؛ سپس
+  `POST /subscriptions/:id/activate` پلن را بلاس کرد، `startsAt`/`expiresAt`
+  ثبت شد و اکو `CANCELLED` شد.
+- فاکتورها: «خرید اشتراک «اکو» — سه‌ماهه» و «... بلاس — یک‌ساله» با
+  `metadata.months/term/startsAt/expiresAt` ساخته شدند؛ `backfill` عنوان
+  فاکتور قدیمی را هم به «... اکو — یک‌ماهه» اصلاح کرد.
+- `GET /onboarding/me` مرحله‌ی `plan` را `done: true` برگرداند.
+- `python3 scripts/check_api_docs.py` → exit 0.
 
 ## ۱۴۰۵/۰۸/۲۳ — نمایش و کنترل جداگانه‌ی اعلان و پیامک هر رویداد مدیر — نسخه `v4.10.0`
 

@@ -60,6 +60,16 @@ export class SubscriptionsController {
     return this.subscriptionsService.requestSubscription(user.id, dto);
   }
 
+  @Post(':id/activate')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'فعال‌سازی اشتراک پرداخت‌شده‌ای که در انتظار تأیید کاربر است (خرید طرح دیگر پیش از پایان دوره‌ی فعلی)',
+  })
+  activate(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.subscriptionsService.activatePaidPending(user.id, id);
+  }
+
   @Post(':planId/checkout')
   @UseGuards(ProfileCompleteGuard)
   @ApiBearerAuth()
@@ -72,7 +82,12 @@ export class SubscriptionsController {
     @Param('planId') planId: string,
     @Body() dto: CheckoutSubscriptionDto,
   ) {
-    return this.payments.checkout(user.id, planId, dto?.months ?? 1);
+    return this.payments.checkout(
+      user.id,
+      planId,
+      dto?.months ?? 1,
+      dto?.returnTo,
+    );
   }
 
   /**

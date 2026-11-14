@@ -89,9 +89,12 @@ export default function SubscriptionsPage() {
     const payment = params.get('payment');
     if (!payment) return;
     const planName = params.get('plan');
+    const activation = params.get('activation');
     if (payment === 'success') {
       setMessage(
-        `پرداخت با موفقیت انجام شد${planName ? ` و اشتراک «${planName}»` : ''} فعال شد.`,
+        activation === 'pending'
+          ? `پرداخت${planName ? ` «${planName}»` : ''} با موفقیت انجام شد؛ برای فعال‌سازی، دکمه‌ی زیر را بزنید.`
+          : `پرداخت با موفقیت انجام شد${planName ? ` و اشتراک «${planName}»` : ''} فعال شد.`,
       );
     } else if (payment === 'pending') {
       setMessage(
@@ -105,6 +108,7 @@ export default function SubscriptionsPage() {
     const url = new URL(window.location.href);
     url.searchParams.delete('payment');
     url.searchParams.delete('plan');
+    url.searchParams.delete('activation');
     window.history.replaceState({}, '', url.toString());
   }, []);
 
@@ -146,10 +150,35 @@ export default function SubscriptionsPage() {
     }
   }
 
+  async function activatePending(id: string) {
+    setBusyPlanId(id);
+    setMessage(null);
+    setError(null);
+    try {
+      await api.post(`/subscriptions/${id}/activate`, {});
+      setMessage('اشتراک جدید فعال شد.');
+      await load();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'فعال‌سازی اشتراک ناموفق بود',
+      );
+    } finally {
+      setBusyPlanId(null);
+    }
+  }
+
   const currentPlanId = mine?.plan?.id ?? null;
   const currentSortOrder = mine?.plan?.sortOrder ?? 0;
   const pendingPlanId =
-    mine?.requests.find((request) => request.status === 'PENDING')?.planId ?? null;
+    mine?.requests.find(
+      (request) =>
+        request.status === 'PENDING' && request.payment?.status !== 'PAID',
+    )?.planId ?? null;
+  const pendingActivations =
+    mine?.requests.filter(
+      (request) =>
+        request.status === 'PENDING' && request.payment?.status === 'PAID',
+    ) ?? [];
 
   if (loading) {
     return <p className="text-muted">در حال بارگذاری...</p>;
@@ -160,8 +189,9 @@ export default function SubscriptionsPage() {
       <div>
         <h2 className="text-xl font-extrabold text-ink">اشتراک من</h2>
         <p className="text-sm text-muted">
-          بسته مناسب خود را انتخاب کنید؛ بسته‌های پولی با پرداخت آنلاین بلافاصله
-          فعال می‌شوند و بسته‌ی رایگان پس از تأیید مدیر.
+          بسته مناسب خود را انتخاب کنید؛ تمدید همان بسته به دوره‌ی فعلی اضافه
+          می‌شود و خرید بسته‌ی دیگر پیش از پایان دوره، پس از پرداخت نیاز به
+          تأیید فعال‌سازی شما دارد.
         </p>
       </div>
 
@@ -203,7 +233,45 @@ export default function SubscriptionsPage() {
                 اعتبار تا {faDateTime(mine.planExpiresAt)}
               </p>
             ) : null}
+            {mine.planStartedAt ? (
+              <p className="mt-0.5 text-[11px] text-muted">
+                شروع دوره: {faDateTime(mine.planStartedAt)}
+              </p>
+            ) : null}
           </div>
+        </div>
+      ) : null}
+
+      {pendingActivations.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          {pendingActivations.map((request) => (
+            <div
+              key={request.id}
+              className="indeed-panel border-amber-300 bg-amber-50/60 p-4 dark:border-amber-800/60 dark:bg-amber-950/20"
+            >
+              <p className="text-sm font-extrabold text-amber-900 dark:text-amber-100">
+                اشتراک «{request.plan?.name ?? '—'}»
+                {request.months && request.months > 1
+                  ? ` (${request.months} ماهه)`
+                  : ' (یک‌ماهه)'}{' '}
+                پرداخت شد و آماده‌ی فعال‌سازی است.
+              </p>
+              <p className="mt-1 text-xs leading-6 text-amber-800 dark:text-amber-200">
+                با فعال‌سازی این اشتراک، مانده‌ی روزهای اشتراک فعلی شما
+                {mine?.plan?.name ? ` («${mine.plan.name}»)` : ''} از بین می‌رود.
+              </p>
+              <button
+                type="button"
+                onClick={() => void activatePending(request.id)}
+                disabled={busyPlanId === request.id}
+                className="indeed-btn indeed-btn-primary mt-3 py-2 text-xs disabled:opacity-60"
+              >
+                {busyPlanId === request.id
+                  ? 'در حال فعال‌سازی...'
+                  : `فعال‌سازی اشتراک ${request.plan?.name ?? ''}`}
+              </button>
+            </div>
+          ))}
         </div>
       ) : null}
 
@@ -220,9 +288,9 @@ export default function SubscriptionsPage() {
           const isPending = plan.id === pendingPlanId;
           // «ارتقا فقط»: a lower plan cannot be bought from a higher one.
           const isDowngrade = !isCurrent && plan.sortOrder < currentSortOrder;
-          // The current plan can be re-bought (term extension) once it has an
-          // expiry; a permanent/free plan has nothing to renew.
-          const canRenew = isCurrent && Boolean(mine?.planExpiresAt);
+          // A paid current plan can always be extended with any term; the free
+          // plan has nothing to renew.
+          const canRenew = isCurrent && plan.price > 0;
           const amount = planPriceForMonths(plan, months);
           const discount = planDiscountPercent(plan, months);
           const busy = busyPlanId === plan.id;
@@ -289,7 +357,7 @@ export default function SubscriptionsPage() {
               >
                 {isCurrent
                   ? canRenew
-                    ? 'تمدید اشتراک'
+                    ? 'تمدید / خرید دوره جدید'
                     : 'اشتراک فعلی شما'
                   : isDowngrade
                     ? 'امکان تنزل اشتراک وجود ندارد'

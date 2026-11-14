@@ -603,6 +603,14 @@ export class FinanceService implements OnModuleInit {
   //  Backfill (existing paid transactions before this module shipped)
   // ------------------------------------------------------------------
 
+  /** Persian label for a subscription term, shown on invoices. */
+  private termLabel(months: number | null | undefined): string {
+    if (months === 3) return 'سه‌ماهه';
+    if (months === 6) return 'شش‌ماهه';
+    if (months === 12) return 'یک‌ساله';
+    return 'یک‌ماهه';
+  }
+
   /**
    * Create invoices for every already-PAID transaction that has none yet.
    * Safe to run repeatedly; `recordSale` is idempotent per source.
@@ -630,7 +638,8 @@ export class FinanceService implements OnModuleInit {
       if (invoice) created += 1;
     };
 
-    const [subscriptions, requestPayments, feedTags] = await Promise.all([
+    const [subscriptions, requestPayments, feedTags, servicePayments] =
+      await Promise.all([
       this.prisma.subscriptionPayment.findMany({
         where: { status: PaymentStatus.PAID },
         include: {
@@ -652,14 +661,50 @@ export class FinanceService implements OnModuleInit {
           user: { select: { fullName: true, email: true, phone: true } },
         },
       }),
+      this.prisma.servicePayment.findMany({
+        where: { status: PaymentStatus.PAID },
+        include: {
+          user: { select: { fullName: true, email: true, phone: true } },
+        },
+      }),
     ]);
 
     for (const payment of subscriptions) {
       const paidAt = payment.paidAt ?? payment.verifiedAt ?? payment.createdAt;
+      const term = this.termLabel(payment.months);
+      // Older invoices predate the term snapshot; refresh their title and
+      // metadata so the period is visible on every archived sale.
+      const existing = await this.prisma.invoice.findUnique({
+        where: {
+          sourceType_sourceId: {
+            sourceType: FINANCE_SOURCE_TYPES.SUBSCRIPTION,
+            sourceId: payment.id,
+          },
+        },
+        select: { id: true, metadata: true },
+      });
+      if (existing) {
+        const metadata = (existing.metadata ?? {}) as Record<string, unknown>;
+        if (metadata.months !== payment.months) {
+          await this.prisma.invoice.update({
+            where: { id: existing.id },
+            data: {
+              title: `خرید اشتراک «${payment.plan.name}» — ${term}`,
+              metadata: {
+                ...metadata,
+                planId: payment.planId,
+                months: payment.months,
+                term,
+                refId: payment.refId,
+              },
+            },
+          });
+        }
+      }
       await ensure({
         sourceType: FINANCE_SOURCE_TYPES.SUBSCRIPTION,
         sourceId: payment.id,
-        title: `خرید اشتراک «${payment.plan.name}»`,
+        title: `خرید اشتراک «${payment.plan.name}» — ${term}`,
         amount: payment.amount,
         issuedAt: paidAt,
         paidAt,
@@ -667,7 +712,29 @@ export class FinanceService implements OnModuleInit {
         customerName: payment.user?.fullName ?? null,
         customerPhone: payment.user?.phone ?? null,
         customerEmail: payment.user?.email ?? null,
-        metadata: { planId: payment.planId, refId: payment.refId },
+        metadata: {
+          planId: payment.planId,
+          months: payment.months,
+          term,
+          refId: payment.refId,
+        },
+      });
+    }
+
+    for (const payment of servicePayments) {
+      const paidAt = payment.paidAt ?? payment.verifiedAt ?? payment.createdAt;
+      await ensure({
+        sourceType: FINANCE_SOURCE_TYPES.SERVICE_PAYMENT,
+        sourceId: payment.id,
+        title: 'استعلام هویت (شاهکار + هویتی)',
+        amount: payment.amount,
+        issuedAt: paidAt,
+        paidAt,
+        userId: payment.userId,
+        customerName: payment.user?.fullName ?? null,
+        customerPhone: payment.user?.phone ?? null,
+        customerEmail: payment.user?.email ?? null,
+        metadata: { serviceKey: payment.serviceKey, refId: payment.refId },
       });
     }
 

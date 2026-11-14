@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { ActivityModule } from '../activity/activity.module';
 import { AuthModule } from '../auth/auth.module';
+import { FinanceModule } from '../finance/finance.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PaypingModule } from '../payping/payping.module';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -17,6 +18,7 @@ import { ProfileService } from './profile.service';
     NotificationsModule,
     ActivityModule,
     AuthModule,
+    FinanceModule,
     SettingsModule,
     ZohalModule,
     WalletModule,
