@@ -3,6 +3,8 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -22,6 +24,7 @@ import { RequestCodeDto } from './dto/request-code.dto';
 import { VerifyPhoneDto } from './dto/verify-phone.dto';
 import { VerifyEmailLoginDto } from './dto/verify-email-login.dto';
 import { OtpService } from './otp.service';
+import { SmsService } from './sms.service';
 
 const SALT_ROUNDS = 12;
 
@@ -70,6 +73,7 @@ export class AuthService {
     private readonly activity: ActivityService,
     private readonly settings: SettingsService,
     private readonly otp: OtpService,
+    private readonly sms: SmsService,
     private readonly sessions: SessionsService,
     private readonly rateLimit: RateLimitService,
   ) {}
@@ -122,6 +126,25 @@ export class AuthService {
     // identical for new and returning users (the verify step asks for the
     // profile fields only when it actually needs them).
     return { phone, ...issued };
+  }
+
+  /**
+   * Development-only helper behind the login page's «تست ارسال پیامک» button.
+   * It sends a real code through Melipayamak's console OTP endpoint so the
+   * token can be verified without switching the whole dev environment to live
+   * SMS. The code is not stored, so it cannot be used to sign in; production
+   * responds 404.
+   */
+  async sendDevTestOtp(rawPhone: string) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new NotFoundException('مسیر یافت نشد');
+    }
+    const phone = OtpService.normalizePhone(rawPhone);
+    const code = await this.sms.sendOtp(phone, { force: true });
+    if (!code) {
+      throw new ServiceUnavailableException('ارسال پیامک ناموفق بود');
+    }
+    return { phone: maskPhone(phone), sent: true, code };
   }
 
   /**

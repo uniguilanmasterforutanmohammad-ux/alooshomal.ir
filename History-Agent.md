@@ -20,7 +20,45 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.2.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.2.1**.
+
+## ۱۴۰۵/۰۸/۲۳ — حذف کامل APIKey و برگشت OTP به مسیر کنسول + دکمه‌ی تست لوکال — نسخه `v4.2.1`
+
+**هدف:** پس از تنظیم `MELIPAYAMAK_API_KEY`، ارسال OTP از کار افتاده بود چون
+کد ابتدا وب‌سرویس REST را امتحان می‌کرد. وب‌سرویس REST و APIKey کاملاً حذف
+شدند و تنها منبع ارسال، مسیر توکنی کنسول است. یک دکمه‌ی تست در لوکال اضافه شد
+تا ارسال واقعی OTP بدون تغییر کل محیط بررسی شود.
+
+**تغییرات:**
+- `apps/api/src/auth/sms.service.ts`: بازنویسی کامل؛ حذف `restCredentials`،
+  `postRest`، `restErrorMessage` و مسیر `rest.payamak-panel.com`. `sendOtp()`
+  فقط `/api/send/otp/<token>` را صدا می‌زند و گزینه‌ی `force` برای تست لوکال
+  دارد. `sendText()` هم فقط از مسیر ساده‌ی کنسول استفاده می‌کند.
+- `apps/api/src/auth/auth.service.ts`: متد `sendDevTestOtp()` (فقط غیرپروداکشن)
+  که یک کد واقعی از مسیر OTP می‌فرستد و کد را برای تأیید برمی‌گرداند.
+- `apps/api/src/auth/auth.controller.ts`: مسیر `POST /api/auth/dev/sms-test`
+  با `@ApiOperation`؛ در پروداکشن ۴۰۴ می‌دهد.
+- `apps/web/components/auth/AuthForm.tsx`: باکس «تست ارسال پیامک (فقط محیط
+  توسعه)» با دکمه‌ی ارسال واقعی OTP؛ در بیلد پروداکشن رندر نمی‌شود.
+- `docker-compose.dev.yml`: `dns` قابل‌تنظیم (`DOCKER_DNS_SERVER`، پیش‌فرض
+  `1.1.1.1`) چون resolver داخلی داکر روی این شبکه `console.melipayamak.com`
+  را resolve نمی‌کرد.
+- `apps/api/src/auth/otp.service.ts`: به‌روزرسانی توضیح حالت پروداکشن.
+- `.env.example`، `docker-compose.yml`، `docker-compose.prod.yml`،
+  `docs/DEPLOY.md`، `docs/API.md` و `docs/SMS.md`: حذف ارجاع‌های APIKey/REST و
+  مستندسازی مسیر کنسول و دکمه‌ی تست.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.2.1`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api ./node_modules/.bin/tsc --noEmit -p tsconfig.json`
+  → exit 0؛ `cd apps/web && ./node_modules/.bin/tsc --noEmit` → exit 0.
+- `python3 scripts/check_api_docs.py` → exit 0 (۴۱۴ مسیر).
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
+- `curl -X POST localhost:3001/api/auth/dev/sms-test -d '{"phone":"09123456789"}'`
+  → `HTTP 200` و `{"sent":true,"code":"53057"}`؛ لاگ `OTP SMS sent` تأیید شد.
+- `POST /api/auth/phone/request-code` در لوکال → `devCode:"123456"` (شبیه‌سازی
+  دست‌نخورده).
+- `curl localhost:3000/login` → باکس «تست ارسال پیامک (فقط محیط توسعه)» رندر شد.
 
 ## ۱۴۰۵/۰۸/۲۳ — پیامک OTP و اطلاع‌رسانی مدیران با قالب مشترک ملی‌پیامک — نسخه `v4.2.0`
 

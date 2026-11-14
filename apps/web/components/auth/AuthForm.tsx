@@ -48,6 +48,12 @@ export function AuthForm({
   const [devCode, setDevCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [testLoading, setTestLoading] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+  // The real-SMS test button is a development aid only; Next inlines
+  // `NODE_ENV` at build time, so it never renders on a production build.
+  const isDev = process.env.NODE_ENV !== 'production';
 
   async function requestCode(event: React.FormEvent) {
     event.preventDefault();
@@ -86,6 +92,29 @@ export function AuthForm({
     }
   }
 
+  async function testSms() {
+    if (!phone.trim()) {
+      setTestError('اول شماره موبایل را وارد کنید');
+      return;
+    }
+    setTestLoading(true);
+    setTestError(null);
+    setTestResult(null);
+    try {
+      const result = await api.post<{ phone: string; sent: boolean; code: string }>(
+        '/auth/dev/sms-test',
+        { phone },
+      );
+      setTestResult(
+        `پیامک ارسال شد؛ کد دریافتی از ملی‌پیامک: ${result.code}`,
+      );
+    } catch (err) {
+      setTestError(err instanceof Error ? err.message : 'ارسال پیامک ناموفق بود');
+    } finally {
+      setTestLoading(false);
+    }
+  }
+
   if (step === 'phone') {
     return (
       <form onSubmit={requestCode} className="flex flex-col gap-4">
@@ -109,6 +138,33 @@ export function AuthForm({
         >
           {loading ? 'در حال ارسال...' : 'ادامه'}
         </button>
+        {isDev ? (
+          <div className="rounded-lg border border-dashed border-amber-300 bg-amber-50/70 p-3">
+            <p className="text-xs font-bold text-amber-900">
+              تست ارسال پیامک (فقط محیط توسعه)
+            </p>
+            <p className="mt-1 text-xs text-amber-800">
+              این دکمه یک کد واقعی از مسیر OTP ملی‌پیامک می‌فرستد تا اتصال را
+              بررسی کنید. ورود با این کد ممکن نیست.
+            </p>
+            <button
+              type="button"
+              onClick={testSms}
+              disabled={testLoading}
+              className="mt-2 w-full rounded-md border border-amber-400 bg-white px-3 py-2 text-xs font-bold text-amber-900 disabled:opacity-60"
+            >
+              {testLoading ? 'در حال ارسال...' : 'ارسال پیامک آزمایشی OTP'}
+            </button>
+            {testResult ? (
+              <p className="mt-2 text-xs font-bold text-emerald-700">
+                {testResult}
+              </p>
+            ) : null}
+            {testError ? (
+              <p className="mt-2 text-xs font-bold text-red-700">{testError}</p>
+            ) : null}
+          </div>
+        ) : null}
         {onEmailLogin ? (
           <button
             type="button"

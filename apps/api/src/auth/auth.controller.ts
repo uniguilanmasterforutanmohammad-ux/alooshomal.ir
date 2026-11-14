@@ -219,6 +219,16 @@ export class AuthController {
   }
 
   @Public()
+  @Post('dev/sms-test')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'ارسال پیامک آزمایشی OTP (فقط محیط توسعه؛ در پروداکشن ۴۰۴)',
+  })
+  devSmsTest(@Body() dto: RequestCodeDto) {
+    return this.authService.sendDevTestOtp(dto.phone);
+  }
+
+  @Public()
   @Post('phone/verify')
   @HttpCode(200)
   @ApiOperation({ summary: 'تأیید کد موبایل و ورود/ثبت‌نام' })

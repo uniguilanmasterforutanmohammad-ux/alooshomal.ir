@@ -114,11 +114,7 @@ services:
       # Shared-template endpoint for admin notification SMS. Production falls
       # back to the project token; bodyId=586239 is fixed in code.
       MELIPAYAMAK_SHARED_PATH: ${MELIPAYAMAK_SHARED_PATH:-}
-      # Alternative to MELIPAYAMAK_OTP_PATH: Melipayamak REST credentials.
-      # The API key is sent as the `password` parameter. Requires a sender
-      # line (MELIPAYAMAK_OTP_FROM or MELIPAYAMAK_SMS_FROM).
-      MELIPAYAMAK_USERNAME: ${MELIPAYAMAK_USERNAME:-}
-      MELIPAYAMAK_API_KEY: ${MELIPAYAMAK_API_KEY:-}
+      # Fallback sender line for simple-send when MELIPAYAMAK_SMS_FROM is empty.
       MELIPAYAMAK_OTP_FROM: ${MELIPAYAMAK_OTP_FROM:-}
       # Melipayamak simple-send path (includes the token) used by server
       # resource alerts; empty = those SMSes are skipped.

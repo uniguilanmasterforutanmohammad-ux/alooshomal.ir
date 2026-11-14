@@ -1,27 +1,27 @@
-import { randomInt } from 'node:crypto';
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 
 /**
- * Sends sign-in verification codes through Melipayamak.
+ * Sends SMS through Melipayamak's console endpoints only.
  *
- * Two transports are supported and both keep the code local for verification
- * (see `OtpService`):
- *  - the console OTP endpoint (`MELIPAYAMAK_OTP_PATH`), which generates the
- *    code itself and returns it;
- *  - the REST web service (`rest.payamak-panel.com`) with the panel username
- *    and API key (`MELIPAYAMAK_USERNAME` / `MELIPAYAMAK_API_KEY`), where we
- *    generate the code and send it with `SendOtp`. The API key is passed as
- *    the `password` parameter, as Melipayamak's panel instructs.
+ * The project uses two token-based console APIs:
+ *  - `/api/send/otp/<token>` — generates a one-time code itself and returns it
+ *    so `OtpService` can store it for verification;
+ *  - `/api/send/shared/<token>` — sends the fixed admin-notification template
+ *    by `bodyId`.
  *
- * Secrets live in env vars rather than in source. When neither transport is
- * configured (local dev), `sendOtp()` is a no-op and the OTP flow falls back
- * to the dev bypass in `OtpService`, so nothing leaves the machine.
+ * The panel username / API key REST transport was removed: it silently failed
+ * once an API key was configured and blocked the working console path. There is
+ * no API-key code path anymore; the console token is the single source.
+ *
+ * Secrets live in env vars rather than in source. In production the project
+ * tokens are the default, so no extra server config is needed. In local
+ * development SMS stays simulated unless `MELIPAYAMAK_OTP_PATH` /
+ * `MELIPAYAMAK_SHARED_PATH` are set explicitly (the dev test button forces the
+ * real OTP endpoint for a one-off check).
  */
 @Injectable()
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
-  private static readonly REST_BASE_URL =
-    'https://rest.payamak-panel.com/api/SendSMS';
   /**
    * Project-specific Melipayamak console endpoints. They are used as defaults
    * in production so the service works without extra server configuration;
@@ -41,23 +41,6 @@ export class SmsService {
   }
 
   /**
-   * Credentials for Melipayamak's REST web service (`rest.payamak-panel.com`).
-   * The API key must travel in the `password` parameter, exactly as the panel
-   * instructs ("برای استفاده از APIKey مقدار آن را به‌جای رمز عبور در پارامتر
-   * Password بفرستید"). Sending it as a separate `apiKey` field is silently
-   * ignored by the provider, which then answers `InvalidData` (RetStatus 35)
-   * because `password` arrives null.
-   */
-  private static restCredentials(): {
-    username: string;
-    password: string;
-  } | null {
-    const username = process.env.MELIPAYAMAK_USERNAME?.trim();
-    const apiKey = process.env.MELIPAYAMAK_API_KEY?.trim();
-    return username && apiKey ? { username, password: apiKey } : null;
-  }
-
-  /**
    * A Melipayamak sender line is numeric (e.g. `500010605021` or `1000...`).
    * Copied `.env` files often still contain the `خط-فرستنده` placeholder, and
    * sending that to the provider makes it answer `InvalidData`. Treat any
@@ -65,15 +48,6 @@ export class SmsService {
    */
   private static isSenderLine(value: string | undefined): boolean {
     return Boolean(value && /^\+?\d{4,15}$/.test(value.trim()));
-  }
-
-  /** Sender line used for OTP; falls back to the simple-send line. */
-  private static otpFrom(): string {
-    const candidates = [
-      process.env.MELIPAYAMAK_OTP_FROM,
-      process.env.MELIPAYAMAK_SMS_FROM,
-    ];
-    return candidates.find((value) => SmsService.isSenderLine(value))?.trim() ?? '';
   }
 
   /** Sender line for plain-text SMS; falls back to the OTP line. */
@@ -120,16 +94,18 @@ export class SmsService {
   /**
    * OTP endpoint. The configured path wins; in production the project token is
    * the fallback, while local development keeps the no-SMS bypass unless the
-   * env var is set explicitly.
+   * env var is set explicitly. `force` ignores the dev bypass so the local test
+   * button can send a real code.
    */
-  private static otpPath(): string {
+  private static otpPath(force = false): string {
     const configured = SmsService.consolePath(
       process.env.MELIPAYAMAK_OTP_PATH,
     );
     if (configured) return configured;
-    return process.env.NODE_ENV === 'production'
-      ? SmsService.DEFAULT_OTP_PATH
-      : '';
+    if (force || process.env.NODE_ENV === 'production') {
+      return SmsService.DEFAULT_OTP_PATH;
+    }
+    return '';
   }
 
   /** Shared-template endpoint used for every admin notification SMS. */
@@ -143,85 +119,37 @@ export class SmsService {
       : '';
   }
 
-  /** True when OTP delivery is configured (token path or API key). */
+  /** True when OTP delivery is configured (console token path). */
   get enabled(): boolean {
-    return Boolean(
-      SmsService.otpPath() ||
-        (SmsService.restCredentials() && SmsService.otpFrom()),
-    );
+    return Boolean(SmsService.otpPath());
   }
 
   /**
    * Sends a fresh OTP for `phone` and returns the code so the caller can store
    * it for later verification.
    *
-   * Two delivery modes are supported:
-   *  1. `MELIPAYAMAK_USERNAME` + `MELIPAYAMAK_API_KEY` (+ sender line) — the
-   *     REST web service. Here we generate the code ourselves and send it with
-   *     `SendOtp`; the API key travels in the `password` field.
-   *  2. `MELIPAYAMAK_OTP_PATH` — Melipayamak's console endpoint, which
-   *     generates the code itself and returns it.
-   *
-   * A fully configured API-key mode wins over the token path, so rotating to
-   * the new API does not require deleting the old path first.
+   * Melipayamak's console OTP endpoint generates the code itself and returns it
+   * in `code`. `force` bypasses the local-dev no-SMS rule; it is used only by
+   * the development test button.
    *
    * Returns `null` when SMS is not configured (dev) — caller uses the bypass.
    */
-  async sendOtp(phone: string): Promise<string | null> {
-    const path = SmsService.otpPath();
-    const credentials = SmsService.restCredentials();
-    const from = SmsService.otpFrom();
-
-    if (credentials && from) {
-      const code = randomInt(100_000, 1_000_000).toString();
-      const otpResult = await this.postRest('SendOtp', {
-        ...credentials,
-        to: phone,
-        from,
-        code,
-      });
-      if (otpResult.ok) return code;
-
-      // Some Melipayamak lines reject `SendOtp` (the provider answers
-      // `InvalidData`) but still accept the same code as a normal text
-      // message. Try that before giving up on the REST transport.
-      this.logger.warn(
-        `Melipayamak SendOtp failed (${otpResult.status}); retrying as plain SMS`,
-      );
-      const textResult = await this.postRest('SendSMS', {
-        ...credentials,
-        to: phone,
-        from,
-        text: `کد ورود شما به الوشمال: ${code}`,
-        isflash: 'false',
-      });
-      if (textResult.ok) return code;
-
-      if (!path) {
-        throw new ServiceUnavailableException(
-          SmsService.restErrorMessage(textResult),
-        );
-      }
-
-      this.logger.warn(
-        `Melipayamak REST transport failed (${textResult.status}); falling back to the console OTP path`,
-      );
-    }
-
+  async sendOtp(phone: string, options: { force?: boolean } = {}): Promise<string | null> {
+    const path = SmsService.otpPath(options.force === true);
     if (!path) {
       this.logger.warn(
         `SMS is not configured — OTP for ${SmsService.maskPhone(phone)} was not sent (dev bypass).`,
       );
       return null;
     }
-
     return this.sendConsoleOtp(path, phone);
   }
 
   /**
    * Calls Melipayamak's console OTP endpoint, which generates the code itself
-   * and returns it. Used as the primary transport when no REST credentials are
-   * configured and as a fallback when they are rejected.
+   * and returns it:
+   *   { "code": "3741437414", "status": "عملیات موفق" }
+   * An error response has no `code` and carries the reason in `status`.
    */
   private async sendConsoleOtp(path: string, phone: string): Promise<string> {
     const controller = new AbortController();
@@ -235,34 +163,31 @@ export class SmsService {
       });
 
       const payload = (await response.json().catch(() => null)) as
-        | { code?: string; status?: string }
+        | { code?: string | number; status?: string }
         | null;
 
-      if (!response.ok) {
-        this.logger.error(
-          `Melipayamak returned ${response.status} for ${SmsService.maskPhone(phone)}`,
-        );
-        throw new ServiceUnavailableException('ارسال پیامک ناموفق بود');
-      }
+      const code =
+        payload?.code === undefined || payload?.code === null
+          ? ''
+          : String(payload.code).trim();
 
-      // Success shape: { "code": "3741437414", "status": "عملیات موفق" }.
-      // Error shape:  { "status": "شماره گیرنده نامعتبر است" } (no `code`).
-      const code = typeof payload?.code === 'string' ? payload.code.trim() : '';
-      if (!code) {
+      if (!response.ok || !code) {
+        const reason = payload?.status?.trim() || `HTTP ${response.status}`;
         this.logger.error(
-          `Melipayamak did not return a code for ${SmsService.maskPhone(phone)}`,
+          `Melipayamak OTP failed for ${SmsService.maskPhone(phone)}: ${reason}`,
         );
         throw new ServiceUnavailableException(
-          payload?.status?.trim() || 'ارسال پیامک ناموفق بود',
+          response.ok ? reason : 'ارسال پیامک ناموفق بود',
         );
       }
+      this.logger.log(`OTP SMS sent to ${SmsService.maskPhone(phone)}`);
       return code;
     } catch (error) {
       if (error instanceof ServiceUnavailableException) {
         throw error;
       }
       this.logger.error(
-        `Melipayamak request failed for ${SmsService.maskPhone(phone)}: ${
+        `Melipayamak OTP request failed for ${SmsService.maskPhone(phone)}: ${
           error instanceof Error ? error.message : 'unknown error'
         }`,
       );
@@ -276,17 +201,13 @@ export class SmsService {
   get textEnabled(): boolean {
     const from = SmsService.textFrom();
     return Boolean(
-      (SmsService.consolePath(process.env.MELIPAYAMAK_SMS_PATH) &&
-        from) ||
-        (SmsService.restCredentials() && from),
+      SmsService.consolePath(process.env.MELIPAYAMAK_SMS_PATH) && from,
     );
   }
 
   /**
    * Sends a plain-text SMS (no generated code) through Melipayamak's simple
-   * send endpoint or, when only REST credentials are configured, through
-   * `rest.payamak-panel.com/api/SendSMS/SendSMS`. Used by the resource monitor
-   * for admin alerts.
+   * send endpoint. Used by the resource monitor for admin alerts.
    *
    * The path (which embeds the token) lives in `MELIPAYAMAK_SMS_PATH`, e.g.
    * `/api/send/simple/<token>`, and the sender line comes from
@@ -300,34 +221,9 @@ export class SmsService {
     const safeText = SmsService.stripLinks(text);
     const path = SmsService.consolePath(process.env.MELIPAYAMAK_SMS_PATH);
     const from = SmsService.textFrom();
-    const credentials = SmsService.restCredentials();
-    if (credentials && from) {
-      const result = await this.postRest('SendSMS', {
-        ...credentials,
-        to: phone,
-        from,
-        text: safeText,
-        isflash: 'false',
-      });
-      if (result.ok) {
-        this.logger.log(`Alert SMS sent to ${SmsService.maskPhone(phone)}`);
-        return true;
-      }
-
-      if (!path) {
-        this.logger.error(
-          `Melipayamak SendSMS failed (${result.status}); no console path configured`,
-        );
-        return false;
-      }
-      this.logger.warn(
-        `Melipayamak SendSMS failed (${result.status}); falling back to the console simple-send path`,
-      );
-    }
-
     if (!path || !from) {
       this.logger.warn(
-        `SMS is not configured (need a numeric MELIPAYAMAK_SMS_FROM or MELIPAYAMAK_OTP_FROM, plus MELIPAYAMAK_SMS_PATH or MELIPAYAMAK_USERNAME + MELIPAYAMAK_API_KEY) — SMS to ${SmsService.maskPhone(phone)} was not sent.`,
+        `SMS is not configured (need a numeric MELIPAYAMAK_SMS_FROM or MELIPAYAMAK_OTP_FROM, plus MELIPAYAMAK_SMS_PATH) — SMS to ${SmsService.maskPhone(phone)} was not sent.`,
       );
       return false;
     }
@@ -439,85 +335,6 @@ export class SmsService {
       return false;
     } finally {
       clearTimeout(timeout);
-    }
-  }
-
-  /**
-   * Calls one of Melipayamak's REST methods with form-urlencoded parameters.
-   * Success is `RetStatus === 1`; any other value is a provider error code
-   * (`0` = wrong username/API key, `2` = no credit, `5` = invalid sender, …).
-   */
-  private async postRest(
-    method: 'SendOtp' | 'SendSMS',
-    params: Record<string, string>,
-  ): Promise<{ ok: boolean; status?: string; retStatus?: number }> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
-    try {
-      const response = await fetch(
-        `${SmsService.REST_BASE_URL}/${method}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type':
-              'application/x-www-form-urlencoded; charset=UTF-8',
-          },
-          body: new URLSearchParams(params).toString(),
-          signal: controller.signal,
-        },
-      );
-
-      const payload = (await response.json().catch(() => null)) as
-        | { Value?: string | number; RetStatus?: number; StrRetStatus?: string }
-        | null;
-
-      if (response.ok && payload?.RetStatus === 1) {
-        return { ok: true };
-      }
-
-      const status =
-        payload?.StrRetStatus?.trim() || `HTTP ${response.status}`;
-      this.logger.error(
-        `Melipayamak ${method} failed (RetStatus ${payload?.RetStatus ?? 'unknown'}, Value ${payload?.Value ?? 'unknown'}): ${status}`,
-      );
-      return { ok: false, status, retStatus: payload?.RetStatus };
-    } catch (error) {
-      this.logger.error(
-        `Melipayamak ${method} request failed: ${
-          error instanceof Error ? error.message : 'unknown error'
-        }`,
-      );
-      return { ok: false };
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  /** Turns Melipayamak's error codes into a message the admin can act on. */
-  private static restErrorMessage(result: {
-    status?: string;
-    retStatus?: number;
-  }): string {
-    switch (result.retStatus) {
-      case 0:
-        return 'نام کاربری یا API Key ملی‌پیامک نادرست است';
-      case 2:
-        return 'اعتبار حساب ملی‌پیامک کافی نیست';
-      case 5:
-        return 'خط فرستنده‌ی ملی‌پیامک معتبر نیست';
-      case 14:
-        return 'متن پیامک حاوی لینک است؛ لینک‌ها باید از متن حذف شوند';
-      case 35:
-        return 'تنظیمات ملی‌پیامک نامعتبر است (خط فرستنده و API Key را بررسی کنید)';
-      case 108:
-      case 109:
-        return 'IP سرور در فهرست IPهای مجاز ملی‌پیامک نیست';
-      case 110:
-        return 'برای ملی‌پیامک باید API Key را به‌جای رمز عبور بفرستید';
-      default:
-        return result.status
-          ? `ارسال پیامک ناموفق بود (${result.status})`
-          : 'ارسال پیامک ناموفق بود';
     }
   }
 }

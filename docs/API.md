@@ -166,10 +166,8 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 
 کانال پیامک از `MELIPAYAMAK_SMS_PATH` (مسیر ساده‌ی ارسال، مثل
 `/api/send/simple/<token>`) و `MELIPAYAMAK_SMS_FROM` (خط فرستنده، همان مقدار
-`from` در بدنه‌ی درخواست) استفاده می‌کند؛ اگر مسیر توکنی تنظیم نشده باشد،
-همین ارسال از وب‌سرویس REST ملی‌پیامک با `MELIPAYAMAK_USERNAME` +
-`MELIPAYAMAK_API_KEY` (APIKey در پارامتر `password`) انجام می‌شود. ایمیل از
-همان `MAIL_*` موجود.
+`from` در بدنه‌ی درخواست) استفاده می‌کند. وب‌سرویس REST و APIKey حذف شده‌اند؛
+تنها روش ارسال، مسیرهای توکنی کنسول ملی‌پیامک است. ایمیل از همان `MAIL_*` موجود.
 در صورت تنظیم‌نبودن هر کانال، هشدار درون‌برنامه‌ای (دسته‌ی `SYSTEM`) همچنان ثبت
 می‌شود.
 

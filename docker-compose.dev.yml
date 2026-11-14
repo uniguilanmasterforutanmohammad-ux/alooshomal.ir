@@ -6,6 +6,12 @@ services:
     volumes:
       - ./apps/api:/usr/src/app
       - api_node_modules:/usr/src/app/node_modules
+    # Docker's embedded resolver forwards to the host uplink, which on some
+    # networks (VPN split-DNS) cannot resolve console.melipayamak.com. Point
+    # the dev API at a working external resolver; override DOCKER_DNS_SERVER
+    # if 1.1.1.1 is blocked on your network.
+    dns:
+      - ${DOCKER_DNS_SERVER:-1.1.1.1}
     environment:
       NODE_ENV: development
 
