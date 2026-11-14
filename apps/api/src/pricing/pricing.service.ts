@@ -23,6 +23,16 @@ export interface PricingUpdate {
 }
 
 /**
+ * Rows the admin still edits but that must not be advertised on the public
+ * pricing page (the feature exists, but it is not part of the public offer).
+ */
+const HIDDEN_PUBLIC_PRICING_KEYS = new Set(['setting:feedTagPrice']);
+const HIDDEN_PUBLIC_FEED_PACKAGE_LABELS = new Set([
+  'بسته فید «اشتراک یک‌ماهه ۵ پست»',
+  'بسته فید «اشتراک یک‌ماهه ۱۰ پست»',
+]);
+
+/**
  * Single admin catalogue of every billable item. Dynamic rows (plans, feed
  * packages, Zohal services) are merged with the fixed setting-backed prices so
  * the «اشتراک‌ها» panel can show and edit them in one place. New paid features
@@ -68,7 +78,7 @@ export class PricingService {
     const items: PricingItem[] = [
       {
         key: 'setting:boostPrice',
-        label: 'پله (ارتقای جایگاه در دایرکتوری)',
+        label: 'پله (ارتقای جایگاه در لیست مشاغل)',
         group: 'بازاریابی و تبلیغات',
         description: 'هزینه‌ی هر درخواست پله برای کارت/بیولینک/پست فید.',
         price: boostPrice,
@@ -77,7 +87,7 @@ export class PricingService {
       },
       {
         key: 'setting:adHomePrice',
-        label: 'تبلیغ در صفحه‌ی اصلی',
+        label: 'تبلیغات در صفحه اصلی',
         group: 'بازاریابی و تبلیغات',
         description: 'هزینه‌ی نمایش در باکس تبلیغات صفحه‌ی اصلی.',
         price: adHomePrice,
@@ -86,7 +96,7 @@ export class PricingService {
       },
       {
         key: 'setting:adDirectoryPrice',
-        label: 'تبلیغ در صدر دایرکتوری',
+        label: 'ارتقای جایگاه در لیست دسته بندی مشاغل',
         group: 'بازاریابی و تبلیغات',
         description: 'هزینه‌ی نمایش هدفمند در صدر شهر/کسب‌وکار همان مورد.',
         price: adDirectoryPrice,
@@ -155,7 +165,12 @@ export class PricingService {
   }> {
     const { items, settlementDays } = await this.list();
     return {
-      items: items.filter((item) => item.active !== false),
+      items: items.filter(
+        (item) =>
+          item.active !== false &&
+          !HIDDEN_PUBLIC_PRICING_KEYS.has(item.key) &&
+          !HIDDEN_PUBLIC_FEED_PACKAGE_LABELS.has(item.label),
+      ),
       settlementDays,
     };
   }

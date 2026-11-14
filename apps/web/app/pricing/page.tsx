@@ -11,7 +11,6 @@ import {
   ReceiptText,
   ShieldCheck,
   Sparkles,
-  Wallet,
 } from 'lucide-react';
 
 import { Footer } from '@/components/layout/Footer';
@@ -66,7 +65,6 @@ export default function PricingPage() {
   const { token, hydrated } = useAuth();
   const signedIn = hydrated && Boolean(token);
   const [pricing, setPricing] = useState<PricingItem[]>([]);
-  const [settlementDays, setSettlementDays] = useState(7);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [months, setMonths] = useState<PlanPeriodMonths>(1);
   const [loading, setLoading] = useState(true);
@@ -90,7 +88,6 @@ export default function PricingPage() {
       ]);
       setPlans(planList);
       setPricing(priceList.items);
-      setSettlementDays(priceList.settlementDays);
       setError(null);
     } catch (err) {
       setError(
@@ -146,8 +143,7 @@ export default function PricingPage() {
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-muted">
             اشتراک مناسب خود را انتخاب کنید؛ مبالغ دوره‌های سه‌ماهه، شش‌ماهه و
-            یک‌ساله با تخفیف محاسبه می‌شوند. پایین‌تر، تعرفه‌ی استعلام‌ها،
-            بسته‌های فید و خدمات تبلیغاتی آمده است.
+            یک‌ساله با تخفیف محاسبه می‌شوند.
           </p>
         </div>
 
@@ -322,22 +318,7 @@ export default function PricingPage() {
                   تعرفه‌ی سایر خدمات
                 </h2>
                 <p className="mt-1 max-w-3xl text-sm leading-7 text-muted">
-                  این مبالغ همان مقادیری هستند که مدیر در بخش «اشتراک‌ها ← قیمت
-                  خدمات» تنظیم می‌کند. مبلغ اشتراک‌ها با دوره‌های مختلف در بخش
-                  بالا آمده و مبالغ زیر مربوط به استعلام‌ها، بسته‌های فید و
-                  خدمات تبلیغاتی است.
-                </p>
-              </div>
-
-              <div className="indeed-panel flex items-start gap-2 p-4 text-xs leading-6 text-muted">
-                <Wallet className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
-                <p>
-                  هزینه‌ها در کیف پول شما ثبت می‌شوند و تا{' '}
-                  <b className="text-ink">
-                    {settlementDays.toLocaleString('fa-IR')} روز
-                  </b>{' '}
-                  فرصت تسویه دارید. سرویس‌هایی که مدیر غیرفعال کرده باشد در این
-                  صفحه نمایش داده نمی‌شوند.
+                  مبالغ سایر امکانات و خدمات شمالی کارت
                 </p>
               </div>
 
