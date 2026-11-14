@@ -18,7 +18,6 @@ type StepKind =
   | 'welcome'
   | 'identity'
   | 'business'
-  | 'details'
   | 'documents'
   | 'plan'
   | 'approval'
@@ -31,13 +30,13 @@ interface EditableStep {
   description: string;
   href?: string;
   enabled: boolean;
+  optional?: boolean;
 }
 
 const KIND_LABEL: Record<StepKind, string> = {
   welcome: 'خوش‌آمدگویی (تیک دستی کاربر)',
   identity: 'استعلام هویت (خودکار)',
   business: 'ساخت کسب‌وکار (خودکار)',
-  details: 'تکمیل مشخصات (خودکار)',
   documents: 'ارسال مدارک/تیک آبی (خودکار)',
   plan: 'انتخاب اشتراک (خودکار)',
   approval: 'تأیید مدیر (خودکار)',
@@ -48,7 +47,6 @@ const KIND_OPTIONS: StepKind[] = [
   'welcome',
   'identity',
   'business',
-  'details',
   'documents',
   'plan',
   'approval',
@@ -122,6 +120,7 @@ export function AdminOnboardingSteps() {
         description: '',
         href: '',
         enabled: true,
+        optional: false,
       },
     ]);
     setMessage(null);
@@ -139,6 +138,7 @@ export function AdminOnboardingSteps() {
         description: step.description.trim(),
         ...(step.href && step.href.trim() ? { href: step.href.trim() } : {}),
         enabled: step.enabled,
+        optional: step.optional === true,
       }));
       const result = await api.put<{ steps: EditableStep[] }>(
         '/admin/onboarding/steps',
@@ -263,6 +263,19 @@ export function AdminOnboardingSteps() {
                     onChange={(event) => update(index, { enabled: event.target.checked })}
                   />
                   فعال
+                </label>
+                <label
+                  className="flex items-center gap-1 text-[11px] font-bold text-muted"
+                  title="مرحله‌ی اختیاری مانع رفتن به مرحله‌ی بعد نمی‌شود"
+                >
+                  <input
+                    type="checkbox"
+                    checked={step.optional === true}
+                    onChange={(event) =>
+                      update(index, { optional: event.target.checked })
+                    }
+                  />
+                  اختیاری
                 </label>
                 <button
                   type="button"

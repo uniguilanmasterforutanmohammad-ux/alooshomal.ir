@@ -4,9 +4,11 @@ import {
   IsArray,
   IsBoolean,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   MaxLength,
+  Min,
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -52,6 +54,15 @@ export class OnboardingStepDto {
   @ApiProperty({ description: 'نمایش این مرحله به کاربران', default: true })
   @IsBoolean()
   enabled!: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'مرحله‌ی اختیاری؛ کاربر می‌تواند بدون تکمیل آن به مرحله‌ی بعد برود.',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  optional?: boolean;
 }
 
 export class UpdateOnboardingStepsDto {
@@ -61,4 +72,29 @@ export class UpdateOnboardingStepsDto {
   @ValidateNested({ each: true })
   @Type(() => OnboardingStepDto)
   steps!: OnboardingStepDto[];
+}
+
+export class AddOnboardingDocumentDto {
+  @ApiProperty({ description: 'آدرس عمومی فایل آپلودشده' })
+  @IsString()
+  @MaxLength(500)
+  url!: string;
+
+  @ApiPropertyOptional({ example: 'javaz.pdf' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'حجم فایل به بایت', example: 120000 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  size?: number;
+
+  @ApiPropertyOptional({ example: 'application/pdf' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  contentType?: string;
 }

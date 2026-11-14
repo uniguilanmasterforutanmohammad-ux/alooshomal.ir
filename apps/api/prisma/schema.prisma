@@ -428,6 +428,9 @@ model User {
   blueTickRequestedAt DateTime?
   /// Admin note attached to the latest blue-tick decision (e.g. reject reason).
   blueTickNote String?
+  /// Files uploaded for the «مدارک» onboarding step / blue-tick review:
+  /// `[{ id, name, url, size, contentType, uploadedAt }]`.
+  documents    Json?
   role         Role     @default(USER)
   isActive     Boolean  @default(true)
   /// For `MODERATOR` accounts: the content types this reviewer may moderate

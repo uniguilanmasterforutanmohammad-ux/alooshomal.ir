@@ -9,10 +9,13 @@ import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagg
 
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { UploadsService } from './uploads.service';
-import { MAX_UPLOAD_BYTES } from './uploads.constants';
+import { MAX_DOCUMENT_BYTES, MAX_UPLOAD_BYTES } from './uploads.constants';
 
 const fileInterceptor = () =>
   FileInterceptor('file', { limits: { fileSize: MAX_UPLOAD_BYTES } });
+
+const documentInterceptor = () =>
+  FileInterceptor('file', { limits: { fileSize: MAX_DOCUMENT_BYTES } });
 
 @ApiTags('uploads')
 @ApiBearerAuth()
@@ -51,5 +54,18 @@ export class UploadsController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     return this.uploads.upload('gallery', user.id, file);
+  }
+
+  @Post('document')
+  @UseInterceptors(documentInterceptor())
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary: 'آپلود مدرک/جواز کسب‌وکار (PDF یا تصویر، حداکثر ۵ مگابایت)',
+  })
+  document(
+    @CurrentUser() user: AuthUser,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.uploads.uploadDocument(user.id, file);
   }
 }

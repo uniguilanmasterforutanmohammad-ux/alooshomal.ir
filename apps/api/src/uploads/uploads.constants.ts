@@ -19,7 +19,12 @@ export interface UploadCategory {
   label: string;
 }
 
-export type UploadCategoryKey = 'logo' | 'avatar' | 'feed' | 'gallery';
+export type UploadCategoryKey =
+  | 'logo'
+  | 'avatar'
+  | 'feed'
+  | 'gallery'
+  | 'document';
 
 export const UPLOAD_CATEGORIES: Record<UploadCategoryKey, UploadCategory> = {
   logo: { folder: 'logos', maxWidth: 512, maxHeight: 512, label: 'لوگو' },
@@ -37,9 +42,19 @@ export const UPLOAD_CATEGORIES: Record<UploadCategoryKey, UploadCategory> = {
     maxHeight: 1600,
     label: 'تصویر گالری',
   },
+  // Raw files (PDF / images) kept as-is for the blue-tick review; they are not
+  // re-encoded, so the width/height fields are unused.
+  document: {
+    folder: 'documents',
+    maxWidth: 0,
+    maxHeight: 0,
+    label: 'مدارک',
+  },
 };
 
 export const MAX_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB
+/** Documents (business licence, etc.) may be a bit larger. */
+export const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024; // 5 MB
 /** Absolute ceiling for feed images; the admin setting picks a value below it. */
 export const MAX_FEED_UPLOAD_BYTES = 20 * 1024 * 1024; // 20 MB
 export const ALLOWED_IMAGE_MIME = [
@@ -47,4 +62,11 @@ export const ALLOWED_IMAGE_MIME = [
   'image/jpeg',
   'image/webp',
   'image/gif',
+];
+
+export const ALLOWED_DOCUMENT_MIME = [
+  'application/pdf',
+  'image/png',
+  'image/jpeg',
+  'image/webp',
 ];

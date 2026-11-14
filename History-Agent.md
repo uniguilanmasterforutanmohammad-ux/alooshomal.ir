@@ -20,7 +20,56 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.6.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.7.0**.
+
+## ۱۴۰۵/۰۸/۲۳ — بازطراحی «شروع آسان»: گام‌بندی اجباری، مدارک، اشتراک درجا و ظاهر مدرن — نسخه `v4.7.0`
+
+**هدف:** ویزارد «شروع آسان» (`/dashboard/onboarding`) کامل‌تر و امن‌تر شود:
+صورتحساب استعلام به تفکیک هر سرویس، جلوگیری از ورود به مرحله‌ی بعد پیش از
+تکمیل مرحله‌ی فعلی، حذف مرحله‌ی «تکمیل مشخصات»، اختیاری‌شدن «مدارک» با
+آپلود فایل، نمایش درجای اشتراک‌ها، و تبدیل مرحله‌ی آخر به پیام موفقیت با لینک
+کیف پول؛ به‌همراه ظاهر مدرن هم‌رنگ سایت.
+
+**تغییرات:**
+- `apps/api/src/onboarding/onboarding.constants.ts`: حذف مرحله‌ی `details` از
+  پیش‌فرض‌ها، افزودن فیلد `optional`، اختیاری‌کردن `documents` و بازنویسی
+  متن مراحل `business`/`plan`/`approval`؛ افزودن `documents` به payload.
+- `apps/api/src/onboarding/onboarding.service.ts`: نرمال‌سازی مراحل (حذف
+  `details`، اعمال `optional` و حذف hrefهای قدیمی)، ارتقای یک‌باره‌ی تنظیمات
+  ذخیره‌شده (`onboardingStepsV2`)، محاسبه‌ی تکمیل `documents` از مدارک آپلودشده
+  و متدهای افزودن/حذف مدرک.
+- `apps/api/src/onboarding/dto/onboarding.dto.ts` و
+  `apps/api/src/onboarding/onboarding.controller.ts`: فیلد `optional` و
+  مسیرهای `POST /onboarding/documents` و `DELETE /onboarding/documents/:id`.
+- `apps/api/src/uploads/*`: دسته‌ی `document`، آپلود خام PDF/تصویر تا ۵ مگابایت
+  و مسیر `POST /uploads/document`.
+- `apps/api/prisma/schema.prisma`: ستون `User.documents` (JSON) برای فهرست مدارک.
+- `apps/api/src/zohal/zohal.service.ts`: نمایش مدارک کاربر در فهرست درخواست‌های
+  تیک آبی مدیر.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: صورتحساب استعلام با
+  ردیف‌های جداگانه و جمع کل، قفل‌شدن دکمه/نقطه‌های مرحله تا تکمیل مرحله‌ی قبل،
+  آپلود و حذف مدارک، کارت‌های انتخاب اشتراک درجا، پیام موفقیت مرحله‌ی آخر با
+  لینک کیف پول/پرداخت، و بازطراحی هدر/کارت‌ها.
+- `apps/web/components/dashboard/OnboardingBusinessForm.tsx`: حالت
+  `requiredOnly` برای نمایش فقط فیلدهای اجباری در مرحله‌ی کسب‌وکار.
+- `apps/web/components/admin/AdminOnboardingSteps.tsx`: حذف نوع `details` و
+  افزودن کلید «اختیاری» به ویرایشگر مراحل.
+- `docs/API.md`: مستندسازی مسیرهای جدید و قواعد تکمیل.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.7.0`.
+
+**تأیید/تست:**
+- `npx prisma db push` و `tsc --noEmit` در کانتینر API → موفق؛ `tsc --noEmit`
+  در `apps/web` → exit 0.
+- `GET /api/onboarding/me` → ۶ مرحله با `documents.optional=true` و بدون
+  `details`؛ `href` مرحله‌ی `plan`/`approval` حذف شده است.
+- آپلود `POST /api/uploads/document` (PDF) → موفق؛ `POST /api/onboarding/documents`
+  فایل را ثبت و مرحله‌ی مدارک را «تکمیل» کرد؛ `DELETE` آن را برگرداند.
+- بررسی مرورگر (Chrome headless + CDP): تیک «شروع کنیم» به مرحله‌ی ۲ رفت،
+  «مرحله بعد» در مرحله‌ی کسب‌وکار غیرفعال ماند، مرحله‌ی مدارک با «مرحله بعد»
+  رد شد، کارت‌های اشتراک (رایگان/اکو/بلاس) و پیام موفقیت مرحله‌ی آخر رندر شدند،
+  و صورتحساب استعلام دو ردیف مجزا (۲۵٬۶۰۰ و ۴۹٬۵۰۰ تومان) با جمع ۷۵٬۱۰۰ نشان داد.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق؛
+  `python3 scripts/check_api_docs.py` → exit 0.
 
 ## ۱۴۰۵/۰۸/۲۳ — انتخاب سریع ماه و سال در دیت‌پیکر شمسی — نسخه `v4.6.0`
 

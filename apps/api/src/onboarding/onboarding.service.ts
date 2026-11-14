@@ -15,12 +15,16 @@ import {
   MANUAL_STEP_KINDS,
   ONBOARDING_STEPS_SETTING_KEY,
   ONBOARDING_STEP_KINDS,
+  type OnboardingDocument,
   type OnboardingProgressPayload,
   type OnboardingStepDef,
   type OnboardingStepKind,
   type OnboardingStepState,
 } from './onboarding.constants';
-import type { OnboardingStepDto } from './dto/onboarding.dto';
+import type {
+  AddOnboardingDocumentDto,
+  OnboardingStepDto,
+} from './dto/onboarding.dto';
 
 /** The built-in kinds whose completion is derived from account data. */
 const BUILT_IN_KINDS = new Set<OnboardingStepKind>(
@@ -47,6 +51,11 @@ export class OnboardingService implements OnModuleInit {
     } catch {
       // the table may not exist on a first boot; a later boot retries
     }
+    try {
+      await this.upgradeStoredSteps();
+    } catch {
+      // settings table may not exist yet; a later boot retries
+    }
   }
 
   /** The configured step list, falling back to the shipped defaults. */
@@ -58,10 +67,85 @@ export class OnboardingService implements OnModuleInit {
     try {
       const parsed = JSON.parse(row.value) as unknown;
       if (!Array.isArray(parsed)) return DEFAULT_ONBOARDING_STEPS;
-      return this.sanitize(parsed as OnboardingStepDto[]);
+      return this.normalize(this.sanitize(parsed as OnboardingStepDto[]));
     } catch {
       return DEFAULT_ONBOARDING_STEPS;
     }
+  }
+
+  /**
+   * The built-in step set evolves with the product (the «تکمیل مشخصات» step was
+   * merged into «عنوان کسب‌وکار» and «مدارک» became optional). A stored admin
+   * config would otherwise keep the old list, so this one-time upgrade drops
+   * the removed step, refreshes the built-in copy and applies the new optional
+   * flags while preserving the admin's order, enabled state and custom steps.
+   */
+  private async upgradeStoredSteps(): Promise<void> {
+    const markerKey = 'onboardingStepsV2';
+    const [marker, row] = await Promise.all([
+      this.prisma.setting.findUnique({ where: { key: markerKey } }),
+      this.prisma.setting.findUnique({
+        where: { key: ONBOARDING_STEPS_SETTING_KEY },
+      }),
+    ]);
+    if (marker) return;
+    if (row?.value) {
+      try {
+        const parsed = JSON.parse(row.value) as unknown;
+        if (Array.isArray(parsed)) {
+          const upgraded = this.normalize(
+            this.sanitize(parsed as OnboardingStepDto[]),
+            true,
+          );
+          await this.prisma.setting.update({
+            where: { key: ONBOARDING_STEPS_SETTING_KEY },
+            data: { value: JSON.stringify(upgraded) },
+          });
+        }
+      } catch {
+        // leave the stored value untouched if it is not valid JSON
+      }
+    }
+    await this.prisma.setting.upsert({
+      where: { key: markerKey },
+      create: { key: markerKey, value: new Date().toISOString() },
+      update: {},
+    });
+  }
+
+  /**
+   * Drop steps that no longer exist in the product and apply the built-in
+   * defaults' `optional` flag. With `refreshCopy`, the built-in title /
+   * description / href are replaced by the shipped defaults too (used by the
+   * one-time upgrade).
+   */
+  private normalize(
+    steps: OnboardingStepDef[],
+    refreshCopy = false,
+  ): OnboardingStepDef[] {
+    const defaults = new Map(
+      DEFAULT_ONBOARDING_STEPS.map((step) => [step.kind, step]),
+    );
+    const result: OnboardingStepDef[] = [];
+    for (const step of steps) {
+      if (step.kind === 'details') continue;
+      const base = defaults.get(step.kind);
+      if (!base) {
+        result.push(step);
+        continue;
+      }
+      const next: OnboardingStepDef = {
+        ...step,
+        ...(refreshCopy
+          ? { title: base.title, description: base.description }
+          : {}),
+        optional: base.optional === true,
+      };
+      if (base.href) next.href = base.href;
+      else delete next.href;
+      result.push(next);
+    }
+    return result;
   }
 
   /** Replace the step list (admin). Order of the array is the display order. */
@@ -95,7 +179,7 @@ export class OnboardingService implements OnModuleInit {
       'بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.',
     );
     const steps = (await this.getSteps()).filter((step) => step.enabled);
-    const [done, identity, history] = await Promise.all([
+    const [done, identity, history, documents] = await Promise.all([
       this.completionMap(userId),
       this.identityState(userId),
       this.prisma.identityInquiryLog.findMany({
@@ -103,6 +187,7 @@ export class OnboardingService implements OnModuleInit {
         orderBy: { createdAt: 'desc' },
         take: 25,
       }),
+      this.documentsState(userId),
     ]);
     const states: OnboardingStepState[] = steps.map((step) => {
       const isDone = done.get(step.id) ?? false;
@@ -116,7 +201,74 @@ export class OnboardingService implements OnModuleInit {
       currentStepId: states.find((step) => !step.done)?.id ?? null,
       identity,
       history,
+      documents,
     };
+  }
+
+  /** The documents the user uploaded for the blue-tick review (newest first). */
+  private async documentsState(userId: string): Promise<OnboardingDocument[]> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { documents: true },
+    });
+    return this.parseDocuments(user?.documents);
+  }
+
+  private parseDocuments(value: unknown): OnboardingDocument[] {
+    if (!Array.isArray(value)) return [];
+    return value
+      .filter((entry): entry is OnboardingDocument => {
+        if (!entry || typeof entry !== 'object') return false;
+        const doc = entry as Record<string, unknown>;
+        return typeof doc.url === 'string' && typeof doc.id === 'string';
+      })
+      .sort((a, b) => (a.uploadedAt < b.uploadedAt ? 1 : -1));
+  }
+
+  /** Attach an already-uploaded file to the account's document list. */
+  async addDocument(userId: string, dto: AddOnboardingDocumentDto) {
+    await this.settings.assertFeatureEnabled(
+      'featureOnboarding',
+      'بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.',
+    );
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { documents: true },
+    });
+    const documents = this.parseDocuments(user?.documents);
+    const doc: OnboardingDocument = {
+      id: crypto.randomUUID(),
+      name: dto.name?.trim() || 'مدرک',
+      url: dto.url,
+      size: dto.size ?? 0,
+      contentType: dto.contentType ?? '',
+      uploadedAt: new Date().toISOString(),
+    };
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { documents: [...documents, doc] as unknown as object },
+    });
+    return this.getMyProgress(userId);
+  }
+
+  /** Remove one uploaded document from the account. */
+  async removeDocument(userId: string, documentId: string) {
+    await this.settings.assertFeatureEnabled(
+      'featureOnboarding',
+      'بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.',
+    );
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { documents: true },
+    });
+    const documents = this.parseDocuments(user?.documents).filter(
+      (doc) => doc.id !== documentId,
+    );
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { documents: documents as unknown as object },
+    });
+    return this.getMyProgress(userId);
   }
 
   /** The identity fields currently stored on the account (read-only snapshot). */
@@ -290,6 +442,7 @@ export class OnboardingService implements OnModuleInit {
           blueTickRequestedAt: true,
           verifiedAt: true,
           planId: true,
+          documents: true,
           businessCards: {
             select: {
               status: true,
@@ -328,7 +481,11 @@ export class OnboardingService implements OnModuleInit {
     map.set('identity', Boolean(user.identityVerifiedAt));
     map.set('business', cards.length > 0);
     map.set('details', cards.some((card) => this.detailsComplete(card)));
-    map.set('documents', Boolean(user.blueTickRequestedAt || user.verifiedAt));
+    map.set(
+      'documents',
+      Boolean(user.blueTickRequestedAt || user.verifiedAt) ||
+        this.parseDocuments(user.documents).length > 0,
+    );
     // New accounts get the free plan assigned automatically, so an explicit
     // plan choice (an approved subscription, or a non-default plan) is what
     // completes this step — not the auto-assigned default.
@@ -414,6 +571,7 @@ export class OnboardingService implements OnModuleInit {
         description: (step.description ?? '').trim(),
         ...(href ? { href } : {}),
         enabled: step.enabled !== false,
+        ...(step.optional === true ? { optional: true } : {}),
       });
     }
     return result;

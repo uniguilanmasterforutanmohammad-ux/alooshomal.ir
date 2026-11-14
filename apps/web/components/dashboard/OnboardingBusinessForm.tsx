@@ -113,6 +113,8 @@ function toPayload(values: Values): Record<string, string> {
 interface Props {
   /** identity name from the inquiry, used to prefill the manager name */
   defaultFullName?: string;
+  /** show only the required fields (used by the onboarding «عنوان کسب‌وکار» step) */
+  requiredOnly?: boolean;
   /** outstanding wallet debt (positive toman amount) */
   debt: number;
   paying: boolean;
@@ -132,6 +134,7 @@ interface Props {
  */
 export function OnboardingBusinessForm({
   defaultFullName,
+  requiredOnly = false,
   debt,
   paying,
   onPay,
@@ -331,7 +334,9 @@ export function OnboardingBusinessForm({
           عنوان و اطلاعات اصلی
         </h3>
         <p className="mt-1 text-[11px] leading-6 text-muted">
-          فیلدهای ستاره‌دار برای ثبت در کارت ویزیت، صفحه مشاغل و بیولینک اجباری‌اند.
+          {requiredOnly
+            ? 'فقط فیلدهای ضروری را وارد کنید؛ بقیه‌ی مشخصات را بعداً از پنل کامل می‌کنید.'
+            : 'فیلدهای ستاره‌دار برای ثبت در کارت ویزیت، صفحه مشاغل و بیولینک اجباری‌اند.'}
         </p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <Input
@@ -378,19 +383,23 @@ export function OnboardingBusinessForm({
               ))}
             </select>
           </label>
-          <BusinessTaxonomyFields
-            businessId={values.businessId}
-            subCategory={values.subCategory}
-            subSubCategory={values.subSubCategory}
-            onChange={({ subCategory, subSubCategory }) =>
-              setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
-            }
-          />
-          <NeighborhoodPicker
-            cityId={values.cityId}
-            value={values.neighborhood}
-            onChange={(neighborhood) => setField('neighborhood', neighborhood)}
-          />
+          {!requiredOnly ? (
+            <>
+              <BusinessTaxonomyFields
+                businessId={values.businessId}
+                subCategory={values.subCategory}
+                subSubCategory={values.subSubCategory}
+                onChange={({ subCategory, subSubCategory }) =>
+                  setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
+                }
+              />
+              <NeighborhoodPicker
+                cityId={values.cityId}
+                value={values.neighborhood}
+                onChange={(neighborhood) => setField('neighborhood', neighborhood)}
+              />
+            </>
+          ) : null}
           <Input
             label="شماره موبایل *"
             required
@@ -399,13 +408,15 @@ export function OnboardingBusinessForm({
             value={values.mobile}
             onChange={(event) => setField('mobile', event.target.value)}
           />
-          <Input
-            label="تلفن ثابت"
-            dir="ltr"
-            inputMode="tel"
-            value={values.phone}
-            onChange={(event) => setField('phone', event.target.value)}
-          />
+          {!requiredOnly ? (
+            <Input
+              label="تلفن ثابت"
+              dir="ltr"
+              inputMode="tel"
+              value={values.phone}
+              onChange={(event) => setField('phone', event.target.value)}
+            />
+          ) : null}
           <div className="md:col-span-2">
             <Input
               label="آدرس * (حداکثر یک خط)"
@@ -415,54 +426,60 @@ export function OnboardingBusinessForm({
               onChange={(event) => setField('address', event.target.value)}
             />
           </div>
-          <div className="md:col-span-2">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-sm font-bold text-ink">
-                درباره کسب‌وکار (حداکثر دو خط)
-              </span>
-              <textarea
-                rows={2}
-                maxLength={160}
-                className="indeed-input resize-none"
-                value={values.bio}
-                onChange={(event) => setField('bio', event.target.value)}
+          {!requiredOnly ? (
+            <>
+              <div className="md:col-span-2">
+                <label className="flex flex-col gap-1.5">
+                  <span className="text-sm font-bold text-ink">
+                    درباره کسب‌وکار (حداکثر دو خط)
+                  </span>
+                  <textarea
+                    rows={2}
+                    maxLength={160}
+                    className="indeed-input resize-none"
+                    value={values.bio}
+                    onChange={(event) => setField('bio', event.target.value)}
+                  />
+                </label>
+              </div>
+              <Input
+                label="ایمیل"
+                dir="ltr"
+                value={values.email}
+                onChange={(event) => setField('email', event.target.value)}
               />
-            </label>
-          </div>
-          <Input
-            label="ایمیل"
-            dir="ltr"
-            value={values.email}
-            onChange={(event) => setField('email', event.target.value)}
-          />
-          <Input
-            label="وب‌سایت"
-            dir="ltr"
-            placeholder="https://example.com"
-            value={values.website}
-            onChange={(event) => setField('website', event.target.value)}
-          />
+              <Input
+                label="وب‌سایت"
+                dir="ltr"
+                placeholder="https://example.com"
+                value={values.website}
+                onChange={(event) => setField('website', event.target.value)}
+              />
+            </>
+          ) : null}
         </div>
       </div>
 
-      <div className="rounded-xl border border-[var(--vintage-border)] bg-white p-4">
-        <h3 className="text-sm font-extrabold text-ink">
-          شبکه‌های اجتماعی و لینک‌های اختیاری
-        </h3>
-        <p className="mt-1 text-[11px] leading-6 text-muted">
-          این موارد در کارت ویزیت، صفحه مشاغل و بیولینک شما نمایش داده می‌شوند.
-        </p>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          {SOCIAL_FIELDS.map((field) => (
-            <SocialInput
-              key={field.key}
-              field={field.key}
-              value={values[field.key]}
-              onChange={(value) => setField(field.key, value)}
-            />
-          ))}
+      {!requiredOnly ? (
+        <div className="rounded-xl border border-[var(--vintage-border)] bg-white p-4">
+          <h3 className="text-sm font-extrabold text-ink">
+            شبکه‌های اجتماعی و لینک‌های اختیاری
+          </h3>
+          <p className="mt-1 text-[11px] leading-6 text-muted">
+            این موارد در کارت ویزیت، صفحه مشاغل و بیولینک شما نمایش داده می‌شوند.
+          </p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            {SOCIAL_FIELDS.map((field) => (
+              <SocialInput
+                key={field.key}
+                field={field.key}
+                value={values[field.key]}
+                onChange={(value) => setField(field.key, value)}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      ) : null}
 
       <button
         type="button"

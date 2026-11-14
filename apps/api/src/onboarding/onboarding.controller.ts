@@ -7,7 +7,10 @@ import {
 } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { UpdateOnboardingStepsDto } from './dto/onboarding.dto';
+import {
+  AddOnboardingDocumentDto,
+  UpdateOnboardingStepsDto,
+} from './dto/onboarding.dto';
 import { OnboardingService } from './onboarding.service';
 
 @ApiTags('onboarding')
@@ -34,6 +37,23 @@ export class OnboardingController {
   @ApiOperation({ summary: 'برداشتن تیک یک مرحله‌ی سفارشی' })
   uncomplete(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.onboarding.uncompleteStep(user.id, id);
+  }
+
+  @Post('documents')
+  @ApiOperation({
+    summary: 'ثبت فایل آپلودشده‌ی مدارک در حساب (برای بررسی تیک آبی)',
+  })
+  addDocument(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: AddOnboardingDocumentDto,
+  ) {
+    return this.onboarding.addDocument(user.id, dto);
+  }
+
+  @Delete('documents/:id')
+  @ApiOperation({ summary: 'حذف یک فایل از مدارک حساب' })
+  removeDocument(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.onboarding.removeDocument(user.id, id);
   }
 }
 

@@ -12,17 +12,28 @@ import {
   Clock,
   CreditCard,
   Crown,
+  FileText,
   FileCheck2,
   History,
   ListChecks,
   Loader2,
+  Lock,
   PartyPopper,
+  ShieldCheck,
   Sparkles,
+  Trash2,
+  Upload,
   Wallet,
 } from 'lucide-react';
 
-import { api } from '@/lib/api';
+import {
+  api,
+  type MySubscriptions,
+  type SubscriptionCheckout,
+  type SubscriptionPlan,
+} from '@/lib/api';
 import { isoToJalali } from '@/lib/jalali';
+import { planPriceForMonths } from '@/lib/plan-periods';
 import { toast } from '@/lib/toast';
 import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
 import { OnboardingBusinessForm } from '@/components/dashboard/OnboardingBusinessForm';
@@ -45,6 +56,7 @@ interface OnboardingStep {
   description: string;
   href?: string;
   enabled: boolean;
+  optional?: boolean;
   done: boolean;
   hint: string;
 }
@@ -56,6 +68,16 @@ interface OnboardingPayload {
   currentStepId: string | null;
   identity: IdentityState;
   history: IdentityLog[];
+  documents: OnboardingDocument[];
+}
+
+interface OnboardingDocument {
+  id: string;
+  name: string;
+  url: string;
+  size: number;
+  contentType: string;
+  uploadedAt: string;
 }
 
 interface IdentityState {
@@ -89,6 +111,8 @@ interface WalletPayload {
 
 interface ZohalPrice {
   key: string;
+  label?: string;
+  group?: string;
   price?: number;
 }
 
@@ -131,6 +155,16 @@ function faPrice(amount: number): string {
   return `${amount.toLocaleString('fa-IR')} تومان`;
 }
 
+function formatBytes(bytes: number): string {
+  if (!bytes || bytes <= 0) return '—';
+  if (bytes < 1024 * 1024) {
+    return `${Math.max(1, Math.round(bytes / 1024)).toLocaleString('fa-IR')} کیلوبایت`;
+  }
+  return `${(bytes / 1024 / 1024).toLocaleString('fa-IR', {
+    maximumFractionDigits: 1,
+  })} مگابایت`;
+}
+
 /**
  * «شروع آسان» — the admin-configurable, step-by-step onboarding wizard that
  * sits at the top of the user dashboard. One step is shown at a time inside a
@@ -141,13 +175,17 @@ export function OnboardingWizard() {
   const [payload, setPayload] = useState<OnboardingPayload | null>(null);
   const [index, setIndex] = useState(0);
   const [wallet, setWallet] = useState<WalletPayload | null>(null);
-  const [tariff, setTariff] = useState<number>(0);
+  const [pricing, setPricing] = useState<ZohalPrice[]>([]);
   const [busyStepId, setBusyStepId] = useState<string | null>(null);
   const [identityBusy, setIdentityBusy] = useState(false);
   const [nationalCode, setNationalCode] = useState('');
   const [birthIso, setBirthIso] = useState('');
   const [paying, setPaying] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
+  const [myPlanId, setMyPlanId] = useState<string | null>(null);
+  const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
   const jumpedToPending = useRef(false);
 
   const load = useCallback(async () => {
@@ -175,13 +213,16 @@ export function OnboardingWizard() {
     void load();
     void api
       .get<ZohalPrice[]>('/zohal/pricing')
-      .then((list) => {
-        const sum = list
-          .filter((item) => item.key === 'shahkar' || item.key === 'national_identity_inquiry')
-          .reduce((total, item) => total + (item.price ?? 0), 0);
-        setTariff(sum);
-      })
-      .catch(() => setTariff(0));
+      .then((list) => setPricing(list))
+      .catch(() => setPricing([]));
+    void api
+      .get<SubscriptionPlan[]>('/subscriptions/plans')
+      .then((list) => setPlans(list))
+      .catch(() => setPlans([]));
+    void api
+      .get<MySubscriptions>('/subscriptions/me')
+      .then((mine) => setMyPlanId(mine.plan?.id ?? null))
+      .catch(() => setMyPlanId(null));
   }, [load]);
 
   async function completeIdentity() {
@@ -250,6 +291,75 @@ export function OnboardingWizard() {
     }
   }
 
+  async function uploadDocument(file: File) {
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const uploaded = await api.upload<{
+        url: string;
+        size: number;
+        contentType: string;
+      }>('/uploads/document', form);
+      const next = await api.post<OnboardingPayload>('/onboarding/documents', {
+        url: uploaded.url,
+        name: file.name,
+        size: uploaded.size,
+        contentType: uploaded.contentType,
+      });
+      setPayload(next);
+      toast.success('مدرک با موفقیت آپلود شد.');
+    } catch {
+      /* api layer surfaces the error */
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function removeDocument(id: string) {
+    try {
+      const next = await api.delete<OnboardingPayload>(
+        `/onboarding/documents/${id}`,
+      );
+      setPayload(next);
+    } catch {
+      /* api layer surfaces the error */
+    }
+  }
+
+  async function choosePlan(plan: SubscriptionPlan) {
+    setBusyPlanId(plan.id);
+    try {
+      const amount = planPriceForMonths(plan, 1);
+      if (amount >= 1000) {
+        const checkout = await api.post<SubscriptionCheckout>(
+          `/subscriptions/${plan.id}/checkout`,
+          { months: 1 },
+        );
+        if (checkout?.wallet) {
+          toast.success('اشتراک فعال شد و هزینه به کیف پول اضافه شد.');
+          setMyPlanId(plan.id);
+          await load();
+          return;
+        }
+        if (checkout?.url) {
+          window.location.href = checkout.url;
+          return;
+        }
+        toast.error('لینک پرداخت از درگاه دریافت نشد.');
+        return;
+      }
+      await api.post('/subscriptions/request', { planId: plan.id, months: 1 });
+      toast.success('درخواست اشتراک ثبت شد و در انتظار تأیید مدیر است.');
+      setMyPlanId(plan.id);
+      await load();
+    } catch {
+      /* api layer surfaces the error */
+    } finally {
+      setBusyPlanId(null);
+    }
+  }
+
   async function toggleManualStep(step: OnboardingStep, thenNext = false) {
     setBusyStepId(step.id);
     try {
@@ -257,7 +367,7 @@ export function OnboardingWizard() {
         ? await api.delete<OnboardingPayload>(`/onboarding/steps/${step.id}/complete`)
         : await api.post<OnboardingPayload>(`/onboarding/steps/${step.id}/complete`, {});
       setPayload(next);
-      if (thenNext && !step.done) nextStep();
+      if (thenNext && !step.done) goTo(safeIndex + 1);
     } catch {
       /* api layer surfaces the error */
     } finally {
@@ -272,15 +382,33 @@ export function OnboardingWizard() {
   const step = steps[safeIndex];
   const Icon = STEP_ICON[step.kind] ?? Sparkles;
   const debt = wallet && wallet.balance < 0 ? Math.abs(wallet.balance) : 0;
+  const identityServices = pricing.filter(
+    (item) =>
+      item.key === 'shahkar' || item.key === 'national_identity_inquiry',
+  );
+  const identityTotal = identityServices.reduce(
+    (total, item) => total + (item.price ?? 0),
+    0,
+  );
   const percent =
     payload.total > 0 ? Math.round((payload.completed / payload.total) * 100) : 0;
   const isFirst = safeIndex === 0;
   const isLast = safeIndex === steps.length - 1;
+  const isOptional = step.optional === true;
+  const stepUnlocked = step.done || isOptional;
+
+  /** A step can be opened once every earlier required step is complete. */
+  function canEnter(position: number): boolean {
+    return steps
+      .slice(0, position)
+      .every((entry) => entry.done || entry.optional === true);
+  }
 
   function goTo(next: number) {
     setIndex(Math.max(0, Math.min(next, steps.length - 1)));
   }
   function nextStep() {
+    if (!stepUnlocked) return;
     goTo(safeIndex + 1);
   }
   function prevStep() {
@@ -288,56 +416,87 @@ export function OnboardingWizard() {
   }
 
   return (
-    <section className="indeed-panel overflow-hidden">
+    <section className="overflow-hidden rounded-3xl border border-[var(--vintage-border)] bg-white shadow-[0_24px_70px_-40px_rgba(58,40,28,0.55)]">
       {/* progress header */}
-      <header className="flex flex-col gap-3 border-b border-[var(--vintage-border)] bg-brand-light/50 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <span className="flex items-center gap-2 text-sm font-extrabold text-ink">
-            <Sparkles className="size-4 text-brand" aria-hidden />
+      <header className="relative overflow-hidden border-b border-[var(--vintage-border)] bg-gradient-to-l from-brand/15 via-brand-light/70 to-white p-5 sm:p-6">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -left-10 -top-16 size-48 rounded-full bg-brand/10 blur-2xl"
+        />
+        <div className="relative flex flex-wrap items-center justify-between gap-3">
+          <span className="flex items-center gap-2.5 text-base font-extrabold text-ink">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-brand text-white shadow-sm">
+              <Sparkles className="size-4" aria-hidden />
+            </span>
             شروع آسان
           </span>
-          <span className="text-xs font-bold text-muted">
+          <span className="rounded-full bg-white/80 px-3 py-1 text-xs font-bold text-brand shadow-sm ring-1 ring-brand/10">
             مرحله‌ی {(safeIndex + 1).toLocaleString('fa-IR')} از{' '}
             {steps.length.toLocaleString('fa-IR')}
           </span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-white">
+        <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-white/90 ring-1 ring-brand/10">
           <div
-            className="h-full rounded-full bg-brand transition-all duration-500"
+            className="h-full rounded-full bg-gradient-to-l from-brand to-brand-hover transition-all duration-500"
             style={{ width: `${percent}%` }}
           />
         </div>
         {/* step dots */}
-        <div className="flex items-center gap-1.5">
+        <div className="relative mt-4 flex items-center gap-2">
           {steps.map((entry, position) => {
             const active = position === safeIndex;
+            const unlocked = canEnter(position);
             return (
               <button
                 key={entry.id}
                 type="button"
-                onClick={() => goTo(position)}
+                onClick={() => unlocked && goTo(position)}
+                disabled={!unlocked}
                 title={entry.title}
                 aria-label={entry.title}
+                aria-current={active ? 'step' : undefined}
                 className={cn(
-                  'h-1.5 flex-1 rounded-full transition-all',
+                  'group flex flex-1 items-center gap-1.5 rounded-full border px-1.5 py-1 text-[10px] font-bold transition',
                   active
-                    ? 'bg-brand'
+                    ? 'border-brand bg-brand text-white shadow-sm'
                     : entry.done
-                      ? 'bg-emerald-300'
-                      : 'bg-[var(--vintage-border)]',
+                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                      : unlocked
+                        ? 'border-[var(--vintage-border)] bg-white text-muted hover:border-brand/50 hover:text-brand'
+                        : 'cursor-not-allowed border-[var(--vintage-border)] bg-white/60 text-muted/60',
                 )}
-              />
+              >
+                <span
+                  className={cn(
+                    'flex size-5 shrink-0 items-center justify-center rounded-full text-[10px]',
+                    active
+                      ? 'bg-white/20'
+                      : entry.done
+                        ? 'bg-emerald-100'
+                        : 'bg-[var(--vintage-paper)]',
+                  )}
+                >
+                  {entry.done ? (
+                    <Check className="size-3" aria-hidden />
+                  ) : unlocked ? (
+                    (position + 1).toLocaleString('fa-IR')
+                  ) : (
+                    <Lock className="size-2.5" aria-hidden />
+                  )}
+                </span>
+                <span className="hidden truncate sm:inline">{entry.title}</span>
+              </button>
             );
           })}
         </div>
       </header>
 
       {/* the single step card */}
-      <div className="p-5 sm:p-6">
+      <div className="bg-gradient-to-b from-white to-[var(--vintage-paper)]/30 p-5 sm:p-6">
         <div
           className={cn(
             'mx-auto flex flex-col gap-4',
-            step.kind === 'business' || step.kind === 'details'
+            step.kind === 'business'
               ? 'max-w-4xl'
               : 'max-w-2xl',
           )}
@@ -345,10 +504,10 @@ export function OnboardingWizard() {
           <div className="flex items-start gap-3">
             <span
               className={cn(
-                'flex size-11 shrink-0 items-center justify-center rounded-xl border text-sm font-extrabold',
+                'flex size-12 shrink-0 items-center justify-center rounded-2xl border text-sm font-extrabold shadow-sm',
                 step.done
                   ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
-                  : 'border-[var(--vintage-border)] bg-brand-light text-brand',
+                  : 'border-brand/20 bg-brand-light text-brand',
               )}
             >
               {step.done ? <Check className="size-5" aria-hidden /> : <Icon className="size-5" aria-hidden />}
@@ -359,6 +518,10 @@ export function OnboardingWizard() {
                 {step.done ? (
                   <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
                     تکمیل شد
+                  </span>
+                ) : isOptional ? (
+                  <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700">
+                    اختیاری
                   </span>
                 ) : (
                   <span className="rounded-full bg-brand-light px-2 py-0.5 text-[10px] font-bold text-brand">
@@ -371,6 +534,13 @@ export function OnboardingWizard() {
           </div>
 
           <div className="h-px bg-[var(--vintage-border)]" />
+
+          {!canEnter(safeIndex) ? (
+            <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs leading-6 text-amber-800">
+              <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
+              برای ورود به این مرحله، ابتدا مراحل قبلی را کامل کنید.
+            </div>
+          ) : null}
 
           {/* ---------------------------------------------------------------- */}
           {/* step-specific body                                               */}
@@ -470,12 +640,52 @@ export function OnboardingWizard() {
                 </div>
               )}
 
-              <div className="rounded-xl border border-[var(--vintage-border)] bg-white p-3 text-xs leading-6 text-muted">
-                <span className="font-bold text-ink">صورتحساب استعلام:</span>{' '}
-                {faPrice(tariff)}
-                {tariff > 0
-                  ? ' — مبلغ ابتدا به‌صورت بدهی در کیف پول ثبت می‌شود و می‌توانید همان‌جا پرداخت کنید یا بعداً تسویه کنید.'
-                  : ''}
+              <div className="overflow-hidden rounded-2xl border border-[var(--vintage-border)] bg-white">
+                <div className="flex items-center justify-between border-b border-[var(--vintage-border)] bg-[var(--vintage-paper)]/60 px-4 py-2.5">
+                  <span className="text-xs font-extrabold text-ink">
+                    صورتحساب استعلام
+                  </span>
+                  <span className="text-[10px] font-bold text-muted">
+                    به تفکیک هر بخش
+                  </span>
+                </div>
+                <ul className="divide-y divide-[var(--vintage-border)]">
+                  {identityServices.length > 0 ? (
+                    identityServices.map((item) => (
+                      <li
+                        key={item.key}
+                        className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs"
+                      >
+                        <span className="flex items-center gap-2 text-muted">
+                          <ShieldCheck className="size-3.5 text-brand" aria-hidden />
+                          {item.label ??
+                            (item.key === 'shahkar'
+                              ? 'تطبیق شماره موبایل با کد ملی'
+                              : 'استعلام هویت')}
+                        </span>
+                        <span className="font-bold text-ink">
+                          {faPrice(item.price ?? 0)}
+                        </span>
+                      </li>
+                    ))
+                  ) : (
+                    <li className="px-4 py-2.5 text-xs text-muted">
+                      هزینه‌ی استعلام در حال حاضر تعریف نشده است.
+                    </li>
+                  )}
+                </ul>
+                <div className="flex items-center justify-between border-t border-[var(--vintage-border)] bg-brand-light/40 px-4 py-2.5 text-xs">
+                  <span className="font-extrabold text-ink">جمع کل</span>
+                  <span className="font-extrabold text-brand">
+                    {faPrice(identityTotal)}
+                  </span>
+                </div>
+                {identityTotal > 0 ? (
+                  <p className="border-t border-dashed border-[var(--vintage-border)] px-4 py-2 text-[10px] leading-5 text-muted">
+                    مبلغ ابتدا به‌صورت بدهی در کیف پول ثبت می‌شود و می‌توانید
+                    همان‌جا پرداخت کنید یا بعداً تسویه کنید.
+                  </p>
+                ) : null}
               </div>
 
               {!payload.identity?.verified && !payload.identity?.phoneMatched ? (
@@ -534,8 +744,9 @@ export function OnboardingWizard() {
             </div>
           ) : null}
 
-          {step.kind === 'business' || step.kind === 'details' ? (
+          {step.kind === 'business' ? (
             <OnboardingBusinessForm
+              requiredOnly
               defaultFullName={
                 [payload.identity?.firstName, payload.identity?.lastName]
                   .filter(Boolean)
@@ -546,6 +757,266 @@ export function OnboardingWizard() {
               onPay={() => void payInvoice()}
               onSaved={() => void load()}
             />
+          ) : null}
+
+          {step.kind === 'documents' ? (
+            <div className="flex flex-col gap-3">
+              <div className="rounded-2xl border border-[var(--vintage-border)] bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="flex items-center gap-2 text-sm font-extrabold text-ink">
+                      <FileText className="size-4 text-brand" aria-hidden />
+                      مدارک آپلودشده
+                    </p>
+                    <p className="mt-1 text-[11px] leading-6 text-muted">
+                      جواز کسب‌وکار، کارت ملی یا هر مدرکی که تأیید را سریع‌تر
+                      می‌کند (PDF یا تصویر، حداکثر ۵ مگابایت).
+                    </p>
+                  </div>
+                  <label
+                    className={cn(
+                      'indeed-btn indeed-btn-primary cursor-pointer py-2 text-xs',
+                      uploading && 'pointer-events-none opacity-70',
+                    )}
+                  >
+                    {uploading ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Upload className="size-4" aria-hidden />
+                    )}
+                    {uploading ? 'در حال آپلود...' : 'آپلود فایل'}
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="application/pdf,image/png,image/jpeg,image/webp"
+                      disabled={uploading}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        event.target.value = '';
+                        if (file) void uploadDocument(file);
+                      }}
+                    />
+                  </label>
+                </div>
+
+                {payload.documents?.length ? (
+                  <ul className="mt-3 flex flex-col gap-2">
+                    {payload.documents.map((doc) => (
+                      <li
+                        key={doc.id}
+                        className="flex items-center gap-2 rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 px-3 py-2 text-xs"
+                      >
+                        <FileText className="size-4 shrink-0 text-brand" aria-hidden />
+                        <a
+                          href={doc.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="min-w-0 flex-1 truncate font-bold text-ink hover:text-brand"
+                        >
+                          {doc.name}
+                        </a>
+                        <span className="shrink-0 text-[10px] text-muted">
+                          {formatBytes(doc.size)}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => void removeDocument(doc.id)}
+                          aria-label={`حذف ${doc.name}`}
+                          className="shrink-0 rounded-md p-1 text-neutral-400 transition hover:bg-red-50 hover:text-red-600"
+                        >
+                          <Trash2 className="size-3.5" aria-hidden />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-3 rounded-xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-paper)]/30 px-3 py-4 text-center text-[11px] text-muted">
+                    هنوز مدرکی آپلود نکرده‌اید.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href="/dashboard/profile"
+                  className="indeed-btn indeed-btn-secondary py-2 text-xs"
+                >
+                  <BadgeCheck className="size-4" aria-hidden />
+                  ثبت درخواست تیک آبی در پروفایل
+                </Link>
+                {isOptional && !step.done ? (
+                  <button
+                    type="button"
+                    onClick={nextStep}
+                    className="text-xs font-bold text-muted underline-offset-4 hover:text-brand hover:underline"
+                  >
+                    فعلاً رد کن
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {step.kind === 'plan' ? (
+            <div className="flex flex-col gap-3">
+              {plans.length === 0 ? (
+                <p className="rounded-xl border border-dashed border-[var(--vintage-border)] p-4 text-center text-xs text-muted">
+                  در حال بارگذاری طرح‌ها...
+                </p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {plans.map((plan) => {
+                    const isCurrent = plan.id === myPlanId;
+                    const busy = busyPlanId === plan.id;
+                    return (
+                      <div
+                        key={plan.id}
+                        className={cn(
+                          'flex flex-col rounded-2xl border bg-white p-4 transition',
+                          isCurrent
+                            ? 'border-brand shadow-[0_10px_30px_-20px_rgba(139,58,26,0.6)] ring-1 ring-brand/30'
+                            : 'border-[var(--vintage-border)] hover:border-brand/40',
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="text-sm font-extrabold text-ink">
+                            {plan.name}
+                          </h3>
+                          {isCurrent ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-brand-light px-2 py-0.5 text-[10px] font-bold text-brand">
+                              <Crown className="size-3" aria-hidden />
+                              فعلی
+                            </span>
+                          ) : null}
+                        </div>
+                        {plan.description ? (
+                          <p className="mt-1 text-[11px] leading-5 text-muted">
+                            {plan.description}
+                          </p>
+                        ) : null}
+                        <p className="mt-2 text-lg font-extrabold text-brand">
+                          {faPrice(planPriceForMonths(plan, 1))}
+                          {plan.price > 0 ? (
+                            <span className="text-[10px] font-normal text-muted">
+                              {' '}
+                              / ماه
+                            </span>
+                          ) : null}
+                        </p>
+                        {plan.features.length ? (
+                          <ul className="mt-2 flex flex-1 flex-col gap-1 text-[11px] text-ink">
+                            {plan.features.slice(0, 4).map((feature) => (
+                              <li key={feature} className="flex items-start gap-1.5">
+                                <Check
+                                  className="mt-0.5 size-3 shrink-0 text-brand"
+                                  aria-hidden
+                                />
+                                <span>{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                        <button
+                          type="button"
+                          disabled={isCurrent || busy}
+                          onClick={() => void choosePlan(plan)}
+                          className={cn(
+                            'indeed-btn mt-3 w-full py-2 text-xs',
+                            isCurrent
+                              ? 'indeed-btn-secondary'
+                              : 'indeed-btn-primary',
+                          )}
+                        >
+                          {busy ? (
+                            <Loader2 className="size-4 animate-spin" aria-hidden />
+                          ) : (
+                            <CreditCard className="size-4" aria-hidden />
+                          )}
+                          {isCurrent
+                            ? 'اشتراک فعلی شما'
+                            : planPriceForMonths(plan, 1) >= 1000
+                              ? 'پرداخت و فعال‌سازی'
+                              : 'درخواست اشتراک'}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <p className="text-[10px] leading-5 text-muted">
+                طرح‌های پولی با پرداخت آنلاین بلافاصله فعال می‌شوند و طرح رایگان
+                پس از تأیید مدیر.
+              </p>
+            </div>
+          ) : null}
+
+          {step.kind === 'approval' ? (
+            canEnter(safeIndex) ? (
+            <div className="flex flex-col gap-3">
+              <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-l from-emerald-50 via-emerald-50/70 to-white p-5 text-center">
+                <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                  <PartyPopper className="size-7" aria-hidden />
+                </span>
+                <h3 className="mt-3 text-base font-extrabold text-emerald-900">
+                  همه‌ی مراحل کامل شد!
+                </h3>
+                <p className="mx-auto mt-1.5 max-w-md text-xs leading-6 text-emerald-800">
+                  کسب‌وکار شما ثبت شد و پس از تأیید مدیر در صفحه‌ی مشاغل و
+                  دایرکتوری نمایش داده می‌شود. می‌توانید وضعیت را از پنل پیگیری
+                  کنید.
+                </p>
+                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+                  <Clock className="size-3.5" aria-hidden />
+                  در انتظار تأیید مدیر
+                </span>
+              </div>
+
+              <div className="rounded-2xl border border-[var(--vintage-border)] bg-white p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-extrabold text-ink">وضعیت کیف پول</p>
+                    <p className="mt-1 text-[11px] text-muted">
+                      {debt > 0
+                        ? `بدهی فعلی: ${faPrice(debt)}`
+                        : 'بدهی فعالی ندارید.'}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {debt > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => void payInvoice()}
+                        disabled={paying}
+                        className="indeed-btn indeed-btn-primary py-2 text-xs"
+                      >
+                        <CreditCard className="size-4" aria-hidden />
+                        {paying ? 'در حال انتقال...' : 'پرداخت آنلاین'}
+                      </button>
+                    ) : null}
+                    <Link
+                      href="/dashboard/wallet"
+                      className="indeed-btn indeed-btn-secondary py-2 text-xs"
+                    >
+                      <Wallet className="size-4" aria-hidden />
+                      کیف پول و پرداخت
+                    </Link>
+                  </div>
+                </div>
+              </div>
+
+              <Link
+                href="/dashboard/business-cards"
+                className="indeed-btn indeed-btn-secondary w-fit py-2 text-xs"
+              >
+                مشاهده‌ی کسب‌وکار من
+                <ArrowLeft className="size-4" aria-hidden />
+              </Link>
+            </div>
+            ) : (
+              <p className="rounded-2xl border border-dashed border-[var(--vintage-border)] bg-white p-5 text-center text-xs leading-6 text-muted">
+                این پیام پس از تکمیل همه‌ی مراحل قبلی نمایش داده می‌شود.
+              </p>
+            )
           ) : null}
 
           {isManual(step) && step.kind !== 'welcome' ? (
@@ -565,19 +1036,6 @@ export function OnboardingWizard() {
               )}
               {step.done ? 'برداشتن تیک این مرحله' : 'این مرحله را انجام دادم'}
             </button>
-          ) : null}
-
-          {!isManual(step) &&
-          step.href &&
-          step.kind !== 'business' &&
-          step.kind !== 'details' ? (
-            <Link
-              href={step.href}
-              className="indeed-btn indeed-btn-secondary w-fit py-2 text-xs"
-            >
-              ادامه‌ی این مرحله در پنل
-              <ArrowLeft className="size-4" aria-hidden />
-            </Link>
           ) : null}
 
           {/* ---------------------------------------------------------------- */}
@@ -600,14 +1058,25 @@ export function OnboardingWizard() {
                   : 'آخرین مرحله'}
               </span>
             ) : (
-              <button
-                type="button"
-                onClick={nextStep}
-                className="indeed-btn indeed-btn-primary py-2 text-xs"
-              >
-                مرحله بعد
-                <ArrowLeft className="size-4" aria-hidden />
-              </button>
+              <div className="flex items-center gap-3">
+                {!stepUnlocked ? (
+                  <span className="hidden text-[10px] font-bold text-amber-700 sm:inline">
+                    ابتدا این مرحله را کامل کنید
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={nextStep}
+                  disabled={!stepUnlocked}
+                  className={cn(
+                    'indeed-btn indeed-btn-primary py-2 text-xs',
+                    !stepUnlocked && 'cursor-not-allowed opacity-50',
+                  )}
+                >
+                  مرحله بعد
+                  <ArrowLeft className="size-4" aria-hidden />
+                </button>
+              </div>
             )}
           </div>
         </div>

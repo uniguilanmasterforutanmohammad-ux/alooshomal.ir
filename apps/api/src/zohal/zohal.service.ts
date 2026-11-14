@@ -524,6 +524,7 @@ export class ZohalService {
           phoneMatchVerifiedAt: true,
           blueTickRequestedAt: true,
           blueTickNote: true,
+          documents: true,
         },
       }),
       this.prisma.user.findMany({

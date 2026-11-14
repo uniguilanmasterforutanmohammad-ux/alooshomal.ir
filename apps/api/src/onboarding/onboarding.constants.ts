@@ -46,6 +46,11 @@ export interface OnboardingStepDef {
   href?: string;
   /** disabled steps stay configured but are hidden from users. */
   enabled: boolean;
+  /**
+   * Optional steps never block the wizard: the user may skip them and still
+   * reach the final step. The admin can mark any step optional.
+   */
+  optional?: boolean;
 }
 
 export const DEFAULT_ONBOARDING_STEPS: OnboardingStepDef[] = [
@@ -70,17 +75,8 @@ export const DEFAULT_ONBOARDING_STEPS: OnboardingStepDef[] = [
     kind: 'business',
     title: 'عنوان کسب‌وکار',
     description:
-      'برای کسب‌وکار خود یک نام انتخاب کنید؛ مثلاً «نمایشگاه اتومبیل تنکابن».',
+      'فقط اطلاعات ضروری را وارد کنید: عنوان کسب‌وکار، نام مدیر، شهر، دسته‌بندی، موبایل و آدرس. بقیه‌ی مشخصات را بعداً از پنل کامل می‌کنید.',
     href: '/dashboard/business-cards/new',
-    enabled: true,
-  },
-  {
-    id: 'details',
-    kind: 'details',
-    title: 'تکمیل سایر مشخصات',
-    description:
-      'شبکه‌های اجتماعی و همه‌ی اطلاعات لازم برای صفحه مشاغل، کارت ویزیت و بیولینک را کامل کنید.',
-    href: '/dashboard/business-cards',
     enabled: true,
   },
   {
@@ -88,26 +84,25 @@ export const DEFAULT_ONBOARDING_STEPS: OnboardingStepDef[] = [
     kind: 'documents',
     title: 'ارسال مدارک و جواز کسب‌وکار',
     description:
-      'مدارک و جواز کسب‌وکار را ارسال کنید تا پس از بررسی، تیک آبی دریافت کنید.',
+      'مدارک و جواز کسب‌وکار را آپلود کنید تا پس از بررسی، تیک آبی دریافت کنید. این مرحله اختیاری است و می‌توانید بعداً هم انجام دهید.',
     href: '/dashboard/profile',
     enabled: true,
+    optional: true,
   },
   {
     id: 'plan',
     kind: 'plan',
     title: 'انتخاب طرح اشتراک',
     description:
-      'طرح رایگان (نمایش محدود + تیک سفید)، اکو (نمایش کامل + تیک آبی، یک کسب‌وکار) یا طرح حرفه‌ای (اکو + سه کسب‌وکار) را انتخاب کنید.',
-    href: '/dashboard/subscriptions',
+      'طرح مناسب خود را همین‌جا انتخاب کنید؛ رایگان، اکو یا حرفه‌ای.',
     enabled: true,
   },
   {
     id: 'approval',
     kind: 'approval',
-    title: 'منتظر تأیید مدیر',
+    title: 'تبریک! ثبت‌نام شما کامل شد',
     description:
-      'پس از تأیید مدیر، کسب‌وکار شما در صفحه مشاغل و دایرکتوری نمایش داده می‌شود.',
-    href: '/dashboard/business-cards',
+      'همه‌ی مراحل را انجام دادید. کسب‌وکار شما پس از تأیید مدیر در صفحه‌ی مشاغل و دایرکتوری نمایش داده می‌شود. برای تسویه‌ی هزینه‌ها به کیف پول بروید.',
     enabled: true,
   },
 ];
@@ -129,6 +124,18 @@ export interface OnboardingProgressPayload {
   identity: OnboardingIdentityState;
   /** persisted log of every identity inquiry attempt (newest first). */
   history: OnboardingIdentityLog[];
+  /** files uploaded for the «مدارک» step (newest first). */
+  documents: OnboardingDocument[];
+}
+
+/** One uploaded document attached to the account for the blue-tick review. */
+export interface OnboardingDocument {
+  id: string;
+  name: string;
+  url: string;
+  size: number;
+  contentType: string;
+  uploadedAt: string;
 }
 
 /** Snapshot of the identity fields stored on the user (may be partially set). */
