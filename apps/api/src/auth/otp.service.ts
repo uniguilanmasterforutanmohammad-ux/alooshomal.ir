@@ -71,6 +71,8 @@ export interface IssuedOtp {
   simulated?: boolean;
   /** Seconds the client should wait before allowing a resend. */
   resendAfter: number;
+  /** Seconds until the issued code expires (the code's validity window). */
+  expiresIn: number;
   /** True when the code was actually sent by SMS. */
   sent: boolean;
   /** True when the same code was also delivered to the account's email. */
@@ -293,6 +295,7 @@ export class OtpService {
 
     return {
       resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
+      expiresIn: OTP_TTL_SECONDS,
       sent,
       emailSent,
       ...(simulate ? { simulated: true } : {}),
@@ -395,6 +398,7 @@ export class OtpService {
 
     return {
       resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
+      expiresIn: OTP_TTL_SECONDS,
       sent,
       emailSent,
       ...(this.isDev && !sent && !emailSent ? { devCode: code } : {}),
@@ -468,6 +472,7 @@ export class OtpService {
 
     return {
       resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
+      expiresIn: OTP_TTL_SECONDS,
       sent: false,
       emailSent,
       ...(this.isDev && !emailSent ? { devCode: code } : {}),
@@ -574,6 +579,7 @@ export class OtpService {
 
     return {
       resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
+      expiresIn: OTP_TTL_SECONDS,
       sent,
       emailSent,
       ...(simulate ? { simulated: true } : {}),
@@ -681,6 +687,7 @@ export class OtpService {
     await this.markIssuedKey(claimUserCooldownKey(input.userId));
     return {
       resendAfter: OTP_RESEND_COOLDOWN_SECONDS,
+      expiresIn: OTP_TTL_SECONDS,
       sent,
       emailSent,
       ...(this.isDev && !sent && !emailSent ? { devCode: code } : {}),

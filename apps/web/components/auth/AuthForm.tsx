@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Input } from '@/components/ui/Input';
@@ -13,11 +13,20 @@ interface RequestCodeResult {
   phone: string;
   sent: boolean;
   resendAfter: number;
+  /** Seconds until the code expires; drives the on-screen countdown. */
+  expiresIn?: number;
   /** Present only when SMS is disabled (local dev) so the code is visible. */
   devCode?: string;
 }
 
 type Step = 'phone' | 'code';
+
+/** `300` → `5:00`. */
+function formatSeconds(total: number): string {
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
 
 /**
  * Unified sign-in / sign-up flow (single form, one page).
@@ -48,12 +57,23 @@ export function AuthForm({
   const [devCode, setDevCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const [testLoading, setTestLoading] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
   const [testError, setTestError] = useState<string | null>(null);
   // The real-SMS test button is a development aid only; Next inlines
   // `NODE_ENV` at build time, so it never renders on a production build.
   const isDev = process.env.NODE_ENV !== 'production';
+
+  // Count down the code's validity while the user is on the code step. When it
+  // reaches zero the resend button becomes available.
+  useEffect(() => {
+    if (step !== 'code') return;
+    const timer = setInterval(() => {
+      setSecondsLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step]);
 
   async function requestCode(event: React.FormEvent) {
     event.preventDefault();
@@ -66,7 +86,28 @@ export function AuthForm({
       );
       setPhone(result.phone);
       setDevCode(result.devCode ?? null);
+      setSecondsLeft(result.expiresIn ?? 300);
       setStep('code');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ارسال کد ناموفق بود');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function resendCode() {
+    if (secondsLeft > 0) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await api.post<RequestCodeResult>(
+        '/auth/phone/request-code',
+        { phone },
+      );
+      setPhone(result.phone);
+      setDevCode(result.devCode ?? null);
+      setSecondsLeft(result.expiresIn ?? 300);
+      setCode('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ارسال کد ناموفق بود');
     } finally {
@@ -185,6 +226,17 @@ export function AuthForm({
           کد ارسال‌شده به <span dir="ltr" className="font-bold text-ink">{phone}</span>
           را وارد کنید.
         </p>
+        <p
+          className={
+            secondsLeft > 0
+              ? 'text-xs font-bold text-muted'
+              : 'text-xs font-bold text-red-600'
+          }
+        >
+          {secondsLeft > 0
+            ? `اعتبار کد: ${formatSeconds(secondsLeft)}`
+            : 'کد منقضی شده است؛ کد جدید بگیرید.'}
+        </p>
         {devCode ? (
           <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
             حالت توسعه: پیامک ارسال نشد. کد شما{' '}
@@ -205,10 +257,20 @@ export function AuthForm({
         ) : null}
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || secondsLeft === 0}
           className="indeed-btn indeed-btn-primary w-full"
         >
           {loading ? 'در حال بررسی...' : 'تأیید و ورود'}
+        </button>
+        <button
+          type="button"
+          onClick={resendCode}
+          disabled={loading || secondsLeft > 0}
+          className="w-full rounded-md border border-[var(--vintage-border)] bg-white px-3 py-2 text-sm font-bold text-brand disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {secondsLeft > 0
+            ? `ارسال مجدد کد تا ${formatSeconds(secondsLeft)}`
+            : 'ارسال مجدد کد'}
         </button>
         {onEmailLogin ? (
           <button

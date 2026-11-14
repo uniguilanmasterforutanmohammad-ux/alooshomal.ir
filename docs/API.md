@@ -56,6 +56,9 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
    در جریان `POST /api/auth/phone/request-code` می‌توانید فیلد اختیاری `email`
    را هم بفرستید؛ همان کد یکبارمصرف علاوه بر پیامک به آن ایمیل هم ارسال می‌شود
    (برای کاربران موجود، ایمیل حساب ملاک است).
+   پاسخ این مسیر شامل `expiresIn` (ثانیه‌ی اعتبار کد، ۳۰۰) و `resendAfter`
+   (ثانیه‌ی مجاز برای ارسال مجدد، ۶۰) است؛ صفحه‌ی `/login` شمارش معکوس را از
+   `expiresIn` می‌سازد و پس از پایان آن دکمه‌ی «ارسال مجدد کد» را فعال می‌کند.
    دو مسیر تست فقط در محیط توسعه فعال‌اند و در پروداکشن ۴۰۴ می‌دهند:
    `POST /api/auth/dev/sms-test` (ارسال واقعی OTP با `{ phone }`) و
    `POST /api/auth/dev/admin-sms-test` (ارسال واقعی قالب مشترک مدیران با
