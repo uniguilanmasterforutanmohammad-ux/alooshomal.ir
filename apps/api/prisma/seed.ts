@@ -32,30 +32,42 @@ async function main() {
 
   // `ADMIN_EMAIL` only seeds the admin; the sign-in email lives in the row.
   // When the address changes, rename the existing admin instead of creating a
-  // second account. `ADMIN_PREVIOUS_EMAIL` picks the row explicitly; otherwise
-  // it is safe only when exactly one ADMIN exists.
+  // second account. If the address already exists as a regular user (e.g. it
+  // was registered on the site by mistake), promote it and — when
+  // `ADMIN_PREVIOUS_EMAIL` is set — demote the old admin.
+  const previousAdminEmail = process.env.ADMIN_PREVIOUS_EMAIL?.trim();
   const existingAdmin = await prisma.user.findUnique({
     where: { email: adminEmail },
-    select: { id: true },
+    select: { id: true, role: true, isActive: true },
   });
-  if (!existingAdmin) {
-    const previousAdminEmail = process.env.ADMIN_PREVIOUS_EMAIL?.trim();
-    if (previousAdminEmail) {
+  if (existingAdmin) {
+    if (existingAdmin.role !== Role.ADMIN || !existingAdmin.isActive) {
+      await prisma.user.update({
+        where: { id: existingAdmin.id },
+        data: { role: Role.ADMIN, isActive: true },
+      });
+    }
+    if (previousAdminEmail && previousAdminEmail !== adminEmail) {
       await prisma.user.updateMany({
         where: { email: previousAdminEmail, role: Role.ADMIN },
+        data: { role: Role.USER },
+      });
+    }
+  } else if (previousAdminEmail) {
+    await prisma.user.updateMany({
+      where: { email: previousAdminEmail, role: Role.ADMIN },
+      data: { email: adminEmail },
+    });
+  } else {
+    const admins = await prisma.user.findMany({
+      where: { role: Role.ADMIN },
+      select: { id: true },
+    });
+    if (admins.length === 1) {
+      await prisma.user.update({
+        where: { id: admins[0].id },
         data: { email: adminEmail },
       });
-    } else {
-      const admins = await prisma.user.findMany({
-        where: { role: Role.ADMIN },
-        select: { id: true },
-      });
-      if (admins.length === 1) {
-        await prisma.user.update({
-          where: { id: admins[0].id },
-          data: { email: adminEmail },
-        });
-      }
     }
   }
 
@@ -63,7 +75,7 @@ async function main() {
     where: { email: adminEmail },
     // Never reset an existing admin's password on a re-seed; only ensure the
     // role. The initial password is set once, at creation time.
-    update: { role: Role.ADMIN },
+    update: { role: Role.ADMIN, isActive: true },
     create: {
       email: adminEmail,
       passwordHash,

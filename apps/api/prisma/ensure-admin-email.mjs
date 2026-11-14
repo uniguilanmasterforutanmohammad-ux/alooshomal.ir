@@ -1,16 +1,18 @@
 /**
- * One-time, idempotent admin-email migration run by the API entrypoint.
+ * Idempotent admin-email migration run by the API entrypoint.
  *
  * `ADMIN_EMAIL` in `.env` is only a seed value; the real sign-in email lives
- * in `User.email`. Changing `.env` alone therefore does not rename the admin.
- * This script makes the next deployment apply the change:
+ * in `User.email`. This script makes a `.env` change take effect on deploy:
  *
- *   - if a user already has `ADMIN_EMAIL`, nothing to do;
+ *   - if a user already has `ADMIN_EMAIL`:
+ *       · promote it to an active ADMIN when it is a regular account
+ *         (e.g. the address was registered on the site by mistake);
+ *       · when `ADMIN_PREVIOUS_EMAIL` is set, demote that old admin to USER.
  *   - else if `ADMIN_PREVIOUS_EMAIL` is set, rename that admin;
- *   - else if exactly one ADMIN account exists, rename it to `ADMIN_EMAIL`.
+ *   - else if exactly one ADMIN exists, rename it to `ADMIN_EMAIL`.
  *
- * It never creates accounts and never deletes anything. Any failure is logged
- * and ignored so it can never block the API from starting.
+ * It never creates or deletes accounts. Any failure is logged and ignored so
+ * it can never block the API from starting.
  */
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
@@ -35,10 +37,31 @@ const prisma = new PrismaClient({
 try {
   const existing = await prisma.user.findUnique({
     where: { email: next },
-    select: { id: true, role: true },
+    select: { id: true, role: true, isActive: true },
   });
+
   if (existing) {
-    console.log(`[admin-email] ${next} already exists — nothing to do`);
+    if (existing.role !== 'ADMIN' || !existing.isActive) {
+      await prisma.user.update({
+        where: { id: existing.id },
+        data: { role: 'ADMIN', isActive: true },
+      });
+      console.log(
+        `[admin-email] promoted ${next} from ${existing.role} to ADMIN`,
+      );
+    } else {
+      console.log(`[admin-email] ${next} is already an active ADMIN`);
+    }
+
+    if (previous && previous !== next) {
+      const demoted = await prisma.user.updateMany({
+        where: { email: previous, role: 'ADMIN' },
+        data: { role: 'USER' },
+      });
+      if (demoted.count > 0) {
+        console.log(`[admin-email] demoted the previous admin ${previous} to USER`);
+      }
+    }
     process.exit(0);
   }
 
