@@ -14,7 +14,7 @@ import { SmsService } from './sms.service';
  * Issues and verifies the one-time codes used by the phone sign-in flow.
  *
  * Storage is deliberately light: codes live in Redis (with an in-memory
- * fallback used *only* while Redis is unreachable) for a few minutes and are
+ * fallback used *only* while Redis is unreachable) for 90 seconds and are
  * never persisted in Postgres. Only a hash of the code is stored, keyed by the
  * phone number.
  *
@@ -29,7 +29,7 @@ import { SmsService } from './sms.service';
  * flow without a real phone. In production the same missing configuration is a
  * hard error — the fixed code must never be handed out on a real deployment.
  */
-const OTP_TTL_SECONDS = 5 * 60;
+const OTP_TTL_SECONDS = 90;
 const OTP_RESEND_COOLDOWN_SECONDS = 60;
 const OTP_MAX_ATTEMPTS = 5;
 

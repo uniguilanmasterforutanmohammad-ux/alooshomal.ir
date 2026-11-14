@@ -86,7 +86,7 @@ export function AuthForm({
       );
       setPhone(result.phone);
       setDevCode(result.devCode ?? null);
-      setSecondsLeft(result.expiresIn ?? 300);
+      setSecondsLeft(result.expiresIn ?? 90);
       setStep('code');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ارسال کد ناموفق بود');
@@ -106,7 +106,7 @@ export function AuthForm({
       );
       setPhone(result.phone);
       setDevCode(result.devCode ?? null);
-      setSecondsLeft(result.expiresIn ?? 300);
+      setSecondsLeft(result.expiresIn ?? 90);
       setCode('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ارسال کد ناموفق بود');

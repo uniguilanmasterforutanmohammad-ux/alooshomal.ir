@@ -172,9 +172,13 @@ export class SupportChatService {
         },
       });
     }
-    // Alert the team on the first unread message of a burst; later messages
-    // only bump the counter so the bell does not turn into a firehose.
-    const shouldNotifyAdmins = created || conversation.staffUnread === 0;
+    // In-app bell: first unread message of a burst (or a reopened thread).
+    const wasClosed = conversation.status !== SupportChatStatus.OPEN;
+    const shouldNotifyAdmins =
+      created || wasClosed || conversation.staffUnread === 0;
+    // SMS is stricter: one message per new conversation (or a reopened one),
+    // never again for later messages in the same open thread.
+    const shouldSendSms = created || wasClosed;
 
     const message = await this.prisma.supportMessage.create({
       data: {
@@ -208,6 +212,7 @@ export class SupportChatService {
         link: '/jga4rm8j?section=support-chat',
         actorId: userId,
         sms: { section: 'پشتیبانی', subject: 'پشتیبانی آنلاین' },
+        skipSms: !shouldSendSms,
       });
     }
     if (created) {

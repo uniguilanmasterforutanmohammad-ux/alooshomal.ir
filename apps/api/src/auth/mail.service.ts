@@ -117,7 +117,7 @@ export class MailService {
     const fromAddress = (process.env.MAIL_FROM ?? process.env.MAIL_USER!).trim();
     const fromName = (process.env.MAIL_FROM_NAME ?? 'شمالی کارت').trim();
     const label = MailService.purposeLabel(purpose);
-    const text = `کد ${label}: ${code}\nاین کد تا ۵ دقیقه معتبر است و نباید در اختیار کسی قرار گیرد.`;
+    const text = `کد ${label}: ${code}\nاین کد تا ۹۰ ثانیه معتبر است و نباید در اختیار کسی قرار گیرد.`;
     const html = `
       <div dir="rtl" style="font-family:Tahoma,Arial,sans-serif;background:#f6f3ec;padding:24px">
         <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:16px;padding:24px;border:1px solid #e8e1d4">
@@ -129,7 +129,7 @@ export class MailService {
             ${code}
           </p>
           <p style="margin:0;color:#6b7280;font-size:12px;line-height:1.9">
-            این کد تا ۵ دقیقه معتبر است. اگر شما درخواست نداده‌اید، این ایمیل را نادیده بگیرید.
+            این کد تا ۹۰ ثانیه معتبر است. اگر شما درخواست نداده‌اید، این ایمیل را نادیده بگیرید.
           </p>
         </div>
       </div>`;
