@@ -307,13 +307,6 @@ export class AuthService {
     if (!user || !user.isActive || !user.passwordHash || !valid) {
       throw new UnauthorizedException('ایمیل یا رمز عبور اشتباه است');
     }
-    // `/login` is the public user page; managers have their own `/jga4rm8j/login`.
-    if (ADMIN_LOGIN_ROLES.has(user.role)) {
-      throw new ForbiddenException(
-        'این حساب مدیریتی است؛ لطفاً از صفحه‌ی ورود مدیران استفاده کنید',
-      );
-    }
-
     // Second factor: even a correct password must be confirmed with a one-time
     // code sent to the account's email (and phone, when configured). No token
     // is issued until `verifyEmailLogin` succeeds.
@@ -384,12 +377,6 @@ export class AuthService {
     if (!user.isActive || !user.passwordHash || !valid) {
       throw new UnauthorizedException('ایمیل یا رمز عبور اشتباه است');
     }
-    if (ADMIN_LOGIN_ROLES.has(user.role)) {
-      throw new ForbiddenException(
-        'این حساب مدیریتی است؛ لطفاً از صفحه‌ی ورود مدیران استفاده کنید',
-      );
-    }
-
     const issued = await this.otp.issueEmailLogin(
       user.id,
       user.email,
@@ -424,12 +411,6 @@ export class AuthService {
     if (!user || !user.isActive) {
       throw new UnauthorizedException('حساب کاربری معتبر نیست');
     }
-    if (ADMIN_LOGIN_ROLES.has(user.role)) {
-      throw new ForbiddenException(
-        'این حساب مدیریتی است؛ لطفاً از صفحه‌ی ورود مدیران استفاده کنید',
-      );
-    }
-
     await this.otp.verifyEmailLogin(user.id, dto.code);
 
     await this.activity.log({
@@ -444,7 +425,7 @@ export class AuthService {
   }
 
   // -------------------------------------------------------------------------
-  //  Admin / manager sign-in (`/jga4rm8j/login`)
+  //  Admin / manager sign-in API (the web UI uses the shared `/login` page)
   // -------------------------------------------------------------------------
 
   /**

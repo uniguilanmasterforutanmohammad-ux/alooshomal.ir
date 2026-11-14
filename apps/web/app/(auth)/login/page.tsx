@@ -9,13 +9,14 @@ import { AuthForm } from '@/components/auth/AuthForm';
 import { UserEmailAuth } from '@/components/auth/UserEmailAuth';
 import { useAuth } from '@/lib/auth';
 import { useAuthMethods } from '@/lib/auth-settings';
+import { postLoginPath } from '@/lib/post-login';
 import { safeInternalPath } from '@/lib/safe-next';
 import { cn } from '@/lib/utils';
 
 /**
- * Public sign-in / sign-up for regular users. Both methods (mobile + OTP and
- * email + password) finish with a one-time code. The admin sign-in page is not
- * linked from here on purpose.
+ * Shared sign-in / sign-up page for every role. Both methods (mobile + OTP and
+ * email + password) finish with a one-time code; admins and moderators are
+ * routed to their own panel after login.
  */
 function AuthPageContent() {
   const router = useRouter();
@@ -33,13 +34,7 @@ function AuthPageContent() {
   // a fresh page load never flashes the form for a logged-in user.
   useEffect(() => {
     if (!hydrated || !token) return;
-    const target =
-      next === '/dashboard' && user?.role === 'MODERATOR'
-        ? '/moderator'
-        : next === '/dashboard' && user?.role === 'ADMIN'
-          ? '/jga4rm8j'
-          : next;
-    router.replace(target);
+    router.replace(postLoginPath(next, user?.role));
   }, [hydrated, token, user?.role, next, router]);
 
   // Default to whichever method the admin left enabled (phone first), so a

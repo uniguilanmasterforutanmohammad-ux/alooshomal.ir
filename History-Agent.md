@@ -20,7 +20,45 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.0.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.1.0**.
+
+## ۱۴۰۵/۰۸/۲۳ — یکپارچه‌سازی ورود مدیران در صفحه‌ی `/login` — نسخه `v4.1.0`
+
+**هدف:** صفحه‌ی ورود کاربران عادی در `/login` بماند و ورود مدیران هم از همان
+صفحه انجام شود؛ صفحه‌ی مجزای `/jga4rm8j/login` حذف شود. مسیر پنل مدیریت
+همچنان تصادفی و مخفی (`/jga4rm8j`) می‌ماند.
+
+**تغییرات:**
+- `apps/web/app/(auth)/jga4rm8j/login/page.tsx`: حذف شد.
+- `apps/web/lib/post-login.ts`: تابع `postLoginPath` اضافه شد تا بعد از ورود،
+  `ADMIN` به `/jga4rm8j` و `MODERATOR` به `/moderator` برود و `?next=`
+  صریح حفظ شود.
+- `apps/web/app/(auth)/login/page.tsx`، `apps/web/components/auth/AuthForm.tsx`
+  و `apps/web/components/auth/UserEmailAuth.tsx`: ریدایرکت بعد از ورود بر
+  اساس نقش.
+- `apps/web/components/ui/SessionWatcher.tsx`،
+  `apps/web/components/layout/MobileNav.tsx`،
+  `apps/web/components/support/SupportChatWidget.tsx`،
+  `apps/web/components/moderator/*`، `apps/web/components/admin/AdminShell.tsx`،
+  `apps/web/app/jga4rm8j/use-admin-console.tsx` و
+  `apps/web/app/moderator/notifications/page.tsx`: همه‌ی ارجاع‌های ورود مدیران
+  به `/login` تغییر کردند.
+- `apps/api/src/auth/auth.service.ts`: رد کردن حساب‌های `ADMIN`/`MODERATOR`
+  از `login`، `verifyEmailLogin` و `emailStart` حذف شد تا مدیران با همان
+  صفحه‌ی مشترک وارد شوند. مسیرهای اختصاصی `admin/login` برای سازگاری باقی
+  ماندند.
+- `apps/web/components/admin/AdminAuthSettings.tsx` و `docs/API.md`: متن
+  صفحه‌ی ورود مشترک به‌روزرسانی شد.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.1.0`.
+
+**تأیید/تست:**
+- `cd apps/web && ./node_modules/.bin/tsc --noEmit` → exit 0.
+- `python3 scripts/check_api_docs.py` → exit 0.
+- `curl` روی کانتینر توسعه: `/login` → 200، `/jga4rm8j` → 200،
+  `/jga4rm8j/login` → 404.
+- `POST /api/auth/email` با حساب ادمین → `flow: "login"` و کد؛ سپس
+  `POST /api/auth/login/verify` → نقش `ADMIN` و `accessToken`.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۳ — اصلاح متن و حذف باکس‌های صفحه‌ی تعرفه‌ها — نسخه `v4.0.1`
 

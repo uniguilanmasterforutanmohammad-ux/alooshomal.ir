@@ -213,7 +213,7 @@ export function AdminShell({ section, onSection, children }: Props) {
     // Best-effort server-side revoke; never block the UI on it.
     void api.post('/auth/logout').catch(() => undefined);
     clear();
-    router.push('/jga4rm8j/login');
+    router.push('/login');
   }
 
   return (

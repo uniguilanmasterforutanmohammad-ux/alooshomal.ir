@@ -18,13 +18,9 @@ export function SessionWatcher() {
     function onExpired() {
       const path = window.location.pathname + window.location.search;
       clear();
-      if (!path.startsWith('/login') && !path.startsWith('/jga4rm8j/login')) {
-        // Admin/manager areas return to their own sign-in page.
-        const base =
-          path.startsWith('/jga4rm8j') || path.startsWith('/moderator')
-            ? '/jga4rm8j/login'
-            : '/login';
-        router.replace(`${base}?next=${encodeURIComponent(path)}`);
+      if (!path.startsWith('/login')) {
+        // Every role signs in on the shared `/login` page.
+        router.replace(`/login?next=${encodeURIComponent(path)}`);
       }
     }
     window.addEventListener('alooshomal:session-expired', onExpired);

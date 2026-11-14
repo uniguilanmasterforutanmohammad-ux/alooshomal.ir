@@ -121,7 +121,7 @@ export class AuthController {
   }
 
   // -------------------------------------------------------------------------
-  //  Admin / manager sign-in — a separate page (`/jga4rm8j/login`)
+  //  Admin / manager sign-in API (the web UI uses the shared `/login` page)
   // -------------------------------------------------------------------------
 
   @Public()

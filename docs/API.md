@@ -42,8 +42,9 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
    اگر ایمیل وجود داشته باشد رمز بررسی و کد ورود ارسال می‌شود (`flow: "login"`)،
    وگرنه حساب ساخته و کد ثبت‌نام ارسال می‌شود (`flow: "register"`). مرحله‌ی
    دوم همان `login/verify` یا `register/verify` است.
-   ورود ادمین و مدیران صفحه‌ی مجزای `/jga4rm8j/login` دارد و از این مسیرها
-   استفاده می‌کند: `POST /api/auth/admin/login` و
+   ورود ادمین و مدیران هم از همان صفحه‌ی مشترک `/login` انجام می‌شود و پس از
+   ورود به پنل `/jga4rm8j` (یا `/moderator`) هدایت می‌شوند. مسیرهای اختصاصی
+   API برای سازگاری باقی مانده‌اند: `POST /api/auth/admin/login` و
    `POST /api/auth/admin/login/verify` (ایمیل/رمز + کد)، و
    `POST /api/auth/admin/phone/request-code` و
    `POST /api/auth/admin/phone/verify` (موبایل + کد). این مسیرها فقط

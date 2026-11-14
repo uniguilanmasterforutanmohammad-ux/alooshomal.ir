@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
 import { api, type AuthResponse } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { postLoginPath } from '@/lib/post-login';
 import { safeInternalPath } from '@/lib/safe-next';
 
 interface RequestCodeResult {
@@ -48,10 +49,6 @@ export function AuthForm({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  function finish() {
-    router.replace(target);
-  }
-
   async function requestCode(event: React.FormEvent) {
     event.preventDefault();
     setLoading(true);
@@ -81,7 +78,7 @@ export function AuthForm({
         code,
       });
       setSession(data.accessToken, data.user);
-      finish();
+      router.replace(postLoginPath(target, data.user.role));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تأیید کد ناموفق بود');
     } finally {

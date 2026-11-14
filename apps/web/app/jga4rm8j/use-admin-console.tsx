@@ -126,7 +126,7 @@ export function useAdminConsole() {
       return;
     }
     if (!token) {
-      router.replace('/jga4rm8j/login');
+      router.replace('/login');
       return;
     }
     if (user && user.role === 'MODERATOR') {

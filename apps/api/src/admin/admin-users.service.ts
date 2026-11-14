@@ -305,7 +305,7 @@ export class AdminUsersService {
    * Create a limited admin account. Requires an email + password (the
    * moderator signs in with email/password) and the granted content scopes. An
    * optional phone number lets the same account also sign in with mobile + OTP
-   * on `/jga4rm8j/login`.
+   * on the shared `/login` page.
    */
   async createModerator(
     adminId: string,

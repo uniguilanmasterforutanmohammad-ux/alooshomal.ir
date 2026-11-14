@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils';
 import { SupportChatPanel } from './SupportChatPanel';
 
 const HIDDEN_PREFIXES = ['/jga4rm8j', '/moderator', '/dashboard/support'];
-const HIDDEN_EXACT = ['/login', '/register', '/jga4rm8j/login'];
+const HIDDEN_EXACT = ['/login', '/register'];
 
 /**
  * Site-wide floating support button. It is mounted once in the root layout, so

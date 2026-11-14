@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/Input';
 import { api, type AuthResponse } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { postLoginPath } from '@/lib/post-login';
 
 interface OtpStart {
   requiresOtp: true;
@@ -64,7 +65,7 @@ export function UserEmailAuth({ next }: { next: string }) {
         flow === 'login' ? '/auth/login/verify' : '/auth/register/verify';
       const data = await api.post<AuthResponse>(path, { email, code });
       setSession(data.accessToken, data.user);
-      router.replace(next);
+      router.replace(postLoginPath(next, data.user.role));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تأیید کد ناموفق بود');
     } finally {
