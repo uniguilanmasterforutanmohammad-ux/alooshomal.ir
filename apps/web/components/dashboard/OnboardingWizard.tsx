@@ -726,7 +726,7 @@ export function OnboardingWizard() {
                 {identityTotal > 0 ? (
                   <p className="border-t border-dashed border-[var(--vintage-border)] px-4 py-2 text-[10px] leading-5 text-muted">
                     هر دو استعلام (شاهکار + هویتی) با یک پرداخت آنلاین انجام
-                    می‌شوند و مبلغی به‌صورت بدهی در کیف پول ثبت نمی‌شود.
+                    می‌شوند.
                   </p>
                 ) : null}
               </div>
