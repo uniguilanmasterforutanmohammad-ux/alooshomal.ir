@@ -13,6 +13,7 @@ import { SettingsService } from '../settings/settings.service';
 import {
   DEFAULT_ONBOARDING_STEPS,
   MANUAL_STEP_KINDS,
+  ONBOARDING_FINISHED_STEP_ID,
   ONBOARDING_STEPS_SETTING_KEY,
   ONBOARDING_STEP_KINDS,
   type OnboardingDocument,
@@ -179,7 +180,7 @@ export class OnboardingService implements OnModuleInit {
       'بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.',
     );
     const steps = (await this.getSteps()).filter((step) => step.enabled);
-    const [done, identity, history, documents] = await Promise.all([
+    const [done, identity, history, documents, finished] = await Promise.all([
       this.completionMap(userId),
       this.identityState(userId),
       this.prisma.identityInquiryLog.findMany({
@@ -188,6 +189,15 @@ export class OnboardingService implements OnModuleInit {
         take: 25,
       }),
       this.documentsState(userId),
+      this.prisma.onboardingStepCompletion.findUnique({
+        where: {
+          userId_stepId: {
+            userId,
+            stepId: ONBOARDING_FINISHED_STEP_ID,
+          },
+        },
+        select: { stepId: true },
+      }),
     ]);
     const states: OnboardingStepState[] = steps.map((step) => {
       const isDone = done.get(step.id) ?? false;
@@ -202,7 +212,24 @@ export class OnboardingService implements OnModuleInit {
       identity,
       history,
       documents,
+      finished: Boolean(finished),
     };
+  }
+
+  /** Record that the user finished the wizard (idempotent). */
+  async finish(userId: string): Promise<OnboardingProgressPayload> {
+    await this.settings.assertFeatureEnabled(
+      'featureOnboarding',
+      'بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.',
+    );
+    await this.prisma.onboardingStepCompletion.upsert({
+      where: {
+        userId_stepId: { userId, stepId: ONBOARDING_FINISHED_STEP_ID },
+      },
+      create: { userId, stepId: ONBOARDING_FINISHED_STEP_ID },
+      update: { completedAt: new Date() },
+    });
+    return this.getMyProgress(userId);
   }
 
   /** The documents the user uploaded for the blue-tick review (newest first). */

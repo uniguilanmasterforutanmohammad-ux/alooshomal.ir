@@ -20,7 +20,32 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.13.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.14.0**.
+
+## ۱۴۰۵/۰۸/۲۴ — گره‌زدن «امتیاز من» و «شروع آسان» به سوئیچ‌های مدیر — نسخه `v4.14.0`
+
+**هدف:** وقتی مدیر «شهروند خبرنگار و ثبت خبر» را متوقف می‌کند، «امتیاز من» هم
+از پنل کاربری حذف شود؛ در «شروع آسان» دکمه‌های کیف پول با خاموش‌بودن کیف پول
+پنهان شوند و پس از «اتمام مراحل» دیگر «شروع آسان» در پنل نمایش داده نشود.
+
+**تغییرات:**
+- `apps/web/components/dashboard/UserShell.tsx`: وابسته‌کردن آیتم «امتیاز من»
+  به `featureNews` و پنهان‌کردن «شروع آسان» پس از ثبت پایان مراحل.
+- `apps/web/app/dashboard/points/page.tsx`: نمایش پیام غیرفعال‌بودن همراه با
+  قابلیت خبر.
+- `apps/api/src/onboarding/onboarding.constants.ts` و `onboarding.service.ts`:
+  افزودن رکورد نشانه‌ی پایان مراحل و فیلد `finished` به پیشرفت.
+- `apps/api/src/onboarding/onboarding.controller.ts`: مسیر `POST /onboarding/finish`.
+- `apps/api/src/profile/profile.service.ts` و `apps/web/lib/profile-status.ts`:
+  برگرداندن `onboardingFinished` در پاسخ پروفایل.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: پنهان‌کردن بدهی/پرداخت
+  کیف پول وقتی کیف پول غیرفعال است و ثبت پایان مراحل با دکمه‌ی «اتمام مراحل».
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` → بدون خطا.
+- `docker exec alooshomal-web npx tsc --noEmit` → فقط خطاهای از پیش موجود
+  `.next/types/validator.ts`.
+- `python3 scripts/check_api_docs.py` → بدون خطا.
 
 ## ۱۴۰۵/۰۸/۲۴ — نمایش موبایل و کد ملی کاربران در پنل مدیر — نسخه `v4.13.0`
 

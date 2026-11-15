@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   ArrowRight,
@@ -40,6 +41,7 @@ import {
   type PlanPeriodMonths,
 } from '@/lib/plan-periods';
 import { toast } from '@/lib/toast';
+import { useFeatures } from '@/lib/features';
 import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
 import { OnboardingBusinessForm } from '@/components/dashboard/OnboardingBusinessForm';
 import { cn } from '@/lib/utils';
@@ -74,6 +76,7 @@ interface OnboardingPayload {
   identity: IdentityState;
   history: IdentityLog[];
   documents: OnboardingDocument[];
+  finished?: boolean;
 }
 
 interface OnboardingDocument {
@@ -178,6 +181,9 @@ function formatBytes(bytes: number): string {
  * welcome screen is a normal step (manual tick) so the admin can edit it.
  */
 export function OnboardingWizard() {
+  const router = useRouter();
+  const { isFeatureVisible } = useFeatures();
+  const walletVisible = isFeatureVisible('featureWallet');
   const [payload, setPayload] = useState<OnboardingPayload | null>(null);
   const [index, setIndex] = useState(0);
   const [wallet, setWallet] = useState<WalletPayload | null>(null);
@@ -373,6 +379,16 @@ export function OnboardingWizard() {
       /* api layer surfaces the error */
     } finally {
       setPaying(false);
+    }
+  }
+
+  async function finishOnboarding() {
+    try {
+      await api.post('/onboarding/finish', {});
+      toast.success('«شروع آسان» تکمیل شد و از پنل کاربری برداشته شد.');
+      router.push('/dashboard');
+    } catch {
+      /* api layer surfaces the error */
     }
   }
 
@@ -804,7 +820,7 @@ export function OnboardingWizard() {
                 </button>
               ) : null}
 
-              {payload.identity?.verified && debt > 0 ? (
+              {walletVisible && payload.identity?.verified && debt > 0 ? (
                 <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800/60 dark:bg-amber-950/40">
                   <span className="text-xs font-bold text-amber-800 dark:text-amber-200">
                     بدهی کیف پول: {faPrice(debt)}
@@ -838,9 +854,11 @@ export function OnboardingWizard() {
                   .filter(Boolean)
                   .join(' ') || undefined
               }
-              debt={debt}
+              debt={walletVisible ? debt : 0}
               paying={paying}
-              onPay={() => void payInvoice()}
+              onPay={() => {
+                if (walletVisible) void payInvoice();
+              }}
               onSaved={() => {
                 void load().then(() => goTo(safeIndex + 1));
               }}
@@ -1077,13 +1095,14 @@ export function OnboardingWizard() {
                 </span>
               </div>
 
-              <Link
-                href="/dashboard/business-cards"
+              <button
+                type="button"
+                onClick={() => void finishOnboarding()}
                 className="indeed-btn indeed-btn-primary w-fit py-2 text-xs"
               >
                 اتمام مراحل
                 <ArrowLeft className="size-4" aria-hidden />
-              </Link>
+              </button>
             </div>
             ) : (
               <p className="rounded-2xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-5 text-center text-xs leading-6 text-muted">

@@ -9,6 +9,13 @@
  */
 export const ONBOARDING_STEPS_SETTING_KEY = 'onboardingSteps';
 
+/**
+ * Sentinel completion row written when the user presses «پایان مراحل» on the
+ * final step. It is not a real wizard step; it only records that the user has
+ * dismissed onboarding so the dashboard can stop advertising «شروع آسان».
+ */
+export const ONBOARDING_FINISHED_STEP_ID = '__onboarding_finished__';
+
 export type OnboardingStepKind =
   | 'welcome'
   | 'identity'
@@ -118,6 +125,8 @@ export interface OnboardingProgressPayload {
   steps: OnboardingStepState[];
   completed: number;
   total: number;
+  /** True once the user pressed «پایان مراحل» on the final step. */
+  finished: boolean;
   /** id of the first unfinished step (the one the wizard expands). */
   currentStepId: string | null;
   /** the identity data collected by the Zohal inquiry, if any. */

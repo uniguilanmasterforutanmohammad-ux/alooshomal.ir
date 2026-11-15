@@ -11,6 +11,7 @@ export interface MyProfileStatus {
   lastName: string | null;
   nationalCode: string | null;
   profileCompleted: boolean;
+  onboardingFinished?: boolean;
 }
 
 /**

@@ -33,6 +33,14 @@ export class OnboardingController {
     return this.onboarding.completeStep(user.id, id);
   }
 
+  @Post('finish')
+  @ApiOperation({
+    summary: 'ثبت پایان «شروع آسان» و توقف نمایش آن در پنل کاربری',
+  })
+  finish(@CurrentUser() user: AuthUser) {
+    return this.onboarding.finish(user.id);
+  }
+
   @Delete('steps/:id/complete')
   @ApiOperation({ summary: 'برداشتن تیک یک مرحله‌ی سفارشی' })
   uncomplete(@CurrentUser() user: AuthUser, @Param('id') id: string) {

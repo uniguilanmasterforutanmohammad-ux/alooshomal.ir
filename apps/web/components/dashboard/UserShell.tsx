@@ -75,7 +75,7 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
       { href: '/dashboard/subscriptions', label: 'اشتراک من', icon: Crown, exact: false },
       { href: '/dashboard/wallet', label: 'کیف پول', icon: Wallet, exact: false, feature: 'featureWallet' },
       { href: '/dashboard/boost', label: 'افزایش بازدید و تبلیغات', icon: TrendingUp, exact: false, feature: 'featureBoostRequests' },
-      { href: '/dashboard/points', label: 'امتیاز من', icon: Coins, exact: false },
+      { href: '/dashboard/points', label: 'امتیاز من', icon: Coins, exact: false, feature: 'featureNews' },
       { href: '/dashboard/reporter', label: 'شهروند خبرنگار', icon: Newspaper, exact: false, feature: 'featureNews' },
     ],
   },
@@ -126,12 +126,15 @@ export function UserShell({ children }: { children: React.ReactNode }) {
   const { isFeatureVisible } = useFeatures();
   const isRegularUser =
     user?.role === 'USER' || user?.role === 'CITIZEN_REPORTER';
-  const { completed: profileCompleted } = useProfileStatus(isRegularUser);
+  const { status: profileStatus, completed: profileCompleted } =
+    useProfileStatus(isRegularUser);
+  const onboardingFinished = profileStatus?.onboardingFinished === true;
   const showProfileBanner =
     isRegularUser && !profileCompleted && pathname !== '/dashboard/onboarding';
   const [open, setOpen] = useState(false);
   const isVisible = (item: NavItem) =>
-    !item.feature || isFeatureVisible(item.feature);
+    (!item.feature || isFeatureVisible(item.feature)) &&
+    !(item.href === '/dashboard/onboarding' && onboardingFinished);
   const groups = NAV_GROUPS.map((group) => ({
     title: group.title,
     items: group.items.filter(isVisible),

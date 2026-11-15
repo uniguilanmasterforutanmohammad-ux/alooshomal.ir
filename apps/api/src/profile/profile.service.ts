@@ -25,6 +25,7 @@ import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
 import { SettingsService } from '../settings/settings.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ONBOARDING_FINISHED_STEP_ID } from '../onboarding/onboarding.constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { ZohalService } from '../zohal/zohal.service';
 import { WalletService } from '../wallet/wallet.service';
@@ -115,7 +116,7 @@ export class ProfileService {
 
   /** Profile of the current user plus their latest pending change request. */
   async me(userId: string) {
-    const [user, pending, identityInquiryAvailable, identityHistory] =
+    const [user, pending, identityInquiryAvailable, identityHistory, onboardingFinished] =
       await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -151,6 +152,15 @@ export class ProfileService {
         orderBy: { createdAt: 'desc' },
         take: 25,
       }),
+      this.prisma.onboardingStepCompletion.findUnique({
+        where: {
+          userId_stepId: {
+            userId,
+            stepId: ONBOARDING_FINISHED_STEP_ID,
+          },
+        },
+        select: { stepId: true },
+      }),
     ]);
     if (!user) {
       throw new NotFoundException('کاربر یافت نشد');
@@ -161,6 +171,7 @@ export class ProfileService {
       ...rest,
       hasPassword: Boolean(passwordHash),
       profileCompleted: isProfileComplete(user),
+      onboardingFinished: Boolean(onboardingFinished),
       identityInquiryAvailable,
       identity: {
         phoneMatched: Boolean(user.phoneMatchVerifiedAt),
