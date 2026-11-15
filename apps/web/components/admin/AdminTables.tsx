@@ -7,7 +7,9 @@ import { cn } from '@/lib/utils';
 
 export interface AdminUser {
   id: string;
-  email: string;
+  email: string | null;
+  phone?: string | null;
+  nationalCode?: string | null;
   fullName: string | null;
   role: 'USER' | 'CITIZEN_REPORTER' | 'MODERATOR' | 'ADMIN';
   isActive: boolean;
@@ -142,6 +144,8 @@ export function UsersTable({
             <tr className="bg-[var(--vintage-surface)] text-xs text-muted">
               <th className="px-4 py-2.5 font-bold">نام</th>
               <th className="px-4 py-2.5 font-bold">ایمیل</th>
+              <th className="px-4 py-2.5 font-bold">موبایل</th>
+              <th className="px-4 py-2.5 font-bold">کد ملی</th>
               <th className="px-4 py-2.5 font-bold">نقش</th>
               <th className="px-4 py-2.5 font-bold">تاریخ عضویت</th>
               <th className="px-4 py-2.5 font-bold">وضعیت</th>
@@ -163,7 +167,13 @@ export function UsersTable({
                   ) : null}
                 </td>
                 <td dir="ltr" className="px-4 py-2.5 text-right text-xs text-muted">
-                  {user.email}
+                  {user.email ?? '—'}
+                </td>
+                <td dir="ltr" className="px-4 py-2.5 text-right text-xs text-muted">
+                  {user.phone ?? '—'}
+                </td>
+                <td dir="ltr" className="px-4 py-2.5 text-right text-xs text-muted">
+                  {user.nationalCode ?? '—'}
                 </td>
                 <td className="px-4 py-2.5 text-xs text-muted">
                   {onRole ? (
@@ -254,7 +264,7 @@ export function UsersTable({
             ))}
             {users.length === 0 ? (
               <tr>
-                <td colSpan={manageable ? 6 : 5} className="px-4 py-8 text-center text-muted">
+                <td colSpan={manageable ? 8 : 7} className="px-4 py-8 text-center text-muted">
                   کاربری یافت نشد.
                 </td>
               </tr>

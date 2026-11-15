@@ -42,6 +42,8 @@ export class AdminUsersService {
           OR: [
             { email: { contains: search, mode: 'insensitive' } },
             { fullName: { contains: search, mode: 'insensitive' } },
+            { phone: { contains: search, mode: 'insensitive' } },
+            { nationalCode: { contains: search, mode: 'insensitive' } },
           ],
         }
       : {};
@@ -55,6 +57,8 @@ export class AdminUsersService {
         select: {
           id: true,
           email: true,
+          phone: true,
+          nationalCode: true,
           fullName: true,
           role: true,
           isActive: true,
