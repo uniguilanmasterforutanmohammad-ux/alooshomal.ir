@@ -190,11 +190,6 @@ export function useAdminConsole() {
     setCardsPage(1);
   }, [status, appliedSearch]);
 
-  // reset to the first page whenever the user search changes
-  useEffect(() => {
-    setUsersPage(1);
-  }, [usersAppliedSearch]);
-
   async function updateTicket(id: string, next: AdminTicket['status']) {
     try {
       await api.patch(`/admin/tickets/${id}`, { status: next });

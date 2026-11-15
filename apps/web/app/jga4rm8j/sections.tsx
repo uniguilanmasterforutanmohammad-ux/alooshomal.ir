@@ -317,6 +317,7 @@ export function UsersSection({ state }: { state: AdminConsole }) {
       <form
         onSubmit={(event) => {
           event.preventDefault();
+          state.setUsersPage(1);
           state.setUsersAppliedSearch(state.usersSearch);
         }}
         className="mb-3 flex flex-wrap items-center gap-2"
@@ -340,6 +341,7 @@ export function UsersSection({ state }: { state: AdminConsole }) {
           <button
             type="button"
             onClick={() => {
+              state.setUsersPage(1);
               state.setUsersSearch('');
               state.setUsersAppliedSearch('');
             }}
