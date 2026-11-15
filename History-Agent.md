@@ -20,7 +20,29 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.15.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.16.0**.
+
+## ۱۴۰۵/۰۸/۲۴ — نگه‌داشتن فقط تم توییتر و پاک‌سازی CSS — نسخه `v4.16.0`
+
+**هدف:** در «تنظیمات ← ظاهر سایت» فقط تم توییتر بماند؛ تم‌های وینتیج، مدرن،
+بازارچه و کاشی و استایل‌های CSS مربوط به آن‌ها حذف شوند.
+
+**تغییرات:**
+- `apps/web/lib/site-theme.ts`: محدودکردن `SiteTheme` و گزینه‌ها به `twitter`
+  و پیش‌فرض‌کردن آن.
+- `apps/api/src/settings/settings.constants.ts`: محدودکردن `SITE_THEMES` به
+  `twitter` و پیش‌فرض جدید.
+- `apps/web/components/admin/AdminAppearanceSettings.tsx`: حذف پیش‌نمایش
+  تم‌های حذف‌شده.
+- `apps/web/app/globals.css`: حذف بلوک کامل CSS «بازارچه» و ارجاع‌های آن.
+- حذف `apps/web/lib/site-themes/*`، `apps/web/app/themes/kashi.css` و
+  `apps/web/components/admin/theme-previews/*`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` → بدون خطا.
+- `docker exec alooshomal-web npx tsc --noEmit` → فقط خطاهای از پیش موجود
+  `.next/types/validator.ts`.
+- ESLint فایل‌های تغییریافته بدون خطا.
 
 ## ۱۴۰۵/۰۸/۲۴ — تطبیق «اشتراک فعلی شما» با دوره‌ی خریداری‌شده — نسخه `v4.15.1`
 
