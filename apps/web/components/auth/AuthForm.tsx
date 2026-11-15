@@ -32,14 +32,13 @@ function formatSeconds(total: number): string {
 /**
  * Unified sign-in / sign-up flow (single form, one page).
  *
- *  1. `phone`   — enter the mobile number, request a one-time code.
+ *  1. `phone`   — enter a mobile number *or* an email address, request a
+ *                 one-time code (SMS/Bale for a number, email for an address).
  *  2. `code`    — the OTP field only. Both new and returning numbers finish
- *                 here; a new account starts with just the phone number and
+ *                 here; a new account starts with just the identifier and
  *                 completes its identity in the «شروع آسان» section
- *                 (`/dashboard/onboarding`).
- *
- * Email is no longer collected in the phone flow. An «ورود با ایمیل و رمز
- * عبور» escape hatch is still available for accounts that prefer that method.
+ *                 (`/dashboard/onboarding`). Email accounts can set a fixed
+ *                 password later from the profile page.
  */
 export function AuthForm({
   next,
