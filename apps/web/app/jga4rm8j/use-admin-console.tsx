@@ -40,6 +40,7 @@ export function useAdminConsole() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingBusinessCardId, setEditingBusinessCardId] = useState<string | null>(null);
   const [openTicketId, setOpenTicketId] = useState<string | null>(null);
+  const [openUserId, setOpenUserId] = useState<string | null>(null);
   const [allUsers, setAllUsers] = useState<AdminUser[] | null>(null);
   const [usersMeta, setUsersMeta] = useState<PaginationMeta | null>(null);
   const [usersPage, setUsersPage] = useState(1);
@@ -455,6 +456,8 @@ export function useAdminConsole() {
     loadOverview,
     openTicketId,
     setOpenTicketId,
+    openUserId,
+    setOpenUserId,
   };
 }
 

@@ -86,10 +86,13 @@ export function UsersTable({
   onComment,
   onRole,
   onSessions,
+  onOpen,
   title = 'لیست کاربران اخیر',
 }: {
   users: AdminUser[];
   onViewAll?: () => void;
+  /** Open the full per-user detail view by clicking the user's name. */
+  onOpen?: (id: string) => void;
   onToggleActive?: (id: string, isActive: boolean, reason?: string) => void;
   onDelete?: (id: string) => void;
   onComment?: (id: string, comment: string) => void;
@@ -156,7 +159,18 @@ export function UsersTable({
             {users.map((user) => (
               <tr key={user.id} className="border-t border-[var(--vintage-border)]">
                 <td className="px-4 py-2.5 font-semibold text-ink">
-                  {user.fullName ?? '—'}
+                  {onOpen ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpen(user.id)}
+                      title="مشاهده‌ی تمام اطلاعات کاربر"
+                      className="text-right font-semibold text-brand hover:underline"
+                    >
+                      {user.fullName ?? user.email ?? 'بدون نام'}
+                    </button>
+                  ) : (
+                    (user.fullName ?? '—')
+                  )}
                   {user.adminComment ? (
                     <span
                       title={user.adminComment}

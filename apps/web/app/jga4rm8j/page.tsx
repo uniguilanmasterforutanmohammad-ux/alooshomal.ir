@@ -58,14 +58,19 @@ import { useAdminConsole } from './use-admin-console';
 function AdminContent() {
   const state = useAdminConsole();
   const { section } = state;
+  const head =
+    section === 'users' && state.openUserId
+      ? {
+          title: 'جزئیات کاربر',
+          sub: 'تمام اطلاعات، محتوا، رسانه‌ها و تراکنش‌های یک کاربر',
+        }
+      : PAGE_HEAD[section];
 
   return (
     <AdminShell section={section} onSection={state.setSection}>
       <div className="mb-5">
-        <h2 className="text-xl font-extrabold text-ink">
-          {PAGE_HEAD[section].title}
-        </h2>
-        <p className="text-sm text-muted">{PAGE_HEAD[section].sub}</p>
+        <h2 className="text-xl font-extrabold text-ink">{head.title}</h2>
+        <p className="text-sm text-muted">{head.sub}</p>
       </div>
 
       {state.error ? (

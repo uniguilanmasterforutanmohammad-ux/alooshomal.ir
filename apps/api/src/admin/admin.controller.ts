@@ -122,6 +122,14 @@ export class AdminController {
     return this.adminUsers.listUsers(query, query.search);
   }
 
+  @Get('users/:id/detail')
+  @ApiOperation({
+    summary: 'نمای کامل یک کاربر: پروفایل، محتوا، رسانه‌ها، پرداخت‌ها و اشتراک‌ها',
+  })
+  userDetail(@Param('id') id: string) {
+    return this.adminUsers.getUserDetail(id);
+  }
+
   @Get('emails')
   @ApiOperation({
     summary: 'ایمیل‌های ارسالی به کاربران (با صفحه‌بندی، جستجو و وضعیت)',

@@ -33,6 +33,7 @@ import { AdminStoragePanel } from '@/components/admin/AdminStoragePanel';
 import { AdminSubscriptions } from '@/components/admin/AdminSubscriptions';
 import { AdminTaxonomyImport } from '@/components/admin/AdminTaxonomyImport';
 import { AdminTicketPanel } from '@/components/admin/AdminTicketPanel';
+import { AdminUserDetail } from '@/components/admin/AdminUserDetail';
 import {
   EMPTY_SIGNUP_SERIES,
   QuickActions,
@@ -95,6 +96,10 @@ export function OverviewSection({ state }: { state: AdminConsole }) {
       <UsersTable
         users={state.overview?.recentUsers ?? []}
         onViewAll={() => state.setSection('users')}
+        onOpen={(id) => {
+          state.setOpenUserId(id);
+          state.setSection('users');
+        }}
       />
 
       <div className="grid gap-5 xl:grid-cols-2">
@@ -297,12 +302,22 @@ export function BusinessCardsSection({ state }: { state: AdminConsole }) {
 }
 
 export function UsersSection({ state }: { state: AdminConsole }) {
+  if (state.openUserId) {
+    return (
+      <AdminUserDetail
+        userId={state.openUserId}
+        onClose={() => state.setOpenUserId(null)}
+      />
+    );
+  }
+
   return (
     <div>
       <AdminProfileRequests />
       <UsersTable
         title="همه کاربران"
         users={state.allUsers ?? state.overview?.recentUsers ?? []}
+        onOpen={state.setOpenUserId}
         onToggleActive={state.setUserActive}
         onDelete={state.deleteUser}
         onComment={state.setUserComment}

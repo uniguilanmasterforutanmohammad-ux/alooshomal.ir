@@ -42,6 +42,18 @@ export interface StorageUsage {
   folders: StorageFolderUsage[];
 }
 
+/** One uploaded object owned by a user, as listed in the admin user detail. */
+export interface OwnerStorageObject {
+  key: string;
+  url: string;
+  /** top-level folder, e.g. `avatars` */
+  folder: string;
+  /** Persian label of the folder when known */
+  label: string;
+  size: number;
+  lastModified: Date | null;
+}
+
 /**
  * Thin wrapper around object storage (MinIO, S3-compatible).
  *
@@ -250,5 +262,58 @@ export class StorageService implements OnModuleInit {
       totalBytes,
       folders: [...byFolder.values()].sort((a, b) => b.bytes - a.bytes),
     };
+  }
+
+  /**
+   * Every object a user uploaded, across the known category folders. The key
+   * layout is `<folder>/<ownerId>/<uuid>.<ext>`, so each folder is listed with
+   * that exact prefix. Storage problems never fail the caller — the admin user
+   * detail still loads with an empty media list.
+   */
+  async listOwnerObjects(ownerId: string): Promise<OwnerStorageObject[]> {
+    if (!this.enabled || !this.ready) {
+      return [];
+    }
+
+    const folders = Object.values(UPLOAD_CATEGORIES);
+    const groups = await Promise.all(
+      folders.map(async (category) => {
+        const items: OwnerStorageObject[] = [];
+        try {
+          await new Promise<void>((resolve, reject) => {
+            const stream = this.client.listObjectsV2(
+              this.bucket,
+              `${category.folder}/${ownerId}/`,
+              true,
+            );
+            stream.on('data', (item: BucketItem) => {
+              if (!item.name || typeof item.size !== 'number') return;
+              items.push({
+                key: item.name,
+                url: this.publicUrl(item.name),
+                folder: category.folder,
+                label: category.label,
+                size: item.size,
+                lastModified: item.lastModified ?? null,
+              });
+            });
+            stream.on('error', reject);
+            stream.on('end', resolve);
+          });
+        } catch (error) {
+          this.logger.warn(
+            `could not list ${category.folder}/${ownerId}: ${(error as Error).message}`,
+          );
+        }
+        return items;
+      }),
+    );
+
+    return groups
+      .flat()
+      .sort(
+        (a, b) =>
+          (b.lastModified?.getTime() ?? 0) - (a.lastModified?.getTime() ?? 0),
+      );
   }
 }

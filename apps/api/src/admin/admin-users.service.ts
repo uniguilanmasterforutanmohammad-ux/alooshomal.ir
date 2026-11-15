@@ -14,6 +14,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SessionsService } from '../sessions/sessions.service';
 import { SettingsService } from '../settings/settings.service';
+import { StorageService } from '../uploads/storage.service';
 import { notifyUser } from './admin-notify';
 
 const SALT_ROUNDS = 12;
@@ -32,6 +33,7 @@ export class AdminUsersService {
     private readonly settings: SettingsService,
     private readonly activity: ActivityService,
     private readonly sessions: SessionsService,
+    private readonly storage: StorageService,
   ) {}
 
   async listUsers(pagination: PaginationDto, search?: string) {
@@ -80,6 +82,366 @@ export class AdminUsersService {
         totalPages: Math.ceil(total / limit),
         hasNext: page * limit < total,
         hasPrev: page > 1,
+      },
+    };
+  }
+
+  /**
+   * Full 360° view of one user for the admin «کاربران» panel: profile and
+   * identity data, every content item they own, subscriptions and payments,
+   * wallet ledger, points, tickets, notifications, sessions and the actual
+   * objects uploaded to the media bucket. Lists are capped so a heavy account
+   * still opens quickly; the table counts come from `_count`.
+   */
+  async getUserDetail(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        phoneVerified: true,
+        fullName: true,
+        firstName: true,
+        lastName: true,
+        fatherName: true,
+        nationalCode: true,
+        birthDate: true,
+        phoneMatchVerifiedAt: true,
+        identityVerifiedAt: true,
+        identityInquiryData: true,
+        verifiedAt: true,
+        blueTickRequestedAt: true,
+        blueTickNote: true,
+        documents: true,
+        role: true,
+        isActive: true,
+        moderatorScopes: true,
+        deactivatedReason: true,
+        deactivatedAt: true,
+        adminComment: true,
+        planId: true,
+        planExpiresAt: true,
+        pointsBalance: true,
+        createdAt: true,
+        updatedAt: true,
+        plan: {
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            maxBiolinks: true,
+            maxBusinessCards: true,
+          },
+        },
+        _count: {
+          select: {
+            biolinks: true,
+            businessCards: true,
+            feedPosts: true,
+            tickets: true,
+            notifications: true,
+            sessions: true,
+            identityInquiryLogs: true,
+            invoices: true,
+          },
+        },
+      },
+    });
+    if (!user) {
+      throw new NotFoundException('کاربر یافت نشد');
+    }
+
+    const [
+      biolinks,
+      businessCards,
+      feedPosts,
+      subscriptions,
+      feedSubscriptions,
+      subscriptionPayments,
+      wallet,
+      walletPayments,
+      servicePayments,
+      requestPayments,
+      boosts,
+      ads,
+      identityInquiries,
+      pointsLedger,
+      tickets,
+      invoices,
+      profileChangeRequests,
+      reviews,
+      rewardRedemptions,
+      onboardingCompletions,
+      notifications,
+      sessions,
+      supportConversations,
+      activityLogs,
+      sentEmails,
+      claimRequests,
+      media,
+    ] = await Promise.all([
+      this.prisma.biolink.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+        include: {
+          city: { select: { id: true, name: true } },
+          business: { select: { id: true, name: true } },
+          _count: { select: { scanEvents: true, likes: true, saves: true } },
+        },
+      }),
+      this.prisma.businessCard.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+        include: {
+          city: { select: { id: true, name: true } },
+          business: { select: { id: true, name: true } },
+          _count: {
+            select: { scans: true, likes: true, saves: true, reviews: true },
+          },
+        },
+      }),
+      this.prisma.feedPost.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 200,
+        include: {
+          topic: { select: { id: true, name: true } },
+          _count: { select: { likes: true, comments: true, saves: true } },
+        },
+      }),
+      this.prisma.userSubscription.findMany({
+        where: { userId },
+        orderBy: { requestedAt: 'desc' },
+        include: {
+          plan: true,
+          decidedBy: { select: { id: true, fullName: true, email: true } },
+          payment: true,
+        },
+      }),
+      this.prisma.userFeedSubscription.findMany({
+        where: { userId },
+        orderBy: { requestedAt: 'desc' },
+        include: {
+          package: true,
+          decidedBy: { select: { id: true, fullName: true, email: true } },
+        },
+      }),
+      this.prisma.subscriptionPayment.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+        include: { plan: { select: { id: true, name: true, price: true } } },
+      }),
+      this.prisma.userWallet.findUnique({
+        where: { userId },
+        include: {
+          entries: { orderBy: { createdAt: 'desc' }, take: 100 },
+        },
+      }),
+      this.prisma.walletPayment.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+      this.prisma.servicePayment.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+      this.prisma.requestPayment.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+        include: {
+          boostRequest: {
+            select: {
+              id: true,
+              kind: true,
+              targetId: true,
+              feature: true,
+              status: true,
+            },
+          },
+          adRequest: {
+            select: {
+              id: true,
+              kind: true,
+              targetId: true,
+              placement: true,
+              status: true,
+            },
+          },
+        },
+      }),
+      this.prisma.boostRequest.findMany({
+        where: { userId },
+        orderBy: { requestedAt: 'desc' },
+        take: 100,
+        include: {
+          decidedBy: { select: { id: true, fullName: true, email: true } },
+          payment: true,
+        },
+      }),
+      this.prisma.adRequest.findMany({
+        where: { userId },
+        orderBy: { requestedAt: 'desc' },
+        take: 100,
+        include: {
+          decidedBy: { select: { id: true, fullName: true, email: true } },
+          payment: true,
+        },
+      }),
+      this.prisma.identityInquiryLog.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+      this.prisma.pointsLedger.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+      this.prisma.ticket.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+        include: { _count: { select: { messages: true } } },
+      }),
+      this.prisma.invoice.findMany({
+        where: { customerUserId: userId },
+        orderBy: { issuedAt: 'desc' },
+        take: 100,
+        include: { items: true },
+      }),
+      this.prisma.profileChangeRequest.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+      this.prisma.businessReview.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        include: {
+          businessCard: { select: { id: true, fullName: true, slug: true } },
+        },
+      }),
+      this.prisma.rewardRedemption.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        include: { reward: { select: { id: true, title: true, kind: true } } },
+      }),
+      this.prisma.onboardingStepCompletion.findMany({
+        where: { userId },
+        orderBy: { completedAt: 'desc' },
+      }),
+      this.prisma.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+        include: {
+          actor: { select: { id: true, fullName: true, email: true } },
+        },
+      }),
+      this.prisma.session.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+      this.prisma.supportConversation.findMany({
+        where: { userId },
+        orderBy: { lastMessageAt: 'desc' },
+        take: 50,
+        select: {
+          id: true,
+          status: true,
+          lastMessageAt: true,
+          lastMessagePreview: true,
+          userUnread: true,
+          staffUnread: true,
+          createdAt: true,
+          _count: { select: { messages: true } },
+        },
+      }),
+      this.prisma.activityLog.findMany({
+        where: {
+          OR: [{ actorId: userId }, { entityType: 'USER', entityId: userId }],
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+      this.prisma.sentEmail.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      }),
+      this.prisma.businessCardClaimRequest.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+        include: {
+          businessCard: {
+            select: { id: true, fullName: true, slug: true, status: true },
+          },
+          decidedBy: { select: { id: true, fullName: true, email: true } },
+        },
+      }),
+      this.storage.listOwnerObjects(userId),
+    ]);
+
+    const mediaByFolder = new Map<
+      string,
+      { folder: string; label: string; count: number; bytes: number }
+    >();
+    for (const item of media) {
+      const group = mediaByFolder.get(item.folder) ?? {
+        folder: item.folder,
+        label: item.label,
+        count: 0,
+        bytes: 0,
+      };
+      group.count += 1;
+      group.bytes += item.size;
+      mediaByFolder.set(item.folder, group);
+    }
+
+    return {
+      user,
+      biolinks,
+      businessCards,
+      posts: feedPosts,
+      subscriptions,
+      feedSubscriptions,
+      subscriptionPayments,
+      wallet,
+      walletPayments,
+      servicePayments,
+      requestPayments,
+      boosts,
+      ads,
+      identityInquiries,
+      pointsLedger,
+      tickets,
+      invoices,
+      profileChangeRequests,
+      reviews,
+      rewardRedemptions,
+      onboardingCompletions,
+      notifications,
+      sessions,
+      supportConversations,
+      activityLogs,
+      sentEmails,
+      claimRequests,
+      media,
+      mediaSummary: {
+        count: media.length,
+        bytes: media.reduce((sum, item) => sum + item.size, 0),
+        folders: [...mediaByFolder.values()],
       },
     };
   }
