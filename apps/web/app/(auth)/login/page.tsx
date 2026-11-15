@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { ArrowRight, Mail, Smartphone } from 'lucide-react';
 
 import { AuthForm } from '@/components/auth/AuthForm';
@@ -19,7 +19,6 @@ import { cn } from '@/lib/utils';
  * routed to their own panel after login.
  */
 function AuthPageContent() {
-  const router = useRouter();
   const params = useSearchParams();
   const next = safeInternalPath(params.get('next'));
   const { token, user, hydrated } = useAuth();
@@ -34,8 +33,8 @@ function AuthPageContent() {
   // a fresh page load never flashes the form for a logged-in user.
   useEffect(() => {
     if (!hydrated || !token) return;
-    router.replace(postLoginPath(next, user?.role));
-  }, [hydrated, token, user?.role, next, router]);
+    window.location.replace(postLoginPath(next, user?.role));
+  }, [hydrated, token, user?.role, next]);
 
   // Default to whichever method the admin left enabled (phone first), so a
   // visitor never lands on a tab that the API will reject.
@@ -68,7 +67,7 @@ function AuthPageContent() {
           <div className="mt-5 grid grid-cols-2 gap-2 rounded-lg bg-black/5 p-1">
             {(
               [
-                ['phone', 'موبایل و کد', Smartphone],
+                ['phone', 'موبایل و یا ایمیل', Smartphone],
                 ['email', 'ایمیل و رمز', Mail],
               ] as const
             ).map(([key, label, Icon]) => (

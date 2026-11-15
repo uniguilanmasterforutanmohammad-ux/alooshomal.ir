@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 import { Input } from '@/components/ui/Input';
 import { api, type AuthResponse } from '@/lib/api';
@@ -49,12 +48,12 @@ export function AuthForm({
   next?: string;
   onEmailLogin?: () => void;
 }) {
-  const router = useRouter();
   const setSession = useAuth((state) => state.setSession);
   const target = safeInternalPath(next);
 
   const [step, setStep] = useState<Step>('phone');
-  const [phone, setPhone] = useState('');
+  const [identifier, setIdentifier] = useState('');
+  const [mode, setMode] = useState<'phone' | 'email'>('phone');
   const [code, setCode] = useState('');
   const [devCode, setDevCode] = useState<string | null>(null);
   const [channel, setChannel] = useState<'bale' | 'sms' | 'dev' | null>(null);
@@ -82,23 +81,55 @@ export function AuthForm({
     return () => clearInterval(timer);
   }, [step]);
 
+  const isEmailIdentifier = identifier.includes('@');
+
+  /**
+   * A request can fail because the previous code is still inside its resend
+   * cooldown. In that case the old code is still valid, so we open the code
+   * box instead of leaving the user stuck on the identifier step.
+   */
+  function handleCodeRequestError(err: unknown, fallback: string) {
+    const message = err instanceof Error ? err.message : fallback;
+    setError(message);
+    if (message.includes('کد قبلی هنوز معتبر است')) {
+      setMode(isEmailIdentifier ? 'email' : 'phone');
+      setSecondsLeft(60);
+      setStep('code');
+    }
+  }
+
   async function requestCode(event: React.FormEvent) {
     event.preventDefault();
+    const value = identifier.trim();
+    const emailMode = value.includes('@');
     setLoading(true);
     setError(null);
     try {
-      const result = await api.post<RequestCodeResult>(
-        '/auth/phone/request-code',
-        { phone },
-      );
-      setPhone(result.phone);
-      setDevCode(result.devCode ?? null);
-      setChannel(result.channel ?? null);
-      setPreferredChannel('auto');
-      setSecondsLeft(result.expiresIn ?? 90);
+      if (emailMode) {
+        const result = await api.post<RequestCodeResult>(
+          '/auth/email-otp/request',
+          { email: value },
+        );
+        setMode('email');
+        setIdentifier(value);
+        setDevCode(result.devCode ?? null);
+        setChannel(null);
+        setSecondsLeft(result.expiresIn ?? 90);
+      } else {
+        const result = await api.post<RequestCodeResult>(
+          '/auth/phone/request-code',
+          { phone: value },
+        );
+        setMode('phone');
+        setIdentifier(result.phone);
+        setDevCode(result.devCode ?? null);
+        setChannel(result.channel ?? null);
+        setPreferredChannel('auto');
+        setSecondsLeft(result.expiresIn ?? 90);
+      }
       setStep('code');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ارسال کد ناموفق بود');
+      handleCodeRequestError(err, 'ارسال کد ناموفق بود');
     } finally {
       setLoading(false);
     }
@@ -109,20 +140,29 @@ export function AuthForm({
     setLoading(true);
     setError(null);
     try {
-      const result = await api.post<RequestCodeResult>(
-        '/auth/phone/request-code',
-        {
-          phone,
-          ...(preferredChannel === 'sms' ? { channel: 'sms' as const } : {}),
-        },
-      );
-      setPhone(result.phone);
-      setDevCode(result.devCode ?? null);
-      setChannel(result.channel ?? null);
-      setSecondsLeft(result.expiresIn ?? 90);
+      if (mode === 'email') {
+        const result = await api.post<RequestCodeResult>(
+          '/auth/email-otp/request',
+          { email: identifier },
+        );
+        setDevCode(result.devCode ?? null);
+        setSecondsLeft(result.expiresIn ?? 90);
+      } else {
+        const result = await api.post<RequestCodeResult>(
+          '/auth/phone/request-code',
+          {
+            phone: identifier,
+            ...(preferredChannel === 'sms' ? { channel: 'sms' as const } : {}),
+          },
+        );
+        setIdentifier(result.phone);
+        setDevCode(result.devCode ?? null);
+        setChannel(result.channel ?? null);
+        setSecondsLeft(result.expiresIn ?? 90);
+      }
       setCode('');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ارسال کد ناموفق بود');
+      handleCodeRequestError(err, 'ارسال کد ناموفق بود');
     } finally {
       setLoading(false);
     }
@@ -138,9 +178,9 @@ export function AuthForm({
     try {
       const result = await api.post<RequestCodeResult>(
         '/auth/phone/request-code',
-        { phone, channel: 'sms' },
+        { phone: identifier, channel: 'sms' },
       );
-      setPhone(result.phone);
+      setIdentifier(result.phone);
       setDevCode(result.devCode ?? null);
       setChannel(result.channel ?? null);
       setPreferredChannel('sms');
@@ -158,12 +198,21 @@ export function AuthForm({
     setLoading(true);
     setError(null);
     try {
-      const data = await api.post<AuthResponse>('/auth/phone/verify', {
-        phone,
-        code,
-      });
+      const data =
+        mode === 'email'
+          ? await api.post<AuthResponse>('/auth/email-otp/verify', {
+              email: identifier,
+              code,
+            })
+          : await api.post<AuthResponse>('/auth/phone/verify', {
+              phone: identifier,
+              code,
+            });
       setSession(data.accessToken, data.user);
-      router.replace(postLoginPath(target, data.user.role));
+      // A full navigation (instead of `router.replace`) avoids a stale chunk
+      // error when the login page was opened before a deployment: the browser
+      // fetches the dashboard document and its current build assets together.
+      window.location.replace(postLoginPath(target, data.user.role));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تأیید کد ناموفق بود');
     } finally {
@@ -172,7 +221,7 @@ export function AuthForm({
   }
 
   async function testSms() {
-    if (!phone.trim()) {
+    if (!identifier.trim()) {
       setTestError('اول شماره موبایل را وارد کنید');
       return;
     }
@@ -182,7 +231,7 @@ export function AuthForm({
     try {
       const result = await api.post<{ phone: string; sent: boolean; code: string }>(
         '/auth/dev/sms-test',
-        { phone },
+        { phone: identifier },
       );
       setTestResult(
         `پیامک ارسال شد؛ کد دریافتی از ملی‌پیامک: ${result.code}`,
@@ -198,14 +247,14 @@ export function AuthForm({
     return (
       <form onSubmit={requestCode} className="flex flex-col gap-4">
         <Input
-          label="شماره موبایل"
-          type="tel"
+          label="موبایل و یا ایمیل"
+          type="text"
           required
           dir="ltr"
-          value={phone}
-          onChange={(event) => setPhone(event.target.value)}
-          placeholder="09123456789"
-          hint="برای ورود یا ثبت‌نام، شماره موبایل خود را وارد کنید."
+          value={identifier}
+          onChange={(event) => setIdentifier(event.target.value)}
+          placeholder="09123456789 یا you@example.com"
+          hint="برای ورود یا ثبت‌نام، شماره موبایل یا ایمیل خود را وارد کنید."
         />
         {error ? (
           <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
@@ -261,8 +310,9 @@ export function AuthForm({
     return (
       <form onSubmit={verifyCode} className="flex flex-col gap-4">
         <p className="text-sm text-muted">
-          کد ارسال‌شده به <span dir="ltr" className="font-bold text-ink">{phone}</span>
-          را وارد کنید.
+          کد ارسال‌شده به{' '}
+          <span dir="ltr" className="font-bold text-ink">{identifier}</span>
+          {mode === 'email' ? ' (ایمیل)' : ''} را وارد کنید.
         </p>
         {channel === 'bale' ? (
           <div className="flex flex-col gap-2">
@@ -345,7 +395,7 @@ export function AuthForm({
           }}
           className="text-sm font-bold text-muted"
         >
-          تغییر شماره موبایل
+          تغییر موبایل یا ایمیل
         </button>
       </form>
     );

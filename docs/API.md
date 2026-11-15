@@ -42,6 +42,11 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
    اگر ایمیل وجود داشته باشد رمز بررسی و کد ورود ارسال می‌شود (`flow: "login"`)،
    وگرنه حساب ساخته و کد ثبت‌نام ارسال می‌شود (`flow: "register"`). مرحله‌ی
    دوم همان `login/verify` یا `register/verify` است.
+   ورود/ثبت‌نام **فقط با ایمیل و کد یکبارمصرف** (بدون رمز) از دو مسیر
+   `POST /api/auth/email-otp/request` با `{ email }` و
+   `POST /api/auth/email-otp/verify` با `{ email, code }` انجام می‌شود. اگر
+   ایمیل وجود نداشته باشد حساب بدون رمز ساخته می‌شود و کاربر بعداً می‌تواند از
+   `/dashboard/profile` یک رمز ثابت برای ورود با ایمیل تعیین کند.
    ورود ادمین و مدیران هم از همان صفحه‌ی مشترک `/login` انجام می‌شود و پس از
    ورود به پنل `/jga4rm8j` (یا `/moderator`) هدایت می‌شوند. مسیرهای اختصاصی
    API برای سازگاری باقی مانده‌اند: `POST /api/auth/admin/login` و
@@ -74,6 +79,9 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
    می‌کند تا رابط بتواند پیام «کد در بله ارسال شد» را نشان دهد.
    همین قرارداد برای `POST /api/auth/email` (کد ایمیل) هم برقرار است؛ فرم
    «ایمیل و رمز» همان شمارش معکوس ۹۰ ثانیه‌ای و دکمه‌ی ارسال مجدد را دارد.
+   همین قرارداد برای `POST /api/auth/email-otp/request` هم برقرار است؛ کد
+   فقط به ایمیل ارسال می‌شود و فرم «موبایل یا ایمیل» از همان شمارش معکوس
+   استفاده می‌کند.
    دو مسیر تست فقط در محیط توسعه فعال‌اند و در پروداکشن ۴۰۴ می‌دهند:
    `POST /api/auth/dev/sms-test` (ارسال واقعی OTP با `{ phone }`) و
    `POST /api/auth/dev/admin-sms-test` (ارسال واقعی قالب مشترک مدیران با

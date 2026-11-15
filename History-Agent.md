@@ -20,7 +20,34 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.14.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.15.0**.
+
+## ۱۴۰۵/۰۸/۲۴ — ورود با ایمیل و کد یکبارمصرف و پاک‌سازی پروفایل — نسخه `v4.15.0`
+
+**هدف:** فرم «موبایل و کد» بتواند ایمیل هم بگیرد و کد را به ایمیل بفرستد؛
+اگر خطای «کد قبلی هنوز معتبر است» برگشت، کادر ورود کد باز بماند؛ «درخواست
+تغییر نام» از پروفایل حذف شود و ثبت/تغییر رمز فقط با ایمیل انجام شود.
+
+**تغییرات:**
+- `apps/api/src/auth/dto/request-email-otp.dto.ts`: DTO ورودی ایمیل.
+- `apps/api/src/auth/auth.service.ts` و `auth.controller.ts`: مسیرهای
+  `POST /auth/email-otp/request` و `POST /auth/email-otp/verify` برای
+  ورود/ثبت‌نام با ایمیل و کد؛ تغییر رمز فقط با ایمیل ثبت‌شده.
+- `apps/api/src/auth/otp.service.ts`: گزینه‌ی `emailOnly` برای ارسال کد فقط
+  به ایمیل.
+- `apps/web/components/auth/AuthForm.tsx`: پذیرش موبایل یا ایمیل، placeholder
+  ترکیبی، بازشدن کادر کد در خطای cooldown و ناوبری کامل پس از ورود.
+- `apps/web/components/auth/UserEmailAuth.tsx` و `app/(auth)/login/page.tsx`:
+  همین رفتار cooldown و ناوبری کامل.
+- `apps/web/components/dashboard/ProfilePanel.tsx`: حذف «درخواست تغییر نام»
+  و محدودکردن رمز عبور به ایمیل.
+- `docs/API.md`: مستندسازی مسیرهای جدید.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` → بدون خطا.
+- `docker exec alooshomal-web npx tsc --noEmit` → فقط خطاهای از پیش موجود
+  `.next/types/validator.ts`.
+- `python3 scripts/check_api_docs.py` → بدون خطا.
 
 ## ۱۴۰۵/۰۸/۲۴ — گره‌زدن «امتیاز من» و «شروع آسان» به سوئیچ‌های مدیر — نسخه `v4.14.0`
 

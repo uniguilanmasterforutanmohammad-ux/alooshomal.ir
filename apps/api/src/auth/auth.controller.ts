@@ -15,8 +15,8 @@ import {
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RequestCodeDto } from './dto/request-code.dto';
+import { RequestEmailOtpDto } from './dto/request-email-otp.dto';
 import { DevAdminSmsTestDto } from './dto/dev-admin-sms-test.dto';
-import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { VerifyPhoneDto } from './dto/verify-phone.dto';
@@ -119,6 +119,38 @@ export class AuthController {
       userAgent: clientUserAgent(req),
       ip: clientIp(req),
     });
+  }
+
+  @Public()
+  @Post('email-otp/request')
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'ورود یا ثبت‌نام با ایمیل و کد یکبارمصرف (مرحله ۱: ارسال کد به ایمیل)',
+  })
+  requestEmailOtp(@Body() dto: RequestEmailOtpDto, @Req() req: Request) {
+    return this.authService.requestEmailOtp(dto, {
+      userAgent: clientUserAgent(req),
+      ip: clientIp(req),
+    });
+  }
+
+  @Public()
+  @Post('email-otp/verify')
+  @HttpCode(200)
+  @ApiOperation({
+    summary: 'تأیید کد ایمیل و صدور نشست (ورود یا ثبت‌نام با ایمیل)',
+  })
+  async verifyEmailOtp(
+    @Body() dto: VerifyEmailLoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const payload = await this.authService.verifyEmailOtp(dto, {
+      userAgent: clientUserAgent(req),
+      ip: clientIp(req),
+    });
+    return this.withRefreshCookie(res, payload);
   }
 
   // -------------------------------------------------------------------------
@@ -268,16 +300,10 @@ export class AuthController {
   @HttpCode(200)
   @ApiBearerAuth()
   @ApiOperation({
-    summary: 'ارسال کد تأیید برای تغییر رمز (ایمیل و در صورت درخواست پیامک)',
+    summary: 'ارسال کد تأیید برای تغییر رمز (فقط به ایمیل ثبت‌شده)',
   })
-  requestPasswordResetCode(
-    @CurrentUser() user: AuthUser,
-    @Body() dto: RequestPasswordResetDto,
-  ) {
-    return this.authService.requestPasswordResetCode(
-      user.id,
-      dto.sendToPhone === true,
-    );
+  requestPasswordResetCode(@CurrentUser() user: AuthUser) {
+    return this.authService.requestPasswordResetCode(user.id);
   }
 
   @Post('password/reset')

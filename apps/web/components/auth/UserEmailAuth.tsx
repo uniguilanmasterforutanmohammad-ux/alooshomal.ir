@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 import { Input } from '@/components/ui/Input';
 import { api, type AuthResponse } from '@/lib/api';
@@ -34,7 +33,6 @@ function formatSeconds(total: number): string {
  * same one-time code sent to the address.
  */
 export function UserEmailAuth({ next }: { next: string }) {
-  const router = useRouter();
   const setSession = useAuth((state) => state.setSession);
 
   const [flow, setFlow] = useState<'login' | 'register'>('login');
@@ -70,7 +68,13 @@ export function UserEmailAuth({ next }: { next: string }) {
       setSecondsLeft(data.expiresIn ?? 90);
       setOtpStep(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'عملیات ناموفق بود');
+      const message = err instanceof Error ? err.message : 'عملیات ناموفق بود';
+      setError(message);
+      // The previous code is still valid; open the code box so it can be used.
+      if (message.includes('کد قبلی هنوز معتبر است')) {
+        setSecondsLeft(60);
+        setOtpStep(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -89,7 +93,12 @@ export function UserEmailAuth({ next }: { next: string }) {
       setCode('');
       setSecondsLeft(data.expiresIn ?? 90);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'ارسال کد ناموفق بود');
+      const message = err instanceof Error ? err.message : 'ارسال کد ناموفق بود';
+      setError(message);
+      if (message.includes('کد قبلی هنوز معتبر است')) {
+        setSecondsLeft(60);
+        setOtpStep(true);
+      }
     } finally {
       setLoading(false);
     }
@@ -104,7 +113,7 @@ export function UserEmailAuth({ next }: { next: string }) {
         flow === 'login' ? '/auth/login/verify' : '/auth/register/verify';
       const data = await api.post<AuthResponse>(path, { email, code });
       setSession(data.accessToken, data.user);
-      router.replace(postLoginPath(next, data.user.role));
+      window.location.replace(postLoginPath(next, data.user.role));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تأیید کد ناموفق بود');
     } finally {

@@ -573,7 +573,7 @@ export class OtpService {
     email: string | null,
     phone: string | null,
     purpose: 'login' | 'register' = 'login',
-    options: { simulateDelivery?: boolean } = {},
+    options: { simulateDelivery?: boolean; emailOnly?: boolean } = {},
   ): Promise<IssuedOtp> {
     const key = emailLoginKey(userId);
     if (await this.recentlyIssuedKey(`${key}:issued`)) {
@@ -594,7 +594,7 @@ export class OtpService {
       this.logger.log(
         `[dev] admin-login OTP for ${userId} is ${code} (delivery simulated)`,
       );
-    } else if (phone && this.phoneChannelEnabled) {
+    } else if (!options.emailOnly && phone && this.phoneChannelEnabled) {
       const delivered = await this.deliverPhoneCode(phone);
       if (!delivered) {
         throw new ServiceUnavailableException(

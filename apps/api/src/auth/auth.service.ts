@@ -21,6 +21,7 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RequestCodeDto } from './dto/request-code.dto';
+import { RequestEmailOtpDto } from './dto/request-email-otp.dto';
 import { VerifyPhoneDto } from './dto/verify-phone.dto';
 import { VerifyEmailLoginDto } from './dto/verify-email-login.dto';
 import { OtpService } from './otp.service';
@@ -445,6 +446,93 @@ export class AuthService {
   }
 
   /**
+   * Step 1 of the «موبایل یا ایمیل» form: send a one-time code to an email
+   * address. An existing account is signed in after the code check; a new
+   * address creates a password-less account (the user can set a fixed password
+   * later from the profile page).
+   */
+  async requestEmailOtp(
+    dto: RequestEmailOtpDto,
+    context: SessionContext = {},
+  ) {
+    await this.assertEmailLoginEnabled();
+    if (context.ip) await this.rateLimit.hit(RATE_LIMITS.login, context.ip);
+    const email = dto.email.toLowerCase().trim();
+    await this.rateLimit.hit(
+      RATE_LIMITS.loginEmail,
+      createHash('sha256').update(email).digest('hex'),
+    );
+
+    let user = await this.prisma.user.findUnique({ where: { email } });
+    let flow: 'login' | 'register' = 'login';
+    if (!user) {
+      if (context.ip) {
+        await this.rateLimit.hit(RATE_LIMITS.register, context.ip);
+      }
+      user = await this.prisma.user.create({ data: { email } });
+      flow = 'register';
+      await this.subscriptions.assignDefaultPlan(user.id);
+      await this.notifications.notifyAdmins({
+        category: 'NEW_USER',
+        title: 'کاربر جدید ثبت‌نام کرد',
+        body: `${user.email} با ایمیل به پلتفرم پیوست.`,
+        link: '/jga4rm8j?section=users',
+        actorId: user.id,
+      });
+      await this.activity.log({
+        actor: { id: user.id, email: user.email, role: user.role },
+        action: 'USER_REGISTERED',
+        summary: `ثبت‌نام با ایمیل: ${user.email}`,
+        entityType: 'USER',
+        entityId: user.id,
+      });
+    } else if (!user.isActive) {
+      throw new UnauthorizedException('حساب کاربری غیرفعال است');
+    }
+
+    const issued = await this.otp.issueEmailLogin(
+      user.id,
+      user.email,
+      user.phone,
+      flow,
+      { emailOnly: true },
+    );
+    return {
+      requiresOtp: true as const,
+      flow,
+      email: maskEmail(user.email),
+      ...issued,
+    };
+  }
+
+  /** Step 2 of the email-OTP flow: verify the code and open a session. */
+  async verifyEmailOtp(
+    dto: VerifyEmailLoginDto,
+    context: SessionContext = {},
+  ) {
+    await this.assertEmailLoginEnabled();
+    if (context.ip) await this.rateLimit.hit(RATE_LIMITS.login, context.ip);
+    const email = dto.email.toLowerCase().trim();
+    await this.rateLimit.hit(
+      RATE_LIMITS.adminLoginVerify,
+      createHash('sha256').update(email).digest('hex'),
+    );
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('حساب کاربری معتبر نیست');
+    }
+    await this.otp.verifyEmailLogin(user.id, dto.code);
+    await this.activity.log({
+      actor: { id: user.id, email: user.email, role: user.role },
+      action: 'USER_LOGIN',
+      summary: `ورود با ایمیل و کد یکبارمصرف: ${user.fullName ?? user.email}`,
+      entityType: 'USER',
+      entityId: user.id,
+    });
+    return this.buildAuthResponse(user, context);
+  }
+
+  /**
    * Step 2 of the email/password flow: verifies the one-time code issued by
    * `login` and only then creates the session.
    */
@@ -628,12 +716,11 @@ export class AuthService {
   }
 
   /**
-   * Sends a password-reset code to the signed-in user's email and, on request,
-   * their phone. Used by the profile page so a password can be changed without
-   * knowing the old one — proving control of the account's contact channels
-   * replaces the old-password check.
+   * Sends a password-reset code to the signed-in user's email. Used by the
+   * profile page so a password can be changed without knowing the old one —
+   * proving control of the account email replaces the old-password check.
    */
-  async requestPasswordResetCode(userId: string, sendToPhone: boolean) {
+  async requestPasswordResetCode(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, email: true, phone: true },
@@ -641,18 +728,13 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException('حساب کاربری معتبر نیست');
     }
-    if (!user.email && !(sendToPhone && user.phone)) {
+    if (!user.email) {
       throw new BadRequestException(
-        'برای این حساب راهی برای دریافت کد تأیید ثبت نشده است',
+        'ابتدا یک ایمیل برای حساب خود ثبت کنید؛ ثبت رمز عبور فقط با ایمیل امکان‌پذیر است',
       );
     }
     await this.rateLimit.hit(RATE_LIMITS.passwordResetRequest, userId);
-    return this.otp.issuePasswordReset(
-      user.id,
-      user.email ?? '',
-      user.phone,
-      sendToPhone && Boolean(user.phone),
-    );
+    return this.otp.issuePasswordReset(user.id, user.email, user.phone, false);
   }
 
   /**
