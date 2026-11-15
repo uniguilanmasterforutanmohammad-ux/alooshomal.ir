@@ -9,6 +9,7 @@ import { SaveButton } from '@/components/ui/SaveButton';
 import { Pagination } from '@/components/ui/Pagination';
 import { api, type FeedPost, type Paged, type SavedItem } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useFeatures } from '@/lib/features';
 import { cn } from '@/lib/utils';
 
 type Tab = 'biolinks' | 'business-cards' | 'feeds';
@@ -31,6 +32,10 @@ function faDate(value: string) {
 export default function SavedPage() {
   const router = useRouter();
   const { token, hydrated } = useAuth();
+  const { isFeatureVisible } = useFeatures();
+  // «پست‌ها» (the feed) is an admin-switchable feature: when it is disabled or
+  // hidden, the saved-posts tab must disappear and its API must not be called.
+  const feedsEnabled = isFeatureVisible('featureFeedPosts');
   const [tab, setTab] = useState<Tab>('biolinks');
   const [biolinks, setBiolinks] = useState<SavedItem[]>([]);
   const [businessCards, setBusinessCards] = useState<SavedItem[]>([]);
@@ -51,7 +56,19 @@ export default function SavedPage() {
       const [b, c, f] = await Promise.all([
         api.get<Paged<SavedItem>>(`/biolinks/saved/mine?page=${biolinkPage}`),
         api.get<Paged<SavedItem>>(`/business-cards/saved/mine?page=${cardPage}`),
-        api.get<Paged<FeedPost>>(`/feeds/mine/saved?page=${feedPage}`),
+        feedsEnabled
+          ? api.get<Paged<FeedPost>>(`/feeds/mine/saved?page=${feedPage}`)
+          : Promise.resolve<Paged<FeedPost>>({
+              items: [],
+              meta: {
+                page: 1,
+                limit: 0,
+                total: 0,
+                totalPages: 0,
+                hasNext: false,
+                hasPrev: false,
+              },
+            }),
       ]);
       setBiolinks(b.items);
       setBusinessCards(c.items);
@@ -64,7 +81,13 @@ export default function SavedPage() {
     } finally {
       setLoading(false);
     }
-  }, [biolinkPage, cardPage, feedPage]);
+  }, [biolinkPage, cardPage, feedPage, feedsEnabled]);
+
+  // If the feature is switched off while the posts tab is open, fall back to
+  // the first tab instead of leaving an unreachable empty table on screen.
+  useEffect(() => {
+    if (!feedsEnabled && tab === 'feeds') setTab('biolinks');
+  }, [feedsEnabled, tab]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -80,12 +103,14 @@ export default function SavedPage() {
       <div>
         <h2 className="text-xl font-extrabold text-ink">ذخیره‌شده‌های من</h2>
         <p className="text-sm text-muted">
-          بیولینک‌ها، کارت‌های ویزیت و پست‌های فیدی که ذخیره کرده‌اید.
+          {feedsEnabled
+            ? 'بیولینک‌ها، کارت‌های ویزیت و پست‌هایی که ذخیره کرده‌اید.'
+            : 'بیولینک‌ها و کارت‌های ویزیتی که ذخیره کرده‌اید.'}
         </p>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {TABS.map(({ key, label, icon: Icon }) => (
+        {TABS.filter(({ key }) => key !== 'feeds' || feedsEnabled).map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             type="button"
@@ -127,12 +152,12 @@ export default function SavedPage() {
           }
           emptyLabel="کارت ویزیتی ذخیره نشده است."
         />
-      ) : (
+      ) : feedsEnabled ? (
         <SavedFeedsTable
           rows={feeds}
           onRemoved={(id) => setFeeds((prev) => prev.filter((item) => item.id !== id))}
         />
-      )}
+      ) : null}
 
       {tab === 'biolinks' && biolinkMeta ? (
         <Pagination meta={biolinkMeta} onPage={setBiolinkPage} />
@@ -140,7 +165,7 @@ export default function SavedPage() {
       {tab === 'business-cards' && cardMeta ? (
         <Pagination meta={cardMeta} onPage={setCardPage} />
       ) : null}
-      {tab === 'feeds' && feedMeta ? (
+      {feedsEnabled && tab === 'feeds' && feedMeta ? (
         <Pagination meta={feedMeta} onPage={setFeedPage} />
       ) : null}
 
