@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   ArrowRight,
@@ -181,7 +180,6 @@ function formatBytes(bytes: number): string {
  * welcome screen is a normal step (manual tick) so the admin can edit it.
  */
 export function OnboardingWizard() {
-  const router = useRouter();
   const { isFeatureVisible } = useFeatures();
   const walletVisible = isFeatureVisible('featureWallet');
   const [payload, setPayload] = useState<OnboardingPayload | null>(null);
@@ -386,7 +384,9 @@ export function OnboardingWizard() {
     try {
       await api.post('/onboarding/finish', {});
       toast.success('«شروع آسان» تکمیل شد و از پنل کاربری برداشته شد.');
-      router.push('/dashboard');
+      // Full navigation so the dashboard shell re-reads the profile and drops
+      // the «شروع آسان» entry immediately.
+      window.location.assign('/dashboard');
     } catch {
       /* api layer surfaces the error */
     }
