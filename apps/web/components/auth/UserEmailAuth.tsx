@@ -72,6 +72,7 @@ export function UserEmailAuth({ next }: { next: string }) {
       setError(message);
       // The previous code is still valid; open the code box so it can be used.
       if (message.includes('کد قبلی هنوز معتبر است')) {
+        setTarget((current) => current ?? email);
         setSecondsLeft(60);
         setOtpStep(true);
       }
