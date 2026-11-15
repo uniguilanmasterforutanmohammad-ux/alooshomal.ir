@@ -169,6 +169,21 @@ export default function SubscriptionsPage() {
 
   const currentPlanId = mine?.plan?.id ?? null;
   const currentSortOrder = mine?.plan?.sortOrder ?? 0;
+  // The active term length of the current plan. A subscription is only
+  // "current" when both the plan *and* the purchased term match, so buying
+  // «اکو سه‌ماهه» while «اکو یک‌ماهه» is active still shows the normal
+  // «پرداخت و فعال‌سازی» button.
+  const activeRequest = [...(mine?.requests ?? [])]
+    .filter(
+      (request) =>
+        request.status === 'ACTIVE' &&
+        request.planId === currentPlanId &&
+        request.startsAt,
+    )
+    .sort((a, b) =>
+      (b.startsAt ?? '').localeCompare(a.startsAt ?? ''),
+    )[0];
+  const activeMonths = activeRequest?.months ?? 1;
   const pendingPlanId =
     mine?.requests.find(
       (request) =>
@@ -228,6 +243,12 @@ export default function SubscriptionsPage() {
           <div>
             <p className="text-xs text-muted">اشتراک فعال شما</p>
             <p className="text-lg font-extrabold text-ink">{mine.plan.name}</p>
+            <p className="mt-1 text-xs text-muted">
+              دوره‌ی فعلی:{' '}
+              {activeMonths > 1
+                ? `${activeMonths.toLocaleString('fa-IR')} ماهه`
+                : 'یک‌ماهه'}
+            </p>
             {mine.planExpiresAt ? (
               <p className="mt-1 text-xs text-muted">
                 اعتبار تا {faDateTime(mine.planExpiresAt)}
@@ -282,15 +303,13 @@ export default function SubscriptionsPage() {
         <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {plans.map((plan) => {
           const isCurrent = plan.id === currentPlanId;
+          const isCurrentTerm = isCurrent && activeMonths === months;
           const isPending = plan.id === pendingPlanId;
           // «ارتقا فقط»: a lower plan cannot be bought from a higher one.
           const isDowngrade = !isCurrent && plan.sortOrder < currentSortOrder;
-          // A paid current plan can always be extended with any term; the free
-          // plan has nothing to renew.
-          const canRenew = isCurrent && plan.price > 0;
           const amount = planPriceForMonths(plan, months);
           const discount = planDiscountPercent(plan, months);
           const busy = busyPlanId === plan.id;
@@ -298,8 +317,8 @@ export default function SubscriptionsPage() {
             <div
               key={plan.id}
               className={cn(
-                'indeed-panel flex flex-col p-5',
-                isCurrent && 'border-brand ring-2 ring-brand/30',
+                'indeed-panel flex flex-col p-4 sm:p-5',
+                isCurrentTerm && 'border-brand ring-2 ring-brand/30',
                 isDowngrade && 'opacity-60',
               )}
             >
@@ -344,21 +363,19 @@ export default function SubscriptionsPage() {
 
               <button
                 type="button"
-                disabled={(isCurrent && !canRenew) || isPending || isDowngrade || busy}
+                disabled={isCurrentTerm || isPending || isDowngrade || busy}
                 onClick={() => startPlan(plan)}
                 className={cn(
-                  'indeed-btn mt-5 w-full py-2 text-sm',
-                  isCurrent
+                  'indeed-btn mt-4 w-full py-2 text-xs sm:mt-5 sm:text-sm',
+                  isCurrentTerm
                     ? 'indeed-btn-secondary'
                     : 'indeed-btn-primary',
-                  ((isCurrent && !canRenew) || isPending || isDowngrade) &&
+                  (isCurrentTerm || isPending || isDowngrade) &&
                     'opacity-70',
                 )}
               >
-                {isCurrent
-                  ? canRenew
-                    ? 'تمدید / خرید دوره جدید'
-                    : 'اشتراک فعلی شما'
+                {isCurrentTerm
+                  ? 'اشتراک فعلی شما'
                   : isDowngrade
                     ? 'امکان تنزل اشتراک وجود ندارد'
                     : isPending
