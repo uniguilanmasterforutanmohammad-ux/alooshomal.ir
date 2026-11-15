@@ -44,6 +44,8 @@ export function useAdminConsole() {
   const [allUsers, setAllUsers] = useState<AdminUser[] | null>(null);
   const [usersMeta, setUsersMeta] = useState<PaginationMeta | null>(null);
   const [usersPage, setUsersPage] = useState(1);
+  const [usersSearch, setUsersSearch] = useState('');
+  const [usersAppliedSearch, setUsersAppliedSearch] = useState('');
   const [allTickets, setAllTickets] = useState<AdminTicket[] | null>(null);
   const [biolinksMeta, setBiolinksMeta] = useState<PaginationMeta | null>(null);
   const [biolinksPage, setBiolinksPage] = useState(1);
@@ -63,15 +65,17 @@ export function useAdminConsole() {
 
   const loadAllUsers = useCallback(async (page = usersPage) => {
     try {
+      const query = new URLSearchParams({ page: String(page) });
+      if (usersAppliedSearch.trim()) query.set('search', usersAppliedSearch.trim());
       const data = await api.get<{ items: AdminUser[]; meta: PaginationMeta }>(
-        `/admin/users?page=${page}`,
+        `/admin/users?${query.toString()}`,
       );
       setAllUsers(data.items);
       setUsersMeta(data.meta);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری کاربران');
     }
-  }, [usersPage]);
+  }, [usersPage, usersAppliedSearch]);
 
   const loadAllTickets = useCallback(async () => {
     try {
@@ -185,6 +189,11 @@ export function useAdminConsole() {
     setBiolinksPage(1);
     setCardsPage(1);
   }, [status, appliedSearch]);
+
+  // reset to the first page whenever the user search changes
+  useEffect(() => {
+    setUsersPage(1);
+  }, [usersAppliedSearch]);
 
   async function updateTicket(id: string, next: AdminTicket['status']) {
     try {
@@ -443,6 +452,10 @@ export function useAdminConsole() {
     allUsers,
     usersMeta,
     setUsersPage,
+    usersSearch,
+    setUsersSearch,
+    usersAppliedSearch,
+    setUsersAppliedSearch,
     setUserActive,
     setUserComment,
     setUserRole,

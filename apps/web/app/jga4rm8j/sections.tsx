@@ -314,6 +314,41 @@ export function UsersSection({ state }: { state: AdminConsole }) {
   return (
     <div>
       <AdminProfileRequests />
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          state.setUsersAppliedSearch(state.usersSearch);
+        }}
+        className="mb-3 flex flex-wrap items-center gap-2"
+      >
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted"
+            aria-hidden
+          />
+          <input
+            value={state.usersSearch}
+            onChange={(event) => state.setUsersSearch(event.target.value)}
+            placeholder="جستجوی نام، ایمیل، موبایل یا کد ملی…"
+            className="indeed-input w-72 py-2 pr-9 text-sm"
+          />
+        </div>
+        <button type="submit" className="indeed-btn indeed-btn-secondary py-2 text-sm">
+          جستجو
+        </button>
+        {state.usersAppliedSearch ? (
+          <button
+            type="button"
+            onClick={() => {
+              state.setUsersSearch('');
+              state.setUsersAppliedSearch('');
+            }}
+            className="indeed-btn indeed-btn-secondary py-2 text-sm"
+          >
+            پاک‌کردن
+          </button>
+        ) : null}
+      </form>
       <UsersTable
         title="همه کاربران"
         users={state.allUsers ?? state.overview?.recentUsers ?? []}
