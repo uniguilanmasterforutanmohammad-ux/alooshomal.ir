@@ -75,6 +75,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'permissions',
   'moderators',
   'storage',
+  'backups',
   'monitoring',
   'reports',
   'imports',
@@ -158,6 +159,10 @@ export function isAdminSection(value: string): value is AdminSection {
     storage: {
       title: 'فضای سرور',
       sub: 'حجم آپلودهای رسانه، ریشه‌ی باکت و فضای هارد دیسک سرور',
+    },
+    backups: {
+      title: 'پشتیبان‌گیری و بازیابی',
+      sub: 'بکاپ دستی از دیتابیس و رسانه‌ها، دانلود، ارسال به Google Drive یا سرور دیگر و راهنمای بازیابی',
     },
     monitoring: {
       title: 'پایش منابع سرور',

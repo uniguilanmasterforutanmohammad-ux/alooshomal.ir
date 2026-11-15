@@ -127,6 +127,25 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 می‌شود؛ تعداد کل در `user._count` برگردانده می‌شود. رسانه‌ها با پیشوند
 `<folder>/<userId>/` در باکت پیدا و با URL عمومی برگردانده می‌شوند.
 
+### مرکز پشتیبان‌گیری و بازیابی (`/api/admin/backups`)
+
+بخش «پشتیبان‌گیری» پنل مدیر یک بسته‌ی کامل (دیتابیس + رسانه‌ها) می‌سازد و امکان
+دانلود و ارسال به Google Drive / S3-MinIO / WebDAV را می‌دهد. همه‌ی مسیرها
+`ADMIN`-محافظت‌شده‌اند. جزئیات ساختار بسته و بازیابی در
+`docs/BACKUP-RESTORE.md` آمده است.
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET` | `/admin/backups` | فهرست بسته‌ها، عملیات در حال اجرا، تنظیمات نگه‌داری و فضای آزاد دیسک. |
+| `POST` | `/admin/backups` | ساخت بکاپ جدید (بدنه: `includeMedia`)؛ به‌صورت job پس‌زمینه اجرا می‌شود. |
+| `GET` | `/admin/backups/jobs/:id` | وضعیت و درصد پیشرفت یک عملیات پشتیبان‌گیری. |
+| `GET` | `/admin/backups/settings` | تنظیمات مقصدهای پشتیبان (مقادیر حساس ماسک‌شده). |
+| `PUT` | `/admin/backups/settings` | ذخیره‌ی تنظیمات مقصدها و تعداد نگه‌داری (رمزها رمزنگاری‌شده). |
+| `POST` | `/admin/backups/test/:destination` | آزمایش اتصال به یک مقصد (`google-drive`/`s3`/`webdav`). |
+| `GET` | `/admin/backups/:name/download` | دانلود بسته‌ی پشتیبان. |
+| `POST` | `/admin/backups/:name/destinations/:destination` | ارسال بسته به مقصد انتخاب‌شده. |
+| `DELETE` | `/admin/backups/:name` | حذف یک بسته‌ی پشتیبان محلی. |
+
 ### مسیرهای عمومی مرتبط با دفترچه تلفن
 
 صفحه‌ی عمومی `/phonebook` روی دو مسیر public بنا شده است:

@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BucketItem, Client as MinioClient } from 'minio';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 
 import { UPLOAD_CATEGORIES } from './uploads.constants';
 
@@ -127,6 +129,16 @@ export class StorageService implements OnModuleInit {
 
   get isReady(): boolean {
     return this.ready;
+  }
+
+  /** Bucket name, used by the backup bundle layout and restore instructions. */
+  get bucketName(): string {
+    return this.bucket;
+  }
+
+  /** Whether the object-storage backend is enabled at all. */
+  get isEnabled(): boolean {
+    return this.enabled;
   }
 
   private async ensureBucket(): Promise<void> {
@@ -315,5 +327,63 @@ export class StorageService implements OnModuleInit {
         (a, b) =>
           (b.lastModified?.getTime() ?? 0) - (a.lastModified?.getTime() ?? 0),
       );
+  }
+
+  /**
+   * Copy every object of the bucket to `<targetDir>/<bucket>/<key>`, preserving
+   * the folder layout. Used by the full backup bundle so the media can be
+   * restored by mirroring the directory back into the bucket.
+   *
+   * Downloads run with a small concurrency window: a full media library can be
+   * large, and opening hundreds of S3 streams at once would exhaust sockets.
+   */
+  async exportAllTo(
+    targetDir: string,
+    onProgress?: (done: number, total: number, bytes: number) => void,
+  ): Promise<{ objectCount: number; bytes: number }> {
+    if (!this.enabled || !this.ready) {
+      return { objectCount: 0, bytes: 0 };
+    }
+
+    const keys: Array<{ key: string; size: number }> = [];
+    await new Promise<void>((resolve, reject) => {
+      const stream = this.client.listObjectsV2(this.bucket, '', true);
+      stream.on('data', (item: BucketItem) => {
+        if (!item.name) return;
+        keys.push({ key: item.name, size: item.size ?? 0 });
+      });
+      stream.on('error', reject);
+      stream.on('end', resolve);
+    });
+
+    const root = path.join(targetDir, this.bucket);
+    let done = 0;
+    let bytes = 0;
+    const queue = [...keys];
+
+    const worker = async () => {
+      for (;;) {
+        const next = queue.shift();
+        if (!next) return;
+        const destination = path.join(root, next.key);
+        await fs.promises.mkdir(path.dirname(destination), { recursive: true });
+        const stream = await this.client.getObject(this.bucket, next.key);
+        await new Promise<void>((resolve, reject) => {
+          const out = fs.createWriteStream(destination);
+          stream.on('error', reject);
+          out.on('error', reject);
+          out.on('finish', () => resolve());
+          stream.pipe(out);
+        });
+        done += 1;
+        bytes += next.size;
+        onProgress?.(done, keys.length, bytes);
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(4, Math.max(1, keys.length)) }, () => worker()),
+    );
+    return { objectCount: done, bytes };
   }
 }

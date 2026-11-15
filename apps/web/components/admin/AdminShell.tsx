@@ -11,6 +11,7 @@ import {
   Coins,
   Crown,
   CreditCard,
+  DatabaseBackup,
   HardDrive,
   Headset,
   IdCard,
@@ -77,6 +78,7 @@ export type AdminSection =
   | 'moderators'
   | 'social-accounts'
   | 'storage'
+  | 'backups'
   | 'monitoring'
   | 'notifications'
   | 'settings'
@@ -172,6 +174,7 @@ const NAV_GROUPS: Array<{
       { key: 'social-accounts', label: 'شبکه‌های اجتماعی', icon: Share2 },
       { key: 'monitoring', label: 'پایش منابع', icon: Activity },
       { key: 'storage', label: 'فضای سرور', icon: HardDrive },
+      { key: 'backups', label: 'پشتیبان‌گیری', icon: DatabaseBackup },
       { key: 'reports', label: 'گزارش‌های سیستم', icon: BarChart3 },
       { key: 'imports', label: 'ایمپورت کسب‌وکارها', icon: PackageOpen },
       { key: 'tools', label: 'ابزار تست', icon: FlaskConical },

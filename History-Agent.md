@@ -20,7 +20,64 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.17.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.18.0**.
+
+## ۱۴۰۵/۰۸/۲۴ — مرکز پشتیبان‌گیری و بازیابی کامل (دیتابیس + رسانه) با ارسال به Google Drive/S3/WebDAV — نسخه `v4.18.0`
+
+**هدف:** ساخت یک بخش مجزا در پنل مدیر برای گرفتن بکاپ کامل و مطمئن از
+دیتابیس و همه‌ی رسانه‌های آپلودشده، با امکان دانلود روی سیستم، ارسال به
+Google Drive، ارسال به سرور ذخیره‌سازی S3/MinIO یا WebDAV، نگه‌داری خودکار،
+و همراه‌کردن manifest، چک‌سام و اسکریپت بازیابی داخل خود بسته.
+
+**تغییرات:**
+- `apps/api/src/backup/backup.constants.ts` (جدید): کلید تنظیمات، الگوی نام
+  بسته، حداقل فضای آزاد، تعداد نگه‌داری پیش‌فرض و انواع داده‌ی مقصدها.
+- `apps/api/src/backup/backup-crypto.ts` (جدید): رمزنگاری/رمزگشایی
+  AES-256-GCM تنظیمات حساس با کلید مشتق‌شده از `JWT_SECRET`.
+- `apps/api/src/backup/backup-templates.ts` (جدید): اسکریپت و راهنمای بازیابی
+  جاسازی‌شده (`restore.sh` + `README-RESTORE.md`).
+- `apps/api/src/backup/backup.service.ts` (جدید): ساخت job پس‌زمینه با
+  `pg_dump`، خروجی gzip، بردن رسانه‌ها، ساخت `manifest.json`/`SHA256SUMS`،
+  بسته‌بندی tar.gz، sidecar، هرس نگه‌داری، آزمایش اتصال و ارسال به مقصدها.
+- `apps/api/src/backup/backup.controller.ts` (جدید): کنترلر
+  `admin/backups` با `@ApiTags`/`@ApiBearerAuth`/`@Roles('ADMIN')` و
+  `@ApiOperation` برای همه‌ی مسیرها.
+- `apps/api/src/backup/dto/create-backup.dto.ts` و
+  `apps/api/src/backup/dto/update-backup-settings.dto.ts` (جدید): DTOهای
+  مستندشده برای ساخت بکاپ و تنظیمات مقصدها.
+- `apps/api/src/backup/backup.module.ts` (جدید): ماژول پشتیبان‌گیری.
+- `apps/api/src/app.module.ts`: ثبت `BackupModule`.
+- `apps/api/src/uploads/storage.service.ts`: افزودن `bucketName`/`isEnabled`
+  و `exportAllTo` برای دانلود همه‌ی آبجکت‌های باکت با هم‌روندی محدود.
+- `apps/web/components/admin/AdminBackups.tsx` (جدید): رابط کامل مرکز
+  پشتیبان‌گیری شامل کارت‌های وضعیت، ساخت بکاپ با/بدون رسانه، نوار پیشرفت،
+  جدول بکاپ‌ها، دانلود، ارسال به سه مقصد، حذف و راهنمای بازیابی.
+- `apps/web/components/admin/AdminShell.tsx`: افزودن بخش «پشتیبان‌گیری» به
+  ناوبری گروه «سیستم».
+- `apps/web/app/jga4rm8j/admin-console.ts`: ثبت بخش `backups` و عنوان صفحه.
+- `apps/web/app/jga4rm8j/page.tsx`: نمایش `AdminBackups` در بخش مربوطه.
+- `apps/web/lib/version.ts`: نسخه به `v4.18.0`.
+- `docs/API.md`: مستندسازی مسیرهای `/api/admin/backups`.
+- `docs/BACKUP-RESTORE.md`: افزودن بخش «۵-الف» شامل ساختار بسته، مقصدها و
+  دستورهای بازیابی.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` → بدون خطا.
+- `docker exec alooshomal-web npx tsc --noEmit` → بدون خطا.
+- `docker exec alooshomal-web npx eslint` روی فایل‌های تغییریافته → بدون خطا/هشدار.
+- `python3 scripts/check_api_docs.py` → ۳۸ کنترلر و ۴۴۰ مسیر، همه مستند.
+- تست واقعی API: ساخت بکاپ با رسانه → فایل tar.gz سالم، `sha256sum -c` و
+  `gunzip -t` موفق؛ بازیابی دیتابیس در دیتابیس موقت (`restore_check`) با ۶۱
+  جدول و ۱۵ کاربر موفق؛ بازیابی رسانه‌ها با `docker cp` + `mc mirror` و
+  تأیید ۲۴ آبجکت.
+- تست ارسال S3/MinIO: ساخت باکت آزمایشی، `test` موفق و آپلود موفق با تأیید
+  وجود فایل در باکت، سپس پاک‌سازی کامل داده‌های آزمایشی.
+- عدم تنظیم Google Drive/WebDAV → خطای ۴۰۰ فارسی مناسب.
+- تست Playwright دسکتاپ (۱۲۸۰px) و موبایل (۳۹۰px) روی
+  `/jga4rm8j?section=backups`: رندر کامل، بدون سرریز و بدون خطای کنسول؛
+  ساخت و حذف بکاپ از رابط موفق.
+- بررسی اصلاح مقدار پیش‌فرض نگه‌داری: `PUT {"retention":12}` و
+  `GET /settings` → مقدار ۱۲ برگشت؛ سپس بازگردانی به ۱۰.
 
 ## ۱۴۰۵/۰۸/۲۴ — نمای کامل و یکجای هر کاربر در پنل مدیر — نسخه `v4.17.0`
 

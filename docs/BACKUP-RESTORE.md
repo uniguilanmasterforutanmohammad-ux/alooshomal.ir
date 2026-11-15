@@ -113,6 +113,67 @@ FORCE=1 ./scripts/restore.sh ./backups/alooshomal_<stamp>.sql.gz
 
 ---
 
+## ۵-الف. بکاپ کامل از پنل مدیر (دیتابیس + رسانه‌ها)
+
+علاوه بر snapshotهای بالا، پنل مدیر یک «مرکز پشتیبان‌گیری» کامل دارد
+(`/jga4rm8j?section=backups`) که یک بسته‌ی قابل‌بازیابی از **دیتابیس و همه‌ی
+فایل‌های فضای ذخیره‌سازی** می‌سازد و می‌تواند آن را روی Google Drive،
+S3/MinIO یا WebDAV بفرستد.
+
+### ساختار بسته
+
+هر بکاپ یک فایل `alooshomal_<YYYYMMDD-HHMMSS>.tar.gz` است که شامل:
+
+| مسیر در بسته | محتوا |
+| --- | --- |
+| `db.sql.gz` | خروجی `pg_dump` (با `--clean --if-exists --no-owner --no-privileges`) |
+| `media/<bucket>/...` | همه‌ی آبجکت‌های باکت رسانه (اختیاری با تیک «شامل رسانه‌ها») |
+| `manifest.json` | نسخه، تاریخ، اندازه‌ها، sha256 دیتابیس، تعداد آبجکت‌ها و مقصدهای ارسال‌شده |
+| `SHA256SUMS` | چک‌سام همه‌ی فایل‌ها برای صحت‌سنجی |
+| `README-RESTORE.md` و `restore.sh` | راهنمای بازیابی و اسکریپت آماده |
+
+کنار هر بسته یک فایل `<name>.json` (sidecar) ذخیره می‌شود که همان manifest را
+برای فهرست پنل نگه می‌دارد. بسته‌ها در والیوم `alooshomal_api_backups`
+(`/usr/src/app/backups` داخل کانتینر API) نگه داشته می‌شوند و طبق «تعداد
+نگه‌داری» (پیش‌فرض ۱۰) هرس می‌شوند. پیش از ساخت، فضای آزاد دیسک بررسی می‌شود
+(حداقل ۲۰۰MB).
+
+### مقصدهای ارسال
+
+تنظیمات هر مقصد در جدول `settings` ذخیره و با کلید مشتق‌شده از `JWT_SECRET`
+(AES-256-GCM) رمزنگاری می‌شود؛ در پاسخ API مقادیر حساس ماسک می‌شوند.
+
+| مقصد | فیلدها |
+| --- | --- |
+| Google Drive | `clientId`, `clientSecret`, `refreshToken`, `folderId` (اختیاری) |
+| S3 / MinIO | `endpoint`, `region`, `bucket`, `prefix`, `accessKey`, `secretKey`, `useSSL` |
+| WebDAV | `url`, `username`, `password`, `path` |
+
+برای Google Drive باید یک OAuth Client (نوع Desktop/Web) بسازید، با scope
+`https://www.googleapis.com/auth/drive.file` اجازه بگیرید و `refreshToken` را
+در تنظیمات وارد کنید. ارسال روی هر مقصد از دکمه‌ی همان ردیف بکاپ انجام می‌شود
+و پس از موفقیت، نام مقصد در `manifest.json` ثبت می‌گردد.
+
+### بازیابی
+
+بسته را روی سرور مقصد کنار `docker-compose` بگذارید و اجرا کنید:
+
+```bash
+tar -xzf alooshomal_YYYYMMDD-HHMMSS.tar.gz -C ./restore-tmp
+cd ./restore-tmp && sha256sum -c SHA256SUMS
+./restore.sh            # دیتابیس را بازنویسی و رسانه‌ها را mirror می‌کند
+```
+
+اسکریپت از `docker exec -i <db> psql` برای بازنویسی دیتابیس و از `docker cp`
+به‌همراه `mc mirror` برای رسانه‌ها استفاده می‌کند. پیش از بازیابی حتماً یک بکاپ
+تازه بگیرید.
+
+> **امنیت:** بسته‌ی بکاپ شامل داده‌ی کامل کاربران است. آن را فقط روی مقصد
+> مطمئن نگه دارید، دسترسی فایل‌ها را محدود کنید و از ارسال روی کانال بدون TLS
+> خودداری کنید (برای S3 گزینه‌ی `useSSL` را روشن بگذارید).
+
+---
+
 ## ۶. نکات عملیاتی
 
 - برای تست سالم بودن یک snapshot، می‌توانید آن را در یک دیتابیس موقت بازیابی کنید

@@ -6,6 +6,7 @@ import { AdminShell } from '@/components/admin/AdminShell';
 import { ActivityLogPanel } from '@/components/admin/ActivityLogPanel';
 import { AdminAds } from '@/components/admin/AdminAds';
 import { AdminBlogPanel } from '@/components/admin/AdminBlogPanel';
+import { AdminBackups } from '@/components/admin/AdminBackups';
 import { AdminBoosts } from '@/components/admin/AdminBoosts';
 import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
 import { AdminClaimRequests } from '@/components/admin/AdminClaimRequests';
@@ -107,6 +108,7 @@ function AdminContent() {
       {section === 'permissions' ? <AdminPermissionsMatrix /> : null}
       {section === 'moderators' ? <AdminModerators /> : null}
       {section === 'storage' ? <AdminStoragePanel /> : null}
+      {section === 'backups' ? <AdminBackups /> : null}
       {section === 'monitoring' ? <AdminMonitoringPanel /> : null}
       {section === 'notifications' ? <NotificationsInbox scope="admin" /> : null}
       {section === 'tools' ? <AdminBulkTools /> : null}
