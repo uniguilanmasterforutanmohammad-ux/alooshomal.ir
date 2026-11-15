@@ -4574,6 +4574,9 @@ html[data-skin='twitter'].dark .tw-media {
   border-color: rgba(255, 255, 255, 0.07);
 }
 
+/* =====================================================================
+   Twitter/X-style public feed (/feeds)
+   ---------------------------------------------------------------------
    Desktop gets the familiar three columns (nav rail · 600px timeline ·
    sidebar). Phones keep the site's fixed bottom bar and get a full-bleed
    timeline with a sticky header whose search collapses into an icon.
