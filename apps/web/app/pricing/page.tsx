@@ -20,6 +20,7 @@ import { useAuth } from '@/lib/auth';
 import {
   PLAN_PERIODS,
   PLAN_PERIOD_LABELS,
+  isFreePlan,
   planDiscountPercent,
   planPriceForMonths,
   type PlanPeriodMonths,
@@ -205,6 +206,10 @@ export default function PricingPage() {
                     ) : null}
                   </button>
                 ))}
+                <span className="w-full text-[11px] text-muted">
+                  پلن رایگان همیشه ماهانه است و در پایان هر ماه خودکار تمدید
+                  می‌شود.
+                </span>
               </div>
 
               {plans.length === 0 ? (
@@ -214,14 +219,17 @@ export default function PricingPage() {
               ) : (
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {plans.map((plan) => {
-                    const amount = planPriceForMonths(plan, months);
-                    const discount = planDiscountPercent(plan, months);
-                    const fullPrice = plan.price * months;
+                    const free = isFreePlan(plan);
+                    const planMonths = free ? 1 : months;
+                    const amount = planPriceForMonths(plan, planMonths);
+                    const discount = free ? 0 : planDiscountPercent(plan, months);
+                    const fullPrice = plan.price * planMonths;
                     const monthlyEquivalent =
-                      months > 1 && plan.price > 0
-                        ? Math.round(amount / months)
+                      planMonths > 1 && plan.price > 0
+                        ? Math.round(amount / planMonths)
                         : null;
-                    const hasDiscount = months > 1 && plan.price > 0 && discount > 0;
+                    const hasDiscount =
+                      planMonths > 1 && plan.price > 0 && discount > 0;
                     return (
                       <div
                         key={plan.id}
@@ -256,7 +264,11 @@ export default function PricingPage() {
                             </p>
                           ) : null}
                         </div>
-                        {months > 1 && plan.price > 0 ? (
+                        {free ? (
+                          <p className="mt-1 text-[11px] leading-5 text-muted">
+                            دوره‌ی ماهانه؛ تمدید خودکار
+                          </p>
+                        ) : months > 1 && plan.price > 0 ? (
                           <p className="mt-1 text-[11px] leading-5 text-muted">
                             {plan.price.toLocaleString('fa-IR')} تومان ×{' '}
                             {months.toLocaleString('fa-IR')} ماه

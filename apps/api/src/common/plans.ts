@@ -189,6 +189,14 @@ export function addMonths(from: Date, months: number): Date {
 /** Fallback limits used when a user has no plan row yet (brand new account). */
 export const DEFAULT_PLAN: PlanDefinition = DEFAULT_PLANS[0];
 
+/** The free plan only ever runs on a monthly term. */
+export const FREE_PLAN_MONTHS = 1;
+
+/** True when a plan is the built-in free plan (the fallback for everyone). */
+export function isFreePlan(plan: { name: string } | null | undefined): boolean {
+  return plan?.name === DEFAULT_PLAN.name;
+}
+
 export interface PlanLimits {
   name: string;
   maxBiolinks: number;

@@ -15,6 +15,13 @@ export const PLAN_PERIOD_LABELS: Record<PlanPeriodMonths, string> = {
   12: 'یک‌ساله',
 };
 
+/** Mirrors `DEFAULT_PLAN.name` in the API; the free plan is monthly-only. */
+export const FREE_PLAN_NAME = 'رایگان';
+
+export function isFreePlan(plan: { name: string } | null | undefined): boolean {
+  return plan?.name === FREE_PLAN_NAME;
+}
+
 type DiscountedPlan = Pick<
   SubscriptionPlan,
   'price' | 'discount3Months' | 'discount6Months' | 'discount12Months'

@@ -7,6 +7,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { SettingsModule } from '../settings/settings.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { SubscriptionsController } from './subscriptions.controller';
+import { SubscriptionsExpiryJob } from './subscriptions-expiry.job';
 import { SubscriptionsService } from './subscriptions.service';
 import { SubscriptionsPaymentService } from './subscriptions-payment.service';
 
@@ -20,7 +21,7 @@ import { SubscriptionsPaymentService } from './subscriptions-payment.service';
     WalletModule,
   ],
   controllers: [SubscriptionsController],
-  providers: [SubscriptionsService, SubscriptionsPaymentService],
+  providers: [SubscriptionsService, SubscriptionsPaymentService, SubscriptionsExpiryJob],
   exports: [SubscriptionsService, SubscriptionsPaymentService],
 })
 export class SubscriptionsModule {}

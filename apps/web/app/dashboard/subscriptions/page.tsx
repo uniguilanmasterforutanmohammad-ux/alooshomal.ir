@@ -15,6 +15,7 @@ import { useAuth } from '@/lib/auth';
 import {
   PLAN_PERIODS,
   PLAN_PERIOD_LABELS,
+  isFreePlan,
   planDiscountPercent,
   planPriceForMonths,
   type PlanPeriodMonths,
@@ -117,11 +118,13 @@ export default function SubscriptionsPage() {
     setMessage(null);
     setError(null);
     try {
-      const amount = planPriceForMonths(plan, months);
+      // The free plan always runs on a monthly term.
+      const planMonths = isFreePlan(plan) ? 1 : months;
+      const amount = planPriceForMonths(plan, planMonths);
       if (amount >= 1000) {
         const checkout = await api.post<SubscriptionCheckout>(
           `/subscriptions/${plan.id}/checkout`,
-          { months },
+          { months: planMonths },
         );
         if (checkout?.wallet) {
           setMessage(
@@ -136,7 +139,10 @@ export default function SubscriptionsPage() {
         window.location.href = checkout.url;
         return;
       }
-      await api.post('/subscriptions/request', { planId: plan.id, months });
+      await api.post('/subscriptions/request', {
+        planId: plan.id,
+        months: planMonths,
+      });
       setMessage(
         'درخواست شما ثبت شد. پس از تأیید مدیر، اشتراک شما فعال می‌شود.',
       );
@@ -231,7 +237,8 @@ export default function SubscriptionsPage() {
         ))}
         <span className="w-full text-xs text-muted sm:w-auto">
           دوره‌های سه‌ماهه، شش‌ماهه و یک‌ساله بر پایه‌ی قیمت ماهانه و با تخفیف
-          محاسبه می‌شوند.
+          محاسبه می‌شوند. پلن رایگان همیشه ماهانه است و در پایان هر ماه
+          به‌صورت خودکار تمدید می‌شود.
         </span>
       </div>
 
@@ -245,7 +252,9 @@ export default function SubscriptionsPage() {
             <p className="text-lg font-extrabold text-ink">{mine.plan.name}</p>
             <p className="mt-1 text-xs text-muted">
               دوره‌ی فعلی:{' '}
-              {activeMonths > 1
+              {isFreePlan(mine.plan)
+                ? 'یک‌ماهه (تمدید خودکار)'
+                : activeMonths > 1
                 ? `${activeMonths.toLocaleString('fa-IR')} ماهه`
                 : 'یک‌ماهه'}
             </p>
@@ -305,13 +314,14 @@ export default function SubscriptionsPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {plans.map((plan) => {
+          const free = isFreePlan(plan);
           const isCurrent = plan.id === currentPlanId;
-          const isCurrentTerm = isCurrent && activeMonths === months;
+          const isCurrentTerm = isCurrent && (free || activeMonths === months);
           const isPending = plan.id === pendingPlanId;
           // «ارتقا فقط»: a lower plan cannot be bought from a higher one.
           const isDowngrade = !isCurrent && plan.sortOrder < currentSortOrder;
-          const amount = planPriceForMonths(plan, months);
-          const discount = planDiscountPercent(plan, months);
+          const amount = planPriceForMonths(plan, free ? 1 : months);
+          const discount = free ? 0 : planDiscountPercent(plan, months);
           const busy = busyPlanId === plan.id;
           return (
             <div
@@ -339,7 +349,7 @@ export default function SubscriptionsPage() {
               <p className="mt-3 text-2xl font-extrabold text-brand">
                 {faPrice(amount)}
               </p>
-              {months > 1 && plan.price > 0 ? (
+              {!free && months > 1 && plan.price > 0 ? (
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
                   <span>
                     {plan.price.toLocaleString('fa-IR')} تومان × {months} ماه
@@ -349,6 +359,11 @@ export default function SubscriptionsPage() {
                       {discount.toLocaleString('fa-IR')}٪ تخفیف
                     </span>
                   ) : null}
+                </p>
+              ) : null}
+              {free ? (
+                <p className="mt-1 text-xs text-muted">
+                  دوره‌ی ماهانه؛ تمدید خودکار
                 </p>
               ) : null}
 

@@ -18,7 +18,9 @@ import {
   DEFAULT_PLAN,
   DEFAULT_PLANS,
   DEFAULT_HIDDEN_LINK_FIELDS,
+  FREE_PLAN_MONTHS,
   hiddenFieldsFrom,
+  isFreePlan,
   planLimitsFrom,
   PlanLimits,
 } from '../common/plans';
@@ -163,7 +165,77 @@ export class SubscriptionsService implements OnModuleInit {
     if (!free) return;
     await this.prisma.user.update({
       where: { id: userId },
-      data: { planId: free.id },
+      // The free plan runs on a monthly term and is renewed automatically.
+      data: { planId: free.id, planExpiresAt: addMonths(new Date(), FREE_PLAN_MONTHS) },
+    });
+  }
+
+  private async freePlanId(): Promise<string | null> {
+    const free = await this.prisma.subscriptionPlan.findFirst({
+      where: { name: DEFAULT_PLAN.name },
+      select: { id: true },
+    });
+    return free?.id ?? null;
+  }
+
+  /**
+   * Brings every expired account back onto the free plan. A paid term that ran
+   * out without an upgrade drops to «رایگان»; the free plan itself is renewed
+   * one month at a time, so it never stays expired. Called by the periodic job
+   * and lazily on the subscription read paths.
+   */
+  async reconcileExpiredPlans(now = new Date()) {
+    const freeId = await this.freePlanId();
+    if (!freeId) return { renewedFree: 0, downgraded: 0 };
+    const nextExpiry = addMonths(now, FREE_PLAN_MONTHS);
+    const [renewedFree, downgraded] = await this.prisma.$transaction([
+      this.prisma.user.updateMany({
+        where: { planId: freeId, planExpiresAt: { lte: now } },
+        data: { planExpiresAt: nextExpiry },
+      }),
+      this.prisma.user.updateMany({
+        where: { planExpiresAt: { lte: now }, planId: { not: freeId } },
+        data: { planId: freeId, planExpiresAt: nextExpiry },
+      }),
+    ]);
+    // Keep the history honest: a term that ran out is no longer «فعال».
+    await this.prisma.userSubscription.updateMany({
+      where: { status: SubscriptionStatus.ACTIVE, expiresAt: { lte: now } },
+      data: { status: SubscriptionStatus.CANCELLED, adminNote: 'پایان دوره' },
+    });
+    return { renewedFree: renewedFree.count, downgraded: downgraded.count };
+  }
+
+  /**
+   * Lazily reconciles one account so a read never shows an expired paid plan.
+   * The free plan is renewed monthly; any other expired plan falls back to it.
+   */
+  private async refreshExpiredPlanForUser(userId: string, now = new Date()) {
+    await this.ensureDefaultPlanForUser(userId);
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { plan: true },
+    });
+    if (!user?.planExpiresAt || user.planExpiresAt.getTime() > now.getTime()) {
+      return user;
+    }
+    const freeId = await this.freePlanId();
+    if (!freeId) return user;
+    await this.prisma.userSubscription.updateMany({
+      where: {
+        userId,
+        status: SubscriptionStatus.ACTIVE,
+        expiresAt: { lte: now },
+      },
+      data: { status: SubscriptionStatus.CANCELLED, adminNote: 'پایان دوره' },
+    });
+    return this.prisma.user.update({
+      where: { id: userId },
+      data:
+        user.planId === freeId
+          ? { planExpiresAt: addMonths(now, FREE_PLAN_MONTHS) }
+          : { planId: freeId, planExpiresAt: addMonths(now, FREE_PLAN_MONTHS) },
+      include: { plan: true },
     });
   }
 
@@ -256,24 +328,10 @@ export class SubscriptionsService implements OnModuleInit {
 
   /** The plan limits currently in force for a user. */
   async limitsForUser(userId: string): Promise<PlanLimits> {
-    await this.ensureDefaultPlanForUser(userId);
-    let user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      include: { plan: true },
-    });
-    // A finished paid term falls back to the free plan lazily, so the quota
-    // gate never keeps serving a plan the user no longer pays for.
-    if (user?.planExpiresAt && user.planExpiresAt.getTime() <= Date.now()) {
-      const free = await this.prisma.subscriptionPlan.findFirst({
-        where: { name: DEFAULT_PLAN.name },
-        select: { id: true },
-      });
-      user = await this.prisma.user.update({
-        where: { id: userId },
-        data: { planId: free?.id ?? null, planExpiresAt: null },
-        include: { plan: true },
-      });
-    }
+    // An expired paid term falls back to the free plan (and the free plan
+    // renews monthly), so the quota gate never serves a plan the user no
+    // longer pays for.
+    const user = await this.refreshExpiredPlanForUser(userId);
     return planLimitsFrom(user?.plan ?? null);
   }
 
@@ -336,7 +394,7 @@ export class SubscriptionsService implements OnModuleInit {
   }
 
   async mySubscriptions(userId: string) {
-    await this.ensureDefaultPlanForUser(userId);
+    await this.refreshExpiredPlanForUser(userId);
     const [account, requests, payments] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -486,7 +544,7 @@ export class SubscriptionsService implements OnModuleInit {
         userId,
         planId: plan.id,
         note: dto.note,
-        months: dto.months ?? 1,
+        months: isFreePlan(plan) ? FREE_PLAN_MONTHS : dto.months ?? 1,
       },
       include: { plan: true },
     });
@@ -595,6 +653,9 @@ export class SubscriptionsService implements OnModuleInit {
     }
 
     const now = new Date();
+    const months = isFreePlan(request.plan)
+      ? FREE_PLAN_MONTHS
+      : request.months ?? 1;
     const updated = await this.prisma.$transaction(async (tx) => {
       let term: { startsAt: Date | null; expiresAt: Date | null } | null = null;
       if (dto.status === SubscriptionStatus.ACTIVE) {
@@ -602,7 +663,7 @@ export class SubscriptionsService implements OnModuleInit {
           tx,
           request.userId,
           request.planId,
-          request.months ?? 1,
+          months,
           now,
         );
         // Supersede other *unpaid* pending requests. A paid activation that is
@@ -635,6 +696,7 @@ export class SubscriptionsService implements OnModuleInit {
         where: { id: requestId },
         data: {
           status: dto.status,
+          months,
           startsAt: term?.startsAt ?? null,
           expiresAt: term?.expiresAt ?? null,
           decidedAt: now,
