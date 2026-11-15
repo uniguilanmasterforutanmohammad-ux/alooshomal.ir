@@ -4,6 +4,7 @@ import { FeatureNoticeBar } from '@/components/layout/FeatureNoticeBar';
 import { ToastViewport } from '@/components/ui/ToastViewport';
 import { SupportChatWidget } from '@/components/support/SupportChatWidget';
 import { SessionWatcher } from '@/components/ui/SessionWatcher';
+import { ChunkErrorReloader } from '@/components/ui/ChunkErrorReloader';
 import { PaypingOAuthCatcher } from '@/components/admin/PaypingOAuthCatcher';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { SITE_URL } from '@/lib/site';
@@ -105,6 +106,7 @@ export default async function RootLayout({
           <FeatureNoticeBar />
           {children}
           <SessionWatcher />
+          <ChunkErrorReloader />
           <PaypingOAuthCatcher />
           <MobileNav />
           <SupportChatWidget />
