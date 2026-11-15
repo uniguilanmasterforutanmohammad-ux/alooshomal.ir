@@ -463,7 +463,7 @@ export function SupportChatPanel({
             <button
               type="submit"
               disabled={sending || !body.trim()}
-              className="indeed-btn indeed-btn-primary size-11 shrink-0 p-0"
+              className="flex size-11 shrink-0 items-center justify-center rounded-md border border-brand bg-brand text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="ارسال پیام"
             >
               {sending ? (

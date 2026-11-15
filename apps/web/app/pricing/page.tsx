@@ -75,10 +75,6 @@ export default function PricingPage() {
   const subscriptionsHref = signedIn
     ? '/dashboard/subscriptions'
     : '/login?next=/dashboard/subscriptions';
-  const inquiryHref = signedIn
-    ? '/dashboard/onboarding'
-    : '/login?next=/dashboard/onboarding';
-
   const load = useCallback(async (showSpinner = false) => {
     if (showSpinner) setLoading(true);
     try {
@@ -370,14 +366,6 @@ export default function PricingPage() {
                             <p className="mt-auto pt-4 text-xl font-extrabold text-brand">
                               {faPrice(item.price)}
                             </p>
-                            {item.source === 'ZOHAL' ? (
-                              <Link
-                                href={inquiryHref}
-                                className="indeed-btn indeed-btn-secondary mt-4 w-full py-2 text-sm"
-                              >
-                                درخواست استعلام
-                              </Link>
-                            ) : null}
                           </div>
                         ))}
                       </div>
