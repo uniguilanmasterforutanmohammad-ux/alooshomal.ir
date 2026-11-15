@@ -174,8 +174,8 @@ export function ProfilePanel() {
   const pending = profile.pendingChange;
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex items-center gap-3">
+    <div className="grid grid-cols-1 items-start gap-5 md:grid-cols-2">
+      <div className="flex items-center gap-3 md:col-span-2">
         <span className="vintage-avatar flex size-11 items-center justify-center">
           <UserRound className="size-5" aria-hidden />
         </span>
@@ -193,7 +193,7 @@ export function ProfilePanel() {
         </div>
       </div>
 
-      <div className="indeed-panel p-5">
+      <div className="indeed-panel p-5 md:col-span-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-2 text-sm font-extrabold text-ink">
             <IdCard className="size-4 text-brand" aria-hidden />
@@ -428,9 +428,11 @@ export function ProfilePanel() {
         </div>
       )}
 
-      <SessionsPanel />
+      <div className="md:col-span-2">
+        <SessionsPanel />
+      </div>
 
-      <p className="text-xs text-muted">
+      <p className="text-xs text-muted md:col-span-2">
         نام کاربری ورود:{' '}
         <span dir="ltr" className="font-bold">
           {user?.email ?? user?.phone ?? '—'}
@@ -476,13 +478,16 @@ function ProfileRow({
 }) {
   return (
     <tr className="border-b border-dashed border-[var(--vintage-border)] last:border-b-0">
-      <th className="w-40 px-4 py-3 text-right text-xs font-bold text-muted">
+      <th className="w-32 px-3 py-3 text-right text-xs font-bold text-muted xl:w-40 xl:px-4">
         <span className="inline-flex items-center gap-2">
           <Icon className="size-4 text-brand" aria-hidden />
           {label}
         </span>
       </th>
-      <td dir={ltr ? 'ltr' : undefined} className="px-4 py-3 font-bold text-ink">
+      <td
+        dir={ltr ? 'ltr' : undefined}
+        className="break-words px-3 py-3 font-bold text-ink xl:px-4"
+      >
         {value}
       </td>
     </tr>
