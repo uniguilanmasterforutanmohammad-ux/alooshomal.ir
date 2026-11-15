@@ -37,10 +37,27 @@ export const EMPTY_FEATURES: PublicFeatures = {
 
 let cached: PublicFeatures | null = null;
 
+/**
+ * Listeners notified whenever the shared snapshot changes. The root provider
+ * writes a fresh snapshot here after every revalidation, so hooks rendered
+ * outside the provider (and the provider's own consumers) always agree.
+ */
+const listeners = new Set<(value: PublicFeatures) => void>();
+
 export function getFeaturesCache(): PublicFeatures | null {
   return cached;
 }
 
 export function setFeaturesCache(value: PublicFeatures | null): void {
   cached = value;
+  if (value) listeners.forEach((notify) => notify(value));
+}
+
+export function subscribeFeatures(
+  listener: (value: PublicFeatures) => void,
+): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
 }

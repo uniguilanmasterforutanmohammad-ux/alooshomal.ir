@@ -55,8 +55,9 @@ export function MobileNav() {
   ];
   // Items the admin has hidden (their feature is disabled or not visible).
   const items = allItems.filter((item) => showNav(item.href));
-  // The theme toggle always takes one slot, so the grid follows the item count.
-  const columns = items.length + 1;
+  // The grid slot for the theme toggle is `auto`, so hiding a feature never
+  // shifts the toggle under a finger that is tapping the adjacent nav item.
+  const columns = `repeat(${items.length}, minmax(0, 1fr)) auto`;
 
   if (hideOnAuth) return null;
 
@@ -66,7 +67,7 @@ export function MobileNav() {
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       aria-label="ناوبری پایین"
     >
-      <ul className="grid" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>
+      <ul className="grid" style={{ gridTemplateColumns: columns }}>
         {items.map((item) => {
           const active = item.exact
             ? pathname === item.href

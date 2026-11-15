@@ -1,22 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { Moon, Sun } from 'lucide-react';
 
-export function ThemeToggle() {
-  const [dark, setDark] = useState(false);
+import {
+  applyThemeMode,
+  getThemeMode,
+  subscribeTheme,
+} from '@/lib/theme';
 
-  useEffect(() => {
-    setDark(document.documentElement.classList.contains('dark'));
-  }, []);
+export function ThemeToggle() {
+  // The server snapshot is «light» (the inline ThemeScript makes the real
+  // decision before paint), then hydration switches to the stored preference.
+  const mode = useSyncExternalStore(
+    subscribeTheme,
+    getThemeMode,
+    () => 'light' as const,
+  );
+  const dark = mode === 'dark';
 
   function toggle() {
-    const next = !dark;
-    setDark(next);
-    document.documentElement.classList.toggle('dark', next);
-    try {
-      localStorage.setItem('theme', next ? 'dark' : 'light');
-    } catch {}
+    applyThemeMode(dark ? 'light' : 'dark');
   }
 
   return (

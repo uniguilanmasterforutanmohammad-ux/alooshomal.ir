@@ -26,7 +26,10 @@ export type { StoppedSection } from './features-store';
 export async function getPublicFeatureSnapshot(): Promise<PublicFeatures> {
   try {
     const response = await fetch(`${SERVER_API_URL}/settings/public`, {
-      next: { revalidate: 10, tags: ['public-features'] },
+      // Short window: a disabled section should disappear from the very first
+      // server render after the admin flips the switch, not after a long cache
+      // period. The client provider revalidates on top of this.
+      next: { revalidate: 5, tags: ['public-features'] },
     });
     if (!response.ok) return EMPTY_FEATURES;
     const payload = (await response.json()) as {

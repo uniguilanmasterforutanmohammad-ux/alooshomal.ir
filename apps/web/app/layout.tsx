@@ -18,6 +18,7 @@ import { FeaturesProvider } from '@/components/layout/FeaturesProvider';
 import './globals.css';
 
 import { ThemeScript } from '@/components/ui/ThemeScript';
+import { ThemeSync } from '@/components/ui/ThemeSync';
 
 
 
@@ -82,6 +83,7 @@ export default async function RootLayout({
       <body>
         <FeaturesProvider initial={features}>
           <ThemeScript />
+          <ThemeSync />
           {/* The hero text (the LCP element) is painted in Shabnam, which is
               otherwise only discovered after the render-blocking CSS arrives —
               that discovery delay was ~76% of the LCP time on throttled

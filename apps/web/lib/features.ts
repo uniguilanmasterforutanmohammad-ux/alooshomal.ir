@@ -8,6 +8,7 @@ import {
   EMPTY_FEATURES as EMPTY,
   getFeaturesCache,
   setFeaturesCache,
+  subscribeFeatures,
   type PublicFeatures,
   type StoppedSection,
 } from './features-store';
@@ -28,7 +29,6 @@ export type { PublicFeatures, StoppedSection } from './features-store';
  * `FeatureNoticeBar` turns that into the site-wide «توقف موقت» strip.
  */
 let inflight: Promise<PublicFeatures> | null = null;
-const subscribers = new Set<(value: PublicFeatures) => void>();
 
 async function load(): Promise<PublicFeatures> {
   // The root layout seeds this on the client from an inline snapshot, so the
@@ -47,7 +47,6 @@ async function load(): Promise<PublicFeatures> {
           featureNoticeEnabled: result.featureNoticeEnabled !== false,
         };
         setFeaturesCache(next);
-        subscribers.forEach((notify) => notify(next));
         return next;
       })
       .catch(() => EMPTY);
@@ -81,33 +80,37 @@ export function useFeatures(): UseFeatures {
   // (including SSR) already has the right hidden hrefs. Outside a provider we
   // fall back to the shared cache / a client fetch.
   const provided = useFeaturesContext();
-  const [value, setValue] = useState<PublicFeatures>(
-    provided ?? getFeaturesCache() ?? EMPTY,
+  const [fallback, setFallback] = useState<PublicFeatures>(
+    () => getFeaturesCache() ?? EMPTY,
   );
-  const [loaded, setLoaded] = useState(Boolean(provided ?? getFeaturesCache()));
+  const [fallbackLoaded, setFallbackLoaded] = useState(
+    () => Boolean(getFeaturesCache()),
+  );
 
   useEffect(() => {
-    if (provided) {
-      setValue(provided);
-      setLoaded(true);
-      return;
-    }
+    if (provided) return;
     let active = true;
-    const notify = (next: PublicFeatures) => {
-      if (active) setValue(next);
-    };
-    subscribers.add(notify);
+    const unsubscribe = subscribeFeatures((next) => {
+      if (!active) return;
+      setFallback(next);
+      setFallbackLoaded(true);
+    });
     void load().then((next) => {
-      if (active) {
-        setValue(next);
-        setLoaded(true);
-      }
+      if (!active) return;
+      setFallback(next);
+      setFallbackLoaded(true);
     });
     return () => {
       active = false;
-      subscribers.delete(notify);
+      unsubscribe();
     };
   }, [provided]);
+
+  // When the root provider is present its value is already the freshest
+  // snapshot (it revalidates on navigation), so consumers update immediately
+  // instead of keeping a stale copy in local state.
+  const value = provided ?? fallback;
+  const loaded = Boolean(provided) || fallbackLoaded;
 
   function isFeatureVisible(key: string): boolean {
     // Default to visible until we know otherwise.
