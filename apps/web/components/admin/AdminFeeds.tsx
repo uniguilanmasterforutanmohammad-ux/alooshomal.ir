@@ -22,7 +22,7 @@ const TABS: Array<[Tab, string]> = [
 ];
 
 /**
- * Admin «فیدها» panel with tabs: post moderation, user subscriptions, package
+ * Admin «پست‌ها» panel with tabs: post moderation, user subscriptions, package
  * management, topic management and the image limits (max images + max size).
  * Each tab lives in its own component under `components/admin/feeds/`.
  */

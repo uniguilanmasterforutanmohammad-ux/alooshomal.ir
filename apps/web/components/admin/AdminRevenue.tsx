@@ -266,7 +266,7 @@ export function AdminRevenue() {
               />
             </label>
             <label className="flex flex-col gap-1 text-xs font-bold text-muted">
-              قیمت تگ کارت/بیولینک در فید (تومان)
+              قیمت تگ کارت/بیولینک در بخش پست‌ها (تومان)
               <input
                 type="number"
                 min={0}

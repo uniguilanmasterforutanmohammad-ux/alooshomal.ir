@@ -40,7 +40,7 @@ export class FeedCommentsService {
       where: { id: postId, status: NewsStatus.APPROVED, isPublished: true },
       select: { id: true },
     });
-    if (!post) throw new NotFoundException('پست فید یافت نشد');
+    if (!post) throw new NotFoundException('پست یافت نشد');
     const safeLimit = Math.min(Math.max(limit, 1), 50);
     const safePage = Math.max(page, 1);
     const where = { feedPostId: postId, status: NewsStatus.APPROVED };
@@ -78,7 +78,7 @@ export class FeedCommentsService {
       select: { id: true, userId: true, status: true, isPublished: true },
     });
     if (!post || (post.status !== NewsStatus.APPROVED && post.userId !== userId)) {
-      throw new NotFoundException('پست فید یافت نشد');
+      throw new NotFoundException('پست یافت نشد');
     }
     const [approved, mine] = await Promise.all([
       this.prisma.feedComment.findMany({
@@ -115,7 +115,7 @@ export class FeedCommentsService {
       where: { id: postId, status: NewsStatus.APPROVED, isPublished: true },
       select: { id: true, userId: true },
     });
-    if (!post) throw new NotFoundException('پست فید یافت نشد');
+    if (!post) throw new NotFoundException('پست یافت نشد');
 
     const comment = await this.prisma.feedComment.create({
       data: { feedPostId: postId, userId, body, status: NewsStatus.PENDING },
@@ -144,7 +144,7 @@ export class FeedCommentsService {
     }
     await this.activity.log({
       action: 'FEED_COMMENT_CREATED',
-      summary: 'ثبت کامنت روی پست فید',
+      summary: 'ثبت کامنت روی پست',
       entityType: 'FEED',
       entityId: postId,
     });
@@ -231,7 +231,7 @@ export class FeedCommentsService {
           : 'کامنت شما تأیید نشد',
       body:
         decision === NewsStatus.APPROVED
-          ? 'کامنت شما روی پست فید منتشر شد.'
+          ? 'کامنت شما روی پست منتشر شد.'
           : reason ?? 'کامنت شما توسط مدیر تأیید نشد.',
       type: decision === NewsStatus.APPROVED ? NotificationType.SUCCESS : NotificationType.WARNING,
       link: `/feeds/${comment.feedPostId}`,

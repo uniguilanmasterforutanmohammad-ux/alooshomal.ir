@@ -35,7 +35,7 @@ type Tab = 'biolinks' | 'business-cards' | 'feeds';
 const TABS: Array<{ key: Tab; label: string; icon: typeof IdCard }> = [
   { key: 'biolinks', label: 'بیولینک‌ها', icon: IdCard },
   { key: 'business-cards', label: 'کارت‌های ویزیت', icon: BadgeCheck },
-  { key: 'feeds', label: 'فیدها', icon: ImagePlus },
+  { key: 'feeds', label: 'پست‌ها', icon: ImagePlus },
 ];
 
 const TAB_KIND: Record<Tab, BoostTargetKind> = {
@@ -98,7 +98,7 @@ export function BoostTable({
   onMessage,
 }: Props) {
   const { features } = useFeatures();
-  // The «فیدها» tab follows the admin's feed feature switch: when the feed
+  // The «پست‌ها» tab follows the admin's feed feature switch: when the feed
   // feature is disabled, feed posts are not offered for boosting here either.
   const feedsEnabled = features.featureFeedPosts !== false;
   const tabs = feedsEnabled ? TABS : TABS.filter((item) => item.key !== 'feeds');
@@ -510,7 +510,7 @@ export function BoostTable({
                     {request.kind === 'BIOLINK'
                       ? 'بیولینک'
                       : request.kind === 'FEED'
-                        ? 'فید'
+                        ? 'پست'
                         : 'کارت ویزیت'}
                   </span>
                 </span>
@@ -553,7 +553,7 @@ export function BoostTable({
                     {request.kind === 'BIOLINK'
                       ? 'بیولینک'
                       : request.kind === 'FEED'
-                        ? 'فید'
+                        ? 'پست'
                         : 'کارت ویزیت'}
                     {' • '}
                     {request.placement === 'DIRECTORY'

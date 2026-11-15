@@ -63,9 +63,9 @@ const ACTION_LABELS: Record<string, string> = {
   AD_REQUESTED: 'درخواست تبلیغ',
   AD_APPROVED: 'تأیید تبلیغ',
   AD_REJECTED: 'رد تبلیغ',
-  FEED_SUBSCRIPTION_REQUESTED: 'درخواست اشتراک فید',
-  FEED_SUBSCRIPTION_APPROVED: 'تأیید اشتراک فید',
-  FEED_SUBSCRIPTION_REJECTED: 'رد اشتراک فید',
+  FEED_SUBSCRIPTION_REQUESTED: 'درخواست اشتراک پست',
+  FEED_SUBSCRIPTION_APPROVED: 'تأیید اشتراک پست',
+  FEED_SUBSCRIPTION_REJECTED: 'رد اشتراک پست',
   REWARD_REDEEMED: 'دریافت جایزه امتیاز',
   PROFILE_CHANGE_REQUESTED: 'درخواست تغییر نام',
   PROFILE_CHANGE_APPROVED: 'تأیید تغییر نام',
@@ -237,7 +237,7 @@ export function ActivityLogPanel({ scope }: { scope?: 'revenue' } = {}) {
         {revenueOnly ? (
           <p className="border-b border-[var(--vintage-border)] px-5 py-3 text-xs text-muted">
             هر اقدام مربوط به خرید/ارتقای اشتراک، پله، تبلیغ دایرکتوری، تبلیغ صفحه
-            اول، اشتراک فید و دریافت جایزه امتیاز اینجا ثبت می‌شود؛ بنابراین سابقه‌ی
+            اول، اشتراک پست و دریافت جایزه امتیاز اینجا ثبت می‌شود؛ بنابراین سابقه‌ی
             کامل درآمدزایی و تصمیم‌های مدیر قابل رهگیری است.
           </p>
         ) : null}

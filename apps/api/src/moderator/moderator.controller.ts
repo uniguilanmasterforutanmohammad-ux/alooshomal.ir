@@ -59,7 +59,7 @@ export class ModeratorController {
   }
 
   @Get('topics')
-  @ApiOperation({ summary: 'موضوع‌های فید (برای فرم ویرایش پست)' })
+  @ApiOperation({ summary: 'موضوع‌های پست (برای فرم ویرایش پست)' })
   topics() {
     return this.moderator.listTopics();
   }

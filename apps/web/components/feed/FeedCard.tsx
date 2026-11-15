@@ -82,13 +82,13 @@ export function FeedCard({ post, compact = false }: Props) {
           {directoryAd ? (
             <BoostBadge
               label="تبلیغات"
-              title="این پست تبلیغ هدفمند است و در صدر همین موضوع در دایرکتوری فیدها نمایش داده می‌شود"
+              title="این پست تبلیغ هدفمند است و در صدر همین موضوع در دایرکتوری پست‌ها نمایش داده می‌شود"
               className="ms-auto"
             />
           ) : boosted ? (
             <BoostBadge
               label="پله"
-              title="این پست با «پله» به صدر دایرکتوری فیدها آورده شده است"
+              title="این پست با «پله» به صدر دایرکتوری پست‌ها آورده شده است"
               className="ms-auto"
             />
           ) : null}

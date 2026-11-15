@@ -61,7 +61,7 @@ export function AdminBoosts() {
             {request.kind === 'BIOLINK'
               ? 'بیولینک'
               : request.kind === 'FEED'
-                ? 'پست فید'
+                ? 'پست'
                 : 'کارت ویزیت'}
           </span>
         </div>

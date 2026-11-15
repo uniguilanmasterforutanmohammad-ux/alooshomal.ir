@@ -58,7 +58,7 @@ const CONTENT_SCOPES: ModeratorScope[] = ['BIOLINK', 'BUSINESS_CARD', 'FEED', 'N
 const SCOPE_LABELS: Record<ModeratorScope, string> = {
   BIOLINK: 'بیولینک‌ها',
   BUSINESS_CARD: 'کارت‌های ویزیت',
-  FEED: 'فیدها',
+  FEED: 'پست‌ها',
   NEWS: 'شهروند خبرنگار',
   SUBSCRIPTION_REQUESTS: 'اشتراک‌ها',
   AD_REQUESTS: 'تبلیغ صفحه اصلی',
@@ -361,7 +361,7 @@ export function ModeratorPanel() {
 const REQUEST_KIND_LABEL: Record<string, string> = {
   BIOLINK: 'بیولینک',
   BUSINESS_CARD: 'کارت ویزیت',
-  FEED: 'پست فید',
+  FEED: 'پست',
 };
 
 function ModeratorCard({

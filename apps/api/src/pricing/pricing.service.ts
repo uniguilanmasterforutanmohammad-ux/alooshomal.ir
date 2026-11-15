@@ -28,8 +28,8 @@ export interface PricingUpdate {
  */
 const HIDDEN_PUBLIC_PRICING_KEYS = new Set(['setting:feedTagPrice']);
 const HIDDEN_PUBLIC_FEED_PACKAGE_LABELS = new Set([
-  'بسته فید «اشتراک یک‌ماهه ۵ پست»',
-  'بسته فید «اشتراک یک‌ماهه ۱۰ پست»',
+  'بسته پست «اشتراک یک‌ماهه ۵ پست»',
+  'بسته پست «اشتراک یک‌ماهه ۱۰ پست»',
 ]);
 
 /**
@@ -83,7 +83,7 @@ export class PricingService {
         key: 'setting:boostPrice',
         label: 'پله (ارتقای جایگاه در لیست مشاغل)',
         group: 'بازاریابی و تبلیغات',
-        description: 'هزینه‌ی هر درخواست پله برای کارت/بیولینک/پست فید.',
+        description: 'هزینه‌ی هر درخواست پله برای کارت/بیولینک/پست.',
         price: boostPrice,
         source: 'SETTING',
         sourceId: 'boostPrice',
@@ -108,9 +108,9 @@ export class PricingService {
       },
       {
         key: 'setting:feedTagPrice',
-        label: 'تگ کارت/بیولینک روی پست فید',
-        group: 'فیدها',
-        description: 'هزینه‌ی چسباندن کارت یا بیولینک به یک پست فید.',
+        label: 'تگ کارت/بیولینک روی پست',
+        group: 'پست‌ها',
+        description: 'هزینه‌ی چسباندن کارت یا بیولینک به یک پست.',
         price: feedTagPrice,
         source: 'SETTING',
         sourceId: 'feedTagPrice',
@@ -127,8 +127,8 @@ export class PricingService {
       })),
       ...packages.map((pkg) => ({
         key: `feedPackage:${pkg.id}`,
-        label: `بسته فید «${pkg.name}»`,
-        group: 'فیدها',
+        label: `بسته پست «${pkg.name}»`,
+        group: 'پست‌ها',
         description: pkg.description ?? undefined,
         price: pkg.price,
         source: 'FEED_PACKAGE' as const,
@@ -267,7 +267,7 @@ export class PricingService {
         where: { id },
         select: { id: true },
       });
-      if (!pkg) throw new BadRequestException('بسته‌ی فید انتخاب‌شده یافت نشد.');
+      if (!pkg) throw new BadRequestException('بسته‌ی پست انتخاب‌شده یافت نشد.');
       return;
     }
     throw new BadRequestException('کلید قیمت نامعتبر است.');

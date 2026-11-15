@@ -101,14 +101,14 @@ export default function FeedPostPage() {
       <main className="container-page max-w-2xl py-8">
         <Link href="/feeds" className="inline-flex items-center gap-1 text-sm font-bold text-brand">
           <ArrowRight className="size-4" aria-hidden />
-          بازگشت به فیدها
+          بازگشت به پست‌ها
         </Link>
 
         {loading ? (
           <p className="mt-4 text-muted">در حال بارگذاری...</p>
         ) : error || !post ? (
           <p className="mt-4 rounded-lg bg-red-50 p-4 text-sm text-red-700">
-            {error ?? 'پست فید یافت نشد'}
+            {error ?? 'پست یافت نشد'}
           </p>
         ) : (
           <article className="indeed-panel mt-4 overflow-hidden">
@@ -116,7 +116,7 @@ export default function FeedPostPage() {
               <div className="relative aspect-square w-full bg-soft">
                 <Image
                   src={post.images[active]}
-                  alt={richTextPreview(post.body).slice(0, 40) || 'پست فید'}
+                  alt={richTextPreview(post.body).slice(0, 40) || 'پست'}
                   fill
                   sizes="(max-width: 768px) 100vw, 640px"
                   className="object-contain"

@@ -56,7 +56,7 @@ export function FeedSettings() {
       );
       setMaxImages(String(result.feedMaxImages));
       setMaxKb(String(result.feedMaxImageKb));
-      setMessage('تنظیمات فید ذخیره شد.');
+      setMessage('تنظیمات پست ذخیره شد.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره ناموفق بود');
     } finally {
@@ -68,7 +68,7 @@ export function FeedSettings() {
     <div className="indeed-panel p-5">
       <h3 className="flex items-center gap-2 text-sm font-extrabold text-ink">
         <Layers className="size-5 text-brand" aria-hidden />
-        محدودیت رسانه فید
+        محدودیت رسانه پست
       </h3>
       <p className="mt-1 text-xs text-muted">
         حداکثر تعداد تصویر مجاز برای هر پست و حداکثر حجم هر تصویر.

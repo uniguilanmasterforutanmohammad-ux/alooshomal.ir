@@ -20,7 +20,7 @@ import { feedPostInclude, feedTagInclude } from './feeds.shared';
 import { WalletService } from '../wallet/wallet.service';
 
 /**
- * Admin side of «فیدها»: post moderation, the paid-tag decisions, and the
+ * Admin side of «پست‌ها»: post moderation, the paid-tag decisions, and the
  * package/topic catalogue (including the boot-time default packages). Split out
  * of `FeedsService` so the user panel and the moderation console stay separate.
  */
@@ -44,7 +44,7 @@ export class FeedsAdminService {
       data: [
         {
           name: 'اشتراک یک‌ماهه ۵ پست',
-          description: 'امکان انتشار ۵ پست در فید به مدت یک ماه.',
+          description: 'امکان انتشار ۵ پست در ماه.',
           price: 0,
           postsQuota: 5,
           durationDays: 30,
@@ -52,7 +52,7 @@ export class FeedsAdminService {
         },
         {
           name: 'اشتراک یک‌ماهه ۱۰ پست',
-          description: 'امکان انتشار ۱۰ پست در فید به مدت یک ماه.',
+          description: 'امکان انتشار ۱۰ پست در ماه.',
           price: 0,
           postsQuota: 10,
           durationDays: 30,
@@ -114,7 +114,7 @@ export class FeedsAdminService {
 
   async moderatePost(adminId: string, id: string, decision: NewsStatus, reason?: string) {
     const post = await this.prisma.feedPost.findUnique({ where: { id } });
-    if (!post) throw new NotFoundException('پست فید یافت نشد');
+    if (!post) throw new NotFoundException('پست یافت نشد');
     const approved = decision === NewsStatus.APPROVED;
     const updated = await this.prisma.feedPost.update({
       where: { id },
@@ -127,11 +127,11 @@ export class FeedsAdminService {
     });
     await this.notifications.notify({
       userId: post.userId,
-      title: approved ? 'پست فید شما تأیید شد' : 'پست فید شما رد شد',
+      title: approved ? 'پست شما تأیید شد' : 'پست شما رد شد',
       body: approved
         ? post.tagKind && !post.tagPaid
-          ? 'پست شما در فید منتشر شد. توجه: تا تأیید پرداخت تگ، لینک کارت/بیولینک شما نمایش داده نمی‌شود.'
-          : 'پست شما در فید منتشر شد.'
+          ? 'پست شما در بخش پست‌ها منتشر شد. توجه: تا تأیید پرداخت تگ، لینک کارت/بیولینک شما نمایش داده نمی‌شود.'
+          : 'پست شما در بخش پست‌ها منتشر شد.'
         : reason
           ? `پست شما رد شد: ${reason}`
           : 'پست شما رد شد.',
@@ -142,7 +142,7 @@ export class FeedsAdminService {
     await this.activity.log({
       actor: { id: adminId },
       action: approved ? 'FEED_APPROVED' : 'FEED_REJECTED',
-      summary: `${approved ? 'تأیید' : 'رد'} پست فید`,
+      summary: `${approved ? 'تأیید' : 'رد'} پست`,
       entityType: 'FEED',
       entityId: id,
     });
@@ -152,7 +152,7 @@ export class FeedsAdminService {
 
   async adminRemovePost(id: string) {
     const post = await this.prisma.feedPost.findUnique({ where: { id } });
-    if (!post) throw new NotFoundException('پست فید یافت نشد');
+    if (!post) throw new NotFoundException('پست یافت نشد');
     await this.prisma.feedPost.delete({ where: { id } });
     this.facetsCache.invalidate('dir:feeds');
     return { deleted: true };
@@ -171,7 +171,7 @@ export class FeedsAdminService {
     decision: 'CONFIRM' | 'REJECT',
   ) {
     const post = await this.prisma.feedPost.findUnique({ where: { id: postId } });
-    if (!post) throw new NotFoundException('پست فید یافت نشد');
+    if (!post) throw new NotFoundException('پست یافت نشد');
     if (!post.tagKind) {
       throw new BadRequestException('این پست تگی ندارد');
     }
@@ -179,7 +179,7 @@ export class FeedsAdminService {
     if (confirm) {
       await this.wallet.assertSettled(
         post.userId,
-        'کاربر برای اعمال تگ فید باید ابتدا بدهی کیف پول خود را تسویه کند.',
+        'کاربر برای اعمال تگ پست باید ابتدا بدهی کیف پول خود را تسویه کند.',
       );
     }
     const updated = await this.prisma.feedPost.update({
@@ -200,7 +200,7 @@ export class FeedsAdminService {
       userId: post.userId,
       title: confirm ? 'پرداخت تگ پست شما تأیید شد' : 'پرداخت تگ پست شما رد شد',
       body: confirm
-        ? 'لینک کارت/بیولینک شما در فید نمایش داده می‌شود.'
+        ? 'لینک کارت/بیولینک شما در بخش پست‌ها نمایش داده می‌شود.'
         : 'تگ پست شما حذف شد و مبلغی محاسبه نمی‌شود.',
       type: confirm ? NotificationType.SUCCESS : NotificationType.WARNING,
       link: '/dashboard/feeds',
@@ -209,7 +209,7 @@ export class FeedsAdminService {
     await this.activity.log({
       actor: { id: adminId },
       action: confirm ? 'FEED_TAG_PAID' : 'FEED_TAG_REJECTED',
-      summary: `${confirm ? 'تأیید' : 'رد'} پرداخت تگ پست فید`,
+      summary: `${confirm ? 'تأیید' : 'رد'} پرداخت تگ پست`,
       entityType: 'FEED',
       entityId: postId,
     });
@@ -221,7 +221,7 @@ export class FeedsAdminService {
           // Each confirmation is its own sale; a later re-confirmation after a
           // rejection must get a fresh invoice, not reuse the voided one.
           sourceId: `${post.id}:${confirmedAt.getTime()}`,
-          title: 'تگ کارت/بیولینک روی پست فید',
+          title: 'تگ کارت/بیولینک روی پست',
           amount: post.tagPrice ?? 0,
           paidAt: confirmedAt,
           userId: post.userId,
@@ -284,7 +284,7 @@ export class FeedsAdminService {
     }>,
   ) {
     const pkg = await this.prisma.feedPackage.findUnique({ where: { id } });
-    if (!pkg) throw new NotFoundException('بسته فید یافت نشد');
+    if (!pkg) throw new NotFoundException('بسته پست یافت نشد');
     return this.prisma.feedPackage.update({
       where: { id },
       data: {
@@ -301,7 +301,7 @@ export class FeedsAdminService {
 
   async removePackage(id: string) {
     const pkg = await this.prisma.feedPackage.findUnique({ where: { id } });
-    if (!pkg) throw new NotFoundException('بسته فید یافت نشد');
+    if (!pkg) throw new NotFoundException('بسته پست یافت نشد');
     await this.prisma.feedPackage.delete({ where: { id } });
     return { deleted: true };
   }
@@ -331,7 +331,7 @@ export class FeedsAdminService {
       where: { id },
       include: { package: true },
     });
-    if (!sub) throw new NotFoundException('اشتراک فید یافت نشد');
+    if (!sub) throw new NotFoundException('اشتراک پست یافت نشد');
     if (sub.status !== SubscriptionStatus.PENDING) {
       throw new BadRequestException('این درخواست قبلاً بررسی شده است');
     }
@@ -340,7 +340,7 @@ export class FeedsAdminService {
     if (approved) {
       await this.wallet.assertSettled(
         sub.userId,
-        'کاربر برای فعال‌سازی اشتراک فید باید ابتدا بدهی کیف پول خود را تسویه کند.',
+        'کاربر برای فعال‌سازی اشتراک پست باید ابتدا بدهی کیف پول خود را تسویه کند.',
       );
     }
 
@@ -391,9 +391,9 @@ export class FeedsAdminService {
       userId: sub.userId,
       title: approved
         ? existingActive
-          ? 'اشتراک فید شما ارتقا یافت'
-          : 'اشتراک فید شما فعال شد'
-        : 'درخواست اشتراک فید رد شد',
+          ? 'اشتراک پست شما ارتقا یافت'
+          : 'اشتراک پست شما فعال شد'
+        : 'درخواست اشتراک پست رد شد',
       body: approved
         ? existingActive
           ? `بسته «${sub.package.name}» فعال شد؛ ${existingPostCount.toLocaleString('fa-IR')} پست فعلی شما از سهمیه‌ی ${sub.package.postsQuota.toLocaleString('fa-IR')} تایی کسر شد.`
@@ -407,7 +407,7 @@ export class FeedsAdminService {
     await this.activity.log({
       actor: { id: adminId },
       action: approved ? 'FEED_SUBSCRIPTION_APPROVED' : 'FEED_SUBSCRIPTION_REJECTED',
-      summary: `${approved ? 'تأیید' : 'رد'} اشتراک فید «${sub.package.name}»`,
+      summary: `${approved ? 'تأیید' : 'رد'} اشتراک پست «${sub.package.name}»`,
       entityType: 'FEED',
       entityId: id,
     });

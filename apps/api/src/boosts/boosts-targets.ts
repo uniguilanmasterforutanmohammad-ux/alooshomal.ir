@@ -53,7 +53,7 @@ export async function resolveBoostTargetLabels(
   feeds.forEach((item) =>
     map.set(item.id, {
       id: item.id,
-      fullName: item.body?.slice(0, 40) || 'پست فید',
+      fullName: item.body?.slice(0, 40) || 'پست',
       slug: item.id,
     }),
   );

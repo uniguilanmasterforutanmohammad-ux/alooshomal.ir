@@ -17,7 +17,7 @@ type Tab = 'biolinks' | 'business-cards' | 'feeds';
 const TABS: Array<{ key: Tab; label: string; icon: typeof IdCard }> = [
   { key: 'biolinks', label: 'بیولینک‌ها', icon: IdCard },
   { key: 'business-cards', label: 'کارت‌های ویزیت', icon: BadgeCheck },
-  { key: 'feeds', label: 'فیدها', icon: ImagePlus },
+  { key: 'feeds', label: 'پست‌ها', icon: ImagePlus },
 ];
 
 function faDate(value: string) {
@@ -257,7 +257,7 @@ function SavedFeedsTable({
   if (rows.length === 0) {
     return (
       <p className="indeed-panel p-6 text-center text-sm text-muted">
-        پست فیدی ذخیره نشده است.
+        پستی ذخیره نشده است.
       </p>
     );
   }

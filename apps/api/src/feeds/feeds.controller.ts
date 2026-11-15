@@ -59,21 +59,21 @@ export class FeedsPublicController {
 
   @Public()
   @Get('public')
-  @ApiOperation({ summary: 'دایرکتوری عمومی فیدها با جستجو و فیلتر موضوع' })
+  @ApiOperation({ summary: 'دایرکتوری عمومی پست‌ها با جستجو و فیلتر موضوع' })
   directory(@Query() query: ListFeedQueryDto) {
     return this.feedDirectory.publicDirectory(query);
   }
 
   @Public()
   @Get('public/topics')
-  @ApiOperation({ summary: 'موضوع‌های فعال فید' })
+  @ApiOperation({ summary: 'موضوع‌های فعال پست' })
   topics() {
     return this.feedDirectory.listTopics(true);
   }
 
   @OptionalAuth()
   @Get('public/:id')
-  @ApiOperation({ summary: 'جزئیات یک پست فید منتشرشده' })
+  @ApiOperation({ summary: 'جزئیات یک پست منتشرشده' })
   detail(
     @Param('id') id: string,
     @Req() request: Request,
@@ -84,7 +84,7 @@ export class FeedsPublicController {
 
   @OptionalAuth()
   @Get('public/:id/comments')
-  @ApiOperation({ summary: 'کامنت‌های تأییدشده یک پست فید (+ کامنت‌های خود کاربر)' })
+  @ApiOperation({ summary: 'کامنت‌های تأییدشده یک پست (+ کامنت‌های خود کاربر)' })
   comments(
     @Param('id') id: string,
     @Query() query: PaginationDto,
@@ -96,7 +96,7 @@ export class FeedsPublicController {
 
   @Post('public/:id/comments')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'ثبت کامنت روی پست فید (در انتظار تأیید مدیر)' })
+  @ApiOperation({ summary: 'ثبت کامنت روی پست (در انتظار تأیید مدیر)' })
   createComment(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -117,21 +117,21 @@ export class FeedsPublicController {
 
   @Public()
   @Post('public/:id/like')
-  @ApiOperation({ summary: 'لایک/برداشتن لایک پست فید' })
+  @ApiOperation({ summary: 'لایک/برداشتن لایک پست' })
   like(@Param('id') id: string, @Req() request: Request) {
     return this.feedDirectory.toggleLike(id, visitorKeyFrom(request));
   }
 
   @Post('public/:id/save')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'ذخیره/حذف پست فید از ذخیره‌شده‌های من' })
+  @ApiOperation({ summary: 'ذخیره/حذف پست از ذخیره‌شده‌های من' })
   save(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.feedDirectory.toggleSave(id, user.id);
   }
 }
 
 // ---------------------------------------------------------------------------
-//  User panel («فید من»)
+//  User panel («پست‌های من»)
 // ---------------------------------------------------------------------------
 
 @ApiTags('feeds')
@@ -145,20 +145,20 @@ export class FeedsUserController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'وضعیت فید من: اشتراک‌ها، بسته‌ها و پست‌های من' })
+  @ApiOperation({ summary: 'وضعیت پست‌های من: اشتراک‌ها و بسته‌ها' })
   mine(@CurrentUser() user: AuthUser) {
     return this.feeds.myOverview(user.id);
   }
 
   @Get('saved')
-  @ApiOperation({ summary: 'پست‌های فید ذخیره‌شده من (صفحه‌بندی‌شده)' })
+  @ApiOperation({ summary: 'پست‌های ذخیره‌شده من (صفحه‌بندی‌شده)' })
   saved(@CurrentUser() user: AuthUser, @Query() query: PaginationDto) {
     return this.feeds.findMySaved(user.id, query.page, query.limit);
   }
 
   @Post('subscriptions/request')
   @UseGuards(ProfileCompleteGuard)
-  @ApiOperation({ summary: 'درخواست اشتراک فید (در انتظار تأیید مدیر)' })
+  @ApiOperation({ summary: 'درخواست اشتراک پست (در انتظار تأیید مدیر)' })
   request(
     @CurrentUser() user: AuthUser,
     @Body('packageId') packageId: string,
@@ -172,7 +172,7 @@ export class FeedsUserController {
     FileInterceptor('file', { limits: { fileSize: MAX_FEED_UPLOAD_BYTES } }),
   )
   @ApiConsumes('multipart/form-data')
-  @ApiOperation({ summary: 'آپلود تصویر پست فید (WebP)' })
+  @ApiOperation({ summary: 'آپلود تصویر پست (WebP)' })
   async upload(
     @CurrentUser() user: AuthUser,
     @UploadedFile() file: Express.Multer.File,
@@ -183,13 +183,13 @@ export class FeedsUserController {
 
   @Post()
   @UseGuards(ProfileCompleteGuard)
-  @ApiOperation({ summary: 'ثبت پست فید جدید (در انتظار تأیید مدیر)' })
+  @ApiOperation({ summary: 'ثبت پست جدید (در انتظار تأیید مدیر)' })
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateFeedPostDto) {
     return this.feeds.createPost(user.id, dto);
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'ویرایش پست فید من (بازگشت به صف بررسی)' })
+  @ApiOperation({ summary: 'ویرایش پست من (بازگشت به صف بررسی)' })
   update(
     @CurrentUser() user: AuthUser,
     @Param('id') id: string,
@@ -199,14 +199,14 @@ export class FeedsUserController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: 'حذف پست فید من' })
+  @ApiOperation({ summary: 'حذف پست من' })
   remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.feeds.removePost(user.id, id);
   }
 }
 
 // ---------------------------------------------------------------------------
-//  Admin «فیدها»
+//  Admin «پست‌ها»
 // ---------------------------------------------------------------------------
 
 @ApiTags('admin')
@@ -223,13 +223,13 @@ export class AdminFeedsController {
   ) {}
 
   @Get('posts')
-  @ApiOperation({ summary: 'همه پست‌های فید (مدیر)' })
+  @ApiOperation({ summary: 'همه پست‌ها (مدیر)' })
   posts(@Query('status') status?: NewsStatus) {
     return this.feedsAdmin.adminListPosts(status);
   }
 
   @Patch('posts/:id/moderate')
-  @ApiOperation({ summary: 'تأیید یا رد پست فید' })
+  @ApiOperation({ summary: 'تأیید یا رد پست' })
   moderate(
     @CurrentUser() admin: AuthUser,
     @Param('id') id: string,
@@ -241,7 +241,7 @@ export class AdminFeedsController {
 
   @Patch('posts/:id/tag-payment')
   @ApiOperation({
-    summary: 'تأیید یا رد پرداخت تگ کارت/بیولینک روی پست فید (شبیه‌سازی درگاه)',
+    summary: 'تأیید یا رد پرداخت تگ کارت/بیولینک روی پست (شبیه‌سازی درگاه)',
   })
   decideTagPayment(
     @CurrentUser() admin: AuthUser,
@@ -252,13 +252,13 @@ export class AdminFeedsController {
   }
 
   @Delete('posts/:id')
-  @ApiOperation({ summary: 'حذف پست فید (مدیر)' })
+  @ApiOperation({ summary: 'حذف پست (مدیر)' })
   removePost(@Param('id') id: string) {
     return this.feedsAdmin.adminRemovePost(id);
   }
 
   @Get('comments')
-  @ApiOperation({ summary: 'کامنت‌های فید برای بررسی (مدیر)' })
+  @ApiOperation({ summary: 'کامنت‌های پست برای بررسی (مدیر)' })
   comments(@Query() query: ListFeedCommentsQueryDto) {
     return this.commentsService.adminListComments(query.status, query.page, query.limit);
   }
@@ -270,7 +270,7 @@ export class AdminFeedsController {
   }
 
   @Patch('comments/:id/moderate')
-  @ApiOperation({ summary: 'تأیید یا رد کامنت فید' })
+  @ApiOperation({ summary: 'تأیید یا رد کامنت پست' })
   moderateComment(
     @CurrentUser() admin: AuthUser,
     @Param('id') id: string,
@@ -281,19 +281,19 @@ export class AdminFeedsController {
   }
 
   @Delete('comments/:id')
-  @ApiOperation({ summary: 'حذف کامنت فید (مدیر)' })
+  @ApiOperation({ summary: 'حذف کامنت پست (مدیر)' })
   removeComment(@Param('id') id: string) {
     return this.commentsService.adminRemoveComment(id);
   }
 
   @Get('packages')
-  @ApiOperation({ summary: 'همه بسته‌های فید (مدیر)' })
+  @ApiOperation({ summary: 'همه بسته‌های پست (مدیر)' })
   packages() {
     return this.feedsAdmin.listPackages(false);
   }
 
   @Post('packages')
-  @ApiOperation({ summary: 'افزودن بسته فید' })
+  @ApiOperation({ summary: 'افزودن بسته پست' })
   createPackage(
     @Body()
     body: {
@@ -310,7 +310,7 @@ export class AdminFeedsController {
   }
 
   @Patch('packages/:id')
-  @ApiOperation({ summary: 'ویرایش بسته فید' })
+  @ApiOperation({ summary: 'ویرایش بسته پست' })
   updatePackage(
     @Param('id') id: string,
     @Body() body: Record<string, unknown>,
@@ -319,19 +319,19 @@ export class AdminFeedsController {
   }
 
   @Delete('packages/:id')
-  @ApiOperation({ summary: 'حذف بسته فید' })
+  @ApiOperation({ summary: 'حذف بسته پست' })
   removePackage(@Param('id') id: string) {
     return this.feedsAdmin.removePackage(id);
   }
 
   @Get('subscriptions')
-  @ApiOperation({ summary: 'اشتراک‌های فید کاربران (مدیر)' })
+  @ApiOperation({ summary: 'اشتراک‌های پست کاربران (مدیر)' })
   subscriptions(@Query('status') status?: SubscriptionStatus) {
     return this.feedsAdmin.listSubscriptions(status);
   }
 
   @Patch('subscriptions/:id')
-  @ApiOperation({ summary: 'تأیید یا رد اشتراک فید' })
+  @ApiOperation({ summary: 'تأیید یا رد اشتراک پست' })
   decideSubscription(
     @CurrentUser() admin: AuthUser,
     @Param('id') id: string,
@@ -342,19 +342,19 @@ export class AdminFeedsController {
   }
 
   @Get('topics')
-  @ApiOperation({ summary: 'مدیریت موضوع‌های فید' })
+  @ApiOperation({ summary: 'مدیریت موضوع‌های پست' })
   topics() {
     return this.feedDirectory.listTopics(false);
   }
 
   @Post('topics')
-  @ApiOperation({ summary: 'افزودن موضوع فید' })
+  @ApiOperation({ summary: 'افزودن موضوع پست' })
   createTopic(@Body('name') name: string) {
     return this.feedsAdmin.createTopic(name);
   }
 
   @Patch('topics/:id')
-  @ApiOperation({ summary: 'ویرایش موضوع فید' })
+  @ApiOperation({ summary: 'ویرایش موضوع پست' })
   updateTopic(
     @Param('id') id: string,
     @Body() body: { name?: string; isActive?: boolean },
@@ -363,7 +363,7 @@ export class AdminFeedsController {
   }
 
   @Delete('topics/:id')
-  @ApiOperation({ summary: 'حذف موضوع فید' })
+  @ApiOperation({ summary: 'حذف موضوع پست' })
   removeTopic(@Param('id') id: string) {
     return this.feedsAdmin.removeTopic(id);
   }

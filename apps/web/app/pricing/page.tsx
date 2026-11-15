@@ -45,7 +45,7 @@ interface PricingPayload {
 
 const GROUP_ICONS: Record<string, typeof ReceiptText> = {
   'استعلام‌های هویتی': ShieldCheck,
-  'فیدها': PackageOpen,
+  'پست‌ها': PackageOpen,
   'بازاریابی و تبلیغات': ReceiptText,
 };
 

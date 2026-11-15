@@ -291,7 +291,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
           <div className="mx-4 mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 md:mx-6">
             <ShieldCheck className="size-4 shrink-0" aria-hidden />
             <span className="flex-1 leading-6">
-              پروفایل شما ناقص است؛ برای ساخت بیولینک، کارت ویزیت، پست فید و
+              پروفایل شما ناقص است؛ برای ساخت بیولینک، کارت ویزیت، پست و
               خرید خدمات، ابتدا استعلام هویت را در «شروع آسان» کامل کنید.
             </span>
             <Link

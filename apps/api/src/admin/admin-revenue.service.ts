@@ -126,7 +126,7 @@ export class AdminRevenueService {
         revenue: row.count * row.price,
       })),
       ...Array.from(feedRows.values()).map((row) => ({
-        model: 'اشتراک فید',
+        model: 'اشتراک پست',
         label: row.name,
         count: row.count,
         unitPrice: row.price,
@@ -154,8 +154,8 @@ export class AdminRevenueService {
         revenue: homeAds.length * adHomePrice,
       },
       {
-        model: 'تگ فید',
-        label: 'تگ کارت/بیولینک روی پست فید',
+        model: 'تگ پست',
+        label: 'تگ کارت/بیولینک روی پست',
         count: paidFeedTags.length,
         unitPrice: feedTagPrice,
         revenue: paidFeedTags.length * feedTagPrice,
@@ -194,7 +194,7 @@ export class AdminRevenueService {
     pushEvents(homeAds, 'تبلیغ در صفحه اصلی', adHomePrice);
     for (const post of paidFeedTags) {
       events.push({
-        model: 'تگ فید',
+        model: 'تگ پست',
         revenue: post.tagPrice ?? feedTagPrice,
         at: post.tagDecidedAt ?? post.createdAt,
       });
@@ -208,7 +208,7 @@ export class AdminRevenueService {
     }
     for (const sub of feedSubscriptions) {
       events.push({
-        model: 'اشتراک فید',
+        model: 'اشتراک پست',
         revenue: sub.package?.price ?? 0,
         at: sub.decidedAt ?? sub.requestedAt,
       });

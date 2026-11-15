@@ -86,7 +86,7 @@ export function SubscriptionsPanel() {
           >
             <div>
               <h4 className="font-extrabold text-ink">
-                {sub.package?.name ?? 'بسته فید'}
+                {sub.package?.name ?? 'بسته پست'}
               </h4>
               <p dir="ltr" className="text-xs text-muted">
                 {sub.user?.email}

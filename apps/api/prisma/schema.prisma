@@ -170,7 +170,7 @@ enum RewardKind {
   AD_DIRECTORY
 }
 
-/// «فیدها» — an Instagram-style micro-blogging feed. A user buys a monthly
+/// «پست‌ها» — an Instagram-style micro-blogging feed. A user buys a monthly
 /// package (a post quota), submits posts with text + images, and an admin
 /// approves each post before it appears in the public feed directory.
 model FeedTopic {

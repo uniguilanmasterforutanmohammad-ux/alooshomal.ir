@@ -447,6 +447,6 @@ export class RequestPaymentsService {
       where: { id: targetId },
       select: { body: true },
     });
-    return post?.body?.slice(0, 40) || 'پست فید';
+    return post?.body?.slice(0, 40) || 'پست';
   }
 }

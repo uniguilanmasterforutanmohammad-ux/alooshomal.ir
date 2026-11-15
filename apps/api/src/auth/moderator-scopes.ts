@@ -67,8 +67,8 @@ export const MODERATOR_SCOPE_META: ModeratorScopeMeta[] = [
   {
     scope: 'FEED',
     group: 'محتوا',
-    label: 'فیدها',
-    hint: 'تأیید، ویرایش و رد پست‌های فید',
+    label: 'پست‌ها',
+    hint: 'تأیید، ویرایش و رد پست‌ها',
   },
   {
     scope: 'NEWS',

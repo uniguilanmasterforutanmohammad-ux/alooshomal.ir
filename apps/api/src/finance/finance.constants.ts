@@ -27,7 +27,7 @@ export const FINANCE_SOURCE_LABELS: Record<string, string> = {
   [FINANCE_SOURCE_TYPES.BOOST]: 'پله (افزایش بازدید)',
   [FINANCE_SOURCE_TYPES.AD_HOME]: 'تبلیغ صفحه اصلی',
   [FINANCE_SOURCE_TYPES.AD_DIRECTORY]: 'تبلیغ دایرکتوری',
-  [FINANCE_SOURCE_TYPES.FEED_TAG]: 'تگ فید',
+  [FINANCE_SOURCE_TYPES.FEED_TAG]: 'تگ پست',
   [FINANCE_SOURCE_TYPES.SERVICE_PAYMENT]: 'خدمات و استعلام',
   [FINANCE_SOURCE_TYPES.WALLET]: 'تسویه کیف پول',
   [FINANCE_SOURCE_TYPES.MANUAL]: 'فروش دستی',

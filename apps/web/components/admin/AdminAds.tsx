@@ -31,7 +31,7 @@ function faDate(value: string) {
 function kindLabel(kind: AdRequest['kind']) {
   if (kind === 'BUSINESS_CARD') return 'کارت ویزیت';
   if (kind === 'BIOLINK') return 'بیولینک';
-  return 'پست فید';
+  return 'پست';
 }
 
 interface SettingsPayload {

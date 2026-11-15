@@ -35,7 +35,7 @@ export const UPLOAD_CATEGORIES: Record<UploadCategoryKey, UploadCategory> = {
     cover: 400,
     label: 'تصویر پروفایل',
   },
-  feed: { folder: 'feeds', maxWidth: 1080, maxHeight: 1350, label: 'تصویر فید' },
+  feed: { folder: 'feeds', maxWidth: 1080, maxHeight: 1350, label: 'تصویر پست' },
   gallery: {
     folder: 'gallery',
     maxWidth: 1600,

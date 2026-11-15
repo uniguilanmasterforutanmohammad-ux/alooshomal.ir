@@ -1,6 +1,6 @@
 import type { NewsStatus } from '@/lib/api';
 
-/** Tabs of the admin «فیدها» panel. */
+/** Tabs of the admin «پست‌ها» panel. */
 export type Tab =
   | 'posts'
   | 'comments'

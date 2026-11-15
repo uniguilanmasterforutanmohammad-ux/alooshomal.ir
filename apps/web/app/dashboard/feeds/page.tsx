@@ -49,7 +49,7 @@ function faDate(value: string) {
 }
 
 /**
- * «فید من» — the user's feed panel. Publishing a post (text + images) is free;
+ * «پست‌های من» — the user's feed panel. Publishing a post (text + images) is free;
  * the only paid product is *tagging* one of the author's own business cards or
  * biolinks on the post. The tag fee is added to the wallet and the admin can
  * apply the tag only after the wallet is settled. The panel also manages the
@@ -231,7 +231,7 @@ export default function DashboardFeedsPage() {
         setMessage(
           tagKind
             ? 'پست ثبت شد و هزینه‌ی تگ به کیف پول شما اضافه شد. پس از تأیید مدیر منتشر می‌شود و پس از تسویه‌ی کیف پول، لینک کارت/بیولینک نمایش داده می‌شود.'
-            : 'پست ثبت شد و پس از تأیید مدیر در فید منتشر می‌شود.',
+            : 'پست ثبت شد و پس از تأیید مدیر در بخش پست‌ها منتشر می‌شود.',
         );
       }
       resetForm();
@@ -263,7 +263,7 @@ export default function DashboardFeedsPage() {
         <h2 className="text-xl font-extrabold text-ink">پست‌های من</h2>
         <p className="text-sm text-muted">
           انتشار پست (متن + عکس) رایگان است. هر پست پس از تأیید مدیر در دایرکتوری
-          فیدها نمایش داده می‌شود. تنها قابلیت پرداختی، تگ‌کردن کارت ویزیت یا بیولینک
+          پست‌ها نمایش داده می‌شود. تنها قابلیت پرداختی، تگ‌کردن کارت ویزیت یا بیولینک
           خودتان روی پست است.
         </p>
       </div>
@@ -290,7 +290,7 @@ export default function DashboardFeedsPage() {
       </div>
 
       {!profileCompleted ? (
-        <ProfileRequiredNotice action="ثبت پست فید" />
+        <ProfileRequiredNotice action="ثبت پست" />
       ) : (
       <form onSubmit={submit} className="indeed-panel flex flex-col gap-3 p-5">
           <h3 className="flex items-center gap-2 text-sm font-extrabold text-ink">

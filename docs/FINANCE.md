@@ -47,7 +47,7 @@ await this.finance.recordSale({
 - خرید اشتراک: `SUBSCRIPTION_PAYMENT` در `SubscriptionsPaymentService`.
 - پله (boost): `BOOST_PAYMENT` در `RequestPaymentsService`.
 - تبلیغ صفحه اصلی/دایرکتوری: `AD_HOME_PAYMENT` / `AD_DIRECTORY_PAYMENT`.
-- تگ فید: `FEED_TAG` در `FeedsAdminService` (هر تأیید یک `sourceId` یکتا
+- تگ پست: `FEED_TAG` در `FeedsAdminService` (هر تأیید یک `sourceId` یکتا
   بر اساس زمان تصمیم دارد؛ تأیید مجدد پس از رد، فاکتور تازه می‌گیرد).
 - فروش دستی: `MANUAL_SALE` از پنل «مالیاتی».
 

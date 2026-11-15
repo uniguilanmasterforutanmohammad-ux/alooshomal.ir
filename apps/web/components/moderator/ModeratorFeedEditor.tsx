@@ -62,7 +62,7 @@ export function ModeratorFeedEditor({ feedPostId, onClose, onChanged }: Props) {
   return (
     <div className="indeed-panel p-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-extrabold text-ink">ویرایش پست فید</h3>
+        <h3 className="text-sm font-extrabold text-ink">ویرایش پست</h3>
         <button onClick={onClose} className="text-muted hover:text-ink" aria-label="بستن">
           <X className="size-4" />
         </button>

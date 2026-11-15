@@ -39,7 +39,7 @@ export const BOOST_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 /** Persian label for a boost target kind, used in notifications/logs. */
 function boostKindLabel(kind: BoostTargetKind): string {
   if (kind === BoostTargetKind.BIOLINK) return 'بیولینک';
-  if (kind === BoostTargetKind.FEED) return 'پست فید';
+  if (kind === BoostTargetKind.FEED) return 'پست';
   return 'کارت ویزیت';
 }
 
@@ -116,7 +116,7 @@ export class BoostsService {
 
     const feedSearchWhere = search ? { body: { contains: search, mode: 'insensitive' as const } } : {};
     // When the admin turns the feed feature off, the user's feed posts must not
-    // be advertised here either (the «فیدها» tab disappears from the panel).
+    // be advertised here either (the «پست‌ها» tab disappears from the panel).
     const feedsEnabled = await this.settings.isFeatureEnabled('featureFeedPosts');
 
     const [biolinks, biolinkTotal, businessCards, cardTotal] = await Promise.all([
@@ -451,9 +451,9 @@ export class BoostsService {
       const post = await this.prisma.feedPost.findUnique({
         where: { id: targetId },
       });
-      if (!post) throw new NotFoundException('پست فید یافت نشد');
+      if (!post) throw new NotFoundException('پست یافت نشد');
       if (post.userId !== userId) {
-        throw new ForbiddenException('دسترسی به این پست فید مجاز نیست');
+        throw new ForbiddenException('دسترسی به این پست مجاز نیست');
       }
       return post;
     }

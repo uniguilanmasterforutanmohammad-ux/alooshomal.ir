@@ -343,7 +343,7 @@ export class ModeratorService {
           where: { id },
           include: { topic: true, user: { select: { fullName: true, email: true } } },
         });
-        if (!item) throw new NotFoundException('پست فید یافت نشد');
+        if (!item) throw new NotFoundException('پست یافت نشد');
         return item;
       }
       case 'NEWS':

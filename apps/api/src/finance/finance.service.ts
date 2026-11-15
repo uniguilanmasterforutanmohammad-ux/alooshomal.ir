@@ -789,7 +789,7 @@ export class FinanceService implements OnModuleInit {
       await ensure({
         sourceType: FINANCE_SOURCE_TYPES.FEED_TAG,
         sourceId: `${post.id}:${decidedAt.getTime()}`,
-        title: 'تگ کارت/بیولینک روی پست فید',
+        title: 'تگ کارت/بیولینک روی پست',
         amount: post.tagPrice ?? 0,
         issuedAt: decidedAt,
         paidAt: decidedAt,

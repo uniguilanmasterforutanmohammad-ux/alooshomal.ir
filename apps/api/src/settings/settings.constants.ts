@@ -111,7 +111,7 @@ export const POINTS_PER_NEWS_KEY = 'pointsPerNews';
 export const DEFAULT_POINTS_PER_NEWS = 10;
 
 // ---------------------------------------------------------------------------
-//  «فیدها» (feed) limits
+//  «پست‌ها» (feed) limits
 // ---------------------------------------------------------------------------
 
 /** Max number of images allowed on a single feed post. */
@@ -327,7 +327,7 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
   },
   {
     key: 'featureFeedPosts',
-    label: 'پست کاربران (فید)',
+    label: 'پست کاربران',
     description:
       'اگر خاموش باشد، کاربران نمی‌توانند پست تازه منتشر کنند. خاموش‌کردن «نمایش» صفحه‌ی «پست‌های کاربران» را هم متوقف می‌کند.',
     group: 'ساخت محتوا',
@@ -345,9 +345,9 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
   },
   {
     key: 'featureFeedComments',
-    label: 'کامنت کاربران روی پست‌های فید',
+    label: 'کامنت کاربران روی پست‌ها',
     description:
-      'اگر خاموش باشد، کاربران نمی‌توانند روی پست‌های فید کامنت بگذارند. کامنت‌ها پیش از نمایش عمومی توسط مدیر تأیید می‌شوند.',
+      'اگر خاموش باشد، کاربران نمی‌توانند روی پست‌ها کامنت بگذارند. کامنت‌ها پیش از نمایش عمومی توسط مدیر تأیید می‌شوند.',
     group: 'ساخت محتوا',
     default: true,
   },

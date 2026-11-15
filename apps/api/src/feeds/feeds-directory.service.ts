@@ -13,7 +13,7 @@ const DIRECTORY_CACHE_TTL_MS = (() => {
 })();
 
 /**
- * Public read-path of the «فیدها» directory: the paginated/cached directory
+ * Public read-path of the «پست‌ها» directory: the paginated/cached directory
  * list, a single post, visitor likes/saves, the topic vocabulary and the
  * directory rank used by «افزایش بازدید». Split out of `FeedsService` so the
  * write/moderation flows stay in one place.
@@ -128,7 +128,7 @@ export class FeedsDirectoryService {
       where: { id, status: NewsStatus.APPROVED, isPublished: true },
       include: { ...feedPostInclude, ...feedTagInclude },
     });
-    if (!post) throw new NotFoundException('پست فید یافت نشد');
+    if (!post) throw new NotFoundException('پست یافت نشد');
 
     const [liked, saved] = await Promise.all([
       visitorKey
@@ -158,7 +158,7 @@ export class FeedsDirectoryService {
       where: { id, status: NewsStatus.APPROVED, isPublished: true },
       select: { id: true },
     });
-    if (!post) throw new NotFoundException('پست فید یافت نشد');
+    if (!post) throw new NotFoundException('پست یافت نشد');
     const existing = await this.prisma.feedLike.findUnique({
       where: { feedPostId_visitorKey: { feedPostId: id, visitorKey } },
     });
@@ -176,7 +176,7 @@ export class FeedsDirectoryService {
       where: { id, status: NewsStatus.APPROVED, isPublished: true },
       select: { id: true },
     });
-    if (!post) throw new NotFoundException('پست فید یافت نشد');
+    if (!post) throw new NotFoundException('پست یافت نشد');
     const existing = await this.prisma.feedSave.findUnique({
       where: { userId_feedPostId: { userId, feedPostId: id } },
     });

@@ -445,7 +445,7 @@ export class AdsService {
         kind: ad.kind,
         id: ad.id,
         slug: post.id,
-        fullName: post.body?.slice(0, 60) || 'پست فید',
+        fullName: post.body?.slice(0, 60) || 'پست',
         jobTitle: null,
         company: null,
         bio: post.body,
@@ -510,14 +510,14 @@ export class AdsService {
           userId: true,
         },
       });
-      if (!post) throw new NotFoundException('پست فید یافت نشد');
+      if (!post) throw new NotFoundException('پست یافت نشد');
       if (post.userId !== userId) {
-        throw new ForbiddenException('دسترسی به این پست فید مجاز نیست');
+        throw new ForbiddenException('دسترسی به این پست مجاز نیست');
       }
       return {
         id: post.id,
         slug: post.id,
-        fullName: post.body?.slice(0, 60) || 'پست فید',
+        fullName: post.body?.slice(0, 60) || 'پست',
         jobTitle: null,
         company: null,
         isPublished: post.isPublished,

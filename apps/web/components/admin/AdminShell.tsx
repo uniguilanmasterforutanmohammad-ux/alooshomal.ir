@@ -119,7 +119,7 @@ const NAV_GROUPS: Array<{
       { key: 'biolinks', label: 'بیولینک‌ها', icon: IdCard },
       { key: 'business-cards', label: 'کارت‌های ویزیت', icon: IdCard },
       { key: 'claim-requests', label: 'درخواست‌های تصاحب', icon: ShieldQuestion },
-      { key: 'feeds', label: 'فیدها', icon: ImagePlus },
+      { key: 'feeds', label: 'پست‌ها', icon: ImagePlus },
       { key: 'news', label: 'شهروند خبرنگار', icon: Newspaper },
       { key: 'blog', label: 'بلاگ', icon: BookOpen },
     ],

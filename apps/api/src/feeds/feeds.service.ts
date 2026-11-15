@@ -31,7 +31,7 @@ import {
 } from './feeds.shared';
 
 /**
- * «فیدها» — an Instagram-style feed. Users buy a monthly package (a post
+ * «پست‌ها» — an Instagram-style feed. Users buy a monthly package (a post
  * quota), submit posts (text + images) and an admin approves each before it
  * appears in the public feed directory. The directory supports topic filter +
  * text search and reuses the same infinite-scroll envelope as the other
@@ -255,13 +255,13 @@ export class FeedsService implements OnModuleInit {
   async requestSubscription(userId: string, packageId: string) {
     const pkg = await this.prisma.feedPackage.findUnique({ where: { id: packageId } });
     if (!pkg || !pkg.isActive) {
-      throw new NotFoundException('بسته فید یافت نشد یا غیرفعال است');
+      throw new NotFoundException('بسته پست یافت نشد یا غیرفعال است');
     }
     const pending = await this.prisma.userFeedSubscription.findFirst({
       where: { userId, status: SubscriptionStatus.PENDING },
     });
     if (pending) {
-      throw new BadRequestException('یک درخواست اشتراک فید در انتظار تأیید دارید');
+      throw new BadRequestException('یک درخواست اشتراک پست در انتظار تأیید دارید');
     }
 
     // When the user's current subscription has run out of quota, they may only
@@ -291,7 +291,7 @@ export class FeedsService implements OnModuleInit {
           userId,
           kind: WalletEntryKind.FEED_PACKAGE,
           amount: pkg.price,
-          title: `خرید بسته فید «${pkg.name}»`,
+          title: `خرید بسته پست «${pkg.name}»`,
           sourceType: 'FEED_PACKAGE',
           sourceId: created.id,
           idempotencyKey: `feed-package:${created.id}`,
@@ -307,15 +307,15 @@ export class FeedsService implements OnModuleInit {
     await this.notifications.notifyAdmins({
       category: 'FEED',
       scope: 'FEED',
-      title: exhausted ? 'درخواست ارتقای اشتراک فید' : 'درخواست اشتراک فید جدید',
-      body: `درخواست بسته «${pkg.name}» برای فید ثبت شد.`,
+      title: exhausted ? 'درخواست ارتقای اشتراک پست' : 'درخواست اشتراک پست جدید',
+      body: `درخواست بسته «${pkg.name}» برای پست ثبت شد.`,
       type: NotificationType.INFO,
       link: '/jga4rm8j?section=feeds',
       actorId: userId,
     });
     await this.activity.log({
       action: 'FEED_SUBSCRIPTION_REQUESTED',
-      summary: `درخواست اشتراک فید «${pkg.name}»`,
+      summary: `درخواست اشتراک پست «${pkg.name}»`,
       entityType: 'FEED',
       entityId: created.id,
     });
@@ -326,7 +326,7 @@ export class FeedsService implements OnModuleInit {
   async createPost(userId: string, dto: CreateFeedPostDto) {
     await this.wallet.assertSettled(
       userId,
-      'برای ثبت پست فید، ابتدا بدهی کیف پول خود را تسویه کنید.',
+      'برای ثبت پست، ابتدا بدهی کیف پول خود را تسویه کنید.',
     );
     // Admin off-switch for the whole «پست کاربران» feature.
     await this.settings.assertFeatureEnabled(
@@ -382,7 +382,7 @@ export class FeedsService implements OnModuleInit {
           userId,
           kind: WalletEntryKind.FEED_TAG,
           amount: tagPrice ?? 0,
-          title: 'تگ کارت/بیولینک روی پست فید',
+          title: 'تگ کارت/بیولینک روی پست',
           sourceType: 'FEED_POST',
           sourceId: post.id,
           idempotencyKey: `feed-tag:${post.id}:${tag.kind}:${tag.biolinkId ?? tag.businessCardId}`,
@@ -397,17 +397,17 @@ export class FeedsService implements OnModuleInit {
     await this.notifications.notifyAdmins({
       category: 'FEED',
       scope: 'FEED',
-      title: 'پست فید جدید در انتظار تأیید',
+      title: 'پست جدید در انتظار تأیید',
       body: tag
-        ? 'یک پست فید همراه با تگ کارت/بیولینک برای بررسی ثبت شد.'
-        : 'یک پست فید برای بررسی ثبت شد.',
+        ? 'یک پست همراه با تگ کارت/بیولینک برای بررسی ثبت شد.'
+        : 'یک پست برای بررسی ثبت شد.',
       type: NotificationType.INFO,
       link: '/jga4rm8j?section=feeds',
       actorId: userId,
     });
     await this.activity.log({
       action: 'FEED_POST_CREATED',
-      summary: 'ثبت پست فید جدید',
+      summary: 'ثبت پست جدید',
       entityType: 'FEED',
       entityId: post.id,
     });
@@ -452,7 +452,7 @@ export class FeedsService implements OnModuleInit {
 
   async updatePost(userId: string, id: string, dto: CreateFeedPostDto) {
     const post = await this.prisma.feedPost.findUnique({ where: { id } });
-    if (!post) throw new NotFoundException('پست فید یافت نشد');
+    if (!post) throw new NotFoundException('پست یافت نشد');
     if (post.userId !== userId) {
       throw new ForbiddenException('دسترسی به این پست مجاز نیست');
     }
@@ -498,7 +498,7 @@ export class FeedsService implements OnModuleInit {
         userId,
         kind: WalletEntryKind.FEED_TAG,
         amount: tagPrice ?? 0,
-        title: 'تگ کارت/بیولینک روی پست فید',
+        title: 'تگ کارت/بیولینک روی پست',
         sourceType: 'FEED_POST',
         sourceId: post.id,
         idempotencyKey: `feed-tag:${post.id}:${tag.kind}:${tag.biolinkId ?? tag.businessCardId}`,
@@ -510,7 +510,7 @@ export class FeedsService implements OnModuleInit {
 
   async removePost(userId: string, id: string) {
     const post = await this.prisma.feedPost.findUnique({ where: { id } });
-    if (!post) throw new NotFoundException('پست فید یافت نشد');
+    if (!post) throw new NotFoundException('پست یافت نشد');
     if (post.userId !== userId) {
       throw new ForbiddenException('دسترسی به این پست مجاز نیست');
     }
@@ -528,7 +528,7 @@ export class FeedsService implements OnModuleInit {
     dto: { body?: string; images?: string[]; topicId?: string | null },
   ) {
     const post = await this.prisma.feedPost.findUnique({ where: { id } });
-    if (!post) throw new NotFoundException('پست فید یافت نشد');
+    if (!post) throw new NotFoundException('پست یافت نشد');
 
     const data: Prisma.FeedPostUpdateInput = {};
     if (dto.body !== undefined) data.body = dto.body.trim() || null;
