@@ -160,6 +160,10 @@ export class PointsService implements OnModuleInit {
 
   /** Balance, recent ledger entries and the active reward catalogue. */
   async summary(userId: string) {
+    await this.settings.assertFeatureEnabled(
+      'featureNews',
+      'بخش «امتیاز من» همراه با قابلیت «شهروند خبرنگار» غیرفعال شده است.',
+    );
     const [user, ledger, rewards, redemptions] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -188,7 +192,13 @@ export class PointsService implements OnModuleInit {
     };
   }
 
-  listRewards(activeOnly = false) {
+  async listRewards(activeOnly = false) {
+    if (activeOnly) {
+      await this.settings.assertFeatureEnabled(
+        'featureNews',
+        'بخش «امتیاز من» همراه با قابلیت «شهروند خبرنگار» غیرفعال شده است.',
+      );
+    }
     return this.prisma.reward.findMany({
       where: activeOnly ? { isActive: true } : {},
       orderBy: [{ sortOrder: 'asc' }, { points: 'asc' }],
@@ -198,6 +208,10 @@ export class PointsService implements OnModuleInit {
 
   /** Redeem a reward: deduct points and apply the reward's effect. */
   async redeem(userId: string, rewardId: string, dto: RedeemRewardDto) {
+    await this.settings.assertFeatureEnabled(
+      'featureNews',
+      'بخش «امتیاز من» همراه با قابلیت «شهروند خبرنگار» غیرفعال شده است.',
+    );
     const reward = await this.prisma.reward.findUnique({
       where: { id: rewardId },
       include: { plan: true },
