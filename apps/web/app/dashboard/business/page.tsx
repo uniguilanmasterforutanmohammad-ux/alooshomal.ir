@@ -6,11 +6,8 @@ import { Suspense, useEffect, useState } from 'react';
 import {
   ArrowUpLeft,
   Check,
-  Lock,
   Plus,
-  Power,
   Save,
-  ShoppingCart,
 } from 'lucide-react';
 
 import { BusinessPanelNav, moduleIcon } from '@/components/business/BusinessPanelNav';
@@ -18,23 +15,11 @@ import { api, WORKSPACE_STORAGE_KEY } from '@/lib/api';
 import type {
   BusinessWorkspace,
   BusinessWorkspaceSummary,
-  ResolvedBusinessModule,
 } from '@/lib/api/types/business-modules';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
-
-interface PurchaseResult {
-  url?: string;
-  activated?: boolean;
-  free?: boolean;
-  amount?: number;
-}
-
-function formatToman(amount: number): string {
-  return `${amount.toLocaleString('fa-IR')} تومان`;
-}
 
 function BusinessPanelContent() {
   const router = useRouter();
@@ -83,38 +68,6 @@ function BusinessPanelContent() {
       );
       setWorkspace(next);
       toast.success('بسته‌ی صنف به‌روزرسانی شد');
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function toggleModule(key: string, nextEnabled: boolean) {
-    setBusy(key);
-    try {
-      const next = await api.patch<BusinessWorkspace>(
-        `/business-modules/my/${key}`,
-        { enabled: nextEnabled },
-      );
-      setWorkspace(next);
-      toast.success(nextEnabled ? 'ماژول فعال شد' : 'ماژول غیرفعال شد');
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function purchaseModule(module: ResolvedBusinessModule) {
-    setBusy(module.key);
-    try {
-      const result = await api.post<PurchaseResult>(
-        `/business-modules/my/${module.key}/purchase`,
-        { returnTo: '/dashboard/business' },
-      );
-      if (result.url) {
-        window.location.href = result.url;
-        return;
-      }
-      toast.success('ماژول فعال شد');
-      await reload();
     } finally {
       setBusy(null);
     }
@@ -195,8 +148,8 @@ function BusinessPanelContent() {
         <div>
           <h1 className="text-2xl font-extrabold text-ink">مدیریت کسب‌وکار</h1>
           <p className="mt-1 text-sm text-muted">
-            هر قابلیت یک ماژول مستقل است؛ فقط مدیریت‌هایی را فعال یا خریداری کنید
-            که کسب‌وکارتان به آن‌ها نیاز دارد.
+            در این بخش مدیریت‌های فعال کسب‌وکار خود را می‌بینید. فعال‌سازی یا
+            غیرفعال‌سازی ماژول‌ها توسط مدیر سامانه انجام می‌شود.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -302,21 +255,33 @@ function BusinessPanelContent() {
 
       <section>
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-extrabold text-ink">مدیریت‌های کسب‌وکار</h2>
+          <div>
+            <h2 className="text-lg font-extrabold text-ink">
+              مدیریت‌های فعال کسب‌وکار
+            </h2>
+            <p className="text-xs text-muted">
+              فعال یا غیرفعال‌کردن ماژول‌ها توسط مدیر سامانه انجام می‌شود؛ در این
+              بخش فقط مدیریت‌های فعال کسب‌وکار شما نمایش داده می‌شود.
+            </p>
+          </div>
           <span className="text-xs text-muted">
             {activeModules.length} مدیریت فعال
           </span>
         </div>
+        {activeModules.length === 0 ? (
+          <div className="indeed-panel p-8 text-center text-sm text-muted">
+            هنوز هیچ مدیریتی برای این کسب‌وکار فعال نشده است. برای فعال‌سازی با
+            پشتیبانی در ارتباط باشید.
+          </div>
+        ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {workspace.modules.map((module) => {
+          {activeModules.map((module) => {
             const Icon = moduleIcon(module.icon);
-            const needsPurchase = module.billable && module.price > 0 && !module.purchased;
             return (
               <article
                 key={module.key}
                 className={cn(
-                  'indeed-panel flex flex-col gap-3 p-5 transition',
-                  module.enabled ? 'border-brand/40' : 'opacity-90',
+                  'indeed-panel flex flex-col gap-3 border-brand/40 p-5 transition',
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -330,20 +295,9 @@ function BusinessPanelContent() {
                     </div>
                   </div>
                   <span
-                    className={cn(
-                      'rounded-full px-2 py-1 text-[10px] font-bold',
-                      module.enabled
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : needsPurchase
-                          ? 'bg-amber-50 text-amber-700'
-                          : 'bg-gray-100 text-gray-600',
-                    )}
+                    className="rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-700"
                   >
-                    {module.enabled
-                      ? 'فعال'
-                      : needsPurchase
-                        ? 'نیازمند خرید'
-                        : 'غیرفعال'}
+                    فعال
                   </span>
                 </div>
                 <p className="text-xs leading-6 text-muted">{module.description}</p>
@@ -355,15 +309,8 @@ function BusinessPanelContent() {
                     </li>
                   ))}
                 </ul>
-                {module.billable ? (
-                  <p className="text-[11px] font-bold text-ink">
-                    {module.price > 0
-                      ? `${formatToman(module.price)} / ${module.months > 0 ? `${module.months} ماه` : 'دائمی'}`
-                      : 'رایگان (با تعیین قیمت توسط مدیر قابل فروش می‌شود)'}
-                  </p>
-                ) : null}
-                <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-2">
-                  {module.nav && module.enabled ? (
+                <div className="mt-auto pt-2">
+                  {module.nav ? (
                     <Link
                       href={module.nav.href}
                       prefetch={false}
@@ -373,48 +320,16 @@ function BusinessPanelContent() {
                       <ArrowUpLeft className="size-3" aria-hidden />
                     </Link>
                   ) : (
-                    <span />
-                  )}
-                  {module.enabled ? (
-                    <button
-                      type="button"
-                      onClick={() => void toggleModule(module.key, false)}
-                      disabled={busy === module.key}
-                      className="inline-flex items-center gap-1 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-50 disabled:opacity-50"
-                    >
-                      <Power className="size-3.5" aria-hidden />
-                      غیرفعال‌کردن
-                    </button>
-                  ) : needsPurchase ? (
-                    <button
-                      type="button"
-                      onClick={() => void purchaseModule(module)}
-                      disabled={busy === module.key}
-                      className="inline-flex items-center gap-1 rounded-lg bg-brand px-2.5 py-1.5 text-xs font-bold text-white transition hover:opacity-90 disabled:opacity-50"
-                    >
-                      <ShoppingCart className="size-3.5" aria-hidden />
-                      خرید و فعال‌سازی
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => void toggleModule(module.key, true)}
-                      disabled={busy === module.key}
-                      className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 px-2.5 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:opacity-50"
-                    >
-                      {module.billable ? (
-                        <Lock className="size-3.5" aria-hidden />
-                      ) : (
-                        <Power className="size-3.5" aria-hidden />
-                      )}
-                      فعال‌کردن
-                    </button>
+                    <span className="text-[11px] text-muted">
+                      این مدیریت صفحه‌ی اختصاصی ندارد.
+                    </span>
                   )}
                 </div>
               </article>
             );
           })}
         </div>
+        )}
       </section>
     </div>
   );

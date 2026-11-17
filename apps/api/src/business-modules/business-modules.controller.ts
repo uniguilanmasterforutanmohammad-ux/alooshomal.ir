@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -136,6 +137,7 @@ export class BusinessModulesController {
     @Body() dto: PurchaseModuleDto,
   ) {
     await this.ensureEnabled();
+    this.assertCanManageModules(user);
     return this.modules.purchase(user.id, key, dto.months, dto.returnTo);
   }
 
@@ -149,7 +151,22 @@ export class BusinessModulesController {
     @Body() dto: SetModuleDto,
   ) {
     await this.ensureEnabled();
+    this.assertCanManageModules(user);
     return this.modules.setModuleEnabled(user.id, key, dto.enabled);
+  }
+
+  /**
+   * Module activation is an admin decision: the business owner only sees the
+   * modules that are already active for their workspace.
+   */
+  private assertCanManageModules(user: AuthUser): void {
+    if (user.role !== 'ADMIN') {
+      throw new ForbiddenException({
+        message:
+          'فعال یا غیرفعال‌کردن ماژول‌ها فقط توسط مدیر سامانه انجام می‌شود.',
+        code: 'MODULE_MANAGEMENT_ADMIN_ONLY',
+      });
+    }
   }
 
   @Public()

@@ -56,6 +56,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'business-cards',
   'claim-requests',
   'subscriptions',
+  'business-modules',
   'boosts',
   'ads',
   'points',
