@@ -21,6 +21,7 @@ import { BusinessCardsModule } from './businesscards/business-cards.module';
 import { BusinessModulesModule } from './business-modules/business-modules.module';
 import { WorkspaceContextInterceptor } from './business-modules/workspace-context.interceptor';
 import { CrmModule } from './crm/crm.module';
+import { RetailModule } from './retail/retail.module';
 import { FeedsModule } from './feeds/feeds.module';
 import { FinanceModule } from './finance/finance.module';
 import { HealthModule } from './health/health.module';
@@ -68,6 +69,7 @@ import { ZohalModule } from './zohal/zohal.module';
     BusinessCardsModule,
     BusinessModulesModule,
     AccommodationsModule,
+    RetailModule,
     CrmModule,
     FeedsModule,
     FinanceModule,

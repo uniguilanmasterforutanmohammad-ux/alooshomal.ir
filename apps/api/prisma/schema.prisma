@@ -1934,6 +1934,9 @@ model BusinessWorkspace {
   ownerId     String
   name        String
   industryKey String   @default("generalBusiness")
+  /// Public storefront slug (`/shop/<slug>`). Generated on first use so the
+  /// shop page and card-to-card form have a stable, human-readable address.
+  publicSlug  String?  @unique
   status      String   @default("ACTIVE")
   /// The workspace the user lands on by default. Exactly one per owner is
   /// preferred; if none is flagged the oldest workspace is used.
@@ -1949,6 +1952,11 @@ model BusinessWorkspace {
   bookingRequests AccommodationBookingRequest[]
   customers       CrmCustomer[]
   interactions    CrmInteraction[]
+  products        RetailProduct[]
+  orders          RetailOrder[]
+  stockMovements  RetailStockMovement[]
+  cardAccount     CardToCardAccount?
+  cardPayments    CardToCardPayment[]
 
   @@index([ownerId])
   @@index([industryKey])
@@ -2245,4 +2253,152 @@ model CrmInteraction {
 
   @@index([customerId, occurredAt])
   @@map("crm_interactions")
+}
+
+// ---------------------------------------------------------------------------
+// «فروشگاه و خرده‌فروشی» — retail module
+// ---------------------------------------------------------------------------
+model RetailProduct {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  slug         String   @unique
+  title        String
+  description  String?
+  category     String?
+  sku          String?
+  price        Int      @default(0)
+  compareAtPrice Int?
+  stock        Int      @default(0)
+  lowStockThreshold Int @default(0)
+  unit         String   @default("عدد")
+  imageUrl     String?
+  gallery      String[] @default([])
+  /// DRAFT | PUBLISHED | ARCHIVED
+  status       String   @default("DRAFT")
+  publishedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace  BusinessWorkspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  orderItems RetailOrderItem[]
+  movements  RetailStockMovement[]
+
+  @@index([workspaceId, status])
+  @@map("retail_products")
+}
+
+/// One customer order placed on the public storefront. Statuses are strings so
+/// the workflow can grow without a migration.
+model RetailOrder {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  orderNumber     String   @unique
+  customerId      String?
+  customerName    String
+  customerPhone   String
+  customerAddress String?
+  note            String?
+  /// PENDING | CONFIRMED | PAID | SHIPPED | DELIVERED | CANCELLED
+  status          String   @default("PENDING")
+  /// CARD_TO_CARD | CASH_ON_DELIVERY
+  paymentMethod   String   @default("CARD_TO_CARD")
+  /// UNPAID | PENDING_REVIEW | PAID | REFUNDED
+  paymentStatus   String   @default("UNPAID")
+  totalAmount     Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  items     RetailOrderItem[]
+
+  @@index([workspaceId, status])
+  @@index([customerId])
+  @@map("retail_orders")
+}
+
+model RetailOrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  productId String?
+  title     String
+  unitPrice Int    @default(0)
+  quantity  Int    @default(1)
+  lineTotal Int    @default(0)
+
+  order   RetailOrder    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product RetailProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@map("retail_order_items")
+}
+
+/// Stock ledger: every change of a product's stock is recorded so the owner can
+/// audit inventory without trusting the running counter alone.
+model RetailStockMovement {
+  id          String   @id @default(cuid())
+  workspaceId String
+  productId   String
+  /// IN | OUT | ADJUST
+  kind        String   @default("ADJUST")
+  quantity    Int      @default(0)
+  note        String?
+  createdAt   DateTime @default(now())
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  product   RetailProduct     @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([productId])
+  @@map("retail_stock_movements")
+}
+
+// ---------------------------------------------------------------------------
+// «پرداخت کارت به کارت» — shared payment module
+// ---------------------------------------------------------------------------
+/// The bank card a business publishes for card-to-card transfers.
+model CardToCardAccount {
+  id           String   @id @default(cuid())
+  workspaceId  String   @unique
+  cardNumber   String
+  holderName   String
+  bankName     String?
+  iban         String?
+  instructions String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("card_to_card_accounts")
+}
+
+/// A receipt uploaded by an end customer after a card-to-card transfer. The
+/// owner reviews it and approves/rejects it from the business panel.
+model CardToCardPayment {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  /// ORDER | BOOKING | OTHER — optional link to the business entity.
+  referenceType  String?
+  referenceId    String?
+  customerName   String
+  customerPhone  String
+  amount         Int
+  paidAt         DateTime?
+  trackingNumber String?
+  receiptUrl     String
+  note           String?
+  /// PENDING | APPROVED | REJECTED
+  status         String    @default("PENDING")
+  reviewNote     String?
+  reviewedAt     DateTime?
+  reviewedBy     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([referenceType, referenceId])
+  @@map("card_to_card_payments")
 }

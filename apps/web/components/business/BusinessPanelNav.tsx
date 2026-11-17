@@ -4,12 +4,16 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BadgeCheck,
+  Boxes,
   CalendarCheck,
+  CreditCard,
   Globe,
   House,
   IdCard,
   ImagePlus,
   LayoutDashboard,
+  PackageCheck,
+  ShoppingBag,
   Users,
   type LucideIcon,
 } from 'lucide-react';
@@ -26,6 +30,10 @@ const ICONS: Record<string, LucideIcon> = {
   Globe,
   Users,
   LayoutDashboard,
+  ShoppingBag,
+  PackageCheck,
+  Boxes,
+  CreditCard,
 };
 
 export function moduleIcon(name: string): LucideIcon {

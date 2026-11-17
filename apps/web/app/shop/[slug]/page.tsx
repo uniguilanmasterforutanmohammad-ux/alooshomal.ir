@@ -1,0 +1,101 @@
+import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+
+import { Header } from '@/components/layout/Header';
+import { ShopOrderForm } from '@/components/shop/ShopOrderForm';
+import type { PublicShop } from '@/lib/api';
+import { SERVER_API_URL, decodeSlugParam, metaDescription } from '@/lib/site';
+
+async function fetchShop(slug: string): Promise<PublicShop | null> {
+  try {
+    const response = await fetch(
+      `${SERVER_API_URL}/public/shops/${encodeURIComponent(decodeSlugParam(slug))}`,
+      { cache: 'no-store' },
+    );
+    if (!response.ok) return null;
+    const payload = (await response.json()) as { data: PublicShop };
+    return payload.data;
+  } catch {
+    return null;
+  }
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const shop = await fetchShop(slug);
+  if (!shop) {
+    return { title: 'فروشگاه پیدا نشد', robots: { index: false, follow: false } };
+  }
+  return {
+    title: shop.workspace.name,
+    description: metaDescription(
+      null,
+      `فروشگاه آنلاین ${shop.workspace.name} — مشاهده‌ی محصولات و ثبت سفارش.`,
+    ),
+    alternates: { canonical: `/shop/${shop.workspace.publicSlug}` },
+  };
+}
+
+export default async function ShopPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const shop = await fetchShop(slug);
+  if (!shop) notFound();
+
+  return (
+    <>
+      <Header />
+      <main className="container-page grid gap-6 py-8 lg:grid-cols-[1.6fr_1fr]">
+        <div className="flex flex-col gap-4">
+          <div>
+            <h1 className="text-2xl font-extrabold text-ink">{shop.workspace.name}</h1>
+            <p className="mt-1 text-sm text-muted">
+              فروشگاه آنلاین • {shop.products.length.toLocaleString('fa-IR')} محصول
+            </p>
+          </div>
+          {shop.products.length === 0 ? (
+            <div className="indeed-panel p-8 text-center text-sm text-muted">
+              این فروشگاه هنوز محصولی منتشر نکرده است.
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {shop.products.map((product) => (
+                <article key={product.id} className="indeed-panel flex flex-col gap-2 p-4">
+                  {product.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={product.imageUrl} alt={product.title} className="h-40 w-full rounded-lg object-cover" />
+                  ) : null}
+                  <h2 className="text-sm font-extrabold text-ink">{product.title}</h2>
+                  {product.category ? (
+                    <p className="text-[11px] text-muted">{product.category}</p>
+                  ) : null}
+                  {product.description ? (
+                    <p className="line-clamp-3 text-xs leading-6 text-muted">{product.description}</p>
+                  ) : null}
+                  <p className="mt-auto text-sm font-bold text-brand">
+                    {product.price.toLocaleString('fa-IR')} تومان
+                    {product.compareAtPrice && product.compareAtPrice > product.price ? (
+                      <span className="ms-2 text-[11px] font-normal text-muted line-through">
+                        {product.compareAtPrice.toLocaleString('fa-IR')}
+                      </span>
+                    ) : null}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+        <aside>
+          <ShopOrderForm shop={shop} />
+        </aside>
+      </main>
+    </>
+  );
+}

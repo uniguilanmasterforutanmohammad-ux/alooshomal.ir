@@ -464,6 +464,39 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     group: 'پنل کسب‌وکار',
     default: true,
   },
+  {
+    key: 'featureRetailCatalog',
+    label: 'ماژول کاتالوگ محصولات فروشگاه',
+    description:
+      'ثبت محصول، قیمت، موجودی و ویترین عمومی فروشگاه. خاموش‌کردن «نمایش» صفحه‌ی عمومی `/shop` را هم متوقف می‌کند.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+    publicSection: { name: 'فروشگاه‌های آنلاین', routes: ['/shop'] },
+  },
+  {
+    key: 'featureRetailOrders',
+    label: 'ماژول سفارش‌های فروشگاه',
+    description:
+      'صف سفارش‌های ثبت‌شده از ویترین فروشگاه و تغییر وضعیت آماده‌سازی/ارسال.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureRetailInventory',
+    label: 'ماژول انبار و موجودی',
+    description:
+      'کاردکس ورود/خروج کالا، هشدار موجودی کم و اصلاح دستی موجودی محصولات.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureCardToCard',
+    label: 'ماژول پرداخت کارت به کارت',
+    description:
+      'دریافت کارت به کارت از مشتری نهایی: شماره کارت کسب‌وکار، آپلود رسید توسط مشتری و تأیید/رد رسید توسط مدیر کسب‌وکار.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
 ];
 
 export const FEATURE_FLAG_KEYS = FEATURE_FLAGS.map((flag) => flag.key);

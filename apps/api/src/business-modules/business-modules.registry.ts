@@ -194,6 +194,85 @@ export const BUSINESS_MODULES: BusinessModuleDefinition[] = [
     },
     capabilities: ['پروفایل مشتری', 'برچسب و یادداشت', 'تاریخچه‌ی رزرو و تماس'],
   },
+  {
+    key: 'retailCatalog',
+    label: 'کاتالوگ محصولات',
+    description:
+      'ثبت محصول، قیمت، موجودی، عکس و صفحه‌ی عمومی فروشگاه برای فروش آنلاین.',
+    group: 'فروشگاه و خرده‌فروشی',
+    icon: 'ShoppingBag',
+    defaultEnabled: false,
+    billable: true,
+    enforced: true,
+    featureFlag: 'featureRetailCatalog',
+    nav: {
+      href: '/dashboard/business/products',
+      label: 'محصولات',
+      icon: 'ShoppingBag',
+    },
+    publicRoutes: ['/shop'],
+    capabilities: ['ثبت محصول و دسته‌بندی', 'قیمت و موجودی', 'صفحه‌ی عمومی فروشگاه'],
+  },
+  {
+    key: 'retailOrders',
+    label: 'سفارش‌ها و فروش',
+    description:
+      'صف سفارش‌های ثبت‌شده از فروشگاه، تغییر وضعیت و پیگیری پرداخت.',
+    group: 'فروشگاه و خرده‌فروشی',
+    icon: 'PackageCheck',
+    defaultEnabled: false,
+    billable: true,
+    enforced: true,
+    dependsOn: ['retailCatalog'],
+    featureFlag: 'featureRetailOrders',
+    nav: {
+      href: '/dashboard/business/orders',
+      label: 'سفارش‌ها',
+      icon: 'PackageCheck',
+    },
+    capabilities: ['صف سفارش', 'تغییر وضعیت ارسال', 'وضعیت پرداخت'],
+  },
+  {
+    key: 'retailInventory',
+    label: 'انبار و موجودی',
+    description:
+      'کاردکس ورود/خروج کالا، هشدار موجودی کم و اصلاح دستی انبار.',
+    group: 'فروشگاه و خرده‌فروشی',
+    icon: 'Boxes',
+    defaultEnabled: false,
+    billable: true,
+    enforced: true,
+    dependsOn: ['retailCatalog'],
+    featureFlag: 'featureRetailInventory',
+    nav: {
+      href: '/dashboard/business/inventory',
+      label: 'انبار',
+      icon: 'Boxes',
+    },
+    capabilities: ['کاردکس ورود/خروج', 'هشدار موجودی کم', 'اصلاح دستی موجودی'],
+  },
+  {
+    key: 'cardToCard',
+    label: 'پرداخت کارت به کارت',
+    description:
+      'دریافت کارت به کارت از مشتری نهایی: آپلود رسید، صف تأیید و رد توسط مدیر کسب‌وکار.',
+    group: 'پرداخت و فروش',
+    icon: 'CreditCard',
+    defaultEnabled: false,
+    billable: true,
+    enforced: true,
+    featureFlag: 'featureCardToCard',
+    nav: {
+      href: '/dashboard/business/card-to-card',
+      label: 'کارت به کارت',
+      icon: 'CreditCard',
+    },
+    capabilities: [
+      'شماره کارت و اطلاعات واریز',
+      'آپلود رسید توسط مشتری',
+      'تأیید یا رد رسید توسط مدیر',
+    ],
+  },
 ];
 
 export const INDUSTRY_PACKAGES: IndustryPackageDefinition[] = [
@@ -214,6 +293,7 @@ export const INDUSTRY_PACKAGES: IndustryPackageDefinition[] = [
       'accommodationRental',
       'accommodationReservations',
       'accommodationChannels',
+      'cardToCard',
       'crm',
       'businessCards',
       'biolinks',
@@ -230,8 +310,18 @@ export const INDUSTRY_PACKAGES: IndustryPackageDefinition[] = [
   {
     key: 'retail',
     label: 'فروشگاه و خرده‌فروشی',
-    description: 'بسته‌ی آماده برای فروشگاه‌ها (ماژول‌های فروش در آینده).',
-    modules: ['businessCards', 'biolinks', 'feeds', 'crm'],
+    description:
+      'برای فروشگاه‌ها و خرده‌فروشی‌ها: کاتالوگ محصول، سفارش، انبار، مشتریان و پرداخت کارت به کارت.',
+    available: true,
+    modules: [
+      'retailCatalog',
+      'retailOrders',
+      'retailInventory',
+      'cardToCard',
+      'crm',
+      'businessCards',
+      'biolinks',
+    ],
     defaultModules: ['businessCards', 'biolinks'],
   },
   {

@@ -159,6 +159,8 @@ export class BusinessModulesService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     try {
       await this.seedManagements();
+      await this.syncRegistryManagements();
+      await this.backfillPublicSlugs();
       await this.reloadManagements();
     } catch {
       // The management tables may not exist yet on a very first boot.
@@ -216,6 +218,89 @@ export class BusinessModulesService implements OnModuleInit {
     await this.prisma.setting.create({
       data: { key: marker, value: new Date().toISOString() },
     });
+  }
+
+  /**
+   * One-time sync of the code registry into the editable management table.
+   * `seedManagements` only runs on a brand-new database; this pass adds the
+   * modules and availability of newly shipped packages (e.g. the retail
+   * management) to an existing installation without touching admin edits to
+   * other managements.
+   */
+  private async syncRegistryManagements(): Promise<void> {
+    const marker = 'businessManagementsSeedV2';
+    const done = await this.prisma.setting.findUnique({ where: { key: marker } });
+    if (done) return;
+    for (const industry of INDUSTRY_PACKAGES) {
+      const row = await this.prisma.businessManagement.findUnique({
+        where: { key: industry.key },
+      });
+      if (!row) continue;
+      if (industry.available && !row.available) {
+        await this.prisma.businessManagement.update({
+          where: { id: row.id },
+          data: { available: true },
+        });
+      }
+      const existing = await this.prisma.businessManagementModule.findMany({
+        where: { managementId: row.id },
+        select: { moduleKey: true },
+      });
+      const known = new Set(existing.map((item) => item.moduleKey));
+      const missing = industry.modules.filter((key) => !known.has(key));
+      if (missing.length) {
+        await this.prisma.businessManagementModule.createMany({
+          data: missing.map((moduleKey) => ({
+            managementId: row.id,
+            moduleKey,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    }
+    await this.prisma.setting.create({
+      data: { key: marker, value: new Date().toISOString() },
+    });
+  }
+
+  /** Give every pre-existing workspace a public storefront slug. */
+  private async backfillPublicSlugs(): Promise<void> {
+    const marker = 'businessWorkspaceSlugsV1';
+    const done = await this.prisma.setting.findUnique({ where: { key: marker } });
+    if (done) return;
+    const rows = await this.prisma.businessWorkspace.findMany({
+      where: { publicSlug: null },
+      select: { id: true, name: true },
+    });
+    for (const row of rows) {
+      await this.prisma.businessWorkspace.update({
+        where: { id: row.id },
+        data: { publicSlug: await this.uniquePublicSlug(row.name) },
+      });
+    }
+    await this.prisma.setting.create({
+      data: { key: marker, value: new Date().toISOString() },
+    });
+  }
+
+  /** URL-safe, unique storefront slug derived from the workspace name. */
+  private async uniquePublicSlug(name: string): Promise<string> {
+    const base =
+      name
+        .trim()
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}]+/gu, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 48) || 'shop';
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const candidate = `${base}-${randomBytes(3).toString('hex')}`;
+      const exists = await this.prisma.businessWorkspace.findUnique({
+        where: { publicSlug: candidate },
+        select: { id: true },
+      });
+      if (!exists) return candidate;
+    }
+    return `${base}-${Date.now().toString(36)}`;
   }
 
   /** Reload the in-memory management cache from the database. */
@@ -303,12 +388,15 @@ export class BusinessModulesService implements OnModuleInit {
       this.baseManagement()?.key ??
       'generalBusiness';
     const fallback = await this.fallbackName(userId);
+    const displayName = name?.trim() || fallback;
+    const publicSlug = await this.uniquePublicSlug(displayName);
     return this.prisma.$transaction(async (tx) => {
       const workspace = await tx.businessWorkspace.create({
         data: {
           ownerId: userId,
-          name: name?.trim() || fallback,
+          name: displayName,
           industryKey: industry,
+          publicSlug,
           isDefault,
         },
       });
@@ -373,6 +461,47 @@ export class BusinessModulesService implements OnModuleInit {
 
   async getWorkspaceId(userId: string): Promise<string> {
     return (await this.ensureWorkspace(userId)).id;
+  }
+
+  /** Public storefront lookup by slug (used by `/public/shops/:slug`). */
+  async findWorkspaceByPublicSlug(slug: string) {
+    return this.prisma.businessWorkspace.findUnique({
+      where: { publicSlug: slug },
+      select: {
+        id: true,
+        name: true,
+        industryKey: true,
+        publicSlug: true,
+        status: true,
+      },
+    });
+  }
+
+  /**
+   * Whether a module is active for one workspace, including the global feature
+   * flag. Public controllers use it to avoid serving a module the owner has
+   * not bought (or that the admin stopped for everyone).
+   */
+  async isModuleEnabledForWorkspace(
+    workspaceId: string,
+    moduleKey: string,
+  ): Promise<boolean> {
+    const definition = getBusinessModule(moduleKey);
+    if (!definition) return false;
+    if (
+      definition.featureFlag &&
+      !(await this.settings.isFeatureEnabled(definition.featureFlag))
+    ) {
+      return false;
+    }
+    const activation = await this.prisma.businessModuleActivation.findUnique({
+      where: { workspaceId_moduleKey: { workspaceId, moduleKey } },
+    });
+    if (!activation) return definition.defaultEnabled;
+    return (
+      activation.enabled &&
+      (!activation.paidUntil || activation.paidUntil.getTime() > Date.now())
+    );
   }
 
   async listWorkspaces(userId: string): Promise<WorkspaceSummary[]> {

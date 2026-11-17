@@ -222,3 +222,88 @@ export interface CrmInteraction {
   occurredAt: string;
   createdAt: string;
 }
+
+export interface RetailProduct {
+  id: string;
+  workspaceId: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  sku: string | null;
+  price: number;
+  compareAtPrice: number | null;
+  stock: number;
+  lowStockThreshold: number;
+  unit: string;
+  imageUrl: string | null;
+  gallery: string[];
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lowStock?: boolean;
+}
+
+export interface RetailOrderItem {
+  id: string;
+  orderId: string;
+  productId: string | null;
+  title: string;
+  unitPrice: number;
+  quantity: number;
+  lineTotal: number;
+}
+
+export interface RetailOrder {
+  id: string;
+  workspaceId: string;
+  orderNumber: string;
+  customerId: string | null;
+  customerName: string;
+  customerPhone: string;
+  customerAddress: string | null;
+  note: string | null;
+  status:
+    | 'PENDING'
+    | 'CONFIRMED'
+    | 'PAID'
+    | 'SHIPPED'
+    | 'DELIVERED'
+    | 'CANCELLED'
+    | string;
+  paymentMethod: 'CARD_TO_CARD' | 'CASH_ON_DELIVERY' | string;
+  paymentStatus: 'UNPAID' | 'PENDING_REVIEW' | 'PAID' | 'REFUNDED' | string;
+  totalAmount: number;
+  createdAt: string;
+  updatedAt: string;
+  items: RetailOrderItem[];
+}
+
+export interface RetailStockMovement {
+  id: string;
+  workspaceId: string;
+  productId: string;
+  kind: 'IN' | 'OUT' | 'ADJUST' | string;
+  quantity: number;
+  note: string | null;
+  createdAt: string;
+  product?: { id: string; title: string };
+}
+
+export interface RetailInventory {
+  products: RetailProduct[];
+  movements: RetailStockMovement[];
+  lowStockCount: number;
+}
+
+export interface PublicShop {
+  workspace: { id: string; name: string; publicSlug: string | null };
+  products: RetailProduct[];
+  card: {
+    cardNumber: string;
+    holderName: string;
+    bankName: string | null;
+    instructions: string | null;
+  } | null;
+}

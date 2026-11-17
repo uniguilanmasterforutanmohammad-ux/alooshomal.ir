@@ -722,7 +722,8 @@ PY
 می‌تواند آن‌ها را بسازد/ویرایش/حذف کند.
 
 ماژول‌های فعلی: `businessCards`، `biolinks`، `feeds`، `accommodationRental`،
-`accommodationReservations`، `accommodationChannels` و `crm`. ماژول‌های
+`accommodationReservations`، `accommodationChannels`، `crm`، `retailCatalog`،
+`retailOrders`، `retailInventory` و `cardToCard`. ماژول‌های
 `businessCards`/`biolinks` هم در همین رجیستری ثبت شده‌اند و اکنون فعال/غیرفعال
 شدنشان روی مسیرهای مالک اعمال می‌شود؛ سوئیچ‌های سراسری ادمین
 (`allowBusinessCardCreation` و `allowBiolinkCreation`) همچنان بالاتر از آن
@@ -758,6 +759,26 @@ PY
 ودیعه (بازگشت درگاه: `/public/accommodations/deposits/callback`). این
 مسیرها با سوئیچ سراسری `featureAccommodationRental` و صفحه‌ی عمومی `/stay`
 با سوئیچ «نمایش» همان ویژگی کنترل می‌شوند.
+
+### فروشگاه و خرده‌فروشی (`/api/retail`)
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET/POST` | `/retail/products` | فهرست/ثبت محصول (جستجو با `q`). |
+| `PATCH/DELETE` | `/retail/products/:id` | ویرایش/حذف محصول. |
+| `GET` | `/retail/orders` | صف سفارش‌ها (فیلتر `status`). |
+| `GET/PATCH` | `/retail/orders/:id` | جزئیات/تغییر وضعیت سفارش و پرداخت. |
+| `GET` | `/retail/inventory` | موجودی، هشدار کمبود و کاردکس انبار. |
+| `POST` | `/retail/inventory/movements` | ثبت ورود/خروج/اصلاح موجودی. |
+
+مسیرهای عمومی زیر `/api/public/shops` (بدون احراز هویت):
+`GET /public/shops/:slug` ویترین فروشگاه (محصولات منتشرشده + اطلاعات کارت به
+کارت در صورت فعال‌بودن ماژول) و `POST /public/shops/:slug/orders` برای ثبت
+سفارش. هر فروشگاه با `publicSlug` یکتا (ستون `business_workspaces.publicSlug`)
+شناسایی می‌شود و صفحه‌ی عمومی آن `/shop/<slug>` است. ماژول‌های `retailCatalog`
+و `retailOrders` با سوئیچ‌های `featureRetailCatalog`/`featureRetailOrders`
+کنترل می‌شوند و صفحه‌ی `/shop` با سوئیچ «نمایش» `featureRetailCatalog` پنهان
+می‌شود.
 
 ## وظیفه‌ی دائمی ایجنت (قانون ۸)
 

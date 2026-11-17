@@ -20,7 +20,49 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.25.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.26.0**.
+
+## ۱۴۰۵/۰۸/۲۷ — تکمیل کارت «فروشگاه و خرده‌فروشی» با ماژول‌های محصول، سفارش و انبار — نسخه `v4.26.0`
+
+**هدف:** تکمیل دومین کارت «مدیریت کسب‌وکار» (فروشگاه و خرده‌فروشی) با
+ماژول‌های استاندارد و قابل توسعه، و افزودن ویترین عمومی فروشگاه برای ثبت
+سفارش مشتری نهایی.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `RetailProduct`، `RetailOrder`،
+  `RetailOrderItem`، `RetailStockMovement` و فیلد یکتای
+  `BusinessWorkspace.publicSlug` (آدرس عمومی فروشگاه).
+- `apps/api/src/business-modules/business-modules.registry.ts`: سه ماژول تازه
+  (`retailCatalog`، `retailOrders`، `retailInventory`) و فعال‌شدن بسته‌ی
+  `retail` با فهرست کامل ماژول‌ها.
+- `apps/api/src/business-modules/business-modules.service.ts`: مهاجرت یک‌باره‌ی
+  `businessManagementsSeedV2` (افزودن ماژول‌های تازه به مدیریت‌های موجود)،
+  تولید/بک‌فیل `publicSlug` و متدهای عمومی `findWorkspaceByPublicSlug` و
+  `isModuleEnabledForWorkspace`.
+- `apps/api/src/retail/`: ماژول کامل NestJS شامل CRUD محصول، صف سفارش،
+  کاردکس انبار و کنترلر عمومی ویترین/ثبت سفارش، با `@RequireModule` و
+  مستندسازی Swagger.
+- `apps/api/src/settings/settings.constants.ts`: سوئیچ‌های
+  `featureRetailCatalog`/`featureRetailOrders`/`featureRetailInventory`.
+- `apps/web/app/dashboard/business/{products,orders,inventory}/page.tsx`:
+  صفحات مدیریت محصول، سفارش و انبار در پنل کسب‌وکار.
+- `apps/web/app/shop/[slug]/page.tsx` و
+  `apps/web/components/shop/ShopOrderForm.tsx`: ویترین عمومی فروشگاه و فرم
+  سبد خرید/ثبت سفارش.
+- `apps/web/lib/api/types/business-modules.ts` و
+  `apps/web/components/business/BusinessPanelNav.tsx`: تایپ‌ها و آیکن‌های
+  ناوبری ماژول‌های تازه.
+- `docs/API.md`: مستندسازی مسیرهای `/retail/*` و `/public/shops/*`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- `python3 scripts/check_api_docs.py` → «همه‌ی مسیرها @ApiOperation دارند» (48 کنترلر، 511 مسیر).
+- تست واقعی با کاربر آزمایشی: خرید مدیریت `retail` (شبیه‌ساز پی‌پینگ)، فعال‌شدن
+  هر هفت ماژول، ثبت محصول منتشرشده، مشاهده‌ی ویترین عمومی
+  `GET /public/shops/<slug>`، ثبت سفارش عمومی (کاهش موجودی از ۱۰ به ۸)،
+  ثبت ورود انبار (۱۳)، و لغو سفارش (بازگشت موجودی به ۱۵).
+- رندر صفحه‌ی `/shop/<slug>` با کد ۲۰۰ و نمایش محصول و سبد خرید.
 
 ## ۱۴۰۵/۰۸/۲۷ — مدیریت‌های کسب‌وکار قابل ویرایش، حذف/افزودن ماژول و قیمت‌گذاری دوره‌ای — نسخه `v4.25.0`
 
