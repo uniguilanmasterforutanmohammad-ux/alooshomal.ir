@@ -693,6 +693,8 @@ PY
 | `PATCH` | `/business-modules/my/:key` | فعال/غیرفعال‌کردن ماژول؛ خرید و وابستگی‌ها بررسی می‌شوند. |
 | `POST` | `/business-modules/my/:key/purchase` | خرید ماژول (کیف پول/پی‌پینگ) و فعال‌سازی پس از پرداخت. |
 | `GET` | `/business-modules/purchases` | سابقه‌ی خرید ماژول‌ها. |
+| `GET` | `/business-modules/managements` | فهرست «مدیریت کسب‌وکار»ها با ماژول‌های فعال و قیمت کل (مجموع قیمت ماژول‌ها). |
+| `POST` | `/business-modules/managements/:key/purchase` | خرید/فعال‌سازی کل یک «مدیریت کسب‌وکار» (کیف پول/پی‌پینگ)؛ فقط ماژول‌های خریداری‌نشده محاسبه می‌شود. |
 | `GET/POST` | `/business-modules/payments/callback` | بازگشت درگاه پس از خرید ماژول. |
 
 مسیرهای ادمین (نقش `ADMIN`):

@@ -22,6 +22,7 @@ import { parseGatewayCallback } from '../payping/gateway-callback';
 import { SettingsService } from '../settings/settings.service';
 import { BusinessModulesService } from './business-modules.service';
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
+import { PurchaseManagementDto } from './dto/purchase-management.dto';
 import { PurchaseModuleDto } from './dto/purchase-module.dto';
 import { SetIndustryDto } from './dto/set-industry.dto';
 import { SetModuleDto } from './dto/set-module.dto';
@@ -124,6 +125,35 @@ export class BusinessModulesController {
   async purchases(@CurrentUser() user: AuthUser) {
     await this.ensureEnabled();
     return this.modules.listPurchases(user.id);
+  }
+
+  @Get('managements')
+  @ApiOperation({
+    summary:
+      'فهرست «مدیریت کسب‌وکار»ها با ماژول‌های فعال و قیمت کل (مجموع قیمت ماژول‌ها)',
+  })
+  async managements(@CurrentUser() user: AuthUser) {
+    await this.ensureEnabled();
+    return this.modules.listManagements(user.id);
+  }
+
+  @Post('managements/:key/purchase')
+  @ApiOperation({
+    summary:
+      'خرید یک «مدیریت کسب‌وکار» کامل (همه‌ی ماژول‌های خریدنی آن)؛ کیف پول یا پی‌پینگ',
+  })
+  async purchaseManagement(
+    @CurrentUser() user: AuthUser,
+    @Param('key') key: string,
+    @Body() dto: PurchaseManagementDto,
+  ) {
+    await this.ensureEnabled();
+    return this.modules.purchaseManagement(
+      user.id,
+      key,
+      dto.months,
+      dto.returnTo,
+    );
   }
 
   @Post('my/:key/purchase')

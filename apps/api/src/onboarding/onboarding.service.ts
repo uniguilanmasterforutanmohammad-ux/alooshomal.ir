@@ -7,9 +7,11 @@ import {
 import { BiolinkStatus } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
+import { BusinessModulesService } from '../business-modules/business-modules.service';
 import { DEFAULT_PLAN } from '../common/plans';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import {
   DEFAULT_ONBOARDING_STEPS,
   MANUAL_STEP_KINDS,
@@ -41,6 +43,8 @@ export class OnboardingService implements OnModuleInit {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly activity: ActivityService,
+    private readonly modules: BusinessModulesService,
+    private readonly subscriptions: SubscriptionsService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -180,9 +184,18 @@ export class OnboardingService implements OnModuleInit {
       'بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.',
     );
     const steps = (await this.getSteps()).filter((step) => step.enabled);
-    const [done, identity, history, documents, finished] = await Promise.all([
+    const identity = await this.identityState(userId);
+    // The first business workspace is created as soon as identity is verified,
+    // so the user lands on a ready «مدیریت کسب‌وکار» panel. This must happen
+    // *before* `completionMap` so the «کسب‌وکار» step is already ticked on the
+    // very first load. The free plan is also ensured here for accounts that
+    // predate the automatic assignment.
+    if (identity.verified) {
+      await this.modules.ensureWorkspace(userId);
+    }
+    await this.subscriptions.limitsForUser(userId);
+    const [done, history, documents, finished] = await Promise.all([
       this.completionMap(userId),
-      this.identityState(userId),
       this.prisma.identityInquiryLog.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
@@ -489,6 +502,7 @@ export class OnboardingService implements OnModuleInit {
             select: { id: true },
             take: 1,
           },
+          businessWorkspaces: { select: { id: true }, take: 1 },
         },
       }),
       this.prisma.onboardingStepCompletion.findMany({
@@ -506,7 +520,10 @@ export class OnboardingService implements OnModuleInit {
 
     const cards = user.businessCards;
     map.set('identity', Boolean(user.identityVerifiedAt));
-    map.set('business', cards.length > 0);
+    map.set(
+      'business',
+      cards.length > 0 || user.businessWorkspaces.length > 0,
+    );
     map.set('details', cards.some((card) => this.detailsComplete(card)));
     map.set(
       'documents',

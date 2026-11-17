@@ -20,7 +20,56 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.22.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.23.0**.
+
+## ۱۴۰۵/۰۸/۲۷ — ساخت خودکار کسب‌وکار در «شروع آسان» و خرید «مدیریت کسب‌وکار» — نسخه `v4.23.0`
+
+**هدف:** تکمیل جریان واقعی کاربر تازه: ثبت‌نام → احراز هویت → ساخت خودکار اولین
+کسب‌وکار و فعال‌شدن پلن رایگان → نمایش فهرست «مدیریت کسب‌وکار»ها با ماژول‌های
+فعال و قیمت کل → خرید/فعال‌سازی کل یک مدیریت پس از پرداخت.
+
+**تغییرات:**
+- `apps/api/src/onboarding/onboarding.service.ts`: ساخت خودکار اولین
+  کسب‌وکار و تضمین پلن رایگان **پیش از** محاسبه‌ی تکمیل مراحل، تا مرحله‌ی
+  «کسب‌وکار» همان بار اول تیک بخورد؛ مرجع تکمیل مرحله‌ی `business` به وجود
+  کارت ویزیت یا کسب‌وکار تغییر کرد.
+- `apps/api/src/onboarding/onboarding.module.ts`: افزودن `BusinessModulesModule`
+  و `SubscriptionsModule`.
+- `apps/api/src/business-modules/business-modules.service.ts`: افزودن
+  `listManagements` (قیمت کل = مجموع قیمت ماژول‌ها، قیمت باقی‌مانده، ماژول‌های
+  فعال) و `purchaseManagement`/`activatePackage` (خرید یکجای کل مدیریت با
+  کیف پول یا پی‌پینگ)؛ پشتیبانی کال‌بک از `moduleKey` با پیشوند `package:`.
+  مبلغ پرداخت دقیقاً برابر قیمت نمایش‌داده‌شده (مجموع قیمت ماژول‌ها) است.
+- `apps/api/src/business-modules/business-modules.registry.ts`: افزودن پرچم
+  `available` به بسته‌های صنف؛ فعلاً فقط «اجاره روزانه اقامتگاه» در فهرست
+  مدیریت‌های قابل خرید نمایش داده می‌شود و بسته‌های آماده‌نشده پنهان می‌مانند.
+- `apps/api/src/business-modules/business-modules.controller.ts` و
+  `dto/purchase-management.dto.ts`: مسیرهای `GET /business-modules/managements`
+  و `POST /business-modules/managements/:key/purchase` همراه با Swagger.
+- `apps/web/lib/api/types/business-modules.ts`: نوع `ManagementPackage`.
+- `apps/web/app/dashboard/business/page.tsx`: بخش «مدیریت کسب‌وکارها» با
+  ماژول‌های فعال/غیرفعال، قیمت کل، مبلغ قابل پرداخت و دکمه‌ی خرید/فعال‌سازی.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: پیام اطلاع‌رسانی ساخت
+  خودکار کسب‌وکار در مرحله‌ی «کسب‌وکار».
+- `docs/API.md`: مستندسازی دو مسیر جدید.
+
+**تأیید/تست:**
+- `tsc --noEmit` هر دو اپ و `npm run build` هر دو اپ بدون خطا.
+- `python3 scripts/check_api_docs.py` → ۴۹۳ مسیر، همه با `@ApiOperation` (exit 0).
+- تست واقعی با کاربر تازه: ثبت‌نام ایمیل + OTP (کد از SMTP ارسال شد)، سپس
+  احراز هویت فیک با `psql`؛ `GET /api/onboarding/me` در **اولین** فراخوانی
+  مرحله‌ی `business` را `true` و یک `business_workspace` ساخت؛ پلن «رایگان»
+  با `planExpiresAt` تخصیص یافت.
+- `GET /api/business-modules/managements` → `dailyRental` با `totalPrice =
+  1,150,000` (۵۰۰٬۰۰۰ + ۲۰۰٬۰۰۰ + ۳۰۰٬۰۰۰ + ۱۵۰٬۰۰۰) و `remainingPrice` برابر.
+- پس از افزودن پرچم `available`، همان مسیر فقط یک مدیریت (`dailyRental`) را
+  برمی‌گرداند.
+- `POST .../managements/dailyRental/purchase` → مبلغ `1,150,000` و URL شبیه‌ساز؛
+  کال‌بک `status=1` → خرید `PAID`، `industryKey=dailyRental` و هر ۶ ماژول
+  فعال با `paidUntil` یک‌ساله.
+- ساخت کارت ویزیت و بیولینک با همان کاربر رایگان موفق بود؛ درخواست دوم هرکدام
+  با ۴۰۳ «سقف اشتراک (۱)» رد شد (نمایش/ساخت محدود پلن رایگان).
+- داده‌های تست (کاربران، نشست‌ها، خریدها، قیمت‌های موقت) از دیتابیس پاک شد.
 
 ## ۱۴۰۵/۰۸/۲۷ — اصلاح پنل ماژول‌های ادمین و نمایش فقط‌خواندنی ماژول‌ها — نسخه `v4.22.1`
 

@@ -57,6 +57,11 @@ export interface IndustryPackageDefinition {
   key: string;
   label: string;
   description: string;
+  /**
+   * Whether this management is offered for purchase in the user panel.
+   * Placeholder packages stay hidden until their modules are ready.
+   */
+  available?: boolean;
   /** every module this package can offer. */
   modules: string[];
   /** modules enabled when a workspace adopts the package. */
@@ -204,6 +209,7 @@ export const INDUSTRY_PACKAGES: IndustryPackageDefinition[] = [
     label: 'اقامت و سفر — اجاره روزانه',
     description:
       'برای مالکان اقامتگاه، ویلا، آپارتمان و سوئیت که رزرو روزانه می‌پذیرند.',
+    available: true,
     modules: [
       'accommodationRental',
       'accommodationReservations',

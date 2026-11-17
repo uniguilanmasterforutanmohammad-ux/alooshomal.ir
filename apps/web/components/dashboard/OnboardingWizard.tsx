@@ -847,22 +847,29 @@ export function OnboardingWizard() {
           ) : null}
 
           {step.kind === 'business' ? (
-            <OnboardingBusinessForm
-              requiredOnly
-              defaultFullName={
-                [payload.identity?.firstName, payload.identity?.lastName]
-                  .filter(Boolean)
-                  .join(' ') || undefined
-              }
-              debt={walletVisible ? debt : 0}
-              paying={paying}
-              onPay={() => {
-                if (walletVisible) void payInvoice();
-              }}
-              onSaved={() => {
-                void load().then(() => goTo(safeIndex + 1));
-              }}
-            />
+            <div className="flex flex-col gap-3">
+              <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] leading-6 text-emerald-800">
+                کسب‌وکار شما پس از تأیید هویت به‌صورت خودکار ساخته شد. حالا
+                کارت ویزیت آن را تکمیل کنید؛ می‌توانید بعداً از بخش «مدیریت
+                کسب‌وکار» ماژول‌های بیشتری فعال کنید.
+              </p>
+              <OnboardingBusinessForm
+                requiredOnly
+                defaultFullName={
+                  [payload.identity?.firstName, payload.identity?.lastName]
+                    .filter(Boolean)
+                    .join(' ') || undefined
+                }
+                debt={walletVisible ? debt : 0}
+                paying={paying}
+                onPay={() => {
+                  if (walletVisible) void payInvoice();
+                }}
+                onSaved={() => {
+                  void load().then(() => goTo(safeIndex + 1));
+                }}
+              />
+            </div>
           ) : null}
 
           {step.kind === 'documents' ? (

@@ -71,6 +71,20 @@ export interface BusinessModulePrice {
   description: string | null;
 }
 
+export interface ManagementPackage {
+  key: string;
+  label: string;
+  description: string;
+  modules: ResolvedBusinessModule[];
+  /** Sum of every billable module's price in this package. */
+  totalPrice: number;
+  /** Sum of the modules that still need to be bought for this workspace. */
+  remainingPrice: number;
+  active: boolean;
+  activeModules: number;
+  moduleCount: number;
+}
+
 export interface AccommodationPhoto {
   id: string;
   propertyId: string;

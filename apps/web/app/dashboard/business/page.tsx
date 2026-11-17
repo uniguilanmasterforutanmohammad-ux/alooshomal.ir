@@ -6,8 +6,10 @@ import { Suspense, useEffect, useState } from 'react';
 import {
   ArrowUpLeft,
   Check,
+  Layers,
   Plus,
   Save,
+  ShoppingCart,
 } from 'lucide-react';
 
 import { BusinessPanelNav, moduleIcon } from '@/components/business/BusinessPanelNav';
@@ -15,6 +17,7 @@ import { api, WORKSPACE_STORAGE_KEY } from '@/lib/api';
 import type {
   BusinessWorkspace,
   BusinessWorkspaceSummary,
+  ManagementPackage,
 } from '@/lib/api/types/business-modules';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
@@ -32,6 +35,7 @@ function BusinessPanelContent() {
   const [name, setName] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [workspaces, setWorkspaces] = useState<BusinessWorkspaceSummary[]>([]);
+  const [managements, setManagements] = useState<ManagementPackage[]>([]);
 
   useEffect(() => {
     if (hydrated && !token) router.replace('/login?next=/dashboard/business');
@@ -46,6 +50,14 @@ function BusinessPanelContent() {
     void api
       .get<BusinessWorkspaceSummary[]>('/business-modules/workspaces')
       .then(setWorkspaces)
+      .catch(() => undefined);
+  }, [enabled, workspace?.id]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    void api
+      .get<ManagementPackage[]>('/business-modules/managements')
+      .then(setManagements)
       .catch(() => undefined);
   }, [enabled, workspace?.id]);
 
@@ -120,6 +132,32 @@ function BusinessPanelContent() {
       await reload();
     } catch {
       // The API already surfaced the plan-limit message.
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function buyManagement(packageKey: string) {
+    setBusy(`buy:${packageKey}`);
+    try {
+      const result = await api.post<
+        | { url?: string; free?: boolean; wallet?: boolean }
+        | { url?: string }
+      >(`/business-modules/managements/${packageKey}/purchase`, {
+        returnTo: '/dashboard/business',
+      });
+      if (result && 'url' in result && result.url) {
+        window.location.href = result.url;
+        return;
+      }
+      toast.success('مدیریت کسب‌وکار فعال شد');
+      await reload();
+      const next = await api.get<ManagementPackage[]>(
+        '/business-modules/managements',
+      );
+      setManagements(next);
+    } catch {
+      // The API already surfaced the error message.
     } finally {
       setBusy(null);
     }
@@ -251,6 +289,123 @@ function BusinessPanelContent() {
             <p className="mt-1 text-xs text-muted">{workspace.industry.description}</p>
           </div>
         </div>
+      </section>
+
+      <section>
+        <div className="mb-3 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-extrabold text-ink">
+              مدیریت کسب‌وکارها
+            </h2>
+            <p className="text-xs text-muted">
+              هر «مدیریت کسب‌وکار» مجموعه‌ای از ماژول‌هاست. قیمت کل، مجموع قیمت
+              ماژول‌های آن است و پس از پرداخت، همه‌ی ماژول‌های آن فعال می‌شود.
+            </p>
+          </div>
+          <span className="text-xs text-muted">
+            {managements.length} مدیریت قابل انتخاب
+          </span>
+        </div>
+        {managements.length === 0 ? (
+          <div className="indeed-panel p-6 text-center text-sm text-muted">
+            در حال بارگذاری مدیریت‌های کسب‌وکار…
+          </div>
+        ) : (
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {managements.map((item) => {
+              const busyKey = `buy:${item.key}`;
+              const isCurrent = workspace.industryKey === item.key;
+              const paidModules = item.modules.filter((module) => module.billable);
+              return (
+                <article
+                  key={item.key}
+                  className={cn(
+                    'indeed-panel flex flex-col gap-3 p-5',
+                    isCurrent && 'border-brand/60',
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="vintage-avatar flex size-10 items-center justify-center">
+                        <Layers className="size-5" aria-hidden />
+                      </span>
+                      <div>
+                        <h3 className="text-sm font-extrabold text-ink">
+                          {item.label}
+                        </h3>
+                        <p className="text-[11px] text-muted">
+                          {item.activeModules} از {item.moduleCount} ماژول فعال
+                        </p>
+                      </div>
+                    </div>
+                    <span
+                      className={cn(
+                        'rounded-full px-2 py-1 text-[10px] font-bold',
+                        item.active
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'bg-amber-50 text-amber-700',
+                      )}
+                    >
+                      {item.active ? 'فعال' : 'قابل خرید'}
+                    </span>
+                  </div>
+                  <p className="text-xs leading-6 text-muted">
+                    {item.description}
+                  </p>
+                  <ul className="flex flex-wrap gap-1.5">
+                    {item.modules.map((module) => (
+                      <li
+                        key={module.key}
+                        className={cn(
+                          'rounded-full border px-2 py-0.5 text-[10px] font-bold',
+                          module.enabled
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                            : 'border-[var(--vintage-border)] text-muted',
+                        )}
+                      >
+                        {module.label}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-auto flex items-end justify-between gap-3 pt-2">
+                    <div className="text-xs">
+                      <p className="font-bold text-ink">
+                        قیمت کل:{' '}
+                        {item.totalPrice > 0
+                          ? `${item.totalPrice.toLocaleString('fa-IR')} تومان`
+                          : 'رایگان'}
+                      </p>
+                      {item.remainingPrice > 0 ? (
+                        <p className="mt-1 text-[11px] text-muted">
+                          قابل پرداخت:{' '}
+                          {item.remainingPrice.toLocaleString('fa-IR')} تومان
+                        </p>
+                      ) : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void buyManagement(item.key)}
+                      disabled={busy === busyKey || (item.active && item.remainingPrice === 0)}
+                      className="indeed-btn indeed-btn-primary shrink-0 py-2 text-xs disabled:opacity-50"
+                    >
+                      <ShoppingCart className="size-4" aria-hidden />
+                      {item.active
+                        ? 'فعال‌شده'
+                        : item.remainingPrice > 0
+                          ? 'خرید و فعال‌سازی'
+                          : 'فعال‌سازی'}
+                    </button>
+                  </div>
+                  {paidModules.length > 0 && !item.active ? (
+                    <p className="text-[10px] text-muted">
+                      فقط ماژول‌های خریداری‌نشده محاسبه می‌شود.
+                    </p>
+                  ) : null}
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section>

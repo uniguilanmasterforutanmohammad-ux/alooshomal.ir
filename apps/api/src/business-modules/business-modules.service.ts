@@ -76,6 +76,21 @@ export interface ModulePriceView {
   description: string | null;
 }
 
+export interface ManagementPackageView {
+  key: string;
+  label: string;
+  description: string;
+  modules: ResolvedBusinessModule[];
+  /** Sum of every billable module's price in this package. */
+  totalPrice: number;
+  /** Sum of the modules that still need to be bought for this workspace. */
+  remainingPrice: number;
+  /** Every module in the package is enabled for the workspace. */
+  active: boolean;
+  activeModules: number;
+  moduleCount: number;
+}
+
 @Injectable()
 export class BusinessModulesService implements OnModuleInit {
   constructor(
@@ -577,6 +592,232 @@ export class BusinessModulesService implements OnModuleInit {
     });
   }
 
+  /**
+   * The «مدیریت کسب‌وکار» catalog: every industry package with its modules,
+   * which ones are active for this workspace, and the total price of the
+   * package (sum of module prices) plus what is still payable.
+   */
+  async listManagements(userId: string): Promise<ManagementPackageView[]> {
+    const workspace = await this.ensureWorkspace(userId);
+    const prices = await this.prisma.businessModulePrice.findMany();
+    const priceByKey = new Map(prices.map((row) => [row.moduleKey, row]));
+    const activationByKey = new Map(
+      workspace.modules.map((row) => [row.moduleKey, row]),
+    );
+    const now = Date.now();
+
+    return INDUSTRY_PACKAGES.filter((industry) => industry.available).map((industry) => {
+      const modules: ResolvedBusinessModule[] = BUSINESS_MODULES.filter(
+        (definition) => industry.modules.includes(definition.key),
+      ).map((definition) => {
+        const activation = activationByKey.get(definition.key);
+        const paidUntil = activation?.paidUntil ?? null;
+        const paidActive = !!paidUntil && paidUntil.getTime() > now;
+        const enabled = activation
+          ? activation.enabled && (!activation.paidUntil || paidActive)
+          : definition.defaultEnabled;
+        const priceRow = priceByKey.get(definition.key);
+        const price = priceRow?.isActive ? priceRow.price : 0;
+        return {
+          ...definition,
+          enabled,
+          available: true,
+          price,
+          months: priceRow?.months ?? 12,
+          purchased: paidActive,
+          paidUntil: paidUntil ? paidUntil.toISOString() : null,
+          locked:
+            definition.billable && !paidActive && price > 0 && !enabled,
+        };
+      });
+      const billable = modules.filter((module) => module.billable);
+      return {
+        key: industry.key,
+        label: industry.label,
+        description: industry.description,
+        modules,
+        totalPrice: billable.reduce((sum, module) => sum + module.price, 0),
+        remainingPrice: billable
+          .filter((module) => !module.purchased)
+          .reduce((sum, module) => sum + module.price, 0),
+        active: modules.every((module) => module.enabled),
+        activeModules: modules.filter((module) => module.enabled).length,
+        moduleCount: modules.length,
+      };
+    });
+  }
+
+  /** Buy a whole «مدیریت کسب‌وکار» package (all its modules at once). */
+  async purchaseManagement(
+    userId: string,
+    packageKey: string,
+    requestedMonths?: number,
+    returnTo?: string,
+  ) {
+    const industry = getIndustryPackage(packageKey);
+    if (!industry) {
+      throw new BadRequestException('مدیریت کسب‌وکار انتخاب‌شده معتبر نیست');
+    }
+    const workspace = await this.ensureWorkspace(userId);
+    const views = await this.listManagements(userId);
+    const view = views.find((item) => item.key === packageKey);
+    const chargeable =
+      view?.modules.filter(
+        (module) => module.billable && !module.purchased && module.price > 0,
+      ) ?? [];
+    // The admin sets one price per management (the term is the price row's
+    // `months`). The payable amount is therefore the sum of the module prices
+    // shown in the panel — not price × months.
+    const defaultTerm = chargeable.reduce(
+      (max, module) => Math.max(max, module.months || 0),
+      0,
+    );
+    const months =
+      Number.isFinite(requestedMonths) && requestedMonths! > 0
+        ? Math.min(Math.round(requestedMonths!), 24)
+        : defaultTerm || 12;
+    const amount = chargeable.reduce((sum, module) => sum + module.price, 0);
+    if (amount <= 0) {
+      await this.activatePackage(workspace.id, packageKey, months);
+      return { free: true, activated: true };
+    }
+
+    const onlineOnly = await this.settings.getPaymentsOnlineOnly();
+    if (!onlineOnly && (await this.settings.isFeatureEnabled('featureWallet'))) {
+      const purchase = await this.prisma.businessModulePurchase.create({
+        data: {
+          workspaceId: workspace.id,
+          moduleKey: `package:${packageKey}`,
+          userId,
+          amount,
+          months,
+          status: 'PAID',
+          clientRefId: randomBytes(16).toString('hex'),
+          paidAt: new Date(),
+          expiresAt: months > 0 ? addMonths(new Date(), months) : null,
+        },
+      });
+      const charged = await this.wallet.charge({
+        userId,
+        kind: WalletEntryKind.BUSINESS_MODULE,
+        amount,
+        title: `خرید مدیریت کسب‌وکار «${industry.label}»`,
+        sourceType: 'BUSINESS_MODULE',
+        sourceId: purchase.id,
+        idempotencyKey: `business-package:${purchase.id}`,
+      });
+      await this.activatePackage(workspace.id, packageKey, months);
+      await this.notifications.notify({
+        userId,
+        type: NotificationType.SUCCESS,
+        title: 'مدیریت کسب‌وکار فعال شد',
+        body:
+          charged > 0
+            ? `مدیریت «${industry.label}» فعال شد و مبلغ ${charged.toLocaleString('fa-IR')} تومان به بدهی کیف پول شما اضافه شد.`
+            : `مدیریت «${industry.label}» فعال شد.`,
+        link: '/dashboard/business',
+      });
+      return { wallet: true, activated: true, amount: charged, purchase };
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true, phone: true, email: true },
+    });
+    const clientRefId = randomBytes(16).toString('hex');
+    const purchase = await this.prisma.businessModulePurchase.create({
+      data: {
+        workspaceId: workspace.id,
+        moduleKey: `package:${packageKey}`,
+        userId,
+        amount,
+        months,
+        clientRefId,
+      },
+    });
+    const returnUrl = `${paypingReturnBaseUrl()}/api/business-modules/payments/callback`;
+    let result: { paymentCode?: string; url?: string } | null = null;
+    try {
+      result = this.simulator.isEnabled
+        ? this.simulator.createPayment({
+            amount,
+            returnUrl,
+            clientRefId,
+            description: `مدیریت ${industry.label} — شمالی‌کارت`,
+          })
+        : ((await this.payping.createPayment({
+            amount,
+            returnUrl,
+            payerIdentity: user?.phone ?? user?.email ?? undefined,
+            payerName: user?.fullName ?? undefined,
+            description: `مدیریت ${industry.label} — شمالی‌کارت`,
+            clientRefId,
+            isReversible: false,
+          })) as { paymentCode?: string; url?: string } | null);
+    } catch (error) {
+      await this.prisma.businessModulePurchase.update({
+        where: { id: purchase.id },
+        data: { status: 'FAILED' },
+      });
+      throw error;
+    }
+    if (!result?.paymentCode || !result?.url) {
+      await this.prisma.businessModulePurchase.update({
+        where: { id: purchase.id },
+        data: { status: 'FAILED' },
+      });
+      throw new BadGatewayException('ساخت پرداخت در پی‌پینگ ناموفق بود');
+    }
+    await this.prisma.businessModulePurchase.update({
+      where: { id: purchase.id },
+      data: { paymentCode: result.paymentCode, gatewayUrl: result.url },
+    });
+    return {
+      paymentId: purchase.id,
+      amount,
+      months,
+      paymentCode: result.paymentCode,
+      url: result.url,
+      returnTo: returnTo && /^\/(?!\/)/.test(returnTo) ? returnTo : null,
+    };
+  }
+
+  /** Enable every module of a package and make it the workspace's industry. */
+  private async activatePackage(
+    workspaceId: string,
+    packageKey: string,
+    months: number,
+  ) {
+    const industry = getIndustryPackage(packageKey);
+    if (!industry) return;
+    const keys = withDependencies(industry.modules);
+    const paidUntil = months > 0 ? addMonths(new Date(), months) : null;
+    await this.prisma.$transaction(async (tx) => {
+      await tx.businessWorkspace.update({
+        where: { id: workspaceId },
+        data: { industryKey: packageKey },
+      });
+      for (const key of keys) {
+        const definition = getBusinessModule(key);
+        await tx.businessModuleActivation.upsert({
+          where: { workspaceId_moduleKey: { workspaceId, moduleKey: key } },
+          update: {
+            enabled: true,
+            enabledAt: new Date(),
+            ...(definition?.billable ? { paidUntil } : {}),
+          },
+          create: {
+            workspaceId,
+            moduleKey: key,
+            enabled: true,
+            enabledAt: new Date(),
+            ...(definition?.billable ? { paidUntil } : {}),
+          },
+        });
+      }
+    });
+  }
+
   private async requirePrice(moduleKey: string) {
     const definition = getBusinessModule(moduleKey);
     if (!definition) throw new BadRequestException('ماژول انتخاب‌شده معتبر نیست');
@@ -812,16 +1053,27 @@ export class BusinessModulesService implements OnModuleInit {
           purchase.months > 0 ? addMonths(new Date(), purchase.months) : null,
       },
     });
-    await this.activateModule(
-      purchase.workspaceId,
-      purchase.moduleKey,
-      purchase.months,
-    );
+    const isPackage = purchase.moduleKey.startsWith('package:');
+    if (isPackage) {
+      await this.activatePackage(
+        purchase.workspaceId,
+        purchase.moduleKey.slice('package:'.length),
+        purchase.months,
+      );
+    } else {
+      await this.activateModule(
+        purchase.workspaceId,
+        purchase.moduleKey,
+        purchase.months,
+      );
+    }
     await this.notifications.notify({
       userId: purchase.userId,
       type: NotificationType.SUCCESS,
-      title: 'ماژول کسب‌وکار فعال شد',
-      body: 'پرداخت شما تأیید شد و ماژول موردنظر فعال شد.',
+      title: isPackage ? 'مدیریت کسب‌وکار فعال شد' : 'ماژول کسب‌وکار فعال شد',
+      body: isPackage
+        ? 'پرداخت شما تأیید شد و تمام ماژول‌های این مدیریت کسب‌وکار فعال شد.'
+        : 'پرداخت شما تأیید شد و ماژول موردنظر فعال شد.',
       link: '/dashboard/business',
     });
     return { redirectUrl: `${base}?purchase=success` };
