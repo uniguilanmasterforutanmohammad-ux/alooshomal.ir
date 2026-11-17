@@ -1103,6 +1103,15 @@ export class BusinessModulesService implements OnModuleInit {
     if (!industry) return;
     const keys = withDependencies(industry.modules);
     const paidUntil = months > 0 ? addMonths(new Date(), months) : null;
+    // Only modules that actually carry a price should expire. Free/default
+    // modules stay enabled regardless of the purchased term.
+    const prices = await this.prisma.businessModulePrice.findMany({
+      where: { moduleKey: { in: keys }, isActive: true },
+      select: { moduleKey: true, price: true },
+    });
+    const paidKeys = new Set(
+      prices.filter((row) => row.price > 0).map((row) => row.moduleKey),
+    );
     await this.prisma.$transaction(async (tx) => {
       await tx.businessWorkspace.update({
         where: { id: workspaceId },
@@ -1110,19 +1119,20 @@ export class BusinessModulesService implements OnModuleInit {
       });
       for (const key of keys) {
         const definition = getBusinessModule(key);
+        const timeLimited = Boolean(definition?.billable && paidKeys.has(key));
         await tx.businessModuleActivation.upsert({
           where: { workspaceId_moduleKey: { workspaceId, moduleKey: key } },
           update: {
             enabled: true,
             enabledAt: new Date(),
-            ...(definition?.billable ? { paidUntil } : {}),
+            ...(timeLimited ? { paidUntil } : {}),
           },
           create: {
             workspaceId,
             moduleKey: key,
             enabled: true,
             enabledAt: new Date(),
-            ...(definition?.billable ? { paidUntil } : {}),
+            ...(timeLimited ? { paidUntil } : {}),
           },
         });
       }
