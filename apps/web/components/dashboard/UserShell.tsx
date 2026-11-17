@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import {
   BadgeCheck,
   Bookmark,
+  Building2,
   Coins,
   Crown,
   Headset,
@@ -63,6 +64,7 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
     title: 'محتوا و علاقه‌مندی‌ها',
     items: [
       { href: '/dashboard/onboarding', label: 'شروع آسان', icon: Sparkles, exact: false, feature: 'featureOnboarding' },
+      { href: '/dashboard/business', label: 'پنل کسب‌وکار', icon: Building2, exact: false, feature: 'featureBusinessWorkspace' },
       { href: '/dashboard/business-cards', label: 'کارت‌های ویزیت من', icon: BadgeCheck, exact: false },
       { href: '/dashboard/biolinks', label: 'بیولینک‌های من', icon: IdCard, exact: false },
       { href: '/dashboard/feeds', label: 'پست‌های من', icon: ImagePlus, exact: false, feature: 'featureFeedPosts' },

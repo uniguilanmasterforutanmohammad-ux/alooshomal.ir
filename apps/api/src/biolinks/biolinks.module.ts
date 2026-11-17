@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { BusinessModulesModule } from '../business-modules/business-modules.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SettingsModule } from '../settings/settings.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
@@ -10,7 +11,13 @@ import { BiolinksEngagementService } from './biolinks-engagement.service';
 import { BiolinksService } from './biolinks.service';
 
 @Module({
-  imports: [SubscriptionsModule, SettingsModule, NotificationsModule, WalletModule],
+  imports: [
+    BusinessModulesModule,
+    SubscriptionsModule,
+    SettingsModule,
+    NotificationsModule,
+    WalletModule,
+  ],
   controllers: [BiolinksController],
   providers: [BiolinksService, BiolinksDirectoryService, BiolinksEngagementService],
   exports: [BiolinksService, BiolinksEngagementService],

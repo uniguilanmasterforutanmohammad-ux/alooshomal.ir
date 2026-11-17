@@ -16,6 +16,8 @@ import { createHash } from 'node:crypto';
 import type { Request } from 'express';
 
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
+import { BusinessModuleGuard } from '../business-modules/business-module.guard';
+import { RequireModule } from '../business-modules/require-module.decorator';
 import { OptionalAuth } from '../common/decorators/optional-auth.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { PaginationDto } from '../common/dto/pagination.dto';
@@ -34,6 +36,8 @@ import { UpdateBusinessCardDto } from './dto/update-business-card.dto';
 import { VerifyBusinessCardClaimDto } from './dto/verify-business-card-claim.dto';
 
 @ApiTags('business-cards')
+@UseGuards(BusinessModuleGuard)
+@RequireModule('businessCards')
 @Controller('business-cards')
 export class BusinessCardsController {
   constructor(

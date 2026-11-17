@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { BusinessModulesModule } from '../business-modules/business-modules.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SettingsModule } from '../settings/settings.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
@@ -16,6 +17,7 @@ import { BusinessReviewsService } from './business-reviews.service';
 
 @Module({
   imports: [
+    BusinessModulesModule,
     SubscriptionsModule,
     SettingsModule,
     NotificationsModule,

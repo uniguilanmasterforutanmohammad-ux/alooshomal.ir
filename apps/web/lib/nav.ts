@@ -15,6 +15,7 @@ export const PUBLIC_NAV: PublicNavItem[] = [
   { href: '/biolinks', label: 'بیولینک‌ها' },
   { href: '/business-cards?view=notebook&sort=alpha', label: 'دفترچه تلفن' },
   { href: '/feeds', label: 'پست‌ها' },
+  { href: '/stay', label: 'اقامتگاه‌ها' },
   { href: '/pulse', label: 'اخبار' },
   { href: '/blog', label: 'بلاگ' },
   { href: '/pricing', label: 'تعرفه‌ها' },

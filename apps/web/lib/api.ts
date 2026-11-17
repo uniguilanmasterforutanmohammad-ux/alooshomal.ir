@@ -21,3 +21,4 @@ export * from './api/types/finance';
 export * from './api/types/wallet';
 export * from './api/types/reviews';
 export * from './api/types/support';
+export * from './api/types/business-modules';

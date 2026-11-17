@@ -439,6 +439,31 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     group: 'احراز هویت',
     default: true,
   },
+  {
+    key: 'featureBusinessWorkspace',
+    label: 'پنل مدیریت کسب‌وکار',
+    description:
+      'پنل ماژولار هر کسب‌وکار: انتخاب صنف، فعال/غیرفعال‌کردن ماژول‌ها و مدیریت قابلیت‌های همان صنف.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureAccommodationRental',
+    label: 'ماژول اقامتگاه و اجاره روزانه',
+    description:
+      'ثبت اقامتگاه، عکس‌ها، تقویم و درخواست رزرو. خاموش‌کردن «نمایش» صفحه‌ی عمومی اقامتگاه‌ها (`/stay`) را هم متوقف می‌کند.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+    publicSection: { name: 'اقامتگاه‌های اجاره‌ای', routes: ['/stay'] },
+  },
+  {
+    key: 'featureCrm',
+    label: 'ماژول مدیریت مشتریان (CRM)',
+    description:
+      'دفترچه‌ی مشتریان مشترک میان همه‌ی صنف‌ها: اطلاعات تماس، برچسب، یادداشت و تاریخچه‌ی تعامل.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
 ];
 
 export const FEATURE_FLAG_KEYS = FEATURE_FLAGS.map((flag) => flag.key);

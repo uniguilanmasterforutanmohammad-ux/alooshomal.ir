@@ -10,6 +10,7 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { AdminModule } from './admin/admin.module';
 import { ActivityModule } from './activity/activity.module';
 import { AdsModule } from './ads/ads.module';
+import { AccommodationsModule } from './accommodations/accommodations.module';
 import { AuthModule } from './auth/auth.module';
 import { BackupModule } from './backup/backup.module';
 import { BaleModule } from './bale/bale.module';
@@ -17,6 +18,8 @@ import { BiolinksModule } from './biolinks/biolinks.module';
 import { BlogModule } from './blog/blog.module';
 import { BoostsModule } from './boosts/boosts.module';
 import { BusinessCardsModule } from './businesscards/business-cards.module';
+import { BusinessModulesModule } from './business-modules/business-modules.module';
+import { CrmModule } from './crm/crm.module';
 import { FeedsModule } from './feeds/feeds.module';
 import { FinanceModule } from './finance/finance.module';
 import { HealthModule } from './health/health.module';
@@ -62,6 +65,9 @@ import { ZohalModule } from './zohal/zohal.module';
     UsersModule,
     BiolinksModule,
     BusinessCardsModule,
+    BusinessModulesModule,
+    AccommodationsModule,
+    CrmModule,
     FeedsModule,
     FinanceModule,
     BlogModule,

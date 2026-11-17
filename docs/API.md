@@ -665,6 +665,54 @@ PY
 `AGENTS.md` همیشه فعال هستند و سوئیچ ویژگی نمی‌گیرند. هر کاربر فقط به گفتگوهای
 خودش دسترسی دارد؛ مسیرهای `/admin/support/chat` فقط برای نقش `ADMIN` باز است.
 
+## پنل ماژولار کسب‌وکار (`/api/business-modules`)
+
+هر کاربر یک «فضای کسب‌وکار» دارد (`BusinessWorkspace`) که بسته‌ی صنف و
+ماژول‌های فعال را نگه می‌دارد. تعریف ماژول‌ها و بسته‌های صنف در کد
+(`apps/api/src/business-modules/business-modules.registry.ts`) است؛ افزودن
+ماژول تازه فقط با یک ورودی در همین رجیستری و گارد `@RequireModule('<key>')`
+روی کنترلر انجام می‌شود.
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET` | `/business-modules/catalog` | کاتالوگ ماژول‌ها و بسته‌های صنف. |
+| `GET` | `/business-modules/my` | فضای من: صنف، ماژول‌های فعال/غیرفعال و بسته‌ها. |
+| `PATCH` | `/business-modules/my` | تغییر نام نمایشی کسب‌وکار. |
+| `PATCH` | `/business-modules/my/industry` | انتخاب بسته‌ی صنف (ماژول‌های پیش‌فرض افزودنی فعال می‌شوند). |
+| `PATCH` | `/business-modules/my/:key` | فعال/غیرفعال‌کردن ماژول؛ وابستگی‌ها بررسی می‌شوند. |
+
+ماژول‌های فعلی: `businessCards`، `biolinks`، `feeds`، `accommodationRental`،
+`accommodationReservations`، `accommodationChannels` و `crm`. ماژول‌های
+`businessCards`/`biolinks` هم در همین رجیستری ثبت شده‌اند و اکنون فعال/غیرفعال
+شدنشان روی مسیرهای مالک اعمال می‌شود؛ سوئیچ‌های سراسری ادمین
+(`allowBusinessCardCreation` و `allowBiolinkCreation`) همچنان بالاتر از آن
+عمل می‌کنند.
+
+### اقامتگاه و اجاره روزانه (`/api/accommodations`)
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET` | `/accommodations` | فهرست اقامتگاه‌های من. |
+| `POST` | `/accommodations` | ثبت اقامتگاه (پیش‌نویس/منتشرشده). |
+| `GET` | `/accommodations/:id` | جزئیات + عکس‌ها، رزروها و مسدودی‌ها. |
+| `PATCH` | `/accommodations/:id` | ویرایش اقامتگاه. |
+| `DELETE` | `/accommodations/:id` | حذف اقامتگاه. |
+| `POST` | `/accommodations/:id/photos` | افزودن عکس (URL خروجی `POST /uploads/gallery`). |
+| `DELETE` | `/accommodations/:id/photos/:photoId` | حذف عکس. |
+| `GET` | `/accommodations/bookings` | همه‌ی رزروها (فیلتر `status`). |
+| `PATCH` | `/accommodations/bookings/:id/status` | تغییر وضعیت رزرو. |
+| `POST` | `/accommodations/:id/bookings` | ثبت دستی رزرو توسط مالک. |
+| `GET/POST` | `/accommodations/:id/blocks` | فهرست/افزودن بازه‌ی مسدود. |
+| `DELETE` | `/accommodations/:id/blocks/:blockId` | حذف بازه‌ی مسدود. |
+| `GET/POST/PATCH/DELETE` | `/accommodation-channels` | مدیریت کانال‌های رزرو (OTA/شبکه‌ی اجتماعی/سایت مستقیم). |
+| `GET/POST/PATCH/DELETE` | `/crm/customers` | دفترچه‌ی مشتریان و تعامل‌ها. |
+
+مسیرهای عمومی (بدون احراز هویت) زیر `/api/public/accommodations` هستند:
+فهرست اقامتگاه‌های منتشرشده، صفحه‌ی عمومی یک اقامتگاه (همراه کانال‌های فعال)
+و `POST /public/accommodations/:slug/bookings` برای ثبت درخواست رزرو. این
+مسیرها با سوئیچ سراسری `featureAccommodationRental` و صفحه‌ی عمومی `/stay`
+با سوئیچ «نمایش» همان ویژگی کنترل می‌شوند.
+
 ## وظیفه‌ی دائمی ایجنت (قانون ۸)
 
 هنگام **افزودن یا تغییر هر مسیر API**، ایجنت موظف است پیش از اعلام اتمام کار:

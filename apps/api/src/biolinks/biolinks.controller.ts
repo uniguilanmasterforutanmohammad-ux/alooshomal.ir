@@ -16,6 +16,8 @@ import { createHash } from 'node:crypto';
 import type { Request } from 'express';
 
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
+import { BusinessModuleGuard } from '../business-modules/business-module.guard';
+import { RequireModule } from '../business-modules/require-module.decorator';
 import { OptionalAuth } from '../common/decorators/optional-auth.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { PaginationDto } from '../common/dto/pagination.dto';
@@ -30,6 +32,8 @@ import { PublicBiolinkQueryDto } from './dto/public-biolink-query.dto';
 import { UpdateBiolinkDto } from './dto/update-biolink.dto';
 
 @ApiTags('biolinks')
+@UseGuards(BusinessModuleGuard)
+@RequireModule('biolinks')
 @Controller('biolinks')
 export class BiolinksController {
   constructor(

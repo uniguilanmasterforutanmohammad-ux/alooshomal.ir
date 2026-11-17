@@ -20,7 +20,52 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.20.3**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.21.0**.
+
+## ۱۴۰۵/۰۸/۲۶ — پنل ماژولار کسب‌وکار و ماژول اجاره روزانه — نسخه `v4.21.0`
+
+**هدف:** ساخت پایه‌ی استاندارد و قابل‌توسعه برای «پنل کسب‌وکار» به‌صورت ماژولار؛
+هر قابلیت یک ماژول مستقل است، هر صنف یک بسته‌ی ماژول دارد و هر کسب‌وکار فقط
+ماژول‌های موردنیازش را فعال می‌کند. شروع با صنف «اقامت و سفر — اجاره روزانه».
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `BusinessWorkspace`،
+  `BusinessModuleActivation`، `AccommodationProperty`، `AccommodationPhoto`،
+  `AccommodationChannel`، `AccommodationBookingRequest`،
+  `AccommodationCalendarBlock`، `CrmCustomer` و `CrmInteraction`.
+- `apps/api/src/business-modules/business-modules.registry.ts`: رجیستری مرکزی
+  ماژول‌ها و بسته‌های صنف؛ بیولینک، کارت ویزیت، پست‌ها، اقامتگاه، رزرو/تقویم،
+  کانال‌های رزرو و CRM به‌عنوان ماژول ثبت شدند.
+- `apps/api/src/business-modules/business-modules.service.ts` و
+  `business-module.guard.ts`: فعال‌سازی per-workspace، وابستگی ماژول‌ها،
+  گارد `@RequireModule` و خطای ۴۰۳ `MODULE_DISABLED`.
+- `apps/api/src/accommodations/*` و `apps/api/src/crm/*`: API اقامتگاه‌ها،
+  عکس‌ها، کانال‌های رزرو، درخواست رزرو عمومی، تقویم مسدودی و CRM.
+- `apps/api/src/settings/settings.constants.ts`: سوئیچ‌های سراسری
+  `featureBusinessWorkspace`، `featureAccommodationRental` (با بخش عمومی
+  `/stay`) و `featureCrm`.
+- `apps/web/app/dashboard/business/*`: نمای کلی ماژول‌ها، اقامتگاه‌ها، جزئیات
+  اقامتگاه، رزروها، کانال‌ها و مشتریان.
+- `apps/web/app/stay/*` و `components/stay/StayBookingForm.tsx`: صفحات عمومی
+  فهرست/جزئیات اقامتگاه و فرم درخواست رزرو.
+- `apps/web/components/business/*`، `lib/business-modules.ts` و
+  `lib/api/types/business-modules.ts`: ناوبری ماژول‌محور، فرم اقامتگاه و تایپ‌ها.
+- `apps/web/components/dashboard/UserShell.tsx` و `lib/nav.ts`: افزودن ورودی
+  «پنل کسب‌وکار» و «اقامتگاه‌ها» به ناوبری.
+- `docs/API.md`: مستندسازی مسیرهای `business-modules`، `accommodations` و `crm`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx prisma generate` و `npx prisma db push` موفق.
+- `docker exec alooshomal-api npx tsc --noEmit` و `npm run build` بدون خطا.
+- `docker exec alooshomal-web npx tsc --noEmit` و `npm run build` بدون خطا.
+- `python3 scripts/check_api_docs.py` → ۴۷۱ مسیر، همه با `@ApiOperation`.
+- تست عملی API: انتخاب صنف `dailyRental`، ساخت اقامتگاه، فهرست/جزئیات عمومی،
+  ثبت درخواست رزرو عمومی (ساخت خودکار مشتری CRM)، فهرست رزروها و CRM.
+- تست گارد ماژول: غیرفعال‌کردن `businessCards` باعث ۴۰۳ با کد
+  `MODULE_DISABLED` شد و فعال‌سازی مجدد آن را برگرداند؛ غیرفعال‌کردن
+  `accommodationRental` با وابستگی‌ها ۴۰۹ `MODULE_HAS_DEPENDENTS` داد.
+- `curl` صفحات `/dashboard/business`، زیرصفحه‌های ماژول، `/stay` و
+  `/stay/<slug>` → همه ۲۰۰ و محتوای اقامتگاه/فرم رزرو در HTML دیده شد.
 
 ## ۱۴۰۵/۰۸/۲۶ — ارتقای امنیتی Next.js به ۱۶.۴.۶ — نسخه `v4.20.3`
 

@@ -498,6 +498,7 @@ model User {
   expensesCreated   Expense[]    @relation("ExpenseCreatedBy")
   onboardingCompletions OnboardingStepCompletion[]
   identityInquiryLogs   IdentityInquiryLog[]
+  businessWorkspace     BusinessWorkspace?
 
   @@index([email])
   @@index([phone])
@@ -853,6 +854,7 @@ model City {
   biolinks      Biolink[]
   businessCards BusinessCard[]
   neighborhoods Neighborhood[]
+  accommodationProperties AccommodationProperty[]
 
   @@index([name])
   @@map("cities")
@@ -1911,4 +1913,225 @@ model SocialAccount {
   @@unique([platform, username])
   @@index([platform])
   @@map("social_accounts")
+}
+
+// ---------------------------------------------------------------------------
+// Business workspace & modular capabilities
+//
+// Every signed-in user can own one business workspace. The workspace picks an
+// industry package (e.g. «اجاره روزانه اقامتگاه») and enables the modules that
+// package needs. Module definitions live in code
+// (`business-modules/business-modules.registry.ts`) so adding a capability is
+// a code-only change; only the per-workspace activation is persisted here.
+// ---------------------------------------------------------------------------
+model BusinessWorkspace {
+  id          String   @id @default(cuid())
+  ownerId     String   @unique
+  name        String
+  industryKey String   @default("generalBusiness")
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner           User                          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  modules         BusinessModuleActivation[]
+  properties      AccommodationProperty[]
+  channels        AccommodationChannel[]
+  bookingRequests AccommodationBookingRequest[]
+  customers       CrmCustomer[]
+  interactions    CrmInteraction[]
+
+  @@index([industryKey])
+  @@map("business_workspaces")
+}
+
+/// One explicit enable/disable decision for a module in a workspace. A missing
+/// row means «use the industry package default», so new modules can ship
+/// without backfilling every existing workspace.
+model BusinessModuleActivation {
+  id          String    @id @default(cuid())
+  workspaceId String
+  moduleKey   String
+  enabled     Boolean   @default(true)
+  settings    Json?
+  enabledAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, moduleKey])
+  @@index([moduleKey, enabled])
+  @@map("business_module_activations")
+}
+
+// ---------------------------------------------------------------------------
+// «اقامت و سفر» — daily-rental accommodation module
+// ---------------------------------------------------------------------------
+model AccommodationProperty {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  slug         String   @unique
+  title        String
+  description  String?
+  propertyType String   @default("APARTMENT")
+  cityId       String?
+  address      String?
+  latitude     Float?
+  longitude    Float?
+  maxGuests    Int      @default(2)
+  bedrooms     Int      @default(1)
+  beds         Int      @default(1)
+  bathrooms    Int      @default(1)
+  basePrice    Int      @default(0)
+  currency     String   @default("IRR")
+  minNights    Int      @default(1)
+  checkInTime  String?
+  checkOutTime String?
+  amenities    String[] @default([])
+  status       String   @default("DRAFT")
+  publishedAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace BusinessWorkspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  city      City?                          @relation(fields: [cityId], references: [id], onDelete: SetNull)
+  photos    AccommodationPhoto[]
+  bookings  AccommodationBookingRequest[]
+  blocks    AccommodationCalendarBlock[]
+
+  @@index([workspaceId, status])
+  @@index([cityId])
+  @@map("accommodation_properties")
+}
+
+model AccommodationPhoto {
+  id         String   @id @default(cuid())
+  propertyId String
+  url        String
+  caption    String?
+  sortOrder  Int      @default(0)
+  isCover    Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  property AccommodationProperty @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, sortOrder])
+  @@map("accommodation_photos")
+}
+
+/// A booking channel the owner uses (Booking.com, Jabama, Instagram, direct
+/// site, …). `kind` is a plain string so a new marketplace is a code-only
+/// change. Channels are also shown on the public property page.
+model AccommodationChannel {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  kind        String   @default("OTA")
+  url         String?
+  accountRef  String?
+  notes       String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace BusinessWorkspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  bookings  AccommodationBookingRequest[]
+
+  @@index([workspaceId, isActive])
+  @@map("accommodation_channels")
+}
+
+/// Guest reservation request. Statuses are strings so the workflow can grow
+/// (`PENDING` | `CONFIRMED` | `DECLINED` | `CANCELLED` | `COMPLETED`).
+model AccommodationBookingRequest {
+  id          String   @id @default(cuid())
+  workspaceId String
+  propertyId  String
+  customerId  String?
+  channelId   String?
+  guestName   String
+  guestPhone  String
+  guestEmail  String?
+  checkIn     DateTime
+  checkOut    DateTime
+  guests      Int      @default(1)
+  message     String?
+  status      String   @default("PENDING")
+  source      String   @default("DIRECT")
+  totalAmount Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace BusinessWorkspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  property  AccommodationProperty      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  customer  CrmCustomer?               @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  channel   AccommodationChannel?      @relation(fields: [channelId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@index([propertyId, checkIn, checkOut])
+  @@index([customerId])
+  @@map("accommodation_booking_requests")
+}
+
+/// Manually blocked dates (maintenance, owner stay, …). Channel/booking blocks
+/// can be added later without a schema change by using `source`/`externalId`.
+model AccommodationCalendarBlock {
+  id         String   @id @default(cuid())
+  propertyId String
+  startDate  DateTime
+  endDate    DateTime
+  reason     String?
+  source     String   @default("MANUAL")
+  externalId String?
+  createdAt  DateTime @default(now())
+
+  property AccommodationProperty @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, startDate, endDate])
+  @@map("accommodation_calendar_blocks")
+}
+
+// ---------------------------------------------------------------------------
+// CRM module — a shared customer book for every industry package
+// ---------------------------------------------------------------------------
+model CrmCustomer {
+  id                String    @id @default(cuid())
+  workspaceId       String
+  fullName          String
+  phone             String?
+  email             String?
+  notes             String?
+  tags              String[]  @default([])
+  source            String    @default("MANUAL")
+  totalBookings     Int       @default(0)
+  totalSpent        Int       @default(0)
+  lastInteractionAt DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  workspace    BusinessWorkspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  bookings     AccommodationBookingRequest[]
+  interactions CrmInteraction[]
+
+  @@unique([workspaceId, phone])
+  @@index([workspaceId])
+  @@map("crm_customers")
+}
+
+model CrmInteraction {
+  id          String   @id @default(cuid())
+  workspaceId String
+  customerId  String
+  kind        String   @default("NOTE")
+  note        String?
+  occurredAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  customer  CrmCustomer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, occurredAt])
+  @@map("crm_interactions")
 }
