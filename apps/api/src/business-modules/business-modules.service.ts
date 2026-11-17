@@ -160,6 +160,7 @@ export class BusinessModulesService implements OnModuleInit {
     try {
       await this.seedManagements();
       await this.syncRegistryManagements();
+      await this.alignRegistryManagements();
       await this.backfillPublicSlugs();
       await this.reloadManagements();
     } catch {
@@ -276,6 +277,33 @@ export class BusinessModulesService implements OnModuleInit {
       await this.prisma.businessWorkspace.update({
         where: { id: row.id },
         data: { publicSlug: await this.uniquePublicSlug(row.name) },
+      });
+    }
+    await this.prisma.setting.create({
+      data: { key: marker, value: new Date().toISOString() },
+    });
+  }
+
+  /**
+   * One-time alignment of the shipped packages with the code registry: remove
+   * module memberships that the registry no longer lists (e.g. the social feed
+   * that older retail seeds carried). Admin-created managements are untouched.
+   */
+  private async alignRegistryManagements(): Promise<void> {
+    const marker = 'businessManagementsSeedV3';
+    const done = await this.prisma.setting.findUnique({ where: { key: marker } });
+    if (done) return;
+    for (const industry of INDUSTRY_PACKAGES) {
+      const row = await this.prisma.businessManagement.findUnique({
+        where: { key: industry.key },
+        select: { id: true },
+      });
+      if (!row) continue;
+      await this.prisma.businessManagementModule.deleteMany({
+        where: {
+          managementId: row.id,
+          moduleKey: { notIn: industry.modules },
+        },
       });
     }
     await this.prisma.setting.create({
