@@ -7,6 +7,7 @@ import { CalendarFold, ExternalLink, ImagePlus, Trash2 } from 'lucide-react';
 
 import { AccommodationForm, type AccommodationFormValues } from '@/components/business/AccommodationForm';
 import { BusinessPanelNav } from '@/components/business/BusinessPanelNav';
+import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
 import {
   api,
   type AccommodationBooking,
@@ -15,6 +16,7 @@ import {
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
+import { todayIso } from '@/lib/jalali';
 import { toast } from '@/lib/toast';
 
 export default function AccommodationDetailPage() {
@@ -215,17 +217,17 @@ export default function AccommodationDetailPage() {
       <section className="indeed-panel p-5">
         <h2 className="mb-4 text-lg font-extrabold text-ink">مسدودکردن تاریخ‌ها</h2>
         <div className="grid gap-3 sm:grid-cols-4">
-          <input
-            type="date"
+          <JalaliDatePicker
             value={blockForm.startDate}
-            onChange={(event) => setBlockForm((prev) => ({ ...prev, startDate: event.target.value }))}
-            className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-sm"
+            onChange={(iso) => setBlockForm((prev) => ({ ...prev, startDate: iso }))}
+            min={todayIso()}
+            aria-label="تاریخ شروع مسدودی"
           />
-          <input
-            type="date"
+          <JalaliDatePicker
             value={blockForm.endDate}
-            onChange={(event) => setBlockForm((prev) => ({ ...prev, endDate: event.target.value }))}
-            className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-sm"
+            onChange={(iso) => setBlockForm((prev) => ({ ...prev, endDate: iso }))}
+            min={blockForm.startDate || todayIso()}
+            aria-label="تاریخ پایان مسدودی"
           />
           <input
             value={blockForm.reason}

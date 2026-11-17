@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import { Check, Copy, CreditCard, Upload } from 'lucide-react';
 
+import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
 import { api, type PublicCardInfo, type UploadResult } from '@/lib/api';
+import { todayIso } from '@/lib/jalali';
 import { toast } from '@/lib/toast';
 
 const field =
@@ -158,7 +160,14 @@ export function CardToCardForm({
         <input className={field} placeholder="شماره پیگیری (اختیاری)" value={form.trackingNumber} onChange={(event) => setForm((prev) => ({ ...prev, trackingNumber: event.target.value }))} />
         <label className="text-[11px] text-muted">
           تاریخ واریز
-          <input className={`${field} mt-1`} type="date" value={form.paidAt} onChange={(event) => setForm((prev) => ({ ...prev, paidAt: event.target.value }))} />
+          <div className="mt-1">
+            <JalaliDatePicker
+              value={form.paidAt}
+              onChange={(iso) => setForm((prev) => ({ ...prev, paidAt: iso }))}
+              max={todayIso()}
+              aria-label="تاریخ واریز"
+            />
+          </div>
         </label>
         <label className="indeed-btn cursor-pointer justify-center text-xs">
           <Upload className="size-4" aria-hidden />

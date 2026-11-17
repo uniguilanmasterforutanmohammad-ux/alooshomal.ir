@@ -174,7 +174,7 @@ export function JalaliDatePicker({
           onClick={showCalendar}
           disabled={disabled}
           aria-label="باز کردن تقویم شمسی"
-          className="absolute inset-y-0 left-2 flex items-center text-neutral-500 hover:text-neutral-800 disabled:opacity-50"
+          className="absolute inset-y-0 left-2 flex items-center text-muted transition-colors hover:text-ink disabled:opacity-50"
         >
           <CalendarDays className="size-4" aria-hidden />
         </button>
@@ -186,7 +186,7 @@ export function JalaliDatePicker({
               setDraft(null);
             }}
             aria-label="پاک کردن تاریخ"
-            className="absolute inset-y-0 right-2 flex items-center text-neutral-400 hover:text-red-600"
+            className="absolute inset-y-0 right-2 flex items-center text-muted transition-colors hover:text-red-600"
           >
             <X className="size-3.5" aria-hidden />
           </button>
@@ -197,14 +197,14 @@ export function JalaliDatePicker({
         <div
           role="dialog"
           aria-label="تقویم شمسی"
-          className="absolute z-50 mt-2 w-72 rounded-xl border border-[var(--vintage-border)] bg-white p-3 shadow-xl"
+          className="absolute z-50 mt-2 w-72 rounded-2xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-3 shadow-2xl ring-1 ring-black/5"
         >
           <div className="mb-2 flex items-center justify-between gap-1">
             <button
               type="button"
               onClick={() => shiftMonth(-1)}
               aria-label="ماه قبل"
-              className="rounded-md p-1 text-neutral-500 hover:bg-neutral-100"
+              className="rounded-lg p-1.5 text-muted transition-colors hover:bg-[var(--indeed-blue-light)] hover:text-ink"
             >
               <ChevronRight className="size-4" aria-hidden />
             </button>
@@ -218,7 +218,7 @@ export function JalaliDatePicker({
                   }))
                 }
                 aria-label="انتخاب ماه"
-                className="rounded-md border border-neutral-200 bg-white px-1.5 py-1 text-xs font-bold text-ink outline-none"
+                className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-1.5 py-1 text-xs font-bold text-ink outline-none focus:border-brand"
               >
                 {JALALI_MONTHS.map((month, index) => (
                   <option key={month} value={index + 1}>
@@ -235,7 +235,7 @@ export function JalaliDatePicker({
                   }))
                 }
                 aria-label="انتخاب سال"
-                className="rounded-md border border-neutral-200 bg-white px-1.5 py-1 text-xs font-bold text-ink outline-none"
+                className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-1.5 py-1 text-xs font-bold text-ink outline-none focus:border-brand"
               >
                 {years.map((year) => (
                   <option key={year} value={year}>
@@ -248,13 +248,13 @@ export function JalaliDatePicker({
               type="button"
               onClick={() => shiftMonth(1)}
               aria-label="ماه بعد"
-              className="rounded-md p-1 text-neutral-500 hover:bg-neutral-100"
+              className="rounded-lg p-1.5 text-muted transition-colors hover:bg-[var(--indeed-blue-light)] hover:text-ink"
             >
               <ChevronLeft className="size-4" aria-hidden />
             </button>
           </div>
 
-          <div className="mb-1 grid grid-cols-7 text-center text-[11px] font-bold text-neutral-400">
+          <div className="mb-1 grid grid-cols-7 text-center text-[11px] font-bold text-muted">
             {WEEKDAYS.map((day) => (
               <span key={day} className="py-1">
                 {day}
@@ -283,10 +283,10 @@ export function JalaliDatePicker({
                   disabled={disabledDay}
                   onClick={() => pick(view.year, view.month, day)}
                   className={cn(
-                    'rounded-md py-1.5 transition-colors',
+                    'rounded-lg py-1.5 transition-colors',
                     isSelected
                       ? 'bg-[var(--indeed-blue)] font-bold text-white'
-                      : 'hover:bg-neutral-100',
+                      : 'hover:bg-[var(--indeed-blue-light)]',
                     !isSelected && isToday && 'ring-1 ring-[var(--indeed-blue)]',
                     disabledDay && 'cursor-not-allowed opacity-40',
                   )}
@@ -297,7 +297,7 @@ export function JalaliDatePicker({
             })}
           </div>
 
-          <div className="mt-2 flex items-center justify-between border-t border-neutral-100 pt-2">
+          <div className="mt-2 flex items-center justify-between border-t border-[var(--vintage-border)] pt-2">
             <button
               type="button"
               onClick={() => {
@@ -310,7 +310,7 @@ export function JalaliDatePicker({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="text-xs text-neutral-500 hover:text-neutral-800"
+              className="text-xs text-muted transition-colors hover:text-ink"
             >
               بستن
             </button>

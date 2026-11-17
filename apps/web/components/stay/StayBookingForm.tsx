@@ -3,7 +3,9 @@
 import { useState } from 'react';
 
 import { CardToCardForm } from '@/components/payments/CardToCardForm';
+import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
 import { api } from '@/lib/api';
+import { todayIso } from '@/lib/jalali';
 import { toast } from '@/lib/toast';
 
 export function StayBookingForm({
@@ -32,6 +34,10 @@ export function StayBookingForm({
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (!form.checkIn || !form.checkOut) {
+      toast.error('تاریخ ورود و خروج را انتخاب کنید.');
+      return;
+    }
     setSubmitting(true);
     try {
       const created = await api.post<{
@@ -137,23 +143,25 @@ export function StayBookingForm({
         />
         <label className="text-xs text-muted">
           تاریخ ورود
-          <input
-            className={`${field} mt-1`}
-            type="date"
-            value={form.checkIn}
-            onChange={(event) => setForm((prev) => ({ ...prev, checkIn: event.target.value }))}
-            required
-          />
+          <div className="mt-1">
+            <JalaliDatePicker
+              value={form.checkIn}
+              onChange={(iso) => setForm((prev) => ({ ...prev, checkIn: iso }))}
+              min={todayIso()}
+              aria-label="تاریخ ورود"
+            />
+          </div>
         </label>
         <label className="text-xs text-muted">
           تاریخ خروج
-          <input
-            className={`${field} mt-1`}
-            type="date"
-            value={form.checkOut}
-            onChange={(event) => setForm((prev) => ({ ...prev, checkOut: event.target.value }))}
-            required
-          />
+          <div className="mt-1">
+            <JalaliDatePicker
+              value={form.checkOut}
+              onChange={(iso) => setForm((prev) => ({ ...prev, checkOut: iso }))}
+              min={form.checkIn || todayIso()}
+              aria-label="تاریخ خروج"
+            />
+          </div>
         </label>
       </div>
       <textarea
