@@ -36,6 +36,9 @@ function BusinessPanelContent() {
   const [savingName, setSavingName] = useState(false);
   const [workspaces, setWorkspaces] = useState<BusinessWorkspaceSummary[]>([]);
   const [managements, setManagements] = useState<ManagementPackage[]>([]);
+  const [selectedTerm, setSelectedTerm] = useState<
+    Record<string, 1 | 3 | 6 | 12>
+  >({});
 
   useEffect(() => {
     if (hydrated && !token) router.replace('/login?next=/dashboard/business');
@@ -137,13 +140,14 @@ function BusinessPanelContent() {
     }
   }
 
-  async function buyManagement(packageKey: string) {
+  async function buyManagement(packageKey: string, months: 1 | 3 | 6 | 12) {
     setBusy(`buy:${packageKey}`);
     try {
       const result = await api.post<
         | { url?: string; free?: boolean; wallet?: boolean }
         | { url?: string }
       >(`/business-modules/managements/${packageKey}/purchase`, {
+        months,
         returnTo: '/dashboard/business',
       });
       if (result && 'url' in result && result.url) {
@@ -298,8 +302,8 @@ function BusinessPanelContent() {
               مدیریت کسب‌وکارها
             </h2>
             <p className="text-xs text-muted">
-              هر «مدیریت کسب‌وکار» مجموعه‌ای از ماژول‌هاست. قیمت کل، مجموع قیمت
-              ماژول‌های آن است و پس از پرداخت، همه‌ی ماژول‌های آن فعال می‌شود.
+              هر «مدیریت کسب‌وکار» مجموعه‌ای از ماژول‌هاست. قیمت پایه، مجموع قیمت
+              ماهانه‌ی ماژول‌هاست و دوره‌های ۱/۳/۶/۱۲ ماهه با تخفیف قابل خریدند.
             </p>
           </div>
           <span className="text-xs text-muted">
@@ -316,6 +320,15 @@ function BusinessPanelContent() {
               const busyKey = `buy:${item.key}`;
               const isCurrent = workspace.industryKey === item.key;
               const paidModules = item.modules.filter((module) => module.billable);
+              const term = selectedTerm[item.key] ?? 1;
+              const selectedTermData = item.terms.find(
+                (option) => option.months === term,
+              );
+              const payable = Math.round(
+                item.remainingPrice *
+                  term *
+                  (1 - (selectedTermData?.discount ?? 0) / 100),
+              );
               return (
                 <article
                   key={item.key}
@@ -367,34 +380,85 @@ function BusinessPanelContent() {
                       </li>
                     ))}
                   </ul>
-                  <div className="mt-auto flex items-end justify-between gap-3 pt-2">
-                    <div className="text-xs">
-                      <p className="font-bold text-ink">
-                        قیمت کل:{' '}
-                        {item.totalPrice > 0
-                          ? `${item.totalPrice.toLocaleString('fa-IR')} تومان`
-                          : 'رایگان'}
-                      </p>
-                      {item.remainingPrice > 0 ? (
-                        <p className="mt-1 text-[11px] text-muted">
-                          قابل پرداخت:{' '}
-                          {item.remainingPrice.toLocaleString('fa-IR')} تومان
-                        </p>
-                      ) : null}
+                  <div className="mt-auto flex flex-col gap-2 pt-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {item.terms.map((option) => {
+                        const active = option.months === term;
+                        const optionPrice = Math.round(
+                          item.remainingPrice *
+                            option.months *
+                            (1 - option.discount / 100),
+                        );
+                        return (
+                          <button
+                            key={option.months}
+                            type="button"
+                            onClick={() =>
+                              setSelectedTerm((current) => ({
+                                ...current,
+                                [item.key]: option.months,
+                              }))
+                            }
+                            className={cn(
+                              'flex flex-col items-start rounded-lg border px-2.5 py-1.5 text-[10px] transition',
+                              active
+                                ? 'border-brand bg-brand-light text-brand'
+                                : 'border-[var(--vintage-border)] text-muted hover:text-ink',
+                            )}
+                          >
+                            <span className="font-bold">
+                              {option.months === 1
+                                ? '۱ ماهه'
+                                : option.months === 12
+                                  ? 'یک‌ساله'
+                                  : `${option.months} ماهه`}
+                            </span>
+                            <span>
+                              {optionPrice > 0
+                                ? `${optionPrice.toLocaleString('fa-IR')} تومان`
+                                : 'رایگان'}
+                            </span>
+                            {option.discount > 0 ? (
+                              <span className="text-[9px] text-emerald-700">
+                                {option.discount}٪ تخفیف
+                              </span>
+                            ) : null}
+                          </button>
+                        );
+                      })}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => void buyManagement(item.key)}
-                      disabled={busy === busyKey || (item.active && item.remainingPrice === 0)}
-                      className="indeed-btn indeed-btn-primary shrink-0 py-2 text-xs disabled:opacity-50"
-                    >
-                      <ShoppingCart className="size-4" aria-hidden />
-                      {item.active
-                        ? 'فعال‌شده'
-                        : item.remainingPrice > 0
-                          ? 'خرید و فعال‌سازی'
-                          : 'فعال‌سازی'}
-                    </button>
+                    <div className="flex items-end justify-between gap-3">
+                      <div className="text-xs">
+                        <p className="font-bold text-ink">
+                          قیمت پایه ماهانه:{' '}
+                          {item.totalPrice > 0
+                            ? `${item.totalPrice.toLocaleString('fa-IR')} تومان`
+                            : 'رایگان'}
+                        </p>
+                        <p className="mt-1 text-[11px] text-muted">
+                          مبلغ قابل پرداخت:{' '}
+                          {payable > 0
+                            ? `${payable.toLocaleString('fa-IR')} تومان`
+                            : 'رایگان'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => void buyManagement(item.key, term)}
+                        disabled={
+                          busy === busyKey ||
+                          (item.active && item.remainingPrice === 0)
+                        }
+                        className="indeed-btn indeed-btn-primary shrink-0 py-2 text-xs disabled:opacity-50"
+                      >
+                        <ShoppingCart className="size-4" aria-hidden />
+                        {item.active
+                          ? 'فعال‌شده'
+                          : item.remainingPrice > 0
+                            ? 'خرید و فعال‌سازی'
+                            : 'فعال‌سازی'}
+                      </button>
+                    </div>
                   </div>
                   {paidModules.length > 0 && !item.active ? (
                     <p className="text-[10px] text-muted">

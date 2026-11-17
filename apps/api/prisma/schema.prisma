@@ -1984,14 +1984,54 @@ model BusinessModulePrice {
   id          String   @id @default(cuid())
   moduleKey   String   @unique
   price       Int      @default(0)
-  /// Term length (months) the price buys. 0 = lifetime.
-  months      Int      @default(12)
+  /// Deprecated: terms now live on `BusinessManagement` (1/3/6/12 months).
+  months      Int      @default(0)
   isActive    Boolean  @default(true)
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@map("business_module_prices")
+}
+
+/// A purchasable «مدیریت کسب‌وکار» (industry package). Seeded from the code
+/// registry on first boot, then fully editable by the admin: name, visibility,
+/// module membership, and the discount of each term.
+model BusinessManagement {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  label       String
+  description String   @default("")
+  /// Whether the card is offered for purchase in the user panel.
+  available   Boolean  @default(false)
+  /// The base management (generalBusiness) cannot be deleted.
+  isBase      Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  /// Discount percent applied to the 3/6/12-month total vs the 1-month total.
+  discount3   Int      @default(0)
+  discount6   Int      @default(0)
+  discount12  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  modules BusinessManagementModule[]
+
+  @@map("business_managements")
+}
+
+/// Module membership of one management. Module definitions still live in code;
+/// this table lets the admin add/remove them per management at runtime.
+model BusinessManagementModule {
+  id           String   @id @default(cuid())
+  managementId String
+  moduleKey    String
+  createdAt    DateTime @default(now())
+
+  management BusinessManagement @relation(fields: [managementId], references: [id], onDelete: Cascade)
+
+  @@unique([managementId, moduleKey])
+  @@index([moduleKey])
+  @@map("business_management_modules")
 }
 
 /// One purchase attempt for a paid module in a workspace. Wallet purchases are

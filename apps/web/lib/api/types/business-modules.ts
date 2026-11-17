@@ -40,6 +40,10 @@ export interface IndustryPackage {
   description: string;
   modules: string[];
   defaultModules: string[];
+  available?: boolean;
+  isBase?: boolean;
+  sortOrder?: number;
+  discounts?: { 3: number; 6: number; 12: number };
 }
 
 export interface BusinessWorkspace {
@@ -80,9 +84,16 @@ export interface ManagementPackage {
   totalPrice: number;
   /** Sum of the modules that still need to be bought for this workspace. */
   remainingPrice: number;
+  terms: ManagementTerm[];
   active: boolean;
   activeModules: number;
   moduleCount: number;
+}
+
+export interface ManagementTerm {
+  months: 1 | 3 | 6 | 12;
+  price: number;
+  discount: number;
 }
 
 export interface AccommodationPhoto {

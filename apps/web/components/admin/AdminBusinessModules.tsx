@@ -1,7 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Layers, RefreshCw, Save, Search } from 'lucide-react';
+import {
+  Layers,
+  Plus,
+  RefreshCw,
+  Save,
+  Search,
+  Trash2,
+  X,
+} from 'lucide-react';
 
 import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
@@ -42,9 +50,13 @@ interface AdminManagement {
   label: string;
   description: string;
   available: boolean;
+  isBase: boolean;
   modules: AdminManagementModule[];
   totalPrice: number;
+  discounts: { 3: number; 6: number; 12: number };
+  terms: Array<{ months: 1 | 3 | 6 | 12; price: number; discount: number }>;
   productCode: string | null;
+  productCodes: Record<string, string | null>;
   lastSyncedAt: string | null;
   simulated: boolean;
 }
@@ -80,8 +92,12 @@ export function AdminBusinessModules() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [draft, setDraft] = useState<
-    Record<string, { price: string; months: string; isActive: boolean }>
+    Record<string, { price: string; isActive: boolean }>
   >({});
+  const [discountDraft, setDiscountDraft] = useState<
+    Record<string, { 3: string; 6: string; 12: string }>
+  >({});
+  const [moduleDraft, setModuleDraft] = useState<Record<string, string>>({});
 
   const loadCatalog = useCallback(async () => {
     const data = await api.get<AdminCatalog>('/admin/business-modules/catalog');
@@ -92,7 +108,6 @@ export function AdminBusinessModules() {
           module.key,
           {
             price: String(module.price),
-            months: String(module.months),
             isActive: module.priceActive,
           },
         ]),
@@ -112,6 +127,18 @@ export function AdminBusinessModules() {
       '/admin/business-modules/managements',
     );
     setManagements(data);
+    setDiscountDraft(
+      Object.fromEntries(
+        data.map((management) => [
+          management.key,
+          {
+            3: String(management.discounts['3'] ?? 0),
+            6: String(management.discounts['6'] ?? 0),
+            12: String(management.discounts['12'] ?? 0),
+          },
+        ]),
+      ),
+    );
   }, []);
 
   useEffect(() => {
@@ -144,7 +171,6 @@ export function AdminBusinessModules() {
     try {
       await api.patch(`/admin/business-modules/prices/${moduleKey}`, {
         price: Number(value.price) || 0,
-        months: Number(value.months) || 0,
         isActive: value.isActive,
       });
       toast.success('قیمت ماژول ذخیره شد');
@@ -171,6 +197,94 @@ export function AdminBusinessModules() {
       await loadManagements();
     } catch {
       // toast already shown by the API client
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function saveDiscounts(key: string) {
+    const value = discountDraft[key];
+    if (!value) return;
+    setBusy(`discount:${key}`);
+    try {
+      await api.patch(`/admin/business-modules/managements/${key}`, {
+        discounts: {
+          3: Number(value['3']) || 0,
+          6: Number(value['6']) || 0,
+          12: Number(value['12']) || 0,
+        },
+      });
+      toast.success('تخفیف دوره‌ها ذخیره شد');
+      await loadManagements();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function deleteManagement(key: string, label: string) {
+    if (
+      !window.confirm(
+        `مدیریت «${label}» حذف شود؟ کسب‌وکارهای وابسته به مدیریت پایه منتقل می‌شوند.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(`delete:${key}`);
+    try {
+      await api.delete(`/admin/business-modules/managements/${key}`);
+      toast.success('مدیریت کسب‌وکار حذف شد');
+      await loadManagements();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function addModule(key: string) {
+    const moduleKey = moduleDraft[key];
+    if (!moduleKey) return;
+    setBusy(`add:${key}`);
+    try {
+      await api.post(`/admin/business-modules/managements/${key}/modules`, {
+        moduleKey,
+      });
+      setModuleDraft((current) => ({ ...current, [key]: '' }));
+      toast.success('ماژول اضافه شد');
+      await loadManagements();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function removeModule(key: string, moduleKey: string) {
+    setBusy(`remove:${key}:${moduleKey}`);
+    try {
+      await api.delete(
+        `/admin/business-modules/managements/${key}/modules/${moduleKey}`,
+      );
+      toast.success('ماژول حذف شد');
+      await loadManagements();
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function createManagement() {
+    const label = window.prompt('نام مدیریت کسب‌وکار جدید:');
+    if (!label?.trim()) return;
+    const key = window.prompt(
+      'کلید انگلیسی یکتا (مثل dailyRental):',
+      label.trim().replace(/\s+/g, ''),
+    );
+    if (!key?.trim()) return;
+    setBusy('create');
+    try {
+      await api.post('/admin/business-modules/managements', {
+        key: key.trim(),
+        label: label.trim(),
+        available: false,
+      });
+      toast.success('مدیریت کسب‌وکار ساخته شد');
+      await loadManagements();
     } finally {
       setBusy(null);
     }
@@ -223,9 +337,20 @@ export function AdminBusinessModules() {
               محصول می‌سازد یا به‌روزرسانی می‌کند.
             </p>
           </div>
-          <span className="rounded-full bg-[var(--vintage-paper)] px-3 py-1 text-xs font-bold text-muted">
-            {catalog?.totals.workspaces ?? 0} کسب‌وکار
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-[var(--vintage-paper)] px-3 py-1 text-xs font-bold text-muted">
+              {catalog?.totals.workspaces ?? 0} کسب‌وکار
+            </span>
+            <button
+              type="button"
+              onClick={() => void createManagement()}
+              disabled={busy === 'create'}
+              className="indeed-btn indeed-btn-primary py-1.5 text-[11px] disabled:opacity-50"
+            >
+              <Plus className="size-3.5" aria-hidden />
+              مدیریت جدید
+            </button>
+          </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -234,6 +359,11 @@ export function AdminBusinessModules() {
             const billableModules = management.modules.filter(
               (module) => module.billable,
             );
+            const availableModules = (catalog?.modules ?? []).filter(
+              (module) =>
+                !management.modules.some((item) => item.key === module.key),
+            );
+            const discountValue = discountDraft[management.key];
             return (
               <article
                 key={management.key}
@@ -254,16 +384,31 @@ export function AdminBusinessModules() {
                       </p>
                     </div>
                   </div>
-                  <span
-                    className={cn(
-                      'rounded-full px-2 py-0.5 text-[10px] font-bold',
-                      management.available
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : 'bg-neutral-100 text-neutral-500',
-                    )}
-                  >
-                    {management.available ? 'نمایش به کاربر' : 'پنهان'}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <span
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[10px] font-bold',
+                        management.available
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'bg-neutral-100 text-neutral-500',
+                      )}
+                    >
+                      {management.available ? 'نمایش به کاربر' : 'پنهان'}
+                    </span>
+                    {!management.isBase ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void deleteManagement(management.key, management.label)
+                        }
+                        disabled={busy === `delete:${management.key}`}
+                        className="rounded-md p-1 text-neutral-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                        title="حذف کامل مدیریت"
+                      >
+                        <Trash2 className="size-3.5" aria-hidden />
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
 
                 <p className="text-[11px] leading-6 text-muted">
@@ -295,14 +440,120 @@ export function AdminBusinessModules() {
                             ? `${formatToman(module.price)} تومان`
                             : 'رایگان'}
                         </span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void removeModule(management.key, module.key)
+                          }
+                          disabled={
+                            busy === `remove:${management.key}:${module.key}`
+                          }
+                          className="rounded p-0.5 text-neutral-400 transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                          title="حذف ماژول از این مدیریت"
+                        >
+                          <X className="size-3" aria-hidden />
+                        </button>
                       </span>
                     </li>
                   ))}
                 </ul>
 
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={moduleDraft[management.key] ?? ''}
+                    onChange={(event) =>
+                      setModuleDraft((current) => ({
+                        ...current,
+                        [management.key]: event.target.value,
+                      }))
+                    }
+                    className="min-w-0 flex-1 rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-paper)] px-2 py-1.5 text-[11px] text-ink"
+                  >
+                    <option value="">افزودن ماژول…</option>
+                    {availableModules.map((module) => (
+                      <option key={module.key} value={module.key}>
+                        {module.label}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => void addModule(management.key)}
+                    disabled={
+                      !moduleDraft[management.key] ||
+                      busy === `add:${management.key}`
+                    }
+                    className="indeed-btn py-1.5 text-[11px] disabled:opacity-50"
+                  >
+                    <Plus className="size-3.5" aria-hidden />
+                    افزودن
+                  </button>
+                </div>
+
+                <div className="rounded-lg border border-dashed border-[var(--vintage-border)] p-2.5">
+                  <p className="mb-1.5 text-[10px] font-bold text-muted">
+                    تخفیف دوره‌ها (٪)
+                  </p>
+                  <div className="flex items-end gap-1.5">
+                    {(['3', '6', '12'] as const).map((months) => (
+                      <label
+                        key={months}
+                        className="flex-1 text-[10px] text-muted"
+                      >
+                        {months === '12' ? 'یک‌ساله' : `${months} ماهه`}
+                        <input
+                          type="number"
+                          min={0}
+                          max={90}
+                          value={discountValue?.[months] ?? ''}
+                          onChange={(event) =>
+                            setDiscountDraft((current) => ({
+                              ...current,
+                              [management.key]: {
+                                ...current[management.key],
+                                [months]: event.target.value,
+                              },
+                            }))
+                          }
+                          className="mt-1 w-full rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-paper)] px-2 py-1 text-xs text-ink"
+                        />
+                      </label>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => void saveDiscounts(management.key)}
+                      disabled={busy === `discount:${management.key}`}
+                      className="indeed-btn indeed-btn-primary py-1.5 text-[11px] disabled:opacity-50"
+                    >
+                      <Save className="size-3.5" aria-hidden />
+                      ذخیره
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-1">
+                  {management.terms.map((term) => (
+                    <span
+                      key={term.months}
+                      className="rounded-full border border-[var(--vintage-border)] px-2 py-0.5 text-[10px] text-muted"
+                    >
+                      {term.months === 1
+                        ? '۱ ماهه'
+                        : term.months === 12
+                          ? 'یک‌ساله'
+                          : `${term.months} ماهه`}
+                      :{' '}
+                      <b className="text-ink">
+                        {formatToman(term.price)} تومان
+                      </b>
+                      {term.discount > 0 ? ` (${term.discount}٪)` : ''}
+                    </span>
+                  ))}
+                </div>
+
                 <div className="mt-auto flex flex-wrap items-end justify-between gap-2 border-t border-dashed border-[var(--vintage-border)] pt-3">
                   <div>
-                    <p className="text-[10px] text-muted">قیمت کل کارت</p>
+                    <p className="text-[10px] text-muted">قیمت پایه ماهانه</p>
                     <p className="text-sm font-extrabold text-ink">
                       {management.totalPrice > 0
                         ? `${formatToman(management.totalPrice)} تومان`
@@ -329,14 +580,25 @@ export function AdminBusinessModules() {
                 </div>
 
                 <div className="rounded-lg bg-[var(--vintage-paper)]/50 px-2.5 py-2 text-[10px] leading-5 text-muted">
-                  {management.productCode ? (
+                  {Object.keys(management.productCodes).length > 0 ? (
                     <>
-                      کد محصول:{' '}
-                      <span className="font-mono text-ink" dir="ltr">
-                        {management.productCode}
-                      </span>
-                      {management.simulated ? ' (شبیه‌ساز)' : ''}
-                      <br />
+                      {Object.entries(management.productCodes).map(
+                        ([months, code]) => (
+                          <div key={months} className="flex justify-between gap-2">
+                            <span>
+                              {months === '1'
+                                ? '۱ ماهه'
+                                : months === '12'
+                                  ? 'یک‌ساله'
+                                  : `${months} ماهه`}
+                            </span>
+                            <span className="font-mono text-ink" dir="ltr">
+                              {code ?? '—'}
+                            </span>
+                          </div>
+                        ),
+                      )}
+                      {management.simulated ? 'شبیه‌ساز · ' : ''}
                       آخرین همگام‌سازی: {formatDate(management.lastSyncedAt)}
                     </>
                   ) : (
@@ -355,8 +617,8 @@ export function AdminBusinessModules() {
             ماژول‌ها و قیمت‌گذاری
           </h3>
           <p className="text-xs leading-6 text-muted">
-            قیمت هر ماژول را تعیین کنید؛ قیمت ۰ یعنی فعال‌سازی رایگان. مجموع
-            قیمت ماژول‌های هر کارت در بخش بالا محاسبه می‌شود.
+            قیمت ماهانه‌ی هر ماژول را تعیین کنید؛ قیمت ۰ یعنی فعال‌سازی رایگان.
+            دوره‌ها و تخفیف‌ها روی خود «مدیریت کسب‌وکار» تنظیم می‌شوند.
           </p>
         </div>
 
@@ -394,9 +656,9 @@ export function AdminBusinessModules() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
+                      <div>
                         <label className="text-[10px] font-bold text-muted">
-                          قیمت (تومان)
+                          قیمت ماهانه (تومان)
                           <input
                             type="number"
                             min={0}
@@ -407,24 +669,6 @@ export function AdminBusinessModules() {
                                 [module.key]: {
                                   ...current[module.key],
                                   price: event.target.value,
-                                },
-                              }))
-                            }
-                            className="mt-1 w-full rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-paper)] px-2 py-1.5 text-xs text-ink"
-                          />
-                        </label>
-                        <label className="text-[10px] font-bold text-muted">
-                          مدت (ماه)
-                          <input
-                            type="number"
-                            min={0}
-                            value={value?.months ?? ''}
-                            onChange={(event) =>
-                              setDraft((current) => ({
-                                ...current,
-                                [module.key]: {
-                                  ...current[module.key],
-                                  months: event.target.value,
                                 },
                               }))
                             }

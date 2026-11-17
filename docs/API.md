@@ -694,7 +694,7 @@ PY
 | `POST` | `/business-modules/my/:key/purchase` | خرید ماژول (کیف پول/پی‌پینگ) و فعال‌سازی پس از پرداخت. |
 | `GET` | `/business-modules/purchases` | سابقه‌ی خرید ماژول‌ها. |
 | `GET` | `/business-modules/managements` | فهرست «مدیریت کسب‌وکار»ها با ماژول‌های فعال و قیمت کل (مجموع قیمت ماژول‌ها). |
-| `POST` | `/business-modules/managements/:key/purchase` | خرید/فعال‌سازی کل یک «مدیریت کسب‌وکار» (کیف پول/پی‌پینگ)؛ فقط ماژول‌های خریداری‌نشده محاسبه می‌شود. |
+| `POST` | `/business-modules/managements/:key/purchase` | خرید/فعال‌سازی کل یک «مدیریت کسب‌وکار» (کیف پول/پی‌پینگ)؛ بدنه‌ی اختیاری `{ months: 1|3|6|12, returnTo }`. مبلغ = مجموع قیمت ماهانه‌ی ماژول‌های خریداری‌نشده × تعداد ماه × (۱ − درصد تخفیف دوره). |
 | `GET/POST` | `/business-modules/payments/callback` | بازگشت درگاه پس از خرید ماژول. |
 
 مسیرهای ادمین (نقش `ADMIN`):
@@ -703,11 +703,23 @@ PY
 | --- | --- | --- |
 | `GET` | `/admin/business-modules/catalog` | همه‌ی ماژول‌ها + قیمت + تعداد کسب‌وکار فعال. |
 | `GET` | `/admin/business-modules/managements` | کارت‌های «مدیریت کسب‌وکار» با ماژول‌ها، قیمت کل و وضعیت محصول پی‌پینگ. |
-| `POST` | `/admin/business-modules/managements/:key/sync-payping` | ساخت/به‌روزرسانی محصول پی‌پینگ با مبلغ برابر مجموع قیمت ماژول‌های همان کارت (در dev با شبیه‌ساز). |
+| `POST` | `/admin/business-modules/managements` | ساخت مدیریت کسب‌وکار جدید (`key`، `label`، `description`، `available`، `discounts`، `modules`). |
+| `PATCH` | `/admin/business-modules/managements/:key` | ویرایش نام/توضیح/نمایش/درصد تخفیف دوره‌ها و فهرست ماژول‌ها. |
+| `DELETE` | `/admin/business-modules/managements/:key` | حذف کامل مدیریت (مدیریت پایه حذف نمی‌شود؛ کسب‌وکارهای وابسته به مدیریت پایه منتقل می‌شوند). |
+| `POST` | `/admin/business-modules/managements/:key/modules` | افزودن ماژول به مدیریت (`{ moduleKey }`). |
+| `DELETE` | `/admin/business-modules/managements/:key/modules/:moduleKey` | حذف ماژول از مدیریت (ماژول‌های پیش‌فرض مدیریت پایه حذف نمی‌شوند). |
+| `POST` | `/admin/business-modules/managements/:key/sync-payping` | ساخت/به‌روزرسانی محصول پی‌پینگ برای هر دوره (۱/۳/۶/۱۲ ماهه) با مبلغ همان دوره (در dev با شبیه‌ساز). |
 | `GET` | `/admin/business-modules/workspaces` | کسب‌وکارها و ماژول‌های هرکدام (جست‌وجو با `q`). |
 | `PATCH` | `/admin/business-modules/workspaces/:id/modules/:key` | فعال/غیرفعال‌کردن ماژول برای یک کسب‌وکار. |
 | `GET` | `/admin/business-modules/prices` | فهرست قیمت‌ها. |
-| `PATCH` | `/admin/business-modules/prices/:key` | تعیین قیمت/مدت/فعال‌بودن یک مدیریت کسب‌وکار. |
+| `PATCH` | `/admin/business-modules/prices/:key` | تعیین قیمت ماهانه و فعال‌بودن یک ماژول. |
+
+**مدل قیمت‌گذاری:** هر ماژول فقط یک «قیمت ماهانه» دارد. هر «مدیریت کسب‌وکار»
+چهار دوره‌ی ۱/۳/۶/۱۲ ماهه دارد و درصد تخفیف هر دوره روی خود مدیریت ذخیره
+می‌شود. قیمت هر دوره = مجموع قیمت ماهانه‌ی ماژول‌های آن مدیریت × تعداد ماه ×
+(۱ − تخفیف). فهرست مدیریت‌ها و ماژول‌هایشان در جدول‌های
+`business_managements` و `business_management_modules` نگهداری می‌شود و ادمین
+می‌تواند آن‌ها را بسازد/ویرایش/حذف کند.
 
 ماژول‌های فعلی: `businessCards`، `biolinks`، `feeds`، `accommodationRental`،
 `accommodationReservations`، `accommodationChannels` و `crm`. ماژول‌های

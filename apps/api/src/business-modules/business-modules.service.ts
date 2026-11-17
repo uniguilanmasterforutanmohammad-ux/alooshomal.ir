@@ -24,9 +24,7 @@ import { WalletService } from '../wallet/wallet.service';
 import {
   BUSINESS_MODULES,
   BusinessModuleDefinition,
-  defaultModulesForIndustry,
   getBusinessModule,
-  getIndustryPackage,
   INDUSTRY_PACKAGES,
   IndustryPackageDefinition,
   withDependencies,
@@ -69,6 +67,21 @@ export interface ResolvedWorkspace {
   capacity: { max: number; used: number };
 }
 
+export interface ManagementDefinition extends IndustryPackageDefinition {
+  isBase: boolean;
+  sortOrder: number;
+  /** Discount percent for the 3/6/12-month term vs the 1-month total. */
+  discounts: { 3: number; 6: number; 12: number };
+}
+
+export interface ManagementTerm {
+  months: 1 | 3 | 6 | 12;
+  /** Price for the whole term (Toman). */
+  price: number;
+  /** Discount percent applied to this term. */
+  discount: number;
+}
+
 export interface ModulePriceView {
   moduleKey: string;
   price: number;
@@ -82,10 +95,12 @@ export interface ManagementPackageView {
   label: string;
   description: string;
   modules: ResolvedBusinessModule[];
-  /** Sum of every billable module's price in this package. */
+  /** One-month price: the sum of every billable module's monthly price. */
   totalPrice: number;
-  /** Sum of the modules that still need to be bought for this workspace. */
+  /** One-month price of the modules that still need to be bought. */
   remainingPrice: number;
+  /** Purchasable terms (1/3/6/12 months) with their discounts. */
+  terms: ManagementTerm[];
   /** Every module in the package is enabled for the workspace. */
   active: boolean;
   activeModules: number;
@@ -110,7 +125,10 @@ export interface AdminManagementView {
   available: boolean;
   modules: AdminManagementModuleView[];
   totalPrice: number;
+  discounts: { 3: number; 6: number; 12: number };
+  terms: ManagementTerm[];
   productCode: string | null;
+  productCodes: Record<string, string | null>;
   lastSyncedAt: string | null;
   simulated: boolean;
 }
@@ -119,6 +137,8 @@ const MANAGEMENT_PAYPING_SETTING_PREFIX = 'businessManagementPayping:';
 
 @Injectable()
 export class BusinessModulesService implements OnModuleInit {
+  private managementCache: ManagementDefinition[] = [];
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
@@ -137,6 +157,12 @@ export class BusinessModulesService implements OnModuleInit {
    * keeps a later manual enable from being reset on every boot.
    */
   async onModuleInit(): Promise<void> {
+    try {
+      await this.seedManagements();
+      await this.reloadManagements();
+    } catch {
+      // The management tables may not exist yet on a very first boot.
+    }
     try {
       const marker = 'businessModulesDefaultsV1';
       const done = await this.prisma.setting.findUnique({
@@ -158,6 +184,94 @@ export class BusinessModulesService implements OnModuleInit {
       });
     } catch {
       // The table may not exist yet on a very first boot.
+    }
+  }
+
+  /**
+   * Seed the editable management table from the code registry exactly once.
+   * After this, the database is the source of truth so the admin can rename,
+   * delete, or change the modules of a management without a redeploy.
+   */
+  private async seedManagements(): Promise<void> {
+    const marker = 'businessManagementsSeededV1';
+    const done = await this.prisma.setting.findUnique({ where: { key: marker } });
+    if (done) return;
+    for (const [index, industry] of INDUSTRY_PACKAGES.entries()) {
+      await this.prisma.businessManagement.upsert({
+        where: { key: industry.key },
+        update: {},
+        create: {
+          key: industry.key,
+          label: industry.label,
+          description: industry.description,
+          available: Boolean(industry.available),
+          isBase: industry.key === 'generalBusiness',
+          sortOrder: index,
+          modules: {
+            create: industry.modules.map((moduleKey) => ({ moduleKey })),
+          },
+        },
+      });
+    }
+    await this.prisma.setting.create({
+      data: { key: marker, value: new Date().toISOString() },
+    });
+  }
+
+  /** Reload the in-memory management cache from the database. */
+  private async reloadManagements(): Promise<void> {
+    const rows = await this.prisma.businessManagement.findMany({
+      include: { modules: { select: { moduleKey: true } } },
+      orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
+    });
+    this.managementCache = rows.map((row) => {
+      const modules = row.modules.map((item) => item.moduleKey);
+      return {
+        key: row.key,
+        label: row.label,
+        description: row.description,
+        available: row.available,
+        isBase: row.isBase,
+        sortOrder: row.sortOrder,
+        discounts: {
+          3: row.discount3,
+          6: row.discount6,
+          12: row.discount12,
+        },
+        modules,
+        defaultModules: modules.filter(
+          (moduleKey) => getBusinessModule(moduleKey)?.defaultEnabled,
+        ),
+      };
+    });
+  }
+
+  private management(key: string): ManagementDefinition | undefined {
+    return this.managementCache.find((item) => item.key === key);
+  }
+
+  private baseManagement(): ManagementDefinition | undefined {
+    return this.management('generalBusiness') ?? this.managementCache[0];
+  }
+
+  private managementTerms(
+    basePrice: number,
+    discounts: { 3: number; 6: number; 12: number },
+  ): ManagementTerm[] {
+    return ([1, 3, 6, 12] as const).map((months) => {
+      const discount = months === 1 ? 0 : discounts[months];
+      const gross = basePrice * months;
+      return {
+        months,
+        price: Math.max(0, Math.round(gross * (1 - discount / 100))),
+        discount,
+      };
+    });
+  }
+
+  private async ensureManagementsLoaded(): Promise<void> {
+    if (this.managementCache.length === 0) {
+      await this.reloadManagements();
     }
   }
 
@@ -183,9 +297,11 @@ export class BusinessModulesService implements OnModuleInit {
     industryKey: string,
     isDefault: boolean,
   ) {
-    const industry = getIndustryPackage(industryKey)
-      ? industryKey
-      : 'generalBusiness';
+    await this.ensureManagementsLoaded();
+    const industry =
+      this.management(industryKey)?.key ??
+      this.baseManagement()?.key ??
+      'generalBusiness';
     const fallback = await this.fallbackName(userId);
     return this.prisma.$transaction(async (tx) => {
       const workspace = await tx.businessWorkspace.create({
@@ -196,7 +312,7 @@ export class BusinessModulesService implements OnModuleInit {
           isDefault,
         },
       });
-      const keys = defaultModulesForIndustry(industry);
+      const keys = this.management(industry)?.defaultModules ?? [];
       if (keys.length) {
         await tx.businessModuleActivation.createMany({
           data: keys.map((moduleKey) => ({
@@ -260,6 +376,7 @@ export class BusinessModulesService implements OnModuleInit {
   }
 
   async listWorkspaces(userId: string): Promise<WorkspaceSummary[]> {
+    await this.ensureManagementsLoaded();
     const rows = await this.prisma.businessWorkspace.findMany({
       where: { ownerId: userId },
       include: { modules: { where: { enabled: true }, select: { id: true } } },
@@ -270,7 +387,7 @@ export class BusinessModulesService implements OnModuleInit {
       name: row.name,
       industryKey: row.industryKey,
       industryLabel:
-        getIndustryPackage(row.industryKey)?.label ?? row.industryKey,
+        this.management(row.industryKey)?.label ?? row.industryKey,
       isDefault: row.isDefault,
       enabledModules: row.modules.length,
       createdAt: row.createdAt.toISOString(),
@@ -281,6 +398,7 @@ export class BusinessModulesService implements OnModuleInit {
     userId: string,
     dto: { name?: string; industryKey?: string },
   ) {
+    await this.ensureManagementsLoaded();
     const limits = await this.subscriptions.limitsForUser(userId);
     const used = await this.prisma.businessWorkspace.count({
       where: { ownerId: userId },
@@ -311,11 +429,12 @@ export class BusinessModulesService implements OnModuleInit {
     workspaceId: string,
     dto: { name?: string; industryKey?: string; isDefault?: boolean },
   ) {
+    await this.ensureManagementsLoaded();
     const workspace = await this.prisma.businessWorkspace.findFirst({
       where: { id: workspaceId, ownerId: userId },
     });
     if (!workspace) throw new NotFoundException('کسب‌وکار پیدا نشد');
-    if (dto.industryKey && !getIndustryPackage(dto.industryKey)) {
+    if (dto.industryKey && !this.management(dto.industryKey)) {
       throw new BadRequestException('صنف انتخاب‌شده معتبر نیست');
     }
     await this.prisma.$transaction(async (tx) => {
@@ -335,7 +454,7 @@ export class BusinessModulesService implements OnModuleInit {
       });
     });
     if (dto.industryKey) {
-      const keys = defaultModulesForIndustry(dto.industryKey);
+      const keys = this.management(dto.industryKey)?.defaultModules ?? [];
       await this.prisma.$transaction(
         keys.map((moduleKey) =>
           this.prisma.businessModuleActivation.upsert({
@@ -386,10 +505,11 @@ export class BusinessModulesService implements OnModuleInit {
   // -------------------------------------------------------------------------
 
   async resolveCatalog() {
+    await this.ensureManagementsLoaded();
     const prices = await this.prisma.businessModulePrice.findMany();
     return {
       modules: BUSINESS_MODULES,
-      industries: INDUSTRY_PACKAGES,
+      industries: this.managementCache,
       prices: prices.map((row) => this.priceView(row)),
     };
   }
@@ -411,15 +531,18 @@ export class BusinessModulesService implements OnModuleInit {
   }
 
   async resolve(userId: string): Promise<ResolvedWorkspace> {
+    await this.ensureManagementsLoaded();
     const workspace = await this.ensureWorkspace(userId);
     const industry =
-      getIndustryPackage(workspace.industryKey) ??
-      getIndustryPackage('generalBusiness')!;
+      this.management(workspace.industryKey) ?? this.baseManagement();
+    if (!industry) {
+      throw new BadRequestException('مدیریت کسب‌وکار پیش‌فرض یافت نشد');
+    }
     const activationByKey = new Map(
       workspace.modules.map((row) => [row.moduleKey, row]),
     );
     const availableKeys = new Set(industry.modules);
-    const defaultKeys = new Set(defaultModulesForIndustry(industry.key));
+    const defaultKeys = new Set(industry.defaultModules);
     const prices = await this.prisma.businessModulePrice.findMany();
     const priceByKey = new Map(prices.map((row) => [row.moduleKey, row]));
     const now = Date.now();
@@ -447,7 +570,7 @@ export class BusinessModulesService implements OnModuleInit {
         enabled,
         available: availableKeys.has(definition.key),
         price,
-        months: priceRow?.months ?? 12,
+        months: 0,
         purchased,
         paidUntil: paidUntil ? paidUntil.toISOString() : null,
         locked,
@@ -466,7 +589,7 @@ export class BusinessModulesService implements OnModuleInit {
       industry,
       isDefault: workspace.isDefault,
       modules,
-      industries: INDUSTRY_PACKAGES,
+      industries: this.managementCache,
       capacity: { max: limits.maxBusinesses, used },
     };
   }
@@ -486,12 +609,13 @@ export class BusinessModulesService implements OnModuleInit {
   }
 
   async setIndustry(userId: string, industryKey: string): Promise<ResolvedWorkspace> {
-    const industry = getIndustryPackage(industryKey);
+    await this.ensureManagementsLoaded();
+    const industry = this.management(industryKey);
     if (!industry) {
       throw new BadRequestException('صنف انتخاب‌شده معتبر نیست');
     }
     const workspace = await this.ensureWorkspace(userId);
-    const keys = defaultModulesForIndustry(industry.key);
+    const keys = industry.defaultModules;
 
     await this.prisma.$transaction([
       this.prisma.businessWorkspace.update({
@@ -624,6 +748,7 @@ export class BusinessModulesService implements OnModuleInit {
    * package (sum of module prices) plus what is still payable.
    */
   async listManagements(userId: string): Promise<ManagementPackageView[]> {
+    await this.ensureManagementsLoaded();
     const workspace = await this.ensureWorkspace(userId);
     const prices = await this.prisma.businessModulePrice.findMany();
     const priceByKey = new Map(prices.map((row) => [row.moduleKey, row]));
@@ -632,7 +757,7 @@ export class BusinessModulesService implements OnModuleInit {
     );
     const now = Date.now();
 
-    return INDUSTRY_PACKAGES.filter((industry) => industry.available).map((industry) => {
+    return this.managementCache.filter((industry) => industry.available).map((industry) => {
       const modules: ResolvedBusinessModule[] = BUSINESS_MODULES.filter(
         (definition) => industry.modules.includes(definition.key),
       ).map((definition) => {
@@ -649,7 +774,7 @@ export class BusinessModulesService implements OnModuleInit {
           enabled,
           available: true,
           price,
-          months: priceRow?.months ?? 12,
+          months: 0,
           purchased: paidActive,
           paidUntil: paidUntil ? paidUntil.toISOString() : null,
           locked:
@@ -657,15 +782,17 @@ export class BusinessModulesService implements OnModuleInit {
         };
       });
       const billable = modules.filter((module) => module.billable);
+      const totalPrice = billable.reduce((sum, module) => sum + module.price, 0);
       return {
         key: industry.key,
         label: industry.label,
         description: industry.description,
         modules,
-        totalPrice: billable.reduce((sum, module) => sum + module.price, 0),
+        totalPrice,
         remainingPrice: billable
           .filter((module) => !module.purchased)
           .reduce((sum, module) => sum + module.price, 0),
+        terms: this.managementTerms(totalPrice, industry.discounts),
         active: modules.every((module) => module.enabled),
         activeModules: modules.filter((module) => module.enabled).length,
         moduleCount: modules.length,
@@ -680,7 +807,8 @@ export class BusinessModulesService implements OnModuleInit {
     requestedMonths?: number,
     returnTo?: string,
   ) {
-    const industry = getIndustryPackage(packageKey);
+    await this.ensureManagementsLoaded();
+    const industry = this.management(packageKey);
     if (!industry) {
       throw new BadRequestException('مدیریت کسب‌وکار انتخاب‌شده معتبر نیست');
     }
@@ -691,18 +819,17 @@ export class BusinessModulesService implements OnModuleInit {
       view?.modules.filter(
         (module) => module.billable && !module.purchased && module.price > 0,
       ) ?? [];
-    // The admin sets one price per management (the term is the price row's
-    // `months`). The payable amount is therefore the sum of the module prices
-    // shown in the panel — not price × months.
-    const defaultTerm = chargeable.reduce(
-      (max, module) => Math.max(max, module.months || 0),
-      0,
+    // Modules carry a monthly price; the management owns the term discounts.
+    const months = ([1, 3, 6, 12] as const).includes(
+      requestedMonths as 1 | 3 | 6 | 12,
+    )
+      ? (requestedMonths as 1 | 3 | 6 | 12)
+      : 1;
+    const basePrice = chargeable.reduce((sum, module) => sum + module.price, 0);
+    const term = this.managementTerms(basePrice, industry.discounts).find(
+      (item) => item.months === months,
     );
-    const months =
-      Number.isFinite(requestedMonths) && requestedMonths! > 0
-        ? Math.min(Math.round(requestedMonths!), 24)
-        : defaultTerm || 12;
-    const amount = chargeable.reduce((sum, module) => sum + module.price, 0);
+    const amount = term?.price ?? 0;
     if (amount <= 0) {
       await this.activatePackage(workspace.id, packageKey, months);
       return { free: true, activated: true };
@@ -814,7 +941,8 @@ export class BusinessModulesService implements OnModuleInit {
     packageKey: string,
     months: number,
   ) {
-    const industry = getIndustryPackage(packageKey);
+    await this.ensureManagementsLoaded();
+    const industry = this.management(packageKey);
     if (!industry) return;
     const keys = withDependencies(industry.modules);
     const paidUntil = months > 0 ? addMonths(new Date(), months) : null;
@@ -1110,6 +1238,7 @@ export class BusinessModulesService implements OnModuleInit {
   // -------------------------------------------------------------------------
 
   async adminCatalog() {
+    await this.ensureManagementsLoaded();
     const [prices, activations, workspaces] = await Promise.all([
       this.prisma.businessModulePrice.findMany(),
       this.prisma.businessModuleActivation.groupBy({
@@ -1127,18 +1256,19 @@ export class BusinessModulesService implements OnModuleInit {
       modules: BUSINESS_MODULES.map((definition) => ({
         ...definition,
         price: priceByKey.get(definition.key)?.price ?? 0,
-        months: priceByKey.get(definition.key)?.months ?? 12,
+        months: 0,
         priceActive: priceByKey.get(definition.key)?.isActive ?? false,
         priceDescription: priceByKey.get(definition.key)?.description ?? null,
         enabledWorkspaces: countByKey.get(definition.key) ?? 0,
       })),
-      industries: INDUSTRY_PACKAGES,
+      industries: this.managementCache,
       totals: { workspaces },
     };
   }
 
   /** Every «مدیریت کسب‌وکار» as a card, with its modules and PayPing state. */
   async adminManagements(): Promise<AdminManagementView[]> {
+    await this.ensureManagementsLoaded();
     const [prices, synced] = await Promise.all([
       this.prisma.businessModulePrice.findMany(),
       this.prisma.setting.findMany({
@@ -1153,7 +1283,7 @@ export class BusinessModulesService implements OnModuleInit {
       ]),
     );
 
-    return INDUSTRY_PACKAGES.map((industry) => {
+    return this.managementCache.map((industry) => {
       const modules: AdminManagementModuleView[] = BUSINESS_MODULES.filter(
         (definition) => industry.modules.includes(definition.key),
       ).map((definition) => {
@@ -1165,21 +1295,26 @@ export class BusinessModulesService implements OnModuleInit {
           billable: definition.billable,
           defaultEnabled: definition.defaultEnabled,
           price: priceRow?.isActive ? priceRow.price : 0,
-          months: priceRow?.months ?? 12,
+          months: 0,
           priceActive: priceRow?.isActive ?? false,
         };
       });
       const sync = syncByKey.get(industry.key);
+      const totalPrice = modules
+        .filter((module) => module.billable)
+        .reduce((sum, module) => sum + module.price, 0);
       return {
         key: industry.key,
         label: industry.label,
         description: industry.description,
         available: Boolean(industry.available),
+        isBase: industry.isBase,
         modules,
-        totalPrice: modules
-          .filter((module) => module.billable)
-          .reduce((sum, module) => sum + module.price, 0),
-        productCode: sync?.code ?? null,
+        totalPrice,
+        discounts: industry.discounts,
+        terms: this.managementTerms(totalPrice, industry.discounts),
+        productCode: sync?.codes?.['1'] ?? sync?.code ?? null,
+        productCodes: sync?.codes ?? {},
         lastSyncedAt: sync?.syncedAt ?? null,
         simulated: sync?.simulated ?? false,
       };
@@ -1193,7 +1328,8 @@ export class BusinessModulesService implements OnModuleInit {
    * instead of touching the real merchant account.
    */
   async syncManagementPayping(packageKey: string) {
-    const industry = getIndustryPackage(packageKey);
+    await this.ensureManagementsLoaded();
+    const industry = this.management(packageKey);
     if (!industry) {
       throw new BadRequestException('مدیریت کسب‌وکار انتخاب‌شده معتبر نیست');
     }
@@ -1202,57 +1338,84 @@ export class BusinessModulesService implements OnModuleInit {
     if (!card) {
       throw new BadRequestException('مدیریت کسب‌وکار انتخاب‌شده معتبر نیست');
     }
-    if (card.totalPrice < 1000) {
+    const termCards = card.terms.filter((term) => term.price >= 1000);
+    if (termCards.length === 0) {
       throw new BadRequestException(
         'برای ساخت محصول پی‌پینگ، مجموع قیمت ماژول‌های این مدیریت باید حداقل ۱۰۰۰ تومان باشد.',
       );
     }
 
     const settingKey = `${MANAGEMENT_PAYPING_SETTING_PREFIX}${packageKey}`;
-    const title = `مدیریت کسب‌وکار ${industry.label} — شمالی‌کارت`;
-    const payload = {
-      title,
-      description: industry.description,
-      amount: card.totalPrice,
-      defineAmountByUser: false,
-      haveTax: false,
-      unlimited: true,
-    };
-
-    let productCode = card.productCode;
+    const previous = this.parseManagementSync(
+      (await this.prisma.setting.findUnique({ where: { key: settingKey } }))
+        ?.value ?? '',
+    );
+    const codes: Record<string, string | null> = { ...(previous?.codes ?? {}) };
+    const amounts: Record<string, number> = {};
     let simulated = false;
-    let created = false;
+    const terms: Array<{
+      months: number;
+      price: number;
+      productCode: string | null;
+      created: boolean;
+    }> = [];
 
-    if (this.simulator.isEnabled) {
-      simulated = true;
-      created = !productCode;
-      productCode = productCode ?? `SIM-PRODUCT-${randomBytes(4).toString('hex')}`;
-    } else if (!this.payping.configured) {
-      throw new ServiceUnavailableException(
-        'توکن درگاه پرداخت پی‌پینگ تنظیم نشده است. مقدار PAYPING_TOKEN را در محیط سرور قرار دهید.',
-      );
-    } else if (productCode) {
-      await this.payping.updateProduct({ ...payload, code: productCode });
-    } else {
-      const result = (await this.payping.createProduct(payload)) as {
-        code?: string;
-      } | null;
-      if (!result?.code) {
-        throw new BadGatewayException(
-          'ساخت محصول مدیریت کسب‌وکار در پی‌پینگ ناموفق بود؛ لطفاً دوباره تلاش کنید.',
+    for (const term of termCards) {
+      const monthsKey = String(term.months);
+      const termLabel =
+        term.months === 1
+          ? 'یک‌ماهه'
+          : term.months === 12
+            ? 'یک‌ساله'
+            : `${term.months} ماهه`;
+      const payload = {
+        title: `مدیریت کسب‌وکار ${industry.label} — ${termLabel} — شمالی‌کارت`,
+        description: industry.description,
+        amount: term.price,
+        defineAmountByUser: false,
+        haveTax: false,
+        unlimited: true,
+      };
+      let code = codes[monthsKey] ?? null;
+      let created = false;
+
+      if (this.simulator.isEnabled) {
+        simulated = true;
+        created = !code;
+        code =
+          code ??
+          `SIM-PRODUCT-${packageKey}-${term.months}-${randomBytes(3).toString('hex')}`;
+      } else if (!this.payping.configured) {
+        throw new ServiceUnavailableException(
+          'توکن درگاه پرداخت پی‌پینگ تنظیم نشده است. مقدار PAYPING_TOKEN را در محیط سرور قرار دهید.',
         );
+      } else if (code) {
+        await this.payping.updateProduct({ ...payload, code });
+      } else {
+        const result = (await this.payping.createProduct(payload)) as {
+          code?: string;
+        } | null;
+        if (!result?.code) {
+          throw new BadGatewayException(
+            'ساخت محصول مدیریت کسب‌وکار در پی‌پینگ ناموفق بود؛ لطفاً دوباره تلاش کنید.',
+          );
+        }
+        code = result.code;
+        created = true;
       }
-      productCode = result.code;
-      created = true;
+
+      codes[monthsKey] = code;
+      amounts[monthsKey] = term.price;
+      terms.push({
+        months: term.months,
+        price: term.price,
+        productCode: code,
+        created,
+      });
     }
 
     const syncedAt = new Date().toISOString();
-    const value = JSON.stringify({
-      code: productCode,
-      amount: card.totalPrice,
-      syncedAt,
-      simulated,
-    });
+    const value = JSON.stringify({ codes, amounts, syncedAt, simulated });
     await this.prisma.setting.upsert({
       where: { key: settingKey },
       create: { key: settingKey, value },
@@ -1260,7 +1423,9 @@ export class BusinessModulesService implements OnModuleInit {
     });
     await this.activity.log({
       action: 'BUSINESS_MANAGEMENT_PAYPING_SYNC',
-      summary: `همگام‌سازی محصول پی‌پینگ مدیریت «${industry.label}» با مبلغ ${card.totalPrice.toLocaleString('fa-IR')} تومان`,
+      summary: `همگام‌سازی محصولات پی‌پینگ مدیریت «${industry.label}» (${terms
+        .map((term) => `${term.months} ماهه`)
+        .join('، ')})`,
       entityType: 'SETTING',
       entityId: settingKey,
     });
@@ -1268,9 +1433,7 @@ export class BusinessModulesService implements OnModuleInit {
     return {
       packageKey,
       label: industry.label,
-      amount: card.totalPrice,
-      productCode,
-      created,
+      terms,
       simulated,
       syncedAt,
       modules: card.modules.filter((module) => module.billable),
@@ -1279,6 +1442,8 @@ export class BusinessModulesService implements OnModuleInit {
 
   private parseManagementSync(value: string): {
     code: string | null;
+    codes: Record<string, string | null>;
+    amounts: Record<string, number>;
     amount: number;
     syncedAt: string | null;
     simulated: boolean;
@@ -1286,12 +1451,17 @@ export class BusinessModulesService implements OnModuleInit {
     try {
       const parsed = JSON.parse(value) as {
         code?: string | null;
+        codes?: Record<string, string | null>;
+        amounts?: Record<string, number>;
         amount?: number;
         syncedAt?: string | null;
         simulated?: boolean;
       };
+      const codes = parsed.codes ?? (parsed.code ? { '1': parsed.code } : {});
       return {
         code: parsed.code ?? null,
+        codes,
+        amounts: parsed.amounts ?? {},
         amount: Number(parsed.amount) || 0,
         syncedAt: parsed.syncedAt ?? null,
         simulated: Boolean(parsed.simulated),
@@ -1383,7 +1553,6 @@ export class BusinessModulesService implements OnModuleInit {
     moduleKey: string,
     dto: {
       price?: number;
-      months?: number;
       isActive?: boolean;
       description?: string | null;
     },
@@ -1394,7 +1563,6 @@ export class BusinessModulesService implements OnModuleInit {
       where: { moduleKey },
       update: {
         ...(dto.price !== undefined ? { price: dto.price } : {}),
-        ...(dto.months !== undefined ? { months: dto.months } : {}),
         ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
         ...(dto.description !== undefined
           ? { description: dto.description }
@@ -1403,7 +1571,7 @@ export class BusinessModulesService implements OnModuleInit {
       create: {
         moduleKey,
         price: dto.price ?? 0,
-        months: dto.months ?? 12,
+        months: 0,
         isActive: dto.isActive ?? true,
         description: dto.description ?? null,
       },
@@ -1414,5 +1582,224 @@ export class BusinessModulesService implements OnModuleInit {
   async adminListPrices() {
     const rows = await this.prisma.businessModulePrice.findMany();
     return rows.map((row) => this.priceView(row));
+  }
+
+  // -------------------------------------------------------------------------
+  //  Admin — management CRUD
+  // -------------------------------------------------------------------------
+
+  private clampDiscount(value: unknown): number {
+    const number = Number(value);
+    if (!Number.isFinite(number)) return 0;
+    return Math.min(90, Math.max(0, Math.round(number)));
+  }
+
+  async adminCreateManagement(dto: {
+    key?: string;
+    label: string;
+    description?: string;
+    available?: boolean;
+    discounts?: { 3?: number; 6?: number; 12?: number };
+    modules?: string[];
+  }) {
+    const key = (dto.key ?? '').trim();
+    if (!/^[a-zA-Z][a-zA-Z0-9_-]{1,40}$/.test(key)) {
+      throw new BadRequestException(
+        'کلید مدیریت باید با حرف شروع شود و فقط شامل حروف انگلیسی، عدد، خط تیره و زیرخط باشد.',
+      );
+    }
+    const exists = await this.prisma.businessManagement.findUnique({
+      where: { key },
+    });
+    if (exists) {
+      throw new ConflictException('مدیریتی با این کلید قبلاً وجود دارد');
+    }
+    const modules = Array.from(
+      new Set((dto.modules ?? []).filter((item) => getBusinessModule(item))),
+    );
+    const max = await this.prisma.businessManagement.aggregate({
+      _max: { sortOrder: true },
+    });
+    await this.prisma.businessManagement.create({
+      data: {
+        key,
+        label: dto.label.trim(),
+        description: dto.description?.trim() ?? '',
+        available: dto.available ?? false,
+        isBase: false,
+        sortOrder: (max._max.sortOrder ?? 0) + 1,
+        discount3: this.clampDiscount(dto.discounts?.[3]),
+        discount6: this.clampDiscount(dto.discounts?.[6]),
+        discount12: this.clampDiscount(dto.discounts?.[12]),
+        modules: { create: modules.map((moduleKey) => ({ moduleKey })) },
+      },
+    });
+    await this.reloadManagements();
+    await this.activity.log({
+      action: 'BUSINESS_MANAGEMENT_ADMIN_CREATED',
+      summary: `ایجاد مدیریت کسب‌وکار «${dto.label.trim()}»`,
+      entityType: 'SETTING',
+      entityId: key,
+    });
+    return this.adminManagements();
+  }
+
+  async adminUpdateManagement(
+    key: string,
+    dto: {
+      label?: string;
+      description?: string;
+      available?: boolean;
+      discounts?: { 3?: number; 6?: number; 12?: number };
+      modules?: string[];
+    },
+  ) {
+    const row = await this.prisma.businessManagement.findUnique({
+      where: { key },
+      include: { modules: { select: { moduleKey: true } } },
+    });
+    if (!row) throw new NotFoundException('مدیریت کسب‌وکار پیدا نشد');
+
+    let modules: string[] | undefined;
+    if (dto.modules) {
+      modules = Array.from(
+        new Set(dto.modules.filter((item) => getBusinessModule(item))),
+      );
+      if (row.isBase) {
+        const defaults = BUSINESS_MODULES.filter(
+          (definition) => definition.defaultEnabled,
+        ).map((definition) => definition.key);
+        for (const moduleKey of defaults) {
+          if (!modules.includes(moduleKey)) modules.push(moduleKey);
+        }
+      }
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.businessManagement.update({
+        where: { key },
+        data: {
+          ...(dto.label !== undefined ? { label: dto.label.trim() } : {}),
+          ...(dto.description !== undefined
+            ? { description: dto.description.trim() }
+            : {}),
+          ...(dto.available !== undefined ? { available: dto.available } : {}),
+          ...(dto.discounts
+            ? {
+                discount3: this.clampDiscount(dto.discounts[3]),
+                discount6: this.clampDiscount(dto.discounts[6]),
+                discount12: this.clampDiscount(dto.discounts[12]),
+              }
+            : {}),
+        },
+      });
+      if (modules) {
+        await tx.businessManagementModule.deleteMany({
+          where: { managementId: row.id },
+        });
+        if (modules.length) {
+          await tx.businessManagementModule.createMany({
+            data: modules.map((moduleKey) => ({
+              managementId: row.id,
+              moduleKey,
+            })),
+          });
+        }
+      }
+    });
+    await this.reloadManagements();
+    return this.adminManagements();
+  }
+
+  async adminDeleteManagement(key: string) {
+    const row = await this.prisma.businessManagement.findUnique({
+      where: { key },
+    });
+    if (!row) throw new NotFoundException('مدیریت کسب‌وکار پیدا نشد');
+    if (row.isBase) {
+      throw new BadRequestException(
+        'مدیریت پایه قابل حذف نیست؛ می‌توانید نام یا ماژول‌های آن را ویرایش کنید.',
+      );
+    }
+    await this.ensureManagementsLoaded();
+    const base = this.baseManagement();
+    if (!base || base.key === key) {
+      throw new BadRequestException('مدیریت پایه برای انتقال کسب‌وکارها یافت نشد');
+    }
+    const affected = await this.prisma.businessWorkspace.findMany({
+      where: { industryKey: key },
+      select: { id: true },
+    });
+    if (affected.length) {
+      const ids = affected.map((item) => item.id);
+      await this.prisma.$transaction([
+        this.prisma.businessWorkspace.updateMany({
+          where: { id: { in: ids } },
+          data: { industryKey: base.key },
+        }),
+        this.prisma.businessModuleActivation.updateMany({
+          where: {
+            workspaceId: { in: ids },
+            moduleKey: { notIn: base.modules },
+          },
+          data: { enabled: false },
+        }),
+      ]);
+    }
+    await this.prisma.businessManagement.delete({ where: { key } });
+    await this.prisma.setting.deleteMany({
+      where: { key: `${MANAGEMENT_PAYPING_SETTING_PREFIX}${key}` },
+    });
+    await this.reloadManagements();
+    await this.activity.log({
+      action: 'BUSINESS_MANAGEMENT_ADMIN_DELETED',
+      summary: `حذف مدیریت کسب‌وکار «${row.label}»${
+        affected.length ? ` و انتقال ${affected.length} کسب‌وکار به مدیریت پایه` : ''
+      }`,
+      entityType: 'SETTING',
+      entityId: key,
+    });
+    return this.adminManagements();
+  }
+
+  async adminAddManagementModule(key: string, moduleKey: string) {
+    const definition = getBusinessModule(moduleKey);
+    if (!definition) {
+      throw new BadRequestException('ماژول انتخاب‌شده معتبر نیست');
+    }
+    const row = await this.prisma.businessManagement.findUnique({
+      where: { key },
+    });
+    if (!row) throw new NotFoundException('مدیریت کسب‌وکار پیدا نشد');
+    await this.prisma.businessManagementModule.upsert({
+      where: {
+        managementId_moduleKey: { managementId: row.id, moduleKey },
+      },
+      update: {},
+      create: { managementId: row.id, moduleKey },
+    });
+    await this.reloadManagements();
+    return this.adminManagements();
+  }
+
+  async adminRemoveManagementModule(key: string, moduleKey: string) {
+    const row = await this.prisma.businessManagement.findUnique({
+      where: { key },
+    });
+    if (!row) throw new NotFoundException('مدیریت کسب‌وکار پیدا نشد');
+    const definition = getBusinessModule(moduleKey);
+    if (!definition) {
+      throw new BadRequestException('ماژول انتخاب‌شده معتبر نیست');
+    }
+    if (row.isBase && definition.defaultEnabled) {
+      throw new BadRequestException(
+        'ماژول‌های پیش‌فرض (کارت ویزیت و بیولینک) از مدیریت پایه قابل حذف نیستند.',
+      );
+    }
+    await this.prisma.businessManagementModule.deleteMany({
+      where: { managementId: row.id, moduleKey },
+    });
+    await this.reloadManagements();
+    return this.adminManagements();
   }
 }

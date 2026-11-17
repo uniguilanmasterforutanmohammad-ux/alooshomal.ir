@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -14,6 +15,11 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { AdminSetModuleDto } from './dto/admin-set-module.dto';
 import { AdminSetPriceDto } from './dto/admin-set-price.dto';
+import {
+  AddManagementModuleDto,
+  CreateManagementDto,
+  UpdateManagementDto,
+} from './dto/admin-management.dto';
 import { BusinessModulesService } from './business-modules.service';
 
 @ApiTags('admin')
@@ -39,6 +45,50 @@ export class AdminBusinessModulesController {
   })
   managements() {
     return this.modules.adminManagements();
+  }
+
+  @Post('managements')
+  @ApiOperation({ summary: 'ساخت یک «مدیریت کسب‌وکار» جدید' })
+  createManagement(@Body() dto: CreateManagementDto) {
+    return this.modules.adminCreateManagement(dto);
+  }
+
+  @Patch('managements/:key')
+  @ApiOperation({
+    summary: 'ویرایش نام/توضیح/نمایش/تخفیف دوره‌ها و ماژول‌های یک مدیریت',
+  })
+  updateManagement(
+    @Param('key') key: string,
+    @Body() dto: UpdateManagementDto,
+  ) {
+    return this.modules.adminUpdateManagement(key, dto);
+  }
+
+  @Delete('managements/:key')
+  @ApiOperation({
+    summary:
+      'حذف کامل یک مدیریت کسب‌وکار (کسب‌وکارهای وابسته به مدیریت پایه منتقل می‌شوند)',
+  })
+  deleteManagement(@Param('key') key: string) {
+    return this.modules.adminDeleteManagement(key);
+  }
+
+  @Post('managements/:key/modules')
+  @ApiOperation({ summary: 'افزودن یک ماژول به مدیریت کسب‌وکار' })
+  addManagementModule(
+    @Param('key') key: string,
+    @Body() dto: AddManagementModuleDto,
+  ) {
+    return this.modules.adminAddManagementModule(key, dto.moduleKey);
+  }
+
+  @Delete('managements/:key/modules/:moduleKey')
+  @ApiOperation({ summary: 'حذف یک ماژول از مدیریت کسب‌وکار' })
+  removeManagementModule(
+    @Param('key') key: string,
+    @Param('moduleKey') moduleKey: string,
+  ) {
+    return this.modules.adminRemoveManagementModule(key, moduleKey);
   }
 
   @Post('managements/:key/sync-payping')

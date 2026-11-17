@@ -19,14 +19,6 @@ export class AdminSetPriceDto {
   @Max(1_000_000_000)
   price?: number;
 
-  @ApiPropertyOptional({ description: 'مدت اعتبار به ماه (۰ = دائمی)', example: 12 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(0)
-  @Max(120)
-  months?: number;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
