@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
   OnModuleInit,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { NotificationType, WalletEntryKind } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
@@ -90,6 +91,31 @@ export interface ManagementPackageView {
   activeModules: number;
   moduleCount: number;
 }
+
+export interface AdminManagementModuleView {
+  key: string;
+  label: string;
+  group: string;
+  billable: boolean;
+  defaultEnabled: boolean;
+  price: number;
+  months: number;
+  priceActive: boolean;
+}
+
+export interface AdminManagementView {
+  key: string;
+  label: string;
+  description: string;
+  available: boolean;
+  modules: AdminManagementModuleView[];
+  totalPrice: number;
+  productCode: string | null;
+  lastSyncedAt: string | null;
+  simulated: boolean;
+}
+
+const MANAGEMENT_PAYPING_SETTING_PREFIX = 'businessManagementPayping:';
 
 @Injectable()
 export class BusinessModulesService implements OnModuleInit {
@@ -1109,6 +1135,170 @@ export class BusinessModulesService implements OnModuleInit {
       industries: INDUSTRY_PACKAGES,
       totals: { workspaces },
     };
+  }
+
+  /** Every «مدیریت کسب‌وکار» as a card, with its modules and PayPing state. */
+  async adminManagements(): Promise<AdminManagementView[]> {
+    const [prices, synced] = await Promise.all([
+      this.prisma.businessModulePrice.findMany(),
+      this.prisma.setting.findMany({
+        where: { key: { startsWith: MANAGEMENT_PAYPING_SETTING_PREFIX } },
+      }),
+    ]);
+    const priceByKey = new Map(prices.map((row) => [row.moduleKey, row]));
+    const syncByKey = new Map(
+      synced.map((row) => [
+        row.key.slice(MANAGEMENT_PAYPING_SETTING_PREFIX.length),
+        this.parseManagementSync(row.value),
+      ]),
+    );
+
+    return INDUSTRY_PACKAGES.map((industry) => {
+      const modules: AdminManagementModuleView[] = BUSINESS_MODULES.filter(
+        (definition) => industry.modules.includes(definition.key),
+      ).map((definition) => {
+        const priceRow = priceByKey.get(definition.key);
+        return {
+          key: definition.key,
+          label: definition.label,
+          group: definition.group,
+          billable: definition.billable,
+          defaultEnabled: definition.defaultEnabled,
+          price: priceRow?.isActive ? priceRow.price : 0,
+          months: priceRow?.months ?? 12,
+          priceActive: priceRow?.isActive ?? false,
+        };
+      });
+      const sync = syncByKey.get(industry.key);
+      return {
+        key: industry.key,
+        label: industry.label,
+        description: industry.description,
+        available: Boolean(industry.available),
+        modules,
+        totalPrice: modules
+          .filter((module) => module.billable)
+          .reduce((sum, module) => sum + module.price, 0),
+        productCode: sync?.code ?? null,
+        lastSyncedAt: sync?.syncedAt ?? null,
+        simulated: sync?.simulated ?? false,
+      };
+    });
+  }
+
+  /**
+   * Create/update one PayPing «آیتم مالی» for a management card. The amount is
+   * the sum of the card's module prices, so the merchant catalog always matches
+   * what the user panel shows. In local dev the simulator returns a fake code
+   * instead of touching the real merchant account.
+   */
+  async syncManagementPayping(packageKey: string) {
+    const industry = getIndustryPackage(packageKey);
+    if (!industry) {
+      throw new BadRequestException('مدیریت کسب‌وکار انتخاب‌شده معتبر نیست');
+    }
+    const cards = await this.adminManagements();
+    const card = cards.find((item) => item.key === packageKey);
+    if (!card) {
+      throw new BadRequestException('مدیریت کسب‌وکار انتخاب‌شده معتبر نیست');
+    }
+    if (card.totalPrice < 1000) {
+      throw new BadRequestException(
+        'برای ساخت محصول پی‌پینگ، مجموع قیمت ماژول‌های این مدیریت باید حداقل ۱۰۰۰ تومان باشد.',
+      );
+    }
+
+    const settingKey = `${MANAGEMENT_PAYPING_SETTING_PREFIX}${packageKey}`;
+    const title = `مدیریت کسب‌وکار ${industry.label} — شمالی‌کارت`;
+    const payload = {
+      title,
+      description: industry.description,
+      amount: card.totalPrice,
+      defineAmountByUser: false,
+      haveTax: false,
+      unlimited: true,
+    };
+
+    let productCode = card.productCode;
+    let simulated = false;
+    let created = false;
+
+    if (this.simulator.isEnabled) {
+      simulated = true;
+      created = !productCode;
+      productCode = productCode ?? `SIM-PRODUCT-${randomBytes(4).toString('hex')}`;
+    } else if (!this.payping.configured) {
+      throw new ServiceUnavailableException(
+        'توکن درگاه پرداخت پی‌پینگ تنظیم نشده است. مقدار PAYPING_TOKEN را در محیط سرور قرار دهید.',
+      );
+    } else if (productCode) {
+      await this.payping.updateProduct({ ...payload, code: productCode });
+    } else {
+      const result = (await this.payping.createProduct(payload)) as {
+        code?: string;
+      } | null;
+      if (!result?.code) {
+        throw new BadGatewayException(
+          'ساخت محصول مدیریت کسب‌وکار در پی‌پینگ ناموفق بود؛ لطفاً دوباره تلاش کنید.',
+        );
+      }
+      productCode = result.code;
+      created = true;
+    }
+
+    const syncedAt = new Date().toISOString();
+    const value = JSON.stringify({
+      code: productCode,
+      amount: card.totalPrice,
+      syncedAt,
+      simulated,
+    });
+    await this.prisma.setting.upsert({
+      where: { key: settingKey },
+      create: { key: settingKey, value },
+      update: { value },
+    });
+    await this.activity.log({
+      action: 'BUSINESS_MANAGEMENT_PAYPING_SYNC',
+      summary: `همگام‌سازی محصول پی‌پینگ مدیریت «${industry.label}» با مبلغ ${card.totalPrice.toLocaleString('fa-IR')} تومان`,
+      entityType: 'SETTING',
+      entityId: settingKey,
+    });
+
+    return {
+      packageKey,
+      label: industry.label,
+      amount: card.totalPrice,
+      productCode,
+      created,
+      simulated,
+      syncedAt,
+      modules: card.modules.filter((module) => module.billable),
+    };
+  }
+
+  private parseManagementSync(value: string): {
+    code: string | null;
+    amount: number;
+    syncedAt: string | null;
+    simulated: boolean;
+  } | null {
+    try {
+      const parsed = JSON.parse(value) as {
+        code?: string | null;
+        amount?: number;
+        syncedAt?: string | null;
+        simulated?: boolean;
+      };
+      return {
+        code: parsed.code ?? null,
+        amount: Number(parsed.amount) || 0,
+        syncedAt: parsed.syncedAt ?? null,
+        simulated: Boolean(parsed.simulated),
+      };
+    } catch {
+      return null;
+    }
   }
 
   async adminListWorkspaces(query: { q?: string; take?: number }) {

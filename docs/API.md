@@ -702,6 +702,8 @@ PY
 | متد | مسیر | توضیح |
 | --- | --- | --- |
 | `GET` | `/admin/business-modules/catalog` | همه‌ی ماژول‌ها + قیمت + تعداد کسب‌وکار فعال. |
+| `GET` | `/admin/business-modules/managements` | کارت‌های «مدیریت کسب‌وکار» با ماژول‌ها، قیمت کل و وضعیت محصول پی‌پینگ. |
+| `POST` | `/admin/business-modules/managements/:key/sync-payping` | ساخت/به‌روزرسانی محصول پی‌پینگ با مبلغ برابر مجموع قیمت ماژول‌های همان کارت (در dev با شبیه‌ساز). |
 | `GET` | `/admin/business-modules/workspaces` | کسب‌وکارها و ماژول‌های هرکدام (جست‌وجو با `q`). |
 | `PATCH` | `/admin/business-modules/workspaces/:id/modules/:key` | فعال/غیرفعال‌کردن ماژول برای یک کسب‌وکار. |
 | `GET` | `/admin/business-modules/prices` | فهرست قیمت‌ها. |

@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -29,6 +30,24 @@ export class AdminBusinessModulesController {
   })
   catalog() {
     return this.modules.adminCatalog();
+  }
+
+  @Get('managements')
+  @ApiOperation({
+    summary:
+      'کارت‌های «مدیریت کسب‌وکار» با ماژول‌ها، قیمت کل و وضعیت محصول پی‌پینگ',
+  })
+  managements() {
+    return this.modules.adminManagements();
+  }
+
+  @Post('managements/:key/sync-payping')
+  @ApiOperation({
+    summary:
+      'همگام‌سازی کارت مدیریت با پی‌پینگ: ساخت/به‌روزرسانی محصول با مجموع قیمت ماژول‌ها',
+  })
+  syncManagementPayping(@Param('key') key: string) {
+    return this.modules.syncManagementPayping(key);
   }
 
   @Get('workspaces')
