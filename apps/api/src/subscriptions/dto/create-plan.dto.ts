@@ -40,6 +40,15 @@ export class CreatePlanDto {
   @Min(0)
   maxBusinessCards?: number;
 
+  @ApiPropertyOptional({
+    description: 'تعداد کسب‌وکارهای مجاز در این بسته',
+    example: 1,
+  })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxBusinesses?: number;
+
   @ApiPropertyOptional({ default: true })
   @IsOptional()
   @IsBoolean()

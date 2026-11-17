@@ -100,6 +100,16 @@ export class CreateAccommodationDto {
   @Min(0)
   basePrice?: number;
 
+  @ApiPropertyOptional({
+    description: 'ودیعه‌ی رزرو (تومان)؛ ۰ = بدون ودیعه‌ی آنلاین',
+    default: 0,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  depositAmount?: number;
+
   @ApiPropertyOptional({ default: 'IRR' })
   @IsOptional()
   @IsString()

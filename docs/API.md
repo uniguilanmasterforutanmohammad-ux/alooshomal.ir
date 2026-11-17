@@ -667,19 +667,43 @@ PY
 
 ## پنل ماژولار کسب‌وکار (`/api/business-modules`)
 
-هر کاربر یک «فضای کسب‌وکار» دارد (`BusinessWorkspace`) که بسته‌ی صنف و
-ماژول‌های فعال را نگه می‌دارد. تعریف ماژول‌ها و بسته‌های صنف در کد
+هر کاربر می‌تواند چند «فضای کسب‌وکار» داشته باشد (`BusinessWorkspace`)؛ تعداد
+مجاز از `maxBusinesses` اشتراک تعیین می‌شود. کسب‌وکار فعال با هدر
+`x-workspace-id` انتخاب می‌شود (اعتبارسنجی مالکیت در سمت سرور) و در نبود آن،
+کسب‌وکار پیش‌فرض/قدیمی‌ترین استفاده می‌شود. هر فضای کسب‌وکار بسته‌ی صنف و
+ماژول‌های فعال خودش را نگه می‌دارد. تعریف ماژول‌ها و بسته‌های صنف در کد
 (`apps/api/src/business-modules/business-modules.registry.ts`) است؛ افزودن
 ماژول تازه فقط با یک ورودی در همین رجیستری و گارد `@RequireModule('<key>')`
 روی کنترلر انجام می‌شود.
 
+**پیش‌فرض‌ها:** فقط `businessCards` و `biolinks` برای هر کسب‌وکار فعال‌اند.
+بقیه‌ی ماژول‌ها «قابل خرید» هستند: ادمین برای هر ماژول قیمت/مدت تعیین می‌کند و
+کاربر پس از خرید (کیف پول یا درگاه پی‌پینگ) می‌تواند آن را فعال کند.
+
 | متد | مسیر | توضیح |
 | --- | --- | --- |
-| `GET` | `/business-modules/catalog` | کاتالوگ ماژول‌ها و بسته‌های صنف. |
-| `GET` | `/business-modules/my` | فضای من: صنف، ماژول‌های فعال/غیرفعال و بسته‌ها. |
+| `GET` | `/business-modules/catalog` | کاتالوگ ماژول‌ها، بسته‌های صنف و قیمت‌ها. |
+| `GET` | `/business-modules/workspaces` | فهرست کسب‌وکارهای من (سوییچ پنل). |
+| `POST` | `/business-modules/workspaces` | ساخت کسب‌وکار جدید (سقف اشتراک). |
+| `PATCH` | `/business-modules/workspaces/:id` | ویرایش نام/صنف/پیش‌فرض. |
+| `DELETE` | `/business-modules/workspaces/:id` | حذف کسب‌وکار (حداقل یکی می‌ماند). |
+| `GET` | `/business-modules/my` | کسب‌وکار فعال: ماژول‌ها، قیمت، قفل خرید و ظرفیت اشتراک. |
 | `PATCH` | `/business-modules/my` | تغییر نام نمایشی کسب‌وکار. |
 | `PATCH` | `/business-modules/my/industry` | انتخاب بسته‌ی صنف (ماژول‌های پیش‌فرض افزودنی فعال می‌شوند). |
-| `PATCH` | `/business-modules/my/:key` | فعال/غیرفعال‌کردن ماژول؛ وابستگی‌ها بررسی می‌شوند. |
+| `PATCH` | `/business-modules/my/:key` | فعال/غیرفعال‌کردن ماژول؛ خرید و وابستگی‌ها بررسی می‌شوند. |
+| `POST` | `/business-modules/my/:key/purchase` | خرید ماژول (کیف پول/پی‌پینگ) و فعال‌سازی پس از پرداخت. |
+| `GET` | `/business-modules/purchases` | سابقه‌ی خرید ماژول‌ها. |
+| `GET/POST` | `/business-modules/payments/callback` | بازگشت درگاه پس از خرید ماژول. |
+
+مسیرهای ادمین (نقش `ADMIN`):
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET` | `/admin/business-modules/catalog` | همه‌ی ماژول‌ها + قیمت + تعداد کسب‌وکار فعال. |
+| `GET` | `/admin/business-modules/workspaces` | کسب‌وکارها و ماژول‌های هرکدام (جست‌وجو با `q`). |
+| `PATCH` | `/admin/business-modules/workspaces/:id/modules/:key` | فعال/غیرفعال‌کردن ماژول برای یک کسب‌وکار. |
+| `GET` | `/admin/business-modules/prices` | فهرست قیمت‌ها. |
+| `PATCH` | `/admin/business-modules/prices/:key` | تعیین قیمت/مدت/فعال‌بودن یک مدیریت کسب‌وکار. |
 
 ماژول‌های فعلی: `businessCards`، `biolinks`، `feeds`، `accommodationRental`،
 `accommodationReservations`، `accommodationChannels` و `crm`. ماژول‌های
@@ -701,15 +725,21 @@ PY
 | `DELETE` | `/accommodations/:id/photos/:photoId` | حذف عکس. |
 | `GET` | `/accommodations/bookings` | همه‌ی رزروها (فیلتر `status`). |
 | `PATCH` | `/accommodations/bookings/:id/status` | تغییر وضعیت رزرو. |
+| `PATCH` | `/accommodations/bookings/:id/deposit` | ثبت دستی وضعیت ودیعه. |
 | `POST` | `/accommodations/:id/bookings` | ثبت دستی رزرو توسط مالک. |
 | `GET/POST` | `/accommodations/:id/blocks` | فهرست/افزودن بازه‌ی مسدود. |
 | `DELETE` | `/accommodations/:id/blocks/:blockId` | حذف بازه‌ی مسدود. |
+| `GET` | `/accommodations/:id/calendar.ics` | خروجی iCal تقویم (مسدودی‌ها + رزروها). |
 | `GET/POST/PATCH/DELETE` | `/accommodation-channels` | مدیریت کانال‌های رزرو (OTA/شبکه‌ی اجتماعی/سایت مستقیم). |
+| `POST` | `/accommodation-channels/:id/sync` | همگام‌سازی تقویم از فید iCal کانال. |
 | `GET/POST/PATCH/DELETE` | `/crm/customers` | دفترچه‌ی مشتریان و تعامل‌ها. |
 
 مسیرهای عمومی (بدون احراز هویت) زیر `/api/public/accommodations` هستند:
 فهرست اقامتگاه‌های منتشرشده، صفحه‌ی عمومی یک اقامتگاه (همراه کانال‌های فعال)
-و `POST /public/accommodations/:slug/bookings` برای ثبت درخواست رزرو. این
+، `GET /public/accommodations/:slug/calendar.ics` (فید iCal برای OTA)،
+`POST /public/accommodations/:slug/bookings` برای ثبت درخواست رزرو و
+`POST /public/accommodations/:slug/bookings/:id/deposit` برای پرداخت آنلاین
+ودیعه (بازگشت درگاه: `/public/accommodations/deposits/callback`). این
 مسیرها با سوئیچ سراسری `featureAccommodationRental` و صفحه‌ی عمومی `/stay`
 با سوئیچ «نمایش» همان ویژگی کنترل می‌شوند.
 

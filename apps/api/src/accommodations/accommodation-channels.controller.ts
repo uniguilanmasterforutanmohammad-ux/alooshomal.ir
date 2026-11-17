@@ -18,6 +18,7 @@ import {
 } from '../common/decorators/current-user.decorator';
 import { AccommodationChannelsService } from './accommodation-channels.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
+import { SyncChannelDto } from './dto/sync-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 
 @ApiTags('accommodations')
@@ -54,5 +55,17 @@ export class AccommodationChannelsController {
   @ApiOperation({ summary: 'حذف کانال رزرو' })
   remove(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.channels.remove(user.id, id);
+  }
+
+  @Post(':id/sync')
+  @ApiOperation({
+    summary: 'همگام‌سازی تقویم کانال از فید iCal (ایجاد/حذف خودکار مسدودی‌ها)',
+  })
+  sync(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: SyncChannelDto,
+  ) {
+    return this.channels.sync(user.id, id, dto.propertyId);
   }
 }

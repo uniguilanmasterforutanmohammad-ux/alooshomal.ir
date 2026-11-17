@@ -5,6 +5,8 @@ export interface SubscriptionPlan {
   price: number;
   maxBiolinks: number;
   maxBusinessCards: number;
+  /** تعداد کسب‌وکارهای مجاز در این بسته */
+  maxBusinesses: number;
   showSocialLinks: boolean;
   hiddenFields: string[];
   features: string[];

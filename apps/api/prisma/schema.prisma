@@ -498,7 +498,7 @@ model User {
   expensesCreated   Expense[]    @relation("ExpenseCreatedBy")
   onboardingCompletions OnboardingStepCompletion[]
   identityInquiryLogs   IdentityInquiryLog[]
-  businessWorkspace     BusinessWorkspace?
+  businessWorkspaces    BusinessWorkspace[]
 
   @@index([email])
   @@index([phone])
@@ -1337,6 +1337,10 @@ model SubscriptionPlan {
   price             Int      @default(0)
   maxBiolinks       Int      @default(1)
   maxBusinessCards  Int      @default(1)
+  /// How many business workspaces («کسب‌وکار») the plan allows. Each workspace
+  /// owns one business card and one biolink, so this is the real capacity knob
+  /// of the plans (free/eco = 1, plus = 3).
+  maxBusinesses     Int      @default(1)
   showSocialLinks   Boolean  @default(false)
   /// Field keys (see `PLAN_FIELDS` in `common/plans.ts`) hidden on every item
   /// owned by a user on this plan. Empty = show everything. This supersedes the
@@ -1543,6 +1547,7 @@ enum WalletEntryKind {
   AD_DIRECTORY
   FEED_TAG
   FEED_PACKAGE
+  BUSINESS_MODULE
   ADJUSTMENT
   PAYMENT
 }
@@ -1926,21 +1931,26 @@ model SocialAccount {
 // ---------------------------------------------------------------------------
 model BusinessWorkspace {
   id          String   @id @default(cuid())
-  ownerId     String   @unique
+  ownerId     String
   name        String
   industryKey String   @default("generalBusiness")
   status      String   @default("ACTIVE")
+  /// The workspace the user lands on by default. Exactly one per owner is
+  /// preferred; if none is flagged the oldest workspace is used.
+  isDefault   Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   owner           User                          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   modules         BusinessModuleActivation[]
+  purchases       BusinessModulePurchase[]
   properties      AccommodationProperty[]
   channels        AccommodationChannel[]
   bookingRequests AccommodationBookingRequest[]
   customers       CrmCustomer[]
   interactions    CrmInteraction[]
 
+  @@index([ownerId])
   @@index([industryKey])
   @@map("business_workspaces")
 }
@@ -1953,6 +1963,9 @@ model BusinessModuleActivation {
   workspaceId String
   moduleKey   String
   enabled     Boolean   @default(true)
+  /// When the module was bought, the paid term ends here. `null` means the
+  /// activation is not time-limited (default/package modules or admin grants).
+  paidUntil   DateTime?
   settings    Json?
   enabledAt   DateTime?
   createdAt   DateTime  @default(now())
@@ -1963,6 +1976,47 @@ model BusinessModuleActivation {
   @@unique([workspaceId, moduleKey])
   @@index([moduleKey, enabled])
   @@map("business_module_activations")
+}
+
+/// Admin-set price for one business module («مدیریت کسب‌وکار»). A row is
+/// optional: a module without a price row is free to enable.
+model BusinessModulePrice {
+  id          String   @id @default(cuid())
+  moduleKey   String   @unique
+  price       Int      @default(0)
+  /// Term length (months) the price buys. 0 = lifetime.
+  months      Int      @default(12)
+  isActive    Boolean  @default(true)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("business_module_prices")
+}
+
+/// One purchase attempt for a paid module in a workspace. Wallet purchases are
+/// `PAID` immediately; online purchases go `PENDING` → `PAID`/`FAILED`.
+model BusinessModulePurchase {
+  id          String    @id @default(cuid())
+  workspaceId String
+  moduleKey   String
+  userId      String
+  amount      Int
+  months      Int       @default(12)
+  status      String    @default("PENDING")
+  clientRefId String    @unique
+  paymentCode String?   @unique
+  gatewayUrl  String?
+  paidAt      DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, moduleKey])
+  @@index([userId, status])
+  @@map("business_module_purchases")
 }
 
 // ---------------------------------------------------------------------------
@@ -1984,6 +2038,9 @@ model AccommodationProperty {
   beds         Int      @default(1)
   bathrooms    Int      @default(1)
   basePrice    Int      @default(0)
+  /// Deposit («ودیعه») requested from a guest when they book, in Toman. 0 = no
+  /// online deposit is collected.
+  depositAmount Int     @default(0)
   currency     String   @default("IRR")
   minNights    Int      @default(1)
   checkInTime  String?
@@ -2030,6 +2087,12 @@ model AccommodationChannel {
   kind        String   @default("OTA")
   url         String?
   accountRef  String?
+  /// Optional iCal feed URL of this channel (Booking.com, Airbnb, …). When set
+  /// the owner can pull its reservations into the local calendar.
+  icalUrl     String?
+  lastSyncedAt   DateTime?
+  lastSyncStatus String?
+  lastSyncError  String?
   notes       String?
   isActive    Boolean  @default(true)
   sortOrder   Int      @default(0)
@@ -2061,6 +2124,13 @@ model AccommodationBookingRequest {
   status      String   @default("PENDING")
   source      String   @default("DIRECT")
   totalAmount Int?
+  /// Deposit («ودیعه») snapshot at booking time, in Toman.
+  depositAmount      Int      @default(0)
+  /// NONE | PENDING | PAID | REFUNDED
+  depositStatus      String   @default("NONE")
+  depositClientRefId String?  @unique
+  depositPaymentCode String?  @unique
+  depositPaidAt      DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -2089,6 +2159,7 @@ model AccommodationCalendarBlock {
 
   property AccommodationProperty @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
+  @@unique([propertyId, externalId])
   @@index([propertyId, startDate, endDate])
   @@map("accommodation_calendar_blocks")
 }

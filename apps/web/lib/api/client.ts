@@ -6,6 +6,21 @@ const API_URL =
 const VISITOR_STORAGE_KEY = 'alooshomal_visitor';
 
 /**
+ * The business workspace the user selected in the panel header. Sent on every
+ * request so module-scoped APIs (accommodations, CRM, …) act on that workspace.
+ */
+export const WORKSPACE_STORAGE_KEY = 'alooshomal_workspace';
+
+function getWorkspaceId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(WORKSPACE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Single-flight refresh promise. When several requests fail with 401 at the
  * same moment they all await the same token exchange instead of racing and
  * burning the (rotating) refresh token.
@@ -130,6 +145,7 @@ async function send<T>(
       : null;
 
   const visitorId = getVisitorId();
+  const workspaceId = getWorkspaceId();
 
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
@@ -141,6 +157,7 @@ async function send<T>(
         : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(visitorId ? { 'x-visitor-id': visitorId } : {}),
+      ...(workspaceId ? { 'x-workspace-id': workspaceId } : {}),
       ...(options.headers ?? {}),
     },
     // Required so the HttpOnly refresh cookie is sent to the API origin.

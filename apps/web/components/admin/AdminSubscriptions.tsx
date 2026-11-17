@@ -32,6 +32,7 @@ interface PlanFormState {
   price: number;
   maxBiolinks: number;
   maxBusinessCards: number;
+  maxBusinesses: number;
   isActive: boolean;
   /** درصد تخفیف دوره‌های سه‌ماهه/شش‌ماهه/یک‌ساله (بر پایه‌ی قیمت ماهانه) */
   discount3Months: number;
@@ -47,6 +48,7 @@ const EMPTY_FORM: PlanFormState = {
   price: 0,
   maxBiolinks: 1,
   maxBusinessCards: 1,
+  maxBusinesses: 1,
   isActive: true,
   discount3Months: 0,
   discount6Months: 0,
@@ -144,6 +146,7 @@ export function AdminSubscriptions() {
       price: plan.price,
       maxBiolinks: plan.maxBiolinks,
       maxBusinessCards: plan.maxBusinessCards,
+      maxBusinesses: plan.maxBusinesses ?? 1,
       isActive: plan.isActive,
       discount3Months: plan.discount3Months ?? 0,
       discount6Months: plan.discount6Months ?? 0,
@@ -176,6 +179,7 @@ export function AdminSubscriptions() {
         price: Number(form.price),
         maxBiolinks: Number(form.maxBiolinks),
         maxBusinessCards: Number(form.maxBusinessCards),
+        maxBusinesses: Number(form.maxBusinesses),
         isActive: form.isActive,
         discount3Months: Number(form.discount3Months),
         discount6Months: Number(form.discount6Months),
@@ -270,7 +274,8 @@ export function AdminSubscriptions() {
       label: 'محدودیت‌ها',
       render: (plan) => (
         <span className="text-xs text-muted">
-          {plan.maxBiolinks} بیولینک · {plan.maxBusinessCards} کارت ویزیت
+          {plan.maxBusinesses ?? 1} کسب‌وکار · {plan.maxBiolinks} بیولینک ·{' '}
+          {plan.maxBusinessCards} کارت ویزیت
         </span>
       ),
     },
@@ -581,6 +586,18 @@ export function AdminSubscriptions() {
                       value={form.maxBusinessCards}
                       onChange={(e) =>
                         setForm({ ...form, maxBusinessCards: Number(e.target.value) })
+                      }
+                      className="indeed-input"
+                    />
+                  </label>
+                  <label className="flex flex-col gap-1 text-sm">
+                    <span className="font-bold text-ink">حداکثر کسب‌وکار</span>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.maxBusinesses}
+                      onChange={(e) =>
+                        setForm({ ...form, maxBusinesses: Number(e.target.value) })
                       }
                       className="indeed-input"
                     />

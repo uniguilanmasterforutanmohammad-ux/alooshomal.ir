@@ -16,31 +16,74 @@ export function StayBookingForm({ slug }: { slug: string }) {
     message: '',
   });
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState(false);
+  const [booking, setBooking] = useState<{
+    id: string;
+    depositAmount: number;
+    depositStatus: string;
+  } | null>(null);
+  const [paying, setPaying] = useState(false);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setSubmitting(true);
     try {
-      await api.post(`/public/accommodations/${encodeURIComponent(slug)}/bookings`, {
-        ...form,
-        guestEmail: form.guestEmail.trim() || undefined,
-        message: form.message.trim() || undefined,
-      });
-      setDone(true);
+      const created = await api.post<{
+        id: string;
+        depositAmount: number;
+        depositStatus: string;
+      }>(
+        `/public/accommodations/${encodeURIComponent(slug)}/bookings`,
+        {
+          ...form,
+          guestEmail: form.guestEmail.trim() || undefined,
+          message: form.message.trim() || undefined,
+        },
+      );
+      setBooking(created);
       toast.success('درخواست رزرو ثبت شد؛ مالک به‌زودی پاسخ می‌دهد.');
     } finally {
       setSubmitting(false);
     }
   }
 
+  async function payDeposit() {
+    if (!booking) return;
+    setPaying(true);
+    try {
+      const result = await api.post<{ url?: string }>(
+        `/public/accommodations/${encodeURIComponent(slug)}/bookings/${booking.id}/deposit`,
+      );
+      if (result.url) {
+        window.location.href = result.url;
+        return;
+      }
+      toast.success('ودیعه پرداخت شد');
+    } finally {
+      setPaying(false);
+    }
+  }
+
   const field =
     'w-full rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-sm text-ink outline-none focus:border-brand';
 
-  if (done) {
+  if (booking) {
     return (
-      <div className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">
-        درخواست رزرو شما ثبت شد. مالک اقامتگاه پس از بررسی با شما تماس می‌گیرد.
+      <div className="flex flex-col gap-3 rounded-lg bg-emerald-50 p-4 text-sm text-emerald-800">
+        <p>
+          درخواست رزرو شما ثبت شد. مالک اقامتگاه پس از بررسی با شما تماس می‌گیرد.
+        </p>
+        {booking.depositAmount > 0 && booking.depositStatus !== 'PAID' ? (
+          <button
+            type="button"
+            onClick={() => void payDeposit()}
+            disabled={paying}
+            className="indeed-btn indeed-btn-primary self-start text-xs disabled:opacity-60"
+          >
+            {paying
+              ? 'در حال انتقال به درگاه…'
+              : `پرداخت ودیعه (${booking.depositAmount.toLocaleString('fa-IR')} تومان)`}
+          </button>
+        ) : null}
       </div>
     );
   }

@@ -4,8 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomBytes } from 'node:crypto';
 
 import { BusinessModulesService } from '../business-modules/business-modules.service';
+import { paypingReturnBaseUrl } from '../common/app-url';
+import { PaymentSimulatorService } from '../payping/payment-simulator.service';
+import { PaypingService } from '../payping/payping.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { AddAccommodationPhotoDto } from './dto/add-photo.dto';
@@ -16,6 +20,7 @@ import {
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateCalendarBlockDto } from './dto/create-block.dto';
 import { UpdateAccommodationDto } from './dto/update-accommodation.dto';
+import { buildIcalCalendar, parseIcalEvents } from './ical';
 
 const PROPERTY_INCLUDE = {
   photos: { orderBy: { sortOrder: 'asc' as const } },
@@ -29,6 +34,8 @@ export class AccommodationsService {
     private readonly prisma: PrismaService,
     private readonly modules: BusinessModulesService,
     private readonly settings: SettingsService,
+    private readonly payping: PaypingService,
+    private readonly simulator: PaymentSimulatorService,
   ) {}
 
   private async workspaceId(userId: string): Promise<string> {
@@ -89,6 +96,7 @@ export class AccommodationsService {
         beds: dto.beds ?? 1,
         bathrooms: dto.bathrooms ?? 1,
         basePrice: dto.basePrice ?? 0,
+        depositAmount: dto.depositAmount ?? 0,
         currency: dto.currency ?? 'IRR',
         minNights: dto.minNights ?? 1,
         checkInTime: dto.checkInTime,
@@ -147,6 +155,7 @@ export class AccommodationsService {
         beds: dto.beds,
         bathrooms: dto.bathrooms,
         basePrice: dto.basePrice,
+        depositAmount: dto.depositAmount,
         currency: dto.currency,
         minNights: dto.minNights,
         checkInTime: dto.checkInTime,
@@ -404,6 +413,8 @@ export class AccommodationsService {
           source: 'DIRECT',
           status: 'PENDING',
           totalAmount: property.basePrice ? property.basePrice * nights : null,
+          depositAmount: property.depositAmount,
+          depositStatus: property.depositAmount > 0 ? 'PENDING' : 'NONE',
         },
       });
       if (customer) {
@@ -417,6 +428,302 @@ export class AccommodationsService {
         });
       }
       return booking;
+    });
+  }
+
+  // ---- calendar (iCal / OTA sync) ----
+
+  /** Public iCal feed of one property: blocked ranges + active bookings. */
+  async publicCalendar(slug: string): Promise<string> {
+    await this.settings.assertFeatureEnabled('featureAccommodationRental');
+    const property = await this.prisma.accommodationProperty.findFirst({
+      where: { slug, status: 'PUBLISHED' },
+      include: {
+        blocks: true,
+        bookings: {
+          where: { status: { in: ['PENDING', 'CONFIRMED'] } },
+        },
+      },
+    });
+    if (!property) throw new NotFoundException('اقامتگاه پیدا نشد');
+    return this.buildCalendar(property);
+  }
+
+  /** Owner download of the same feed (works for drafts too). */
+  async ownerCalendar(userId: string, propertyId: string): Promise<string> {
+    const property = await this.prisma.accommodationProperty.findFirst({
+      where: { id: propertyId, workspaceId: await this.workspaceId(userId) },
+      include: {
+        blocks: true,
+        bookings: {
+          where: { status: { in: ['PENDING', 'CONFIRMED'] } },
+        },
+      },
+    });
+    if (!property) throw new NotFoundException('اقامتگاه پیدا نشد');
+    return this.buildCalendar(property);
+  }
+
+  private buildCalendar(property: {
+    id: string;
+    title: string;
+    blocks: Array<{ id: string; startDate: Date; endDate: Date; reason: string | null }>;
+    bookings: Array<{
+      id: string;
+      checkIn: Date;
+      checkOut: Date;
+      guestName: string;
+      status: string;
+    }>;
+  }): string {
+    const blocks = [
+      ...property.blocks.map((block) => ({
+        uid: `block-${block.id}@alooshomal`,
+        start: block.startDate,
+        end: block.endDate,
+        summary: block.reason ? `مسدود: ${block.reason}` : 'مسدود',
+      })),
+      ...property.bookings.map((booking) => ({
+        uid: `booking-${booking.id}@alooshomal`,
+        start: booking.checkIn,
+        end: booking.checkOut,
+        summary:
+          booking.status === 'CONFIRMED'
+            ? `رزرو ${booking.guestName}`
+            : `درخواست رزرو ${booking.guestName}`,
+      })),
+    ];
+    return buildIcalCalendar(property.title, blocks);
+  }
+
+  /**
+   * Pull a channel's iCal feed into the local calendar. Events become
+   * `ICAL`-sourced blocks keyed by their UID, so repeated syncs are idempotent
+   * and cancellations on the channel remove the local block.
+   */
+  async syncChannel(userId: string, channelId: string, propertyId?: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const channel = await this.prisma.accommodationChannel.findFirst({
+      where: { id: channelId, workspaceId },
+    });
+    if (!channel) throw new NotFoundException('کانال رزرو پیدا نشد');
+    if (!channel.icalUrl) {
+      throw new BadRequestException('برای این کانال آدرس iCal ثبت نشده است');
+    }
+    let text: string;
+    try {
+      const response = await fetch(channel.icalUrl, {
+        headers: { accept: 'text/calendar, text/plain, */*' },
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      text = await response.text();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message.slice(0, 300) : 'خطای دریافت فید';
+      await this.prisma.accommodationChannel.update({
+        where: { id: channel.id },
+        data: {
+          lastSyncedAt: new Date(),
+          lastSyncStatus: 'FAILED',
+          lastSyncError: message,
+        },
+      });
+      throw new BadRequestException(`دریافت تقویم کانال ناموفق بود: ${message}`);
+    }
+
+    const events = parseIcalEvents(text);
+    const property = propertyId
+      ? await this.prisma.accommodationProperty.findFirst({
+          where: { id: propertyId, workspaceId },
+          select: { id: true },
+        })
+      : await this.prisma.accommodationProperty.findFirst({
+          where: { workspaceId },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true },
+        });
+    if (!property) {
+      if (propertyId) {
+        throw new NotFoundException('اقامتگاه انتخاب‌شده پیدا نشد');
+      }
+      throw new BadRequestException(
+        'ابتدا یک اقامتگاه ثبت کنید تا تقویم کانال به آن متصل شود',
+      );
+    }
+    const prefix = `channel-${channel.id}:`;
+    const uids = events.map((event) => `${prefix}${event.uid}`);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.accommodationCalendarBlock.deleteMany({
+        where: {
+          propertyId: property.id,
+          source: 'ICAL',
+          externalId: {
+            startsWith: prefix,
+            ...(uids.length ? { notIn: uids } : {}),
+          },
+        },
+      });
+      for (const event of events) {
+        const externalId = `${prefix}${event.uid}`;
+        await tx.accommodationCalendarBlock.upsert({
+          where: {
+            propertyId_externalId: {
+              propertyId: property.id,
+              externalId,
+            },
+          },
+          update: {
+            startDate: event.start,
+            endDate: event.end,
+            reason: event.summary ?? channel.name,
+          },
+          create: {
+            propertyId: property.id,
+            startDate: event.start,
+            endDate: event.end,
+            reason: event.summary ?? channel.name,
+            source: 'ICAL',
+            externalId,
+          },
+        });
+      }
+    });
+    await this.prisma.accommodationChannel.update({
+      where: { id: channel.id },
+      data: {
+        lastSyncedAt: new Date(),
+        lastSyncStatus: 'OK',
+        lastSyncError: null,
+      },
+    });
+    return { synced: events.length, propertyId: property.id };
+  }
+
+  // ---- deposits ----
+
+  /** Start an online deposit payment for a public booking request. */
+  async startDepositPayment(slug: string, bookingId: string) {
+    await this.settings.assertFeatureEnabled('featureAccommodationRental');
+    const booking = await this.prisma.accommodationBookingRequest.findFirst({
+      where: { id: bookingId, property: { slug, status: 'PUBLISHED' } },
+      include: { property: { select: { title: true } } },
+    });
+    if (!booking) throw new NotFoundException('درخواست رزرو پیدا نشد');
+    if (booking.depositAmount <= 0) {
+      throw new BadRequestException('برای این رزرو ودیعه‌ای تعیین نشده است');
+    }
+    if (booking.depositStatus === 'PAID') {
+      throw new ConflictException('ودیعه‌ی این رزرو قبلاً پرداخت شده است');
+    }
+    const clientRefId = booking.depositClientRefId ?? randomBytes(16).toString('hex');
+    const returnUrl = `${paypingReturnBaseUrl()}/api/public/accommodations/deposits/callback`;
+    let result: { paymentCode?: string; url?: string } | null = null;
+    try {
+      result = this.simulator.isEnabled
+        ? this.simulator.createPayment({
+            amount: booking.depositAmount,
+            returnUrl,
+            clientRefId,
+            description: `ودیعه رزرو ${booking.property.title}`,
+          })
+        : ((await this.payping.createPayment({
+            amount: booking.depositAmount,
+            returnUrl,
+            payerIdentity: booking.guestPhone,
+            payerName: booking.guestName,
+            description: `ودیعه رزرو ${booking.property.title}`,
+            clientRefId,
+            isReversible: false,
+          })) as { paymentCode?: string; url?: string } | null);
+    } catch (error) {
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'ساخت پرداخت ناموفق بود',
+      );
+    }
+    if (!result?.paymentCode || !result?.url) {
+      throw new BadRequestException('ساخت پرداخت ودیعه ناموفق بود');
+    }
+    await this.prisma.accommodationBookingRequest.update({
+      where: { id: booking.id },
+      data: {
+        depositClientRefId: clientRefId,
+        depositPaymentCode: result.paymentCode,
+        depositStatus: 'PENDING',
+      },
+    });
+    return {
+      amount: booking.depositAmount,
+      paymentCode: result.paymentCode,
+      url: result.url,
+    };
+  }
+
+  async handleDepositCallback(params: {
+    paymentCode?: string;
+    refId?: string;
+    clientRefId?: string;
+    status?: number;
+  }) {
+    const paymentCode = params.paymentCode?.trim() || undefined;
+    const clientRefId = params.clientRefId?.trim() || undefined;
+    const booking = paymentCode
+      ? await this.prisma.accommodationBookingRequest.findUnique({
+          where: { depositPaymentCode: paymentCode },
+        })
+      : clientRefId
+        ? await this.prisma.accommodationBookingRequest.findUnique({
+            where: { depositClientRefId: clientRefId },
+          })
+        : null;
+    const base = `${paypingReturnBaseUrl()}/stay`;
+    if (!booking) return { redirectUrl: `${base}?deposit=failed` };
+    if (booking.depositStatus === 'PAID') {
+      return { redirectUrl: `${base}?deposit=success` };
+    }
+    if (params.status === 0) {
+      return { redirectUrl: `${base}?deposit=failed` };
+    }
+    if (!params.refId || !booking.depositPaymentCode) {
+      return { redirectUrl: `${base}?deposit=failed` };
+    }
+    try {
+      if (this.simulator.handles(booking.depositPaymentCode)) {
+        this.simulator.verifyPayment({
+          paymentCode: booking.depositPaymentCode,
+          amount: booking.depositAmount,
+          clientRefId: booking.depositClientRefId,
+        });
+      } else {
+        await this.payping.verifyPayment({
+          paymentCode: booking.depositPaymentCode,
+          refId: params.refId,
+        });
+      }
+    } catch {
+      return { redirectUrl: `${base}?deposit=failed` };
+    }
+    await this.prisma.accommodationBookingRequest.update({
+      where: { id: booking.id },
+      data: { depositStatus: 'PAID', depositPaidAt: new Date() },
+    });
+    return { redirectUrl: `${base}?deposit=success` };
+  }
+
+  async setDepositStatus(userId: string, bookingId: string, status: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const booking = await this.prisma.accommodationBookingRequest.findFirst({
+      where: { id: bookingId, workspaceId },
+    });
+    if (!booking) throw new NotFoundException('درخواست رزرو پیدا نشد');
+    return this.prisma.accommodationBookingRequest.update({
+      where: { id: bookingId },
+      data: {
+        depositStatus: status,
+        depositPaidAt: status === 'PAID' ? new Date() : null,
+      },
     });
   }
 

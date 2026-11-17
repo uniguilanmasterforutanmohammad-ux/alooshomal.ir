@@ -14,6 +14,7 @@ export interface AccommodationFormValues {
   beds: number;
   bathrooms: number;
   basePrice: number;
+  depositAmount: number;
   minNights: number;
   checkInTime?: string;
   checkOutTime?: string;
@@ -52,6 +53,9 @@ export function AccommodationForm({
   const [beds, setBeds] = useState(initial?.beds ?? 1);
   const [bathrooms, setBathrooms] = useState(initial?.bathrooms ?? 1);
   const [basePrice, setBasePrice] = useState(initial?.basePrice ?? 0);
+  const [depositAmount, setDepositAmount] = useState(
+    initial?.depositAmount ?? 0,
+  );
   const [minNights, setMinNights] = useState(initial?.minNights ?? 1);
   const [checkInTime, setCheckInTime] = useState(initial?.checkInTime ?? '');
   const [checkOutTime, setCheckOutTime] = useState(initial?.checkOutTime ?? '');
@@ -74,6 +78,7 @@ export function AccommodationForm({
       beds,
       bathrooms,
       basePrice,
+      depositAmount,
       minNights,
       checkInTime: checkInTime.trim() || undefined,
       checkOutTime: checkOutTime.trim() || undefined,
@@ -200,6 +205,19 @@ export function AccommodationForm({
             value={basePrice}
             onChange={(event) => setBasePrice(Number(event.target.value))}
           />
+        </div>
+        <div>
+          <label className={label}>ودیعه‌ی رزرو (تومان)</label>
+          <input
+            className={field}
+            type="number"
+            min={0}
+            value={depositAmount}
+            onChange={(event) => setDepositAmount(Number(event.target.value))}
+          />
+          <p className="mt-1 text-[10px] text-muted">
+            مهمان برای ثبت رزرو این مبلغ را آنلاین پرداخت می‌کند (۰ = بدون ودیعه).
+          </p>
         </div>
         <div>
           <label className={label}>حداقل شب اقامت</label>

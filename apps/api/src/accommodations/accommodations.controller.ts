@@ -7,9 +7,11 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import type { Response } from 'express';
 
 import { BusinessModuleGuard } from '../business-modules/business-module.guard';
 import { RequireModule } from '../business-modules/require-module.decorator';
@@ -24,6 +26,7 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateCalendarBlockDto } from './dto/create-block.dto';
 import { UpdateAccommodationDto } from './dto/update-accommodation.dto';
 import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
+import { UpdateDepositDto } from './dto/update-deposit.dto';
 
 @ApiTags('accommodations')
 @ApiBearerAuth()
@@ -134,6 +137,34 @@ export class AccommodationsController {
     @Param('blockId') blockId: string,
   ) {
     return this.accommodations.removeBlock(user.id, id, blockId);
+  }
+
+  @Get(':id/calendar.ics')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'خروجی iCal تقویم اقامتگاه (مسدودی‌ها و رزروها)' })
+  async calendar(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const ics = await this.accommodations.ownerCalendar(user.id, id);
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="property-${id}.ics"`,
+    );
+    res.send(ics);
+  }
+
+  @Patch('bookings/:id/deposit')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'ثبت دستی وضعیت ودیعه‌ی یک رزرو' })
+  setDeposit(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateDepositDto,
+  ) {
+    return this.accommodations.setDepositStatus(user.id, id, dto.status);
   }
 
   @Post(':id/bookings')

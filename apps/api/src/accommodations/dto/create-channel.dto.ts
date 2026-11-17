@@ -31,6 +31,16 @@ export class CreateChannelDto {
   @MaxLength(500)
   url?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'آدرس فید iCal کانال (مثلاً از بوکینگ/ایربن‌بی) برای همگام‌سازی تقویم',
+    example: 'https://ical.booking.com/v1/export?t=...',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  icalUrl?: string;
+
   @ApiPropertyOptional({ description: 'شناسه/نام حساب در آن پلتفرم' })
   @IsOptional()
   @IsString()

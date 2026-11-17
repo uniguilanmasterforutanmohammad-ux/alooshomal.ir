@@ -31,5 +31,19 @@ export function useBusinessWorkspace(enabled = true) {
     void reload();
   }, [reload]);
 
+  // The header switcher changes the active workspace; every panel that uses
+  // this hook reloads so it never shows another workspace's data.
+  useEffect(() => {
+    function onWorkspaceChanged() {
+      void reload();
+    }
+    window.addEventListener('alooshomal:workspace-changed', onWorkspaceChanged);
+    return () =>
+      window.removeEventListener(
+        'alooshomal:workspace-changed',
+        onWorkspaceChanged,
+      );
+  }, [reload]);
+
   return { workspace, setWorkspace, loading, error, reload };
 }

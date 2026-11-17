@@ -49,6 +49,7 @@ export class SubscriptionsService implements OnModuleInit {
       await this.backfillHiddenFields();
       await this.backfillFreeEmailHidden();
       await this.backfillPlanPrices();
+      await this.backfillPlanBusinessLimits();
     } catch {
       // The table may not exist yet on a very first boot; ignore and let the
       // entrypoint `prisma db push` create it, a later boot will seed it.
@@ -69,6 +70,31 @@ export class SubscriptionsService implements OnModuleInit {
       await this.prisma.subscriptionPlan.updateMany({
         where: { name: plan.name, price: 0 },
         data: { price: plan.price },
+      });
+    }
+    await this.prisma.setting.upsert({
+      where: { key: marker },
+      update: {},
+      create: { key: marker, value: new Date().toISOString() },
+    });
+  }
+
+  /**
+   * One-time migration for the «subscriptions are sold per business» model:
+   * the built-in plans gain their `maxBusinesses` capacity (free/eco = 1,
+   * plus = 3) and their feature copy mentions the business count.
+   */
+  private async backfillPlanBusinessLimits() {
+    const marker = 'plansBusinessLimitsV1';
+    const done = await this.prisma.setting.findUnique({ where: { key: marker } });
+    if (done) return;
+    for (const plan of DEFAULT_PLANS) {
+      await this.prisma.subscriptionPlan.updateMany({
+        where: { name: plan.name },
+        data: {
+          maxBusinesses: plan.maxBusinesses,
+          features: plan.features,
+        },
       });
     }
     await this.prisma.setting.upsert({
@@ -130,6 +156,7 @@ export class SubscriptionsService implements OnModuleInit {
           price: plan.price,
           maxBiolinks: plan.maxBiolinks,
           maxBusinessCards: plan.maxBusinessCards,
+          maxBusinesses: plan.maxBusinesses,
           showSocialLinks: plan.showSocialLinks,
           hiddenFields: plan.hiddenFields,
           features: plan.features,
@@ -262,6 +289,7 @@ export class SubscriptionsService implements OnModuleInit {
         price: dto.price ?? 0,
         maxBiolinks: dto.maxBiolinks ?? 1,
         maxBusinessCards: dto.maxBusinessCards ?? 1,
+        maxBusinesses: dto.maxBusinesses ?? 1,
         // `showSocialLinks` is kept in sync with the field toggles so the
         // legacy flag (and older clients) still behaves correctly.
         showSocialLinks: !hiddenFields.includes('website'),

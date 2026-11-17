@@ -126,6 +126,12 @@ export default async function StayDetailPage({
               {stay.checkInTime ? ` • ورود ${stay.checkInTime}` : ''}
               {stay.checkOutTime ? ` • خروج ${stay.checkOutTime}` : ''}
             </p>
+            {stay.depositAmount > 0 ? (
+              <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-800">
+                ودیعه‌ی رزرو: {stay.depositAmount.toLocaleString('fa-IR')} تومان
+                (پرداخت آنلاین هنگام ثبت درخواست)
+              </p>
+            ) : null}
             <div className="mt-4">
               <StayBookingForm slug={stay.slug} />
             </div>

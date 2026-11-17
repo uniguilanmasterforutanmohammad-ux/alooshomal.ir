@@ -34,6 +34,12 @@ export interface BusinessModuleDefinition {
   icon: string;
   /** enabled when the workspace has no explicit activation row. */
   defaultEnabled: boolean;
+  /**
+   * Whether the module must be bought (admin-priced) before it can be turned
+   * on. The two identity modules (business card + biolink) are free defaults;
+   * everything else is a paid «مدیریت کسب‌وکار» the user purchases.
+   */
+  billable: boolean;
   /** whether the API enforces the per-workspace activation. */
   enforced: boolean;
   /** module keys that must be enabled first. */
@@ -66,6 +72,7 @@ export const BUSINESS_MODULES: BusinessModuleDefinition[] = [
     group: 'هویت و حضور آنلاین',
     icon: 'BadgeCheck',
     defaultEnabled: true,
+    billable: false,
     enforced: true,
     featureFlag: 'allowBusinessCardCreation',
     nav: {
@@ -84,6 +91,7 @@ export const BUSINESS_MODULES: BusinessModuleDefinition[] = [
     group: 'هویت و حضور آنلاین',
     icon: 'IdCard',
     defaultEnabled: true,
+    billable: false,
     enforced: true,
     featureFlag: 'allowBiolinkCreation',
     nav: { href: '/dashboard/biolinks', label: 'بیولینک‌ها', icon: 'IdCard' },
@@ -96,7 +104,8 @@ export const BUSINESS_MODULES: BusinessModuleDefinition[] = [
     description: 'انتشار پست، تصویر و محتوای کوتاه در فید کاربران.',
     group: 'محتوا و بازاریابی',
     icon: 'ImagePlus',
-    defaultEnabled: true,
+    defaultEnabled: false,
+    billable: true,
     enforced: false,
     featureFlag: 'featureFeedPosts',
     nav: { href: '/dashboard/feeds', label: 'پست‌های من', icon: 'ImagePlus' },
@@ -110,7 +119,8 @@ export const BUSINESS_MODULES: BusinessModuleDefinition[] = [
       'ثبت اقامتگاه، واحدها، عکس‌ها، امکانات و صفحه‌ی عمومی رزرو.',
     group: 'اقامت و سفر',
     icon: 'House',
-    defaultEnabled: true,
+    defaultEnabled: false,
+    billable: true,
     enforced: true,
     featureFlag: 'featureAccommodationRental',
     nav: {
@@ -132,7 +142,8 @@ export const BUSINESS_MODULES: BusinessModuleDefinition[] = [
       'مدیریت درخواست‌های رزرو، تأیید/رد، تقویم مسدودی و وضعیت اقامت.',
     group: 'اقامت و سفر',
     icon: 'CalendarCheck',
-    defaultEnabled: true,
+    defaultEnabled: false,
+    billable: true,
     enforced: true,
     dependsOn: ['accommodationRental'],
     nav: {
@@ -149,7 +160,8 @@ export const BUSINESS_MODULES: BusinessModuleDefinition[] = [
       'مدیریت سایت‌ها و پلتفرم‌های واسط (بوکینگ، جاباما، اینستاگرام و …).',
     group: 'اقامت و سفر',
     icon: 'Globe',
-    defaultEnabled: true,
+    defaultEnabled: false,
+    billable: true,
     enforced: true,
     dependsOn: ['accommodationRental'],
     nav: {
@@ -166,7 +178,8 @@ export const BUSINESS_MODULES: BusinessModuleDefinition[] = [
       'دفترچه‌ی مشتریان مشترک: تماس، برچسب، یادداشت و تاریخچه‌ی تعامل.',
     group: 'مشتریان',
     icon: 'Users',
-    defaultEnabled: true,
+    defaultEnabled: false,
+    billable: true,
     enforced: true,
     featureFlag: 'featureCrm',
     nav: {
@@ -184,7 +197,7 @@ export const INDUSTRY_PACKAGES: IndustryPackageDefinition[] = [
     label: 'کسب‌وکار عمومی',
     description: 'بسته‌ی پایه برای هر کسب‌وکاری که هنوز صنف مشخصی انتخاب نکرده است.',
     modules: ['businessCards', 'biolinks', 'feeds', 'crm'],
-    defaultModules: ['businessCards', 'biolinks', 'crm'],
+    defaultModules: ['businessCards', 'biolinks'],
   },
   {
     key: 'dailyRental',
@@ -199,34 +212,28 @@ export const INDUSTRY_PACKAGES: IndustryPackageDefinition[] = [
       'businessCards',
       'biolinks',
     ],
-    defaultModules: [
-      'accommodationRental',
-      'accommodationReservations',
-      'accommodationChannels',
-      'crm',
-      'businessCards',
-    ],
+    defaultModules: ['businessCards', 'biolinks'],
   },
   {
     key: 'foodService',
     label: 'رستوران و کافه',
     description: 'بسته‌ی آماده برای رستوران، کافه و سفارش غذا (ماژول‌های تخصصی در آینده).',
     modules: ['businessCards', 'biolinks', 'feeds', 'crm'],
-    defaultModules: ['businessCards', 'biolinks', 'crm'],
+    defaultModules: ['businessCards', 'biolinks'],
   },
   {
     key: 'retail',
     label: 'فروشگاه و خرده‌فروشی',
     description: 'بسته‌ی آماده برای فروشگاه‌ها (ماژول‌های فروش در آینده).',
     modules: ['businessCards', 'biolinks', 'feeds', 'crm'],
-    defaultModules: ['businessCards', 'biolinks', 'crm'],
+    defaultModules: ['businessCards', 'biolinks'],
   },
   {
     key: 'professionalServices',
     label: 'خدمات تخصصی',
     description: 'برای مشاوران، پزشکان، وکلا و سایر خدمات حرفه‌ای.',
     modules: ['businessCards', 'biolinks', 'feeds', 'crm'],
-    defaultModules: ['businessCards', 'biolinks', 'crm'],
+    defaultModules: ['businessCards', 'biolinks'],
   },
 ];
 

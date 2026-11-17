@@ -2,10 +2,14 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { ExternalLink, Plus, Trash2 } from 'lucide-react';
+import { ExternalLink, Plus, RefreshCw, Trash2 } from 'lucide-react';
 
 import { BusinessPanelNav } from '@/components/business/BusinessPanelNav';
-import { api, type AccommodationChannel } from '@/lib/api';
+import {
+  api,
+  type AccommodationChannel,
+  type AccommodationProperty,
+} from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
 import { toast } from '@/lib/toast';
@@ -23,11 +27,14 @@ export default function ChannelsPage() {
   const enabled = hydrated && Boolean(token);
   const { workspace } = useBusinessWorkspace(enabled);
   const [items, setItems] = useState<AccommodationChannel[]>([]);
+  const [properties, setProperties] = useState<AccommodationProperty[]>([]);
+  const [syncPropertyId, setSyncPropertyId] = useState('');
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
     name: '',
     kind: 'OTA',
     url: '',
+    icalUrl: '',
     accountRef: '',
     notes: '',
   });
@@ -37,6 +44,9 @@ export default function ChannelsPage() {
     setLoading(true);
     try {
       setItems(await api.get<AccommodationChannel[]>('/accommodation-channels'));
+      const list = await api.get<AccommodationProperty[]>('/accommodations');
+      setProperties(list);
+      setSyncPropertyId((current) => current || list[0]?.id || '');
     } finally {
       setLoading(false);
     }
@@ -59,10 +69,11 @@ export default function ChannelsPage() {
         ...form,
         name: form.name.trim(),
         url: form.url.trim() || undefined,
+        icalUrl: form.icalUrl.trim() || undefined,
         accountRef: form.accountRef.trim() || undefined,
         notes: form.notes.trim() || undefined,
       });
-      setForm({ name: '', kind: 'OTA', url: '', accountRef: '', notes: '' });
+      setForm({ name: '', kind: 'OTA', url: '', icalUrl: '', accountRef: '', notes: '' });
       await load();
       toast.success('کانال رزرو اضافه شد');
     } finally {
@@ -81,6 +92,19 @@ export default function ChannelsPage() {
     await load();
   }
 
+  async function sync(item: AccommodationChannel) {
+    try {
+      const result = await api.post<{ synced: number }>(
+        `/accommodation-channels/${item.id}/sync`,
+        syncPropertyId ? { propertyId: syncPropertyId } : {},
+      );
+      toast.success(`${result.synced} رویداد از تقویم کانال همگام شد`);
+      await load();
+    } catch {
+      // API client already surfaced the failure message.
+    }
+  }
+
   const field =
     'w-full rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-sm text-ink outline-none focus:border-brand';
 
@@ -95,6 +119,23 @@ export default function ChannelsPage() {
       </div>
 
       {workspace ? <BusinessPanelNav modules={workspace.modules} /> : null}
+
+      {properties.length > 1 ? (
+        <label className="flex flex-wrap items-center gap-2 text-xs font-bold text-muted">
+          اقامتگاه مقصد همگام‌سازی تقویم:
+          <select
+            className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-1.5 text-xs"
+            value={syncPropertyId}
+            onChange={(event) => setSyncPropertyId(event.target.value)}
+          >
+            {properties.map((property) => (
+              <option key={property.id} value={property.id}>
+                {property.title}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : null}
 
       <form onSubmit={create} className="indeed-panel grid gap-3 p-5 md:grid-cols-2">
         <input
@@ -126,6 +167,13 @@ export default function ChannelsPage() {
           placeholder="شناسه/نام حساب در پلتفرم"
           value={form.accountRef}
           onChange={(event) => setForm((prev) => ({ ...prev, accountRef: event.target.value }))}
+        />
+        <input
+          className={`${field} md:col-span-2`}
+          placeholder="آدرس فید iCal کانال (برای همگام‌سازی تقویم)"
+          value={form.icalUrl}
+          onChange={(event) => setForm((prev) => ({ ...prev, icalUrl: event.target.value }))}
+          dir="ltr"
         />
         <input
           className={`${field} md:col-span-2`}
@@ -170,6 +218,22 @@ export default function ChannelsPage() {
                 </span>
               </div>
               {item.notes ? <p className="text-xs text-muted">{item.notes}</p> : null}
+              {item.icalUrl ? (
+                <p className="text-[11px] text-muted">
+                  iCal:{' '}
+                  <span dir="ltr" className="break-all">
+                    {item.icalUrl}
+                  </span>
+                  {item.lastSyncStatus ? (
+                    <span className="mr-2 font-bold">
+                      {item.lastSyncStatus === 'OK' ? '· همگام' : '· خطا'}
+                    </span>
+                  ) : null}
+                </p>
+              ) : null}
+              {item.lastSyncError ? (
+                <p className="text-[11px] text-red-600">{item.lastSyncError}</p>
+              ) : null}
               <div className="mt-auto flex items-center justify-between gap-2 pt-2">
                 <div className="flex items-center gap-2">
                   {item.url ? (
@@ -186,6 +250,16 @@ export default function ChannelsPage() {
                   <button type="button" onClick={() => void toggle(item)} className="text-xs font-bold text-muted">
                     {item.isActive ? 'غیرفعال‌کردن' : 'فعال‌کردن'}
                   </button>
+                  {item.icalUrl ? (
+                    <button
+                      type="button"
+                      onClick={() => void sync(item)}
+                      className="inline-flex items-center gap-1 text-xs font-bold text-brand"
+                    >
+                      <RefreshCw className="size-3" aria-hidden />
+                      همگام‌سازی تقویم
+                    </button>
+                  ) : null}
                 </div>
                 <button type="button" onClick={() => void remove(item)} className="text-red-600">
                   <Trash2 className="size-4" aria-hidden />

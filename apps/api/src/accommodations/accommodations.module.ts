@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { BusinessModulesModule } from '../business-modules/business-modules.module';
+import { PaypingModule } from '../payping/payping.module';
 import { SettingsModule } from '../settings/settings.module';
 import { AccommodationChannelsController } from './accommodation-channels.controller';
 import { AccommodationChannelsService } from './accommodation-channels.service';
@@ -9,7 +10,7 @@ import { AccommodationsService } from './accommodations.service';
 import { PublicAccommodationsController } from './public-accommodations.controller';
 
 @Module({
-  imports: [BusinessModulesModule, SettingsModule],
+  imports: [BusinessModulesModule, SettingsModule, PaypingModule],
   controllers: [
     AccommodationsController,
     PublicAccommodationsController,

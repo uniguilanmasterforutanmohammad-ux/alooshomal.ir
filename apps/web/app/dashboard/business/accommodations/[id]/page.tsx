@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { ExternalLink, ImagePlus, Trash2 } from 'lucide-react';
+import { CalendarFold, ExternalLink, ImagePlus, Trash2 } from 'lucide-react';
 
 import { AccommodationForm, type AccommodationFormValues } from '@/components/business/AccommodationForm';
 import { BusinessPanelNav } from '@/components/business/BusinessPanelNav';
@@ -143,6 +143,19 @@ export default function AccommodationDetailPage() {
           <ExternalLink className="size-4" aria-hidden />
           مشاهده صفحه‌ی عمومی
         </Link>
+        <button
+          type="button"
+          onClick={() =>
+            void api.download(
+              `/accommodations/${property.id}/calendar.ics`,
+              `${property.slug}.ics`,
+            )
+          }
+          className="indeed-btn"
+        >
+          <CalendarFold className="size-4" aria-hidden />
+          خروجی iCal
+        </button>
       </div>
 
       {workspace ? <BusinessPanelNav modules={workspace.modules} /> : null}

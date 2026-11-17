@@ -51,6 +51,14 @@ export default function BookingsPage() {
     await load();
   }
 
+  async function markDepositPaid(booking: AccommodationBooking) {
+    await api.patch(`/accommodations/bookings/${booking.id}/deposit`, {
+      status: 'PAID',
+    });
+    toast.success('ودیعه به‌صورت دستی پرداخت‌شده ثبت شد');
+    await load();
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -116,6 +124,17 @@ export default function BookingsPage() {
                       {booking.totalAmount.toLocaleString('fa-IR')} تومان
                     </span>
                   ) : null}
+                  {booking.depositAmount > 0 ? (
+                    <span className="text-[11px] text-muted">
+                      ودیعه: {booking.depositAmount.toLocaleString('fa-IR')} تومان
+                      {' · '}
+                      {booking.depositStatus === 'PAID'
+                        ? 'پرداخت‌شده'
+                        : booking.depositStatus === 'PENDING'
+                          ? 'در انتظار پرداخت'
+                          : booking.depositStatus}
+                    </span>
+                  ) : null}
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -130,6 +149,15 @@ export default function BookingsPage() {
                     {STATUS_LABELS[next]}
                   </button>
                 ))}
+                {booking.depositAmount > 0 && booking.depositStatus !== 'PAID' ? (
+                  <button
+                    type="button"
+                    onClick={() => void markDepositPaid(booking)}
+                    className="rounded-lg border border-emerald-200 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
+                  >
+                    ثبت پرداخت ودیعه
+                  </button>
+                ) : null}
               </div>
             </article>
           ))}

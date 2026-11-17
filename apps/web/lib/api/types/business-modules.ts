@@ -12,6 +12,7 @@ export interface BusinessModuleDefinition {
   group: string;
   icon: string;
   defaultEnabled: boolean;
+  billable: boolean;
   enforced: boolean;
   dependsOn?: string[];
   featureFlag?: string;
@@ -23,6 +24,14 @@ export interface BusinessModuleDefinition {
 export interface ResolvedBusinessModule extends BusinessModuleDefinition {
   enabled: boolean;
   available: boolean;
+  /** Admin-set price (Toman). 0 = free to enable. */
+  price: number;
+  /** Term length the price buys, in months (0 = lifetime). */
+  months: number;
+  purchased: boolean;
+  paidUntil: string | null;
+  /** Billable module that still needs a purchase before it can be enabled. */
+  locked: boolean;
 }
 
 export interface IndustryPackage {
@@ -38,8 +47,28 @@ export interface BusinessWorkspace {
   name: string;
   industryKey: string;
   industry: IndustryPackage;
+  isDefault: boolean;
   modules: ResolvedBusinessModule[];
   industries: IndustryPackage[];
+  capacity: { max: number; used: number };
+}
+
+export interface BusinessWorkspaceSummary {
+  id: string;
+  name: string;
+  industryKey: string;
+  industryLabel: string;
+  isDefault: boolean;
+  enabledModules: number;
+  createdAt: string;
+}
+
+export interface BusinessModulePrice {
+  moduleKey: string;
+  price: number;
+  months: number;
+  isActive: boolean;
+  description: string | null;
 }
 
 export interface AccommodationPhoto {
@@ -67,6 +96,7 @@ export interface AccommodationProperty {
   beds: number;
   bathrooms: number;
   basePrice: number;
+  depositAmount: number;
   currency: string;
   minNights: number;
   checkInTime: string | null;
@@ -105,6 +135,10 @@ export interface AccommodationChannel {
   kind: 'OTA' | 'DIRECT' | 'SOCIAL' | 'OTHER' | string;
   url: string | null;
   accountRef: string | null;
+  icalUrl: string | null;
+  lastSyncedAt: string | null;
+  lastSyncStatus: string | null;
+  lastSyncError: string | null;
   notes: string | null;
   isActive: boolean;
   sortOrder: number;
@@ -127,6 +161,9 @@ export interface AccommodationBooking {
   status: 'PENDING' | 'CONFIRMED' | 'DECLINED' | 'CANCELLED' | 'COMPLETED' | string;
   source: string;
   totalAmount: number | null;
+  depositAmount: number;
+  depositStatus: 'NONE' | 'PENDING' | 'PAID' | 'REFUNDED' | string;
+  depositPaidAt: string | null;
   createdAt: string;
   property?: { id: string; title: string; slug: string };
   customer?: CrmCustomer | null;

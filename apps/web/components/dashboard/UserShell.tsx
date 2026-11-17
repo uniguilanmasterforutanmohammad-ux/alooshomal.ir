@@ -28,6 +28,7 @@ import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { WorkspaceSwitcher } from '@/components/dashboard/WorkspaceSwitcher';
 import { useFeatures } from '@/lib/features';
 import { useProfileStatus } from '@/lib/profile-status';
 import { cn } from '@/lib/utils';
@@ -269,6 +270,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
           </Link>
 
           <div className="flex items-center gap-2">
+            <WorkspaceSwitcher />
             <ThemeToggle />
             <NotificationBell scope="user" />
             <div className="hidden text-left sm:block">

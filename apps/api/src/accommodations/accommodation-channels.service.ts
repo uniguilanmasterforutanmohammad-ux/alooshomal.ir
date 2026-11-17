@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { BusinessModulesService } from '../business-modules/business-modules.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { AccommodationsService } from './accommodations.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 
@@ -10,6 +11,7 @@ export class AccommodationChannelsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly modules: BusinessModulesService,
+    private readonly accommodations: AccommodationsService,
   ) {}
 
   private async workspaceId(userId: string): Promise<string> {
@@ -33,6 +35,7 @@ export class AccommodationChannelsService {
         name: dto.name,
         kind: dto.kind ?? 'OTA',
         url: dto.url,
+        icalUrl: dto.icalUrl,
         accountRef: dto.accountRef,
         notes: dto.notes,
         isActive: dto.isActive ?? true,
@@ -49,6 +52,7 @@ export class AccommodationChannelsService {
         name: dto.name,
         kind: dto.kind,
         url: dto.url,
+        icalUrl: dto.icalUrl,
         accountRef: dto.accountRef,
         notes: dto.notes,
         isActive: dto.isActive,
@@ -61,6 +65,11 @@ export class AccommodationChannelsService {
     await this.assertOwned(userId, id);
     await this.prisma.accommodationChannel.delete({ where: { id } });
     return { id };
+  }
+
+  async sync(userId: string, id: string, propertyId?: string) {
+    await this.assertOwned(userId, id);
+    return this.accommodations.syncChannel(userId, id, propertyId);
   }
 
   private async assertOwned(userId: string, id: string) {

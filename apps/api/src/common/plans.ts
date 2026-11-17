@@ -71,6 +71,8 @@ export interface PlanDefinition {
   price: number;
   maxBiolinks: number;
   maxBusinessCards: number;
+  /** How many business workspaces the plan allows. */
+  maxBusinesses: number;
   showSocialLinks: boolean;
   hiddenFields: string[];
   features: string[];
@@ -85,10 +87,11 @@ export const DEFAULT_PLANS: PlanDefinition[] = [
     price: 0,
     maxBiolinks: 1,
     maxBusinessCards: 1,
+    maxBusinesses: 1,
     showSocialLinks: false,
     hiddenFields: DEFAULT_HIDDEN_LINK_FIELDS,
     features: [
-      'ساخت یک کارت ویزیت و یک بیولینک',
+      'یک کسب‌وکار با یک کارت ویزیت و یک بیولینک',
       'عدم نمایش لینک‌ها، شبکه‌های اجتماعی، وب‌سایت و ایمیل',
     ],
     sortOrder: 1,
@@ -100,10 +103,11 @@ export const DEFAULT_PLANS: PlanDefinition[] = [
     price: 99_000,
     maxBiolinks: 1,
     maxBusinessCards: 1,
+    maxBusinesses: 1,
     showSocialLinks: true,
     hiddenFields: [],
     features: [
-      'ساخت یک کارت ویزیت و یک بیولینک',
+      'یک کسب‌وکار با یک کارت ویزیت و یک بیولینک',
       'نمایش تمامی فیلدها بدون محدودیت',
     ],
     sortOrder: 2,
@@ -115,10 +119,11 @@ export const DEFAULT_PLANS: PlanDefinition[] = [
     price: 199_000,
     maxBiolinks: 3,
     maxBusinessCards: 3,
+    maxBusinesses: 3,
     showSocialLinks: true,
     hiddenFields: [],
     features: [
-      'ساخت سه کارت ویزیت و سه بیولینک',
+      'سه کسب‌وکار؛ هر کسب‌وکار یک کارت ویزیت و یک بیولینک',
       'دارای تمامی امکانات اشتراک اکو',
     ],
     sortOrder: 3,
@@ -201,6 +206,7 @@ export interface PlanLimits {
   name: string;
   maxBiolinks: number;
   maxBusinessCards: number;
+  maxBusinesses: number;
   showSocialLinks: boolean;
   hiddenFields: string[];
 }
@@ -269,6 +275,7 @@ export function planLimitsFrom(plan: {
   name: string;
   maxBiolinks: number;
   maxBusinessCards: number;
+  maxBusinesses?: number | null;
   showSocialLinks: boolean;
   hiddenFields?: string[] | null;
 } | null | undefined): PlanLimits {
@@ -277,6 +284,7 @@ export function planLimitsFrom(plan: {
       name: DEFAULT_PLAN.name,
       maxBiolinks: DEFAULT_PLAN.maxBiolinks,
       maxBusinessCards: DEFAULT_PLAN.maxBusinessCards,
+      maxBusinesses: DEFAULT_PLAN.maxBusinesses,
       showSocialLinks: DEFAULT_PLAN.showSocialLinks,
       hiddenFields: DEFAULT_PLAN.hiddenFields,
     };
@@ -285,6 +293,7 @@ export function planLimitsFrom(plan: {
     name: plan.name,
     maxBiolinks: plan.maxBiolinks,
     maxBusinessCards: plan.maxBusinessCards,
+    maxBusinesses: Math.max(1, Number(plan.maxBusinesses ?? 1)),
     showSocialLinks: plan.showSocialLinks,
     hiddenFields: hiddenFieldsFrom(plan),
   };

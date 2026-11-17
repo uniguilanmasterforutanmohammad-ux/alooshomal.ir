@@ -8,6 +8,7 @@ import {
   Banknote,
   BarChart3,
   BookOpen,
+  Building2,
   Coins,
   Crown,
   CreditCard,
@@ -55,6 +56,7 @@ export type AdminSection =
   | 'business-cards'
   | 'claim-requests'
   | 'subscriptions'
+  | 'business-modules'
   | 'boosts'
   | 'ads'
   | 'points'
@@ -130,6 +132,7 @@ const NAV_GROUPS: Array<{
     title: 'درآمد و پرداخت',
     items: [
       { key: 'subscriptions', label: 'اشتراک‌ها', icon: Crown },
+      { key: 'business-modules', label: 'ماژول‌های کسب‌وکار', icon: Building2 },
       { key: 'boosts', label: 'افزایش بازدید', icon: TrendingUp },
       { key: 'ads', label: 'تبلیغات', icon: Megaphone },
       { key: 'points', label: 'امتیازها', icon: Coins },

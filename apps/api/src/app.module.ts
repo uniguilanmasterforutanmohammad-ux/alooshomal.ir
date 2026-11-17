@@ -19,6 +19,7 @@ import { BlogModule } from './blog/blog.module';
 import { BoostsModule } from './boosts/boosts.module';
 import { BusinessCardsModule } from './businesscards/business-cards.module';
 import { BusinessModulesModule } from './business-modules/business-modules.module';
+import { WorkspaceContextInterceptor } from './business-modules/workspace-context.interceptor';
 import { CrmModule } from './crm/crm.module';
 import { FeedsModule } from './feeds/feeds.module';
 import { FinanceModule } from './finance/finance.module';
@@ -101,6 +102,7 @@ import { ZohalModule } from './zohal/zohal.module';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: PermissionsGuard },
     { provide: APP_INTERCEPTOR, useClass: ActivityContextInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: WorkspaceContextInterceptor },
   ],
 })
 export class AppModule {}
