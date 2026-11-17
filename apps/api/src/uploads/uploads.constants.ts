@@ -24,7 +24,8 @@ export type UploadCategoryKey =
   | 'avatar'
   | 'feed'
   | 'gallery'
-  | 'document';
+  | 'document'
+  | 'receipt';
 
 export const UPLOAD_CATEGORIES: Record<UploadCategoryKey, UploadCategory> = {
   logo: { folder: 'logos', maxWidth: 512, maxHeight: 512, label: 'لوگو' },
@@ -49,6 +50,13 @@ export const UPLOAD_CATEGORIES: Record<UploadCategoryKey, UploadCategory> = {
     maxWidth: 0,
     maxHeight: 0,
     label: 'مدارک',
+  },
+  // Customer-uploaded bank transfer receipts (image or PDF), stored as-is.
+  receipt: {
+    folder: 'receipts',
+    maxWidth: 0,
+    maxHeight: 0,
+    label: 'رسید پرداخت',
   },
 };
 

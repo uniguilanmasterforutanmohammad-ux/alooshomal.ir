@@ -2,10 +2,17 @@
 
 import { useState } from 'react';
 
+import { CardToCardForm } from '@/components/payments/CardToCardForm';
 import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
 
-export function StayBookingForm({ slug }: { slug: string }) {
+export function StayBookingForm({
+  slug,
+  publicSlug,
+}: {
+  slug: string;
+  publicSlug?: string | null;
+}) {
   const [form, setForm] = useState({
     guestName: '',
     guestPhone: '',
@@ -83,6 +90,15 @@ export function StayBookingForm({ slug }: { slug: string }) {
               ? 'در حال انتقال به درگاه…'
               : `پرداخت ودیعه (${booking.depositAmount.toLocaleString('fa-IR')} تومان)`}
           </button>
+        ) : null}
+        {publicSlug ? (
+          <CardToCardForm
+            slug={publicSlug}
+            referenceType="BOOKING"
+            referenceId={booking.id}
+            defaultAmount={booking.depositAmount > 0 ? booking.depositAmount : undefined}
+            title="یا پرداخت ودیعه با کارت به کارت"
+          />
         ) : null}
       </div>
     );

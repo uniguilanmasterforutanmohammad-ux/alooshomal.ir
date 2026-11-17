@@ -20,7 +20,47 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.26.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.27.0**.
+
+## ۱۴۰۵/۰۸/۲۷ — ماژول پرداخت کارت به کارت با آپلود و تأیید رسید — نسخه `v4.27.0`
+
+**هدف:** فعال‌کردن پرداخت کارت به کارت مشتری نهایی به کسب‌وکارها با تمام
+جزئیات: ثبت شماره کارت توسط مدیر کسب‌وکار، آپلود رسید توسط مشتری، و تأیید/رد
+رسید در پنل کسب‌وکار، با اتصال خودکار به سفارش فروشگاه و ودیعه‌ی رزرو.
+
+**تغییرات:**
+- `apps/api/src/card-to-card/`: ماژول کامل NestJS شامل تنظیمات کارت
+  (GET/PUT)، صف رسیدها، تأیید/رد رسید، و کنترلرهای عمومی اطلاعات کارت و ثبت
+  رسید، با `@RequireModule('cardToCard')` و مستندسازی Swagger.
+- `apps/api/src/uploads/`: دسته‌ی تازه‌ی `receipt` و `uploadReceipt`، به‌همراه
+  کنترلر عمومی `POST /public/uploads/receipt` (تصویر/PDF تا ۵ مگابایت).
+- `apps/api/src/accommodations/accommodations.service.ts`: افزودن `publicSlug`
+  به خروجی عمومی اقامتگاه برای فرم کارت به کارت.
+- `apps/api/src/app.module.ts` و `business-modules.registry.ts`: ثبت ماژول و
+  افزودن `cardToCard` به بسته‌های `dailyRental` و `retail`.
+- `apps/api/src/settings/settings.constants.ts`: سوئیچ `featureCardToCard`.
+- `apps/web/components/payments/CardToCardForm.tsx`: فرم قابل استفاده‌ی مجدد
+  نمایش کارت، آپلود رسید و ارسال برای تأیید.
+- `apps/web/app/dashboard/business/card-to-card/page.tsx`: صفحه‌ی تنظیمات کارت
+  و صف رسیدها با تأیید/رد.
+- `apps/web/components/shop/ShopOrderForm.tsx`،
+  `apps/web/components/stay/StayBookingForm.tsx` و
+  `apps/web/app/stay/[slug]/page.tsx`: اتصال فرم کارت به کارت به سفارش فروشگاه
+  و ودیعه‌ی رزرو.
+- `apps/web/lib/api/types/business-modules.ts` و `docs/API.md`: تایپ‌ها و
+  مستندسازی مسیرهای تازه.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- `python3 scripts/check_api_docs.py` → 51 کنترلر و 518 مسیر، همه با
+  `@ApiOperation`/`@ApiTags`.
+- تست واقعی: ثبت شماره کارت (`PUT /card-to-card/settings`)، دریافت اطلاعات
+  عمومی کارت، آپلود رسید PNG از `POST /public/uploads/receipt`، ثبت رسید برای
+  سفارش (`POST /public/card-to-card/<slug>/payments`)، مشاهده در صف
+  `PENDING`، تأیید رسید و بررسی تبدیل سفارش به `CONFIRMED`/`PAID`.
+- رندر صفحات `/shop/<slug>`، `/stay/<slug>` و چهار صفحه‌ی پنل کسب‌وکار با
+  کد ۲۰۰.
 
 ## ۱۴۰۵/۰۸/۲۷ — تکمیل کارت «فروشگاه و خرده‌فروشی» با ماژول‌های محصول، سفارش و انبار — نسخه `v4.26.0`
 

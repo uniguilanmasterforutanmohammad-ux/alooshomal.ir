@@ -780,6 +780,23 @@ PY
 کنترل می‌شوند و صفحه‌ی `/shop` با سوئیچ «نمایش» `featureRetailCatalog` پنهان
 می‌شود.
 
+### پرداخت کارت به کارت (`/api/card-to-card`)
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET/PUT` | `/card-to-card/settings` | مشاهده/ثبت شماره کارت، صاحب کارت، بانک، شبا و توضیح واریز. |
+| `GET` | `/card-to-card/payments` | صف رسیدهای دریافتی (فیلتر `status`). |
+| `PATCH` | `/card-to-card/payments/:id` | تأیید/رد رسید (`{ status: 'APPROVED' \| 'REJECTED', reviewNote }`). |
+
+مسیرهای عمومی (بدون احراز هویت):
+`GET /public/card-to-card/:slug` اطلاعات کارت کسب‌وکار،
+`POST /public/card-to-card/:slug/payments` ثبت رسید توسط مشتری، و
+`POST /public/uploads/receipt` آپلود فایل رسید (تصویر یا PDF، حداکثر ۵ مگابایت).
+با تأیید رسیدی که `referenceType` آن `ORDER` است، سفارش مرتبط
+`paymentStatus=PAID` (و در صورت `PENDING` بودن، `status=CONFIRMED`) می‌شود؛
+برای `referenceType=BOOKING` وضعیت ودیعه‌ی رزرو `PAID` ثبت می‌شود. ماژول با
+سوئیچ `featureCardToCard` کنترل می‌شود.
+
 ## وظیفه‌ی دائمی ایجنت (قانون ۸)
 
 هنگام **افزودن یا تغییر هر مسیر API**، ایجنت موظف است پیش از اعلام اتمام کار:

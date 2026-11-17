@@ -139,6 +139,7 @@ export interface AccommodationProperty {
   workspace?: {
     id: string;
     name: string;
+    publicSlug?: string | null;
     channels: Array<{ id: string; name: string; kind: string; url: string | null }>;
   };
 }
@@ -300,6 +301,48 @@ export interface RetailInventory {
 export interface PublicShop {
   workspace: { id: string; name: string; publicSlug: string | null };
   products: RetailProduct[];
+  card: {
+    cardNumber: string;
+    holderName: string;
+    bankName: string | null;
+    instructions: string | null;
+  } | null;
+}
+
+export interface CardToCardAccount {
+  id: string;
+  workspaceId: string;
+  cardNumber: string;
+  holderName: string;
+  bankName: string | null;
+  iban: string | null;
+  instructions: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CardToCardPayment {
+  id: string;
+  workspaceId: string;
+  referenceType: string | null;
+  referenceId: string | null;
+  customerName: string;
+  customerPhone: string;
+  amount: number;
+  paidAt: string | null;
+  trackingNumber: string | null;
+  receiptUrl: string;
+  note: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | string;
+  reviewNote: string | null;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  createdAt: string;
+}
+
+export interface PublicCardInfo {
+  workspace: { id: string; name: string };
   card: {
     cardNumber: string;
     holderName: string;

@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Check, Copy, Minus, Plus, ShoppingBag } from 'lucide-react';
+import { Check, Minus, Plus, ShoppingBag } from 'lucide-react';
 
+import { CardToCardForm } from '@/components/payments/CardToCardForm';
 import { api, type PublicShop, type RetailOrder } from '@/lib/api';
 import { toast } from '@/lib/toast';
 
@@ -20,7 +21,6 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
   });
   const [busy, setBusy] = useState(false);
   const [order, setOrder] = useState<RetailOrder | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const lines = useMemo(
     () =>
@@ -73,17 +73,6 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
     }
   }
 
-  async function copyCard() {
-    if (!shop.card) return;
-    try {
-      await navigator.clipboard.writeText(shop.card.cardNumber);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast.error('کپی شماره کارت ممکن نشد');
-    }
-  }
-
   if (order) {
     return (
       <div className="indeed-panel flex flex-col gap-3 p-5">
@@ -98,25 +87,14 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
           مبلغ قابل پرداخت: {order.totalAmount.toLocaleString('fa-IR')} تومان
         </p>
         {order.paymentMethod === 'CARD_TO_CARD' && shop.card ? (
-          <div className="rounded-lg bg-[var(--vintage-paper)] p-3 text-xs">
-            <p className="font-bold text-ink">پرداخت کارت به کارت</p>
-            <p className="mt-1 text-muted">
-              مبلغ را به کارت زیر واریز کنید و سپس رسید را برای تأیید ارسال کنید.
-            </p>
-            <p className="mt-2 flex items-center gap-2 font-mono text-sm text-ink">
-              {shop.card.cardNumber}
-              <button type="button" onClick={() => void copyCard()} className="text-brand" aria-label="کپی شماره کارت">
-                {copied ? <Check className="size-4" aria-hidden /> : <Copy className="size-4" aria-hidden />}
-              </button>
-            </p>
-            <p className="text-muted">
-              به نام {shop.card.holderName}
-              {shop.card.bankName ? ` • ${shop.card.bankName}` : ''}
-            </p>
-            {shop.card.instructions ? (
-              <p className="mt-2 whitespace-pre-line text-muted">{shop.card.instructions}</p>
-            ) : null}
-          </div>
+          <CardToCardForm
+            slug={shop.workspace.publicSlug ?? ''}
+            card={shop.card}
+            referenceType="ORDER"
+            referenceId={order.id}
+            defaultAmount={order.totalAmount}
+            title="پرداخت سفارش با کارت به کارت"
+          />
         ) : null}
         <button type="button" onClick={() => setOrder(null)} className="indeed-btn justify-self-start">
           ثبت سفارش دیگر

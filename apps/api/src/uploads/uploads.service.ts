@@ -98,10 +98,29 @@ export class UploadsService {
     ownerId: string,
     file: Express.Multer.File | undefined,
   ): Promise<UploadResult> {
+    return this.uploadRaw('document', ownerId, file);
+  }
+
+  /**
+   * Store a customer-submitted bank-transfer receipt. Same validation as
+   * documents (PDF or image, 5 MB) but under the `receipts` folder.
+   */
+  async uploadReceipt(
+    ownerKey: string,
+    file: Express.Multer.File | undefined,
+  ): Promise<UploadResult> {
+    return this.uploadRaw('receipt', ownerKey, file);
+  }
+
+  private async uploadRaw(
+    category: 'document' | 'receipt',
+    ownerKey: string,
+    file: Express.Multer.File | undefined,
+  ): Promise<UploadResult> {
     if (!file?.buffer) {
       throw new BadRequestException('فایلی آپلود نشده است');
     }
-    await this.rateLimit.hit(RATE_LIMITS.upload, ownerId);
+    await this.rateLimit.hit(RATE_LIMITS.upload, ownerKey);
     if (file.size > MAX_DOCUMENT_BYTES) {
       throw new BadRequestException(
         `حجم فایل نباید بیشتر از ${Math.floor(MAX_DOCUMENT_BYTES / 1024 / 1024).toLocaleString('fa-IR')} مگابایت باشد`,
@@ -119,8 +138,8 @@ export class UploadsService {
     }
     const ext = DOCUMENT_EXTENSIONS[file.mimetype] ?? 'bin';
     const stored = await this.storage.put(
-      UPLOAD_CATEGORIES.document.folder,
-      ownerId,
+      UPLOAD_CATEGORIES[category].folder,
+      ownerKey,
       file.buffer,
       ext,
       file.mimetype,

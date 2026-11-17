@@ -335,6 +335,7 @@ export class AccommodationsService {
           select: {
             id: true,
             name: true,
+            publicSlug: true,
             channels: {
               where: { isActive: true },
               orderBy: { sortOrder: 'asc' },

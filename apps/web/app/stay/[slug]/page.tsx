@@ -133,7 +133,10 @@ export default async function StayDetailPage({
               </p>
             ) : null}
             <div className="mt-4">
-              <StayBookingForm slug={stay.slug} />
+              <StayBookingForm
+                slug={stay.slug}
+                publicSlug={stay.workspace?.publicSlug ?? null}
+              />
             </div>
           </div>
         </aside>
