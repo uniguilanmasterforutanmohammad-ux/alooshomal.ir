@@ -13,7 +13,9 @@ name: alooshomal
 
 services:
   db:
-    image: postgres:17-alpine
+    # Base images are mirrored to GHCR by the deploy workflow: Docker Hub
+    # rate-limits/blocks anonymous pulls from the deploy server (403).
+    image: ${POSTGRES_IMAGE:-ghcr.io/uniguilanmasterforutanmohammad-ux/alooshomal.ir-postgres:17-alpine}
     container_name: alooshomal-db
     restart: unless-stopped
     environment:
@@ -31,7 +33,7 @@ services:
       - alooshomal
 
   redis:
-    image: redis:7-alpine
+    image: ${REDIS_IMAGE:-ghcr.io/uniguilanmasterforutanmohammad-ux/alooshomal.ir-redis:7-alpine}
     container_name: alooshomal-redis
     restart: unless-stopped
     command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "192mb", "--maxmemory-policy", "allkeys-lru"]
@@ -202,7 +204,7 @@ services:
       - alooshomal
 
   nginx:
-    image: nginx:1.27-alpine
+    image: ${NGINX_IMAGE:-ghcr.io/uniguilanmasterforutanmohammad-ux/alooshomal.ir-nginx:1.27-alpine}
     container_name: alooshomal-nginx
     restart: unless-stopped
     depends_on:

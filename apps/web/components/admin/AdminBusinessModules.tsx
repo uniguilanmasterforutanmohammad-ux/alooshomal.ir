@@ -156,10 +156,10 @@ export function AdminBusinessModules() {
 
   const modulesByGroup = useMemo(() => {
     const groups = new Map<string, AdminModuleRow[]>();
-    for (const module of catalog?.modules ?? []) {
-      const list = groups.get(module.group) ?? [];
-      list.push(module);
-      groups.set(module.group, list);
+    for (const moduleDef of catalog?.modules ?? []) {
+      const list = groups.get(moduleDef.group) ?? [];
+      list.push(moduleDef);
+      groups.set(moduleDef.group, list);
     }
     return Array.from(groups.entries());
   }, [catalog]);

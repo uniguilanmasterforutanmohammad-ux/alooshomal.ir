@@ -17,13 +17,6 @@ env:
   REGISTRY: ghcr.io
   # github.repository is already lowercase (e.g. uniguilanmasterforutanmohammad-ux/alooshomal.ir)
   IMAGE_PREFIX: ghcr.io/${{ github.repository }}
-  # Object storage. MinIO withdrew its official images in 2025 (`minio/minio`
-  # was deleted from Docker Hub, dl.min.io returns 410 and the repo is
-  # archived), so we mirror the community fork `pgsty/silo` into GHCR. It is a
-  # drop-in replacement: same S3 API, same `MINIO_*` env vars, same `mc ready
-  # local` healthcheck. Pin the immutable `RELEASE.*` tag, never `latest`.
-  MINIO_SOURCE: docker.io/pgsty/silo
-  MINIO_TAG: RELEASE.2026-09-16T00-00-00Z
 
 jobs:
   build-and-push:
@@ -79,12 +72,33 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,mode=max,scope=${{ matrix.name }}
 
-  mirror-minio:
-    name: Mirror object-storage image to GHCR
+  mirror-images:
+    name: Mirror ${{ matrix.name }} image to GHCR
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # MinIO withdrew its official images in 2025, so we mirror the
+          # community fork. The base services are mirrored too: Docker Hub
+          # rate-limits/blocks anonymous pulls from the deploy server (403),
+          # which used to break `docker compose pull` before the app images
+          # even started.
+          - name: minio
+            source: docker.io/pgsty/silo
+            tag: RELEASE.2026-09-16T00-00-00Z
+          - name: redis
+            source: docker.io/library/redis
+            tag: 7-alpine
+          - name: postgres
+            source: docker.io/library/postgres
+            tag: 17-alpine
+          - name: nginx
+            source: docker.io/library/nginx
+            tag: 1.27-alpine
 
     steps:
       - name: Set up Docker Buildx
@@ -99,13 +113,13 @@ jobs:
 
       # Copy the manifest straight between registries (no layer download on the
       # runner) so the mirrored image keeps every published architecture.
-      - name: Mirror ${{ env.MINIO_SOURCE }} to ${{ env.IMAGE_PREFIX }}-minio
+      - name: Mirror ${{ matrix.source }}:${{ matrix.tag }}
         run: |
           set -e
           docker buildx imagetools create \
-            --tag "${IMAGE_PREFIX}-minio:${MINIO_TAG}" \
-            --tag "${IMAGE_PREFIX}-minio:latest" \
-            "${MINIO_SOURCE}:${MINIO_TAG}"
+            --tag "${IMAGE_PREFIX}-${{ matrix.name }}:${{ matrix.tag }}" \
+            --tag "${IMAGE_PREFIX}-${{ matrix.name }}:latest" \
+            "${{ matrix.source }}:${{ matrix.tag }}"
 
       # A freshly pushed package defaults to private even on a public repo; the
       # server pulls it anonymously, so make it public. Best-effort: if the
@@ -116,7 +130,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -e
-          pkg="${GITHUB_REPOSITORY#*/}-minio"
+          pkg="${GITHUB_REPOSITORY#*/}-${{ matrix.name }}"
           for scope in "/user" "/users/${GITHUB_REPOSITORY%%/*}" "/orgs/${GITHUB_REPOSITORY%%/*}"; do
             code=$(curl -sS -X PATCH \
               -H "Authorization: Bearer ${GH_TOKEN}" \
@@ -130,7 +144,7 @@ jobs:
 
   deploy:
     name: Deploy to server
-    needs: [build-and-push, mirror-minio]
+    needs: [build-and-push, mirror-images]
     runs-on: ubuntu-latest
     permissions:
       contents: read

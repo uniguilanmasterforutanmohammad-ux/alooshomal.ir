@@ -20,7 +20,40 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.28.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.28.1**.
+
+## ۱۴۰۵/۰۸/۲۷ — رفع سه خطای CI/دیپلوی (لینت، پول ایمیج‌ها، tsconfig) — نسخه `v4.28.1`
+
+**هدف:** رفع سه خطای گزارش‌شده در خط لوله‌ی CI و دیپلوی:
+۱) خطای لینت وب، ۲) شکست `docker compose pull` روی سرور به‌دلیل ۴۰۳ داکرهاب
+برای `redis:7-alpine`، ۳) خطاهای منسوخ‌شدن `moduleResolution=node10` و
+`baseUrl` در tsconfig با نسخه‌ی جدید TypeScript.
+
+**تغییرات:**
+- `apps/web/components/admin/AdminBusinessModules.tsx`: تغییر نام متغیر
+  حلقه از `module` به `moduleDef` برای رفع خطای
+  `@next/next/no-assign-module-variable` (تنها خطای لینت؛ بقیه هشدار بودند).
+- `.github/workflows/deploy.yml`: تبدیل جاب `mirror-minio` به
+  `mirror-images` با ماتریس `minio/redis/postgres/nginx` و آینه‌کردن همه در
+  GHCR تا سرور به Docker Hub وابسته نباشد؛ `deploy` به همین جاب وابسته شد.
+- `docker-compose.prod.yml`: تصاویر `postgres`، `redis` و `nginx` به آینه‌ی
+  GHCR با متغیرهای قابل بازنویسی (`POSTGRES_IMAGE`، `REDIS_IMAGE`،
+  `NGINX_IMAGE`) تغییر کردند.
+- `apps/api/tsconfig.json`: مهاجرت از `module/commonjs` +
+  `moduleResolution/node` به `node16` و حذف `baseUrl` (مسیرها نسبت به
+  tsconfig حل می‌شوند) برای سازگاری با TypeScript 6/7.
+
+**تأیید/تست:**
+- `docker exec alooshomal-web npx eslint .` → صفر خطا (فقط هشدارها).
+- `docker exec alooshomal-web npx tsc --noEmit` و
+  `docker exec alooshomal-api npx tsc --noEmit` بدون خطا.
+- `docker exec alooshomal-api npm run build` موفق؛ API پس از ری‌استارت
+  (health=200) سالم است.
+- `docker exec alooshomal-api npx eslint src` → صفر خطا.
+- اعتبارسنجی YAML هر دو فایل و `docker compose -f docker-compose.prod.yml
+  config` با تصاویر GHCR جدید بدون خطا.
+- `check_api_docs.py` و `check_modules.py` سبز؛ `sync_install.py --check`
+  تمیز.
 
 ## ۱۴۰۵/۰۸/۲۷ — شمسی‌شدن همه‌ی تقویم‌ها و دیتاپیکرها + ظاهر مدرن — نسخه `v4.28.0`
 
