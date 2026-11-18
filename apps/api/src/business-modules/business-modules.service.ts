@@ -66,6 +66,14 @@ export interface ResolvedWorkspace {
   industries: IndustryPackageDefinition[];
   /** Plan capacity for business workspaces + how many are used. */
   capacity: { max: number; used: number };
+  /**
+   * True once a «مدیریت کسب‌وکار» has actually been bought for this workspace:
+   * the industry package is then fixed (renaming stays allowed) and the other
+   * packages are no longer offered — a different trade needs a new workspace.
+   */
+  industryLocked: boolean;
+  /** End of the paid management term (ISO date) or `null` when nothing is paid. */
+  subscriptionPaidUntil: string | null;
 }
 
 export interface ManagementDefinition extends IndustryPackageDefinition {
@@ -106,6 +114,8 @@ export interface ManagementPackageView {
   active: boolean;
   activeModules: number;
   moduleCount: number;
+  /** End of this package's paid term (ISO date) or `null` when not paid. */
+  paidUntil: string | null;
 }
 
 export interface AdminManagementModuleView {
@@ -533,6 +543,28 @@ export class BusinessModulesService implements OnModuleInit {
     );
   }
 
+  /**
+   * Whether a «مدیریت کسب‌وکار» has been bought for this workspace, plus when
+   * the paid term ends. A purchase row is the signal — free activations keep
+   * the industry editable — and the expiry is the latest paid activation.
+   */
+  private async paidState(workspaceId: string): Promise<{
+    locked: boolean;
+    paidUntil: Date | null;
+  }> {
+    const [paidCount, latest] = await Promise.all([
+      this.prisma.businessModulePurchase.count({
+        where: { workspaceId, status: 'PAID' },
+      }),
+      this.prisma.businessModuleActivation.findFirst({
+        where: { workspaceId, paidUntil: { not: null } },
+        orderBy: { paidUntil: 'desc' },
+        select: { paidUntil: true },
+      }),
+    ]);
+    return { locked: paidCount > 0, paidUntil: latest?.paidUntil ?? null };
+  }
+
   async listWorkspaces(userId: string): Promise<WorkspaceSummary[]> {
     await this.ensureManagementsLoaded();
     const rows = await this.prisma.businessWorkspace.findMany({
@@ -594,6 +626,17 @@ export class BusinessModulesService implements OnModuleInit {
     if (!workspace) throw new NotFoundException('کسب‌وکار پیدا نشد');
     if (dto.industryKey && !this.management(dto.industryKey)) {
       throw new BadRequestException('صنف انتخاب‌شده معتبر نیست');
+    }
+    if (
+      dto.industryKey &&
+      dto.industryKey !== workspace.industryKey &&
+      (await this.paidState(workspaceId)).locked
+    ) {
+      throw new ForbiddenException({
+        message:
+          'پس از خرید «مدیریت کسب‌وکار»، صنف این کسب‌وکار ثابت می‌شود. برای صنف دیگر یک کسب‌وکار جدید بسازید.',
+        code: 'INDUSTRY_LOCKED',
+      });
     }
     await this.prisma.$transaction(async (tx) => {
       if (dto.isDefault) {
@@ -739,6 +782,7 @@ export class BusinessModulesService implements OnModuleInit {
       this.subscriptions.limitsForUser(userId),
       this.prisma.businessWorkspace.count({ where: { ownerId: userId } }),
     ]);
+    const paid = await this.paidState(workspace.id);
 
     return {
       id: workspace.id,
@@ -749,6 +793,10 @@ export class BusinessModulesService implements OnModuleInit {
       modules,
       industries: this.managementCache,
       capacity: { max: limits.maxBusinesses, used },
+      industryLocked: paid.locked,
+      subscriptionPaidUntil: paid.paidUntil
+        ? paid.paidUntil.toISOString()
+        : null,
     };
   }
 
@@ -773,6 +821,13 @@ export class BusinessModulesService implements OnModuleInit {
       throw new BadRequestException('صنف انتخاب‌شده معتبر نیست');
     }
     const workspace = await this.ensureWorkspace(userId);
+    if ((await this.paidState(workspace.id)).locked) {
+      throw new ForbiddenException({
+        message:
+          'پس از خرید «مدیریت کسب‌وکار»، صنف این کسب‌وکار ثابت می‌شود. برای صنف دیگر یک کسب‌وکار جدید بسازید.',
+        code: 'INDUSTRY_LOCKED',
+      });
+    }
     const keys = industry.defaultModules;
 
     await this.prisma.$transaction([
@@ -914,8 +969,18 @@ export class BusinessModulesService implements OnModuleInit {
       workspace.modules.map((row) => [row.moduleKey, row]),
     );
     const now = Date.now();
+    const paid = await this.paidState(workspace.id);
 
-    return this.managementCache.filter((industry) => industry.available).map((industry) => {
+    // Once a management is bought, the trade is fixed: only that package is
+    // offered (to renew/upgrade), so the user is never nudged into a second
+    // unrelated package inside the same workspace.
+    return this.managementCache
+      .filter(
+        (industry) =>
+          industry.available &&
+          (!paid.locked || industry.key === workspace.industryKey),
+      )
+      .map((industry) => {
       const modules: ResolvedBusinessModule[] = BUSINESS_MODULES.filter(
         (definition) => industry.modules.includes(definition.key),
       ).map((definition) => {
@@ -941,6 +1006,12 @@ export class BusinessModulesService implements OnModuleInit {
       });
       const billable = modules.filter((module) => module.billable);
       const totalPrice = billable.reduce((sum, module) => sum + module.price, 0);
+      const paidUntil =
+        modules
+          .map((module) => module.paidUntil)
+          .filter((value): value is string => Boolean(value))
+          .sort()
+          .pop() ?? null;
       return {
         key: industry.key,
         label: industry.label,
@@ -954,6 +1025,7 @@ export class BusinessModulesService implements OnModuleInit {
         active: modules.every((module) => module.enabled),
         activeModules: modules.filter((module) => module.enabled).length,
         moduleCount: modules.length,
+        paidUntil,
       };
     });
   }

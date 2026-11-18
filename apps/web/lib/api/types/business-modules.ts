@@ -55,6 +55,10 @@ export interface BusinessWorkspace {
   modules: ResolvedBusinessModule[];
   industries: IndustryPackage[];
   capacity: { max: number; used: number };
+  /** A management package has been bought, so the industry is fixed. */
+  industryLocked: boolean;
+  /** End of the paid management term (ISO date) or null. */
+  subscriptionPaidUntil: string | null;
 }
 
 export interface BusinessWorkspaceSummary {
@@ -88,6 +92,8 @@ export interface ManagementPackage {
   active: boolean;
   activeModules: number;
   moduleCount: number;
+  /** End of this package's paid term (ISO date) or null. */
+  paidUntil: string | null;
 }
 
 export interface ManagementTerm {

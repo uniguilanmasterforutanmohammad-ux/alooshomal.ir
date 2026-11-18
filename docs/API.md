@@ -701,13 +701,13 @@ PY
 | `POST` | `/business-modules/workspaces` | ساخت کسب‌وکار جدید (سقف اشتراک). |
 | `PATCH` | `/business-modules/workspaces/:id` | ویرایش نام/صنف/پیش‌فرض. |
 | `DELETE` | `/business-modules/workspaces/:id` | حذف کسب‌وکار (حداقل یکی می‌ماند). |
-| `GET` | `/business-modules/my` | کسب‌وکار فعال: ماژول‌ها، قیمت، قفل خرید و ظرفیت اشتراک. |
+| `GET` | `/business-modules/my` | کسب‌وکار فعال: ماژول‌ها، قیمت، قفل خرید، ظرفیت اشتراک، `industryLocked` و `subscriptionPaidUntil` (پایان دوره‌ی مدیریت خریداری‌شده). |
 | `PATCH` | `/business-modules/my` | تغییر نام نمایشی کسب‌وکار. |
-| `PATCH` | `/business-modules/my/industry` | انتخاب بسته‌ی صنف (ماژول‌های پیش‌فرض افزودنی فعال می‌شوند). |
+| `PATCH` | `/business-modules/my/industry` | انتخاب بسته‌ی صنف (ماژول‌های پیش‌فرض افزودنی فعال می‌شوند). پس از خرید یک «مدیریت کسب‌وکار» با کد `INDUSTRY_LOCKED` (۴۰۳) رد می‌شود. |
 | `PATCH` | `/business-modules/my/:key` | فعال/غیرفعال‌کردن ماژول؛ خرید و وابستگی‌ها بررسی می‌شوند. |
 | `POST` | `/business-modules/my/:key/purchase` | خرید ماژول (کیف پول/پی‌پینگ) و فعال‌سازی پس از پرداخت. |
 | `GET` | `/business-modules/purchases` | سابقه‌ی خرید ماژول‌ها. |
-| `GET` | `/business-modules/managements` | فهرست «مدیریت کسب‌وکار»ها با ماژول‌های فعال و قیمت کل (مجموع قیمت ماژول‌ها). |
+| `GET` | `/business-modules/managements` | فهرست «مدیریت کسب‌وکار»ها با ماژول‌های فعال، قیمت کل و `paidUntil` (پایان دوره‌ی خریداری‌شده). پس از خرید، فقط بسته‌ی همان کسب‌وکار برمی‌گردد تا کاربر به صنف دیگری هدایت نشود. |
 | `POST` | `/business-modules/managements/:key/purchase` | خرید/فعال‌سازی کل یک «مدیریت کسب‌وکار» (کیف پول/پی‌پینگ)؛ بدنه‌ی اختیاری `{ months: 1|3|6|12, returnTo }`. مبلغ = مجموع قیمت ماهانه‌ی ماژول‌های خریداری‌نشده × تعداد ماه × (۱ − درصد تخفیف دوره). |
 | `GET/POST` | `/business-modules/payments/callback` | بازگشت درگاه پس از خرید ماژول. |
 

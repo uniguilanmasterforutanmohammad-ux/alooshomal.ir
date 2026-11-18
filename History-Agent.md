@@ -20,7 +20,43 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.32.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.33.0**.
+
+## ۱۴۰۵/۰۸/۲۷ — قفل صنف، پنهان‌کردن بسته‌های دیگر و نمایش انقضای مدیریت کسب‌وکار — نسخه `v4.33.0`
+
+**هدف:** در `/dashboard/business` پس از خرید یک «مدیریت کسب‌وکار»: (۱) صنف
+دیگر قابل تغییر نباشد، (۲) سایر بسته‌ها دیگر پیشنهاد نشوند (برای صنف دیگر باید
+کسب‌وکار جدید بسازد)، و (۳) تاریخ انقضای دوره‌ی مدیریت به کاربر نشان داده شود.
+
+**تغییرات:**
+- `apps/api/src/business-modules/business-modules.service.ts`: متد کمکی
+  `paidState` (خرید ثبت‌شده = قفل؛ انقضا = آخرین `paidUntil` فعال)؛ افزودن
+  `industryLocked` و `subscriptionPaidUntil` به خروجی `resolve`؛ رد
+  `PATCH /business-modules/my/industry` و تغییر صنف از مسیر ادمین با خطای
+  `INDUSTRY_LOCKED`؛ فیلترکردن `listManagements` به بسته‌ی همان کسب‌وکار پس از
+  خرید و افزودن `paidUntil` به هر بسته. (تغییر نام همچنان آزاد است.)
+- `apps/web/lib/api/types/business-modules.ts`: افزودن فیلدهای
+  `industryLocked`/`subscriptionPaidUntil`/`paidUntil`.
+- `apps/web/app/dashboard/business/page.tsx`: نشان «اعتبار مدیریت تا …» در
+  سربرگ و «اعتبار دوره تا …» روی کارت بسته (تاریخ شمسی)، غیرفعال‌کردن
+  انتخابگر صنف با پیام توضیحی پس از خرید، و متن راهنمای بخش بسته‌ها.
+- `apps/web/app/payments/simulate/page.tsx`: افزودن
+  `/api/business-modules/payments/callback` به فهرست مسیرهای مجاز برگشت
+  (فقط محیط توسعه) تا خرید مدیریت کسب‌وکار محلی هم کامل شود.
+- `docs/API.md` و `apps/web/lib/version.ts`: به‌روزرسانی قرارداد و نسخه.
+
+**تأیید/تست:**
+- خرید واقعی شبیه‌سازی‌شده روی داده‌ی محلی: `POST /business-modules/managements/dailyRental/purchase`
+  سپس کالبک `GET /business-modules/payments/callback` → `purchase=success`.
+- قبل از خرید: `industryLocked=false` و هر دو بسته (`dailyRental`, `retail`) دیده
+  می‌شدند. بعد از خرید: `industryLocked=true`، `subscriptionPaidUntil` یک ماه بعد،
+  `managements` فقط `dailyRental` با `paidUntil`، و
+  `PATCH /my/industry` با ۴۰۳ و کد `INDUSTRY_LOCKED` رد شد.
+- بررسی زنده‌ی UI با Playwright: نشان «اعتبار مدیریت تا ۱۴۰۵/۰۹/۲۷»، کارت
+  «اعتبار دوره تا ۱۴۰۵/۰۹/۲۷»، انتخابگر صنف `disabled` و «۱ مدیریت قابل انتخاب»؛
+  بدون خطای صفحه.
+- `tsc` در `apps/web` و `apps/api` (داخل کانتینر) بدون خطا؛ `check_api_docs.py`
+  سبز؛ `sync_install.py --check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۷ — حذف «کارت ویزیت‌های من» و «بیولینک‌های من» از سایدبار داشبورد — نسخه `v4.32.1`
 

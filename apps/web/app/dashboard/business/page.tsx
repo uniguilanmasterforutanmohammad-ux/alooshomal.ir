@@ -21,6 +21,7 @@ import type {
 } from '@/lib/api/types/business-modules';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
+import { formatJalali } from '@/lib/jalali';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 
@@ -199,6 +200,11 @@ function BusinessPanelContent() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {workspace.subscriptionPaidUntil ? (
+            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700">
+              اعتبار مدیریت تا {formatJalali(workspace.subscriptionPaidUntil)}
+            </span>
+          ) : null}
           <span className="rounded-full border border-[var(--vintage-border)] px-3 py-1.5 text-xs font-bold text-muted">
             {workspace.capacity.used} از {workspace.capacity.max} کسب‌وکار
           </span>
@@ -285,7 +291,7 @@ function BusinessPanelContent() {
             <select
               value={workspace.industryKey}
               onChange={(event) => void changeIndustry(event.target.value)}
-              disabled={busy === 'industry'}
+              disabled={busy === 'industry' || workspace.industryLocked}
               className="w-full rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-sm text-ink outline-none focus:border-brand"
             >
               {workspace.industries.map((industry) => (
@@ -294,7 +300,11 @@ function BusinessPanelContent() {
                 </option>
               ))}
             </select>
-            <p className="mt-1 text-xs text-muted">{workspace.industry.description}</p>
+            <p className="mt-1 text-xs text-muted">
+              {workspace.industryLocked
+                ? 'پس از خرید «مدیریت کسب‌وکار»، صنف این کسب‌وکار ثابت است و قابل تغییر نیست. برای صنف دیگر یک کسب‌وکار جدید بسازید.'
+                : workspace.industry.description}
+            </p>
           </div>
         </div>
       </section>
@@ -306,8 +316,9 @@ function BusinessPanelContent() {
               مدیریت کسب‌وکارها
             </h2>
             <p className="text-xs text-muted">
-              هر «مدیریت کسب‌وکار» مجموعه‌ای از ماژول‌هاست. قیمت پایه، مجموع قیمت
-              ماهانه‌ی ماژول‌هاست و دوره‌های ۱/۳/۶/۱۲ ماهه با تخفیف قابل خریدند.
+              {workspace.industryLocked
+                ? 'این کسب‌وکار بسته‌ی صنف خود را انتخاب کرده است؛ برای راه‌اندازی صنف دیگری یک کسب‌وکار جدید بسازید.'
+                : 'هر «مدیریت کسب‌وکار» مجموعه‌ای از ماژول‌هاست. قیمت پایه، مجموع قیمت ماهانه‌ی ماژول‌هاست و دوره‌های ۱/۳/۶/۱۲ ماهه با تخفیف قابل خریدند.'}
             </p>
           </div>
           <span className="text-xs text-muted">
@@ -366,6 +377,11 @@ function BusinessPanelContent() {
                       {item.active ? 'فعال' : 'قابل خرید'}
                     </span>
                   </div>
+                  {item.paidUntil ? (
+                    <p className="text-[11px] font-bold text-emerald-700">
+                      اعتبار دوره تا {formatJalali(item.paidUntil)}
+                    </p>
+                  ) : null}
                   <p className="text-xs leading-6 text-muted">
                     {item.description}
                   </p>

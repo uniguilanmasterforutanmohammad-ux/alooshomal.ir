@@ -9,4 +9,4 @@
  *
  * The value is surfaced in the app footer (user panel + public pages).
  */
-export const APP_VERSION = 'v4.32.1';
+export const APP_VERSION = 'v4.33.0';
