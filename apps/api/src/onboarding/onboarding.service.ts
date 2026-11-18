@@ -4,10 +4,11 @@ import {
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
-import { BiolinkStatus } from '@prisma/client';
+import { BiolinkStatus, Prisma } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
 import { BusinessModulesService } from '../business-modules/business-modules.service';
+import { industryKeyForCategoryName } from '../business-modules/business-modules.registry';
 import { DEFAULT_PLAN } from '../common/plans';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
@@ -19,6 +20,7 @@ import {
   ONBOARDING_STEPS_SETTING_KEY,
   ONBOARDING_STEP_KINDS,
   type OnboardingDocument,
+  type OnboardingBusinessState,
   type OnboardingProgressPayload,
   type OnboardingStepDef,
   type OnboardingStepKind,
@@ -27,6 +29,7 @@ import {
 import type {
   AddOnboardingDocumentDto,
   OnboardingStepDto,
+  SaveOnboardingBusinessDto,
 } from './dto/onboarding.dto';
 
 /** The built-in kinds whose completion is derived from account data. */
@@ -58,6 +61,11 @@ export class OnboardingService implements OnModuleInit {
     }
     try {
       await this.upgradeStoredSteps();
+    } catch {
+      // settings table may not exist yet; a later boot retries
+    }
+    try {
+      await this.upgradeStoredStepsV3();
     } catch {
       // settings table may not exist yet; a later boot retries
     }
@@ -133,7 +141,7 @@ export class OnboardingService implements OnModuleInit {
     );
     const result: OnboardingStepDef[] = [];
     for (const step of steps) {
-      if (step.kind === 'details') continue;
+      if (step.kind === 'details' || step.kind === 'documents') continue;
       const base = defaults.get(step.kind);
       if (!base) {
         result.push(step);
@@ -151,6 +159,67 @@ export class OnboardingService implements OnModuleInit {
       result.push(next);
     }
     return result;
+  }
+
+  /**
+   * «شروع آسان» v3: the business step moved before identity, the documents
+   * step was merged into identity, and the plan step now also carries the
+   * business-management add-on. Preserve the admin's enabled flags and custom
+   * steps while adopting the shipped order/copy.
+   */
+  private async upgradeStoredStepsV3(): Promise<void> {
+    const markerKey = 'onboardingStepsV3';
+    const marker = await this.prisma.setting.findUnique({
+      where: { key: markerKey },
+    });
+    if (marker) return;
+    const row = await this.prisma.setting.findUnique({
+      where: { key: ONBOARDING_STEPS_SETTING_KEY },
+    });
+    if (row?.value) {
+      try {
+        const parsed = JSON.parse(row.value) as unknown;
+        if (Array.isArray(parsed)) {
+          const merged = this.mergeWithDefaults(
+            this.sanitize(parsed as OnboardingStepDto[]),
+          );
+          await this.prisma.setting.update({
+            where: { key: ONBOARDING_STEPS_SETTING_KEY },
+            data: { value: JSON.stringify(merged) },
+          });
+        }
+      } catch {
+        // leave the stored value untouched if it is not valid JSON
+      }
+    }
+    await this.prisma.setting.upsert({
+      where: { key: markerKey },
+      create: { key: markerKey, value: new Date().toISOString() },
+      update: {},
+    });
+  }
+
+  /**
+   * Rebuild the built-in steps from the shipped defaults (order + copy) while
+   * keeping the enabled flag the admin had set. Custom steps stay at the end.
+   */
+  private mergeWithDefaults(stored: OnboardingStepDef[]): OnboardingStepDef[] {
+    const builtIn = new Set(DEFAULT_ONBOARDING_STEPS.map((step) => step.kind));
+    const byKind = new Map(
+      stored
+        .filter((step) => builtIn.has(step.kind))
+        .map((step) => [step.kind, step]),
+    );
+    const merged = DEFAULT_ONBOARDING_STEPS.map((step) => {
+      const previous = byKind.get(step.kind);
+      return {
+        ...step,
+        enabled: previous?.enabled ?? step.enabled,
+        ...(step.optional === true ? { optional: true } : {}),
+      };
+    });
+    const customs = stored.filter((step) => !builtIn.has(step.kind));
+    return [...merged, ...customs];
   }
 
   /** Replace the step list (admin). Order of the array is the display order. */
@@ -185,16 +254,11 @@ export class OnboardingService implements OnModuleInit {
     );
     const steps = (await this.getSteps()).filter((step) => step.enabled);
     const identity = await this.identityState(userId);
-    // The first business workspace is created as soon as identity is verified,
-    // so the user lands on a ready «مدیریت کسب‌وکار» panel. This must happen
-    // *before* `completionMap` so the «کسب‌وکار» step is already ticked on the
-    // very first load. The free plan is also ensured here for accounts that
-    // predate the automatic assignment.
-    if (identity.verified) {
-      await this.modules.ensureWorkspace(userId);
-    }
+    // The business step now runs before identity and creates the workspace
+    // itself (name/industry/draft only, no card or biolink). We still ensure
+    // the default plan is assigned for accounts that predate that rule.
     await this.subscriptions.limitsForUser(userId);
-    const [done, history, documents, finished] = await Promise.all([
+    const [done, history, documents, business, finished] = await Promise.all([
       this.completionMap(userId),
       this.prisma.identityInquiryLog.findMany({
         where: { userId },
@@ -202,6 +266,7 @@ export class OnboardingService implements OnModuleInit {
         take: 25,
       }),
       this.documentsState(userId),
+      this.businessState(userId),
       this.prisma.onboardingStepCompletion.findUnique({
         where: {
           userId_stepId: {
@@ -225,6 +290,7 @@ export class OnboardingService implements OnModuleInit {
       identity,
       history,
       documents,
+      business,
       finished: Boolean(finished),
     };
   }
@@ -245,6 +311,51 @@ export class OnboardingService implements OnModuleInit {
     return this.getMyProgress(userId);
   }
 
+  /**
+   * «مرحله ۲»: create/update the workspace from the business form. Only the
+   * workspace is created — no business card or biolink — and the raw draft is
+   * kept on it so the card builder can prefill later.
+   */
+  async saveBusiness(
+    userId: string,
+    dto: SaveOnboardingBusinessDto,
+  ): Promise<OnboardingProgressPayload> {
+    await this.settings.assertFeatureEnabled(
+      'featureOnboarding',
+      'بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.',
+    );
+    const name = dto.name.trim();
+    if (!name) {
+      throw new BadRequestException('عنوان کسب‌وکار الزامی است.');
+    }
+    const category = dto.businessId
+      ? await this.prisma.businessCategory.findUnique({
+          where: { id: dto.businessId },
+          select: { name: true },
+        })
+      : null;
+    const industryKey = category
+      ? industryKeyForCategoryName(category.name)
+      : 'generalBusiness';
+    const onboardingData: Record<string, string> = { name };
+    for (const key of [
+      'cityId',
+      'businessId',
+      'mobile',
+      'address',
+      'fullName',
+    ] as const) {
+      const value = dto[key]?.trim();
+      if (value) onboardingData[key] = value;
+    }
+    await this.modules.upsertOnboardingBusiness(userId, {
+      name,
+      industryKey,
+      onboardingData: onboardingData as Prisma.InputJsonValue,
+    });
+    return this.getMyProgress(userId);
+  }
+
   /** The documents the user uploaded for the blue-tick review (newest first). */
   private async documentsState(userId: string): Promise<OnboardingDocument[]> {
     const user = await this.prisma.user.findUnique({
@@ -252,6 +363,39 @@ export class OnboardingService implements OnModuleInit {
       select: { documents: true },
     });
     return this.parseDocuments(user?.documents);
+  }
+
+  /** The business draft captured by the onboarding business step, if any. */
+  private async businessState(
+    userId: string,
+  ): Promise<OnboardingBusinessState | null> {
+    const workspace = await this.prisma.businessWorkspace.findFirst({
+      where: { ownerId: userId },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+      select: {
+        id: true,
+        name: true,
+        industryKey: true,
+        onboardingData: true,
+      },
+    });
+    if (!workspace) return null;
+    const industry = await this.modules.managementLabel(workspace.industryKey);
+    const draft =
+      workspace.onboardingData && typeof workspace.onboardingData === 'object'
+        ? (workspace.onboardingData as Record<string, unknown>)
+        : {};
+    return {
+      id: workspace.id,
+      name: workspace.name,
+      industryKey: workspace.industryKey,
+      industryLabel: industry,
+      cityId: typeof draft.cityId === 'string' ? draft.cityId : null,
+      businessId: typeof draft.businessId === 'string' ? draft.businessId : null,
+      mobile: typeof draft.mobile === 'string' ? draft.mobile : null,
+      address: typeof draft.address === 'string' ? draft.address : null,
+      fullName: typeof draft.fullName === 'string' ? draft.fullName : null,
+    };
   }
 
   private parseDocuments(value: unknown): OnboardingDocument[] {
@@ -323,6 +467,7 @@ export class OnboardingService implements OnModuleInit {
         fatherName: true,
         phoneMatchVerifiedAt: true,
         identityVerifiedAt: true,
+        businessLicenseVerifiedAt: true,
       },
     });
     return {
@@ -333,6 +478,7 @@ export class OnboardingService implements OnModuleInit {
       fatherName: user?.fatherName ?? null,
       phoneMatched: Boolean(user?.phoneMatchVerifiedAt),
       verified: Boolean(user?.identityVerifiedAt),
+      businessLicenseVerified: Boolean(user?.businessLicenseVerifiedAt),
     };
   }
 

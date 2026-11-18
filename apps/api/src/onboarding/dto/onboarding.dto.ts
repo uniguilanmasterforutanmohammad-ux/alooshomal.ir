@@ -9,6 +9,7 @@ import {
   IsString,
   MaxLength,
   Min,
+  MinLength,
   ValidateNested,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -97,4 +98,42 @@ export class AddOnboardingDocumentDto {
   @IsString()
   @MaxLength(120)
   contentType?: string;
+}
+
+export class SaveOnboardingBusinessDto {
+  @ApiProperty({ description: 'عنوان کسب‌وکار', example: 'اقامتگاه ساحلی' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(120)
+  name!: string;
+
+  @ApiPropertyOptional({ description: 'شناسه‌ی شهر' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  cityId?: string;
+
+  @ApiPropertyOptional({ description: 'شناسه‌ی دسته‌بندی کسب‌وکار' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  businessId?: string;
+
+  @ApiPropertyOptional({ description: 'شماره موبایل کسب‌وکار' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  mobile?: string;
+
+  @ApiPropertyOptional({ description: 'آدرس کسب‌وکار' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  address?: string;
+
+  @ApiPropertyOptional({ description: 'نام مدیر یا مسئول' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  fullName?: string;
 }

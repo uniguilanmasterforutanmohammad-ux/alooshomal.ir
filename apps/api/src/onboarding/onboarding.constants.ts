@@ -70,38 +70,27 @@ export const DEFAULT_ONBOARDING_STEPS: OnboardingStepDef[] = [
     enabled: true,
   },
   {
-    id: 'identity',
-    kind: 'identity',
-    title: 'استعلام هویت و تطبیق شماره موبایل',
-    description:
-      'کد ملی و تاریخ تولد را وارد کنید تا شماره موبایل با کد ملی تطبیق داده شود و هویت شما استعلام شود (تیک سفید).',
-    enabled: true,
-  },
-  {
     id: 'business',
     kind: 'business',
-    title: 'عنوان کسب‌وکار',
+    title: 'ساخت کسب‌وکار',
     description:
-      'فقط اطلاعات ضروری را وارد کنید: عنوان کسب‌وکار، نام مدیر، شهر، دسته‌بندی، موبایل و آدرس. بقیه‌ی مشخصات را بعداً از پنل کامل می‌کنید.',
-    href: '/dashboard/business-cards/new',
+      'عنوان کسب‌وکار، دسته‌بندی و اطلاعات اصلی را وارد کنید. در این مرحله فقط کسب‌وکار ساخته می‌شود؛ کارت ویزیت و بیولینک را بعداً از پنل تکمیل می‌کنید.',
     enabled: true,
   },
   {
-    id: 'documents',
-    kind: 'documents',
-    title: 'ارسال مدارک و جواز کسب‌وکار',
+    id: 'identity',
+    kind: 'identity',
+    title: 'استعلام هویت، تطبیق موبایل و جواز',
     description:
-      'مدارک و جواز کسب‌وکار را آپلود کنید تا پس از بررسی، تیک آبی دریافت کنید. این مرحله اختیاری است و می‌توانید بعداً هم انجام دهید.',
-    href: '/dashboard/profile',
+      'کد ملی و تاریخ تولد را وارد کنید تا موبایل با کد ملی تطبیق و هویت شما استعلام شود (تیک سفید). اگر تیک «استعلام جواز کسب» را بزنید، همان پرداخت شامل جواز هم می‌شود و تیک آبی می‌گیرید.',
     enabled: true,
-    optional: true,
   },
   {
     id: 'plan',
     kind: 'plan',
-    title: 'انتخاب طرح اشتراک',
+    title: 'انتخاب طرح اشتراک و مدیریت کسب‌وکار',
     description:
-      'طرح مناسب خود را همین‌جا انتخاب کنید؛ رایگان، اکو یا حرفه‌ای.',
+      'طرح مناسب خود را انتخاب کنید. اگر دسته‌بندی کسب‌وکارتان بسته‌ی «مدیریت کسب‌وکار» داشته باشد، همان‌جا می‌توانید آن را هم به همین پرداخت اضافه کنید.',
     enabled: true,
   },
   {
@@ -135,6 +124,21 @@ export interface OnboardingProgressPayload {
   history: OnboardingIdentityLog[];
   /** files uploaded for the «مدارک» step (newest first). */
   documents: OnboardingDocument[];
+  /** Draft captured by the business step before the card exists. */
+  business: OnboardingBusinessState | null;
+}
+
+/** Snapshot of the «شروع آسان» business draft. */
+export interface OnboardingBusinessState {
+  id: string;
+  name: string;
+  industryKey: string;
+  industryLabel: string;
+  cityId: string | null;
+  businessId: string | null;
+  mobile: string | null;
+  address: string | null;
+  fullName: string | null;
 }
 
 /** One uploaded document attached to the account for the blue-tick review. */
@@ -156,6 +160,7 @@ export interface OnboardingIdentityState {
   fatherName: string | null;
   phoneMatched: boolean;
   verified: boolean;
+  businessLicenseVerified: boolean;
 }
 
 /** One row of the persisted inquiry history shown under the wizard. */

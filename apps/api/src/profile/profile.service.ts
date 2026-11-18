@@ -11,11 +11,13 @@ import {
   NotificationType,
   PaymentStatus,
   Prisma,
+  ServicePayment,
   WalletEntryKind,
 } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 
 import { ActivityService } from '../activity/activity.service';
+import { ApiIrService } from '../apiir/apiir.service';
 import { OtpService } from '../auth/otp.service';
 import { paypingReturnBaseUrl } from '../common/app-url';
 import { isProfileComplete, isValidNationalCode } from '../common/national-code';
@@ -56,6 +58,7 @@ export class ProfileService {
     private readonly otp: OtpService,
     private readonly settings: SettingsService,
     private readonly zohal: ZohalService,
+    private readonly apiir: ApiIrService,
     private readonly wallet: WalletService,
     private readonly payping: PaypingService,
     private readonly simulator: PaymentSimulatorService,
@@ -538,7 +541,12 @@ export class ProfileService {
    */
   async identityCheckout(
     userId: string,
-    dto: { nationalCode?: string; birthDate?: string } = {},
+    dto: {
+      nationalCode?: string;
+      birthDate?: string;
+      withLicense?: boolean;
+      licenseTrackingCode?: string;
+    } = {},
   ) {
     await this.settings.assertFeatureEnabled(
       'featureIdentityInquiry',
@@ -557,7 +565,17 @@ export class ProfileService {
       },
     });
     if (!user) throw new NotFoundException('کاربر یافت نشد');
-    if (user.identityVerifiedAt) {
+    const withLicense = Boolean(dto.withLicense);
+    const licenseTrackingCode = dto.licenseTrackingCode?.trim() ?? '';
+    if (withLicense && !licenseTrackingCode) {
+      throw new BadRequestException(
+        'برای استعلام جواز کسب، کد پیگیری جواز را وارد کنید.',
+      );
+    }
+    if (
+      user.identityVerifiedAt &&
+      (!withLicense || (await this.hasVerifiedBusinessLicense(userId)))
+    ) {
       return { alreadyVerified: true, amount: 0, url: null, paid: false };
     }
     if (!user.phone || !user.phoneVerified) {
@@ -590,6 +608,8 @@ export class ProfileService {
         serviceKey: 'identity_bundle',
         status: PaymentStatus.PAID,
         consumedAt: null,
+        withLicense,
+        ...(withLicense ? { licenseTrackingCode } : {}),
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -603,15 +623,25 @@ export class ProfileService {
       };
     }
 
-    const { total } = await this.zohal.identityBundlePrice();
+    const licenseAmount = withLicense
+      ? await this.apiir.getServicePrice('license')
+      : 0;
+    const { total: identityTotal } = await this.zohal.identityBundlePrice();
+    // An account that already has a white tick only pays for the license leg
+    // (the wizard lets it upgrade to the blue tick without paying twice).
+    const total = (user.identityVerifiedAt ? 0 : identityTotal) + licenseAmount;
     if (total < 1000) {
       throw new BadRequestException(
         'تعرفه‌ی استعلام هویت برای پرداخت آنلاین معتبر نیست؛ با پشتیبانی تماس بگیرید.',
       );
     }
-    const productCode = await this.zohal
-      .ensureIdentityBundleProduct()
-      .catch(() => null);
+    const productCode = (
+      withLicense
+        ? await this.zohal
+            .ensureIdentityLicenseBundleProduct(licenseAmount)
+            .catch(() => null)
+        : await this.zohal.ensureIdentityBundleProduct().catch(() => null)
+    ) as string | null;
 
     await this.prisma.servicePayment.updateMany({
       where: { userId, serviceKey: 'identity_bundle', status: PaymentStatus.PENDING },
@@ -628,6 +658,8 @@ export class ProfileService {
         amount: total,
         nationalCode,
         birthDate,
+        withLicense,
+        licenseTrackingCode: licenseTrackingCode || null,
         clientRefId,
       },
     });
@@ -640,14 +672,18 @@ export class ProfileService {
             amount: total,
             returnUrl,
             clientRefId,
-            description: 'استعلام هویت (شاهکار + هویتی) — شمالی‌کارت',
+            description: withLicense
+              ? 'استعلام هویت و جواز کسب (شاهکار + هویتی + جواز) — شمالی‌کارت'
+              : 'استعلام هویت (شاهکار + هویتی) — شمالی‌کارت',
           })
         : ((await this.payping.createPayment({
             amount: total,
             returnUrl,
             payerIdentity: user.phone ?? user.email ?? undefined,
             payerName: user.fullName ?? undefined,
-            description: 'استعلام هویت (شاهکار + هویتی) — شمالی‌کارت',
+            description: withLicense
+              ? 'استعلام هویت و جواز کسب (شاهکار + هویتی + جواز) — شمالی‌کارت'
+              : 'استعلام هویت (شاهکار + هویتی) — شمالی‌کارت',
             clientRefId,
             isReversible: false,
           })) as { paymentCode?: string; url?: string } | null);
@@ -708,6 +744,96 @@ export class ProfileService {
     });
   }
 
+  /**
+   * Pricing shown by the onboarding identity step before paying. Reports the
+   * combined identity bundle, the optional api.ir license inquiry and whether
+   * that inquiry is actually offered right now (service enabled + priced).
+   */
+  async identityQuote() {
+    const [{ total: identityTotal }, licensePrice, enabled] = await Promise.all([
+      this.zohal.identityBundlePrice(),
+      this.apiir.getServicePrice('license'),
+      this.apiir.getEnabledMap(),
+    ]);
+    const licenseAvailable = (enabled.license ?? false) && licensePrice > 0;
+    return {
+      identityTotal,
+      licensePrice,
+      licenseAvailable,
+      total: identityTotal + (licenseAvailable ? licensePrice : 0),
+    };
+  }
+
+  private async hasVerifiedBusinessLicense(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { businessLicenseVerifiedAt: true },
+    });
+    return Boolean(user?.businessLicenseVerifiedAt);
+  }
+
+  /** Optional third leg of the bundle: api.ir business-license inquiry. */
+  private async performBusinessLicense(userId: string, trackingCode: string) {
+    const inquiry = await this.apiir.inquiryLicense(trackingCode);
+    if (!inquiry.ok) {
+      throw new BadRequestException(
+        inquiry.message || 'استعلام جواز کسب انجام نشد؛ لطفاً دوباره تلاش کنید.',
+      );
+    }
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        businessLicenseVerifiedAt: new Date(),
+        businessLicenseData: (inquiry.data ?? {}) as Prisma.InputJsonValue,
+      },
+    });
+    await this.activity.log({
+      actor: { id: userId },
+      action: 'BUSINESS_LICENSE_VERIFIED',
+      summary: 'استعلام جواز کسب با موفقیت انجام شد (تیک آبی)',
+      entityType: 'USER',
+      entityId: userId,
+    });
+    return inquiry;
+  }
+
+  /**
+   * Finish a paid identity bundle without charging again: run whichever legs
+   * (identity and/or business license) are still missing, then consume it.
+   */
+  private async completeIdentityPayment(payment: ServicePayment) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: payment.userId },
+      select: {
+        identityVerifiedAt: true,
+        businessLicenseVerifiedAt: true,
+      },
+    });
+    if (!user) throw new NotFoundException('کاربر یافت نشد');
+    if (!user.identityVerifiedAt) {
+      await this.performIdentityBundle(
+        payment.userId,
+        payment.nationalCode,
+        payment.birthDate,
+      );
+    }
+    if (payment.withLicense && !user.businessLicenseVerifiedAt) {
+      if (!payment.licenseTrackingCode) {
+        throw new BadRequestException(
+          'کد پیگیری جواز کسب برای این پرداخت ثبت نشده است.',
+        );
+      }
+      await this.performBusinessLicense(
+        payment.userId,
+        payment.licenseTrackingCode,
+      );
+    }
+    await this.prisma.servicePayment.update({
+      where: { id: payment.id },
+      data: { consumedAt: new Date() },
+    });
+  }
+
   /** Retry the paid bundle without charging again (used after a failed call). */
   async verifyIdentityPayment(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -715,9 +841,6 @@ export class ProfileService {
       select: { identityVerifiedAt: true },
     });
     if (!user) throw new NotFoundException('کاربر یافت نشد');
-    if (user.identityVerifiedAt) {
-      return { alreadyVerified: true, charged: 0 };
-    }
     const paid = await this.prisma.servicePayment.findFirst({
       where: {
         userId,
@@ -728,20 +851,23 @@ export class ProfileService {
       orderBy: { createdAt: 'desc' },
     });
     if (!paid) {
+      if (user.identityVerifiedAt) {
+        return { alreadyVerified: true, charged: 0 };
+      }
       throw new BadRequestException(
         'پرداخت آنلاین استعلام هویت انجام نشده است؛ ابتدا مبلغ را پرداخت کنید.',
       );
     }
-    const result = await this.performIdentityBundle(
-      userId,
-      paid.nationalCode,
-      paid.birthDate,
-    );
-    await this.prisma.servicePayment.update({
-      where: { id: paid.id },
-      data: { consumedAt: new Date() },
+    await this.completeIdentityPayment(paid);
+    const refreshed = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { identityVerifiedAt: true, businessLicenseVerifiedAt: true },
     });
-    return result;
+    return {
+      alreadyVerified: Boolean(refreshed?.identityVerifiedAt),
+      businessLicenseVerified: Boolean(refreshed?.businessLicenseVerifiedAt),
+      charged: 0,
+    };
   }
 
   /**
@@ -768,15 +894,7 @@ export class ProfileService {
     if (payment.status === PaymentStatus.PAID) {
       if (!payment.consumedAt) {
         try {
-          await this.performIdentityBundle(
-            payment.userId,
-            payment.nationalCode,
-            payment.birthDate,
-          );
-          await this.prisma.servicePayment.update({
-            where: { id: payment.id },
-            data: { consumedAt: new Date() },
-          });
+          await this.completeIdentityPayment(payment);
         } catch {
           return { redirectUrl: failedUrl };
         }
@@ -850,25 +968,23 @@ export class ProfileService {
       await this.finance.recordSale({
         sourceType: FINANCE_SOURCE_TYPES.SERVICE_PAYMENT,
         sourceId: payment.id,
-        title: 'استعلام هویت (شاهکار + هویتی)',
+        title: payment.withLicense
+          ? 'استعلام هویت و جواز کسب (شاهکار + هویتی + جواز)'
+          : 'استعلام هویت (شاهکار + هویتی)',
         amount: payment.amount,
         paidAt: new Date(),
         userId: payment.userId,
-        metadata: { serviceKey: payment.serviceKey, refId },
+        metadata: {
+          serviceKey: payment.serviceKey,
+          refId,
+          withLicense: payment.withLicense,
+        },
       });
     } catch {
       // Invoicing is best-effort; the paid inquiry must still run.
     }
     try {
-      await this.performIdentityBundle(
-        payment.userId,
-        payment.nationalCode,
-        payment.birthDate,
-      );
-      await this.prisma.servicePayment.update({
-        where: { id: payment.id },
-        data: { consumedAt: new Date() },
-      });
+      await this.completeIdentityPayment(payment);
       return { redirectUrl: successUrl };
     } catch (error) {
       await this.prisma.servicePayment.update({

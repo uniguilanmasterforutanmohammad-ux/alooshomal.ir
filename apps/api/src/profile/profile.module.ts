@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { ActivityModule } from '../activity/activity.module';
+import { ApiIrModule } from '../apiir/apiir.module';
 import { AuthModule } from '../auth/auth.module';
 import { FinanceModule } from '../finance/finance.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -23,6 +24,7 @@ import { ProfileService } from './profile.service';
     ZohalModule,
     WalletModule,
     PaypingModule,
+    ApiIrModule,
   ],
   controllers: [ProfileController, AdminProfileController],
   providers: [ProfileService],

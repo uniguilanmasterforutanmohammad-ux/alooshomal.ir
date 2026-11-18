@@ -9,6 +9,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import {
   AddOnboardingDocumentDto,
+  SaveOnboardingBusinessDto,
   UpdateOnboardingStepsDto,
 } from './dto/onboarding.dto';
 import { OnboardingService } from './onboarding.service';
@@ -39,6 +40,17 @@ export class OnboardingController {
   })
   finish(@CurrentUser() user: AuthUser) {
     return this.onboarding.finish(user.id);
+  }
+
+  @Post('business')
+  @ApiOperation({
+    summary: 'ثبت/به‌روزرسانی کسب‌وکار «شروع آسان» (فقط فضای کسب‌وکار، بدون کارت/بیولینک)',
+  })
+  saveBusiness(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: SaveOnboardingBusinessDto,
+  ) {
+    return this.onboarding.saveBusiness(user.id, dto);
   }
 
   @Delete('steps/:id/complete')

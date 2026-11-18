@@ -9,7 +9,7 @@ import {
   OnModuleInit,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { NotificationType, WalletEntryKind } from '@prisma/client';
+import { NotificationType, Prisma, WalletEntryKind } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 
 import { ActivityService } from '../activity/activity.service';
@@ -497,6 +497,7 @@ export class BusinessModulesService implements OnModuleInit {
     name: string | undefined,
     industryKey: string,
     isDefault: boolean,
+    onboardingData?: Prisma.InputJsonValue,
   ) {
     await this.ensureManagementsLoaded();
     const industry =
@@ -514,6 +515,7 @@ export class BusinessModulesService implements OnModuleInit {
           industryKey: industry,
           publicSlug,
           isDefault,
+          ...(onboardingData ? { onboardingData } : {}),
         },
       });
       const keys = this.management(industry)?.defaultModules ?? [];
@@ -573,6 +575,57 @@ export class BusinessModulesService implements OnModuleInit {
         orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
       });
     }
+  }
+
+  /**
+   * Create-or-update the workspace captured by the «شروع آسان» business step.
+   * It never creates a business card or biolink — only the workspace (name,
+   * industry and the raw onboarding draft) so the plan step can price the
+   * matching management package and the card can be completed later.
+   */
+  async upsertOnboardingBusiness(
+    userId: string,
+    dto: {
+      name: string;
+      industryKey: string;
+      onboardingData: Prisma.InputJsonValue;
+    },
+  ) {
+    await this.ensureManagementsLoaded();
+    const existing = await this.prisma.businessWorkspace.findFirst({
+      where: { ownerId: userId },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+    });
+    if (!existing) {
+      const created = await this.createWorkspaceRow(
+        userId,
+        dto.name,
+        dto.industryKey,
+        true,
+        dto.onboardingData,
+      );
+      await this.activity.log({
+        actor: { id: userId },
+        action: 'BUSINESS_WORKSPACE_CREATED',
+        summary: `ایجاد کسب‌وکار «${created.name}» از «شروع آسان»`,
+        entityType: 'BUSINESS_WORKSPACE',
+        entityId: created.id,
+      });
+      return created;
+    }
+
+    // The onboarding business step runs before any purchase, so the industry
+    // is editable. The locked check keeps a later edit from changing a paid
+    // management behind the user's back.
+    const locked = (await this.paidState(existing.id)).locked;
+    return this.prisma.businessWorkspace.update({
+      where: { id: existing.id },
+      data: {
+        name: dto.name.trim() || existing.name,
+        ...(locked ? {} : { industryKey: dto.industryKey }),
+        onboardingData: dto.onboardingData,
+      },
+    });
   }
 
   async getWorkspaceId(userId: string): Promise<string> {
@@ -1154,6 +1207,12 @@ export class BusinessModulesService implements OnModuleInit {
         },
       };
     });
+  }
+
+  /** Display label of one industry package (falls back to the key). */
+  async managementLabel(industryKey: string): Promise<string> {
+    await this.ensureManagementsLoaded();
+    return this.management(industryKey)?.label ?? industryKey;
   }
 
   /** Buy a whole «مدیریت کسب‌وکار» package (all its modules at once). */

@@ -422,6 +422,11 @@ model User {
   identityVerifiedAt DateTime?
   /// Raw (already normalised) identity inquiry payload, kept for audit.
   identityInquiryData Json?
+  /// Set after the paid «استعلام جواز کسب» succeeds (the optional third leg of
+  /// the onboarding identity bundle). Grants the blue tick in the wizard.
+  businessLicenseVerifiedAt DateTime?
+  /// Raw api.ir license inquiry payload, kept for audit.
+  businessLicenseData Json?
   /// «تیک آبی» — set after a successful identity inquiry and admin approval.
   verifiedAt   DateTime?
   /// When the user filed a blue-tick request that is still awaiting review.
@@ -1671,6 +1676,10 @@ model ServicePayment {
   /// inquiries even if the user edits their profile meanwhile.
   nationalCode  String?
   birthDate     String?
+  /// Whether the optional «استعلام جواز کسب» leg was bought with the bundle.
+  withLicense   Boolean       @default(false)
+  /// api.ir license tracking code, snapshotted at checkout.
+  licenseTrackingCode String?
   status        PaymentStatus @default(PENDING)
   clientRefId   String        @unique
   paymentCode   String?       @unique
@@ -1973,6 +1982,9 @@ model BusinessWorkspace {
   /// The workspace the user lands on by default. Exactly one per owner is
   /// preferred; if none is flagged the oldest workspace is used.
   isDefault   Boolean  @default(false)
+  /// Data captured by the «شروع آسان» business step (title, city, category,
+  /// mobile, address) before the business card exists.
+  onboardingData Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

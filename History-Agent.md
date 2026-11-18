@@ -20,7 +20,65 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.38.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.39.0**.
+
+## ۱۴۰۵/۰۸/۲۷ — بازآرایی ویزارد «شروع آسان» (کسب‌وکار → هویت+جواز → طرح+مدیریت) — نسخه `v4.39.0`
+
+**هدف:** پیاده‌سازی سناریوی جدید ثبت‌نام/ورود: ثبت‌نام با موبایل یا ایمیل و رمز
+یک‌بار‌مصرف → هدایت به «شروع آسان»؛ در مرحله ۲ فقط کسب‌وکار ساخته شود (بدون کارت
+ویزیت و بیولینک)؛ مرحله ۳ استعلام هویت و تطبیق موبایل به‌همراه گزینه‌ی اختیاری
+«استعلام جواز کسب» (تیک آبی) در یک محصول واحد؛ مرحله‌های مدارک با هویت ادغام
+شود؛ و در مرحله‌ی طرح، افزودنی اختیاری «مدیریت کسب‌وکار» فقط وقتی دسته‌بندی
+کسب‌وکار بسته‌ی مدیریت فعال دارد نمایش داده شود. پایان مراحل → داشبورد.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `User.businessLicenseVerifiedAt` و
+  `User.businessLicenseData`، `BusinessWorkspace.onboardingData` و نیز
+  `ServicePayment.withLicense` و `ServicePayment.licenseTrackingCode`.
+- `apps/api/src/business-modules/business-modules.registry.ts`: افزودن
+  `INDUSTRY_CATEGORY_KEYWORDS` و `industryKeyForCategoryName()` برای نگاشت
+  دسته‌بندی کسب‌وکار به بسته‌ی مدیریت موجود.
+- `apps/api/src/business-modules/business-modules.service.ts`: افزودن
+  `upsertOnboardingBusiness()` (فقط ساخت/به‌روزرسانی فضای کسب‌وکار بدون کارت و
+  بیولینک)، `onboardingData` در `createWorkspaceRow` و `managementLabel()`.
+- `apps/api/src/onboarding/onboarding.constants.ts`: مرتب‌سازی دوباره‌ی مراحل به
+  `welcome → business → identity → plan → approval` (حذف `documents`)، افزودن
+  `OnboardingBusinessState`، فیلد `business` در payload و پرچم
+  `businessLicenseVerified` در وضعیت هویت.
+- `apps/api/src/onboarding/onboarding.service.ts`: `saveBusiness()`،
+  `businessState()` و ارتقای یک‌باره‌ی مراحل ذخیره‌شده (`upgradeStoredStepsV3` +
+  `mergeWithDefaults`)؛ حذف ساخت خودکار کسب‌وکار در مرحله‌ی هویت.
+- `apps/api/src/onboarding/onboarding.controller.ts` و
+  `apps/api/src/onboarding/dto/onboarding.dto.ts`: مسیر `POST /onboarding/business`
+  با `SaveOnboardingBusinessDto` و مستندات Swagger.
+- `apps/api/src/profile/profile.service.ts`: پشتیبانی `withLicense`/`licenseTrackingCode`
+  در `identityCheckout`، افزودن `identityQuote()`، `performBusinessLicense()`،
+  `completeIdentityPayment()` و اجرای هر سه استعلام (هویت + تطبیق + جواز) از
+  کال‌بک پرداخت؛ عدم کسر مجدد مبلغ هویت برای کاربری که فقط جواز می‌خرد.
+- `apps/api/src/profile/profile.controller.ts` و
+  `apps/api/src/profile/dto/profile.dto.ts`: افزودن `GET /profile/identity/quote`
+  و فیلدهای `withLicense`/`licenseTrackingCode` با مستندات Swagger.
+- `apps/api/src/profile/profile.module.ts`: وارد‌کردن `ApiIrModule`.
+- `apps/api/src/zohal/zohal.service.ts`: افزودن `ensureIdentityLicenseBundleProduct()`
+  برای ساخت محصول سه‌تایی «شاهکار + هویتی + جواز» در پی‌پینگ.
+- `apps/web/components/dashboard/OnboardingBusinessForm.tsx`: تبدیل به فرم
+  «فقط ساخت کسب‌وکار» که به `POST /onboarding/business` می‌فرستد (بدون ساخت کارت
+  ویزیت/بیولینک) و داده‌ی موجود را پیش‌پر می‌کند.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: مرتب‌سازی مراحل، افزودن
+  تیک «استعلام جواز کسب» با کد پیگیری، صورتحساب سه‌قلمی و نشان تیک سفید/آبی، و
+  افزودن تیک «مدیریت کسب‌وکار» در مرحله‌ی طرح بر اساس دسته‌بندی مرحله ۲ که با
+  `workspaceIds` به همان پرداخت اشتراک اضافه می‌شود؛ پایان مراحل → داشبورد.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.39.0`.
+- `docs/API.md`: به‌روزرسانی جدول‌های `/onboarding` و `/profile` و توضیح قاعده‌ی
+  تکمیل مراحل جدید.
+
+**تأیید/تست:**
+- `python3 scripts/check_modules.py` → موفق.
+- `python3 scripts/check_api_docs.py` → موفق (۵۳ کنترلر و ۵۲۹ مسیر).
+- `tsc --noEmit` روی `apps/web` → بدون خطا.
+- `tsc --noEmit` روی `apps/api` اجرا شد؛ خطاهای باقی‌مانده همگی از Prisma Client
+  تولیدنشده/قدیمی در محیط محلی هستند و خطای منطقی جدیدی گزارش نشد.
+- `python3 scripts/sync_install.py` و سپس `--check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۷ — حذف همه‌ی محصولات پی‌پینگ برای پاک‌سازی و همگام‌سازی مجدد — نسخه `v4.38.0`
 

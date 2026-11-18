@@ -333,6 +333,32 @@ export const INDUSTRY_PACKAGES: IndustryPackageDefinition[] = [
   },
 ];
 
+/**
+ * Category-name keywords that map a user-facing «دسته‌بندی کسب‌وکار» to one of
+ * the purchasable industry packages. Only `available` packages are matched, so
+ * a category whose management has not been built yet falls back to the base
+ * workspace and no management option is offered in onboarding.
+ */
+const INDUSTRY_CATEGORY_KEYWORDS: Record<string, string[]> = {
+  dailyRental: ['اقامت', 'اجاره', 'ویلا', 'سوئیت', 'هتل', 'اقامتگاه', 'مسافرخانه'],
+  retail: ['فروشگاه', 'خرده', 'سوپرمارکت', 'مغازه'],
+  foodService: ['رستوران', 'کافه', 'غذا', 'فست'],
+  professionalServices: ['خدمات', 'مشاور', 'پزشک', 'وکیل', 'مهندس'],
+};
+
+export function industryKeyForCategoryName(name: string): string {
+  const normalized = name.replace(/\s+/g, ' ').trim();
+  if (!normalized) return 'generalBusiness';
+  for (const industry of INDUSTRY_PACKAGES) {
+    if (!industry.available) continue;
+    const keywords = INDUSTRY_CATEGORY_KEYWORDS[industry.key] ?? [industry.label];
+    if (keywords.some((keyword) => normalized.includes(keyword))) {
+      return industry.key;
+    }
+  }
+  return 'generalBusiness';
+}
+
 const MODULE_BY_KEY = new Map(BUSINESS_MODULES.map((item) => [item.key, item]));
 const INDUSTRY_BY_KEY = new Map(INDUSTRY_PACKAGES.map((item) => [item.key, item]));
 

@@ -110,6 +110,15 @@ export class ProfileController {
     return this.profile.verifyIdentityPayment(user.id);
   }
 
+  @Get('identity/quote')
+  @ApiOperation({
+    summary:
+      'تعرفه‌ی استعلام هویت (شاهکار + هویتی) و استعلام اختیاری جواز کسب پیش از پرداخت',
+  })
+  identityQuote() {
+    return this.profile.identityQuote();
+  }
+
   @Public()
   @Get('identity/payments/callback')
   @ApiOperation({ summary: 'بازگشت GET از درگاه و تأیید پرداخت استعلام هویت' })

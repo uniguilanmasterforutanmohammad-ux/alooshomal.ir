@@ -33,6 +33,8 @@ const REQUEST_TIMEOUT_MS = 25_000;
 const PAYPING_PRODUCT_SETTING_PREFIX = 'payping.product.zohal.';
 /** One product for the two identity inquiries that always run together. */
 const IDENTITY_BUNDLE_KEY = 'identity_bundle';
+/** One product for the identity bundle plus the optional business license. */
+const IDENTITY_LICENSE_BUNDLE_KEY = 'identity_license_bundle';
 const IDENTITY_SERVICE_KEYS = ['shahkar', 'national_identity_inquiry'] as const;
 
 /** Admin-facing description of the Zohal connection. */
@@ -389,6 +391,23 @@ export class ZohalService {
       'استعلام هویت (شاهکار + هویتی) — شمالی‌کارت',
       total,
       'تطبیق شماره موبایل با کد ملی و استعلام اطلاعات هویتی در یک پرداخت.',
+    );
+  }
+
+  /**
+   * The single PayPing product for «شاهکار + هویتی + جواز کسب». When the user
+   * ticks the business-license inquiry, all three legs are sold as one product
+   * whose amount is the identity bundle plus the api.ir license price.
+   */
+  async ensureIdentityLicenseBundleProduct(
+    licenseAmount: number,
+  ): Promise<string | null> {
+    const { total } = await this.identityBundlePrice();
+    return this.ensureProduct(
+      IDENTITY_LICENSE_BUNDLE_KEY,
+      'استعلام هویت و جواز کسب (شاهکار + هویتی + جواز) — شمالی‌کارت',
+      total + licenseAmount,
+      'تطبیق شماره موبایل، استعلام هویت و استعلام جواز کسب در یک پرداخت.',
     );
   }
 

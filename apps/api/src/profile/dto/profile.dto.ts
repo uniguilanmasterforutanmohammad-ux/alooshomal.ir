@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  IsBoolean,
   IsEmail,
   IsOptional,
   IsString,
@@ -83,6 +84,24 @@ export class IdentityCheckoutDto {
     message: 'تاریخ تولد باید به شکل ۱۳۷۰/۰۱/۰۱ باشد',
   })
   birthDate?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'افزودن «استعلام جواز کسب» به همان پرداخت استعلام هویت (محصول سه‌تایی).',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  withLicense?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'کد پیگیری جواز کسب برای استعلام api.ir (وقتی withLicense روشن است).',
+    example: 'BL123456',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  licenseTrackingCode?: string;
 }
 
 export class RequestProfileChangeDto {

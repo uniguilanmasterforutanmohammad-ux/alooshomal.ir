@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
   Building2,
@@ -12,109 +12,37 @@ import {
 } from 'lucide-react';
 
 import { Input } from '@/components/ui/Input';
-import { SocialInput } from '@/components/ui/SocialInput';
-import { BusinessTaxonomyFields } from '@/components/taxonomy/BusinessTaxonomyFields';
-import { NeighborhoodPicker } from '@/components/taxonomy/NeighborhoodPicker';
-import {
-  api,
-  type Biolink,
-  type BusinessCard,
-  type Paged,
-  type TaxonomyItem,
-} from '@/lib/api';
-import { SOCIAL_FIELDS } from '@/lib/social-fields';
+import { api, type TaxonomyItem } from '@/lib/api';
 import { toast } from '@/lib/toast';
 
-interface Values {
-  jobTitle: string;
+/** The draft the onboarding business step keeps on the workspace. */
+export interface OnboardingBusinessDraft {
+  name: string;
   fullName: string;
   cityId: string;
   businessId: string;
-  /** optional deeper taxonomy picks — searchable, never shown as a dropdown */
-  subCategory: string;
-  subSubCategory: string;
-  /** «محله» — free-form, shown as a tag on the public page */
-  neighborhood: string;
   mobile: string;
   address: string;
-  bio: string;
-  phone: string;
-  email: string;
-  website: string;
-  instagram: string;
-  telegram: string;
-  whatsapp: string;
-  linkedin: string;
-  twitter: string;
 }
 
-const EMPTY_VALUES: Values = {
-  jobTitle: '',
+const EMPTY: OnboardingBusinessDraft = {
+  name: '',
   fullName: '',
   cityId: '',
   businessId: '',
-  subCategory: '',
-  subSubCategory: '',
-  neighborhood: '',
   mobile: '',
   address: '',
-  bio: '',
-  phone: '',
-  email: '',
-  website: '',
-  instagram: '',
-  telegram: '',
-  whatsapp: '',
-  linkedin: '',
-  twitter: '',
 };
-
-/** Fields a biolink accepts (the business card also has gallery/working hours). */
-const BIOLINK_FIELDS: Array<keyof Values> = [
-  'fullName',
-  'jobTitle',
-  'bio',
-  'phone',
-  'mobile',
-  'email',
-  'website',
-  'address',
-  'instagram',
-  'telegram',
-  'whatsapp',
-  'linkedin',
-  'twitter',
-  'cityId',
-  'businessId',
-  'subCategory',
-  'subSubCategory',
-  'neighborhood',
-];
-
-const REQUIRED: Array<keyof Values> = [
-  'jobTitle',
-  'fullName',
-  'cityId',
-  'businessId',
-  'mobile',
-  'address',
-];
 
 function faPrice(amount: number): string {
   return `${amount.toLocaleString('fa-IR')} تومان`;
 }
 
-function toPayload(values: Values): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(values).filter(([, value]) => value.trim() !== ''),
-  );
-}
-
 interface Props {
   /** identity name from the inquiry, used to prefill the manager name */
   defaultFullName?: string;
-  /** show only the required fields (used by the onboarding «عنوان کسب‌وکار» step) */
-  requiredOnly?: boolean;
+  /** existing workspace draft (so a returning user sees their data) */
+  initial?: OnboardingBusinessDraft | null;
   /** outstanding wallet debt (positive toman amount) */
   debt: number;
   paying: boolean;
@@ -124,157 +52,97 @@ interface Props {
 }
 
 /**
- * Inline «عنوان کسب‌وکار / مشخصات» form for the onboarding wizard.
+ * Step 2 of «شروع آسان» — creates the business workspace only.
  *
- * Collects everything the business card, the directory listing and the biolink
- * need in one place, then persists it into each entity: the card is created or
- * updated, and the owner's biolink is created (or linked) from the same data.
- * This keeps the user inside `/dashboard/onboarding` instead of sending them
- * to the dedicated builders.
+ * It collects the essentials (title, manager, category, city, mobile, address)
+ * and posts them to `POST /onboarding/business`, which creates/updates the
+ * workspace and keeps the raw draft for the later card builder. No business
+ * card and no biolink are created here; those are completed from the panel
+ * after onboarding.
  */
 export function OnboardingBusinessForm({
   defaultFullName,
-  requiredOnly = false,
+  initial,
   debt,
   paying,
   onPay,
   onSaved,
 }: Props) {
-  const [values, setValues] = useState<Values>(EMPTY_VALUES);
+  const [values, setValues] = useState<OnboardingBusinessDraft>(EMPTY);
   const [cities, setCities] = useState<TaxonomyItem[]>([]);
   const [businesses, setBusinesses] = useState<TaxonomyItem[]>([]);
-  const [card, setCard] = useState<BusinessCard | null>(null);
-  const [biolinks, setBiolinks] = useState<Biolink[]>([]);
+  const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const initialized = useRef(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [cityList, businessList, mine, biolinkPage] = await Promise.all([
-        api.get<TaxonomyItem[]>('/cities').catch(() => []),
-        api.get<TaxonomyItem[]>('/businesses').catch(() => []),
-        api
-          .get<Paged<BusinessCard>>('/business-cards/mine?page=1&limit=1')
-          .catch(() => null),
-        api
-          .get<Paged<Biolink>>('/biolinks/mine?page=1&limit=20')
-          .catch(() => null),
-      ]);
-      setCities(cityList);
-      setBusinesses(businessList);
-      setBiolinks(biolinkPage?.items ?? []);
-      const current = mine?.items?.[0] ?? null;
-      setCard(current);
-      if (current) {
-        setValues({
-          jobTitle: current.jobTitle ?? '',
-          fullName: current.fullName ?? '',
-          cityId: current.cityId ?? '',
-          businessId: current.businessId ?? '',
-          subCategory: current.subCategory ?? '',
-          subSubCategory: current.subSubCategory ?? '',
-          neighborhood: current.neighborhood ?? '',
-          mobile: current.mobile ?? '',
-          address: current.address ?? '',
-          bio: current.bio ?? '',
-          phone: current.phone ?? '',
-          email: current.email ?? '',
-          website: current.website ?? '',
-          instagram: current.instagram ?? '',
-          telegram: current.telegram ?? '',
-          whatsapp: current.whatsapp ?? '',
-          linkedin: current.linkedin ?? '',
-          twitter: current.twitter ?? '',
-        });
-      } else {
-        setValues((prev) => ({
-          ...prev,
-          fullName: prev.fullName || defaultFullName || '',
-        }));
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [defaultFullName]);
-
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    void load();
-  }, [load]);
+    void (async () => {
+      try {
+        const [cityList, businessList] = await Promise.all([
+          api.get<TaxonomyItem[]>('/cities').catch(() => []),
+          api.get<TaxonomyItem[]>('/businesses').catch(() => []),
+        ]);
+        setCities(cityList);
+        setBusinesses(businessList);
+        if (initial) {
+          setValues({
+            name: initial.name ?? '',
+            fullName: initial.fullName ?? '',
+            cityId: initial.cityId ?? '',
+            businessId: initial.businessId ?? '',
+            mobile: initial.mobile ?? '',
+            address: initial.address ?? '',
+          });
+          setSaved(Boolean(initial.name));
+        } else {
+          setValues((prev) => ({
+            ...prev,
+            fullName: prev.fullName || defaultFullName || '',
+          }));
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [initial, defaultFullName]);
 
-  function setField<K extends keyof Values>(key: K, value: Values[K]) {
+  function setField<K extends keyof OnboardingBusinessDraft>(
+    key: K,
+    value: OnboardingBusinessDraft[K],
+  ) {
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  /**
-   * Changing the main category invalidates the «زیردسته»/«زیرشاخه» picked in
-   * the old one, so both deeper fields are dropped together.
-   */
-  function setBusinessCategory(businessId: string) {
-    setValues((prev) => ({
-      ...prev,
-      businessId,
-      subCategory: '',
-      subSubCategory: '',
-    }));
-  }
-
   async function submit() {
-    const missing = REQUIRED.filter((key) => !values[key].trim());
-    if (missing.length > 0) {
-      toast.error('عنوان کسب‌وکار، نام مدیر، شهر، دسته‌بندی، موبایل و آدرس اجباری هستند.');
+    if (!values.name.trim()) {
+      toast.error('عنوان کسب‌وکار الزامی است.');
+      return;
+    }
+    if (!values.businessId.trim()) {
+      toast.error('دسته‌بندی کسب‌وکار را انتخاب کنید.');
       return;
     }
     setSubmitting(true);
     setError(null);
     try {
-      const payload = toPayload(values);
-      const saved = card
-        ? await api.patch<BusinessCard>(`/business-cards/${card.id}`, payload)
-        : await api.post<BusinessCard>('/business-cards', payload);
-      setCard(saved);
-
-      // Mirror the same data into the owner's biolink so the «بیولینک» and the
-      // «صفحه مشاغل» are filled from one place. Failures here never discard the
-      // saved business card.
-      let biolinkNote = '';
-      try {
-        if (biolinks.length === 0) {
-          const biolinkPayload = Object.fromEntries(
-            BIOLINK_FIELDS.map((key) => [key, values[key]]).filter(
-              ([, value]) => String(value).trim() !== '',
-            ),
-          );
-          await api.post('/biolinks', {
-            ...biolinkPayload,
-            businessCardId: saved.id,
-          });
-          biolinkNote = ' بیولینک شما هم ساخته و به کارت ویزیت متصل شد.';
-        } else if (biolinks.length === 1) {
-          const detail = await api
-            .get<Biolink>(`/biolinks/id/${biolinks[0].id}`)
-            .catch(() => null);
-          if (!detail?.businessCard) {
-            await api.patch(`/biolinks/${biolinks[0].id}`, {
-              businessCardId: saved.id,
-            });
-            biolinkNote = ' بیولینک شما به کارت ویزیت متصل شد.';
-          }
-        }
-      } catch {
-        biolinkNote =
-          ' (اتصال/ساخت بیولینک انجام نشد؛ بعداً از پنل بیولینک تکمیل کنید.)';
-      }
-
-      toast.success(`اطلاعات کسب‌وکار ذخیره شد.${biolinkNote}`);
+      await api.post('/onboarding/business', {
+        name: values.name.trim(),
+        fullName: values.fullName.trim() || undefined,
+        cityId: values.cityId.trim() || undefined,
+        businessId: values.businessId.trim() || undefined,
+        mobile: values.mobile.trim() || undefined,
+        address: values.address.trim() || undefined,
+      });
+      setSaved(true);
+      toast.success('کسب‌وکار شما ساخته شد. مرحله‌ی بعد: استعلام هویت.');
       onSaved();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'ذخیره اطلاعات کسب‌وکار ناموفق بود',
+        err instanceof Error ? err.message : 'ساخت کسب‌وکار ناموفق بود',
       );
     } finally {
       setSubmitting(false);
@@ -306,17 +174,17 @@ export function OnboardingBusinessForm({
             className="indeed-btn indeed-btn-primary py-2 text-xs"
           >
             <CreditCard className="size-4" aria-hidden />
-            {paying ? 'در حال انتقال...' : 'پرداخت آزمایشی و تسویه'}
+            {paying ? 'در حال انتقال...' : 'پرداخت آنلاین'}
           </button>
         </div>
       ) : null}
 
-      {card ? (
+      {saved ? (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200">
           <Check className="size-4" aria-hidden />
           <span>
-            کارت ویزیت «{card.jobTitle || card.fullName}» ثبت شده است؛ تغییرات این
-            فرم همان کارت را به‌روزرسانی می‌کند.
+            کسب‌وکار «{values.name}» ساخته شد؛ کارت ویزیت و بیولینک را بعداً از
+            پنل تکمیل می‌کنید.
           </span>
         </div>
       ) : null}
@@ -334,27 +202,40 @@ export function OnboardingBusinessForm({
           عنوان و اطلاعات اصلی
         </h3>
         <p className="mt-1 text-[11px] leading-6 text-muted">
-          {requiredOnly
-            ? 'فقط فیلدهای ضروری را وارد کنید؛ بقیه‌ی مشخصات را بعداً از پنل کامل می‌کنید.'
-            : 'فیلدهای ستاره‌دار برای ثبت در کارت ویزیت، صفحه مشاغل و بیولینک اجباری‌اند.'}
+          در این مرحله فقط کسب‌وکار ساخته می‌شود؛ کارت ویزیت، بیولینک و بقیه‌ی
+          مشخصات را بعداً از پنل تکمیل می‌کنید.
         </p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           <Input
             label="عنوان کسب‌وکار *"
             required
-            value={values.jobTitle}
-            onChange={(event) => setField('jobTitle', event.target.value)}
+            value={values.name}
+            onChange={(event) => setField('name', event.target.value)}
           />
           <Input
-            label="نام مدیر یا مسئول *"
-            required
+            label="نام مدیر یا مسئول"
             value={values.fullName}
             onChange={(event) => setField('fullName', event.target.value)}
           />
           <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-bold text-ink">شهر *</span>
+            <span className="text-sm font-bold text-ink">دسته‌بندی کسب‌وکار *</span>
             <select
               required
+              className="indeed-input"
+              value={values.businessId}
+              onChange={(event) => setField('businessId', event.target.value)}
+            >
+              <option value="">انتخاب دسته‌بندی...</option>
+              {businesses.map((business) => (
+                <option key={business.id} value={business.id}>
+                  {business.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-bold text-ink">شهر</span>
+            <select
               className="indeed-input"
               value={values.cityId}
               onChange={(event) => setField('cityId', event.target.value)}
@@ -367,119 +248,23 @@ export function OnboardingBusinessForm({
               ))}
             </select>
           </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-bold text-ink">دسته‌بندی کسب‌وکار *</span>
-            <select
-              required
-              className="indeed-input"
-              value={values.businessId}
-              onChange={(event) => setBusinessCategory(event.target.value)}
-            >
-              <option value="">انتخاب دسته‌بندی...</option>
-              {businesses.map((business) => (
-                <option key={business.id} value={business.id}>
-                  {business.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          {!requiredOnly ? (
-            <>
-              <BusinessTaxonomyFields
-                businessId={values.businessId}
-                subCategory={values.subCategory}
-                subSubCategory={values.subSubCategory}
-                onChange={({ subCategory, subSubCategory }) =>
-                  setValues((prev) => ({ ...prev, subCategory, subSubCategory }))
-                }
-              />
-              <NeighborhoodPicker
-                cityId={values.cityId}
-                value={values.neighborhood}
-                onChange={(neighborhood) => setField('neighborhood', neighborhood)}
-              />
-            </>
-          ) : null}
           <Input
-            label="شماره موبایل *"
-            required
+            label="شماره موبایل"
             dir="ltr"
             inputMode="tel"
             value={values.mobile}
             onChange={(event) => setField('mobile', event.target.value)}
           />
-          {!requiredOnly ? (
-            <Input
-              label="تلفن ثابت"
-              dir="ltr"
-              inputMode="tel"
-              value={values.phone}
-              onChange={(event) => setField('phone', event.target.value)}
-            />
-          ) : null}
           <div className="md:col-span-2">
             <Input
-              label="آدرس * (حداکثر یک خط)"
-              required
+              label="آدرس (حداکثر یک خط)"
               maxLength={120}
               value={values.address}
               onChange={(event) => setField('address', event.target.value)}
             />
           </div>
-          {!requiredOnly ? (
-            <>
-              <div className="md:col-span-2">
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-sm font-bold text-ink">
-                    درباره کسب‌وکار (حداکثر دو خط)
-                  </span>
-                  <textarea
-                    rows={2}
-                    maxLength={160}
-                    className="indeed-input resize-none"
-                    value={values.bio}
-                    onChange={(event) => setField('bio', event.target.value)}
-                  />
-                </label>
-              </div>
-              <Input
-                label="ایمیل"
-                dir="ltr"
-                value={values.email}
-                onChange={(event) => setField('email', event.target.value)}
-              />
-              <Input
-                label="وب‌سایت"
-                dir="ltr"
-                placeholder="https://example.com"
-                value={values.website}
-                onChange={(event) => setField('website', event.target.value)}
-              />
-            </>
-          ) : null}
         </div>
       </div>
-
-      {!requiredOnly ? (
-        <div className="rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-4">
-          <h3 className="text-sm font-extrabold text-ink">
-            شبکه‌های اجتماعی و لینک‌های اختیاری
-          </h3>
-          <p className="mt-1 text-[11px] leading-6 text-muted">
-            این موارد در کارت ویزیت، صفحه مشاغل و بیولینک شما نمایش داده می‌شوند.
-          </p>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {SOCIAL_FIELDS.map((field) => (
-              <SocialInput
-                key={field.key}
-                field={field.key}
-                value={values[field.key]}
-                onChange={(value) => setField(field.key, value)}
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
 
       <button
         type="button"
@@ -494,9 +279,9 @@ export function OnboardingBusinessForm({
         )}
         {submitting
           ? 'در حال ذخیره...'
-          : card
-            ? 'ذخیره تغییرات و ارسال برای تأیید'
-            : 'ثبت کسب‌وکار و ارسال برای تأیید'}
+          : saved
+            ? 'ذخیره‌ی تغییرات کسب‌وکار'
+            : 'ساخت کسب‌وکار'}
       </button>
       {debt > 0 ? (
         <p className="text-[11px] text-amber-700 dark:text-amber-300">

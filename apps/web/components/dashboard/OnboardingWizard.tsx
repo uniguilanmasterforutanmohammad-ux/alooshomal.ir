@@ -29,6 +29,7 @@ import {
 import {
   api,
   type MySubscriptions,
+  type SubscriptionAddonQuote,
   type SubscriptionCheckout,
   type SubscriptionPlan,
 } from '@/lib/api';
@@ -36,13 +37,17 @@ import { isoToJalali } from '@/lib/jalali';
 import {
   PLAN_PERIODS,
   PLAN_PERIOD_LABELS,
+  isFreePlan,
   planPriceForMonths,
   type PlanPeriodMonths,
 } from '@/lib/plan-periods';
 import { toast } from '@/lib/toast';
 import { useFeatures } from '@/lib/features';
 import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
-import { OnboardingBusinessForm } from '@/components/dashboard/OnboardingBusinessForm';
+import {
+  OnboardingBusinessForm,
+  type OnboardingBusinessDraft,
+} from '@/components/dashboard/OnboardingBusinessForm';
 import { cn } from '@/lib/utils';
 
 type StepKind =
@@ -75,7 +80,20 @@ interface OnboardingPayload {
   identity: IdentityState;
   history: IdentityLog[];
   documents: OnboardingDocument[];
+  business: OnboardingBusinessState | null;
   finished?: boolean;
+}
+
+interface OnboardingBusinessState {
+  id: string;
+  name: string;
+  industryKey: string;
+  industryLabel: string;
+  cityId: string | null;
+  businessId: string | null;
+  mobile: string | null;
+  address: string | null;
+  fullName: string | null;
 }
 
 interface OnboardingDocument {
@@ -95,6 +113,23 @@ interface IdentityState {
   fatherName: string | null;
   phoneMatched: boolean;
   verified: boolean;
+  businessLicenseVerified: boolean;
+}
+
+/** Tariff of the identity bundle and the optional license inquiry. */
+interface IdentityQuote {
+  identityTotal: number;
+  licensePrice: number;
+  licenseAvailable: boolean;
+  total: number;
+}
+
+/** One «مدیریت کسب‌وکار» package as returned by the catalog endpoint. */
+interface CatalogIndustry {
+  key: string;
+  label: string;
+  description?: string;
+  available?: boolean;
 }
 
 interface IdentityLog {
@@ -163,6 +198,18 @@ function faPrice(amount: number): string {
   return `${amount.toLocaleString('fa-IR')} تومان`;
 }
 
+/** The prorated «مدیریت کسب‌وکار» price of a workspace, if any quote has it. */
+function workspaceAddonAmount(
+  quotes: Record<string, SubscriptionAddonQuote>,
+  workspaceId: string,
+): number {
+  for (const quote of Object.values(quotes)) {
+    const item = quote.workspaces.find((entry) => entry.workspaceId === workspaceId);
+    if (item) return item.amount;
+  }
+  return 0;
+}
+
 function formatBytes(bytes: number): string {
   if (!bytes || bytes <= 0) return '—';
   if (bytes < 1024 * 1024) {
@@ -199,6 +246,20 @@ export function OnboardingWizard() {
   const [planMonths, setPlanMonths] = useState<PlanPeriodMonths>(1);
   const [advanceAfterLoad, setAdvanceAfterLoad] = useState(false);
   const jumpedToPending = useRef(false);
+  // Identity step: the optional «جواز کسب» leg that turns the white tick into
+  // a blue tick. Both its price and availability come from the server quote.
+  const [identityQuote, setIdentityQuote] = useState<IdentityQuote | null>(null);
+  const [withLicense, setWithLicense] = useState(false);
+  const [licenseTrackingCode, setLicenseTrackingCode] = useState('');
+  // Plan step: the «مدیریت کسب‌وکار» add-on offered only when the step-2
+  // business category maps to an available management package.
+  const [catalogIndustries, setCatalogIndustries] = useState<CatalogIndustry[]>(
+    [],
+  );
+  const [addonQuotes, setAddonQuotes] = useState<
+    Record<string, SubscriptionAddonQuote>
+  >({});
+  const [withManagement, setWithManagement] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -235,7 +296,50 @@ export function OnboardingWizard() {
       .get<MySubscriptions>('/subscriptions/me')
       .then((mine) => setMyPlanId(mine.plan?.id ?? null))
       .catch(() => setMyPlanId(null));
+    void api
+      .get<IdentityQuote>('/profile/identity/quote')
+      .then((quote) => setIdentityQuote(quote))
+      .catch(() => setIdentityQuote(null));
+    void api
+      .get<{ industries?: CatalogIndustry[] }>('/business-modules/catalog')
+      .then((catalog) => setCatalogIndustries(catalog.industries ?? []))
+      .catch(() => setCatalogIndustries([]));
   }, [load]);
+
+  // The management add-on price is prorated for the chosen term; refresh the
+  // quote for every paid plan whenever the term changes (free plans never
+  // allow it, so the checkbox stays hidden).
+  useEffect(() => {
+    const paid = plans.filter((plan) => !isFreePlan(plan));
+    if (paid.length === 0) {
+      setAddonQuotes({});
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const fetched = await Promise.all(
+        paid.map(async (plan) => {
+          try {
+            const quote = await api.get<SubscriptionAddonQuote>(
+              `/subscriptions/plans/${plan.id}/addon-quote?months=${planMonths}`,
+            );
+            return [plan.id, quote] as const;
+          } catch {
+            return [plan.id, null] as const;
+          }
+        }),
+      );
+      if (!alive) return;
+      const next: Record<string, SubscriptionAddonQuote> = {};
+      for (const [id, quote] of fetched) {
+        if (quote) next[id] = quote;
+      }
+      setAddonQuotes(next);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [plans, planMonths]);
 
   // The identity gateway callback returns here with `?identity=success|failed`.
   useEffect(() => {
@@ -304,6 +408,10 @@ export function OnboardingWizard() {
       toast.error('برای استعلام هویت، تاریخ تولد را انتخاب کنید.');
       return;
     }
+    if (withLicense && !licenseTrackingCode.trim()) {
+      toast.error('برای استعلام جواز کسب، کد پیگیری جواز را وارد کنید.');
+      return;
+    }
     const birthDate = `${jalali.year}/${String(jalali.month).padStart(2, '0')}/${String(jalali.day).padStart(2, '0')}`;
     setIdentityBusy(true);
     try {
@@ -314,6 +422,8 @@ export function OnboardingWizard() {
       }>('/profile/identity/checkout', {
         nationalCode: nationalCode.trim(),
         birthDate,
+        withLicense,
+        ...(withLicense ? { licenseTrackingCode: licenseTrackingCode.trim() } : {}),
       });
       if (result?.url) {
         window.location.href = result.url;
@@ -325,7 +435,11 @@ export function OnboardingWizard() {
         return;
       }
       await api.post('/profile/identity/verify', {});
-      toast.success('پرداخت انجام شد و هویت شما استعلام شد (تیک سفید).');
+      toast.success(
+        withLicense
+          ? 'پرداخت انجام شد و هویت شما استعلام شد (تیک آبی برای جواز کسب).'
+          : 'پرداخت انجام شد و هویت شما استعلام شد (تیک سفید).',
+      );
       await load();
     } catch {
       /* api layer surfaces the error */
@@ -336,13 +450,20 @@ export function OnboardingWizard() {
 
   /** Continue from an already-matched phone straight into the paid inquiry. */
   async function continueIdentityInquiry() {
+    if (withLicense && !licenseTrackingCode.trim()) {
+      toast.error('برای استعلام جواز کسب، کد پیگیری جواز را وارد کنید.');
+      return;
+    }
     setIdentityBusy(true);
     try {
       const result = await api.post<{
         url?: string | null;
         paid?: boolean;
         alreadyVerified?: boolean;
-      }>('/profile/identity/checkout', {});
+      }>('/profile/identity/checkout', {
+        withLicense,
+        ...(withLicense ? { licenseTrackingCode: licenseTrackingCode.trim() } : {}),
+      });
       if (result?.url) {
         window.location.href = result.url;
         return;
@@ -353,7 +474,11 @@ export function OnboardingWizard() {
         return;
       }
       await api.post('/profile/identity/verify', {});
-      toast.success('پرداخت انجام شد و استعلام هویت تکمیل شد (تیک سفید).');
+      toast.success(
+        withLicense
+          ? 'پرداخت انجام شد و هویت و جواز کسب استعلام شد (تیک آبی).'
+          : 'پرداخت انجام شد و استعلام هویت تکمیل شد (تیک سفید).',
+      );
       await load();
     } catch {
       /* api layer surfaces the error */
@@ -431,11 +556,28 @@ export function OnboardingWizard() {
   async function choosePlan(plan: SubscriptionPlan) {
     setBusyPlanId(plan.id);
     try {
-      const amount = planPriceForMonths(plan, planMonths);
+      const business = payload?.business ?? null;
+      const managementPackage = business
+        ? (catalogIndustries.find(
+            (entry) => entry.key === business.industryKey && entry.available,
+          ) ?? null)
+        : null;
+      const includeManagement =
+        withManagement && Boolean(managementPackage) && !isFreePlan(plan);
+      const workspaceIds =
+        includeManagement && business ? [business.id] : [];
+      const addonAmount = includeManagement
+        ? workspaceAddonAmount(addonQuotes, business?.id ?? '')
+        : 0;
+      const amount = planPriceForMonths(plan, planMonths) + addonAmount;
       if (amount >= 1000) {
         const checkout = await api.post<SubscriptionCheckout>(
           `/subscriptions/${plan.id}/checkout`,
-          { months: planMonths, returnTo: '/dashboard/onboarding' },
+          {
+            months: planMonths,
+            returnTo: '/dashboard/onboarding',
+            workspaceIds,
+          },
         );
         if (checkout?.wallet) {
           toast.success('اشتراک فعال شد و هزینه به کیف پول اضافه شد.');
@@ -492,10 +634,41 @@ export function OnboardingWizard() {
     (item) =>
       item.key === 'shahkar' || item.key === 'national_identity_inquiry',
   );
-  const identityTotal = identityServices.reduce(
-    (total, item) => total + (item.price ?? 0),
-    0,
+  const identityTotal =
+    identityQuote?.identityTotal ??
+    identityServices.reduce((total, item) => total + (item.price ?? 0), 0);
+  const licensePrice = identityQuote?.licensePrice ?? 0;
+  const showLicense = Boolean(identityQuote?.licenseAvailable) && licensePrice > 0;
+  const identityVerified = Boolean(payload.identity?.verified);
+  const licenseSelected = withLicense && showLicense;
+  const hasInvoiceRows =
+    (!identityVerified && identityServices.length > 0) || licenseSelected;
+  const invoiceTotal =
+    (identityVerified ? 0 : identityTotal) + (licenseSelected ? licensePrice : 0);
+  const businessState = payload.business;
+  const managementPackage = businessState
+    ? (catalogIndustries.find(
+        (entry) => entry.key === businessState.industryKey && entry.available,
+      ) ?? null)
+    : null;
+  const managementAmount = businessState
+    ? workspaceAddonAmount(addonQuotes, businessState.id)
+    : 0;
+  const managementAllowed = Object.values(addonQuotes).some(
+    (quote) => quote.allowed,
   );
+  const showManagement =
+    Boolean(managementPackage) && managementAllowed && managementAmount >= 1000;
+  const businessInitial: OnboardingBusinessDraft | null = businessState
+    ? {
+        name: businessState.name ?? '',
+        fullName: businessState.fullName ?? '',
+        cityId: businessState.cityId ?? '',
+        businessId: businessState.businessId ?? '',
+        mobile: businessState.mobile ?? '',
+        address: businessState.address ?? '',
+      }
+    : null;
   const percent =
     payload.total > 0 ? Math.round((payload.completed / payload.total) * 100) : 0;
   const isFirst = safeIndex === 0;
@@ -690,10 +863,25 @@ export function OnboardingWizard() {
           {step.kind === 'identity' ? (
             <div className="flex flex-col gap-3">
               {payload.identity?.verified ? (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs leading-6 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200">
+                <div
+                  className={cn(
+                    'rounded-xl border p-4 text-xs leading-6',
+                    payload.identity.businessLicenseVerified
+                      ? 'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-800/60 dark:bg-sky-950/40 dark:text-sky-200'
+                      : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200',
+                  )}
+                >
                   <b className="flex items-center gap-1.5">
-                    <BadgeCheck className="size-4" aria-hidden />
-                    هویت شما تأیید شد؛ تیک سفید دریافت کردید.
+                    <BadgeCheck
+                      className={cn(
+                        'size-4',
+                        payload.identity.businessLicenseVerified && 'text-sky-600',
+                      )}
+                      aria-hidden
+                    />
+                    {payload.identity.businessLicenseVerified
+                      ? 'هویت شما تأیید شد و با استعلام جواز کسب تیک آبی دریافت کردید.'
+                      : 'هویت شما تأیید شد؛ تیک سفید دریافت کردید.'}
                   </b>
                   <p className="mt-1">
                     {[payload.identity.firstName, payload.identity.lastName]
@@ -742,6 +930,58 @@ export function OnboardingWizard() {
                 </div>
               )}
 
+              {showLicense && !payload.identity?.businessLicenseVerified ? (
+                <div className="flex flex-col gap-3 rounded-xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-800/60 dark:bg-sky-950/30">
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <span
+                      className={cn(
+                        'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border transition',
+                        withLicense
+                          ? 'border-sky-500 bg-sky-500 text-white'
+                          : 'border-[var(--vintage-border)] bg-[var(--vintage-surface)] text-transparent',
+                      )}
+                    >
+                      <Check className="size-3.5" aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-xs font-extrabold text-ink">
+                        استعلام جواز کسب و دریافت تیک آبی
+                      </span>
+                      <span className="mt-0.5 block text-[11px] leading-6 text-muted">
+                        اگر تیک بزنید، در همان پرداخت جواز کسب هم استعلام می‌شود و
+                        تیک آبی می‌گیرید؛ در غیر این صورت فقط تیک سفید دریافت
+                        می‌کنید.
+                      </span>
+                      <span className="mt-1 block text-[11px] font-bold text-sky-700 dark:text-sky-300">
+                        هزینه: {faPrice(licensePrice)}
+                      </span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={withLicense}
+                      onChange={(event) => setWithLicense(event.target.checked)}
+                    />
+                  </label>
+                  {withLicense ? (
+                    <div className="flex flex-col gap-1.5 ps-8">
+                      <span className="text-xs font-bold text-muted">
+                        کد پیگیری جواز کسب
+                      </span>
+                      <input
+                        className="indeed-input"
+                        dir="ltr"
+                        value={licenseTrackingCode}
+                        onChange={(event) =>
+                          setLicenseTrackingCode(event.target.value)
+                        }
+                        placeholder="مثال: BL123456"
+                      />
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+
               <div className="overflow-hidden rounded-2xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)]">
                 <div className="flex items-center justify-between border-b border-[var(--vintage-border)] bg-[var(--vintage-paper)]/60 px-4 py-2.5">
                   <span className="text-xs font-extrabold text-ink">
@@ -752,45 +992,58 @@ export function OnboardingWizard() {
                   </span>
                 </div>
                 <ul className="divide-y divide-[var(--vintage-border)]">
-                  {identityServices.length > 0 ? (
-                    identityServices.map((item) => (
-                      <li
-                        key={item.key}
-                        className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs"
-                      >
-                        <span className="flex items-center gap-2 text-muted">
-                          <ShieldCheck className="size-3.5 text-brand" aria-hidden />
-                          {item.label ??
-                            (item.key === 'shahkar'
-                              ? 'تطبیق شماره موبایل با کد ملی'
-                              : 'استعلام هویت')}
-                        </span>
-                        <span className="font-bold text-ink">
-                          {faPrice(item.price ?? 0)}
-                        </span>
-                      </li>
-                    ))
-                  ) : (
+                  {!identityVerified && identityServices.length > 0
+                    ? identityServices.map((item) => (
+                        <li
+                          key={item.key}
+                          className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs"
+                        >
+                          <span className="flex items-center gap-2 text-muted">
+                            <ShieldCheck className="size-3.5 text-brand" aria-hidden />
+                            {item.label ??
+                              (item.key === 'shahkar'
+                                ? 'تطبیق شماره موبایل با کد ملی'
+                                : 'استعلام هویت')}
+                          </span>
+                          <span className="font-bold text-ink">
+                            {faPrice(item.price ?? 0)}
+                          </span>
+                        </li>
+                      ))
+                    : null}
+                  {licenseSelected ? (
+                    <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
+                      <span className="flex items-center gap-2 text-muted">
+                        <ShieldCheck className="size-3.5 text-sky-600" aria-hidden />
+                        استعلام جواز کسب (تیک آبی)
+                      </span>
+                      <span className="font-bold text-ink">
+                        {faPrice(licensePrice)}
+                      </span>
+                    </li>
+                  ) : null}
+                  {!hasInvoiceRows ? (
                     <li className="px-4 py-2.5 text-xs text-muted">
                       هزینه‌ی استعلام در حال حاضر تعریف نشده است.
                     </li>
-                  )}
+                  ) : null}
                 </ul>
                 <div className="flex items-center justify-between border-t border-[var(--vintage-border)] bg-brand-light/40 px-4 py-2.5 text-xs">
                   <span className="font-extrabold text-ink">جمع کل</span>
                   <span className="font-extrabold text-brand">
-                    {faPrice(identityTotal)}
+                    {faPrice(invoiceTotal)}
                   </span>
                 </div>
-                {identityTotal > 0 ? (
+                {invoiceTotal > 0 ? (
                   <p className="border-t border-dashed border-[var(--vintage-border)] px-4 py-2 text-[10px] leading-5 text-muted">
-                    هر دو استعلام (شاهکار + هویتی) با یک پرداخت آنلاین انجام
-                    می‌شوند.
+                    {licenseSelected
+                      ? 'استعلام هویت و جواز کسب با یک پرداخت آنلاین انجام می‌شوند.'
+                      : 'هر دو استعلام (شاهکار + هویتی) با یک پرداخت آنلاین انجام می‌شوند.'}
                   </p>
                 ) : null}
               </div>
 
-              {!payload.identity?.verified && !payload.identity?.phoneMatched ? (
+              {!identityVerified && !payload.identity?.phoneMatched ? (
                 <button
                   type="button"
                   onClick={() => void completeIdentity()}
@@ -802,9 +1055,13 @@ export function OnboardingWizard() {
                   ) : (
                     <BadgeCheck className="size-4" aria-hidden />
                   )}
-                  {identityBusy ? 'در حال انتقال به درگاه...' : 'پرداخت و استعلام هویت'}
+                  {identityBusy
+                    ? 'در حال انتقال به درگاه...'
+                    : licenseSelected
+                      ? 'پرداخت و استعلام هویت + جواز کسب'
+                      : 'پرداخت و استعلام هویت'}
                 </button>
-              ) : !payload.identity?.verified ? (
+              ) : !identityVerified ? (
                 <button
                   type="button"
                   onClick={() => void continueIdentityInquiry()}
@@ -816,7 +1073,32 @@ export function OnboardingWizard() {
                   ) : (
                     <BadgeCheck className="size-4" aria-hidden />
                   )}
-                  {identityBusy ? 'در حال انتقال به درگاه...' : 'پرداخت و تکمیل استعلام هویت'}
+                  {identityBusy
+                    ? 'در حال انتقال به درگاه...'
+                    : licenseSelected
+                      ? 'پرداخت و تکمیل استعلام هویت + جواز کسب'
+                      : 'پرداخت و تکمیل استعلام هویت'}
+                </button>
+              ) : showLicense && !payload.identity?.businessLicenseVerified ? (
+                <button
+                  type="button"
+                  onClick={() => void continueIdentityInquiry()}
+                  disabled={identityBusy || !licenseSelected}
+                  className={cn(
+                    'indeed-btn indeed-btn-primary self-start',
+                    !licenseSelected && 'cursor-not-allowed opacity-60',
+                  )}
+                >
+                  {identityBusy ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <BadgeCheck className="size-4 text-sky-100" aria-hidden />
+                  )}
+                  {identityBusy
+                    ? 'در حال انتقال به درگاه...'
+                    : licenseSelected
+                      ? 'پرداخت و استعلام جواز کسب (تیک آبی)'
+                      : 'برای تیک آبی، ابتدا گزینه‌ی جواز کسب را تیک بزنید'}
                 </button>
               ) : null}
 
@@ -848,18 +1130,14 @@ export function OnboardingWizard() {
 
           {step.kind === 'business' ? (
             <div className="flex flex-col gap-3">
-              <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] leading-6 text-emerald-800">
-                کسب‌وکار شما پس از تأیید هویت به‌صورت خودکار ساخته شد. حالا
-                کارت ویزیت آن را تکمیل کنید؛ می‌توانید بعداً از بخش «مدیریت
-                کسب‌وکار» ماژول‌های بیشتری فعال کنید.
-              </p>
               <OnboardingBusinessForm
-                requiredOnly
                 defaultFullName={
-                  [payload.identity?.firstName, payload.identity?.lastName]
+                  businessState?.fullName ??
+                  ([payload.identity?.firstName, payload.identity?.lastName]
                     .filter(Boolean)
-                    .join(' ') || undefined
+                    .join(' ') || undefined)
                 }
+                initial={businessInitial}
                 debt={walletVisible ? debt : 0}
                 paying={paying}
                 onPay={() => {
@@ -992,11 +1270,52 @@ export function OnboardingWizard() {
                       </button>
                     ))}
                   </div>
+                  {showManagement ? (
+                    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-brand/30 bg-brand-light/40 p-3">
+                      <span
+                        className={cn(
+                          'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border transition',
+                          withManagement
+                            ? 'border-brand bg-brand text-white'
+                            : 'border-[var(--vintage-border)] bg-[var(--vintage-surface)] text-transparent',
+                        )}
+                      >
+                        <Check className="size-3.5" aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-xs font-extrabold text-ink">
+                          افزودن «مدیریت {managementPackage?.label}» به همین
+                          پرداخت
+                        </span>
+                        <span className="mt-0.5 block text-[11px] leading-6 text-muted">
+                          دسته‌بندی کسب‌وکار شما بسته‌ی مدیریت اختصاصی دارد. با
+                          تیک‌زدن، این بسته هم‌زمان با اشتراک فعال و به همان
+                          پرداخت اضافه می‌شود.
+                        </span>
+                        <span className="mt-1 block text-[11px] font-bold text-brand">
+                          هزینه: {faPrice(managementAmount)} /{' '}
+                          {PLAN_PERIOD_LABELS[planMonths]}
+                        </span>
+                      </span>
+                      <input
+                        type="checkbox"
+                        className="sr-only"
+                        checked={withManagement}
+                        onChange={(event) =>
+                          setWithManagement(event.target.checked)
+                        }
+                      />
+                    </label>
+                  ) : null}
                   <div className="grid gap-3 sm:grid-cols-2">
                   {plans.map((plan) => {
                     const isCurrent = plan.id === myPlanId;
                     const busy = busyPlanId === plan.id;
-                    const amount = planPriceForMonths(plan, planMonths);
+                    const amount =
+                      planPriceForMonths(plan, planMonths) +
+                      (withManagement && showManagement && !isFreePlan(plan)
+                        ? managementAmount
+                        : 0);
                     return (
                       <div
                         key={plan.id}
