@@ -20,7 +20,34 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.41.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.41.1**.
+
+## ۱۴۰۵/۰۸/۲۷ — رفع مسدودشدن پرداخت نهایی «شروع آسان» توسط گارد هویت — نسخه `v4.41.1`
+
+**هدف:** در مرحله‌ی ۶ «شروع آسان»، پرداخت نهایی با خطای «ابتدا استعلام هویت را
+کامل کنید» رد می‌شد؛ در حالی که در جریان جدید، استعلام هویت همراه همان پرداخت
+خریداری و پس از تأیید پرداخت اجرا می‌شود. این گارد نباید جلوی شروع پرداخت را
+بگیرد.
+
+**تغییرات:**
+- `apps/api/src/subscriptions/subscriptions.controller.ts`: برداشتن
+  `@UseGuards(ProfileCompleteGuard)` از مسیر
+  `POST /subscriptions/:planId/checkout` و به‌روزرسانی توضیح Swagger که این
+  مسیر به استعلام کامل‌شده نیاز ندارد (استعلام در همین پرداخت خریداری می‌شود).
+  گارد روی `request` و `addon/checkout` دست‌نخورده ماند.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api ./node_modules/.bin/tsc --noEmit --incremental false -p tsconfig.json` → exit 0.
+- `python3 scripts/check_modules.py` و `python3 scripts/check_api_docs.py` → exit 0.
+- `python3 scripts/sync_install.py` و سپس `--check` → exit 0.
+- با کاربر بدون استعلام هویت (`cmv3eepwp0000pl3597ajvnjw`):
+  `POST /api/subscriptions/:eco/checkout` با `identity` → پیش‌تر ۴۰۳ گارد؛
+  اکنون ۲۰۱ با `amount:174100` و `identityAmount:75100` و
+  `identityPending:true` و لینک درگاه.
+- شبیه‌سازی بازگشت درگاه: ریدایرکت به
+  `/dashboard/onboarding?payment=success&identity=pending` و فعال‌شدن اشتراک
+  اکو (PAID)؛ سپس `POST /api/onboarding/identity/run` استعلام را اجرا کرد
+  (`ran:true`) و `identityConsumedAt` ثبت شد.
 
 ## ۱۴۰۵/۰۸/۲۷ — نمایش پلن رایگان و فهرست کامل بسته‌های مدیریت در «شروع آسان» — نسخه `v4.41.0`
 

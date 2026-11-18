@@ -111,11 +111,10 @@ export class SubscriptionsController {
   }
 
   @Post(':planId/checkout')
-  @UseGuards(ProfileCompleteGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary:
-      'شروع پرداخت آنلاین اشتراک با درگاه پی‌پینگ؛ `months` دوره را تعیین می‌کند (۱/۳/۶/۱۲) و با `workspaceIds` بسته‌ی مدیریت کسب‌وکار هم به همان پرداخت اضافه می‌شود',
+      'شروع پرداخت آنلاین اشتراک با درگاه پی‌پینگ؛ `months` دوره را تعیین می‌کند (۱/۳/۶/۱۲) و با `workspaceIds` بسته‌ی مدیریت کسب‌وکار هم به همان پرداخت اضافه می‌شود. استعلام هویت هم می‌تواند در همین پرداخت خریداری شود، پس این مسیر به استعلام کامل‌شده نیاز ندارد.',
   })
   checkout(
     @CurrentUser() user: AuthUser,
