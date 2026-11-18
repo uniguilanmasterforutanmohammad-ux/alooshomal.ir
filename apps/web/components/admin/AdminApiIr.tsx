@@ -32,6 +32,8 @@ interface ApiIrServiceItem {
   fields: ApiIrField[];
   enabled: boolean;
   price: number;
+  /** Official api.ir tariff for one call (Toman); 0/undefined = not recorded. */
+  tariff?: number;
 }
 
 interface ApiIrStatus {
@@ -323,6 +325,17 @@ export function AdminApiIr() {
                         : 'تعیین نشده'}
                     </span>
                   </div>
+
+                  <p className="mt-2 text-[11px] text-muted">
+                    تعرفه‌ی api.ir برای هر استعلام:{' '}
+                    {service.tariff && service.tariff > 0 ? (
+                      <span className="font-bold text-ink">
+                        {service.tariff.toLocaleString('fa-IR')} تومان
+                      </span>
+                    ) : (
+                      'ثبت نشده'
+                    )}
+                  </p>
 
                   <button
                     type="button"

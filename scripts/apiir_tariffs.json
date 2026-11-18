@@ -1,0 +1,3 @@
+{
+  "_comment": "Official api.ir tariff per service, in Toman, keyed by the panel service key (e.g. \"license\"). Read by scripts/sync_apiir_catalog.py and emitted as the `tariff` field in apps/api/src/apiir/apiir.constants.ts, so the admin panel shows it on each card. Source: https://p.api.ir/service/list (provider panel, behind login)."
+}

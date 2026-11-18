@@ -10,6 +10,13 @@ changes a service, re-run this script and commit the result.
 Usage:
     python3 scripts/sync_apiir_catalog.py                # fetch the spec
     python3 scripts/sync_apiir_catalog.py --spec spec.json
+
+Tariffs: api.ir publishes the official per-inquiry tariff only inside its
+logged-in provider panel (https://p.api.ir/service/list) — there is no public
+JSON for it. Drop the numbers into `scripts/apiir_tariffs.json`
+(`{"license": 25000, ...}`, keyed by the service key used in the panel) and
+re-run this script; each matching service then gets a `tariff` (Toman) that the
+admin panel shows on its card. Services without an entry simply omit it.
 """
 
 from __future__ import annotations
@@ -22,6 +29,7 @@ from pathlib import Path
 
 SPEC_URL = "https://s.api.ir/openapi/v1.json"
 OUTPUT = Path(__file__).resolve().parent.parent / "apps/api/src/apiir/apiir.constants.ts"
+DEFAULT_TARIFFS = Path(__file__).resolve().parent / "apiir_tariffs.json"
 
 # Persian grouping for the panel. Every service not listed falls into «سایر».
 GROUPS: dict[str, str] = {
@@ -153,6 +161,24 @@ def fetch_spec(path: str | None) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
+def load_tariffs(path: str | None) -> dict[str, int]:
+    """Read the optional `key -> tariff (Toman)` map; missing file means none."""
+    source = Path(path) if path else DEFAULT_TARIFFS
+    if not source.exists():
+        return {}
+    raw = json.loads(source.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise SystemExit(f"{source} must contain a JSON object of key -> tariff")
+    tariffs: dict[str, int] = {}
+    for key, value in raw.items():
+        if key.startswith("_"):
+            continue  # allow `_comment` style keys
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise SystemExit(f"{source}: tariff for «{key}» must be a number")
+        tariffs[str(key).lower()] = int(value)
+    return tariffs
+
+
 def collapse(text: str | None, limit: int = 220) -> str:
     clean = re.sub(r"\s+", " ", (text or "")).strip()
     return clean[:limit]
@@ -189,7 +215,8 @@ def build_fields(properties: dict, required: set[str]) -> list[str]:
     return lines
 
 
-def render(spec: dict) -> str:
+def render(spec: dict, tariffs: dict[str, int] | None = None) -> str:
+    tariffs = tariffs or {}
     schemas = spec.get("components", {}).get("schemas", {})
     paths = spec.get("paths", {})
 
@@ -220,6 +247,7 @@ def render(spec: dict) -> str:
                 "description": collapse(operation.get("description"))
                 or collapse(operation.get("summary")),
                 "path": path,
+                "tariff": tariffs.get(raw_key.lower()),
                 "fields": build_fields(properties, required),
             }
         )
@@ -236,6 +264,8 @@ def render(spec: dict) -> str:
         body.append(f"    description: {single_quote(service['description'])},")
         body.append("    method: 'POST',")
         body.append(f"    path: {single_quote(service['path'])},")
+        if service["tariff"]:
+            body.append(f"    tariff: {service['tariff']},")
         if service["fields"]:
             body.append("    fields: [")
             body.extend(service["fields"])
@@ -268,11 +298,19 @@ def render(spec: dict) -> str:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--spec", help="local spec JSON instead of fetching it")
+    parser.add_argument(
+        "--tariffs",
+        help="optional key -> tariff JSON (defaults to scripts/apiir_tariffs.json)",
+    )
     args = parser.parse_args()
     spec = fetch_spec(args.spec)
+    tariffs = load_tariffs(args.tariffs)
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(render(spec), encoding="utf-8")
-    print(f"wrote {OUTPUT} ({len(spec.get('paths', {}))} paths in the spec)")
+    OUTPUT.write_text(render(spec, tariffs), encoding="utf-8")
+    print(
+        f"wrote {OUTPUT} ({len(spec.get('paths', {}))} paths in the spec, "
+        f"{len(tariffs)} tariffs applied)"
+    )
 
 
 if __name__ == "__main__":

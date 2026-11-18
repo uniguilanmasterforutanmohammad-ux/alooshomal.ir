@@ -19,6 +19,13 @@ export interface ApiIrServiceDef {
   method: 'POST' | 'GET';
   path: string;
   fields: ApiIrField[];
+  /**
+   * Official api.ir tariff for one call, in Toman (what api.ir charges *us*).
+   * Taken from the provider's panel (`https://p.api.ir/service/list`, behind a
+   * login) via `scripts/apiir_tariffs.json`; absent until it has been recorded.
+   * Distinct from the admin-set user price (`apiir.price.<key>`).
+   */
+  tariff?: number;
 }
 
 /** Normalised result of one api.ir call. */
