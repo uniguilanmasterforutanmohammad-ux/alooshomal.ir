@@ -24,6 +24,14 @@ export interface PaypingStatus {
   message: string | null;
 }
 
+/** Outcome of the admin «delete every product» cleanup action. */
+export interface DeleteAllProductsResult {
+  total: number;
+  deleted: number;
+  deletedCodes: string[];
+  failed: Array<{ code: string; message: string }>;
+}
+
 /** How long a single PayPing call may take before it is abandoned. */
 const REQUEST_TIMEOUT_MS = 30_000;
 
@@ -364,6 +372,89 @@ export class PaypingService {
 
   deleteProduct(code: string) {
     return this.request('DELETE', `/v1/product/${encodeURIComponent(code)}`);
+  }
+
+  /**
+   * Extracts product rows from the several envelopes PayPing may return.
+   * Returns `null` when the payload shape is not recognized, so the caller can
+   * abort instead of mistaking it for an empty catalogue.
+   */
+  private productRows(payload: unknown): Array<Record<string, unknown>> | null {
+    if (Array.isArray(payload)) {
+      return payload.filter(
+        (row): row is Record<string, unknown> =>
+          Boolean(row) && typeof row === 'object',
+      );
+    }
+    if (payload && typeof payload === 'object') {
+      const record = payload as Record<string, unknown>;
+      for (const key of ['products', 'items', 'data', 'result', 'list']) {
+        if (!(key in record)) continue;
+        const rows = this.productRows(record[key]);
+        if (rows?.length) return rows;
+      }
+    }
+    return null;
+  }
+
+  private productCode(row: Record<string, unknown>): string | null {
+    for (const key of ['code', 'productCode', 'Code', 'ProductCode']) {
+      const value = row[key];
+      if (typeof value === 'string' && value.trim()) return value.trim();
+      if (typeof value === 'number') return String(value);
+    }
+    return null;
+  }
+
+  /**
+   * Admin cleanup: list every product (all pages) and delete it one by one.
+   * Failures are reported instead of aborting, so one locked product cannot
+   * stop the rest of the catalogue from being removed.
+   */
+  async deleteAllProducts(): Promise<DeleteAllProductsResult> {
+    const limit = 50;
+    const codes = new Set<string>();
+    let offset = 0;
+
+    for (let page = 0; page < 200; page += 1) {
+      const payload = await this.listProducts({ offset, limit });
+      const rows = this.productRows(payload);
+      if (rows === null) {
+        throw new BadGatewayException(
+          'ساختار پاسخ فهرست محصولات پی‌پینگ قابل تشخیص نبود؛ عملیات برای جلوگیری از حذف ناقص متوقف شد.',
+        );
+      }
+      if (!rows.length) break;
+
+      let added = 0;
+      for (const row of rows) {
+        const code = this.productCode(row);
+        if (code && !codes.has(code)) {
+          codes.add(code);
+          added += 1;
+        }
+      }
+      if (!added) break;
+      offset += rows.length;
+    }
+
+    const failed: Array<{ code: string; message: string }> = [];
+    const deletedCodes: string[] = [];
+    let deleted = 0;
+    for (const code of codes) {
+      try {
+        await this.deleteProduct(code);
+        deleted += 1;
+        deletedCodes.push(code);
+      } catch (error) {
+        failed.push({
+          code,
+          message: error instanceof Error ? error.message : String(error),
+        });
+      }
+    }
+
+    return { total: codes.size, deleted, deletedCodes, failed };
   }
 
   createPermalink(dto: unknown) {

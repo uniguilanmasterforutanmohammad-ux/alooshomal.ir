@@ -295,6 +295,14 @@ export class AdminController {
     return this.subscriptionsService.updatePlan(id, dto);
   }
 
+  @Delete('plans/payping-products')
+  @ApiOperation({
+    summary: 'حذف همه محصولات پی‌پینگ و پاک‌کردن کدهای ذخیره‌شده‌ی بسته‌ها',
+  })
+  clearPaypingProducts() {
+    return this.subscriptionsPayment.deleteAllPaypingProducts();
+  }
+
   @Delete('plans/:id')
   @ApiOperation({ summary: 'حذف اشتراک (اگر به کاربری تخصیص نیافته باشد)' })
   removePlan(@Param('id') id: string) {

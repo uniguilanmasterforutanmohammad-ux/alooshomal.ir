@@ -72,6 +72,7 @@ export function AdminSubscriptions() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [clearingProducts, setClearingProducts] = useState(false);
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<PlanFormState>(EMPTY_FORM);
@@ -249,6 +250,43 @@ export function AdminSubscriptions() {
       );
     } finally {
       setBusyId(null);
+    }
+  }
+
+  async function clearPaypingProducts() {
+    const answer = window.prompt(
+      'این کار همه‌ی محصولات پی‌پینگ را حذف می‌کند و کدهای ذخیره‌شده را پاک می‌کند. برای تأیید عبارت «حذف همه» را بنویسید:',
+    );
+    if (answer === null) return;
+    if (answer.trim() !== 'حذف همه') {
+      setError('عبارت تأیید درست نبود؛ عملیاتی انجام نشد.');
+      return;
+    }
+    setClearingProducts(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await api.delete<{
+        total: number;
+        deleted: number;
+        failed: Array<{ code: string; message: string }>;
+        clearedCodes: number;
+      }>('/admin/plans/payping-products');
+      const failed = result.failed?.length ?? 0;
+      setNotice(
+        `پاک‌سازی پی‌پینگ انجام شد: ${result.deleted.toLocaleString('fa-IR')} از ${result.total.toLocaleString('fa-IR')} محصول حذف شد و ${result.clearedCodes.toLocaleString('fa-IR')} کد محصول از بسته‌ها پاک شد.${
+          failed
+            ? ` ${failed.toLocaleString('fa-IR')} محصول حذف نشد؛ پیش از همگام‌سازی دوباره پاک‌سازی را اجرا کنید.`
+            : ''
+        }`,
+      );
+      await loadPlans();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'پاک‌سازی محصولات پی‌پینگ ناموفق بود',
+      );
+    } finally {
+      setClearingProducts(false);
     }
   }
 
@@ -510,14 +548,27 @@ export function AdminSubscriptions() {
                 نمایش داده می‌شوند.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => (showPlanForm ? resetForm() : startCreate())}
-              className="indeed-btn indeed-btn-primary py-1.5 text-xs"
-            >
-              <Plus className="size-3.5" aria-hidden />
-              {showPlanForm ? 'بستن فرم' : 'اشتراک جدید'}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void clearPaypingProducts()}
+                disabled={clearingProducts}
+                className="indeed-btn border border-red-200 bg-red-50 py-1.5 text-xs text-red-600 disabled:opacity-60"
+              >
+                <Trash2 className="size-3.5" aria-hidden />
+                {clearingProducts
+                  ? 'در حال پاک‌سازی...'
+                  : 'حذف همه محصولات پی‌پینگ'}
+              </button>
+              <button
+                type="button"
+                onClick={() => (showPlanForm ? resetForm() : startCreate())}
+                className="indeed-btn indeed-btn-primary py-1.5 text-xs"
+              >
+                <Plus className="size-3.5" aria-hidden />
+                {showPlanForm ? 'بستن فرم' : 'اشتراک جدید'}
+              </button>
+            </div>
           </div>
 
           {showPlanForm ? (

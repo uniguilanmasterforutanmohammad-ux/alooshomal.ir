@@ -423,6 +423,7 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 | `POST` | `/subscriptions/:id/activate` | فعال‌سازی اشتراک پرداخت‌شده‌ای که به‌دلیل وجود یک دوره‌ی فعال دیگر، در وضعیت `PENDING` مانده است. با فعال‌سازی، دوره‌ی قبلی لغو و مانده‌ی روزهایش حذف می‌شود. |
 | `GET` | `/subscriptions/payments/callback` | آدرس بازگشت عمومی پی‌پینگ (`paymentCode`، `refId`، `clientRefId`)؛ تراکنش را تأیید و سپس به `returnTo` (پیش‌فرض `/dashboard/subscriptions`) با `payment=...` هدایت می‌کند. برای خرید طرح دیگر پیش از پایان دوره، `activation=pending` هم اضافه می‌شود. |
 | `POST` | `/admin/plans/:id/payping-product` | ساخت/همگام‌سازی **۱۶ محصول** پی‌پینگ هر بسته: ۴ دوره‌ی ۱/۳/۶/۱۲ ماهه در دو حالت «بدون» و «+ بسته مدیریت کسب‌وکار» (فقط مدیر)؛ خروجی `{ paypingProductCode, paypingProductCodes, businessAmount, paypingBundleProductCodes }`. |
+| `DELETE` | `/admin/plans/payping-products` | حذف همه‌ی محصولات حساب پی‌پینگ و پاک‌کردن کدهای ذخیره‌شده‌ی محصولات حذف‌شده (فقط مدیر)؛ خروجی `{ total, deleted, deletedCodes, failed, clearedCodes }`. برای تمیزکاری پیش از همگام‌سازی دوباره استفاده می‌شود. |
 
 **تمدید و تغییر طرح:** خرید همان بسته پیش از پایان دوره، ماه‌های خریداری‌شده را
 از تاریخ انقضای فعلی اضافه می‌کند (`startsAt` دوره‌ی جدید = انقضای قبلی). خرید

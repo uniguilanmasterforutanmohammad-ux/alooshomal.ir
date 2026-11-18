@@ -323,6 +323,104 @@ export class SubscriptionsPaymentService {
   }
 
   /**
+   * Admin cleanup: delete every product in the PayPing account, then clear the
+   * cached codes so the next «همگام‌سازی» recreates them from scratch instead
+   * of trying to update products that no longer exist.
+   */
+  async deleteAllPaypingProducts() {
+    const result = await this.payping.deleteAllProducts();
+
+    // Empty catalogue: every cached code is stale (e.g. products were removed
+    // manually in the PayPing console), so clear them all before the re-sync.
+    if (result.total === 0) {
+      const plans = await this.prisma.subscriptionPlan.findMany({
+        select: {
+          paypingProductCode: true,
+          paypingProductCode3Months: true,
+          paypingProductCode6Months: true,
+          paypingProductCode12Months: true,
+          paypingProductCodeWithPackage: true,
+          paypingProductCodeWithPackage3Months: true,
+          paypingProductCodeWithPackage6Months: true,
+          paypingProductCodeWithPackage12Months: true,
+        },
+      });
+      const clearedCodes = plans.reduce(
+        (sum, plan) =>
+          sum +
+          [
+            plan.paypingProductCode,
+            plan.paypingProductCode3Months,
+            plan.paypingProductCode6Months,
+            plan.paypingProductCode12Months,
+            plan.paypingProductCodeWithPackage,
+            plan.paypingProductCodeWithPackage3Months,
+            plan.paypingProductCodeWithPackage6Months,
+            plan.paypingProductCodeWithPackage12Months,
+          ].filter(Boolean).length,
+        0,
+      );
+      if (clearedCodes) {
+        await this.prisma.subscriptionPlan.updateMany({
+          data: {
+            paypingProductCode: null,
+            paypingProductCode3Months: null,
+            paypingProductCode6Months: null,
+            paypingProductCode12Months: null,
+            paypingProductCodeWithPackage: null,
+            paypingProductCodeWithPackage3Months: null,
+            paypingProductCodeWithPackage6Months: null,
+            paypingProductCodeWithPackage12Months: null,
+          },
+        });
+      }
+      return { ...result, clearedCodes };
+    }
+
+    const codes = [...new Set(result.deletedCodes)];
+    let clearedCodes = 0;
+    if (codes.length) {
+      const operations = [
+        this.prisma.subscriptionPlan.updateMany({
+          where: { paypingProductCode: { in: codes } },
+          data: { paypingProductCode: null },
+        }),
+        this.prisma.subscriptionPlan.updateMany({
+          where: { paypingProductCode3Months: { in: codes } },
+          data: { paypingProductCode3Months: null },
+        }),
+        this.prisma.subscriptionPlan.updateMany({
+          where: { paypingProductCode6Months: { in: codes } },
+          data: { paypingProductCode6Months: null },
+        }),
+        this.prisma.subscriptionPlan.updateMany({
+          where: { paypingProductCode12Months: { in: codes } },
+          data: { paypingProductCode12Months: null },
+        }),
+        this.prisma.subscriptionPlan.updateMany({
+          where: { paypingProductCodeWithPackage: { in: codes } },
+          data: { paypingProductCodeWithPackage: null },
+        }),
+        this.prisma.subscriptionPlan.updateMany({
+          where: { paypingProductCodeWithPackage3Months: { in: codes } },
+          data: { paypingProductCodeWithPackage3Months: null },
+        }),
+        this.prisma.subscriptionPlan.updateMany({
+          where: { paypingProductCodeWithPackage6Months: { in: codes } },
+          data: { paypingProductCodeWithPackage6Months: null },
+        }),
+        this.prisma.subscriptionPlan.updateMany({
+          where: { paypingProductCodeWithPackage12Months: { in: codes } },
+          data: { paypingProductCodeWithPackage12Months: null },
+        }),
+      ];
+      const cleared = await this.prisma.$transaction(operations);
+      clearedCodes = cleared.reduce((sum, item) => sum + item.count, 0);
+    }
+    return { ...result, clearedCodes };
+  }
+
+  /**
    * Start an online payment for a paid plan. Returns the PayPing gateway URL;
    * the plan is activated only after the callback verifies the transaction.
    *
