@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
-  BadgeCheck,
   Bookmark,
   Building2,
   Coins,
@@ -66,8 +65,8 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
     items: [
       { href: '/dashboard/onboarding', label: 'شروع آسان', icon: Sparkles, exact: false, feature: 'featureOnboarding' },
       { href: '/dashboard/business', label: 'پنل کسب‌وکار', icon: Building2, exact: false, feature: 'featureBusinessWorkspace' },
-      { href: '/dashboard/business-cards', label: 'کارت‌های ویزیت من', icon: BadgeCheck, exact: false },
-      { href: '/dashboard/biolinks', label: 'بیولینک‌های من', icon: IdCard, exact: false },
+      // کارت ویزیت و بیولینک دیگر اینجا به‌صورت مجزا نیستند؛ تب‌های همان
+      // «پنل کسب‌وکار» آن‌ها را نشان می‌دهند (مسیر قدیمی همچنان کار می‌کند).
       { href: '/dashboard/feeds', label: 'پست‌های من', icon: ImagePlus, exact: false, feature: 'featureFeedPosts' },
       { href: '/dashboard/saved', label: 'ذخیره‌شده‌های من', icon: Bookmark, exact: false },
     ],
