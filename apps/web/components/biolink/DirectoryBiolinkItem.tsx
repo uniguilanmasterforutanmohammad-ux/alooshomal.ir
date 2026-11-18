@@ -2,11 +2,12 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { BadgeCheck, Building2, Phone, Smartphone, UserRound } from 'lucide-react';
+import { Building2, Phone, Smartphone, UserRound } from 'lucide-react';
 
 import { BoostBadge } from '@/components/ui/BoostBadge';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { SaveButton } from '@/components/ui/SaveButton';
+import { VerificationBadge } from '@/components/ui/VerificationBadge';
 import { readableAccent } from '@/lib/card-spectrum';
 import { cn } from '@/lib/utils';
 import type { DirectoryBiolink } from '@/lib/api';
@@ -115,12 +116,11 @@ export function DirectoryBiolinkItem({ biolink, selected, onSelect }: Props) {
               className="hover:underline focus:underline focus:outline-none"
             >
               {biolink.fullName}
-              {biolink.ownerVerified ? (
-                <BadgeCheck
-                  className="ms-1 inline size-3.5 shrink-0 text-sky-600"
-                  aria-label="تأیید هویت"
-                />
-              ) : null}
+              <VerificationBadge
+                identity={biolink.ownerIdentityVerified}
+                businessLicense={biolink.ownerBusinessLicenseVerified}
+                className="ms-1 inline-flex align-middle"
+              />
               {/* descriptive anchor text for crawlers (avoids "click here") */}
               <span className="sr-only">
                 {' '}

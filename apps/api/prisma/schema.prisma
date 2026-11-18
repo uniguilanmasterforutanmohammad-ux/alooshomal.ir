@@ -1444,6 +1444,17 @@ model SubscriptionPayment {
   /// True when this checkout also buys one or more business management
   /// packages (the add-on).
   withBusinessPackage Boolean @default(false)
+  /// Part of `amount` that pays the identity inquiry bundle (0 when the user is
+  /// already verified or did not ask for it). The inquiry runs only after the
+  /// gateway confirms the single payment.
+  identityAmount Int           @default(0)
+  /// Identity inputs snapshotted at checkout so the callback can run the
+  /// inquiries after payment: `{ nationalCode, birthDate, withLicense,
+  /// licenseTrackingCode }`.
+  identityData  Json?
+  /// Set once the paid identity inquiry actually ran, so a page reload never
+  /// runs (or charges) it twice.
+  identityConsumedAt DateTime?
   /// The add-on packages bought with this payment: a list of
   /// `{ workspaceId, packageKey, label, amount, months, paidUntil }` entries —
   /// one per business (Plus may buy the management for up to three).

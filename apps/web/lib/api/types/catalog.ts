@@ -37,6 +37,11 @@ export interface Biolink {
   planName?: string | null;
   /** owner passed the identity inquiry and has the blue tick */
   ownerVerified?: boolean;
+  /** white/blue verification ticks of the owner's workspace */
+  verification?: { identity: boolean; businessLicense: boolean };
+  /** directory batch payload fallback for the same ticks */
+  ownerIdentityVerified?: boolean;
+  ownerBusinessLicenseVerified?: boolean;
   /** the owner's plan masks links/socials (free plan) */
   planHidesFields?: boolean;
   /** id of the owner account (public payload only, used to detect "my card") */
@@ -113,6 +118,11 @@ export interface DirectoryBiolink {
   likeCount: number;
   /** owner passed the identity inquiry and has the blue tick */
   ownerVerified?: boolean;
+  /** white/blue verification ticks of the owner's workspace */
+  verification?: { identity: boolean; businessLicense: boolean };
+  /** directory batch payload fallback for the same ticks */
+  ownerIdentityVerified?: boolean;
+  ownerBusinessLicenseVerified?: boolean;
   liked: boolean;
   saved: boolean;
 }
@@ -229,6 +239,12 @@ export interface BusinessCard {
  planName?: string | null;
   /** owner passed the identity inquiry and has the blue tick */
   ownerVerified?: boolean;
+  /** white/blue verification ticks of the owner's workspace */
+  verification?: { identity: boolean; businessLicense: boolean };
+  /** owner completed the identity inquiry (white tick) */
+  ownerIdentityVerified?: boolean;
+  /** owner also verified the business license (blue tick) */
+  ownerBusinessLicenseVerified?: boolean;
  /** the owner's plan masks links/socials (free plan) */
  planHidesFields?: boolean;
  /** id of the owner account (public payload only, used to detect "my card") */
@@ -278,6 +294,10 @@ export interface DirectoryBusinessCard {
   neighborhood?: string | null;
   /** owner passed the identity inquiry and has the blue tick */
   ownerVerified?: boolean;
+  /** owner completed the identity inquiry (white tick) */
+  ownerIdentityVerified?: boolean;
+  /** owner also verified the business license (blue tick) */
+  ownerBusinessLicenseVerified?: boolean;
   liked: boolean;
   saved: boolean;
 }

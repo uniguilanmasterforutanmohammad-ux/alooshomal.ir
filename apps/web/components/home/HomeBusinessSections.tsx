@@ -1,13 +1,13 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import {
-  BadgeCheck,
   CalendarDays,
   ChevronLeft,
   MapPin,
   Star,
 } from 'lucide-react';
 
+import { VerificationBadge } from '@/components/ui/VerificationBadge';
 import type { HomeBusinessCard } from '@/lib/home-server';
 
 function accent(item: HomeBusinessCard): string {
@@ -116,11 +116,11 @@ function SuggestionCard({ item }: { item: HomeBusinessCard }) {
             {item.fullName.trim().slice(0, 1)}
           </span>
         )}
-        {item.ownerVerified ? (
-          <span className="absolute left-2 top-2 flex size-6 items-center justify-center rounded-full bg-[var(--footer-tile)] text-[var(--footer-brand-light)] shadow-sm">
-            <BadgeCheck className="size-4" aria-hidden />
-          </span>
-        ) : null}
+        <VerificationBadge
+          identity={item.ownerIdentityVerified ?? item.ownerVerified}
+          businessLicense={item.ownerBusinessLicenseVerified}
+          className="absolute left-2 top-2 flex size-6 items-center justify-center rounded-full bg-[var(--footer-tile)] shadow-sm"
+        />
         <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-[var(--footer-tile)] px-2 py-0.5 text-[10px] font-bold text-[var(--footer-ink)] shadow-sm">
           {item.ratingCount > 0 ? (
             <>
@@ -190,12 +190,11 @@ function LatestCard({ item }: { item: HomeBusinessCard }) {
           <h3 className="line-clamp-1 text-sm font-bold text-[var(--footer-ink)] transition group-hover:text-[var(--footer-brand)]">
             {item.fullName}
           </h3>
-          {item.ownerVerified ? (
-            <BadgeCheck
-              className="mt-0.5 size-4 shrink-0 text-[var(--footer-brand-light)]"
-              aria-hidden
-            />
-          ) : null}
+          <VerificationBadge
+            identity={item.ownerIdentityVerified ?? item.ownerVerified}
+            businessLicense={item.ownerBusinessLicenseVerified}
+            className="mt-0.5 shrink-0"
+          />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {item.ratingCount > 0 ? (

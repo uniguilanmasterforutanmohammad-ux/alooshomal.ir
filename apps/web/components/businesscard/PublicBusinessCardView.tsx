@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import {
   ArrowRight,
-  BadgeCheck,
   Crown,
   ExternalLink,
   Globe,
@@ -28,6 +27,7 @@ import {
   type BizCardSocial,
 } from '@/components/businesscard/BusinessCardFace';
 import { CardFit } from '@/components/ui/CardFit';
+import { VerificationBadge } from '@/components/ui/VerificationBadge';
 import { ClaimBusinessCardButton } from '@/components/business/ClaimBusinessCardButton';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
@@ -229,12 +229,11 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
                 <ExternalLink className="size-3.5" aria-hidden />
                 صفحه کسب‌وکار
               </Link>
-              {businessCard.ownerVerified ? (
-                <span className="record-pill text-sky-700">
-                  <BadgeCheck className="size-3.5" aria-hidden />
-                  تأیید هویت
-                </span>
-              ) : null}
+              <VerificationBadge
+                identity={businessCard.verification?.identity}
+                businessLicense={businessCard.verification?.businessLicense}
+                className="record-pill"
+              />
               {businessCard.planName ? (
                 <span className="record-pill">
                   <Crown className="size-3.5" aria-hidden />

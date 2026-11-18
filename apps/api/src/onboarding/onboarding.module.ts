@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { ActivityModule } from '../activity/activity.module';
 import { BusinessModulesModule } from '../business-modules/business-modules.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { ProfileModule } from '../profile/profile.module';
 import { SettingsModule } from '../settings/settings.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import {
@@ -17,6 +18,7 @@ import { OnboardingService } from './onboarding.service';
     SettingsModule,
     ActivityModule,
     BusinessModulesModule,
+    ProfileModule,
     SubscriptionsModule,
   ],
   controllers: [OnboardingController, AdminOnboardingController],

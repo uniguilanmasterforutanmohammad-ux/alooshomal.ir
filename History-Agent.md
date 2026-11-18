@@ -20,7 +20,77 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.39.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.40.0**.
+
+## ۱۴۰۵/۰۸/۲۷ — صورتحساب یکجا در «شروع آسان» + تیک سفید/آبی تأیید — نسخه `v4.40.0`
+
+**هدف:** جایگزینی مدل «ترکیب اشتراک‌ها و بسته‌ها» با یک جریان انتخاب
+مرحله‌به‌مرحله و **یک پرداخت نهایی** برای همه‌ی موارد انتخابی (استعلام هویت،
+اشتراک اکو/بلاس، بسته مدیریت کسب‌وکار)؛ به‌روزرسانی ترتیب مراحل ویزارد؛ و
+نمایش تیک سفید (هویت) / آبی (هویت + جواز کسب) با راهنمای هاور روی همه‌ی
+ساخته‌های کاربر و فهرست‌های عمومی.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `identityAmount`، `identityData` و
+  `identityConsumedAt` به `SubscriptionPayment` برای نگه‌داری استعلامِ
+  پرداخت‌شده و اجرای یک‌باره‌ی آن پس از تأیید پرداخت.
+- `apps/api/src/subscriptions/dto/checkout-subscription.dto.ts`: افزودن
+  `CheckoutIdentityDto` و فیلد `identity` به `CheckoutSubscriptionDto`.
+- `apps/api/src/subscriptions/subscriptions-payment.service.ts`: محاسبه و
+  افزودن هزینه‌ی استعلام به محصول/مبلغ پی‌پینگ (`extraAmount`)، اعتبارسنجی
+  کد ملی/تاریخ تولد/کد پیگیری جواز و جلوگیری از کد ملی تکراری، ذخیره‌ی
+  `identityAmount`/`identityData`، و برگرداندن `?identity=pending` در بازگشت
+  از درگاه برای اجرای استعلام در ویزارد.
+- `apps/api/src/subscriptions/subscriptions.module.ts` و
+  `apps/api/src/subscriptions/subscriptions.controller.ts`: تزریق
+  `ZohalModule`/`ApiIrModule` و پاس‌دادن `dto.identity`.
+- `apps/api/src/profile/profile.service.ts`: افزودن `runPaidIdentityBundle`
+  برای اجرای استعلامِ ازپیش‌پرداخت‌شده بدون کسر مجدد.
+- `apps/api/src/onboarding/onboarding.constants.ts`: مراحل جدید
+  `welcome → business → identity → plan → management(optional) → invoice →
+  approval` با متن‌های تازه.
+- `apps/api/src/onboarding/onboarding.service.ts`: مهاجرت مراحل ذخیره‌شده
+  (`onboardingStepsV4`)، منطق `done` جدید (plan = پلن پولی فعال، management =
+  بسته پرداخت‌شده یا صنف بدون بسته، invoice = plan+identity، approval =
+  identity+plan)، و `runPendingIdentity` (idempotent؛ پرداخت را مصرف می‌کند).
+- `apps/api/src/onboarding/onboarding.controller.ts` و
+  `apps/api/src/onboarding/onboarding.module.ts`: مسیر
+  `POST /onboarding/identity/run` و تزریق `ProfileModule`.
+- `apps/api/src/businesscards/*.service.ts` و `apps/api/src/biolinks/*.service.ts`:
+  افزودن `verification` (هویت/جواز) به خروجی عمومی و
+  `ownerIdentityVerified`/`ownerBusinessLicenseVerified` به خروجی دایرکتوری،
+  «آخرین‌ها»، دفترچه تلفن و «ساخته‌های من».
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: بازنویسی جریان به
+  انتخاب پلن (بدون پرداخت)، مرحله‌ی مدیریت بر اساس دسته‌بندی، صورتحساب کل و
+  یک پرداخت نهایی (`workspaceIds` + `identity`)، اجرای استعلام پس از پرداخت،
+  و مرحله‌ی نتیجه (تبریک یا اصلاح اطلاعات + پرداخت مجدد استعلام). هشدار
+  «هزینه‌ی استعلام در صورت اطلاعات اشتباه قابل برگشت نیست» در مرحله‌ی هویت.
+- `apps/web/components/ui/VerificationBadge.tsx` (جدید): تیک سفید/آبی با
+  tooltip روی هاور/فوکوس.
+- `apps/web/components/businesscard/*`، `apps/web/components/biolink/*`،
+  `apps/web/app/business/[slug]/page.tsx`،
+  `apps/web/app/categories/[slug]/page.tsx`،
+  `apps/web/app/dashboard/cards/page.tsx`،
+  `apps/web/components/home/HomeBusinessSections.tsx` و
+  `apps/web/components/ui/DirectoryContactTile.tsx`: نمایش `VerificationBadge`
+  در کارت ویزیت، بیولینک، صفحه کسب‌وکار، دسته‌بندی‌ها، خانه و پنل کاربر.
+- `apps/web/lib/api/types/catalog.ts` و `apps/web/lib/home-server.ts`: افزودن
+  فیلدهای `verification` و تیک‌های مالک به تایپ‌ها.
+
+**تأیید/تست:**
+- `./apps/web/node_modules/.bin/tsc --noEmit -p apps/web/tsconfig.json` → exit 0.
+- `docker exec alooshomal-api ./node_modules/.bin/tsc --noEmit --incremental false -p tsconfig.json` → exit 0.
+- `python3 scripts/check_modules.py` و `python3 scripts/check_api_docs.py` → exit 0.
+- `python3 scripts/sync_install.py` و سپس `--check` → exit 0 (بدون تغییر معلق).
+- `GET /api/onboarding/me` با توکن تست: مراحل به‌ترتیب
+  `welcome, business, identity, plan, management(optional), invoice, approval`
+  و `done` درست برگشت.
+- `POST /api/onboarding/identity/run` برای کاربر تأییدشده →
+  `{ran:false, success:true}`.
+- `GET /api/business-cards/public/:slug` و `.../public/batch` →
+  `verification:{identity:true,businessLicense:false}`؛
+  `GET /api/business-cards/public/latest` و فهرست دایرکتوری →
+  `ownerIdentityVerified` درست.
 
 ## ۱۴۰۵/۰۸/۲۷ — اصلاح همگام‌سازی پی‌پینگ و جمع ترکیبی اکو/بلاس + مدیریت — نسخه `v4.39.1`
 

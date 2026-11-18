@@ -278,13 +278,19 @@ export class BusinessCardsService {
     }
     const owner = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { verifiedAt: true },
+      select: {
+        verifiedAt: true,
+        identityVerifiedAt: true,
+        businessLicenseVerifiedAt: true,
+      },
     });
 
     return {
       items: businessCards.map((item, index) => ({
         ...item,
         ownerVerified: Boolean(owner?.verifiedAt),
+        ownerIdentityVerified: Boolean(owner?.identityVerifiedAt),
+        ownerBusinessLicenseVerified: Boolean(owner?.businessLicenseVerifiedAt),
         likeCount: item._count.likes,
         saveCount: item._count.saves,
         views: item._count.scans,
@@ -491,7 +497,7 @@ export class BusinessCardsService {
           },
           take: 1,
         },
-        user: { select: { plan: true, verifiedAt: true } },
+        user: { select: { plan: true, verifiedAt: true, identityVerifiedAt: true, businessLicenseVerifiedAt: true } },
       },
     });
     if (!businessCard) {
@@ -529,7 +535,7 @@ export class BusinessCardsService {
           },
           take: 1,
         },
-        user: { select: { plan: true, verifiedAt: true } },
+        user: { select: { plan: true, verifiedAt: true, identityVerifiedAt: true, businessLicenseVerifiedAt: true } },
       },
     });
     return rows.map((row) => this.projectPublicBusinessCard(row));
@@ -562,14 +568,21 @@ export class BusinessCardsService {
         ratingCount: true,
         city: { select: { id: true, name: true } },
         business: { select: { id: true, name: true } },
-        user: { select: { plan: true, verifiedAt: true } },
+        user: { select: { plan: true, verifiedAt: true, identityVerifiedAt: true, businessLicenseVerifiedAt: true } },
       },
     });
     // Hide the fields the owner's plan masks (e.g. contact details on «رایگان»)
     // and drop the `user` relation from the public payload.
     return rows.map((row) => {
       const { user: _user, ...rest } = applyPlanMask(row, row.user?.plan);
-      return { ...rest, ownerVerified: Boolean(row.user?.verifiedAt) };
+      return {
+        ...rest,
+        ownerVerified: Boolean(row.user?.verifiedAt),
+        ownerIdentityVerified: Boolean(row.user?.identityVerifiedAt),
+        ownerBusinessLicenseVerified: Boolean(
+          row.user?.businessLicenseVerifiedAt,
+        ),
+      };
     });
   }
 
@@ -621,7 +634,7 @@ export class BusinessCardsService {
         pinnedAt: true,
         city: { select: { id: true, name: true } },
         business: { select: { id: true, name: true } },
-        user: { select: { plan: true, verifiedAt: true } },
+        user: { select: { plan: true, verifiedAt: true, identityVerifiedAt: true, businessLicenseVerifiedAt: true } },
       },
       orderBy: [{ pinnedAt: 'desc' }, { id: 'desc' }],
       take: PHONEBOOK_MAX_ROWS,
@@ -629,7 +642,14 @@ export class BusinessCardsService {
 
     const mapped = rows.map((row) => {
       const { user: _user, ...rest } = applyPlanMask(row, row.user?.plan);
-      return { ...rest, ownerVerified: Boolean(row.user?.verifiedAt) };
+      return {
+        ...rest,
+        ownerVerified: Boolean(row.user?.verifiedAt),
+        ownerIdentityVerified: Boolean(row.user?.identityVerifiedAt),
+        ownerBusinessLicenseVerified: Boolean(
+          row.user?.businessLicenseVerifiedAt,
+        ),
+      };
     });
 
     const filtered = needle
@@ -678,6 +698,8 @@ export class BusinessCardsService {
       whatsapp: string | null;
       user?: {
         verifiedAt: Date | null;
+        identityVerifiedAt: Date | null;
+        businessLicenseVerifiedAt: Date | null;
         plan: {
           name: string;
           maxBiolinks: number;
@@ -712,6 +734,10 @@ export class BusinessCardsService {
       ...rest,
       planName: limits.name,
       ownerVerified: Boolean(businessCard.user?.verifiedAt),
+      verification: {
+        identity: Boolean(businessCard.user?.identityVerifiedAt),
+        businessLicense: Boolean(businessCard.user?.businessLicenseVerifiedAt),
+      },
       planHidesFields: limits.hiddenFields.length > 0,
       linkedBiolink,
     };

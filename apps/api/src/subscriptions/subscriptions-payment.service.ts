@@ -1,6 +1,7 @@
 import {
   BadGatewayException,
   BadRequestException,
+  ConflictException,
   HttpException,
   Injectable,
   Logger,
@@ -19,7 +20,9 @@ import {
 import { randomBytes } from 'node:crypto';
 
 import { ActivityService } from '../activity/activity.service';
+import { ApiIrService } from '../apiir/apiir.service';
 import { paypingReturnBaseUrl } from '../common/app-url';
+import { isValidNationalCode } from '../common/national-code';
 import {
   addMonths,
   isFreePlan,
@@ -34,6 +37,7 @@ import { PaypingService } from '../payping/payping.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { WalletService } from '../wallet/wallet.service';
+import { ZohalService } from '../zohal/zohal.service';
 import { BusinessPackageService } from './business-package.service';
 
 /**
@@ -82,6 +86,22 @@ export interface BusinessAddonQuoteItem {
   currentPaidUntil: string | null;
 }
 
+/** Identity inputs of a combined checkout (plan + management + inquiry). */
+export interface CheckoutIdentityInput {
+  nationalCode?: string;
+  birthDate?: string;
+  withLicense?: boolean;
+  licenseTrackingCode?: string;
+}
+
+/** Identity data snapshotted on the payment for the post-payment inquiry. */
+export interface CheckoutIdentitySnapshot {
+  nationalCode: string | null;
+  birthDate: string | null;
+  withLicense: boolean;
+  licenseTrackingCode: string | null;
+}
+
 @Injectable()
 export class SubscriptionsPaymentService {
   private readonly logger = new Logger(SubscriptionsPaymentService.name);
@@ -96,6 +116,8 @@ export class SubscriptionsPaymentService {
     private readonly settings: SettingsService,
     private readonly wallet: WalletService,
     private readonly packages: BusinessPackageService,
+    private readonly zohal: ZohalService,
+    private readonly apiir: ApiIrService,
   ) {}
 
   /** Loads a plan or throws, so payment paths never act on a missing plan. */
@@ -143,7 +165,12 @@ export class SubscriptionsPaymentService {
   private async ensurePlanProduct(
     plan: SubscriptionPlan,
     months = 1,
-    options: { withBusinessPackage?: boolean; businessAmount?: number } = {},
+    options: {
+      withBusinessPackage?: boolean;
+      businessAmount?: number;
+      /** Non-plan, non-management part of the payment (e.g. identity inquiry). */
+      extraAmount?: number;
+    } = {},
   ): Promise<string> {
     const withBusinessPackage = Boolean(options.withBusinessPackage);
     const businessAmount = withBusinessPackage
@@ -154,7 +181,9 @@ export class SubscriptionsPaymentService {
         'توکن درگاه پرداخت پی‌پینگ تنظیم نشده است. مقدار PAYPING_TOKEN را در محیط سرور قرار دهید.',
       );
     }
-    const amount = planPriceForMonths(plan, months) + businessAmount;
+    const extraAmount = Math.max(0, Math.round(options.extraAmount ?? 0));
+    const amount =
+      planPriceForMonths(plan, months) + businessAmount + extraAmount;
     const term = months === 1 ? 'یک‌ماهه' : `${months} ماهه`;
     const suffix = withBusinessPackage
       ? ' + بسته مدیریت کسب‌وکار'
@@ -466,13 +495,20 @@ export class SubscriptionsPaymentService {
    * remaining time — and the amounts are added to the subscription price. The
    * packages expire together with the plan. The free plan can never buy the
    * add-on, and a plan may only cover as many businesses as it allows.
+   *
+   * `options.identity` adds the identity inquiry bundle to the *same* payment,
+   * so a new account pays once for plan + management + verification. The
+   * inquiry itself runs only after the gateway confirms the payment.
    */
   async checkout(
     userId: string,
     planId: string,
     requestedMonths = 1,
     returnTo?: string,
-    options: { workspaceIds?: string[] | null } = {},
+    options: {
+      workspaceIds?: string[] | null;
+      identity?: CheckoutIdentityInput | null;
+    } = {},
   ) {
     const plan = await this.requirePlan(planId);
     if (!plan.isActive) {
@@ -497,6 +533,11 @@ export class SubscriptionsPaymentService {
         fullName: true,
         planId: true,
         planExpiresAt: true,
+        phoneVerified: true,
+        nationalCode: true,
+        birthDate: true,
+        identityVerifiedAt: true,
+        businessLicenseVerifiedAt: true,
       },
     });
     if (!user) {
@@ -531,7 +572,10 @@ export class SubscriptionsPaymentService {
       options.workspaceIds,
     );
     const businessAmount = addons.reduce((sum, item) => sum + item.amount, 0);
-    const amount = planPriceForMonths(plan, months) + businessAmount;
+    const identity = await this.resolveIdentityCharge(user, options.identity);
+    const identityAmount = identity.amount;
+    const amount =
+      planPriceForMonths(plan, months) + businessAmount + identityAmount;
     if (amount < 1000) {
       throw new BadRequestException(
         'مبلغ این اشتراک برای پرداخت آنلاین معتبر نیست؛ از درخواست اشتراک استفاده کنید.',
@@ -551,6 +595,7 @@ export class SubscriptionsPaymentService {
       : await this.ensurePlanProduct(plan, months, {
           withBusinessPackage: addons.length > 0,
           businessAmount,
+          extraAmount: identityAmount,
         });
 
     // Supersede any previous unpaid attempt for the same plan.
@@ -573,6 +618,10 @@ export class SubscriptionsPaymentService {
         returnTo: safeReturnTo,
         payerName: user.fullName ?? undefined,
         businessAmount,
+        identityAmount,
+        identityData: identity.data
+          ? (identity.data as unknown as Prisma.InputJsonValue)
+          : undefined,
         withBusinessPackage: addons.length > 0,
         businessPackages:
           addons.length > 0
@@ -648,6 +697,8 @@ export class SubscriptionsPaymentService {
       withBusinessPackage: addons.length > 0,
       businessAmount,
       businessPackages: addons,
+      identityAmount,
+      identityPending: identityAmount > 0,
       /** ISO expiry the plan and every add-on package share. */
       expiresAt: expiresAt.toISOString(),
     };
@@ -961,6 +1012,85 @@ export class SubscriptionsPaymentService {
       );
     }
     return fullTermDays;
+  }
+
+  /**
+   * Price the identity inquiry leg of a combined checkout and snapshot its
+   * inputs. Returns `amount: 0` when the account is already verified (or the
+   * caller did not request it), so the same checkout can serve both new and
+   * returning users.
+   */
+  private async resolveIdentityCharge(
+    user: {
+      id: string;
+      phone: string | null;
+      phoneVerified: boolean;
+      nationalCode: string | null;
+      birthDate: string | null;
+      identityVerifiedAt: Date | null;
+      businessLicenseVerifiedAt: Date | null;
+    },
+    input?: CheckoutIdentityInput | null,
+  ): Promise<{ amount: number; data: CheckoutIdentitySnapshot | null }> {
+    if (!input) return { amount: 0, data: null };
+    const withLicense = Boolean(input.withLicense);
+    const licenseTrackingCode = input.licenseTrackingCode?.trim() ?? '';
+    if (withLicense && !licenseTrackingCode) {
+      throw new BadRequestException(
+        'برای استعلام جواز کسب، کد پیگیری جواز را وارد کنید.',
+      );
+    }
+    const needsIdentity = !user.identityVerifiedAt;
+    const needsLicense = withLicense && !user.businessLicenseVerifiedAt;
+    if (!needsIdentity && !needsLicense) {
+      return { amount: 0, data: null };
+    }
+    let nationalCode = (input.nationalCode ?? user.nationalCode ?? '').trim();
+    let birthDate = (input.birthDate ?? user.birthDate ?? '').trim();
+    if (needsIdentity) {
+      if (!user.phone || !user.phoneVerified) {
+        throw new BadRequestException(
+          'برای استعلام هویت، ابتدا باید شماره موبایل حساب تأیید شده باشد.',
+        );
+      }
+      if (!isValidNationalCode(nationalCode)) {
+        throw new BadRequestException('کد ملی وارد‌شده معتبر نیست');
+      }
+      if (!birthDate) {
+        throw new BadRequestException(
+          'برای استعلام هویت، تاریخ تولد را انتخاب کنید.',
+        );
+      }
+      const owner = await this.prisma.user.findUnique({
+        where: { nationalCode },
+        select: { id: true },
+      });
+      if (owner && owner.id !== user.id) {
+        throw new ConflictException(
+          'این کد ملی قبلاً برای حساب دیگری ثبت شده است',
+        );
+      }
+    } else {
+      nationalCode = nationalCode || '';
+      birthDate = birthDate || '';
+    }
+    const [{ total: identityTotal }, licensePrice] = await Promise.all([
+      this.zohal.identityBundlePrice(),
+      needsLicense ? this.apiir.getServicePrice('license') : Promise.resolve(0),
+    ]);
+    const amount = Math.max(
+      0,
+      Math.round((needsIdentity ? identityTotal : 0) + (needsLicense ? licensePrice : 0)),
+    );
+    return {
+      amount,
+      data: {
+        nationalCode: nationalCode || null,
+        birthDate: birthDate || null,
+        withLicense,
+        licenseTrackingCode: licenseTrackingCode || null,
+      },
+    };
   }
 
   /**
@@ -1293,6 +1423,15 @@ export class SubscriptionsPaymentService {
       this.callbackResult(status, message, payment.plan.name, {
         returnTo: payment.returnTo,
         activation,
+        // The identity inquiry is paid with this checkout but runs on the
+        // onboarding page (it needs the profile module). Tell the client to
+        // run it as soon as the payment is confirmed.
+        identity:
+          status === 'success' &&
+          payment.identityAmount > 0 &&
+          !payment.identityConsumedAt
+            ? 'pending'
+            : undefined,
       });
     if (payment.status === PaymentStatus.PAID) {
       return reply(
@@ -1429,11 +1568,16 @@ export class SubscriptionsPaymentService {
     status: 'success' | 'failed' | 'pending',
     message: string,
     planName?: string,
-    options?: { returnTo?: string | null; activation?: 'pending' },
+    options?: {
+      returnTo?: string | null;
+      activation?: 'pending';
+      identity?: 'pending' | 'failed';
+    },
   ) {
     const params = new URLSearchParams({ payment: status });
     if (planName) params.set('plan', planName);
     if (options?.activation) params.set('activation', options.activation);
+    if (options?.identity) params.set('identity', options.identity);
     const safeReturnTo =
       options?.returnTo && /^\/(?!\/)/.test(options.returnTo)
         ? options.returnTo

@@ -7,6 +7,7 @@ import { BadgeCheck, IdCard, Plus, Trash2 } from 'lucide-react';
 
 import { BiolinkStatusBadge } from '@/components/biolink/BiolinkStatusBadge';
 import { BusinessCardStatusBadge } from '@/components/businesscard/BusinessCardStatusBadge';
+import { VerificationBadge } from '@/components/ui/VerificationBadge';
 import { api, type Biolink, type BusinessCard, type Paged } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 
@@ -122,12 +123,11 @@ export default function MyCardsPage() {
                   </span>
                   <h3 className="truncate text-lg font-extrabold text-ink">
                     {item.fullName}
-                    {item.ownerVerified ? (
-                      <BadgeCheck
-                        className="ms-1 inline size-4 shrink-0 text-sky-600"
-                        aria-label="تأیید هویت"
-                      />
-                    ) : null}
+                    <VerificationBadge
+                      identity={item.ownerIdentityVerified ?? item.ownerVerified}
+                      businessLicense={item.ownerBusinessLicenseVerified}
+                      className="ms-1 inline-flex align-middle"
+                    />
                   </h3>
                   <p className="truncate text-sm text-muted">{item.jobTitle ?? '—'}</p>
                 </div>
@@ -172,12 +172,11 @@ export default function MyCardsPage() {
                   </span>
                   <h3 className="truncate text-lg font-extrabold text-ink">
                     {item.fullName}
-                    {item.ownerVerified ? (
-                      <BadgeCheck
-                        className="ms-1 inline size-4 shrink-0 text-sky-600"
-                        aria-label="تأیید هویت"
-                      />
-                    ) : null}
+                    <VerificationBadge
+                      identity={item.ownerIdentityVerified ?? item.ownerVerified}
+                      businessLicense={item.ownerBusinessLicenseVerified}
+                      className="ms-1 inline-flex align-middle"
+                    />
                   </h3>
                   <p className="truncate text-sm text-muted">{item.jobTitle ?? '—'}</p>
                 </div>

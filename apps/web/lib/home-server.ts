@@ -26,6 +26,8 @@ export interface HomeBusinessCard {
   city: { id: string; name: string } | null;
   business: { id: string; name: string } | null;
   ownerVerified?: boolean;
+  ownerIdentityVerified?: boolean;
+  ownerBusinessLicenseVerified?: boolean;
 }
 
 export async function fetchHomeBusinessCards(limit = 12): Promise<HomeBusinessCard[]> {

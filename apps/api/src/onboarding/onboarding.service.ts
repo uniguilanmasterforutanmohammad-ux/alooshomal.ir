@@ -4,13 +4,14 @@ import {
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
-import { BiolinkStatus, Prisma } from '@prisma/client';
+import { BiolinkStatus, PaymentStatus, Prisma } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
 import { BusinessModulesService } from '../business-modules/business-modules.service';
 import { industryKeyForCategoryName } from '../business-modules/business-modules.registry';
-import { DEFAULT_PLAN } from '../common/plans';
+import { isFreePlan } from '../common/plans';
 import { PrismaService } from '../prisma/prisma.service';
+import { ProfileService } from '../profile/profile.service';
 import { SettingsService } from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import {
@@ -48,6 +49,7 @@ export class OnboardingService implements OnModuleInit {
     private readonly activity: ActivityService,
     private readonly modules: BusinessModulesService,
     private readonly subscriptions: SubscriptionsService,
+    private readonly profile: ProfileService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -66,6 +68,11 @@ export class OnboardingService implements OnModuleInit {
     }
     try {
       await this.upgradeStoredStepsV3();
+    } catch {
+      // settings table may not exist yet; a later boot retries
+    }
+    try {
+      await this.upgradeStoredStepsV4();
     } catch {
       // settings table may not exist yet; a later boot retries
     }
@@ -200,6 +207,44 @@ export class OnboardingService implements OnModuleInit {
   }
 
   /**
+   * «شروع آسان» v4: the plan step now only picks the subscription, the new
+   * management step picks the industry package, and the invoice step collects
+   * everything into one payment. Rebuild the built-in list from the shipped
+   * defaults while keeping the admin's enabled flags and custom steps.
+   */
+  private async upgradeStoredStepsV4(): Promise<void> {
+    const markerKey = 'onboardingStepsV4';
+    const marker = await this.prisma.setting.findUnique({
+      where: { key: markerKey },
+    });
+    if (marker) return;
+    const row = await this.prisma.setting.findUnique({
+      where: { key: ONBOARDING_STEPS_SETTING_KEY },
+    });
+    if (row?.value) {
+      try {
+        const parsed = JSON.parse(row.value) as unknown;
+        if (Array.isArray(parsed)) {
+          const merged = this.mergeWithDefaults(
+            this.sanitize(parsed as OnboardingStepDto[]),
+          );
+          await this.prisma.setting.update({
+            where: { key: ONBOARDING_STEPS_SETTING_KEY },
+            data: { value: JSON.stringify(merged) },
+          });
+        }
+      } catch {
+        // leave the stored value untouched if it is not valid JSON
+      }
+    }
+    await this.prisma.setting.upsert({
+      where: { key: markerKey },
+      create: { key: markerKey, value: new Date().toISOString() },
+      update: {},
+    });
+  }
+
+  /**
    * Rebuild the built-in steps from the shipped defaults (order + copy) while
    * keeping the enabled flag the admin had set. Custom steps stay at the end.
    */
@@ -293,6 +338,73 @@ export class OnboardingService implements OnModuleInit {
       business,
       finished: Boolean(finished),
     };
+  }
+
+  /**
+   * Run the identity inquiry that was paid together with a subscription
+   * checkout. Idempotent: the payment is marked consumed, so a reload never
+   * runs (or charges) it again. A failed inquiry is consumed too — the wizard
+   * warns that a wrong national code / birth date needs a new paid attempt.
+   */
+  async runPendingIdentity(userId: string) {
+    const payment = await this.prisma.subscriptionPayment.findFirst({
+      where: {
+        userId,
+        identityAmount: { gt: 0 },
+        status: PaymentStatus.PAID,
+        identityConsumedAt: null,
+      },
+      orderBy: { paidAt: 'desc' },
+      select: { id: true, identityData: true },
+    });
+    if (!payment) {
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          identityVerifiedAt: true,
+          businessLicenseVerifiedAt: true,
+        },
+      });
+      return {
+        ran: false,
+        success: Boolean(user?.identityVerifiedAt),
+        businessLicenseVerified: Boolean(user?.businessLicenseVerifiedAt),
+        message: null as string | null,
+      };
+    }
+    const data = (payment.identityData ?? {}) as {
+      nationalCode?: string | null;
+      birthDate?: string | null;
+      withLicense?: boolean;
+      licenseTrackingCode?: string | null;
+    };
+    try {
+      await this.profile.runPaidIdentityBundle(userId, data);
+      await this.prisma.subscriptionPayment.update({
+        where: { id: payment.id },
+        data: { identityConsumedAt: new Date() },
+      });
+      return {
+        ran: true,
+        success: true,
+        businessLicenseVerified: Boolean(data.withLicense),
+        message: 'استعلام هویت با موفقیت انجام شد.',
+      };
+    } catch (error) {
+      await this.prisma.subscriptionPayment.update({
+        where: { id: payment.id },
+        data: { identityConsumedAt: new Date() },
+      });
+      return {
+        ran: true,
+        success: false,
+        businessLicenseVerified: false,
+        message:
+          error instanceof Error
+            ? error.message
+            : 'استعلام هویت انجام نشد؛ لطفاً اطلاعات را اصلاح و دوباره تلاش کنید.',
+      };
+    }
   }
 
   /** Record that the user finished the wizard (idempotent). */
@@ -620,7 +732,7 @@ export class OnboardingService implements OnModuleInit {
    * custom steps read the manual completion rows.
    */
   private async completionMap(userId: string): Promise<Map<string, boolean>> {
-    const [user, completions, defaultPlan] = await Promise.all([
+    const [user, completions] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
         select: {
@@ -628,6 +740,8 @@ export class OnboardingService implements OnModuleInit {
           blueTickRequestedAt: true,
           verifiedAt: true,
           planId: true,
+          planExpiresAt: true,
+          plan: { select: { name: true, price: true } },
           documents: true,
           businessCards: {
             select: {
@@ -643,21 +757,19 @@ export class OnboardingService implements OnModuleInit {
               website: true,
             },
           },
-          subscriptions: {
-            where: { status: 'ACTIVE' },
-            select: { id: true },
+          businessWorkspaces: {
+            select: {
+              id: true,
+              industryKey: true,
+              modules: { select: { paidUntil: true } },
+            },
             take: 1,
           },
-          businessWorkspaces: { select: { id: true }, take: 1 },
         },
       }),
       this.prisma.onboardingStepCompletion.findMany({
         where: { userId },
         select: { stepId: true },
-      }),
-      this.prisma.subscriptionPlan.findFirst({
-        where: { name: DEFAULT_PLAN.name },
-        select: { id: true },
       }),
     ]);
     const map = new Map<string, boolean>();
@@ -665,6 +777,7 @@ export class OnboardingService implements OnModuleInit {
     if (!user) return map;
 
     const cards = user.businessCards;
+    const now = Date.now();
     map.set('identity', Boolean(user.identityVerifiedAt));
     map.set(
       'business',
@@ -676,18 +789,38 @@ export class OnboardingService implements OnModuleInit {
       Boolean(user.blueTickRequestedAt || user.verifiedAt) ||
         this.parseDocuments(user.documents).length > 0,
     );
-    // New accounts get the free plan assigned automatically. The free plan is
-    // a valid choice for onboarding, so having any plan (including the default)
-    // completes this step; the user can still upgrade from the same screen.
-    map.set(
-      'plan',
-      Boolean(user.planId) ||
-        user.subscriptions.length > 0 ||
-        Boolean(defaultPlan?.id),
-    );
+    // The plan step only sells Eco/Plus now, so the automatically assigned
+    // free plan no longer counts as done.
+    const paidPlanActive =
+      Boolean(user.plan) &&
+      !isFreePlan(user.plan) &&
+      Boolean(user.planExpiresAt && user.planExpiresAt.getTime() > now);
+    map.set('plan', paidPlanActive);
+
+    // The management step is optional: it is done once the workspace has a
+    // paid package, or when its industry has no package to buy.
+    const workspace = user.businessWorkspaces[0];
+    let managementDone = false;
+    if (workspace) {
+      const catalog = await this.modules.resolveCatalog();
+      const packageAvailable = catalog.industries.some(
+        (item) => item.key === workspace.industryKey && item.available,
+      );
+      managementDone =
+        !packageAvailable ||
+        workspace.modules.some(
+          (row) => row.paidUntil && row.paidUntil.getTime() > now,
+        );
+    }
+    map.set('management', managementDone);
+
+    // The invoice is settled once the paid plan is active and the identity
+    // inquiry has been completed (both are bought in the same payment).
+    const identityDone = Boolean(user.identityVerifiedAt);
+    map.set('invoice', paidPlanActive && identityDone);
     map.set(
       'approval',
-      cards.some((card) => card.status === BiolinkStatus.APPROVED),
+      identityDone && paidPlanActive,
     );
     return map;
   }
@@ -724,9 +857,13 @@ export class OnboardingService implements OnModuleInit {
       case 'documents':
         return 'در انتظار ارسال مدارک';
       case 'plan':
-        return 'در انتظار انتخاب طرح';
+        return 'در انتظار خرید اشتراک اکو یا بلاس';
+      case 'management':
+        return 'در انتظار انتخاب بسته مدیریت (اختیاری)';
+      case 'invoice':
+        return 'در انتظار پرداخت نهایی';
       case 'approval':
-        return 'در انتظار تأیید مدیر';
+        return 'در انتظار نتیجه استعلام';
       case 'welcome':
         return 'تکمیل نشده — برای شروع وارد شوید';
       default:

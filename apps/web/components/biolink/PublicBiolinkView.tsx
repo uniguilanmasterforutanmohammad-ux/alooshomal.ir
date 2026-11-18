@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, BadgeCheck, Briefcase, Crown, Home } from 'lucide-react';
+import { ArrowRight, Briefcase, Crown, Home } from 'lucide-react';
 
 import { CardFit } from '@/components/ui/CardFit';
 import { LikeButton } from '@/components/ui/LikeButton';
@@ -9,6 +9,7 @@ import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
 import { PlanUpgradeNotice } from '@/components/ui/PlanUpgradeNotice';
 import { SaveButton } from '@/components/ui/SaveButton';
 import { ShareButton } from '@/components/ui/ShareButton';
+import { VerificationBadge } from '@/components/ui/VerificationBadge';
 import { BiolinkTemplateStage } from '@/components/biolink/BiolinkTemplateStage';
 import { RECORD_TEMPLATE_KEY } from '@/lib/biolink-templates';
 import type { Biolink } from '@/lib/api';
@@ -44,12 +45,11 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
             </Link>
 
             <div className="flex items-center gap-2">
-              {biolink.ownerVerified ? (
-                <span className="record-pill text-sky-700">
-                  <BadgeCheck className="size-3.5" aria-hidden />
-                  تأیید هویت
-                </span>
-              ) : null}
+              <VerificationBadge
+                identity={biolink.verification?.identity}
+                businessLicense={biolink.verification?.businessLicense}
+                className="record-pill"
+              />
               {biolink.planName ? (
                 <span className="record-pill">
                   <Crown className="size-3.5" aria-hidden />

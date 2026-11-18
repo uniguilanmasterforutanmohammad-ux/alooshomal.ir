@@ -57,6 +57,8 @@ type StepKind =
   | 'details'
   | 'documents'
   | 'plan'
+  | 'management'
+  | 'invoice'
   | 'approval'
   | 'custom';
 
@@ -183,6 +185,8 @@ const STEP_ICON: Record<StepKind, typeof Sparkles> = {
   details: ListChecks,
   documents: FileCheck2,
   plan: Crown,
+  management: Building2,
+  invoice: CreditCard,
   approval: Clock,
   custom: Sparkles,
 };
@@ -242,8 +246,12 @@ export function OnboardingWizard() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [myPlanId, setMyPlanId] = useState<string | null>(null);
-  const [busyPlanId, setBusyPlanId] = useState<string | null>(null);
   const [planMonths, setPlanMonths] = useState<PlanPeriodMonths>(1);
+  // The plan/management steps only *select* items; the single payment happens
+  // on the invoice step. `selectedPlanId` is the plan chosen for that invoice.
+  const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+  const [managementSkipped, setManagementSkipped] = useState(false);
+  const [invoiceBusy, setInvoiceBusy] = useState(false);
   const [advanceAfterLoad, setAdvanceAfterLoad] = useState(false);
   const jumpedToPending = useRef(false);
   // Identity step: the optional «جواز کسب» leg that turns the white tick into
@@ -260,6 +268,11 @@ export function OnboardingWizard() {
     Record<string, SubscriptionAddonQuote>
   >({});
   const [withManagement, setWithManagement] = useState(false);
+  // Result of the identity inquiry that runs right after the combined payment.
+  const [identityResult, setIdentityResult] = useState<{
+    success: boolean;
+    message: string | null;
+  } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -341,19 +354,52 @@ export function OnboardingWizard() {
     };
   }, [plans, planMonths]);
 
-  // The identity gateway callback returns here with `?identity=success|failed`.
+  // The combined checkout returns with `?payment=success&identity=pending`:
+  // the plan/management are already active, and the identity inquiry runs now
+  // (it was paid in the same transaction, so it never charges again).
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const status = params.get('identity');
     if (!status) return;
-    if (status === 'success') {
-      toast.success('پرداخت انجام شد و استعلام هویت شما تکمیل شد.');
-      void load();
-    } else {
-      toast.error(
-        'پرداخت یا استعلام هویت کامل نشد؛ اگر مبلغ کسر شده، دوباره روی «پرداخت و استعلام» بزنید.',
-      );
-    }
+    void (async () => {
+      if (status === 'pending') {
+        try {
+          const result = await api.post<{
+            ran: boolean;
+            success: boolean;
+            message: string | null;
+          }>('/onboarding/identity/run', {});
+          setIdentityResult({
+            success: result.success,
+            message: result.message,
+          });
+          if (result.success) {
+            toast.success('استعلام هویت با موفقیت انجام شد.');
+            setAdvanceAfterLoad(true);
+          } else {
+            toast.error(result.message ?? 'استعلام هویت ناموفق بود.');
+          }
+        } catch {
+          setIdentityResult({
+            success: false,
+            message: 'استعلام هویت انجام نشد؛ لطفاً دوباره تلاش کنید.',
+          });
+        }
+        await load();
+      } else if (status === 'success') {
+        setIdentityResult({
+          success: true,
+          message: 'استعلام هویت با موفقیت انجام شد.',
+        });
+        setAdvanceAfterLoad(true);
+        await load();
+      } else {
+        setIdentityResult({
+          success: false,
+          message: 'استعلام هویت انجام نشد یا لغو شد.',
+        });
+      }
+    })();
     params.delete('identity');
     const query = params.toString();
     window.history.replaceState(
@@ -393,12 +439,44 @@ export function OnboardingWizard() {
   useEffect(() => {
     if (!advanceAfterLoad || !payload) return;
     setAdvanceAfterLoad(false);
-    const planIndex = payload.steps.findIndex((entry) => entry.kind === 'plan');
-    const next = planIndex >= 0 ? planIndex + 1 : index + 1;
-    if (next < payload.steps.length) setIndex(next);
+    // After the single payment, jump to the result step (the last one).
+    const resultIndex = payload.steps.findIndex(
+      (entry) => entry.kind === 'approval',
+    );
+    const next = resultIndex >= 0 ? resultIndex : payload.steps.length - 1;
+    if (next >= 0) setIndex(next);
   }, [advanceAfterLoad, payload, index]);
 
-  async function completeIdentity() {
+  /** Validate the identity inputs and move on; payment happens on the invoice. */
+  function saveIdentityAndNext() {
+    if (payload?.identity?.phoneMatched) {
+      // The national code / birth date are already stored on the account; the
+      // backend falls back to them when the checkout omits them.
+      nextStep();
+      return;
+    }
+    if (!/^\d{10}$/.test(nationalCode.trim())) {
+      toast.error('کد ملی باید دقیقاً ۱۰ رقم باشد.');
+      return;
+    }
+    const jalali = isoToJalali(birthIso);
+    if (!jalali) {
+      toast.error('برای استعلام هویت، تاریخ تولد را انتخاب کنید.');
+      return;
+    }
+    if (withLicense && !licenseTrackingCode.trim()) {
+      toast.error('برای استعلام جواز کسب، کد پیگیری جواز را وارد کنید.');
+      return;
+    }
+    nextStep();
+  }
+
+  /**
+   * Retry the identity inquiry on its own (used on the result step when the
+   * combined payment's inquiry failed). This is a new paid attempt — the
+   * wizard warns that a wrong national code / birth date is not refundable.
+   */
+  async function payIdentityOnly() {
     if (!/^\d{10}$/.test(nationalCode.trim())) {
       toast.error('کد ملی باید دقیقاً ۱۰ رقم باشد.');
       return;
@@ -435,50 +513,18 @@ export function OnboardingWizard() {
         return;
       }
       await api.post('/profile/identity/verify', {});
+      setIdentityResult({
+        success: true,
+        message: withLicense
+          ? 'هویت و جواز کسب شما تأیید شد (تیک آبی).'
+          : 'هویت شما تأیید شد (تیک سفید).',
+      });
       toast.success(
         withLicense
           ? 'پرداخت انجام شد و هویت شما استعلام شد (تیک آبی برای جواز کسب).'
           : 'پرداخت انجام شد و هویت شما استعلام شد (تیک سفید).',
       );
-      await load();
-    } catch {
-      /* api layer surfaces the error */
-    } finally {
-      setIdentityBusy(false);
-    }
-  }
-
-  /** Continue from an already-matched phone straight into the paid inquiry. */
-  async function continueIdentityInquiry() {
-    if (withLicense && !licenseTrackingCode.trim()) {
-      toast.error('برای استعلام جواز کسب، کد پیگیری جواز را وارد کنید.');
-      return;
-    }
-    setIdentityBusy(true);
-    try {
-      const result = await api.post<{
-        url?: string | null;
-        paid?: boolean;
-        alreadyVerified?: boolean;
-      }>('/profile/identity/checkout', {
-        withLicense,
-        ...(withLicense ? { licenseTrackingCode: licenseTrackingCode.trim() } : {}),
-      });
-      if (result?.url) {
-        window.location.href = result.url;
-        return;
-      }
-      if (result?.alreadyVerified) {
-        toast.success('هویت شما قبلاً استعلام شده بود؛ هزینه‌ی مجدد ثبت نشد.');
-        await load();
-        return;
-      }
-      await api.post('/profile/identity/verify', {});
-      toast.success(
-        withLicense
-          ? 'پرداخت انجام شد و هویت و جواز کسب استعلام شد (تیک آبی).'
-          : 'پرداخت انجام شد و استعلام هویت تکمیل شد (تیک سفید).',
-      );
+      setAdvanceAfterLoad(true);
       await load();
     } catch {
       /* api layer surfaces the error */
@@ -553,58 +599,93 @@ export function OnboardingWizard() {
     }
   }
 
-  async function choosePlan(plan: SubscriptionPlan) {
-    setBusyPlanId(plan.id);
-    try {
-      const business = payload?.business ?? null;
-      const managementPackage = business
-        ? (catalogIndustries.find(
-            (entry) => entry.key === business.industryKey && entry.available,
-          ) ?? null)
-        : null;
-      const includeManagement =
-        withManagement && Boolean(managementPackage) && !isFreePlan(plan);
-      const workspaceIds =
-        includeManagement && business ? [business.id] : [];
-      const addonAmount = includeManagement
-        ? workspaceAddonAmount(addonQuotes, business?.id ?? '')
-        : 0;
-      const amount = planPriceForMonths(plan, planMonths) + addonAmount;
-      if (amount >= 1000) {
-        const checkout = await api.post<SubscriptionCheckout>(
-          `/subscriptions/${plan.id}/checkout`,
-          {
-            months: planMonths,
-            returnTo: '/dashboard/onboarding',
-            workspaceIds,
-          },
-        );
-        if (checkout?.wallet) {
-          toast.success('اشتراک فعال شد و هزینه به کیف پول اضافه شد.');
-          setMyPlanId(plan.id);
-          await load();
-          setAdvanceAfterLoad(true);
-          return;
-        }
-        if (checkout?.url) {
-          window.location.href = checkout.url;
-          return;
-        }
-        toast.error('لینک پرداخت از درگاه دریافت نشد.');
+  /** Pick a plan for the final invoice (no payment yet). */
+  function selectPlan(plan: SubscriptionPlan) {
+    setSelectedPlanId(plan.id);
+    toast.success(`اشتراک «${plan.name}» به صورتحساب اضافه شد.`);
+    goTo(safeIndex + 1);
+  }
+
+  /**
+   * One gateway payment for everything the user picked: the subscription,
+   * the optional management package and the identity inquiry. The backend
+   * activates the plan/package and then the onboarding page runs the inquiry.
+   */
+  async function payOnboardingInvoice() {
+    const plan = plans.find((entry) => entry.id === selectedPlanId);
+    if (!plan) {
+      if (identityPayable) {
+        // Nothing but the inquiry is left to pay — use the identity-only
+        // checkout so an already-subscribed user can finish onboarding.
+        await payIdentityOnly();
         return;
       }
-      await api.post('/subscriptions/request', {
-        planId: plan.id,
-        months: planMonths,
-      });
-      toast.success('درخواست اشتراک ثبت شد و در انتظار تأیید مدیر است.');
-      setMyPlanId(plan.id);
-      await load();
-      setAdvanceAfterLoad(true);
+      toast.error('ابتدا یک اشتراک اکو یا بلاس انتخاب کنید.');
+      return;
+    }
+    const business = payload?.business ?? null;
+    const includeManagement =
+      withManagement && Boolean(managementPackage) && !isFreePlan(plan);
+    const workspaceIds =
+      includeManagement && business ? [business.id] : [];
+    const jalali = isoToJalali(birthIso);
+    const birthDate = jalali
+      ? `${jalali.year}/${String(jalali.month).padStart(2, '0')}/${String(jalali.day).padStart(2, '0')}`
+      : undefined;
+    const needsIdentity = !identityVerified;
+    const needsLicense =
+      licenseSelected && !payload?.identity?.businessLicenseVerified;
+    if (needsIdentity && !payload?.identity?.phoneMatched) {
+      if (!/^\d{10}$/.test(nationalCode.trim()) || !birthDate) {
+        toast.error(
+          'برای استعلام هویت، ابتدا کد ملی و تاریخ تولد را در مرحله‌ی استعلام وارد کنید.',
+        );
+        return;
+      }
+    }
+    if (needsLicense && !licenseTrackingCode.trim()) {
+      toast.error('برای استعلام جواز کسب، کد پیگیری جواز را وارد کنید.');
+      return;
+    }
+    const identity =
+      needsIdentity || needsLicense
+        ? {
+            ...(needsIdentity
+              ? { nationalCode: nationalCode.trim(), birthDate }
+              : {}),
+            withLicense: needsLicense,
+            ...(needsLicense
+              ? { licenseTrackingCode: licenseTrackingCode.trim() }
+              : {}),
+          }
+        : undefined;
+    setInvoiceBusy(true);
+    try {
+      const checkout = await api.post<SubscriptionCheckout>(
+        `/subscriptions/${plan.id}/checkout`,
+        {
+          months: planMonths,
+          returnTo: '/dashboard/onboarding',
+          workspaceIds,
+          ...(identity ? { identity } : {}),
+        },
+      );
+      if (checkout?.wallet) {
+        toast.success('پرداخت از کیف پول انجام شد و موارد انتخابی فعال شدند.');
+        setMyPlanId(plan.id);
+        await load();
+        setAdvanceAfterLoad(true);
+        return;
+      }
+      if (checkout?.url) {
+        window.location.href = checkout.url;
+        return;
+      }
+      toast.error('لینک پرداخت از درگاه دریافت نشد.');
     } catch {
       /* api layer surfaces the error */
     } finally {
-      setBusyPlanId(null);
+      setInvoiceBusy(false);
     }
   }
 
@@ -641,10 +722,6 @@ export function OnboardingWizard() {
   const showLicense = Boolean(identityQuote?.licenseAvailable) && licensePrice > 0;
   const identityVerified = Boolean(payload.identity?.verified);
   const licenseSelected = withLicense && showLicense;
-  const hasInvoiceRows =
-    (!identityVerified && identityServices.length > 0) || licenseSelected;
-  const invoiceTotal =
-    (identityVerified ? 0 : identityTotal) + (licenseSelected ? licensePrice : 0);
   const businessState = payload.business;
   const managementPackage = businessState
     ? (catalogIndustries.find(
@@ -659,6 +736,39 @@ export function OnboardingWizard() {
   );
   const showManagement =
     Boolean(managementPackage) && managementAllowed && managementAmount >= 1000;
+  // The plan step only sells Eco/Plus; the free plan is assigned automatically.
+  const paidPlans = plans.filter((plan) => !isFreePlan(plan));
+  const selectedPlan =
+    plans.find((plan) => plan.id === selectedPlanId) ?? null;
+  const planAmount = selectedPlan
+    ? planPriceForMonths(selectedPlan, planMonths)
+    : 0;
+  const includeManagement =
+    withManagement &&
+    Boolean(managementPackage) &&
+    Boolean(selectedPlan) &&
+    !isFreePlan(selectedPlan);
+  const invoiceTotalAmount =
+    planAmount +
+    (includeManagement ? managementAmount : 0) +
+    (identityVerified ? 0 : identityTotal) +
+    (licenseSelected ? licensePrice : 0);
+  const planSelected = Boolean(selectedPlan);
+  /** Identity/license items that still need to be paid on this invoice. */
+  const identityPayable =
+    !identityVerified ||
+    (licenseSelected && !payload?.identity?.businessLicenseVerified);
+  /** The invoice can be paid when it carries a plan or a pending inquiry. */
+  const invoicePayable = planSelected || identityPayable;
+  const invoiceNeedsPayment = invoicePayable && invoiceTotalAmount >= 1000;
+  const managementDecided =
+    !showManagement || withManagement || managementSkipped;
+  const identityInputsReady =
+    identityVerified ||
+    Boolean(payload.identity?.phoneMatched) ||
+    (/^\d{10}$/.test(nationalCode.trim()) &&
+      Boolean(birthIso) &&
+      (!withLicense || Boolean(licenseTrackingCode.trim())));
   const businessInitial: OnboardingBusinessDraft | null = businessState
     ? {
         name: businessState.name ?? '',
@@ -674,10 +784,42 @@ export function OnboardingWizard() {
   const isFirst = safeIndex === 0;
   const isLast = safeIndex === steps.length - 1;
   const isOptional = step.optional === true;
-  const stepUnlocked = step.done || isOptional;
+  const isInvoiceStep = step.kind === 'invoice';
+  const localReady =
+    step.kind === 'identity'
+      ? identityInputsReady
+      : step.kind === 'plan'
+        ? planSelected
+        : step.kind === 'management'
+          ? managementDecided
+          : step.kind === 'invoice'
+            ? !invoiceNeedsPayment
+            : false;
+  const stepUnlocked = step.done || isOptional || localReady;
 
   /** A step can be opened once every earlier required step is complete. */
   function canEnter(position: number): boolean {
+    const target = steps[position];
+    // The checkout steps (plan → management → invoice) form one guided flow:
+    // they unlock once the business exists, even though identity/plan only
+    // become "done" after the single payment.
+    if (
+      target &&
+      (target.kind === 'plan' ||
+        target.kind === 'management' ||
+        target.kind === 'invoice')
+    ) {
+      return Boolean(businessState);
+    }
+    // The result step is reachable once the payment ran (or the account was
+    // already verified), so a failed inquiry can still show its retry form.
+    if (target?.kind === 'approval') {
+      return (
+        Boolean(identityResult) ||
+        Boolean(payload?.identity?.verified) ||
+        steps.slice(0, position).every((entry) => entry.done || entry.optional === true)
+      );
+    }
     return steps
       .slice(0, position)
       .every((entry) => entry.done || entry.optional === true);
@@ -982,123 +1124,23 @@ export function OnboardingWizard() {
                 </div>
               ) : null}
 
-              <div className="overflow-hidden rounded-2xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)]">
-                <div className="flex items-center justify-between border-b border-[var(--vintage-border)] bg-[var(--vintage-paper)]/60 px-4 py-2.5">
-                  <span className="text-xs font-extrabold text-ink">
-                    صورتحساب استعلام
-                  </span>
-                  <span className="text-[10px] font-bold text-muted">
-                    به تفکیک هر بخش
-                  </span>
+              {!identityVerified ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-[11px] leading-6 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
+                  <b>توجه:</b> اگر کد ملی یا تاریخ تولد را اشتباه وارد کنید،
+                  هزینه‌ی استعلام قابل برگشت نیست و برای تلاش دوباره باید
+                  مجدداً پرداخت کنید. استعلام پس از پرداخت نهایی انجام می‌شود و
+                  نتیجه‌ی آن در پایان نمایش داده می‌شود.
                 </div>
-                <ul className="divide-y divide-[var(--vintage-border)]">
-                  {!identityVerified && identityServices.length > 0
-                    ? identityServices.map((item) => (
-                        <li
-                          key={item.key}
-                          className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs"
-                        >
-                          <span className="flex items-center gap-2 text-muted">
-                            <ShieldCheck className="size-3.5 text-brand" aria-hidden />
-                            {item.label ??
-                              (item.key === 'shahkar'
-                                ? 'تطبیق شماره موبایل با کد ملی'
-                                : 'استعلام هویت')}
-                          </span>
-                          <span className="font-bold text-ink">
-                            {faPrice(item.price ?? 0)}
-                          </span>
-                        </li>
-                      ))
-                    : null}
-                  {licenseSelected ? (
-                    <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
-                      <span className="flex items-center gap-2 text-muted">
-                        <ShieldCheck className="size-3.5 text-sky-600" aria-hidden />
-                        استعلام جواز کسب (تیک آبی)
-                      </span>
-                      <span className="font-bold text-ink">
-                        {faPrice(licensePrice)}
-                      </span>
-                    </li>
-                  ) : null}
-                  {!hasInvoiceRows ? (
-                    <li className="px-4 py-2.5 text-xs text-muted">
-                      هزینه‌ی استعلام در حال حاضر تعریف نشده است.
-                    </li>
-                  ) : null}
-                </ul>
-                <div className="flex items-center justify-between border-t border-[var(--vintage-border)] bg-brand-light/40 px-4 py-2.5 text-xs">
-                  <span className="font-extrabold text-ink">جمع کل</span>
-                  <span className="font-extrabold text-brand">
-                    {faPrice(invoiceTotal)}
-                  </span>
-                </div>
-                {invoiceTotal > 0 ? (
-                  <p className="border-t border-dashed border-[var(--vintage-border)] px-4 py-2 text-[10px] leading-5 text-muted">
-                    {licenseSelected
-                      ? 'استعلام هویت و جواز کسب با یک پرداخت آنلاین انجام می‌شوند.'
-                      : 'هر دو استعلام (شاهکار + هویتی) با یک پرداخت آنلاین انجام می‌شوند.'}
-                  </p>
-                ) : null}
-              </div>
+              ) : null}
 
-              {!identityVerified && !payload.identity?.phoneMatched ? (
+              {!identityVerified ? (
                 <button
                   type="button"
-                  onClick={() => void completeIdentity()}
-                  disabled={identityBusy}
+                  onClick={saveIdentityAndNext}
                   className="indeed-btn indeed-btn-primary self-start"
                 >
-                  {identityBusy ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <BadgeCheck className="size-4" aria-hidden />
-                  )}
-                  {identityBusy
-                    ? 'در حال انتقال به درگاه...'
-                    : licenseSelected
-                      ? 'پرداخت و استعلام هویت + جواز کسب'
-                      : 'پرداخت و استعلام هویت'}
-                </button>
-              ) : !identityVerified ? (
-                <button
-                  type="button"
-                  onClick={() => void continueIdentityInquiry()}
-                  disabled={identityBusy}
-                  className="indeed-btn indeed-btn-primary self-start"
-                >
-                  {identityBusy ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <BadgeCheck className="size-4" aria-hidden />
-                  )}
-                  {identityBusy
-                    ? 'در حال انتقال به درگاه...'
-                    : licenseSelected
-                      ? 'پرداخت و تکمیل استعلام هویت + جواز کسب'
-                      : 'پرداخت و تکمیل استعلام هویت'}
-                </button>
-              ) : showLicense && !payload.identity?.businessLicenseVerified ? (
-                <button
-                  type="button"
-                  onClick={() => void continueIdentityInquiry()}
-                  disabled={identityBusy || !licenseSelected}
-                  className={cn(
-                    'indeed-btn indeed-btn-primary self-start',
-                    !licenseSelected && 'cursor-not-allowed opacity-60',
-                  )}
-                >
-                  {identityBusy ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <BadgeCheck className="size-4 text-sky-100" aria-hidden />
-                  )}
-                  {identityBusy
-                    ? 'در حال انتقال به درگاه...'
-                    : licenseSelected
-                      ? 'پرداخت و استعلام جواز کسب (تیک آبی)'
-                      : 'برای تیک آبی، ابتدا گزینه‌ی جواز کسب را تیک بزنید'}
+                  <BadgeCheck className="size-4" aria-hidden />
+                  ثبت اطلاعات و ادامه
                 </button>
               ) : null}
 
@@ -1243,12 +1285,12 @@ export function OnboardingWizard() {
 
           {step.kind === 'plan' ? (
             <div className="flex flex-col gap-3">
-              {plans.length === 0 ? (
+              {paidPlans.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-[var(--vintage-border)] p-4 text-center text-xs text-muted">
                   در حال بارگذاری طرح‌ها...
                 </p>
               ) : (
-                <div className="flex flex-col gap-3">
+                <>
                   <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-2">
                     <span className="text-[11px] font-bold text-muted">
                       دوره‌ی پرداخت:
@@ -1270,166 +1312,383 @@ export function OnboardingWizard() {
                       </button>
                     ))}
                   </div>
-                  {showManagement ? (
-                    <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-brand/30 bg-brand-light/40 p-3">
-                      <span
-                        className={cn(
-                          'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border transition',
-                          withManagement
-                            ? 'border-brand bg-brand text-white'
-                            : 'border-[var(--vintage-border)] bg-[var(--vintage-surface)] text-transparent',
-                        )}
-                      >
-                        <Check className="size-3.5" aria-hidden />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-xs font-extrabold text-ink">
-                          افزودن «مدیریت {managementPackage?.label}» به همین
-                          پرداخت
-                        </span>
-                        <span className="mt-0.5 block text-[11px] leading-6 text-muted">
-                          دسته‌بندی کسب‌وکار شما بسته‌ی مدیریت اختصاصی دارد. با
-                          تیک‌زدن، این بسته هم‌زمان با اشتراک فعال و به همان
-                          پرداخت اضافه می‌شود.
-                        </span>
-                        <span className="mt-1 block text-[11px] font-bold text-brand">
-                          هزینه: {faPrice(managementAmount)} /{' '}
-                          {PLAN_PERIOD_LABELS[planMonths]}
-                        </span>
-                      </span>
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        checked={withManagement}
-                        onChange={(event) =>
-                          setWithManagement(event.target.checked)
-                        }
-                      />
-                    </label>
-                  ) : null}
                   <div className="grid gap-3 sm:grid-cols-2">
-                  {plans.map((plan) => {
-                    const isCurrent = plan.id === myPlanId;
-                    const busy = busyPlanId === plan.id;
-                    const amount =
-                      planPriceForMonths(plan, planMonths) +
-                      (withManagement && showManagement && !isFreePlan(plan)
-                        ? managementAmount
-                        : 0);
-                    return (
-                      <div
-                        key={plan.id}
-                        className={cn(
-                          'flex flex-col rounded-2xl border bg-[var(--vintage-surface)] p-4 transition',
-                          isCurrent
-                            ? 'border-brand shadow-[0_10px_30px_-20px_rgba(139,58,26,0.6)] ring-1 ring-brand/30 dark:shadow-none'
-                            : 'border-[var(--vintage-border)] hover:border-brand/40',
-                        )}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <h3 className="text-sm font-extrabold text-ink">
-                            {plan.name}
-                          </h3>
-                          {isCurrent ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-brand-light px-2 py-0.5 text-[10px] font-bold text-brand">
-                              <Crown className="size-3" aria-hidden />
-                              فعلی
-                            </span>
+                    {paidPlans.map((plan) => {
+                      const isSelected = plan.id === selectedPlanId;
+                      const isCurrent = plan.id === myPlanId;
+                      const amount = planPriceForMonths(plan, planMonths);
+                      return (
+                        <div
+                          key={plan.id}
+                          className={cn(
+                            'flex flex-col rounded-2xl border bg-[var(--vintage-surface)] p-4 transition',
+                            isSelected
+                              ? 'border-brand shadow-[0_10px_30px_-20px_rgba(139,58,26,0.6)] ring-1 ring-brand/30 dark:shadow-none'
+                              : 'border-[var(--vintage-border)] hover:border-brand/40',
+                          )}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-sm font-extrabold text-ink">
+                              {plan.name}
+                            </h3>
+                            {isSelected ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[10px] font-bold text-white">
+                                <Check className="size-3" aria-hidden />
+                                انتخاب شد
+                              </span>
+                            ) : isCurrent ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-brand-light px-2 py-0.5 text-[10px] font-bold text-brand">
+                                <Crown className="size-3" aria-hidden />
+                                فعلی
+                              </span>
+                            ) : null}
+                          </div>
+                          {plan.description ? (
+                            <p className="mt-1 text-[11px] leading-5 text-muted">
+                              {plan.description}
+                            </p>
                           ) : null}
-                        </div>
-                        {plan.description ? (
-                          <p className="mt-1 text-[11px] leading-5 text-muted">
-                            {plan.description}
-                          </p>
-                        ) : null}
-                        <p className="mt-2 text-lg font-extrabold text-brand">
-                          {faPrice(amount)}
-                          {plan.price > 0 ? (
+                          <p className="mt-2 text-lg font-extrabold text-brand">
+                            {faPrice(amount)}
                             <span className="text-[10px] font-normal text-muted">
                               {' '}
                               / {PLAN_PERIOD_LABELS[planMonths]}
                             </span>
+                          </p>
+                          {plan.features.length ? (
+                            <ul className="mt-2 flex flex-1 flex-col gap-1 text-[11px] text-ink">
+                              {plan.features.slice(0, 4).map((feature) => (
+                                <li
+                                  key={feature}
+                                  className="flex items-start gap-1.5"
+                                >
+                                  <Check
+                                    className="mt-0.5 size-3 shrink-0 text-brand"
+                                    aria-hidden
+                                  />
+                                  <span>{feature}</span>
+                                </li>
+                              ))}
+                            </ul>
                           ) : null}
-                        </p>
-                        {plan.features.length ? (
-                          <ul className="mt-2 flex flex-1 flex-col gap-1 text-[11px] text-ink">
-                            {plan.features.slice(0, 4).map((feature) => (
-                              <li key={feature} className="flex items-start gap-1.5">
-                                <Check
-                                  className="mt-0.5 size-3 shrink-0 text-brand"
-                                  aria-hidden
-                                />
-                                <span>{feature}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : null}
-                        <button
-                          type="button"
-                          disabled={busy || (isCurrent && plan.price <= 0)}
-                          onClick={() => void choosePlan(plan)}
-                          className={cn(
-                            'indeed-btn mt-3 w-full py-2 text-xs',
-                            isCurrent && plan.price <= 0
-                              ? 'indeed-btn-secondary'
-                              : 'indeed-btn-primary',
-                          )}
-                        >
-                          {busy ? (
-                            <Loader2 className="size-4 animate-spin" aria-hidden />
-                          ) : (
+                          <button
+                            type="button"
+                            onClick={() => selectPlan(plan)}
+                            className={cn(
+                              'indeed-btn mt-3 w-full py-2 text-xs',
+                              isSelected
+                                ? 'indeed-btn-secondary'
+                                : 'indeed-btn-primary',
+                            )}
+                          >
                             <CreditCard className="size-4" aria-hidden />
-                          )}
-                          {isCurrent && plan.price <= 0
-                            ? 'اشتراک فعلی شما'
-                            : amount >= 1000
-                              ? 'پرداخت و فعال‌سازی'
-                              : 'درخواست اشتراک'}
-                        </button>
-                      </div>
-                    );
-                  })}
+                            {isSelected
+                              ? 'انتخاب شده — ادامه'
+                              : 'افزودن به صورتحساب'}
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
-                </div>
+                </>
               )}
               <p className="text-[10px] leading-5 text-muted">
-                با اشتراک رایگان هم می‌توانید مرحله بعد بروید. طرح‌های پولی با
-                پرداخت آنلاین بلافاصله فعال می‌شوند و طرح رایگان پس از تأیید
-                مدیر.
+                مبلغ این مرحله در پایان و همراه با استعلام هویت و بسته‌ی مدیریت
+                با یک پرداخت آنلاین تسویه می‌شود.
+              </p>
+            </div>
+          ) : null}
+
+          {step.kind === 'management' ? (
+            <div className="flex flex-col gap-3">
+              {showManagement ? (
+                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-brand/30 bg-brand-light/40 p-3">
+                  <span
+                    className={cn(
+                      'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border transition',
+                      withManagement
+                        ? 'border-brand bg-brand text-white'
+                        : 'border-[var(--vintage-border)] bg-[var(--vintage-surface)] text-transparent',
+                    )}
+                  >
+                    <Check className="size-3.5" aria-hidden />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-xs font-extrabold text-ink">
+                      افزودن «مدیریت {managementPackage?.label}» به صورتحساب
+                    </span>
+                    <span className="mt-0.5 block text-[11px] leading-6 text-muted">
+                      دسته‌بندی کسب‌وکار شما بسته‌ی مدیریت اختصاصی دارد. با
+                      تیک‌زدن، این بسته هم‌زمان با اشتراک فعال می‌شود.
+                    </span>
+                    <span className="mt-1 block text-[11px] font-bold text-brand">
+                      هزینه: {faPrice(managementAmount)} /{' '}
+                      {PLAN_PERIOD_LABELS[planMonths]}
+                    </span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={withManagement}
+                    onChange={(event) => {
+                      setWithManagement(event.target.checked);
+                      setManagementSkipped(false);
+                    }}
+                  />
+                </label>
+              ) : (
+                <p className="rounded-xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-4 text-xs leading-6 text-muted">
+                  برای دسته‌بندی «{businessState?.industryLabel ?? 'کسب‌وکار شما'}»
+                  بسته‌ی مدیریت تعریف نشده است؛ می‌توانید بدون آن ادامه دهید.
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManagementSkipped(true);
+                    setWithManagement(false);
+                    goTo(safeIndex + 1);
+                  }}
+                  className="indeed-btn indeed-btn-secondary py-2 text-xs"
+                >
+                  رد کردن این مرحله
+                </button>
+                {showManagement ? (
+                  <button
+                    type="button"
+                    disabled={!withManagement}
+                    onClick={() => goTo(safeIndex + 1)}
+                    className="indeed-btn indeed-btn-primary py-2 text-xs disabled:opacity-50"
+                  >
+                    افزودن و ادامه
+                    <ArrowLeft className="size-4" aria-hidden />
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
+          {step.kind === 'invoice' ? (
+            <div className="flex flex-col gap-3">
+              <div className="overflow-hidden rounded-2xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)]">
+                <div className="flex items-center justify-between border-b border-[var(--vintage-border)] bg-[var(--vintage-paper)]/60 px-4 py-2.5">
+                  <span className="text-xs font-extrabold text-ink">
+                    صورتحساب نهایی
+                  </span>
+                  <span className="text-[10px] font-bold text-muted">
+                    یک پرداخت برای همه‌ی موارد
+                  </span>
+                </div>
+                <ul className="divide-y divide-[var(--vintage-border)]">
+                  {!identityVerified && identityTotal > 0 ? (
+                    <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
+                      <span className="flex items-center gap-2 text-muted">
+                        <ShieldCheck className="size-3.5 text-brand" aria-hidden />
+                        استعلام هویت و تطبیق موبایل
+                      </span>
+                      <span className="font-bold text-ink">
+                        {faPrice(identityTotal)}
+                      </span>
+                    </li>
+                  ) : null}
+                  {licenseSelected ? (
+                    <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
+                      <span className="flex items-center gap-2 text-muted">
+                        <ShieldCheck className="size-3.5 text-sky-600" aria-hidden />
+                        استعلام جواز کسب (تیک آبی)
+                      </span>
+                      <span className="font-bold text-ink">
+                        {faPrice(licensePrice)}
+                      </span>
+                    </li>
+                  ) : null}
+                  {selectedPlan ? (
+                    <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
+                      <span className="flex items-center gap-2 text-muted">
+                        <Crown className="size-3.5 text-brand" aria-hidden />
+                        اشتراک {selectedPlan.name} —{' '}
+                        {PLAN_PERIOD_LABELS[planMonths]}
+                      </span>
+                      <span className="font-bold text-ink">
+                        {faPrice(planAmount)}
+                      </span>
+                    </li>
+                  ) : null}
+                  {includeManagement ? (
+                    <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
+                      <span className="flex items-center gap-2 text-muted">
+                        <Building2 className="size-3.5 text-brand" aria-hidden />
+                        مدیریت {managementPackage?.label}
+                      </span>
+                      <span className="font-bold text-ink">
+                        {faPrice(managementAmount)}
+                      </span>
+                    </li>
+                  ) : null}
+                </ul>
+                <div className="flex items-center justify-between border-t border-[var(--vintage-border)] bg-brand-light/40 px-4 py-2.5 text-xs">
+                  <span className="font-extrabold text-ink">مبلغ قابل پرداخت</span>
+                  <span className="font-extrabold text-brand">
+                    {faPrice(invoiceTotalAmount)}
+                  </span>
+                </div>
+              </div>
+              {!selectedPlan && !identityPayable ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-6 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
+                  موردی برای پرداخت باقی نمانده است؛ با دکمه‌ی «مرحله بعد» به
+                  نتیجه‌ی استعلام بروید.
+                </p>
+              ) : null}
+              {!selectedPlan && identityPayable ? (
+                <p className="rounded-xl border border-sky-200 bg-sky-50/70 p-3 text-[11px] leading-6 text-sky-800 dark:border-sky-800/60 dark:bg-sky-950/30 dark:text-sky-200">
+                  اشتراکی برای این صورتحساب انتخاب نشده است؛ فقط هزینه‌ی استعلام
+                  هویت پرداخت می‌شود.
+                </p>
+              ) : null}
+              {invoiceNeedsPayment ? (
+                <button
+                  type="button"
+                  disabled={invoiceBusy || !invoicePayable || invoiceTotalAmount < 1000}
+                  onClick={() => void payOnboardingInvoice()}
+                  className="indeed-btn indeed-btn-primary self-start py-2 text-xs disabled:opacity-50"
+                >
+                  {invoiceBusy ? (
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                  ) : (
+                    <CreditCard className="size-4" aria-hidden />
+                  )}
+                  {invoiceBusy ? 'در حال انتقال به درگاه...' : 'پرداخت نهایی'}
+                </button>
+              ) : null}
+              <p className="text-[10px] leading-5 text-muted">
+                با پرداخت، اشتراک و بسته‌ی مدیریت فعال می‌شوند و استعلام هویت
+                بلافاصله پس از تأیید پرداخت انجام می‌شود.
               </p>
             </div>
           ) : null}
 
           {step.kind === 'approval' ? (
             canEnter(safeIndex) ? (
-            <div className="flex flex-col gap-3">
-              <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-l from-emerald-50 via-emerald-50/70 to-[var(--vintage-surface)] p-5 text-center dark:border-emerald-800/60 dark:from-emerald-950/40 dark:via-emerald-950/30 dark:to-[var(--vintage-surface)]">
-                <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-300">
-                  <PartyPopper className="size-7" aria-hidden />
-                </span>
-                <h3 className="mt-3 text-base font-extrabold text-emerald-900 dark:text-emerald-100">
-                  همه‌ی مراحل کامل شد!
-                </h3>
-                <p className="mx-auto mt-1.5 max-w-md text-xs leading-6 text-emerald-800 dark:text-emerald-200">
-                  کسب‌وکار شما ثبت شد و پس از تأیید مدیر در صفحه‌ی مشاغل و
-                  دایرکتوری نمایش داده می‌شود. می‌توانید وضعیت را از پنل پیگیری
-                  کنید.
-                </p>
-                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--vintage-surface)] px-3 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200 dark:text-emerald-300 dark:ring-emerald-800/60">
-                  <Clock className="size-3.5" aria-hidden />
-                  در انتظار تأیید مدیر
-                </span>
-              </div>
+              <div className="flex flex-col gap-3">
+                {identityResult && !identityResult.success ? (
+                  <div className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50/70 p-4 dark:border-red-800/60 dark:bg-red-950/30">
+                    <b className="flex items-center gap-1.5 text-sm text-red-700 dark:text-red-300">
+                      <ShieldCheck className="size-4" aria-hidden />
+                      استعلام هویت انجام نشد
+                    </b>
+                    <p className="text-xs leading-6 text-red-700 dark:text-red-200">
+                      {identityResult.message ??
+                        'اطلاعات وارد‌شده با استعلام مطابقت نداشت.'}{' '}
+                      هزینه‌ی استعلام قابل برگشت نیست؛ برای تلاش دوباره اطلاعات
+                      را اصلاح کنید و مجدداً پرداخت کنید.
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="text-xs font-bold text-muted">
+                        کد ملی
+                        <input
+                          className="indeed-input mt-1"
+                          inputMode="numeric"
+                          maxLength={10}
+                          value={nationalCode}
+                          onChange={(event) =>
+                            setNationalCode(
+                              event.target.value.replace(/\D/g, ''),
+                            )
+                          }
+                          placeholder="۱۰ رقم"
+                          dir="ltr"
+                        />
+                      </label>
+                      <label className="text-xs font-bold text-muted">
+                        تاریخ تولد
+                        <JalaliDatePicker
+                          value={birthIso}
+                          onChange={setBirthIso}
+                          className="mt-1"
+                        />
+                      </label>
+                    </div>
+                    {showLicense ? (
+                      <label className="flex items-center gap-2 text-xs text-muted">
+                        <input
+                          type="checkbox"
+                          checked={withLicense}
+                          onChange={(event) =>
+                            setWithLicense(event.target.checked)
+                          }
+                        />
+                        استعلام جواز کسب (تیک آبی)
+                      </label>
+                    ) : null}
+                    {withLicense && showLicense ? (
+                      <input
+                        className="indeed-input"
+                        dir="ltr"
+                        value={licenseTrackingCode}
+                        onChange={(event) =>
+                          setLicenseTrackingCode(event.target.value)
+                        }
+                        placeholder="کد پیگیری جواز کسب"
+                      />
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => void payIdentityOnly()}
+                      disabled={identityBusy}
+                      className="indeed-btn indeed-btn-primary self-start py-2 text-xs"
+                    >
+                      {identityBusy ? (
+                        <Loader2
+                          className="size-4 animate-spin"
+                          aria-hidden
+                        />
+                      ) : (
+                        <CreditCard className="size-4" aria-hidden />
+                      )}
+                      {identityBusy
+                        ? 'در حال انتقال به درگاه...'
+                        : 'پرداخت و استعلام مجدد'}
+                    </button>
+                  </div>
+                ) : identityVerified ? (
+                  <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-l from-emerald-50 via-emerald-50/70 to-[var(--vintage-surface)] p-5 text-center dark:border-emerald-800/60 dark:from-emerald-950/40 dark:via-emerald-950/30 dark:to-[var(--vintage-surface)]">
+                    <span className="mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-300">
+                      <PartyPopper className="size-7" aria-hidden />
+                    </span>
+                    <h3 className="mt-3 text-base font-extrabold text-emerald-900 dark:text-emerald-100">
+                      تبریک! ثبت‌نام شما کامل شد
+                    </h3>
+                    <p className="mx-auto mt-1.5 max-w-md text-xs leading-6 text-emerald-800 dark:text-emerald-200">
+                      {payload.identity?.businessLicenseVerified
+                        ? 'هویت و جواز کسب شما تأیید شد و تیک آبی گرفتید.'
+                        : 'هویت شما تأیید شد و تیک سفید گرفتید.'}{' '}
+                      کسب‌وکار شما پس از تأیید مدیر در صفحه‌ی مشاغل و دایرکتوری
+                      نمایش داده می‌شود.
+                    </p>
+                    <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--vintage-surface)] px-3 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200 dark:text-emerald-300 dark:ring-emerald-800/60">
+                      <BadgeCheck className="size-3.5" aria-hidden />
+                      {payload.identity?.businessLicenseVerified
+                        ? 'تیک آبی'
+                        : 'تیک سفید'}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-5 text-center text-xs leading-6 text-muted">
+                    نتیجه‌ی استعلام هویت در حال بررسی است؛ چند لحظه بعد این صفحه
+                    را دوباره باز کنید.
+                  </div>
+                )}
 
-              <button
-                type="button"
-                onClick={() => void finishOnboarding()}
-                className="indeed-btn indeed-btn-primary w-fit py-2 text-xs"
-              >
-                اتمام مراحل
-                <ArrowLeft className="size-4" aria-hidden />
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => void finishOnboarding()}
+                  className="indeed-btn indeed-btn-primary w-fit py-2 text-xs"
+                >
+                  اتمام مراحل
+                  <ArrowLeft className="size-4" aria-hidden />
+                </button>
+              </div>
             ) : (
               <p className="rounded-2xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-5 text-center text-xs leading-6 text-muted">
                 این پیام پس از تکمیل همه‌ی مراحل قبلی نمایش داده می‌شود.
@@ -1474,6 +1733,10 @@ export function OnboardingWizard() {
                 {payload.completed === payload.total
                   ? 'همه‌ی مراحل تکمیل شد 🎉'
                   : 'آخرین مرحله'}
+              </span>
+            ) : isInvoiceStep && invoiceNeedsPayment ? (
+              <span className="text-xs font-bold text-brand">
+                برای ادامه، پرداخت نهایی را انجام دهید
               </span>
             ) : (
               <div className="flex items-center gap-3">

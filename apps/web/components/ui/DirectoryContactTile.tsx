@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import {
-  BadgeCheck,
   Building2,
   MapPin,
   Phone,
@@ -12,6 +11,7 @@ import {
 
 import { LikeButton } from '@/components/ui/LikeButton';
 import { SaveButton } from '@/components/ui/SaveButton';
+import { VerificationBadge } from '@/components/ui/VerificationBadge';
 import { readableAccent } from '@/lib/card-spectrum';
 import type { InteractionKind } from '@/lib/interactions';
 
@@ -35,6 +35,9 @@ interface Props {
   saved: boolean;
   /** the owner passed the identity inquiry (blue tick) */
   verified?: boolean;
+  /** white/blue verification ticks of the owner's workspace */
+  identityVerified?: boolean;
+  businessLicenseVerified?: boolean;
   /** boost/ad badge, absolutely positioned in the tile's top corner */
   badge?: React.ReactNode;
   /**
@@ -78,6 +81,8 @@ export function DirectoryContactTile({
   liked,
   saved,
   verified,
+  identityVerified,
+  businessLicenseVerified,
   badge,
   mobileOrder = 'name',
 }: Props) {
@@ -107,12 +112,11 @@ export function DirectoryContactTile({
           <div className="directory-tile-headtext">
             <span className="directory-tile-name">
               {fullName}
-              {verified ? (
-                <BadgeCheck
-                  className="ms-1 inline size-3.5 shrink-0 text-sky-600"
-                  aria-label="تأیید هویت"
-                />
-              ) : null}
+              <VerificationBadge
+                identity={identityVerified ?? verified}
+                businessLicense={businessLicenseVerified}
+                className="ms-1 inline-flex align-middle"
+              />
             </span>
             {meta ? (
               <span className="directory-tile-line directory-tile-meta">

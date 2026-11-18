@@ -42,6 +42,15 @@ export class OnboardingController {
     return this.onboarding.finish(user.id);
   }
 
+  @Post('identity/run')
+  @ApiOperation({
+    summary:
+      'اجرای استعلام هویتی که همراه پرداخت ترکیبی خریداری شده (بدون کسر مجدد) و بازگرداندن نتیجه',
+  })
+  runIdentity(@CurrentUser() user: AuthUser) {
+    return this.onboarding.runPendingIdentity(user.id);
+  }
+
   @Post('business')
   @ApiOperation({
     summary: 'ثبت/به‌روزرسانی کسب‌وکار «شروع آسان» (فقط فضای کسب‌وکار، بدون کارت/بیولینک)',

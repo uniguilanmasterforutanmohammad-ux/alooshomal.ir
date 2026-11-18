@@ -248,13 +248,19 @@ export class BiolinksService {
     }
     const owner = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { verifiedAt: true },
+      select: {
+        verifiedAt: true,
+        identityVerifiedAt: true,
+        businessLicenseVerifiedAt: true,
+      },
     });
 
     return {
       items: biolinks.map((item, index) => ({
         ...item,
         ownerVerified: Boolean(owner?.verifiedAt),
+        ownerIdentityVerified: Boolean(owner?.identityVerifiedAt),
+        ownerBusinessLicenseVerified: Boolean(owner?.businessLicenseVerifiedAt),
         likeCount: item._count.likes,
         saveCount: item._count.saves,
         views: item._count.scanEvents,
@@ -445,7 +451,7 @@ export class BiolinksService {
             isPublished: true,
           },
         },
-        user: { select: { plan: true, verifiedAt: true } },
+        user: { select: { plan: true, verifiedAt: true, identityVerifiedAt: true, businessLicenseVerifiedAt: true } },
       },
     });
     if (!biolink) {
@@ -482,7 +488,7 @@ export class BiolinksService {
             isPublished: true,
           },
         },
-        user: { select: { plan: true, verifiedAt: true } },
+        user: { select: { plan: true, verifiedAt: true, identityVerifiedAt: true, businessLicenseVerifiedAt: true } },
       },
     });
     return rows.map((row) => this.projectPublicBiolink(row));
@@ -513,14 +519,21 @@ export class BiolinksService {
         publishedAt: true,
         city: { select: { id: true, name: true } },
         business: { select: { id: true, name: true } },
-        user: { select: { plan: true, verifiedAt: true } },
+        user: { select: { plan: true, verifiedAt: true, identityVerifiedAt: true, businessLicenseVerifiedAt: true } },
       },
     });
     // Hide the fields the owner's plan masks (e.g. contact details on «رایگان»)
     // and drop the `user` relation from the public payload.
     return rows.map((row) => {
       const { user: _user, ...rest } = applyPlanMask(row, row.user?.plan);
-      return { ...rest, ownerVerified: Boolean(row.user?.verifiedAt) };
+      return {
+        ...rest,
+        ownerVerified: Boolean(row.user?.verifiedAt),
+        ownerIdentityVerified: Boolean(row.user?.identityVerifiedAt),
+        ownerBusinessLicenseVerified: Boolean(
+          row.user?.businessLicenseVerifiedAt,
+        ),
+      };
     });
   }
 
@@ -540,6 +553,8 @@ export class BiolinksService {
       whatsapp: string | null;
       user?: {
         verifiedAt: Date | null;
+        identityVerifiedAt: Date | null;
+        businessLicenseVerifiedAt: Date | null;
         plan: {
           name: string;
           maxBiolinks: number;
@@ -576,6 +591,10 @@ export class BiolinksService {
       ...rest,
       planName: limits.name,
       ownerVerified: Boolean(biolink.user?.verifiedAt),
+      verification: {
+        identity: Boolean(biolink.user?.identityVerifiedAt),
+        businessLicense: Boolean(biolink.user?.businessLicenseVerifiedAt),
+      },
       planHidesFields: limits.hiddenFields.length > 0,
       linkedBusinessCard,
     };

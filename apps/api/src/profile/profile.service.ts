@@ -871,6 +871,50 @@ export class ProfileService {
   }
 
   /**
+   * Run the identity bundle that was paid as part of a combined subscription
+   * checkout (plan + management + inquiry in one gateway payment). The caller
+   * snapshotted the inputs on the payment, so this only performs the inquiries
+   * and reports the result — it never charges again.
+   */
+  async runPaidIdentityBundle(
+    userId: string,
+    data: {
+      nationalCode?: string | null;
+      birthDate?: string | null;
+      withLicense?: boolean;
+      licenseTrackingCode?: string | null;
+    },
+  ): Promise<{ identityVerified: boolean; businessLicenseVerified: boolean }> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        identityVerifiedAt: true,
+        businessLicenseVerifiedAt: true,
+      },
+    });
+    if (!user) throw new NotFoundException('کاربر یافت نشد');
+    if (!user.identityVerifiedAt) {
+      await this.performIdentityBundle(
+        userId,
+        data.nationalCode ?? null,
+        data.birthDate ?? null,
+      );
+    }
+    if (data.withLicense && !user.businessLicenseVerifiedAt) {
+      if (!data.licenseTrackingCode) {
+        throw new BadRequestException(
+          'کد پیگیری جواز کسب برای این پرداخت ثبت نشده است.',
+        );
+      }
+      await this.performBusinessLicense(userId, data.licenseTrackingCode);
+    }
+    return {
+      identityVerified: true,
+      businessLicenseVerified: Boolean(data.withLicense),
+    };
+  }
+
+  /**
    * Gateway return URL. Verifies the transaction, runs both inquiries and
    * redirects the browser back to the onboarding step.
    */

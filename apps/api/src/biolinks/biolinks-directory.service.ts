@@ -39,6 +39,10 @@ interface DirectoryBiolinkItem {
   likeCount: number;
   /** The owner passed the paid identity inquiry and has the blue tick. */
   ownerVerified: boolean;
+  /** The owner completed the identity inquiry (white tick). */
+  ownerIdentityVerified: boolean;
+  /** The owner also verified the business license (blue tick). */
+  ownerBusinessLicenseVerified: boolean;
 }
 
 /**
@@ -184,6 +188,8 @@ export class BiolinksDirectoryService {
       user: {
         select: {
           verifiedAt: true,
+          identityVerifiedAt: true,
+          businessLicenseVerifiedAt: true,
           plan: { select: { showSocialLinks: true, hiddenFields: true } },
         },
       },
@@ -208,6 +214,10 @@ export class BiolinksDirectoryService {
       return {
         ...masked,
         ownerVerified: Boolean(user?.verifiedAt),
+        ownerIdentityVerified: Boolean(user?.identityVerifiedAt),
+        ownerBusinessLicenseVerified: Boolean(
+          user?.businessLicenseVerifiedAt,
+        ),
       } as unknown as DirectoryBiolinkItem;
     };
 

@@ -3,7 +3,6 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import {
   ArrowLeft,
-  BadgeCheck,
   Building2,
   ChevronLeft,
   MapPin,
@@ -17,6 +16,7 @@ import { Footer } from '@/components/layout/Footer';
 import { Header } from '@/components/layout/Header';
 import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { RatingStars } from '@/components/business/RatingStars';
+import { VerificationBadge } from '@/components/ui/VerificationBadge';
 import { fetchBusinessCategories, fetchCategoryDirectory } from '@/lib/catalog-server';
 import { fa } from '@/lib/jalali';
 import { jsonLdHtml } from '@/lib/json-ld';
@@ -268,12 +268,12 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
                           >
                             {item.fullName}
                           </Link>
-                          {item.ownerVerified ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-700">
-                              <BadgeCheck className="size-3" aria-hidden />
-                              تأیید هویت
-                            </span>
-                          ) : null}
+                          <VerificationBadge
+                            identity={
+                              item.ownerIdentityVerified ?? item.ownerVerified
+                            }
+                            businessLicense={item.ownerBusinessLicenseVerified}
+                          />
                           {item.adDirectoryUntil ? (
                             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
                               تبلیغات

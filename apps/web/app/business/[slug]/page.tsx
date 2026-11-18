@@ -4,7 +4,6 @@ import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import {
   ArrowLeft,
-  BadgeCheck,
   BriefcaseBusiness,
   Building2,
   ChevronLeft,
@@ -31,6 +30,7 @@ import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { SaveButton } from '@/components/ui/SaveButton';
 import { ShareButton } from '@/components/ui/ShareButton';
+import { VerificationBadge } from '@/components/ui/VerificationBadge';
 import {
   InstagramIcon,
   LinkedinIcon,
@@ -303,12 +303,10 @@ export default async function BusinessProfilePage({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-black text-ink sm:text-3xl">{card.fullName}</h1>
-              {card.ownerVerified ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-700">
-                  <BadgeCheck className="size-3.5" aria-hidden />
-                  تأیید هویت
-                </span>
-              ) : null}
+              <VerificationBadge
+                identity={card.verification?.identity}
+                businessLicense={card.verification?.businessLicense}
+              />
             </div>
             {card.jobTitle || card.company ? (
               <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
