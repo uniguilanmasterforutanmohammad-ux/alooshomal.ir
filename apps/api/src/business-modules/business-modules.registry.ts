@@ -81,7 +81,7 @@ export const BUSINESS_MODULES: BusinessModuleDefinition[] = [
     enforced: true,
     featureFlag: 'allowBusinessCardCreation',
     nav: {
-      href: '/dashboard/business-cards',
+      href: '/dashboard/business/cards',
       label: 'کارت‌های ویزیت',
       icon: 'BadgeCheck',
     },
@@ -99,7 +99,7 @@ export const BUSINESS_MODULES: BusinessModuleDefinition[] = [
     billable: false,
     enforced: true,
     featureFlag: 'allowBiolinkCreation',
-    nav: { href: '/dashboard/biolinks', label: 'بیولینک‌ها', icon: 'IdCard' },
+    nav: { href: '/dashboard/business/biolinks', label: 'بیولینک‌ها', icon: 'IdCard' },
     publicRoutes: ['/biolinks'],
     capabilities: ['صفحه‌ی لینک عمومی', 'قالب‌های ظاهری', 'اتصال به کارت ویزیت'],
   },

@@ -20,7 +20,38 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.29.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.30.0**.
+
+## ۱۴۰۵/۰۸/۲۷ — نمایش کارت ویزیت و بیولینک داخل تب‌های پنل کسب‌وکار — نسخه `v4.30.0`
+
+**هدف:** در صفحه‌ی `/dashboard/business` همه‌ی ماژول‌های فعال به‌صورت تب دیده
+می‌شدند و با کلیک، محتوایشان همان‌جا داخل پنل (زیر نوار تب‌ها) باز می‌شد؛ تنها دو
+ماژول «کارت ویزیت دیجیتال» و «بیولینک» کاربر را به مسیرهای جداگانه‌ی
+`/dashboard/business-cards` و `/dashboard/biolinks` بیرون از پنل می‌بردند. حالا این
+دو هم مانند بقیه، داخل خود پنل و همراه نوار تب‌ها نمایش داده می‌شوند.
+
+**تغییرات:**
+- `apps/web/components/business/MyBusinessCardsPanel.tsx`: کامپوننت مشترک فهرست
+  کارت‌های ویزیت کاربر (منتقل‌شده از صفحه‌ی قبلی، با پارامتر `nextPath` برای بازگشت
+  به لاگین).
+- `apps/web/components/business/MyBiolinksPanel.tsx`: کامپوننت مشترک فهرست
+  بیولینک‌های کاربر.
+- `apps/web/app/dashboard/business/cards/page.tsx`: تب جدید «کارت ویزیت دیجیتال»
+  داخل پنل که `BusinessPanelNav` + پنل کارت‌ها را رندر می‌کند.
+- `apps/web/app/dashboard/business/biolinks/page.tsx`: تب جدید «بیولینک» داخل پنل.
+- `apps/web/app/dashboard/business-cards/page.tsx` و
+  `apps/web/app/dashboard/biolinks/page.tsx`: به پوسته‌ی نازک روی همان کامپوننت‌های
+  مشترک تبدیل شدند تا مسیرهای قدیمی همچنان کار کنند.
+- `apps/api/src/business-modules/business-modules.registry.ts`: مسیر `nav` دو ماژول
+  به `/dashboard/business/cards` و `/dashboard/business/biolinks` تغییر کرد تا نوار
+  تب‌ها و دکمه‌ی «ورود به ماژول» داخل پنل بمانند.
+- `apps/web/lib/version.ts`: ارتقای نسخه به `v4.30.0`.
+
+**تأیید/تست:**
+- `node_modules/.bin/tsc --noEmit -p tsconfig.json` در `apps/web` بدون خطا (exit 0).
+- `eslint` روی شش فایل تغییریافته: صفر خطا (فقط همان دو هشدارِ از پیش موجودِ
+  `react-hooks/set-state-in-effect` که در کد قبلی هم بودند).
+- `python3 scripts/sync_install.py` و سپس `--check` بدون تغییر معلق (exit 0).
 
 ## ۱۴۰۵/۰۸/۲۷ — رفع خطای ۴۰۰ روی مسیرهای فارسی/انکدشده در Nginx — نسخه `v4.29.1`
 
