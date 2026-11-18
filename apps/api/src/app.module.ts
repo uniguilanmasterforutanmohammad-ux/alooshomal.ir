@@ -11,6 +11,7 @@ import { AdminModule } from './admin/admin.module';
 import { ActivityModule } from './activity/activity.module';
 import { AdsModule } from './ads/ads.module';
 import { AccommodationsModule } from './accommodations/accommodations.module';
+import { ApiIrModule } from './apiir/apiir.module';
 import { AuthModule } from './auth/auth.module';
 import { BackupModule } from './backup/backup.module';
 import { BaleModule } from './bale/bale.module';
@@ -101,6 +102,7 @@ import { ZohalModule } from './zohal/zohal.module';
     HealthModule,
     WalletModule,
     ZohalModule,
+    ApiIrModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

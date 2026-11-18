@@ -121,6 +121,7 @@ async function bootstrap(): Promise<void> {
       .addTag('settings', 'تنظیمات عمومی سایت')
       .addTag('payping', 'درگاه پرداخت پی‌پینگ (حساب پذیرنده)')
       .addTag('payping-oauth', 'درگاه پرداخت پی‌پینگ (اپلیکیشن OAuth)')
+      .addTag('apiir', 'استعلام‌های api.ir: مجوز شغلی، هویتی، بانکی و خدماتی')
       .addTag('seo', 'نقشه‌ی سایت و داده‌های سئو')
       .addTag('health', 'سلامت سرویس')
       .build();

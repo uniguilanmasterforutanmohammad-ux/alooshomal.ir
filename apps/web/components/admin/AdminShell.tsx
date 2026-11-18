@@ -13,6 +13,7 @@ import {
   Crown,
   CreditCard,
   DatabaseBackup,
+  FileCheck2,
   HardDrive,
   Headset,
   IdCard,
@@ -63,6 +64,7 @@ export type AdminSection =
   | 'revenue'
   | 'finance'
   | 'zohal'
+  | 'apiir'
   | 'wallets'
   | 'payments'
   | 'payping-oauth'
@@ -139,6 +141,7 @@ const NAV_GROUPS: Array<{
       { key: 'revenue', label: 'گزارش درآمد', icon: Banknote },
       { key: 'finance', label: 'مالیاتی', icon: Receipt },
       { key: 'zohal', label: 'زحل (استعلام)', icon: ShieldCheck },
+      { key: 'apiir', label: 'api.ir (استعلام)', icon: FileCheck2 },
       { key: 'wallets', label: 'کیف پول‌ها', icon: Wallet },
       { key: 'payments', label: 'درگاه پرداخت', icon: CreditCard },
       { key: 'payping-oauth', label: 'درگاه پرداخت (OAuth)', icon: ShieldCheck },

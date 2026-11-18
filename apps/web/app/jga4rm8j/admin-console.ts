@@ -63,6 +63,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'revenue',
   'finance',
   'zohal',
+  'apiir',
   'wallets',
   'payments',
   'payping-oauth',
@@ -132,6 +133,10 @@ export function isAdminSection(value: string): value is AdminSection {
     zohal: {
       title: 'زحل (استعلام)',
       sub: 'سرویس‌های استعلام هویت، بانکی و خدماتی زحل؛ فعال‌سازی ماژولار و درخواست‌های تیک آبی',
+    },
+    apiir: {
+      title: 'api.ir (استعلام)',
+      sub: 'استعلام‌های api.ir از جمله اعتبار مجوز شغلی (پروانه کسب)؛ فعال‌سازی و آزمایش هر سرویس',
     },
     wallets: {
       title: 'کیف پول کاربران',

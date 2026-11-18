@@ -20,7 +20,59 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.28.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.29.0**.
+
+## ۱۴۰۵/۰۸/۲۷ — افزودن بخش «api.ir (استعلام)» به پنل مدیریت — نسخه `v4.29.0`
+
+**هدف:** راه‌اندازی استعلام‌های api.ir (از جمله «استعلام اعتبار مجوز شغلی /
+پروانه کسب» به‌ازای کد پیگیری) در پنلی جدا و هم‌سبک بخش «زحل (استعلام)»، با
+کلید `API_KEY_API.IR` که کاربر در `.env` قرار داده است.
+
+**تغییرات:**
+- `apps/api/src/apiir/apiir.types.ts`: تایپ‌های سرویس/فیلد/نتیجه و تایپ خروجی
+  مجوز شغلی.
+- `apps/api/src/apiir/apiir.constants.ts`: فایل **تولیدشده** — فهرست ۶۶ سرویس
+  مسیرهای `/api/sw1/*` به‌همراه گروه‌بندی فارسی، توضیح و فیلدهای ورودی؛ از اسپک
+  رسمی api.ir ساخته شده است.
+- `apps/api/src/apiir/apiir.service.ts`: کلاینت api.ir (هدر
+  `Authorization: Bearer <API_KEY_API.IR>`)، خواندن کلید از
+  `process.env['API_KEY_API.IR']` (به‌همراه جایگزین `APIIR_TOKEN`)، سوئیچ هر
+  سرویس با `apiir.service.<key>`، قیمت `apiir.price.<key>`، نرمال‌سازی پوشش
+  پاسخ `{ data, success, code, message }`، متد `inquiryLicense` و
+  `assertServiceEnabled`.
+- `apps/api/src/apiir/apiir.controller.ts` + `dto/apiir.dto.ts`: مسیرهای ادمین
+  `GET /admin/apiir/services`، `PATCH /admin/apiir/services/:key` و
+  `POST /admin/apiir/services/:key/test` (همه با `@ApiOperation`،
+  `@ApiBearerAuth` و `@Roles('ADMIN')`).
+- `apps/api/src/apiir/apiir.module.ts` و ثبت در `apps/api/src/app.module.ts`؛
+  افزودن تگ Swagger `apiir` در `apps/api/src/main.ts`.
+- `apps/web/components/admin/AdminApiIr.tsx`: پنل مدیریت با کارت وضعیت اتصال،
+  گروه‌بندی سرویس‌ها، سوییچ فعال/غیرفعال، تعیین هزینه و فرم «آزمایش» (هزینه‌زا)
+  با نمایش پاسخ خام.
+- `apps/web/components/admin/AdminShell.tsx`،
+  `apps/web/app/jga4rm8j/admin-console.ts` و
+  `apps/web/app/jga4rm8j/page.tsx`: افزودن بخش `apiir` به منو، عنوان و رندر پنل.
+- `docker-compose.yml`، `docker-compose.prod.yml`، `.env.example` و
+  `docs/DEPLOY.md`: پاس‌دادن `API_KEY_API.IR` (نام نقطه‌دار به‌صورت pass-through
+  از `.env` سرور) و `APIIR_BASE_URL`؛ کلید باید در `.env` سرور هم قرار بگیرد.
+- `scripts/sync_apiir_catalog.py`: تولیدکننده‌ی فهرست سرویس‌ها از اسپک رسمی
+  api.ir (`https://s.api.ir/openapi/v1.json`).
+- `docs/APIIR.md` و بخش تازه در `docs/API.md`: مستند اتصال، قالب پاسخ،
+  فعال‌سازی ماژولار و مسیرهای ادمین. ثبت ایده‌ی «نمایان‌کردن استعلام‌ها به
+  کاربران و کسر هزینه» در `BACKLOG.md`.
+- `apps/web/lib/version.ts`: ارتقای نسخه به `v4.29.0`.
+
+**تأیید/تست:**
+- `python3 scripts/sync_apiir_catalog.py` فهرست را از اسپک زنده ساخت (۶۶ سرویس)؛
+  `docs/API.md` و `check_api_docs.py` بدون خطا (۵۲ کنترلر / ۵۲۱ مسیر).
+- `tsc --noEmit` روی `apps/api` برای فایل‌های جدید بدون خطا و `eslint` وب بدون
+  خطا (فقط یک هشدار هم‌سبک پنل زحل).
+- `docker compose config` نام نقطه‌دار `API_KEY_API.IR` را درست پاس داد و پس از
+  بازسازی کانتینر، `printenv 'API_KEY_API.IR'` مقدار را نشان داد.
+- تست محلی با کلید واقعی: `GET /admin/apiir/services` وضعیت `configured: true`
+  با ۶۶ سرویس برگرداند؛ `PATCH` سرویس `license` فعال شد و
+  `POST /admin/apiir/services/license/test` با `{ trackingCode: "BL123456" }`
+  پاسخ `ok: true` (HTTP 200، حدود ۵۴۲ms) از api.ir دریافت کرد.
 
 ## ۱۴۰۵/۰۸/۲۷ — رفع خطای تأیید پرداخت خرید مدیریت کسب‌وکار — نسخه `v4.28.2`
 

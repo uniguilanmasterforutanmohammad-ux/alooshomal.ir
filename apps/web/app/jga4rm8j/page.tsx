@@ -5,6 +5,7 @@ import { Suspense } from 'react';
 import { AdminShell } from '@/components/admin/AdminShell';
 import { ActivityLogPanel } from '@/components/admin/ActivityLogPanel';
 import { AdminAds } from '@/components/admin/AdminAds';
+import { AdminApiIr } from '@/components/admin/AdminApiIr';
 import { AdminBlogPanel } from '@/components/admin/AdminBlogPanel';
 import { AdminBackups } from '@/components/admin/AdminBackups';
 import { AdminBoosts } from '@/components/admin/AdminBoosts';
@@ -97,6 +98,7 @@ function AdminContent() {
       {section === 'revenue' ? <AdminRevenue /> : null}
       {section === 'finance' ? <AdminFinance /> : null}
       {section === 'zohal' ? <AdminZohal /> : null}
+      {section === 'apiir' ? <AdminApiIr /> : null}
       {section === 'wallets' ? <AdminWallets /> : null}
       {section === 'payments' ? <AdminPaypingPanel /> : null}
       {section === 'payping-oauth' ? <AdminPaypingOAuthPanel /> : null}

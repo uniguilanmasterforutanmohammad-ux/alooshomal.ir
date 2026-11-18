@@ -136,6 +136,12 @@ BALE_OTP_ENABLED=true
 PAYPING_OAUTH_CLIENT_ID=<client-id>
 PAYPING_OAUTH_CLIENT_SECRET=<client-secret>
 PAYPING_OAUTH_REDIRECT_URI=https://shomalicard.ir
+
+# استعلام‌های api.ir (از جمله «اعتبار مجوز شغلی/پروانه کسب»). کلید فقط سمت
+# سرور می‌ماند و هر سرویس از پنل «api.ir (استعلام)» روشن/خاموش می‌شود.
+# نام متغیر همان است که در پنل api.ir نمایش داده می‌شود (با نقطه).
+API_KEY_API.IR=<کلید>
+APIIR_BASE_URL=https://s.api.ir
 EOF
 ```
 
