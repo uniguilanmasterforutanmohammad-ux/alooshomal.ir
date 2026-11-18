@@ -34,6 +34,8 @@ interface ApiIrServiceItem {
   price: number;
   /** Official api.ir tariff for one call (Toman); 0/undefined = not recorded. */
   tariff?: number;
+  /** PayPing product mirrored for this service (null until synced). */
+  payping?: { code: string; amount: number | null } | null;
 }
 
 interface ApiIrStatus {
@@ -159,6 +161,47 @@ export function AdminApiIr() {
       toast.success(`هزینه سرویس «${service.label}» ثبت شد.`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'ثبت هزینه ناموفق بود');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function syncPayping(service: ApiIrServiceItem) {
+    if (service.price <= 0) {
+      toast.error('ابتدا هزینه‌ی این سرویس را ثبت کنید.');
+      return;
+    }
+    setBusyKey(service.key);
+    try {
+      const result = await api.post<{
+        code: string;
+        amount: number;
+        updated: boolean;
+      }>(`/admin/apiir/services/${service.key}/payping-product`, {});
+      setData((current) =>
+        current
+          ? {
+              ...current,
+              services: current.services.map((item) =>
+                item.key === service.key
+                  ? {
+                      ...item,
+                      payping: { code: result.code, amount: result.amount },
+                    }
+                  : item,
+              ),
+            }
+          : current,
+      );
+      toast.success(
+        result.updated
+          ? `محصول پی‌پینگ «${service.label}» به‌روزرسانی شد.`
+          : `محصول «${service.label}» در پی‌پینگ ساخته شد.`,
+      );
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : 'همگام‌سازی با پی‌پینگ ناموفق بود',
+      );
     } finally {
       setBusyKey(null);
     }
@@ -325,6 +368,39 @@ export function AdminApiIr() {
                         : 'تعیین نشده'}
                     </span>
                   </div>
+
+                  {service.price > 0 ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-line bg-background p-2">
+                      <button
+                        type="button"
+                        disabled={busyKey === service.key}
+                        onClick={() => void syncPayping(service)}
+                        className="indeed-btn indeed-btn-secondary py-1 text-[11px]"
+                      >
+                        {busyKey === service.key ? (
+                          <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                        ) : (
+                          <RefreshCw className="size-3.5" aria-hidden />
+                        )}
+                        همگام‌سازی با پی‌پینگ
+                      </button>
+                      <span className="text-[11px] leading-5 text-muted">
+                        {service.payping ? (
+                          <>
+                            محصول درگاه:{' '}
+                            <span className="font-mono text-ink" dir="ltr">
+                              {service.payping.code}
+                            </span>
+                            {service.payping.amount !== service.price
+                              ? ' — قیمت تغییر کرده؛ برای به‌روزرسانی مبلغ دوباره همگام‌سازی کنید.'
+                              : ''}
+                          </>
+                        ) : (
+                          'محصول درگاه ساخته نشده است.'
+                        )}
+                      </span>
+                    </div>
+                  ) : null}
 
                   <p className="mt-2 text-[11px] text-muted">
                     تعرفه‌ی api.ir برای هر استعلام:{' '}

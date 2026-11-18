@@ -613,6 +613,7 @@ api.ir فقط سمت سرور (`API_KEY_API.IR`؛ جایگزین `APIIR_TOKEN`) 
 | `GET` | `/admin/apiir/services` | ADMIN | فهرست همه‌ی سرویس‌های api.ir (از جمله «استعلام اعتبار مجوز شغلی/پروانه کسب») + وضعیت اتصال، فعال/غیرفعال و قیمت. |
 | `PATCH` | `/admin/apiir/services/:key` | ADMIN | فعال/غیرفعال‌کردن (`{ enabled }`) و/یا تعیین قیمت آینده (`{ price }`). |
 | `POST` | `/admin/apiir/services/:key/test` | ADMIN | فراخوانی آزمایشی واقعی (هزینه‌زاست و از اعتبار حساب api.ir کم می‌شود) با `{ payload }`. |
+| `POST` | `/admin/apiir/services/:key/payping-product` | ADMIN | ساخت/همگام‌سازی محصول پی‌پینگ برای همان سرویس با مبلغ ثبت‌شده (`apiir.price.<key>`)؛ کد محصول در `apiir.payping.<key>` ذخیره می‌شود. |
 
 ## ویزارد «شروع آسان» (`/api/onboarding`)
 

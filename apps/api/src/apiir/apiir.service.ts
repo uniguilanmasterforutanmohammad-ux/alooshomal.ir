@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ForbiddenException,
   Injectable,
@@ -9,6 +10,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 
 import { ActivityService } from '../activity/activity.service';
+import { PaypingService } from '../payping/payping.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   APIIR_PRICE_SETTING_PREFIX,
@@ -19,6 +21,13 @@ import type { ApiIrCallResult, ApiIrServiceDef } from './apiir.types';
 
 /** How long one api.ir call may take before it is abandoned. */
 const REQUEST_TIMEOUT_MS = 30_000;
+
+/**
+ * Setting key prefix that stores the PayPing product mirrored for one api.ir
+ * service (JSON `{ code, amount }`). Kept outside the generated catalogue so
+ * `sync_apiir_catalog.py` never overwrites it.
+ */
+const APIIR_PAYPING_PRODUCT_PREFIX = 'apiir.payping.';
 
 /** Admin-facing description of the api.ir connection. */
 export interface ApiIrStatus {
@@ -52,6 +61,7 @@ export class ApiIrService {
     config: ConfigService,
     private readonly prisma: PrismaService,
     private readonly activity: ActivityService,
+    private readonly payping: PaypingService,
   ) {
     this.baseUrl = (
       config.get<string>('APIIR_BASE_URL') ?? 'https://s.api.ir'
@@ -80,6 +90,10 @@ export class ApiIrService {
 
   private priceKey(key: string) {
     return `${APIIR_PRICE_SETTING_PREFIX}${key}`;
+  }
+
+  private paypingProductKey(key: string) {
+    return `${APIIR_PAYPING_PRODUCT_PREFIX}${key}`;
   }
 
   private findService(key: string): ApiIrServiceDef {
@@ -206,19 +220,158 @@ export class ApiIrService {
     };
   }
 
+  /** Parse a stored product row, tolerating the legacy plain-code format. */
+  private parsePaypingProduct(
+    value: string | undefined,
+  ): { code: string; amount: number | null } | null {
+    const raw = value?.trim();
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as { code?: unknown; amount?: unknown };
+      if (typeof parsed?.code === 'string' && parsed.code.trim()) {
+        return {
+          code: parsed.code.trim(),
+          amount:
+            typeof parsed.amount === 'number' && Number.isFinite(parsed.amount)
+              ? parsed.amount
+              : null,
+        };
+      }
+    } catch {
+      // Not JSON: fall through to the legacy plain-code format.
+    }
+    return { code: raw, amount: null };
+  }
+
+  /** PayPing product mirrored for every api.ir service (keyed by service). */
+  async getPaypingProductMap(): Promise<
+    Record<string, { code: string; amount: number | null }>
+  > {
+    const rows = await this.prisma.setting.findMany({
+      where: { key: { startsWith: APIIR_PAYPING_PRODUCT_PREFIX } },
+    });
+    const byKey = new Map(rows.map((row) => [row.key, row.value]));
+    const map: Record<string, { code: string; amount: number | null }> = {};
+    for (const service of APIIR_SERVICES) {
+      const parsed = this.parsePaypingProduct(
+        byKey.get(this.paypingProductKey(service.key)),
+      );
+      if (parsed) map[service.key] = parsed;
+    }
+    return map;
+  }
+
+  /**
+   * Mirror one priced api.ir service into a PayPing «آیتم مالی». The product
+   * amount always follows the admin-set user price; a cached code is updated
+   * in place, and a 4xx (product deleted in the PayPing console) recreates it.
+   */
+  async syncPaypingProduct(
+    key: string,
+    actorId?: string,
+  ): Promise<{
+    key: string;
+    code: string;
+    amount: number;
+    title: string;
+    updated: boolean;
+  }> {
+    const service = this.findService(key);
+    const price = await this.getServicePrice(key);
+    if (price <= 0) {
+      throw new BadRequestException(
+        'ابتدا هزینه‌ی این سرویس را ثبت کنید؛ محصول بدون مبلغ ساخته نمی‌شود.',
+      );
+    }
+    if (price < 1000) {
+      throw new BadRequestException(
+        'حداقل مبلغ محصول در درگاه پی‌پینگ ۱٬۰۰۰ تومان است.',
+      );
+    }
+    const payload = {
+      title: `استعلام ${service.label} — api.ir — شمالی‌کارت`,
+      description: `${service.description} (${service.group})`.slice(0, 300),
+      amount: price,
+      defineAmountByUser: false,
+      haveTax: false,
+      unlimited: true,
+    };
+
+    const stored = this.parsePaypingProduct(
+      (
+        await this.prisma.setting.findUnique({
+          where: { key: this.paypingProductKey(key) },
+        })
+      )?.value,
+    );
+    let code: string | null = null;
+    let updated = false;
+    if (stored?.code) {
+      try {
+        await this.payping.updateProduct({ ...payload, code: stored.code });
+        code = stored.code;
+        updated = true;
+      } catch (error) {
+        const status = (error as { paypingStatus?: number } | null)
+          ?.paypingStatus;
+        // A 4xx means the cached product is gone (deleted in the PayPing
+        // console or wiped by the cleanup action): recreate it below.
+        if (!(typeof status === 'number' && status >= 400 && status < 500)) {
+          throw error;
+        }
+      }
+    }
+    if (!code) {
+      const created = (await this.payping.createProduct(payload)) as {
+        code?: string;
+      } | null;
+      if (!created?.code) {
+        throw new BadGatewayException(
+          'ساخت محصول در پی‌پینگ ناموفق بود؛ لطفاً دوباره تلاش کنید.',
+        );
+      }
+      code = created.code;
+    }
+
+    await this.prisma.setting.upsert({
+      where: { key: this.paypingProductKey(key) },
+      create: {
+        key: this.paypingProductKey(key),
+        value: JSON.stringify({ code, amount: price }),
+      },
+      update: { value: JSON.stringify({ code, amount: price }) },
+    });
+    await this.activity.log({
+      actor: actorId ? { id: actorId } : null,
+      action: 'APIIR_PAYPING_PRODUCT_SYNCED',
+      summary: `${updated ? 'به‌روزرسانی' : 'ساخت'} محصول پی‌پینگ «${service.label}» با مبلغ ${price.toLocaleString('fa-IR')} تومان`,
+      entityType: 'SETTING',
+      entityId: this.paypingProductKey(key),
+    });
+    return { key, code, amount: price, title: payload.title, updated };
+  }
+
   /** Connection status + every service with its current switch/price. */
   async listServices(): Promise<{
     status: ApiIrStatus;
-    services: Array<ApiIrServiceDef & { enabled: boolean; price: number }>;
+    services: Array<
+      ApiIrServiceDef & {
+        enabled: boolean;
+        price: number;
+        payping: { code: string; amount: number | null } | null;
+      }
+    >;
   }> {
-    const [enabled, prices] = await Promise.all([
+    const [enabled, prices, paypingProducts] = await Promise.all([
       this.getEnabledMap(),
       this.getPriceMap(),
+      this.getPaypingProductMap(),
     ]);
     const services = APIIR_SERVICES.map((service) => ({
       ...service,
       enabled: enabled[service.key],
       price: prices[service.key] ?? 0,
+      payping: paypingProducts[service.key] ?? null,
     }));
     return {
       status: {

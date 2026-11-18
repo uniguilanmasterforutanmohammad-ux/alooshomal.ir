@@ -43,4 +43,16 @@ export class AdminApiIrController {
   test(@Param('key') key: string, @Body() dto: TestApiIrServiceDto) {
     return this.apiir.call(key, dto.payload ?? {}, { force: true });
   }
+
+  @Post('services/:key/payping-product')
+  @ApiOperation({
+    summary:
+      'ساخت/همگام‌سازی محصول پی‌پینگ برای یک سرویس api.ir با مبلغ ثبت‌شده‌ی آن',
+  })
+  syncPaypingProduct(
+    @CurrentUser() admin: AuthUser,
+    @Param('key') key: string,
+  ) {
+    return this.apiir.syncPaypingProduct(key, admin.id);
+  }
 }

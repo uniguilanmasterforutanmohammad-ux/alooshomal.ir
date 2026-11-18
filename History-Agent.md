@@ -20,7 +20,38 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.41.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.42.0**.
+
+## ۱۴۰۵/۰۸/۲۸ — همگام‌سازی هر سرویس api.ir با محصول پی‌پینگ — نسخه `v4.42.0`
+
+**هدف:** در پنل «api.ir» هر سرویسی که برای کاربر قیمت دارد، با یک دکمه محصول
+متناظر خود را در درگاه پی‌پینگ بسازد/به‌روزرسانی کند تا فهرست آیتم‌های مالی
+درگاه با قیمت‌های پنل هم‌سو بماند.
+
+**تغییرات:**
+- `apps/api/src/apiir/apiir.service.ts`: تزریق `PaypingService`، خواندن/ذخیره‌ی
+  کد محصول هر سرویس در کلید تنظیمات `apiir.payping.<key>` (JSON شامل
+  `code` و `amount`)، و متد `syncPaypingProduct` که با قیمت ثبت‌شده محصول را
+  می‌سازد یا در صورت وجود کد، مبلغ/عنوان را به‌روزرسانی می‌کند؛ کد مرده
+  (پاسخ ۴xx) دوباره ساخته می‌شود. خروجی `listServices` حالا فیلد `payping`
+  هر سرویس را هم برمی‌گرداند.
+- `apps/api/src/apiir/apiir.controller.ts`: مسیر
+  `POST /admin/apiir/services/:key/payping-product` با `@ApiOperation`.
+- `apps/api/src/apiir/apiir.module.ts`: افزودن `PaypingModule` به وابستگی‌ها.
+- `apps/web/components/admin/AdminApiIr.tsx`: دکمه‌ی «همگام‌سازی با پی‌پینگ»
+  برای هر سرویس دارای قیمت، وضعیت کد محصول درگاه و هشدار «قیمت تغییر کرده».
+- `docs/API.md`: ثبت مسیر جدید.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api ./node_modules/.bin/tsc --noEmit --incremental false -p tsconfig.json` → exit 0.
+- `./apps/web/node_modules/.bin/tsc --noEmit -p apps/web/tsconfig.json` → exit 0.
+- `python3 scripts/check_modules.py` و `python3 scripts/check_api_docs.py` → exit 0.
+- `python3 scripts/sync_install.py` و سپس `--check` → exit 0.
+- `POST /admin/apiir/services/nope/payping-product` → ۴۰۴؛ سرویس بدون قیمت →
+  ۴۰۰ «ابتدا هزینه‌ی این سرویس را ثبت کنید»؛ با قیمت ۵۰۰ → ۴۰۰ «حداقل مبلغ
+  محصول ۱٬۰۰۰ تومان». خروجی `GET /admin/apiir/services` فیلد `payping` را
+  برای هر سرویس دارد. (ساخت واقعی محصول در درگاه در محیط توسعه انجام نشد تا
+  آیتم مالی واقعی در حساب پی‌پینگ ایجاد نشود.)
 
 ## ۱۴۰۵/۰۸/۲۷ — رفع مسدودشدن پرداخت نهایی «شروع آسان» توسط گارد هویت — نسخه `v4.41.1`
 
