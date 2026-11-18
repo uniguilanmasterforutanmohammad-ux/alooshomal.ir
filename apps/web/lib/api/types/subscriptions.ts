@@ -150,4 +150,15 @@ export interface SubscriptionAddonQuote {
   days: number;
   expiresAt: string;
   workspaces: SubscriptionAddonQuoteBusiness[];
+  /** Every available «مدیریت کسب‌وکار» package with its term price. */
+  packages?: SubscriptionAddonQuotePackage[];
+}
+
+/** One selectable management package shown in the onboarding cart. */
+export interface SubscriptionAddonQuotePackage {
+  key: string;
+  label: string;
+  amount: number;
+  months: number;
+  available: boolean;
 }

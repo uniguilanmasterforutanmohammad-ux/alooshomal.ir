@@ -30,6 +30,7 @@ import {
   api,
   type MySubscriptions,
   type SubscriptionAddonQuote,
+  type SubscriptionAddonQuotePackage,
   type SubscriptionCheckout,
   type SubscriptionPlan,
 } from '@/lib/api';
@@ -202,18 +203,6 @@ function faPrice(amount: number): string {
   return `${amount.toLocaleString('fa-IR')} تومان`;
 }
 
-/** The prorated «مدیریت کسب‌وکار» price of a workspace, if any quote has it. */
-function workspaceAddonAmount(
-  quotes: Record<string, SubscriptionAddonQuote>,
-  workspaceId: string,
-): number {
-  for (const quote of Object.values(quotes)) {
-    const item = quote.workspaces.find((entry) => entry.workspaceId === workspaceId);
-    if (item) return item.amount;
-  }
-  return 0;
-}
-
 function formatBytes(bytes: number): string {
   if (!bytes || bytes <= 0) return '—';
   if (bytes < 1024 * 1024) {
@@ -251,6 +240,9 @@ export function OnboardingWizard() {
   // on the invoice step. `selectedPlanId` is the plan chosen for that invoice.
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [managementSkipped, setManagementSkipped] = useState(false);
+  const [selectedManagementKey, setSelectedManagementKey] = useState<
+    string | null
+  >(null);
   const [invoiceBusy, setInvoiceBusy] = useState(false);
   const [advanceAfterLoad, setAdvanceAfterLoad] = useState(false);
   const jumpedToPending = useRef(false);
@@ -320,18 +312,17 @@ export function OnboardingWizard() {
   }, [load]);
 
   // The management add-on price is prorated for the chosen term; refresh the
-  // quote for every paid plan whenever the term changes (free plans never
-  // allow it, so the checkbox stays hidden).
+  // quote for every plan whenever the term changes. The free plan is included
+  // so the package list can still be shown (with every item disabled).
   useEffect(() => {
-    const paid = plans.filter((plan) => !isFreePlan(plan));
-    if (paid.length === 0) {
+    if (plans.length === 0) {
       setAddonQuotes({});
       return;
     }
     let alive = true;
     void (async () => {
       const fetched = await Promise.all(
-        paid.map(async (plan) => {
+        plans.map(async (plan) => {
           try {
             const quote = await api.get<SubscriptionAddonQuote>(
               `/subscriptions/plans/${plan.id}/addon-quote?months=${planMonths}`,
@@ -602,6 +593,12 @@ export function OnboardingWizard() {
   /** Pick a plan for the final invoice (no payment yet). */
   function selectPlan(plan: SubscriptionPlan) {
     setSelectedPlanId(plan.id);
+    // Persist the choice so the free plan (assigned automatically at signup)
+    // also counts as a completed step. The plan is activated by the invoice.
+    void api
+      .post<OnboardingPayload>('/onboarding/plan/selected', { planId: plan.id })
+      .then((next) => setPayload(next))
+      .catch(() => undefined);
     toast.success(`اشتراک «${plan.name}» به صورتحساب اضافه شد.`);
     goTo(safeIndex + 1);
   }
@@ -625,7 +622,10 @@ export function OnboardingWizard() {
     }
     const business = payload?.business ?? null;
     const includeManagement =
-      withManagement && Boolean(managementPackage) && !isFreePlan(plan);
+      withManagement &&
+      Boolean(selectedManagementPackage) &&
+      !isFreePlan(plan) &&
+      managementAmount >= 1000;
     const workspaceIds =
       includeManagement && business ? [business.id] : [];
     const jalali = isoToJalali(birthIso);
@@ -667,6 +667,9 @@ export function OnboardingWizard() {
           months: planMonths,
           returnTo: '/dashboard/onboarding',
           workspaceIds,
+          ...(includeManagement && selectedManagementPackage
+            ? { managementPackageKey: selectedManagementPackage.key }
+            : {}),
           ...(identity ? { identity } : {}),
         },
       );
@@ -723,31 +726,43 @@ export function OnboardingWizard() {
   const identityVerified = Boolean(payload.identity?.verified);
   const licenseSelected = withLicense && showLicense;
   const businessState = payload.business;
-  const managementPackage = businessState
-    ? (catalogIndustries.find(
-        (entry) => entry.key === businessState.industryKey && entry.available,
-      ) ?? null)
-    : null;
-  const managementAmount = businessState
-    ? workspaceAddonAmount(addonQuotes, businessState.id)
-    : 0;
-  const managementAllowed = Object.values(addonQuotes).some(
-    (quote) => quote.allowed,
-  );
-  const showManagement =
-    Boolean(managementPackage) && managementAllowed && managementAmount >= 1000;
-  // The plan step only sells Eco/Plus; the free plan is assigned automatically.
-  const paidPlans = plans.filter((plan) => !isFreePlan(plan));
+  // Every available management package is listed; the quote for the chosen
+  // plan carries the prorated price of each one.
+  const selectedQuote = selectedPlanId
+    ? addonQuotes[selectedPlanId]
+    : undefined;
+  const managementPackages: SubscriptionAddonQuotePackage[] =
+    selectedQuote?.packages?.length
+      ? selectedQuote.packages
+      : catalogIndustries
+          .filter((entry) => entry.available)
+          .map((entry) => ({
+            key: entry.key,
+            label: entry.label,
+            amount: 0,
+            months: planMonths,
+            available: true,
+          }));
+  const selectedManagementPackage =
+    managementPackages.find((entry) => entry.key === selectedManagementKey) ??
+    null;
+  const managementAmount = selectedManagementPackage?.amount ?? 0;
+  const showManagement = managementPackages.length > 0;
+  // The plan step sells every plan, including the free one.
+  const selectablePlans = plans;
   const selectedPlan =
     plans.find((plan) => plan.id === selectedPlanId) ?? null;
+  const myPlan = plans.find((plan) => plan.id === myPlanId) ?? null;
+  const currentIsPaid = Boolean(myPlan) && !isFreePlan(myPlan);
   const planAmount = selectedPlan
     ? planPriceForMonths(selectedPlan, planMonths)
     : 0;
   const includeManagement =
     withManagement &&
-    Boolean(managementPackage) &&
+    Boolean(selectedManagementPackage) &&
     Boolean(selectedPlan) &&
-    !isFreePlan(selectedPlan);
+    !isFreePlan(selectedPlan) &&
+    managementAmount >= 1000;
   const invoiceTotalAmount =
     planAmount +
     (includeManagement ? managementAmount : 0) +
@@ -1285,7 +1300,7 @@ export function OnboardingWizard() {
 
           {step.kind === 'plan' ? (
             <div className="flex flex-col gap-3">
-              {paidPlans.length === 0 ? (
+              {selectablePlans.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-[var(--vintage-border)] p-4 text-center text-xs text-muted">
                   در حال بارگذاری طرح‌ها...
                 </p>
@@ -1313,9 +1328,10 @@ export function OnboardingWizard() {
                     ))}
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    {paidPlans.map((plan) => {
+                    {selectablePlans.map((plan) => {
                       const isSelected = plan.id === selectedPlanId;
                       const isCurrent = plan.id === myPlanId;
+                      const downgrade = currentIsPaid && isFreePlan(plan);
                       const amount = planPriceForMonths(plan, planMonths);
                       return (
                         <div
@@ -1373,16 +1389,19 @@ export function OnboardingWizard() {
                           ) : null}
                           <button
                             type="button"
+                            disabled={downgrade}
                             onClick={() => selectPlan(plan)}
                             className={cn(
-                              'indeed-btn mt-3 w-full py-2 text-xs',
+                              'indeed-btn mt-3 w-full py-2 text-xs disabled:cursor-not-allowed disabled:opacity-50',
                               isSelected
                                 ? 'indeed-btn-secondary'
                                 : 'indeed-btn-primary',
                             )}
                           >
                             <CreditCard className="size-4" aria-hidden />
-                            {isSelected
+                            {downgrade
+                              ? 'امکان تنزل به رایگان نیست'
+                              : isSelected
                               ? 'انتخاب شده — ادامه'
                               : 'افزودن به صورتحساب'}
                           </button>
@@ -1401,45 +1420,81 @@ export function OnboardingWizard() {
 
           {step.kind === 'management' ? (
             <div className="flex flex-col gap-3">
+              {!selectedPlan ? (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-6 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
+                  ابتدا در مرحله‌ی قبل یک اشتراک انتخاب کنید تا قیمت بسته‌های
+                  مدیریت نمایش داده شود.
+                </p>
+              ) : null}
               {showManagement ? (
-                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-brand/30 bg-brand-light/40 p-3">
-                  <span
-                    className={cn(
-                      'mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border transition',
-                      withManagement
-                        ? 'border-brand bg-brand text-white'
-                        : 'border-[var(--vintage-border)] bg-[var(--vintage-surface)] text-transparent',
-                    )}
-                  >
-                    <Check className="size-3.5" aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-xs font-extrabold text-ink">
-                      افزودن «مدیریت {managementPackage?.label}» به صورتحساب
-                    </span>
-                    <span className="mt-0.5 block text-[11px] leading-6 text-muted">
-                      دسته‌بندی کسب‌وکار شما بسته‌ی مدیریت اختصاصی دارد. با
-                      تیک‌زدن، این بسته هم‌زمان با اشتراک فعال می‌شود.
-                    </span>
-                    <span className="mt-1 block text-[11px] font-bold text-brand">
-                      هزینه: {faPrice(managementAmount)} /{' '}
-                      {PLAN_PERIOD_LABELS[planMonths]}
-                    </span>
-                  </span>
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={withManagement}
-                    onChange={(event) => {
-                      setWithManagement(event.target.checked);
-                      setManagementSkipped(false);
-                    }}
-                  />
-                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {managementPackages.map((pkg) => {
+                    const description = catalogIndustries.find(
+                      (entry) => entry.key === pkg.key,
+                    )?.description;
+                    const isSelected =
+                      withManagement && selectedManagementKey === pkg.key;
+                    const disabled =
+                      !pkg.available || !selectedPlan || isFreePlan(selectedPlan);
+                    return (
+                      <button
+                        key={pkg.key}
+                        type="button"
+                        disabled={disabled}
+                        aria-pressed={isSelected}
+                        onClick={() => {
+                          if (isSelected) {
+                            setWithManagement(false);
+                            setSelectedManagementKey(null);
+                          } else {
+                            setSelectedManagementKey(pkg.key);
+                            setWithManagement(true);
+                            setManagementSkipped(false);
+                          }
+                        }}
+                        className={cn(
+                          'flex flex-col rounded-2xl border p-4 text-right transition disabled:cursor-not-allowed disabled:opacity-60',
+                          isSelected
+                            ? 'border-brand bg-brand-light/40 ring-1 ring-brand/30'
+                            : 'border-[var(--vintage-border)] bg-[var(--vintage-surface)] hover:border-brand/40',
+                        )}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-extrabold text-ink">
+                            {pkg.label}
+                          </span>
+                          {isSelected ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 text-[10px] font-bold text-white">
+                              <Check className="size-3" aria-hidden />
+                              انتخاب شد
+                            </span>
+                          ) : null}
+                        </span>
+                        {description ? (
+                          <span className="mt-1 block text-[11px] leading-5 text-muted">
+                            {description}
+                          </span>
+                        ) : null}
+                        <span className="mt-2 block text-sm font-extrabold text-brand">
+                          {pkg.amount > 0 ? faPrice(pkg.amount) : 'در حال محاسبه…'}
+                          <span className="text-[10px] font-normal text-muted">
+                            {' '}
+                            / {PLAN_PERIOD_LABELS[planMonths]}
+                          </span>
+                        </span>
+                        {disabled ? (
+                          <span className="mt-1 block text-[10px] font-bold text-amber-700 dark:text-amber-300">
+                            با اشتراک رایگان قابل خرید نیست؛ اکو یا بلاس انتخاب کنید.
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
               ) : (
                 <p className="rounded-xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-4 text-xs leading-6 text-muted">
-                  برای دسته‌بندی «{businessState?.industryLabel ?? 'کسب‌وکار شما'}»
-                  بسته‌ی مدیریت تعریف نشده است؛ می‌توانید بدون آن ادامه دهید.
+                  فعلاً بسته‌ی مدیریت کسب‌وکاری برای خرید تعریف نشده است؛
+                  می‌توانید بدون آن ادامه دهید.
                 </p>
               )}
               <div className="flex flex-wrap gap-2">
@@ -1448,16 +1503,21 @@ export function OnboardingWizard() {
                   onClick={() => {
                     setManagementSkipped(true);
                     setWithManagement(false);
+                    setSelectedManagementKey(null);
                     goTo(safeIndex + 1);
                   }}
                   className="indeed-btn indeed-btn-secondary py-2 text-xs"
                 >
-                  رد کردن این مرحله
+                  بدون بسته مدیریت، ادامه
                 </button>
                 {showManagement ? (
                   <button
                     type="button"
-                    disabled={!withManagement}
+                    disabled={
+                      !withManagement ||
+                      !selectedManagementPackage ||
+                      managementAmount < 1000
+                    }
                     onClick={() => goTo(safeIndex + 1)}
                     className="indeed-btn indeed-btn-primary py-2 text-xs disabled:opacity-50"
                   >
@@ -1519,7 +1579,7 @@ export function OnboardingWizard() {
                     <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
                       <span className="flex items-center gap-2 text-muted">
                         <Building2 className="size-3.5 text-brand" aria-hidden />
-                        مدیریت {managementPackage?.label}
+                        مدیریت {selectedManagementPackage?.label}
                       </span>
                       <span className="font-bold text-ink">
                         {faPrice(managementAmount)}

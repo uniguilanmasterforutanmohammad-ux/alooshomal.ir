@@ -20,7 +20,49 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.40.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.41.0**.
+
+## ۱۴۰۵/۰۸/۲۷ — نمایش پلن رایگان و فهرست کامل بسته‌های مدیریت در «شروع آسان» — نسخه `v4.41.0`
+
+**هدف:** در مرحله‌ی ۴ ویزارد «شروع آسان»، پلن رایگان هم قابل انتخاب شود؛ و در
+مرحله‌ی ۵ همه‌ی بسته‌های «مدیریت کسب‌وکار» (نه فقط بسته‌ی دسته‌بندی کاربر)
+فهرست شوند تا کاربر یکی را انتخاب کند یا بدون بسته ادامه دهد.
+
+**تغییرات:**
+- `apps/api/src/onboarding/onboarding.service.ts`: ثبت انتخاب پلن
+  (`selectPlan`) با تفکیک `plan` و `plan:free`؛ «مرحله‌ی پلن» با انتخاب
+  صریح (شامل رایگان) تکمیل می‌شود و «صورتحساب/نتیجه» فقط با پلن تسویه‌شده
+  (پلن پولی فعال یا رایگانِ انتخاب‌شده) و استعلام هویت کامل می‌شود.
+- `apps/api/src/onboarding/onboarding.controller.ts` و
+  `apps/api/src/onboarding/dto/onboarding.dto.ts`: مسیر
+  `POST /onboarding/plan/selected` با DTO `SelectOnboardingPlanDto`.
+- `apps/api/src/subscriptions/subscriptions-payment.service.ts`: افزودن
+  `packages` به خروجی `addon-quote` (همه‌ی بسته‌های در دسترس با قیمت دوره؛
+  برای پلن رایگان با `available:false`) و پشتیبانی از
+  `managementPackageKey` در checkout تا بسته‌ی انتخابی کاربر (نه فقط صنف
+  کسب‌وکار) قیمت‌گذاری و فعال شود.
+- `apps/api/src/subscriptions/dto/checkout-subscription.dto.ts` و
+  `apps/api/src/subscriptions/subscriptions.controller.ts`: فیلد
+  `managementPackageKey` و پاس‌دادن آن به سرویس پرداخت.
+- `apps/web/lib/api/types/subscriptions.ts`: نوع `SubscriptionAddonQuotePackage`
+  و فیلد `packages` در quote.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: نمایش همه‌ی پلن‌ها
+  (شامل رایگان، با غیرفعال‌کردن تنزل برای کاربر پولی)، فهرست کارتی همه‌ی
+  بسته‌های مدیریت با قیمت دوره، انتخاب/لغو انتخاب، دکمه‌ی «بدون بسته مدیریت،
+  ادامه»، و ارسال `managementPackageKey` در پرداخت نهایی.
+
+**تأیید/تست:**
+- `./apps/web/node_modules/.bin/tsc --noEmit -p apps/web/tsconfig.json` → exit 0.
+- `docker exec alooshomal-api ./node_modules/.bin/tsc --noEmit --incremental false -p tsconfig.json` → exit 0.
+- `python3 scripts/check_modules.py` و `python3 scripts/check_api_docs.py` → exit 0.
+- `python3 scripts/sync_install.py` و سپس `--check` → exit 0.
+- `GET /api/subscriptions/plans/:free/addon-quote` → `packages` شامل
+  `dailyRental` و `retail` با `available:false`؛ برای اکو همان دو بسته با
+  `available:true` و مبلغ `150000`.
+- `POST /api/onboarding/plan/selected` با پلن رایگان → مرحله‌ی `plan` در
+  `/onboarding/me` تیک خورد.
+- `POST /api/subscriptions/:eco/checkout` با `managementPackageKey:"nope"` →
+  خطای ۴۰۰ «بسته‌ی مدیریت کسب‌وکار انتخاب‌شده در دسترس نیست».
 
 ## ۱۴۰۵/۰۸/۲۷ — صورتحساب یکجا در «شروع آسان» + تیک سفید/آبی تأیید — نسخه `v4.40.0`
 

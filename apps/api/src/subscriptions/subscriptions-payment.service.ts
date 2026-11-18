@@ -86,6 +86,17 @@ export interface BusinessAddonQuoteItem {
   currentPaidUntil: string | null;
 }
 
+/** One selectable «مدیریت کسب‌وکار» package in the onboarding cart. */
+export interface BusinessAddonQuotePackage {
+  key: string;
+  label: string;
+  /** Prorated price for the covered days (Toman). */
+  amount: number;
+  months: number;
+  /** False when the plan cannot buy it or the package has no price. */
+  available: boolean;
+}
+
 /** Identity inputs of a combined checkout (plan + management + inquiry). */
 export interface CheckoutIdentityInput {
   nationalCode?: string;
@@ -508,6 +519,7 @@ export class SubscriptionsPaymentService {
     options: {
       workspaceIds?: string[] | null;
       identity?: CheckoutIdentityInput | null;
+      managementPackageKey?: string | null;
     } = {},
   ) {
     const plan = await this.requirePlan(planId);
@@ -570,6 +582,7 @@ export class SubscriptionsPaymentService {
       activeTerm,
       expiresAt,
       options.workspaceIds,
+      { packageKey: options.managementPackageKey ?? undefined },
     );
     const businessAmount = addons.reduce((sum, item) => sum + item.amount, 0);
     const identity = await this.resolveIdentityCharge(user, options.identity);
@@ -888,7 +901,7 @@ export class SubscriptionsPaymentService {
     coverageStart: Date,
     expiresAt: Date,
     workspaceIds?: string[] | null,
-    options: { prorate?: boolean } = {},
+    options: { prorate?: boolean; packageKey?: string } = {},
   ): Promise<BusinessAddon[]> {
     const unique = Array.from(
       new Set(
@@ -902,6 +915,18 @@ export class SubscriptionsPaymentService {
       throw new BadRequestException(
         'اشتراک رایگان امکان خرید «بسته مدیریت کسب‌وکار» را ندارد؛ ابتدا به اکو یا پلاس ارتقا دهید.',
       );
+    }
+    // The onboarding cart lets the buyer pick any *available* package, not
+    // only the one mapped from their business category. Validate the choice
+    // here so an unknown/disabled key can never be charged.
+    const chosenPackageKey = options.packageKey?.trim() || null;
+    if (chosenPackageKey) {
+      const available = await this.packages.availablePackageKeys();
+      if (!available.includes(chosenPackageKey)) {
+        throw new BadRequestException(
+          'بسته‌ی مدیریت کسب‌وکار انتخاب‌شده در دسترس نیست.',
+        );
+      }
     }
     const maxBusinesses = Math.max(1, Number(plan.maxBusinesses ?? 1));
     if (unique.length > maxBusinesses) {
@@ -931,7 +956,7 @@ export class SubscriptionsPaymentService {
         userId,
         workspaceId,
       );
-      const packageKey = workspace.industryKey;
+      const packageKey = chosenPackageKey ?? workspace.industryKey;
       const label = await this.packages.label(packageKey);
       const days = options.prorate
         ? this.addonCoverageDays(
@@ -1137,8 +1162,34 @@ export class SubscriptionsPaymentService {
       days: Math.round(days),
       expiresAt: expiresAt.toISOString(),
     };
+    /** Every available package with its term price, for the onboarding list. */
+    const quotePackages = async (
+      coveredDays: number,
+      allowed: boolean,
+    ): Promise<BusinessAddonQuotePackage[]> => {
+      const keys = await this.packages.availablePackageKeys();
+      return Promise.all(
+        keys.map(async (key) => {
+          const [label, amount] = await Promise.all([
+            this.packages.label(key),
+            this.packages.proratedPrice(key, pricingMonths, coveredDays),
+          ]);
+          return {
+            key,
+            label,
+            amount,
+            months: pricingMonths,
+            available: allowed && amount >= 1000,
+          };
+        }),
+      );
+    };
     if (isFreePlan(plan)) {
-      return { ...base, workspaces: [] as BusinessAddonQuoteItem[] };
+      return {
+        ...base,
+        workspaces: [] as BusinessAddonQuoteItem[],
+        packages: await quotePackages(days, false),
+      };
     }
     const workspaces = await this.prisma.businessWorkspace.findMany({
       where: { ownerId: userId },
@@ -1160,6 +1211,15 @@ export class SubscriptionsPaymentService {
         currentExpiry.set(row.workspaceId, row.paidUntil);
       }
     }
+    // The onboarding cart shows every package; the days already paid for the
+    // buyer's business are the best estimate of what a switch would cost.
+    const paidUntil = [...currentExpiry.values()].sort(
+      (a, b) => b.getTime() - a.getTime(),
+    )[0];
+    const packageDays = addonOnly
+      ? this.addonCoverageDays(expiresAt, now, paidUntil)
+      : this.addonTermDays(expiresAt, activeTerm, paidUntil, months);
+    const packages = await quotePackages(packageDays, true);
     const items: BusinessAddonQuoteItem[] = [];
     for (const workspace of workspaces) {
       const packageKey = workspace.industryKey;
@@ -1193,7 +1253,7 @@ export class SubscriptionsPaymentService {
         currentPaidUntil: currentExpiry.get(workspace.id)?.toISOString() ?? null,
       });
     }
-    return { ...base, workspaces: items };
+    return { ...base, workspaces: items, packages };
   }
 
   /**

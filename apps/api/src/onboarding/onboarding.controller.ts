@@ -10,6 +10,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import {
   AddOnboardingDocumentDto,
   SaveOnboardingBusinessDto,
+  SelectOnboardingPlanDto,
   UpdateOnboardingStepsDto,
 } from './dto/onboarding.dto';
 import { OnboardingService } from './onboarding.service';
@@ -49,6 +50,18 @@ export class OnboardingController {
   })
   runIdentity(@CurrentUser() user: AuthUser) {
     return this.onboarding.runPendingIdentity(user.id);
+  }
+
+  @Post('plan/selected')
+  @ApiOperation({
+    summary:
+      'ثبت انتخاب اشتراک در مرحله‌ی ۴ (شامل پلن رایگان) تا آن مرحله تکمیل‌شده حساب شود',
+  })
+  selectPlan(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: SelectOnboardingPlanDto,
+  ) {
+    return this.onboarding.selectPlan(user.id, dto?.planId);
   }
 
   @Post('business')

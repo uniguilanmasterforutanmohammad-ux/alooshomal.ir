@@ -127,7 +127,11 @@ export class SubscriptionsController {
       planId,
       dto?.months ?? 1,
       dto?.returnTo,
-      { workspaceIds: dto?.workspaceIds, identity: dto?.identity },
+      {
+        workspaceIds: dto?.workspaceIds,
+        identity: dto?.identity,
+        managementPackageKey: dto?.managementPackageKey,
+      },
     );
   }
 

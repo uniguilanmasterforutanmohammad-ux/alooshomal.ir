@@ -715,6 +715,34 @@ export class OnboardingService implements OnModuleInit {
     return this.getMyProgress(userId);
   }
 
+  /**
+   * Record that the user picked a plan (including the free one) in step 4.
+   * The plan itself is activated by the single invoice payment; this marker
+   * only lets the free-plan choice count as a completed step, since the free
+   * plan is otherwise assigned automatically at registration.
+   */
+  async selectPlan(userId: string, planId?: string) {
+    await this.settings.assertFeatureEnabled(
+      'featureOnboarding',
+      'بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.',
+    );
+    const plan = planId
+      ? await this.prisma.subscriptionPlan.findUnique({
+          where: { id: planId },
+          select: { name: true },
+        })
+      : null;
+    // The free plan is assigned automatically, so only an explicit free choice
+    // is recorded separately; a paid plan still needs its payment to settle.
+    const stepId = plan && isFreePlan(plan) ? 'plan:free' : 'plan';
+    await this.prisma.onboardingStepCompletion.upsert({
+      where: { userId_stepId: { userId, stepId } },
+      create: { userId, stepId },
+      update: { completedAt: new Date() },
+    });
+    return this.getMyProgress(userId);
+  }
+
   private async findCustomStep(stepId: string): Promise<OnboardingStepDef> {
     const steps = await this.getSteps();
     const step = steps.find((entry) => entry.id === stepId && entry.enabled);
@@ -789,13 +817,21 @@ export class OnboardingService implements OnModuleInit {
       Boolean(user.blueTickRequestedAt || user.verifiedAt) ||
         this.parseDocuments(user.documents).length > 0,
     );
-    // The plan step only sells Eco/Plus now, so the automatically assigned
-    // free plan no longer counts as done.
+    // The plan step sells Eco/Plus *and* the free plan. The free plan is
+    // assigned automatically at registration, so it only counts as done once
+    // the user explicitly picks a plan in the wizard (recorded as a manual
+    // completion) — otherwise step 4 would be skipped for every new account.
     const paidPlanActive =
       Boolean(user.plan) &&
       !isFreePlan(user.plan) &&
       Boolean(user.planExpiresAt && user.planExpiresAt.getTime() > now);
-    map.set('plan', paidPlanActive);
+    const planChosen = completions.some((row) => row.stepId === 'plan');
+    const freePlanChosen = completions.some((row) => row.stepId === 'plan:free');
+    const freePlanActive =
+      Boolean(user.plan) &&
+      isFreePlan(user.plan) &&
+      Boolean(user.planExpiresAt && user.planExpiresAt.getTime() > now);
+    map.set('plan', paidPlanActive || planChosen || freePlanChosen);
 
     // The management step is optional: it is done once the workspace has a
     // paid package, or when its industry has no package to buy.
@@ -817,10 +853,11 @@ export class OnboardingService implements OnModuleInit {
     // The invoice is settled once the paid plan is active and the identity
     // inquiry has been completed (both are bought in the same payment).
     const identityDone = Boolean(user.identityVerifiedAt);
-    map.set('invoice', paidPlanActive && identityDone);
+    const planSettled = paidPlanActive || (freePlanChosen && freePlanActive);
+    map.set('invoice', planSettled && identityDone);
     map.set(
       'approval',
-      identityDone && paidPlanActive,
+      identityDone && planSettled,
     );
     return map;
   }

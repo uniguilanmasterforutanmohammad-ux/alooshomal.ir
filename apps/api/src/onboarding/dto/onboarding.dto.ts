@@ -75,6 +75,17 @@ export class UpdateOnboardingStepsDto {
   steps!: OnboardingStepDto[];
 }
 
+export class SelectOnboardingPlanDto {
+  @ApiPropertyOptional({
+    description:
+      'شناسه‌ی اشتراکی که کاربر در مرحله‌ی ۴ انتخاب کرده (برای پلن رایگان هم ارسال می‌شود).',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  planId?: string;
+}
+
 export class AddOnboardingDocumentDto {
   @ApiProperty({ description: 'آدرس عمومی فایل آپلودشده' })
   @IsString()

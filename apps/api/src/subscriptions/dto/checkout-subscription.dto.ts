@@ -97,6 +97,21 @@ export class CheckoutSubscriptionDto {
   workspaceIds?: string[];
 
   /**
+   * The «مدیریت کسب‌وکار» package the buyer picked in the onboarding cart.
+   * When omitted the workspace's own industry package is used. The chosen
+   * package becomes the workspace's industry once the payment is confirmed.
+   */
+  @ApiPropertyOptional({
+    example: 'dailyRental',
+    description:
+      'کلید بسته‌ی مدیریت کسب‌وکار انتخاب‌شده (خالی = بسته‌ی صنف خود کسب‌وکار).',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  managementPackageKey?: string;
+
+  /**
    * Identity inquiry paid together with the subscription (new accounts must
    * verify before the plan is useful). Omitted = no identity charge.
    */
