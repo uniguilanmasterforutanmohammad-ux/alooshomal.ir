@@ -10,6 +10,7 @@ import {
   Plus,
   Save,
   ShoppingCart,
+  Trash2,
 } from 'lucide-react';
 
 import { BusinessPanelNav, moduleIcon } from '@/components/business/BusinessPanelNav';
@@ -121,6 +122,38 @@ function BusinessPanelContent() {
     }
   }
 
+  async function removeWorkspace(target: BusinessWorkspaceSummary) {
+    if (
+      !window.confirm(
+        `آیا از حذف کسب‌وکار «${target.name}» مطمئن هستید؟ این کار بازگشت‌پذیر نیست و همه‌ی اطلاعات همین کسب‌وکار (اقامتگاه‌ها، محصولات، مشتریان و …) حذف می‌شود.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(`delete:${target.id}`);
+    try {
+      const list = await api.delete<BusinessWorkspaceSummary[]>(
+        `/business-modules/workspaces/${target.id}`,
+      );
+      setWorkspaces(list);
+      if (workspace && target.id === workspace.id) {
+        const fallback = list.find((item) => item.isDefault) ?? list[0];
+        if (fallback) {
+          window.localStorage.setItem(WORKSPACE_STORAGE_KEY, fallback.id);
+        }
+      }
+      // Also refreshes the header switcher's list so the removed workspace
+      // disappears from it everywhere.
+      window.dispatchEvent(new Event('alooshomal:workspace-changed'));
+      toast.success('کسب‌وکار حذف شد');
+      await reload();
+    } catch {
+      // The API already surfaced the error message.
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function addWorkspace() {
     const nextName = window.prompt('نام کسب‌وکار جدید:');
     if (!nextName?.trim()) return;
@@ -222,33 +255,63 @@ function BusinessPanelContent() {
 
       <BusinessPanelNav modules={workspace.modules} />
 
-      {workspaces.length > 1 ? (
-        <section className="indeed-panel p-4">
-          <p className="mb-2 text-xs font-bold text-muted">کسب‌وکارهای من</p>
-          <div className="flex flex-wrap gap-2">
-            {workspaces.map((item) => (
-              <button
+      <section className="indeed-panel p-4">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-bold text-muted">کسب‌وکارهای من</p>
+          <p className="text-[11px] text-muted">
+            {workspaces.length > 1
+              ? 'با حذف هر کسب‌وکار، همه‌ی اطلاعات آن پاک می‌شود.'
+              : 'برای حذف باید حداقل یک کسب‌وکار دیگر داشته باشید.'}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {workspaces.map((item) => {
+            const active = item.id === workspace.id;
+            const deleting = busy === `delete:${item.id}`;
+            return (
+              <span
                 key={item.id}
-                type="button"
-                onClick={() => {
-                  window.localStorage.setItem(WORKSPACE_STORAGE_KEY, item.id);
-                  window.dispatchEvent(new Event('alooshomal:workspace-changed'));
-                  void reload();
-                }}
                 className={cn(
-                  'rounded-lg border px-3 py-2 text-xs font-bold transition',
-                  item.id === workspace.id
+                  'inline-flex items-center gap-1 rounded-lg border pr-3 text-xs font-bold transition',
+                  active
                     ? 'border-brand bg-brand-light text-brand'
-                    : 'border-[var(--vintage-border)] text-muted hover:text-ink',
+                    : 'border-[var(--vintage-border)] text-muted',
                 )}
               >
-                {item.name}
-                {item.isDefault ? ' · پیش‌فرض' : ''}
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.localStorage.setItem(WORKSPACE_STORAGE_KEY, item.id);
+                    window.dispatchEvent(
+                      new Event('alooshomal:workspace-changed'),
+                    );
+                    void reload();
+                  }}
+                  className={cn(
+                    'py-2 transition',
+                    active ? 'text-brand' : 'hover:text-ink',
+                  )}
+                >
+                  {item.name}
+                  {item.isDefault ? ' · پیش‌فرض' : ''}
+                </button>
+                {workspaces.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => void removeWorkspace(item)}
+                    disabled={deleting}
+                    aria-label={`حذف کسب‌وکار ${item.name}`}
+                    title="حذف این کسب‌وکار"
+                    className="flex size-7 items-center justify-center rounded-md text-muted transition hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                  >
+                    <Trash2 className="size-3.5" aria-hidden />
+                  </button>
+                ) : null}
+              </span>
+            );
+          })}
+        </div>
+      </section>
 
       <section className="indeed-panel p-5">
         <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">

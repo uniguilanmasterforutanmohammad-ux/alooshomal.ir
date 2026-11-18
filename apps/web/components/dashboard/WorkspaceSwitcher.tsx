@@ -1,13 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Building2, Check, ChevronDown, Plus } from 'lucide-react';
 
 import { api, WORKSPACE_STORAGE_KEY } from '@/lib/api';
-import type {
-  BusinessWorkspace,
-  BusinessWorkspaceSummary,
-} from '@/lib/api/types/business-modules';
+import type { BusinessWorkspaceSummary } from '@/lib/api/types/business-modules';
 import { useAuth } from '@/lib/auth';
 import { useFeatures } from '@/lib/features';
 import { toast } from '@/lib/toast';
@@ -30,34 +27,46 @@ export function WorkspaceSwitcher() {
   const boxRef = useRef<HTMLDivElement>(null);
   const enabled = hydrated && Boolean(token) && isFeatureVisible('featureBusinessWorkspace');
 
-  useEffect(() => {
+  /**
+   * Loads the owner's workspaces and reconciles the stored selection with the
+   * server list. A deleted/stale id falls back to the default workspace and is
+   * written back so every subsequent request uses the right one.
+   */
+  const loadWorkspaces = useCallback(async () => {
     if (!enabled) return;
-    let cancelled = false;
-    void api
-      .get<BusinessWorkspaceSummary[]>('/business-modules/workspaces')
-      .then((list) => {
-        if (cancelled) return;
-        setItems(list);
-        const stored =
-          typeof window !== 'undefined'
-            ? window.localStorage.getItem(WORKSPACE_STORAGE_KEY)
-            : null;
-        const valid = list.find((item) => item.id === stored);
-        const fallback =
-          list.find((item) => item.isDefault) ?? list[0] ?? null;
-        const next = valid ?? fallback;
-        if (next) {
-          setActiveId(next.id);
-          if (next.id !== stored && typeof window !== 'undefined') {
-            window.localStorage.setItem(WORKSPACE_STORAGE_KEY, next.id);
-          }
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
+    const list = await api.get<BusinessWorkspaceSummary[]>(
+      '/business-modules/workspaces',
+    );
+    setItems(list);
+    const stored =
+      typeof window !== 'undefined'
+        ? window.localStorage.getItem(WORKSPACE_STORAGE_KEY)
+        : null;
+    const valid = list.find((item) => item.id === stored);
+    const fallback = list.find((item) => item.isDefault) ?? list[0] ?? null;
+    const next = valid ?? fallback;
+    if (next) {
+      setActiveId(next.id);
+      if (next.id !== stored && typeof window !== 'undefined') {
+        window.localStorage.setItem(WORKSPACE_STORAGE_KEY, next.id);
+      }
+    }
   }, [enabled]);
+
+  useEffect(() => {
+    void loadWorkspaces().catch(() => undefined);
+  }, [loadWorkspaces]);
+
+  // A workspace created or deleted elsewhere (e.g. the delete button inside
+  // the business panel) fires this event; refresh the list so a removed
+  // workspace disappears from the switcher too.
+  useEffect(() => {
+    function onChanged() {
+      void loadWorkspaces().catch(() => undefined);
+    }
+    window.addEventListener(WORKSPACE_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(WORKSPACE_CHANGED_EVENT, onChanged);
+  }, [loadWorkspaces]);
 
   useEffect(() => {
     function onClick(event: MouseEvent) {
