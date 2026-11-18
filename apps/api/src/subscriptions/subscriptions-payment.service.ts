@@ -40,6 +40,16 @@ import { BusinessPackageService } from './business-package.service';
  * Online subscription payment: PayPing checkout, the payment callback and
  * paid-plan activation. Split out of the large `SubscriptionsService`.
  */
+/**
+ * Settings prefixes that cache PayPing product codes outside the plan table
+ * (Zohal services and «مدیریت کسب‌وکار» packages). They must be dropped
+ * together with the plan codes when the merchant catalogue is wiped, otherwise
+ * the next «همگام‌سازی» tries to update products that no longer exist and the
+ * sync fails.
+ */
+const ZOHAL_PRODUCT_SETTING_PREFIX = 'payping.product.zohal.';
+const MANAGEMENT_PRODUCT_SETTING_PREFIX = 'businessManagementPayping:';
+
 /** One «بسته مدیریت کسب‌وکار» bought alongside a subscription term. */
 export interface BusinessAddon {
   workspaceId: string;
@@ -170,14 +180,23 @@ export class SubscriptionsPaymentService {
           ...payload,
           code: existingCode,
         });
+        return existingCode;
       } catch (error) {
+        const status = (error as { paypingStatus?: number } | null)
+          ?.paypingStatus;
         this.logger.warn(
           `PayPing product ${existingCode} sync failed: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
+        // A 4xx (e.g. the product was deleted in the PayPing console or wiped
+        // by the cleanup action) means the cached code is dead: recreate it
+        // instead of handing a stale code to the checkout. Transient failures
+        // keep the old code so a payment can still go through.
+        if (!(typeof status === 'number' && status >= 400 && status < 500)) {
+          return existingCode;
+        }
       }
-      return existingCode;
     }
 
     const created = (await this.payping.createProduct(payload)) as {
@@ -329,6 +348,7 @@ export class SubscriptionsPaymentService {
    */
   async deleteAllPaypingProducts() {
     const result = await this.payping.deleteAllProducts();
+    let clearedCodes = 0;
 
     // Empty catalogue: every cached code is stale (e.g. products were removed
     // manually in the PayPing console), so clear them all before the re-sync.
@@ -345,7 +365,7 @@ export class SubscriptionsPaymentService {
           paypingProductCodeWithPackage12Months: true,
         },
       });
-      const clearedCodes = plans.reduce(
+      clearedCodes = plans.reduce(
         (sum, plan) =>
           sum +
           [
@@ -374,50 +394,66 @@ export class SubscriptionsPaymentService {
           },
         });
       }
-      return { ...result, clearedCodes };
+    } else {
+      const codes = [...new Set(result.deletedCodes)];
+      if (codes.length) {
+        const operations = [
+          this.prisma.subscriptionPlan.updateMany({
+            where: { paypingProductCode: { in: codes } },
+            data: { paypingProductCode: null },
+          }),
+          this.prisma.subscriptionPlan.updateMany({
+            where: { paypingProductCode3Months: { in: codes } },
+            data: { paypingProductCode3Months: null },
+          }),
+          this.prisma.subscriptionPlan.updateMany({
+            where: { paypingProductCode6Months: { in: codes } },
+            data: { paypingProductCode6Months: null },
+          }),
+          this.prisma.subscriptionPlan.updateMany({
+            where: { paypingProductCode12Months: { in: codes } },
+            data: { paypingProductCode12Months: null },
+          }),
+          this.prisma.subscriptionPlan.updateMany({
+            where: { paypingProductCodeWithPackage: { in: codes } },
+            data: { paypingProductCodeWithPackage: null },
+          }),
+          this.prisma.subscriptionPlan.updateMany({
+            where: { paypingProductCodeWithPackage3Months: { in: codes } },
+            data: { paypingProductCodeWithPackage3Months: null },
+          }),
+          this.prisma.subscriptionPlan.updateMany({
+            where: { paypingProductCodeWithPackage6Months: { in: codes } },
+            data: { paypingProductCodeWithPackage6Months: null },
+          }),
+          this.prisma.subscriptionPlan.updateMany({
+            where: { paypingProductCodeWithPackage12Months: { in: codes } },
+            data: { paypingProductCodeWithPackage12Months: null },
+          }),
+        ];
+        const cleared = await this.prisma.$transaction(operations);
+        clearedCodes = cleared.reduce((sum, item) => sum + item.count, 0);
+      }
     }
 
-    const codes = [...new Set(result.deletedCodes)];
-    let clearedCodes = 0;
-    if (codes.length) {
-      const operations = [
-        this.prisma.subscriptionPlan.updateMany({
-          where: { paypingProductCode: { in: codes } },
-          data: { paypingProductCode: null },
-        }),
-        this.prisma.subscriptionPlan.updateMany({
-          where: { paypingProductCode3Months: { in: codes } },
-          data: { paypingProductCode3Months: null },
-        }),
-        this.prisma.subscriptionPlan.updateMany({
-          where: { paypingProductCode6Months: { in: codes } },
-          data: { paypingProductCode6Months: null },
-        }),
-        this.prisma.subscriptionPlan.updateMany({
-          where: { paypingProductCode12Months: { in: codes } },
-          data: { paypingProductCode12Months: null },
-        }),
-        this.prisma.subscriptionPlan.updateMany({
-          where: { paypingProductCodeWithPackage: { in: codes } },
-          data: { paypingProductCodeWithPackage: null },
-        }),
-        this.prisma.subscriptionPlan.updateMany({
-          where: { paypingProductCodeWithPackage3Months: { in: codes } },
-          data: { paypingProductCodeWithPackage3Months: null },
-        }),
-        this.prisma.subscriptionPlan.updateMany({
-          where: { paypingProductCodeWithPackage6Months: { in: codes } },
-          data: { paypingProductCodeWithPackage6Months: null },
-        }),
-        this.prisma.subscriptionPlan.updateMany({
-          where: { paypingProductCodeWithPackage12Months: { in: codes } },
-          data: { paypingProductCodeWithPackage12Months: null },
-        }),
-      ];
-      const cleared = await this.prisma.$transaction(operations);
-      clearedCodes = cleared.reduce((sum, item) => sum + item.count, 0);
-    }
+    // The catalogue is now empty, so every non-plan product cache is stale too
+    // (Zohal services and business-management packages). Drop them so the next
+    // sync recreates the products instead of updating deleted ones.
+    clearedCodes += await this.clearProductCodeCaches();
     return { ...result, clearedCodes };
+  }
+
+  /** Delete the PayPing product-code settings of Zohal and management cards. */
+  private async clearProductCodeCaches(): Promise<number> {
+    const deleted = await this.prisma.setting.deleteMany({
+      where: {
+        OR: [
+          { key: { startsWith: ZOHAL_PRODUCT_SETTING_PREFIX } },
+          { key: { startsWith: MANAGEMENT_PRODUCT_SETTING_PREFIX } },
+        ],
+      },
+    });
+    return deleted.count;
   }
 
   /**
@@ -490,7 +526,7 @@ export class SubscriptionsPaymentService {
       userId,
       plan,
       months,
-      now,
+      activeTerm,
       expiresAt,
       options.workspaceIds,
     );
@@ -665,10 +701,13 @@ export class SubscriptionsPaymentService {
       now,
       user.planExpiresAt,
       workspaceIds,
+      { prorate: true },
     );
     if (addons.length === 0) {
       throw new BadRequestException(
-        'کسب‌وکاری برای افزودن «بسته مدیریت کسب‌وکار» انتخاب نشده است.',
+        (workspaceIds ?? []).length > 0
+          ? 'بسته مدیریت کسب‌وکار این کسب‌وکارها تا پایان دوره‌ی جدید فعال است و مبلغی برای پرداخت باقی نمانده است.'
+          : 'کسب‌وکاری برای افزودن «بسته مدیریت کسب‌وکار» انتخاب نشده است.',
       );
     }
     const businessAmount = addons.reduce((sum, item) => sum + item.amount, 0);
@@ -785,6 +824,11 @@ export class SubscriptionsPaymentService {
    * chosen businesses, price each one's industry package for the days the term
    * covers, and refuse the add-on for the free plan or beyond the plan's
    * business capacity.
+   *
+   * A subscription term (`prorate: false`) charges the package's whole-term
+   * price — the same amount the admin panel lists — so the combined total is
+   * exactly plan + management. A mid-term add-on (`prorate: true`) pays only
+   * for the days left in the running term.
    */
   private async resolveBusinessAddons(
     userId: string,
@@ -793,6 +837,7 @@ export class SubscriptionsPaymentService {
     coverageStart: Date,
     expiresAt: Date,
     workspaceIds?: string[] | null,
+    options: { prorate?: boolean } = {},
   ): Promise<BusinessAddon[]> {
     const unique = Array.from(
       new Set(
@@ -813,10 +858,22 @@ export class SubscriptionsPaymentService {
         `اشتراک «${plan.name}» فقط برای ${maxBusinesses} کسب‌وکار امکان خرید «بسته مدیریت کسب‌وکار» را دارد.`,
       );
     }
-    const days = Math.max(
-      0,
-      (expiresAt.getTime() - coverageStart.getTime()) / 86_400_000,
-    );
+    // A package already paid up to the end of the running term must only be
+    // charged for the days *after* that expiry, otherwise a renewal pays for
+    // the same days twice (which made a plan renewal cost more than a fresh
+    // purchase and mismatched the eco/plus cart totals).
+    const activations = await this.prisma.businessModuleActivation.findMany({
+      where: { workspaceId: { in: unique }, paidUntil: { not: null } },
+      select: { workspaceId: true, paidUntil: true },
+    });
+    const currentExpiry = new Map<string, Date>();
+    for (const row of activations) {
+      if (!row.paidUntil) continue;
+      const seen = currentExpiry.get(row.workspaceId);
+      if (!seen || row.paidUntil.getTime() > seen.getTime()) {
+        currentExpiry.set(row.workspaceId, row.paidUntil);
+      }
+    }
     const addons: BusinessAddon[] = [];
     for (const workspaceId of unique) {
       const workspace = await this.packages.requireOwnedWorkspace(
@@ -825,6 +882,21 @@ export class SubscriptionsPaymentService {
       );
       const packageKey = workspace.industryKey;
       const label = await this.packages.label(packageKey);
+      const days = options.prorate
+        ? this.addonCoverageDays(
+            expiresAt,
+            coverageStart,
+            currentExpiry.get(workspace.id),
+          )
+        : this.addonTermDays(
+            expiresAt,
+            coverageStart,
+            currentExpiry.get(workspace.id),
+            months,
+          );
+      // The package is already paid through (or past) the new term, so there
+      // is nothing left to charge for this business.
+      if (days <= 0) continue;
       const price = await this.packages.proratedPrice(
         packageKey,
         months,
@@ -846,6 +918,49 @@ export class SubscriptionsPaymentService {
       });
     }
     return addons;
+  }
+
+  /**
+   * Days a package still needs to cover: from the later of the term start and
+   * the business's already-paid expiry, up to the new term end. This keeps a
+   * renewal from charging again for days the management is already paid for,
+   * and makes the cart quote equal to the amount actually charged.
+   */
+  private addonCoverageDays(
+    expiresAt: Date,
+    coverageStart: Date,
+    currentPaidUntil?: Date,
+  ): number {
+    const start =
+      currentPaidUntil && currentPaidUntil.getTime() > coverageStart.getTime()
+        ? currentPaidUntil
+        : coverageStart;
+    return Math.max(0, (expiresAt.getTime() - start.getTime()) / 86_400_000);
+  }
+
+  /**
+   * Days billed for a whole subscription term. A business with no earlier
+   * management pays the full term price (so the bundle equals plan +
+   * management term price); one already paid past the term start only pays for
+   * the days beyond that expiry.
+   */
+  private addonTermDays(
+    expiresAt: Date,
+    coverageStart: Date,
+    currentPaidUntil: Date | undefined,
+    months: number,
+  ): number {
+    const fullTermDays = Math.max(1, months) * 30.4375;
+    if (
+      currentPaidUntil &&
+      currentPaidUntil.getTime() > coverageStart.getTime()
+    ) {
+      return Math.min(
+        fullTermDays,
+        this.addonCoverageDays(expiresAt, coverageStart, currentPaidUntil),
+      );
+    }
+    return fullTermDays;
   }
 
   /**
@@ -918,9 +1033,23 @@ export class SubscriptionsPaymentService {
     const items: BusinessAddonQuoteItem[] = [];
     for (const workspace of workspaces) {
       const packageKey = workspace.industryKey;
+      // Mirror the checkout exactly: a business whose management is already
+      // paid up to the new expiry only owes for the days beyond it.
+      const coveredDays = addonOnly
+        ? this.addonCoverageDays(
+            expiresAt,
+            now,
+            currentExpiry.get(workspace.id),
+          )
+        : this.addonTermDays(
+            expiresAt,
+            activeTerm,
+            currentExpiry.get(workspace.id),
+            months,
+          );
       const [label, amount] = await Promise.all([
         this.packages.label(packageKey),
-        this.packages.proratedPrice(packageKey, pricingMonths, days),
+        this.packages.proratedPrice(packageKey, pricingMonths, coveredDays),
       ]);
       items.push({
         workspaceId: workspace.id,
@@ -930,7 +1059,7 @@ export class SubscriptionsPaymentService {
         amount,
         months: pricingMonths,
         paidUntil: expiresAt.toISOString(),
-        available: amount >= 1000,
+        available: coveredDays > 0 && amount >= 1000,
         currentPaidUntil: currentExpiry.get(workspace.id)?.toISOString() ?? null,
       });
     }

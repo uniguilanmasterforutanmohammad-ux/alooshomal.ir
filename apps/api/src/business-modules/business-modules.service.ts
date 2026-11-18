@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   HttpException,
   Injectable,
+  Logger,
   NotFoundException,
   OnModuleInit,
   ServiceUnavailableException,
@@ -170,6 +171,7 @@ const MANAGEMENT_PAYPING_SETTING_PREFIX = 'businessManagementPayping:';
 
 @Injectable()
 export class BusinessModulesService implements OnModuleInit {
+  private readonly logger = new Logger(BusinessModulesService.name);
   private managementCache: ManagementDefinition[] = [];
 
   constructor(
@@ -1947,23 +1949,45 @@ export class BusinessModulesService implements OnModuleInit {
         code =
           code ??
           `SIM-PRODUCT-${packageKey}-${term.months}-${randomBytes(3).toString('hex')}`;
-      } else if (!this.payping.configured) {
-        throw new ServiceUnavailableException(
-          'توکن درگاه پرداخت پی‌پینگ تنظیم نشده است. مقدار PAYPING_TOKEN را در محیط سرور قرار دهید.',
-        );
-      } else if (code) {
-        await this.payping.updateProduct({ ...payload, code });
       } else {
-        const result = (await this.payping.createProduct(payload)) as {
-          code?: string;
-        } | null;
-        if (!result?.code) {
-          throw new BadGatewayException(
-            'ساخت محصول مدیریت کسب‌وکار در پی‌پینگ ناموفق بود؛ لطفاً دوباره تلاش کنید.',
+        if (!this.payping.configured) {
+          throw new ServiceUnavailableException(
+            'توکن درگاه پرداخت پی‌پینگ تنظیم نشده است. مقدار PAYPING_TOKEN را در محیط سرور قرار دهید.',
           );
         }
-        code = result.code;
-        created = true;
+        if (code) {
+          try {
+            await this.payping.updateProduct({ ...payload, code });
+          } catch (error) {
+            const status = (error as { paypingStatus?: number } | null)
+              ?.paypingStatus;
+            this.logger.warn(
+              `PayPing management product ${code} update failed: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            );
+            // A 4xx (e.g. the product was deleted in the PayPing console)
+            // means the cached code is dead: recreate it instead of failing
+            // the whole sync. Other failures are transient and surface as-is.
+            if (typeof status === 'number' && status >= 400 && status < 500) {
+              code = null;
+            } else {
+              throw error;
+            }
+          }
+        }
+        if (!code) {
+          const result = (await this.payping.createProduct(payload)) as {
+            code?: string;
+          } | null;
+          if (!result?.code) {
+            throw new BadGatewayException(
+              'ساخت محصول مدیریت کسب‌وکار در پی‌پینگ ناموفق بود؛ لطفاً دوباره تلاش کنید.',
+            );
+          }
+          code = result.code;
+          created = true;
+        }
       }
 
       codes[monthsKey] = code;

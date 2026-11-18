@@ -344,14 +344,22 @@ export class ZohalService {
     if (row?.value) {
       try {
         await this.payping.updateProduct({ ...payload, code: row.value });
+        return row.value;
       } catch (error) {
+        const status = (error as { paypingStatus?: number } | null)
+          ?.paypingStatus;
         this.logger.warn(
           `PayPing product ${row.value} sync failed: ${
             error instanceof Error ? error.message : String(error)
           }`,
         );
+        // A 4xx (e.g. the product was deleted from the PayPing console) means
+        // the cached code is dead, so fall through and recreate it. A transient
+        // failure keeps the old code so a checkout can still go through.
+        if (!(typeof status === 'number' && status >= 400 && status < 500)) {
+          return row.value;
+        }
       }
-      return row.value;
     }
 
     const created = (await this.payping.createProduct(payload)) as {

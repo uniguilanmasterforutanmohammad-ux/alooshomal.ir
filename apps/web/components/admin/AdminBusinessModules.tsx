@@ -184,14 +184,31 @@ export function AdminBusinessModules() {
     setBusy(`sync:${key}`);
     try {
       const result = await api.post<{
-        amount: number;
-        productCode: string | null;
-        created: boolean;
+        packageKey: string;
+        label: string;
+        terms: Array<{
+          months: number;
+          price: number;
+          productCode: string | null;
+          created: boolean;
+        }>;
         simulated: boolean;
+        syncedAt: string;
       }>(`/admin/business-modules/managements/${key}/sync-payping`, {});
+      const created = result.terms.filter((term) => term.created).length;
+      const summary = result.terms
+        .map(
+          (term) =>
+            `${term.months} ماهه: ${formatToman(term.price)} تومان${
+              term.productCode ? ` (${term.productCode})` : ''
+            }`,
+        )
+        .join(' • ');
       toast.success(
-        `${result.created ? 'محصول ساخته شد' : 'محصول به‌روزرسانی شد'} — ${formatToman(result.amount)} تومان${
+        `همگام‌سازی «${result.label}» انجام شد${
           result.simulated ? ' (شبیه‌ساز)' : ''
+        }${created ? ` — ${created} محصول ساخته شد` : ''}${
+          summary ? ` — ${summary}` : ''
         }`,
       );
       await loadManagements();
