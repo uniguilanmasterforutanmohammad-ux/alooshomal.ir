@@ -23,7 +23,11 @@ location ^~ /.well-known/acme-challenge/ {
 # ---- Next.js route handlers under /api/proxy/* are served by the web app ----
 location ^~ /api/proxy/ {
     set $web_upstream web:3000;
-    proxy_pass http://$web_upstream$uri$is_args$args;
+    # `$request_uri` keeps the original percent-encoding. With a variable in
+    # `proxy_pass`, nginx would otherwise forward the *decoded* `$uri`; a
+    # decoded space or Persian byte makes the upstream request line invalid and
+    # nginx answers 400 (e.g. /categories/خدمات%20خودرو or /stay/<نامک فارسی>).
+    proxy_pass http://$web_upstream$request_uri;
     proxy_http_version 1.1;
     proxy_set_header Host              $host;
     proxy_set_header X-Real-IP         $remote_addr;
@@ -36,7 +40,9 @@ location ^~ /api/proxy/ {
 # ---- NestJS API (everything else under /api) --------------------------------
 location /api/ {
     set $api_upstream api:4000;
-    proxy_pass http://$api_upstream$uri$is_args$args;
+    # Keep the raw URI (see the note above): decoded non-ASCII path segments
+    # would otherwise 400 before reaching NestJS.
+    proxy_pass http://$api_upstream$request_uri;
     proxy_http_version 1.1;
     proxy_set_header Host              $host;
     proxy_set_header X-Real-IP         $remote_addr;
@@ -67,7 +73,7 @@ location /media/ {
 # ---- Immutable Next.js build assets -----------------------------------------
 location /_next/static/ {
     set $web_upstream web:3000;
-    proxy_pass http://$web_upstream$uri$is_args$args;
+    proxy_pass http://$web_upstream$request_uri;
     proxy_http_version 1.1;
     proxy_set_header Host              $host;
     proxy_set_header X-Real-IP         $remote_addr;
@@ -80,7 +86,9 @@ location /_next/static/ {
 # ---- Everything else -> Next.js web app -------------------------------------
 location / {
     set $web_upstream web:3000;
-    proxy_pass http://$web_upstream$uri$is_args$args;
+    # Raw URI so Persian slugs (percent-encoded) reach Next.js intact; see the
+    # note on `/api/proxy/` above.
+    proxy_pass http://$web_upstream$request_uri;
     proxy_http_version 1.1;
     proxy_set_header Host              $host;
     proxy_set_header X-Real-IP         $remote_addr;
