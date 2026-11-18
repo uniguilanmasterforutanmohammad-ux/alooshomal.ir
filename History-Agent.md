@@ -20,7 +20,71 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.30.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.31.0**.
+
+## ۱۴۰۵/۰۸/۲۷ — دایرکتوری عمومی هر «مدیریت کسب‌وکار» با جست‌وجو و فیلتر — نسخه `v4.31.0`
+
+**هدف:** برای هر «مدیریت کسب‌وکار» (بسته‌ی صنف) یک صفحه‌ی دایرکتوری عمومی ساخته
+شود که موارد ثبت‌شده را فهرست کند و قابلیت جست‌وجو و فیلتر داشته باشد؛ نمونه‌ها:
+دایرکتوری اقامتگاه‌های اجاره‌ای (بسته‌ی «اقامت و سفر — اجاره روزانه») و
+دایرکتوری محصولات (بسته‌ی «فروشگاه و خرده‌فروشی»). پیش‌تر `/stay` فقط جست‌وجوی
+متنی و فیلتر شهر داشت و صفحه‌ی دایرکتوری محصولات (`/shop` فهرست) وجود نداشت.
+
+> **یادداشت مهم برای کاربر (بدون تغییر کد):** خطای ۴۰۰ صفحه‌ی
+> `/stay/سوییت-لاله-یک-خواب-تنکابن` و `/categories/خدمات%20خودرو` در کامیت
+> `5f042bc` (نسخه `v4.29.1`) رفع شد؛ آن اصلاح در Nginx است و **پس از
+> push/استقرار خودتان** روی سایت اعمال می‌شود.
+
+**تغییرات:**
+- `apps/api/src/accommodations/dto/public-accommodation-list.dto.ts`: DTO
+  مستندشده‌ی فیلترهای دایرکتوری اقامتگاه (`q`، `cityId`، `type`، `guests`،
+  `minPrice`، `maxPrice`، `sort`).
+- `apps/api/src/accommodations/accommodations.service.ts`: به‌روزرسانی `publicList`
+  برای اعمال فیلترها/ترتیب و افزودن `publicFacets` (شهرها و نوع‌های دارای
+  اقامتگاه منتشرشده).
+- `apps/api/src/accommodations/public-accommodations.controller.ts`: استفاده از
+  DTO در `GET /public/accommodations` و افزودن `GET /public/accommodations/filters`.
+- `apps/api/src/retail/dto/public-product-list.dto.ts` و
+  `apps/api/src/retail/public-products.controller.ts`: DTO فیلترهای محصول و کنترلر
+  عمومی جدید `GET /public/products` و `GET /public/products/facets`.
+- `apps/api/src/retail/retail.service.ts`: `publicProducts` و `publicProductFacets`
+  (فقط محصولات منتشرشده‌ی فروشگاه‌هایی که ماژول `retailCatalog` آن‌ها فعال و
+  پرداخت‌شده است) و ثبت کنترلر در `apps/api/src/retail/retail.module.ts`.
+- `apps/api/src/seo/seo.service.ts`: افزودن `/stay`، `/shop` و صفحه‌های عمومی
+  اقامتگاه/فروشگاه منتشرشده به نقشه‌ی سایت.
+- `apps/web/app/stay/page.tsx`: بازنویسی دایرکتوری اقامتگاه‌ها با فرم فیلتر
+  (جست‌وجو، شهر، نوع، تعداد مهمان، بازه‌ی قیمت، ترتیب) و نمایش «تعداد نتیجه».
+- `apps/web/app/shop/page.tsx`: صفحه‌ی جدید دایرکتوری محصولات با همان الگوی
+  فیلتر (جست‌وجو، فروشگاه، دسته‌بندی، بازه‌ی قیمت، ترتیب) و لینک هر محصول به
+  صفحه‌ی فروشگاه آن.
+- `apps/web/lib/catalog-server.ts`: فچرهای سمت سرور دایرکتوری‌ها
+  (`fetchStayDirectory`/`fetchStayFacets`/`fetchProductDirectory`/`fetchProductFacets`).
+- `apps/web/lib/nav.ts`: افزودن «فروشگاه‌ها» (`/shop`) به ناوبری عمومی.
+- `apps/web/lib/api/types/business-modules.ts`: تایپ‌های `PublicProduct`،
+  `PublicProductFacets` و `PublicAccommodationFacets`.
+- `apps/web/app/dashboard/business/accommodations/page.tsx` و
+  `apps/web/app/dashboard/business/products/page.tsx`: افزودن دکمه‌ی «دایرکتوری
+  عمومی» برای پرش به صفحه‌ی عمومی همان مدیریت.
+- `docs/API.md`: به‌روزرسانی بخش‌های اقامتگاه و فروشگاه با مسیرها/فیلترهای جدید.
+- `apps/web/lib/version.ts`: ارتقای نسخه به `v4.31.0`.
+
+**تأیید/تست:**
+- `tsc --noEmit` در `apps/web` بدون خطا (exit 0) و در `apps/api` داخل کانتینر
+  (`docker exec alooshomal-api`) بدون خطا (exit 0).
+- `eslint` روی فایل‌های تغییریافته: صفر خطا (فقط هشدارهای از پیش موجود
+  `react-hooks/set-state-in-effect`).
+- `python3 scripts/check_api_docs.py` → ۵۳ کنترلر / ۵۲۴ مسیر، exit 0.
+- API زنده: `GET /api/public/accommodations/filters` و
+  `GET /api/public/products/facets` پاسخ درست؛ فیلترهای `guests`، `category`،
+  `minPrice`، `shop` و `sort` روی داده‌ی تستی بررسی و نتیجه‌ی درست گرفت
+  (محصول `DRAFT` نمایش داده نشد، `sort=bogus` خطای ۴۰۰ اعتبارسنجی داد).
+- صفحات `GET /stay`، `GET /shop`، `GET /stay?guests=9` و
+  `GET /shop?category=پوشاک` با Playwright بررسی شدند: کد ۲۰۰، نوار «تعداد
+  نتیجه» و فیلترها درست، بدون خطای کنسول/صفحه؛ ناوبری نیز «فروشگاه‌ها» را
+  نشان می‌دهد.
+- صفحه‌ی جزئیات `GET /stay/ویلای-تست-تقویم` (با نامک فارسی و انکد‌شده) کد ۲۰۰
+  و محتوای درست برگرداند.
+- `python3 scripts/sync_install.py` و سپس `--check` بدون تغییر معلق (exit 0).
 
 ## ۱۴۰۵/۰۸/۲۷ — نمایش کارت ویزیت و بیولینک داخل تب‌های پنل کسب‌وکار — نسخه `v4.30.0`
 

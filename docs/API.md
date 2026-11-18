@@ -766,8 +766,12 @@ PY
 | `GET/POST/PATCH/DELETE` | `/crm/customers` | دفترچه‌ی مشتریان و تعامل‌ها. |
 
 مسیرهای عمومی (بدون احراز هویت) زیر `/api/public/accommodations` هستند:
-فهرست اقامتگاه‌های منتشرشده، صفحه‌ی عمومی یک اقامتگاه (همراه کانال‌های فعال)
-، `GET /public/accommodations/:slug/calendar.ics` (فید iCal برای OTA)،
+`GET /public/accommodations` (دایرکتوری `/stay`) که فیلترهای
+`q`، `cityId`، `type`، `guests`، `minPrice`، `maxPrice` و `sort`
+(`newest`/`price-asc`/`price-desc`) را می‌پذیرد، `GET /public/accommodations/filters`
+برای گزینه‌های فیلتر (شهرها و نوع‌های دارای اقامتگاه)، صفحه‌ی عمومی یک اقامتگاه
+(همراه کانال‌های فعال)، `GET /public/accommodations/:slug/calendar.ics` (فید iCal
+برای OTA)،
 `POST /public/accommodations/:slug/bookings` برای ثبت درخواست رزرو و
 `POST /public/accommodations/:slug/bookings/:id/deposit` برای پرداخت آنلاین
 ودیعه (بازگشت درگاه: `/public/accommodations/deposits/callback`). این
@@ -788,7 +792,12 @@ PY
 مسیرهای عمومی زیر `/api/public/shops` (بدون احراز هویت):
 `GET /public/shops/:slug` ویترین فروشگاه (محصولات منتشرشده + اطلاعات کارت به
 کارت در صورت فعال‌بودن ماژول) و `POST /public/shops/:slug/orders` برای ثبت
-سفارش. هر فروشگاه با `publicSlug` یکتا (ستون `business_workspaces.publicSlug`)
+سفارش. دایرکتوری محصولات `/shop` از
+`GET /public/products` (فیلترهای `q`، `shop`، `category`، `minPrice`،
+`maxPrice` و `sort`) و `GET /public/products/facets` (دسته‌ها و فروشگاه‌های
+دارای محصول منتشرشده) تغذیه می‌شود؛ این دایرکتوری فقط محصولات منتشرشده‌ی
+فروشگاه‌هایی را نشان می‌دهد که ماژول `retailCatalog` آن‌ها فعال و پرداخت‌شده
+است. هر فروشگاه با `publicSlug` یکتا (ستون `business_workspaces.publicSlug`)
 شناسایی می‌شود و صفحه‌ی عمومی آن `/shop/<slug>` است. ماژول‌های `retailCatalog`
 و `retailOrders` با سوئیچ‌های `featureRetailCatalog`/`featureRetailOrders`
 کنترل می‌شوند و صفحه‌ی `/shop` با سوئیچ «نمایش» `featureRetailCatalog` پنهان

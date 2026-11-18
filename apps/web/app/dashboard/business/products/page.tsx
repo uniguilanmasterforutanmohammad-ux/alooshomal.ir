@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { ImagePlus, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 
 import { BusinessPanelNav } from '@/components/business/BusinessPanelNav';
@@ -146,10 +147,15 @@ export default function ProductsPage() {
             محصولات منتشرشده در ویترین عمومی فروشگاه شما نمایش داده می‌شوند.
           </p>
         </div>
-        <button type="button" onClick={openCreate} className="indeed-btn indeed-btn-primary">
-          <Plus className="size-4" aria-hidden />
-          محصول جدید
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/shop" className="indeed-btn">
+            دایرکتوری عمومی
+          </Link>
+          <button type="button" onClick={openCreate} className="indeed-btn indeed-btn-primary">
+            <Plus className="size-4" aria-hidden />
+            محصول جدید
+          </button>
+        </div>
       </div>
 
       {workspace ? <BusinessPanelNav modules={workspace.modules} /> : null}

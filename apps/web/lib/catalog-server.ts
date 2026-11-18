@@ -7,9 +7,13 @@
  */
 
 import type {
+  AccommodationProperty,
   BusinessCategorySummary,
   BusinessReviewsPage,
   CategoryDirectoryResponse,
+  PublicAccommodationFacets,
+  PublicProduct,
+  PublicProductFacets,
 } from './api';
 import { SERVER_API_URL } from './site';
 
@@ -88,5 +92,100 @@ export async function fetchBusinessReviews(
     return payload.data ?? null;
   } catch {
     return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Business-management public directories (`/stay` and `/shop`)
+// ---------------------------------------------------------------------------
+
+export interface StayDirectoryParams {
+  q?: string;
+  cityId?: string;
+  type?: string;
+  guests?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  sort?: string;
+}
+
+/** Accommodation directory listing (`GET /public/accommodations`). */
+export async function fetchStayDirectory(
+  params: StayDirectoryParams,
+): Promise<AccommodationProperty[]> {
+  try {
+    const response = await fetch(
+      `${SERVER_API_URL}/public/accommodations${buildQuery({ ...params })}`,
+      { next: { revalidate: 30 } },
+    );
+    if (!response.ok) return [];
+    const payload = (await response.json()) as {
+      data: AccommodationProperty[] | null;
+    };
+    return payload.data ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Filter options (cities/types) of the accommodation directory. */
+export async function fetchStayFacets(): Promise<PublicAccommodationFacets> {
+  const empty: PublicAccommodationFacets = { cities: [], types: [] };
+  try {
+    const response = await fetch(`${SERVER_API_URL}/public/accommodations/filters`, {
+      next: { revalidate: 60 },
+    });
+    if (!response.ok) return empty;
+    const payload = (await response.json()) as {
+      data: PublicAccommodationFacets | null;
+    };
+    return payload.data ?? empty;
+  } catch {
+    return empty;
+  }
+}
+
+export interface ShopDirectoryParams {
+  q?: string;
+  shop?: string;
+  category?: string;
+  minPrice?: string;
+  maxPrice?: string;
+  sort?: string;
+}
+
+/** Product directory listing (`GET /public/products`). */
+export async function fetchProductDirectory(
+  params: ShopDirectoryParams,
+): Promise<PublicProduct[]> {
+  try {
+    const response = await fetch(
+      `${SERVER_API_URL}/public/products${buildQuery({ ...params })}`,
+      { next: { revalidate: 30 } },
+    );
+    if (!response.ok) return [];
+    const payload = (await response.json()) as {
+      data: PublicProduct[] | null;
+    };
+    return payload.data ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Filter options (categories/shops) of the product directory. */
+export async function fetchProductFacets(): Promise<PublicProductFacets> {
+  const empty: PublicProductFacets = { categories: [], shops: [] };
+  try {
+    const response = await fetch(`${SERVER_API_URL}/public/products/facets`, {
+      next: { revalidate: 60 },
+    });
+    if (!response.ok) return empty;
+    const payload = (await response.json()) as {
+      data: PublicProductFacets | null;
+    };
+    return payload.data ?? empty;
+  } catch {
+    return empty;
   }
 }

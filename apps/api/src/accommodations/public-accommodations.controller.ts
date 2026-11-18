@@ -14,6 +14,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { parseGatewayCallback } from '../payping/gateway-callback';
 import { AccommodationsService } from './accommodations.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { PublicAccommodationListDto } from './dto/public-accommodation-list.dto';
 
 @ApiTags('accommodations')
 @Public()
@@ -22,9 +23,20 @@ export class PublicAccommodationsController {
   constructor(private readonly accommodations: AccommodationsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'فهرست عمومی اقامتگاه‌های منتشرشده' })
-  list(@Query('q') q?: string, @Query('cityId') cityId?: string) {
-    return this.accommodations.publicList({ q, cityId });
+  @ApiOperation({
+    summary:
+      'فهرست عمومی اقامتگاه‌های منتشرشده با فیلتر جست‌وجو، شهر، نوع، ظرفیت و بازه‌ی قیمت',
+  })
+  list(@Query() query: PublicAccommodationListDto) {
+    return this.accommodations.publicList(query);
+  }
+
+  @Get('filters')
+  @ApiOperation({
+    summary: 'گزینه‌های فیلتر دایرکتوری اقامتگاه‌ها (شهرها و نوع‌های دارای اقامتگاه)',
+  })
+  filters() {
+    return this.accommodations.publicFacets();
   }
 
   @Get(':slug')

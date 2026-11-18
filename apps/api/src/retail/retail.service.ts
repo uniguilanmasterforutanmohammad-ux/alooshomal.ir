@@ -14,6 +14,7 @@ import {
   CreateProductDto,
   RetailProductStatus,
 } from './dto/create-product.dto';
+import type { PublicProductListDto } from './dto/public-product-list.dto';
 import { StockMovementDto } from './dto/stock-movement.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
@@ -372,6 +373,105 @@ export class RetailService {
               instructions: card.instructions,
             }
           : null,
+    };
+  }
+
+  /**
+   * Workspaces whose `retailCatalog` module is active right now, used by the
+   * `/shop` directory so it never lists products of a shop the owner did not
+   * buy (or whose term has expired, or that the admin paused).
+   */
+  private async activeRetailWorkspaceIds(): Promise<string[]> {
+    const activations = await this.prisma.businessModuleActivation.findMany({
+      where: {
+        moduleKey: 'retailCatalog',
+        enabled: true,
+        OR: [{ paidUntil: null }, { paidUntil: { gt: new Date() } }],
+        workspace: { status: 'ACTIVE' },
+      },
+      select: { workspaceId: true },
+    });
+    return activations.map((row) => row.workspaceId);
+  }
+
+  /** Coerce a possibly-string query value into a non-negative integer. */
+  private toPositiveInt(value: unknown): number | undefined {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined;
+  }
+
+  /**
+   * The public `/shop` directory: every published product of every active shop,
+   * with text search and category/shop/price filters.
+   */
+  async publicProducts(query: PublicProductListDto) {
+    await this.settings.assertFeatureEnabled('featureRetailCatalog');
+    const workspaceIds = await this.activeRetailWorkspaceIds();
+    if (workspaceIds.length === 0) return [];
+    const minPrice = this.toPositiveInt(query.minPrice);
+    const maxPrice = this.toPositiveInt(query.maxPrice);
+    const orderBy =
+      query.sort === 'price-asc'
+        ? { price: 'asc' as const }
+        : query.sort === 'price-desc'
+          ? { price: 'desc' as const }
+          : { publishedAt: 'desc' as const };
+    return this.prisma.retailProduct.findMany({
+      where: {
+        status: 'PUBLISHED',
+        workspaceId: { in: workspaceIds },
+        ...(query.shop ? { workspace: { publicSlug: query.shop } } : {}),
+        ...(query.category ? { category: query.category } : {}),
+        ...(minPrice !== undefined || maxPrice !== undefined
+          ? { price: { gte: minPrice ?? 0, lte: maxPrice ?? 2_147_483_647 } }
+          : {}),
+        ...(query.q
+          ? {
+              OR: [
+                { title: { contains: query.q, mode: 'insensitive' } },
+                { description: { contains: query.q, mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
+      include: {
+        workspace: { select: { id: true, name: true, publicSlug: true } },
+      },
+      orderBy,
+      take: 120,
+    });
+  }
+
+  /**
+   * Filter options for the `/shop` directory: the categories and shops that
+   * actually have a published product.
+   */
+  async publicProductFacets() {
+    await this.settings.assertFeatureEnabled('featureRetailCatalog');
+    const workspaceIds = await this.activeRetailWorkspaceIds();
+    if (workspaceIds.length === 0) return { categories: [], shops: [] };
+    const rows = await this.prisma.retailProduct.findMany({
+      where: { status: 'PUBLISHED', workspaceId: { in: workspaceIds } },
+      select: {
+        category: true,
+        workspace: { select: { id: true, name: true, publicSlug: true } },
+      },
+    });
+    const categories = new Set<string>();
+    const shops = new Map<string, { id: string; name: string; slug: string | null }>();
+    for (const row of rows) {
+      if (row.category) categories.add(row.category);
+      if (row.workspace?.publicSlug) {
+        shops.set(row.workspace.id, {
+          id: row.workspace.id,
+          name: row.workspace.name,
+          slug: row.workspace.publicSlug,
+        });
+      }
+    }
+    return {
+      categories: [...categories].sort(),
+      shops: [...shops.values()].sort((a, b) => a.name.localeCompare(b.name, 'fa')),
     };
   }
 

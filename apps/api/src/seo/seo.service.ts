@@ -36,7 +36,7 @@ export class SeoService {
   constructor(private readonly prisma: PrismaService) {}
 
   async sitemapEntries(): Promise<SitemapEntry[]> {
-    const [biolinks, businessCards, feeds, categories] = await Promise.all([
+    const [biolinks, businessCards, feeds, categories, stays, shops] = await Promise.all([
       this.prisma.biolink.findMany({
         where: { status: 'APPROVED', isPublished: true },
         select: { slug: true, updatedAt: true },
@@ -66,6 +66,24 @@ export class SeoService {
         orderBy: { updatedAt: 'desc' },
         take: MAX_ROWS,
       }),
+      // Published accommodation pages of the daily-rental directory (`/stay`).
+      this.prisma.accommodationProperty.findMany({
+        where: { status: 'PUBLISHED' },
+        select: { slug: true, updatedAt: true },
+        orderBy: { publishedAt: 'desc' },
+        take: MAX_ROWS,
+      }),
+      // Public storefronts (`/shop/<slug>`) that have at least one live product.
+      this.prisma.businessWorkspace.findMany({
+        where: {
+          status: 'ACTIVE',
+          publicSlug: { not: null },
+          products: { some: { status: 'PUBLISHED' } },
+        },
+        select: { publicSlug: true, updatedAt: true },
+        orderBy: { updatedAt: 'desc' },
+        take: MAX_ROWS,
+      }),
     ]);
 
     const staticPages: SitemapEntry[] = [
@@ -77,6 +95,8 @@ export class SeoService {
       // (`?view=notebook`), so it no longer needs its own sitemap entry.
       { path: '/feeds', lastModified: '', changeFrequency: 'daily', priority: 0.8 },
       { path: '/pulse', lastModified: '', changeFrequency: 'daily', priority: 0.7 },
+      { path: '/stay', lastModified: '', changeFrequency: 'daily', priority: 0.9 },
+      { path: '/shop', lastModified: '', changeFrequency: 'daily', priority: 0.9 },
       { path: '/pricing', lastModified: '', changeFrequency: 'weekly', priority: 0.7 },
       { path: '/guide', lastModified: '', changeFrequency: 'monthly', priority: 0.5 },
       { path: '/rules', lastModified: '', changeFrequency: 'monthly', priority: 0.4 },
@@ -114,6 +134,22 @@ export class SeoService {
         changeFrequency: 'weekly' as const,
         priority: 0.8,
       })),
+      ...stays.map((stay) => ({
+        path: `/stay/${encodeURIComponent(stay.slug)}`,
+        lastModified: stay.updatedAt.toISOString(),
+        changeFrequency: 'weekly' as const,
+        priority: 0.7,
+      })),
+      ...shops
+        .filter((shop): shop is { publicSlug: string; updatedAt: Date } =>
+          Boolean(shop.publicSlug),
+        )
+        .map((shop) => ({
+          path: `/shop/${encodeURIComponent(shop.publicSlug)}`,
+          lastModified: shop.updatedAt.toISOString(),
+          changeFrequency: 'weekly' as const,
+          priority: 0.7,
+        })),
     ];
   }
 }

@@ -309,6 +309,23 @@ export interface PublicShop {
   } | null;
 }
 
+/** A published product in the `/shop` directory, with its owning shop. */
+export interface PublicProduct extends RetailProduct {
+  workspace: { id: string; name: string; publicSlug: string | null };
+}
+
+/** Filter options of the `/shop` directory. */
+export interface PublicProductFacets {
+  categories: string[];
+  shops: Array<{ id: string; name: string; slug: string | null }>;
+}
+
+/** Filter options of the `/stay` directory. */
+export interface PublicAccommodationFacets {
+  cities: Array<{ id: string; name: string }>;
+  types: string[];
+}
+
 export interface CardToCardAccount {
   id: string;
   workspaceId: string;

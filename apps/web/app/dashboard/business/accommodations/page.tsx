@@ -70,14 +70,19 @@ export default function AccommodationsPage() {
             واحدهای اجاره‌ای خود را ثبت کنید، عکس اضافه کنید و برای رزرو منتشر کنید.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowForm((value) => !value)}
-          className="indeed-btn indeed-btn-primary"
-        >
-          <Plus className="size-4" aria-hidden />
-          {showForm ? 'بستن فرم' : 'اقامتگاه جدید'}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/stay" className="indeed-btn">
+            دایرکتوری عمومی
+          </Link>
+          <button
+            type="button"
+            onClick={() => setShowForm((value) => !value)}
+            className="indeed-btn indeed-btn-primary"
+          >
+            <Plus className="size-4" aria-hidden />
+            {showForm ? 'بستن فرم' : 'اقامتگاه جدید'}
+          </button>
+        </div>
       </div>
 
       {workspace ? <BusinessPanelNav modules={workspace.modules} /> : null}

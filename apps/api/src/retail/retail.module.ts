@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { BusinessModulesModule } from '../business-modules/business-modules.module';
 import { SettingsModule } from '../settings/settings.module';
+import { PublicProductsController } from './public-products.controller';
 import { PublicRetailController } from './public-retail.controller';
 import { RetailInventoryController } from './retail-inventory.controller';
 import { RetailOrdersController } from './retail-orders.controller';
@@ -15,6 +16,7 @@ import { RetailService } from './retail.service';
     RetailOrdersController,
     RetailInventoryController,
     PublicRetailController,
+    PublicProductsController,
   ],
   providers: [RetailService],
   exports: [RetailService],

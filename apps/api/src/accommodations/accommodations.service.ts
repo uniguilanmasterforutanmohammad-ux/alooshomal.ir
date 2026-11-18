@@ -21,6 +21,7 @@ import {
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateCalendarBlockDto } from './dto/create-block.dto';
 import { UpdateAccommodationDto } from './dto/update-accommodation.dto';
+import type { PublicAccommodationListDto } from './dto/public-accommodation-list.dto';
 import { buildIcalCalendar, parseIcalEvents } from './ical';
 
 const PROPERTY_INCLUDE = {
@@ -304,12 +305,26 @@ export class AccommodationsService {
 
   // ---- public side ----
 
-  async publicList(query: { q?: string; cityId?: string }) {
+  async publicList(query: PublicAccommodationListDto) {
     await this.settings.assertFeatureEnabled('featureAccommodationRental');
+    const minPrice = this.toPositiveInt(query.minPrice);
+    const maxPrice = this.toPositiveInt(query.maxPrice);
+    const guests = this.toPositiveInt(query.guests);
+    const orderBy =
+      query.sort === 'price-asc'
+        ? { basePrice: 'asc' as const }
+        : query.sort === 'price-desc'
+          ? { basePrice: 'desc' as const }
+          : { publishedAt: 'desc' as const };
     return this.prisma.accommodationProperty.findMany({
       where: {
         status: 'PUBLISHED',
         ...(query.cityId ? { cityId: query.cityId } : {}),
+        ...(query.type ? { propertyType: query.type } : {}),
+        ...(guests ? { maxGuests: { gte: guests } } : {}),
+        ...(minPrice !== undefined || maxPrice !== undefined
+          ? { basePrice: { gte: minPrice ?? 0, lte: maxPrice ?? 2_147_483_647 } }
+          : {}),
         ...(query.q
           ? {
               OR: [
@@ -321,9 +336,41 @@ export class AccommodationsService {
           : {}),
       },
       include: PROPERTY_INCLUDE,
-      orderBy: { publishedAt: 'desc' },
+      orderBy,
       take: 60,
     });
+  }
+
+  /**
+   * Filter options for the `/stay` directory: the cities and property types
+   * that actually have a published accommodation, so the selects never show a
+   * dead option.
+   */
+  async publicFacets() {
+    await this.settings.assertFeatureEnabled('featureAccommodationRental');
+    const rows = await this.prisma.accommodationProperty.findMany({
+      where: { status: 'PUBLISHED' },
+      select: {
+        propertyType: true,
+        city: { select: { id: true, name: true } },
+      },
+    });
+    const cities = new Map<string, string>();
+    const types = new Set<string>();
+    for (const row of rows) {
+      if (row.city) cities.set(row.city.id, row.city.name);
+      if (row.propertyType) types.add(row.propertyType);
+    }
+    return {
+      cities: [...cities].map(([id, name]) => ({ id, name })),
+      types: [...types].sort(),
+    };
+  }
+
+  /** Coerce a possibly-string query value into a non-negative integer. */
+  private toPositiveInt(value: unknown): number | undefined {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined;
   }
 
   async publicFind(slug: string) {
