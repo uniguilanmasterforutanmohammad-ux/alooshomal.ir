@@ -94,6 +94,23 @@ export interface ManagementPackage {
   moduleCount: number;
   /** End of this package's paid term (ISO date) or null. */
   paidUntil: string | null;
+  /** One-time renewal offer for a package that is already bought. */
+  extension?: ManagementExtension;
+}
+
+export interface ManagementExtension {
+  /** A longer term can still be bought for this package. */
+  allowed: boolean;
+  /** The one-time renewal has already been used. */
+  alreadyExtended: boolean;
+  /** Months of the current paid term. */
+  currentMonths: number;
+  /** Days left in the current term that get carried over. */
+  remainingDays: number;
+  /** Longer terms that may be bought to extend the current one. */
+  terms: ManagementTerm[];
+  /** End of the current paid term (ISO) or null. */
+  paidUntil: string | null;
 }
 
 export interface ManagementTerm {

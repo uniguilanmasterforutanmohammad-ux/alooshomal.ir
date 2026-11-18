@@ -116,6 +116,28 @@ export interface ManagementPackageView {
   moduleCount: number;
   /** End of this package's paid term (ISO date) or `null` when not paid. */
   paidUntil: string | null;
+  /** One-time renewal offer for an already-bought package. */
+  extension: ManagementExtensionView;
+}
+
+/**
+ * The «تمدید» offer that follows a purchased management. A workspace may buy
+ * the same package exactly once again with a *longer* term; the unused days of
+ * the current term are carried over so nothing the user paid for is lost.
+ */
+export interface ManagementExtensionView {
+  /** A longer term can still be bought for this package. */
+  allowed: boolean;
+  /** The one-time renewal has already been used. */
+  alreadyExtended: boolean;
+  /** Months of the current paid term. */
+  currentMonths: number;
+  /** Days left in the current term that get carried over (0 when expired). */
+  remainingDays: number;
+  /** Longer terms that may be bought to extend the current one. */
+  terms: ManagementTerm[];
+  /** End of the current paid term (ISO) or `null`. */
+  paidUntil: string | null;
 }
 
 export interface AdminManagementModuleView {
@@ -970,6 +992,18 @@ export class BusinessModulesService implements OnModuleInit {
     );
     const now = Date.now();
     const paid = await this.paidState(workspace.id);
+    // Paid «مدیریت کسب‌وکار» purchases of this workspace, used to decide
+    // whether the one-time renewal is still available and which term it had.
+    const paidPackagePurchases =
+      await this.prisma.businessModulePurchase.findMany({
+        where: {
+          workspaceId: workspace.id,
+          status: 'PAID',
+          moduleKey: { startsWith: 'package:' },
+        },
+        select: { moduleKey: true, months: true },
+        orderBy: { createdAt: 'asc' },
+      });
 
     // Once a management is bought, the trade is fixed: only that package is
     // offered (to renew/upgrade), so the user is never nudged into a second
@@ -1012,6 +1046,24 @@ export class BusinessModulesService implements OnModuleInit {
           .filter((value): value is string => Boolean(value))
           .sort()
           .pop() ?? null;
+      const ownPurchases = paidPackagePurchases.filter(
+        (row) => row.moduleKey === `package:${industry.key}`,
+      );
+      const currentMonths = ownPurchases.reduce(
+        (max, row) => Math.max(max, row.months || 0),
+        0,
+      );
+      const alreadyExtended = ownPurchases.length > 1;
+      const extensionTerms = alreadyExtended
+        ? []
+        : this.managementTerms(totalPrice, industry.discounts).filter(
+            (option) => option.months > currentMonths,
+          );
+      const paidUntilDate = paidUntil ? new Date(paidUntil) : null;
+      const remainingDays =
+        paidUntilDate && paidUntilDate.getTime() > now
+          ? Math.ceil((paidUntilDate.getTime() - now) / 86_400_000)
+          : 0;
       return {
         key: industry.key,
         label: industry.label,
@@ -1026,6 +1078,19 @@ export class BusinessModulesService implements OnModuleInit {
         activeModules: modules.filter((module) => module.enabled).length,
         moduleCount: modules.length,
         paidUntil,
+        extension: {
+          allowed:
+            paid.locked &&
+            industry.key === workspace.industryKey &&
+            !alreadyExtended &&
+            totalPrice > 0 &&
+            extensionTerms.length > 0,
+          alreadyExtended,
+          currentMonths,
+          remainingDays,
+          terms: extensionTerms,
+          paidUntil,
+        },
       };
     });
   }
@@ -1045,24 +1110,69 @@ export class BusinessModulesService implements OnModuleInit {
     const workspace = await this.ensureWorkspace(userId);
     const views = await this.listManagements(userId);
     const view = views.find((item) => item.key === packageKey);
-    const chargeable =
-      view?.modules.filter(
-        (module) => module.billable && !module.purchased && module.price > 0,
-      ) ?? [];
+    if (!view) {
+      throw new BadRequestException(
+        'این صنف برای کسب‌وکار فعلی قابل خرید نیست؛ برای صنف دیگر یک کسب‌وکار جدید بسازید',
+      );
+    }
     // Modules carry a monthly price; the management owns the term discounts.
     const months = ([1, 3, 6, 12] as const).includes(
       requestedMonths as 1 | 3 | 6 | 12,
     )
       ? (requestedMonths as 1 | 3 | 6 | 12)
       : 1;
-    const basePrice = chargeable.reduce((sum, module) => sum + module.price, 0);
+    // A workspace that already bought its package may renew the *same* package
+    // once with a longer term; the unused days of the current term are carried
+    // over, so a paid-for period is never thrown away.
+    const paid = await this.paidState(workspace.id);
+    const isExtension = paid.locked && workspace.industryKey === packageKey;
+    let basePrice: number;
+    let targetPaidUntil: Date | null = null;
+    if (isExtension) {
+      const extension = view.extension;
+      if (!extension || extension.alreadyExtended) {
+        throw new BadRequestException(
+          'امکان تمدید مدیریت کسب‌وکار تنها یک‌بار وجود دارد',
+        );
+      }
+      if (!extension.terms.some((item) => item.months === months)) {
+        throw new BadRequestException(
+          'برای تمدید باید دوره‌ای طولانی‌تر از دوره‌ی فعلی انتخاب کنید',
+        );
+      }
+      basePrice = view.totalPrice;
+      const current = paid.paidUntil;
+      const from =
+        current && current.getTime() > Date.now() ? current : new Date();
+      targetPaidUntil = addMonths(from, months);
+    } else {
+      const chargeable = view.modules.filter(
+        (module) => module.billable && !module.purchased && module.price > 0,
+      );
+      basePrice = chargeable.reduce((sum, module) => sum + module.price, 0);
+    }
     const term = this.managementTerms(basePrice, industry.discounts).find(
       (item) => item.months === months,
     );
     const amount = term?.price ?? 0;
+    const purchaseExpiresAt = isExtension
+      ? targetPaidUntil
+      : months > 0
+        ? addMonths(new Date(), months)
+        : null;
     if (amount <= 0) {
-      await this.activatePackage(workspace.id, packageKey, months);
-      return { free: true, activated: true };
+      await this.activatePackage(
+        workspace.id,
+        packageKey,
+        months,
+        targetPaidUntil,
+      );
+      return {
+        free: true,
+        activated: true,
+        extended: isExtension,
+        paidUntil: targetPaidUntil?.toISOString() ?? null,
+      };
     }
 
     const onlineOnly = await this.settings.getPaymentsOnlineOnly();
@@ -1077,30 +1187,46 @@ export class BusinessModulesService implements OnModuleInit {
           status: 'PAID',
           clientRefId: randomBytes(16).toString('hex'),
           paidAt: new Date(),
-          expiresAt: months > 0 ? addMonths(new Date(), months) : null,
+          expiresAt: purchaseExpiresAt,
         },
       });
       const charged = await this.wallet.charge({
         userId,
         kind: WalletEntryKind.BUSINESS_MODULE,
         amount,
-        title: `خرید مدیریت کسب‌وکار «${industry.label}»`,
+        title: isExtension
+          ? `تمدید مدیریت کسب‌وکار «${industry.label}»`
+          : `خرید مدیریت کسب‌وکار «${industry.label}»`,
         sourceType: 'BUSINESS_MODULE',
         sourceId: purchase.id,
         idempotencyKey: `business-package:${purchase.id}`,
       });
-      await this.activatePackage(workspace.id, packageKey, months);
+      await this.activatePackage(
+        workspace.id,
+        packageKey,
+        months,
+        isExtension ? targetPaidUntil : undefined,
+      );
       await this.notifications.notify({
         userId,
         type: NotificationType.SUCCESS,
-        title: 'مدیریت کسب‌وکار فعال شد',
+        title: isExtension
+          ? 'مدیریت کسب‌وکار تمدید شد'
+          : 'مدیریت کسب‌وکار فعال شد',
         body:
           charged > 0
-            ? `مدیریت «${industry.label}» فعال شد و مبلغ ${charged.toLocaleString('fa-IR')} تومان به بدهی کیف پول شما اضافه شد.`
-            : `مدیریت «${industry.label}» فعال شد.`,
+            ? `مدیریت «${industry.label}» ${isExtension ? 'تمدید' : 'فعال'} شد و مبلغ ${charged.toLocaleString('fa-IR')} تومان به بدهی کیف پول شما اضافه شد.`
+            : `مدیریت «${industry.label}» ${isExtension ? 'تمدید' : 'فعال'} شد.`,
         link: '/dashboard/business',
       });
-      return { wallet: true, activated: true, amount: charged, purchase };
+      return {
+        wallet: true,
+        activated: true,
+        extended: isExtension,
+        amount: charged,
+        purchase,
+        paidUntil: targetPaidUntil?.toISOString() ?? null,
+      };
     }
 
     const user = await this.prisma.user.findUnique({
@@ -1116,6 +1242,9 @@ export class BusinessModulesService implements OnModuleInit {
         amount,
         months,
         clientRefId,
+        // For a renewal the target expiry is fixed up-front so a slow callback
+        // still credits the carried-over days.
+        ...(isExtension ? { expiresAt: targetPaidUntil } : {}),
       },
     });
     const returnUrl = `${paypingReturnBaseUrl()}/api/business-modules/payments/callback`;
@@ -1159,6 +1288,8 @@ export class BusinessModulesService implements OnModuleInit {
       paymentId: purchase.id,
       amount,
       months,
+      extended: isExtension,
+      paidUntil: targetPaidUntil?.toISOString() ?? null,
       paymentCode: result.paymentCode,
       url: result.url,
       returnTo: returnTo && /^\/(?!\/)/.test(returnTo) ? returnTo : null,
@@ -1170,12 +1301,16 @@ export class BusinessModulesService implements OnModuleInit {
     workspaceId: string,
     packageKey: string,
     months: number,
+    paidUntilOverride?: Date | null,
   ) {
     await this.ensureManagementsLoaded();
     const industry = this.management(packageKey);
     if (!industry) return;
     const keys = withDependencies(industry.modules);
-    const paidUntil = months > 0 ? addMonths(new Date(), months) : null;
+    const paidUntil =
+      months > 0
+        ? (paidUntilOverride ?? addMonths(new Date(), months))
+        : null;
     // Only modules that actually carry a price should expire. Free/default
     // modules stay enabled regardless of the purchased term.
     const prices = await this.prisma.businessModulePrice.findMany({
@@ -1486,21 +1621,27 @@ export class BusinessModulesService implements OnModuleInit {
       });
       return { redirectUrl: `${base}?purchase=failed` };
     }
+    const isPackage = purchase.moduleKey.startsWith('package:');
+    // A «تمدید» purchase carries its pre-computed target expiry from creation
+    // time, so the days carried over from the previous term are not lost when
+    // the callback arrives late.
+    const isExtension = isPackage && Boolean(purchase.expiresAt);
     await this.prisma.businessModulePurchase.update({
       where: { id: purchase.id },
       data: {
         status: 'PAID',
         paidAt: new Date(),
         expiresAt:
-          purchase.months > 0 ? addMonths(new Date(), purchase.months) : null,
+          purchase.expiresAt ??
+          (purchase.months > 0 ? addMonths(new Date(), purchase.months) : null),
       },
     });
-    const isPackage = purchase.moduleKey.startsWith('package:');
     if (isPackage) {
       await this.activatePackage(
         purchase.workspaceId,
         purchase.moduleKey.slice('package:'.length),
         purchase.months,
+        purchase.expiresAt ?? undefined,
       );
     } else {
       await this.activateModule(
@@ -1512,9 +1653,15 @@ export class BusinessModulesService implements OnModuleInit {
     await this.notifications.notify({
       userId: purchase.userId,
       type: NotificationType.SUCCESS,
-      title: isPackage ? 'مدیریت کسب‌وکار فعال شد' : 'ماژول کسب‌وکار فعال شد',
+      title: isPackage
+        ? isExtension
+          ? 'مدیریت کسب‌وکار تمدید شد'
+          : 'مدیریت کسب‌وکار فعال شد'
+        : 'ماژول کسب‌وکار فعال شد',
       body: isPackage
-        ? 'پرداخت شما تأیید شد و تمام ماژول‌های این مدیریت کسب‌وکار فعال شد.'
+        ? isExtension
+          ? 'پرداخت شما تأیید شد؛ دوره‌ی این مدیریت کسب‌وکار با احتساب مانده‌ی دوره‌ی قبل تمدید شد.'
+          : 'پرداخت شما تأیید شد و تمام ماژول‌های این مدیریت کسب‌وکار فعال شد.'
         : 'پرداخت شما تأیید شد و ماژول موردنظر فعال شد.',
       link: '/dashboard/business',
     });

@@ -22,9 +22,16 @@ import type {
 } from '@/lib/api/types/business-modules';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
-import { formatJalali } from '@/lib/jalali';
+import { faDigits, formatJalali } from '@/lib/jalali';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
+
+/** Persian label for a term length, e.g. «۳ ماهه» / «یک‌ساله». */
+function termLabel(months: number): string {
+  if (months === 1) return '۱ ماهه';
+  if (months === 12) return 'یک‌ساله';
+  return `${faDigits(months)} ماهه`;
+}
 
 function BusinessPanelContent() {
   const router = useRouter();
@@ -182,7 +189,12 @@ function BusinessPanelContent() {
     setBusy(`buy:${packageKey}`);
     try {
       const result = await api.post<
-        | { url?: string; free?: boolean; wallet?: boolean }
+        | {
+            url?: string;
+            free?: boolean;
+            wallet?: boolean;
+            extended?: boolean;
+          }
         | { url?: string }
       >(`/business-modules/managements/${packageKey}/purchase`, {
         months,
@@ -192,7 +204,12 @@ function BusinessPanelContent() {
         window.location.href = result.url;
         return;
       }
-      toast.success('مدیریت کسب‌وکار فعال شد');
+      const extended = Boolean(
+        result && 'extended' in result && result.extended,
+      );
+      toast.success(
+        extended ? 'دوره‌ی مدیریت کسب‌وکار تمدید شد' : 'مدیریت کسب‌وکار فعال شد',
+      );
       await reload();
       const next = await api.get<ManagementPackage[]>(
         '/business-modules/managements',
@@ -397,6 +414,7 @@ function BusinessPanelContent() {
             {managements.map((item) => {
               const busyKey = `buy:${item.key}`;
               const isCurrent = workspace.industryKey === item.key;
+              const owned = isCurrent && workspace.industryLocked;
               const paidModules = item.modules.filter((module) => module.billable);
               const term = selectedTerm[item.key] ?? 1;
               const selectedTermData = item.terms.find(
@@ -407,6 +425,28 @@ function BusinessPanelContent() {
                   term *
                   (1 - (selectedTermData?.discount ?? 0) / 100),
               );
+              const extension = item.extension;
+              const extensionTerms = extension?.terms ?? [];
+              const extensionTermData =
+                extensionTerms.find((option) => option.months === term) ??
+                extensionTerms[0] ??
+                null;
+              // The carried-over days push the new term out from the current
+              // expiry (or from today when it has already lapsed).
+              const extensionEnd = extensionTermData
+                ? (() => {
+                    const from = extension?.paidUntil
+                      ? new Date(
+                          Math.max(
+                            new Date(extension.paidUntil).getTime(),
+                            Date.now(),
+                          ),
+                        )
+                      : new Date();
+                    from.setMonth(from.getMonth() + extensionTermData.months);
+                    return from.toISOString();
+                  })()
+                : null;
               return (
                 <article
                   key={item.key}
@@ -464,84 +504,170 @@ function BusinessPanelContent() {
                     ))}
                   </ul>
                   <div className="mt-auto flex flex-col gap-2 pt-2">
-                    <div className="flex flex-wrap gap-1.5">
-                      {item.terms.map((option) => {
-                        const active = option.months === term;
-                        const optionPrice = Math.round(
-                          item.remainingPrice *
-                            option.months *
-                            (1 - option.discount / 100),
-                        );
-                        return (
-                          <button
-                            key={option.months}
-                            type="button"
-                            onClick={() =>
-                              setSelectedTerm((current) => ({
-                                ...current,
-                                [item.key]: option.months,
-                              }))
-                            }
-                            className={cn(
-                              'flex flex-col items-start rounded-lg border px-2.5 py-1.5 text-[10px] transition',
-                              active
-                                ? 'border-brand bg-brand-light text-brand'
-                                : 'border-[var(--vintage-border)] text-muted hover:text-ink',
-                            )}
-                          >
-                            <span className="font-bold">
-                              {option.months === 1
-                                ? '۱ ماهه'
-                                : option.months === 12
-                                  ? 'یک‌ساله'
-                                  : `${option.months} ماهه`}
-                            </span>
-                            <span>
-                              {optionPrice > 0
-                                ? `${optionPrice.toLocaleString('fa-IR')} تومان`
+                    {owned ? (
+                      extension?.allowed && extensionTermData ? (
+                        <>
+                          <p className="text-[11px] font-bold text-ink">
+                            تمدید دوره (یک‌بار، با دوره‌ی طولانی‌تر)
+                          </p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {extensionTerms.map((option) => {
+                              const active =
+                                option.months === extensionTermData.months;
+                              return (
+                                <button
+                                  key={option.months}
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedTerm((current) => ({
+                                      ...current,
+                                      [item.key]: option.months,
+                                    }))
+                                  }
+                                  className={cn(
+                                    'flex flex-col items-start rounded-lg border px-2.5 py-1.5 text-[10px] transition',
+                                    active
+                                      ? 'border-brand bg-brand-light text-brand'
+                                      : 'border-[var(--vintage-border)] text-muted hover:text-ink',
+                                  )}
+                                >
+                                  <span className="font-bold">
+                                    {termLabel(option.months)}
+                                  </span>
+                                  <span>
+                                    {option.price > 0
+                                      ? `${option.price.toLocaleString('fa-IR')} تومان`
+                                      : 'رایگان'}
+                                  </span>
+                                  {option.discount > 0 ? (
+                                    <span className="text-[9px] text-emerald-700">
+                                      {faDigits(option.discount)}٪ تخفیف
+                                    </span>
+                                  ) : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          <p className="text-[11px] text-emerald-700">
+                            {extension.remainingDays > 0
+                              ? `${extension.remainingDays.toLocaleString('fa-IR')} روز مانده از دوره‌ی فعلی به دوره‌ی جدید اضافه می‌شود.`
+                              : 'دوره‌ی فعلی به پایان رسیده است؛ دوره‌ی جدید از امروز محاسبه می‌شود.'}
+                          </p>
+                          <div className="flex items-end justify-between gap-3">
+                            <div className="text-xs">
+                              <p className="font-bold text-ink">
+                                مبلغ تمدید:{' '}
+                                {extensionTermData.price > 0
+                                  ? `${extensionTermData.price.toLocaleString('fa-IR')} تومان`
+                                  : 'رایگان'}
+                              </p>
+                              {extensionEnd ? (
+                                <p className="mt-1 text-[11px] text-muted">
+                                  اعتبار جدید تا {formatJalali(extensionEnd)}
+                                </p>
+                              ) : null}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void buyManagement(
+                                  item.key,
+                                  extensionTermData.months,
+                                )
+                              }
+                              disabled={busy === busyKey}
+                              className="indeed-btn indeed-btn-primary shrink-0 py-2 text-xs disabled:opacity-50"
+                            >
+                              <ShoppingCart className="size-4" aria-hidden />
+                              تمدید دوره
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-[11px] text-muted">
+                          {extension?.alreadyExtended
+                            ? 'تمدید این دوره قبلاً یک‌بار انجام شده است و امکان تمدید دوباره وجود ندارد.'
+                            : 'برای این بسته دوره‌ی طولانی‌تری برای تمدید وجود ندارد.'}
+                        </p>
+                      )
+                    ) : (
+                      <>
+                        <div className="flex flex-wrap gap-1.5">
+                          {item.terms.map((option) => {
+                            const active = option.months === term;
+                            const optionPrice = Math.round(
+                              item.remainingPrice *
+                                option.months *
+                                (1 - option.discount / 100),
+                            );
+                            return (
+                              <button
+                                key={option.months}
+                                type="button"
+                                onClick={() =>
+                                  setSelectedTerm((current) => ({
+                                    ...current,
+                                    [item.key]: option.months,
+                                  }))
+                                }
+                                className={cn(
+                                  'flex flex-col items-start rounded-lg border px-2.5 py-1.5 text-[10px] transition',
+                                  active
+                                    ? 'border-brand bg-brand-light text-brand'
+                                    : 'border-[var(--vintage-border)] text-muted hover:text-ink',
+                                )}
+                              >
+                                <span className="font-bold">
+                                  {termLabel(option.months)}
+                                </span>
+                                <span>
+                                  {optionPrice > 0
+                                    ? `${optionPrice.toLocaleString('fa-IR')} تومان`
+                                    : 'رایگان'}
+                                </span>
+                                {option.discount > 0 ? (
+                                  <span className="text-[9px] text-emerald-700">
+                                    {faDigits(option.discount)}٪ تخفیف
+                                  </span>
+                                ) : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div className="flex items-end justify-between gap-3">
+                          <div className="text-xs">
+                            <p className="font-bold text-ink">
+                              قیمت پایه ماهانه:{' '}
+                              {item.totalPrice > 0
+                                ? `${item.totalPrice.toLocaleString('fa-IR')} تومان`
                                 : 'رایگان'}
-                            </span>
-                            {option.discount > 0 ? (
-                              <span className="text-[9px] text-emerald-700">
-                                {option.discount}٪ تخفیف
-                              </span>
-                            ) : null}
+                            </p>
+                            <p className="mt-1 text-[11px] text-muted">
+                              مبلغ قابل پرداخت:{' '}
+                              {payable > 0
+                                ? `${payable.toLocaleString('fa-IR')} تومان`
+                                : 'رایگان'}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void buyManagement(item.key, term)}
+                            disabled={
+                              busy === busyKey ||
+                              (item.active && item.remainingPrice === 0)
+                            }
+                            className="indeed-btn indeed-btn-primary shrink-0 py-2 text-xs disabled:opacity-50"
+                          >
+                            <ShoppingCart className="size-4" aria-hidden />
+                            {item.active
+                              ? 'فعال‌شده'
+                              : item.remainingPrice > 0
+                                ? 'خرید و فعال‌سازی'
+                                : 'فعال‌سازی'}
                           </button>
-                        );
-                      })}
-                    </div>
-                    <div className="flex items-end justify-between gap-3">
-                      <div className="text-xs">
-                        <p className="font-bold text-ink">
-                          قیمت پایه ماهانه:{' '}
-                          {item.totalPrice > 0
-                            ? `${item.totalPrice.toLocaleString('fa-IR')} تومان`
-                            : 'رایگان'}
-                        </p>
-                        <p className="mt-1 text-[11px] text-muted">
-                          مبلغ قابل پرداخت:{' '}
-                          {payable > 0
-                            ? `${payable.toLocaleString('fa-IR')} تومان`
-                            : 'رایگان'}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => void buyManagement(item.key, term)}
-                        disabled={
-                          busy === busyKey ||
-                          (item.active && item.remainingPrice === 0)
-                        }
-                        className="indeed-btn indeed-btn-primary shrink-0 py-2 text-xs disabled:opacity-50"
-                      >
-                        <ShoppingCart className="size-4" aria-hidden />
-                        {item.active
-                          ? 'فعال‌شده'
-                          : item.remainingPrice > 0
-                            ? 'خرید و فعال‌سازی'
-                            : 'فعال‌سازی'}
-                      </button>
-                    </div>
+                        </div>
+                      </>
+                    )}
                   </div>
                   {paidModules.length > 0 && !item.active ? (
                     <p className="text-[10px] text-muted">
