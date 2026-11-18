@@ -20,6 +20,7 @@ import type { Response } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
 import { ProfileCompleteGuard } from '../common/guards/profile-complete.guard';
+import { PLAN_PERIOD_MONTHS } from '../common/plans';
 import {
   GATEWAY_CALLBACK_BODY_SCHEMA,
   parseGatewayCallback,
@@ -28,6 +29,7 @@ import {
 import { SubscriptionsService } from './subscriptions.service';
 import { SubscriptionsPaymentService } from './subscriptions-payment.service';
 import { CheckoutSubscriptionDto } from './dto/checkout-subscription.dto';
+import { AddonCheckoutDto } from './dto/addon-checkout.dto';
 import { RequestSubscriptionDto } from './dto/request-subscription.dto';
 
 @ApiTags('subscriptions')
@@ -43,6 +45,26 @@ export class SubscriptionsController {
   @ApiOperation({ summary: 'فهرست اشتراک‌های فعال' })
   plans() {
     return this.subscriptionsService.listPlans(true);
+  }
+
+  @Get('plans/:planId/addon-quote')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'استعلام «بسته مدیریت کسب‌وکار» برای هر کسب‌وکار: مبلغ روزشمار دوره‌ی انتخابی و تاریخ انقضای دقیق پیش از پرداخت',
+  })
+  @ApiQuery({ name: 'months', required: false, enum: [...PLAN_PERIOD_MONTHS] })
+  addonQuote(
+    @CurrentUser() user: AuthUser,
+    @Param('planId') planId: string,
+    @Query('months') months?: string,
+  ) {
+    const parsed = Number.parseInt(String(months ?? '1'), 10);
+    return this.payments.addonQuote(
+      user.id,
+      planId,
+      Number.isFinite(parsed) ? parsed : 1,
+    );
   }
 
   @Get('me')
@@ -70,12 +92,30 @@ export class SubscriptionsController {
     return this.subscriptionsService.activatePaidPending(user.id, id);
   }
 
+  /**
+   * Declared before `:planId/checkout` on purpose: Express matches routes in
+   * order, so `addon/checkout` must not be swallowed by the `:planId` param.
+   */
+  @Post('addon/checkout')
+  @UseGuards(ProfileCompleteGuard)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'خرید میان‌دوره‌ای «بسته مدیریت کسب‌وکار» برای اشتراک فعال: مبلغ روزشمار تا پایان دوره و انقضای همان دوره',
+  })
+  addonCheckout(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: AddonCheckoutDto,
+  ) {
+    return this.payments.addonCheckout(user.id, dto?.workspaceIds, dto?.returnTo);
+  }
+
   @Post(':planId/checkout')
   @UseGuards(ProfileCompleteGuard)
   @ApiBearerAuth()
   @ApiOperation({
     summary:
-      'شروع پرداخت آنلاین اشتراک با درگاه پی‌پینگ؛ `months` دوره را تعیین می‌کند (۱/۳/۶/۱۲) و مبلغ با تخفیف دوره محاسبه می‌شود',
+      'شروع پرداخت آنلاین اشتراک با درگاه پی‌پینگ؛ `months` دوره را تعیین می‌کند (۱/۳/۶/۱۲) و با `workspaceIds` بسته‌ی مدیریت کسب‌وکار هم به همان پرداخت اضافه می‌شود',
   })
   checkout(
     @CurrentUser() user: AuthUser,
@@ -87,6 +127,7 @@ export class SubscriptionsController {
       planId,
       dto?.months ?? 1,
       dto?.returnTo,
+      { workspaceIds: dto?.workspaceIds },
     );
   }
 

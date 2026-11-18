@@ -20,7 +20,68 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.36.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.37.0**.
+
+## ۱۴۰۵/۰۸/۲۷ — ادغام اشتراک اصلی و «بسته مدیریت کسب‌وکار» — نسخه `v4.37.0`
+
+**هدف:** کاربر ابتدا بسته‌ی اصلی (رایگان/اکو/پلاس) را انتخاب می‌کند و سپس
+می‌تواند در همان پرداخت، «بسته مدیریت کسب‌وکار» را برای یک یا چند کسب‌وکار خود
+بخرد؛ مبلغ افزودنی **روزشمار** محاسبه و به مبلغ اشتراک اضافه می‌شود و بسته و
+اشتراک با هم منقضی می‌شوند (داده پس از انقضا باقی می‌ماند، فقط کنترل متوقف
+می‌شود). خرید میان‌مدت بدون دوره‌ی جدید و ممنوعیت خرید افزودنی برای بسته‌ی
+رایگان هم پیاده شد. در پی‌پینگ ۱۶ محصول (اکو/پلاس × ۱/۳/۶/۱۲ ماهه × بدون/با
+بسته) ساخته می‌شود.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `businessAmount`، `withBusinessPackage`
+  و `businessPackages` (JSON) به `SubscriptionPayment` و چهار ستون کد محصول
+  `paypingProductCodeWithPackage{,3,6,12}Months` به `SubscriptionPlan`.
+- `apps/api/src/business-modules/business-package.service.ts` (جدید): قیمت‌گذاری
+  و فعال‌سازی بسته‌ی مدیریت فقط با Prisma (بدون وابستگی حلقه‌ای) شامل `terms`،
+  `termPrice`، `proratedPrice` (مبلغ روزشمار)، `availablePackageKeys`،
+  `packageKeyForWorkspace`، `requireOwnedWorkspace` و `activate`.
+- `apps/api/src/business-modules/business-package.module.ts` (جدید): صادرکردن
+  سرویس بالا برای استفاده در اشتراک‌ها بدون وابستگی حلقه‌ای.
+- `apps/api/src/subscriptions/subscriptions-payment.service.ts`: `checkout` با
+  `workspaceIds` مبلغ هر کسب‌وکار را روزشمار حساب و به مبلغ اشتراک اضافه می‌کند،
+  افزودنی را روی پرداخت ذخیره و پس از تأیید با انقضای همان دوره فعال می‌کند؛
+  `addonCheckout` (خرید میان‌مدت روی اشتراک فعال) و `addonQuote` (استعلام
+  روزشمار + تاریخ دقیق انقضا) اضافه شد؛ محصولات پی‌پینگ به ۸ SKU در هر بسته
+  (۴ دوره × با/بدون بسته) گسترش یافت.
+- `apps/api/src/subscriptions/subscriptions.service.ts`: تزریق
+  `BusinessPackageService` و فعال‌سازی بسته‌ها هنگام «فعال‌سازی اشتراک معلق».
+- `apps/api/src/subscriptions/subscriptions.controller.ts`،
+  `apps/api/src/subscriptions/dto/checkout-subscription.dto.ts` و
+  `apps/api/src/subscriptions/dto/addon-checkout.dto.ts` (جدید): پارامتر
+  `workspaceIds` و دو مسیر `GET /subscriptions/plans/:planId/addon-quote` و
+  `POST /subscriptions/addon/checkout` (پیش از مسیر پارامتری ثبت شدند).
+- `apps/api/src/business-modules/business-modules.service.ts`: بسته‌ی رایگان نه
+  در فهرست مدیریت (خروجی خالی) و نه در خرید `purchaseManagement` (۴۰۳) اجازه‌ی
+  خرید ندارد.
+- `apps/web/app/dashboard/subscriptions/page.tsx` و
+  `apps/web/lib/api/types/subscriptions.ts`: سبد خرید افزودنی با قیمت روزشمار
+  هر کسب‌وکار، جمع افزودنی، تاریخ دقیق انقضا پیش از پرداخت، برچسب «تمدید» برای
+  مدیریت فعلی و پنل خرید میان‌مدت.
+- `apps/web/components/admin/AdminSubscriptions.tsx`: نمایش چهار کد محصول ترکیبی
+  («+ بسته مدیریت کسب‌وکار») در کنار چهار کد ساده، جمعاً ۱۶ محصول هر بسته.
+- `docs/API.md` و `apps/web/lib/version.ts`.
+
+**تأیید/تست:**
+- `npx prisma db push --accept-data-loss` + `npx prisma generate` داخل کانتینر API.
+- `tsc --noEmit` برای API (داخل کانتینر) و وب: بدون خطا.
+- `python3 scripts/check_api_docs.py`: ۵۳ کنترلر / ۵۲۶ مسیر، همه با
+  `@ApiOperation`/`@ApiTags` (exit 0).
+- `python3 scripts/sync_install.py` و `--sync --check`: بدون «تغییر معلق».
+- تست سرتاسری با شبیه‌ساز روی کاربر `09117818389` (کسب‌وکار اقامت):
+  خرید «اکو ۱ماهه + مدیریت» → مبلغ ۲۴۶٬۸۴۴ = ۹۹٬۰۰۰ + ۱۴۷٬۸۴۴؛ پس از تأیید
+  کال‌بک، `plan=اکو`، `planExpiresAt` و `subscriptionPaidUntil` و ماژول CRM
+  هر سه یک تاریخ شدند و `industryLocked=true`.
+- خرید میان‌مدت (`/subscriptions/addon/checkout`): مبلغ ۱۴۷٬۸۳۳ (روزشمار) و
+  `planExpiresAt` بدون تغییر؛ پرداخت با `months=0` و `status=PAID` ثبت شد.
+- بلوک بسته‌ی رایگان: `listManagements` خروجی خالی،
+  `purchaseManagement` ۴۰۳ و `checkout` با `workspaceIds` ۴۰۰.
+- Playwright روی `/dashboard/subscriptions`: رندر پنل میان‌مدت و سبد افزودنی،
+  نمایش تاریخ دقیق انقضا، بدون `pageerror`.
 
 ## ۱۴۰۵/۰۸/۲۷ — تعلق کارت ویزیت و بیولینک به کسب‌وکار و تازه‌سازی پنل با سوییچ — نسخه `v4.36.0`
 

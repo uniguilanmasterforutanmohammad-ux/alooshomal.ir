@@ -26,6 +26,7 @@ import {
 } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
+import { BusinessPackageService } from '../business-modules/business-package.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SubscriptionsPaymentService } from './subscriptions-payment.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
@@ -40,6 +41,7 @@ export class SubscriptionsService implements OnModuleInit {
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
     private readonly payments: SubscriptionsPaymentService,
+    private readonly packages: BusinessPackageService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -477,7 +479,15 @@ export class SubscriptionsService implements OnModuleInit {
       where: { id: subscriptionId, userId },
       include: {
         plan: true,
-        payment: { select: { id: true, status: true, amount: true } },
+        payment: {
+          select: {
+            id: true,
+            status: true,
+            amount: true,
+            withBusinessPackage: true,
+            businessPackages: true,
+          },
+        },
       },
     });
     if (!request) {
@@ -521,6 +531,14 @@ export class SubscriptionsService implements OnModuleInit {
       return row;
     });
 
+    // The bundle bought with this term is granted when the user finally
+    // activates it, expiring with the same term.
+    if (request.payment?.withBusinessPackage) {
+      await this.grantStoredBusinessPackages(
+        request.payment.businessPackages,
+        expiresAt,
+      );
+    }
     await this.notifications.notify({
       userId,
       type: NotificationType.SUCCESS,
@@ -535,6 +553,33 @@ export class SubscriptionsService implements OnModuleInit {
       entityId: request.id,
     });
     return updated;
+  }
+
+  /** Grant the add-on packages stored on a payment, idempotently. */
+  private async grantStoredBusinessPackages(
+    raw: Prisma.JsonValue | null | undefined,
+    paidUntil: Date,
+  ): Promise<void> {
+    if (!Array.isArray(raw)) return;
+    for (const item of raw) {
+      if (!item || typeof item !== 'object') continue;
+      const row = item as Record<string, unknown>;
+      if (
+        typeof row.workspaceId !== 'string' ||
+        typeof row.packageKey !== 'string'
+      ) {
+        continue;
+      }
+      try {
+        await this.packages.activate(
+          row.workspaceId,
+          row.packageKey,
+          paidUntil,
+        );
+      } catch {
+        // A single failed grant must not break the subscription activation.
+      }
+    }
   }
 
   /**

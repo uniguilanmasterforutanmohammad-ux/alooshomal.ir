@@ -224,6 +224,8 @@ export function AdminSubscriptions() {
       const result = await api.post<{
         paypingProductCode: string | null;
         paypingProductCodes: Record<string, string | null>;
+        businessAmount?: number;
+        paypingBundleProductCodes?: Record<string, string | null>;
       }>(
         `/admin/plans/${plan.id}/payping-product`,
       );
@@ -231,8 +233,14 @@ export function AdminSubscriptions() {
         .filter(([, code]) => Boolean(code))
         .map(([months, code]) => `${months} ماهه: ${code}`)
         .join(' · ');
+      const bundleCodes = Object.entries(result.paypingBundleProductCodes ?? {})
+        .filter(([, code]) => Boolean(code))
+        .map(([months, code]) => `${months} ماهه + بسته: ${code}`)
+        .join(' · ');
       setNotice(
-        `محصولات پی‌پینگ بسته «${plan.name}» ساخته/همگام شد${codes ? ` (${codes})` : ''}.`,
+        `محصولات پی‌پینگ بسته «${plan.name}» ساخته/همگام شد${
+          codes ? ` (${codes})` : ''
+        }${bundleCodes ? ` — ترکیبی: (${bundleCodes})` : ''}.`,
       );
       await loadPlans();
     } catch (err) {
@@ -321,10 +329,23 @@ export function AdminSubscriptions() {
           ['۶ ماهه', plan.paypingProductCode6Months],
           ['۱۲ ماهه', plan.paypingProductCode12Months],
         ];
+        // The «+ بسته مدیریت کسب‌وکار» variants; together with the four above
+        // they make the 16 sellable products (۲ بسته × ۴ دوره × ۲ حالت).
+        const bundleCodes: Array<[string, string | null | undefined]> = [
+          ['۱ ماهه + بسته', plan.paypingProductCodeWithPackage],
+          ['۳ ماهه + بسته', plan.paypingProductCodeWithPackage3Months],
+          ['۶ ماهه + بسته', plan.paypingProductCodeWithPackage6Months],
+          ['۱۲ ماهه + بسته', plan.paypingProductCodeWithPackage12Months],
+        ];
         return (
         <div className="flex flex-col items-start gap-1">
           {codes.map(([label, code]) => (
             <span key={label} className="text-[11px] text-muted">
+              {label}: {code || 'ساخته نشده'}
+            </span>
+          ))}
+          {bundleCodes.map(([label, code]) => (
+            <span key={label} className="text-[11px] text-brand">
               {label}: {code || 'ساخته نشده'}
             </span>
           ))}

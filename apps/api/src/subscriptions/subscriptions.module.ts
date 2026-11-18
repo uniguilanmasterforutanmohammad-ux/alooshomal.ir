@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { BusinessPackageModule } from '../business-modules/business-package.module';
 import { FinanceModule } from '../finance/finance.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PaypingModule } from '../payping/payping.module';
@@ -19,6 +20,7 @@ import { SubscriptionsPaymentService } from './subscriptions-payment.service';
     FinanceModule,
     SettingsModule,
     WalletModule,
+    BusinessPackageModule,
   ],
   controllers: [SubscriptionsController],
   providers: [SubscriptionsService, SubscriptionsPaymentService, SubscriptionsExpiryJob],

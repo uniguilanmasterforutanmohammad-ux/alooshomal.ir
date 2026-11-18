@@ -10,7 +10,9 @@ import {
 import {
   NotificationType,
   PaymentStatus,
+  Prisma,
   SubscriptionPlan,
+  SubscriptionPayment,
   SubscriptionStatus,
   WalletEntryKind,
 } from '@prisma/client';
@@ -18,9 +20,15 @@ import { randomBytes } from 'node:crypto';
 
 import { ActivityService } from '../activity/activity.service';
 import { paypingReturnBaseUrl } from '../common/app-url';
-import { addMonths, isPlanPeriodMonths, planPriceForMonths } from '../common/plans';
+import {
+  addMonths,
+  isFreePlan,
+  isPlanPeriodMonths,
+  planPriceForMonths,
+} from '../common/plans';
 import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
 import { FinanceService } from '../finance/finance.service';
+import { BusinessPackageService } from '../business-modules/business-package.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
@@ -32,6 +40,38 @@ import { WalletService } from '../wallet/wallet.service';
  * Online subscription payment: PayPing checkout, the payment callback and
  * paid-plan activation. Split out of the large `SubscriptionsService`.
  */
+/** One «بسته مدیریت کسب‌وکار» bought alongside a subscription term. */
+export interface BusinessAddon {
+  workspaceId: string;
+  packageKey: string;
+  /** Persian label of the industry package, for invoices and messages. */
+  label: string;
+  /** Name of the business, so the buyer sees which one is covered. */
+  businessName: string;
+  /** Prorated price of the add-on for the covered days (Toman). */
+  amount: number;
+  /** Months the subscription term lasts — mirrored by the package. */
+  months: number;
+  /** ISO date the package expires with the subscription. */
+  paidUntil: string;
+}
+
+/** One business in the add-on quote shown in the purchase cart. */
+export interface BusinessAddonQuoteItem {
+  workspaceId: string;
+  name: string;
+  industryKey: string;
+  industryLabel: string;
+  /** Prorated price of the management for the covered days (Toman). */
+  amount: number;
+  months: number;
+  paidUntil: string;
+  /** False when the industry has no price yet, so it cannot be added. */
+  available: boolean;
+  /** Existing management expiry, so a renewal can be labelled as such. */
+  currentPaidUntil: string | null;
+}
+
 @Injectable()
 export class SubscriptionsPaymentService {
   private readonly logger = new Logger(SubscriptionsPaymentService.name);
@@ -45,6 +85,7 @@ export class SubscriptionsPaymentService {
     private readonly finance: FinanceService,
     private readonly settings: SettingsService,
     private readonly wallet: WalletService,
+    private readonly packages: BusinessPackageService,
   ) {}
 
   /** Loads a plan or throws, so payment paths never act on a missing plan. */
@@ -82,23 +123,34 @@ export class SubscriptionsPaymentService {
   // -------------------------------------------------------------------------
 
   /**
-   * Mirror one plan term into a PayPing «آیتم مالی» so every purchasable
-   * period (1/3/6/12 months) has its own product in the merchant account. The
-   * code is cached on the plan row and reused for later checkouts.
+   * Mirror one subscription SKU into a PayPing «آیتم مالی». Every plan ships
+   * two variants for each of the four terms — the plain subscription and the
+   * subscription bundled with one «بسته مدیریت کسب‌وکار» — so the merchant
+   * account ends up with the 16 sellable products. The code is cached on the
+   * plan row and reused for later checkouts; its amount is refreshed on every
+   * checkout so the bundle always matches the package actually chosen.
    */
   private async ensurePlanProduct(
     plan: SubscriptionPlan,
     months = 1,
+    options: { withBusinessPackage?: boolean; businessAmount?: number } = {},
   ): Promise<string> {
+    const withBusinessPackage = Boolean(options.withBusinessPackage);
+    const businessAmount = withBusinessPackage
+      ? Math.max(0, Math.round(options.businessAmount ?? 0))
+      : 0;
     if (!this.payping.configured) {
       throw new ServiceUnavailableException(
         'توکن درگاه پرداخت پی‌پینگ تنظیم نشده است. مقدار PAYPING_TOKEN را در محیط سرور قرار دهید.',
       );
     }
-    const amount = planPriceForMonths(plan, months);
+    const amount = planPriceForMonths(plan, months) + businessAmount;
     const term = months === 1 ? 'یک‌ماهه' : `${months} ماهه`;
+    const suffix = withBusinessPackage
+      ? ' + بسته مدیریت کسب‌وکار'
+      : '';
     const payload = {
-      title: `اشتراک ${plan.name} — ${term} — شمالی‌کارت`,
+      title: `اشتراک ${plan.name} — ${term}${suffix} — شمالی‌کارت`,
       description: plan.description
         ? `${plan.description} (دوره‌ی ${term})`
         : `دوره‌ی ${term}`,
@@ -108,7 +160,7 @@ export class SubscriptionsPaymentService {
       unlimited: true,
     };
 
-    const codeField = this.planProductCodeField(months);
+    const codeField = this.planProductCodeField(months, withBusinessPackage);
     const existingCode = plan[codeField];
     if (existingCode) {
       // Keep the remote product price/title in sync with the plan. A failure
@@ -143,38 +195,75 @@ export class SubscriptionsPaymentService {
     return created.code;
   }
 
-  /** Prisma column that stores the PayPing product code of one term. */
+  /** Prisma column that stores the PayPing product code of one SKU. */
   private planProductCodeField(
     months: number,
+    withBusinessPackage = false,
   ):
     | 'paypingProductCode'
     | 'paypingProductCode3Months'
     | 'paypingProductCode6Months'
-    | 'paypingProductCode12Months' {
+    | 'paypingProductCode12Months'
+    | 'paypingProductCodeWithPackage'
+    | 'paypingProductCodeWithPackage3Months'
+    | 'paypingProductCodeWithPackage6Months'
+    | 'paypingProductCodeWithPackage12Months' {
+    if (withBusinessPackage) {
+      if (months === 3) return 'paypingProductCodeWithPackage3Months';
+      if (months === 6) return 'paypingProductCodeWithPackage6Months';
+      if (months === 12) return 'paypingProductCodeWithPackage12Months';
+      return 'paypingProductCodeWithPackage';
+    }
     if (months === 3) return 'paypingProductCode3Months';
     if (months === 6) return 'paypingProductCode6Months';
     if (months === 12) return 'paypingProductCode12Months';
     return 'paypingProductCode';
   }
 
-  /** Best-effort product sync for every billable term (never throws). */
+  /**
+   * Reference price of the business-package half of a bundle, used when the
+   * admin syncs the catalogue: the checkout re-syncs the product with the price
+   * of the business actually chosen, so this is only the default amount.
+   */
+  private async referenceBusinessAmount(months: number): Promise<number> {
+    // Prefer the base package, then fall back to the first sellable industry so
+    // the admin sync can still create the «+ بسته مدیریت کسب‌وکار» products
+    // even when the base management carries no price of its own.
+    const keys = ['generalBusiness', ...(await this.packages.availablePackageKeys())];
+    for (const key of Array.from(new Set(keys))) {
+      const price = await this.packages.termPrice(key, months);
+      if (price > 0) return price;
+    }
+    return 0;
+  }
+
+  /** Best-effort product sync for every SKU (never throws). */
   async syncPlanProductQuietly(plan: SubscriptionPlan): Promise<void> {
     if (this.simulator.isEnabled || !this.payping.configured) return;
     for (const months of [1, 3, 6, 12] as const) {
-      if (planPriceForMonths(plan, months) < 1000) continue;
-      try {
-        await this.ensurePlanProduct(plan, months);
-      } catch (error) {
-        this.logger.warn(
-          `PayPing product sync for plan ${plan.id} (${months}m) failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
+      const businessAmount = await this.referenceBusinessAmount(months);
+      for (const withBusinessPackage of [false, true]) {
+        if (withBusinessPackage && businessAmount <= 0) continue;
+        try {
+          await this.ensurePlanProduct(plan, months, {
+            withBusinessPackage,
+            businessAmount,
+          });
+        } catch (error) {
+          this.logger.warn(
+            `PayPing product sync for plan ${plan.id} (${months}m${
+              withBusinessPackage ? '+biz' : ''
+            }) failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
       }
     }
   }
 
-  /** Admin action: create/refresh the PayPing products of every plan term. */
+  /**
+   * Admin action: create/refresh the PayPing products of one plan — the four
+   * terms plus the four «+ بسته مدیریت کسب‌وکار» bundles.
+   */
   async syncPaypingProduct(planId: string) {
     const plan = await this.requirePlan(planId);
     if (planPriceForMonths(plan, 1) < 1000) {
@@ -201,22 +290,55 @@ export class SubscriptionsPaymentService {
         paypingProductCodes[months] = null;
       }
     }
+    const businessAmount = await this.referenceBusinessAmount(1);
+    const bundleProductCodes: Record<string, string | null> = {};
+    for (const months of [1, 3, 6, 12] as const) {
+      const addonAmount = await this.referenceBusinessAmount(months);
+      const amount = planPriceForMonths(plan, months) + addonAmount;
+      if (amount < 1000) {
+        bundleProductCodes[months] = null;
+        continue;
+      }
+      try {
+        bundleProductCodes[months] = await this.ensurePlanProduct(plan, months, {
+          withBusinessPackage: true,
+          businessAmount: addonAmount,
+        });
+      } catch (error) {
+        this.logger.warn(
+          `PayPing bundle product for plan ${plan.id} (${months}m) unavailable: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        bundleProductCodes[months] = null;
+      }
+    }
     return {
       planId,
       paypingProductCode: paypingProductCodes[1] ?? null,
       paypingProductCodes,
+      businessAmount,
+      paypingBundleProductCodes: bundleProductCodes,
     };
   }
 
   /**
    * Start an online payment for a paid plan. Returns the PayPing gateway URL;
    * the plan is activated only after the callback verifies the transaction.
+   *
+   * `options.workspaceIds` turns the same payment into «اشتراک + بسته مدیریت
+   * کسب‌وکار»: each named business gets the package of its own industry for the
+   * days the subscription term covers — a mid-term add-on is prorated to the
+   * remaining time — and the amounts are added to the subscription price. The
+   * packages expire together with the plan. The free plan can never buy the
+   * add-on, and a plan may only cover as many businesses as it allows.
    */
   async checkout(
     userId: string,
     planId: string,
     requestedMonths = 1,
     returnTo?: string,
+    options: { workspaceIds?: string[] | null } = {},
   ) {
     const plan = await this.requirePlan(planId);
     if (!plan.isActive) {
@@ -231,12 +353,7 @@ export class SubscriptionsPaymentService {
       returnTo && /^\/(?!\/)/.test(returnTo)
         ? returnTo.slice(0, 200)
         : null;
-    const amount = planPriceForMonths(plan, months);
-    if (amount < 1000) {
-      throw new BadRequestException(
-        'مبلغ این اشتراک برای پرداخت آنلاین معتبر نیست؛ از درخواست اشتراک استفاده کنید.',
-      );
-    }
+    // «+ بسته مدیریت کسب‌وکار»: the add-on term mirrors the subscription term.
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -245,34 +362,62 @@ export class SubscriptionsPaymentService {
         phone: true,
         fullName: true,
         planId: true,
+        planExpiresAt: true,
       },
     });
     if (!user) {
       throw new NotFoundException('کاربر یافت نشد');
     }
-    if (user.planId === plan.id) {
+    if (user.planId === plan.id && !user.planExpiresAt) {
       // Re-buying the same plan is allowed only to extend its term.
-      const active = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { planExpiresAt: true },
-      });
-      if (!active?.planExpiresAt) {
-        throw new BadRequestException('شما در حال حاضر مشترک این بسته هستید');
-      }
+      throw new BadRequestException('شما در حال حاضر مشترک این بسته هستید');
     }
     await this.assertNotDowngrade(userId, plan.id);
+
+    // The term this payment adds starts at the current expiry when the same
+    // plan is still running (so nothing is thrown away) and otherwise now.
+    const now = new Date();
+    const activeTerm =
+      user.planId === plan.id &&
+      user.planExpiresAt &&
+      user.planExpiresAt.getTime() > now.getTime()
+        ? user.planExpiresAt
+        : now;
+    const expiresAt = addMonths(activeTerm, months);
+
+    // «+ بسته مدیریت کسب‌وکار»: every chosen business gets the package of its
+    // own industry, priced for the days this term covers (so a mid-term add-on
+    // is prorated to what is left) and expiring together with the subscription.
+    const addons = await this.resolveBusinessAddons(
+      userId,
+      plan,
+      months,
+      now,
+      expiresAt,
+      options.workspaceIds,
+    );
+    const businessAmount = addons.reduce((sum, item) => sum + item.amount, 0);
+    const amount = planPriceForMonths(plan, months) + businessAmount;
+    if (amount < 1000) {
+      throw new BadRequestException(
+        'مبلغ این اشتراک برای پرداخت آنلاین معتبر نیست؛ از درخواست اشتراک استفاده کنید.',
+      );
+    }
 
     // Online-only mode (the current policy) always goes through the gateway,
     // so a purchase can never leave a negative wallet balance behind.
     const onlineOnly = await this.settings.getPaymentsOnlineOnly();
     if (!onlineOnly && (await this.settings.isFeatureEnabled('featureWallet'))) {
-      return this.purchaseViaWallet(userId, plan, months);
+      return this.purchaseViaWallet(userId, plan, months, addons);
     }
 
     // The simulator has no merchant account to mirror plans into.
     const paypingProductCode = this.simulator.isEnabled
       ? null
-      : await this.ensurePlanProduct(plan, months);
+      : await this.ensurePlanProduct(plan, months, {
+          withBusinessPackage: addons.length > 0,
+          businessAmount,
+        });
 
     // Supersede any previous unpaid attempt for the same plan.
     await this.prisma.subscriptionPayment.updateMany({
@@ -293,9 +438,22 @@ export class SubscriptionsPaymentService {
         clientRefId,
         returnTo: safeReturnTo,
         payerName: user.fullName ?? undefined,
+        businessAmount,
+        withBusinessPackage: addons.length > 0,
+        businessPackages:
+          addons.length > 0
+            ? (addons as unknown as Prisma.InputJsonValue)
+            : undefined,
       },
     });
 
+    const bundleNote =
+      addons.length === 1
+        ? ` + مدیریت «${addons[0].label}»`
+        : addons.length > 1
+          ? ` + مدیریت ${addons.length} کسب‌وکار`
+          : '';
+    const gatewayDescription = `اشتراک ${plan.name}${bundleNote} — شمالی‌کارت`;
     const returnUrl = `${paypingReturnBaseUrl()}/api/subscriptions/payments/callback`;
     let result: { paymentCode?: string; url?: string } | null = null;
     try {
@@ -304,14 +462,14 @@ export class SubscriptionsPaymentService {
             amount,
             returnUrl,
             clientRefId,
-            description: `اشتراک ${plan.name} — شمالی‌کارت`,
+            description: gatewayDescription,
           })
         : ((await this.payping.createPayment({
             amount,
             returnUrl,
             payerIdentity: user.phone ?? user.email ?? undefined,
             payerName: user.fullName ?? undefined,
-            description: `اشتراک ${plan.name} — شمالی‌کارت`,
+            description: gatewayDescription,
             clientRefId,
             isReversible: false,
           })) as { paymentCode?: string; url?: string } | null);
@@ -353,7 +511,332 @@ export class SubscriptionsPaymentService {
       url: updated.gatewayUrl,
       paypingProductCode,
       plan: { id: plan.id, name: plan.name },
+      withBusinessPackage: addons.length > 0,
+      businessAmount,
+      businessPackages: addons,
+      /** ISO expiry the plan and every add-on package share. */
+      expiresAt: expiresAt.toISOString(),
     };
+  }
+
+  /**
+   * Mid-term add-on purchase: a paid subscriber can buy the «بسته مدیریت
+   * کسب‌وکار» for one or more businesses *without* a new subscription term. The
+   * price is prorated to the days left in the running term and the packages
+   * expire exactly when the subscription does — never longer.
+   */
+  async addonCheckout(
+    userId: string,
+    workspaceIds?: string[] | null,
+    returnTo?: string,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        phone: true,
+        fullName: true,
+        planId: true,
+        planExpiresAt: true,
+      },
+    });
+    if (!user) throw new NotFoundException('کاربر یافت نشد');
+    const now = new Date();
+    if (
+      !user.planId ||
+      !user.planExpiresAt ||
+      user.planExpiresAt.getTime() <= now.getTime()
+    ) {
+      throw new BadRequestException(
+        'برای خرید افزودنی «بسته مدیریت کسب‌وکار» ابتدا یک اشتراک فعال اکو یا پلاس داشته باشید.',
+      );
+    }
+    const plan = await this.requirePlan(user.planId);
+    if (isFreePlan(plan)) {
+      throw new BadRequestException(
+        'اشتراک رایگان امکان خرید «بسته مدیریت کسب‌وکار» را ندارد؛ ابتدا به اکو یا پلاس ارتقا دهید.',
+      );
+    }
+    // The add-on only runs until the current term ends, so it is priced by the
+    // day (monthly rate × days left) rather than as a whole new term.
+    const addons = await this.resolveBusinessAddons(
+      userId,
+      plan,
+      1,
+      now,
+      user.planExpiresAt,
+      workspaceIds,
+    );
+    if (addons.length === 0) {
+      throw new BadRequestException(
+        'کسب‌وکاری برای افزودن «بسته مدیریت کسب‌وکار» انتخاب نشده است.',
+      );
+    }
+    const businessAmount = addons.reduce((sum, item) => sum + item.amount, 0);
+    if (businessAmount < 1000) {
+      throw new BadRequestException(
+        'مبلغ افزودنی برای پرداخت آنلاین معتبر نیست؛ با پشتیبانی تماس بگیرید.',
+      );
+    }
+    const safeReturnTo =
+      returnTo && /^\/(?!\/)/.test(returnTo) ? returnTo.slice(0, 200) : null;
+
+    if (!this.simulator.isEnabled) {
+      await this.ensurePlanProduct(plan, 1, {
+        withBusinessPackage: true,
+        businessAmount,
+      });
+    }
+    await this.prisma.subscriptionPayment.updateMany({
+      where: {
+        userId,
+        planId: plan.id,
+        months: 0,
+        status: PaymentStatus.PENDING,
+      },
+      data: {
+        status: PaymentStatus.CANCELED,
+        failureReason: 'پرداخت جدید جایگزین شد',
+      },
+    });
+    const clientRefId = randomBytes(16).toString('hex');
+    const payment = await this.prisma.subscriptionPayment.create({
+      data: {
+        userId,
+        planId: plan.id,
+        amount: businessAmount,
+        months: 0,
+        clientRefId,
+        returnTo: safeReturnTo,
+        payerName: user.fullName ?? undefined,
+        businessAmount,
+        withBusinessPackage: true,
+        businessPackages: addons as unknown as Prisma.InputJsonValue,
+      },
+    });
+    const bundleNote =
+      addons.length === 1
+        ? `مدیریت «${addons[0].label}»`
+        : `مدیریت ${addons.length} کسب‌وکار`;
+    const description = `افزودنی ${bundleNote} — شمالی‌کارت`;
+    const returnUrl = `${paypingReturnBaseUrl()}/api/subscriptions/payments/callback`;
+    let result: { paymentCode?: string; url?: string } | null = null;
+    try {
+      result = this.simulator.isEnabled
+        ? this.simulator.createPayment({
+            amount: businessAmount,
+            returnUrl,
+            clientRefId,
+            description,
+          })
+        : ((await this.payping.createPayment({
+            amount: businessAmount,
+            returnUrl,
+            payerIdentity: user.phone ?? user.email ?? undefined,
+            payerName: user.fullName ?? undefined,
+            description,
+            clientRefId,
+            isReversible: false,
+          })) as { paymentCode?: string; url?: string } | null);
+    } catch (error) {
+      await this.prisma.subscriptionPayment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.FAILED,
+          failureReason:
+            error instanceof Error
+              ? error.message.slice(0, 300)
+              : 'ساخت پرداخت ناموفق بود',
+        },
+      });
+      throw error;
+    }
+    if (!result?.paymentCode || !result?.url) {
+      await this.prisma.subscriptionPayment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.FAILED,
+          failureReason: 'پاسخ نامعتبر از پی‌پینگ',
+        },
+      });
+      throw new BadGatewayException('ساخت پرداخت در پی‌پینگ ناموفق بود');
+    }
+    const updated = await this.prisma.subscriptionPayment.update({
+      where: { id: payment.id },
+      data: { paymentCode: result.paymentCode, gatewayUrl: result.url },
+    });
+    return {
+      paymentId: updated.id,
+      amount: updated.amount,
+      months: 0,
+      paymentCode: updated.paymentCode,
+      url: updated.gatewayUrl,
+      paypingProductCode: null,
+      plan: { id: plan.id, name: plan.name },
+      withBusinessPackage: true,
+      businessAmount,
+      businessPackages: addons,
+      expiresAt: user.planExpiresAt.toISOString(),
+      addonOnly: true,
+    };
+  }
+
+  /**
+   * Resolve the «بسته مدیریت کسب‌وکار» add-ons of a checkout: validate the
+   * chosen businesses, price each one's industry package for the days the term
+   * covers, and refuse the add-on for the free plan or beyond the plan's
+   * business capacity.
+   */
+  private async resolveBusinessAddons(
+    userId: string,
+    plan: SubscriptionPlan,
+    months: number,
+    coverageStart: Date,
+    expiresAt: Date,
+    workspaceIds?: string[] | null,
+  ): Promise<BusinessAddon[]> {
+    const unique = Array.from(
+      new Set(
+        (workspaceIds ?? [])
+          .map((id) => (typeof id === 'string' ? id.trim() : ''))
+          .filter(Boolean),
+      ),
+    );
+    if (unique.length === 0) return [];
+    if (isFreePlan(plan)) {
+      throw new BadRequestException(
+        'اشتراک رایگان امکان خرید «بسته مدیریت کسب‌وکار» را ندارد؛ ابتدا به اکو یا پلاس ارتقا دهید.',
+      );
+    }
+    const maxBusinesses = Math.max(1, Number(plan.maxBusinesses ?? 1));
+    if (unique.length > maxBusinesses) {
+      throw new BadRequestException(
+        `اشتراک «${plan.name}» فقط برای ${maxBusinesses} کسب‌وکار امکان خرید «بسته مدیریت کسب‌وکار» را دارد.`,
+      );
+    }
+    const days = Math.max(
+      0,
+      (expiresAt.getTime() - coverageStart.getTime()) / 86_400_000,
+    );
+    const addons: BusinessAddon[] = [];
+    for (const workspaceId of unique) {
+      const workspace = await this.packages.requireOwnedWorkspace(
+        userId,
+        workspaceId,
+      );
+      const packageKey = workspace.industryKey;
+      const label = await this.packages.label(packageKey);
+      const price = await this.packages.proratedPrice(
+        packageKey,
+        months,
+        days,
+      );
+      if (price < 1000) {
+        throw new BadRequestException(
+          `قیمت «بسته مدیریت کسب‌وکار» برای «${workspace.name}» تعیین نشده است؛ ابتدا صنف آن را انتخاب کنید یا با پشتیبانی تماس بگیرید.`,
+        );
+      }
+      addons.push({
+        workspaceId: workspace.id,
+        packageKey,
+        label,
+        businessName: workspace.name,
+        amount: price,
+        months,
+        paidUntil: expiresAt.toISOString(),
+      });
+    }
+    return addons;
+  }
+
+  /**
+   * Quote for the «بسته مدیریت کسب‌وکار» add-on: for the buyer's businesses,
+   * the prorated price of each one's package for the days a `months`-term
+   * covers, plus the exact expiry every add-on will share. The cart shows this
+   * before payment, so the buyer sees what a mid-term add-on really costs.
+   */
+  async addonQuote(userId: string, planId: string, requestedMonths = 1) {
+    const plan = await this.requirePlan(planId);
+    // `months = 0` asks for the mid-term (add-on-only) quote: it covers the
+    // days left in the running term and expires with it.
+    const months = requestedMonths <= 0
+      ? 0
+      : isPlanPeriodMonths(requestedMonths)
+        ? requestedMonths
+        : 1;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { planId: true, planExpiresAt: true },
+    });
+    const now = new Date();
+    const hasActiveSamePlan = Boolean(
+      user?.planId === plan.id &&
+        user.planExpiresAt &&
+        user.planExpiresAt.getTime() > now.getTime(),
+    );
+    const activeTerm = hasActiveSamePlan ? user!.planExpiresAt! : now;
+    const addonOnly = months === 0;
+    const expiresAt = addonOnly ? activeTerm : addMonths(activeTerm, months);
+    // Mid-term add-ons are always priced at the monthly rate × remaining days.
+    const pricingMonths = addonOnly ? 1 : months;
+    const days = Math.max(
+      0,
+      (expiresAt.getTime() - now.getTime()) / 86_400_000,
+    );
+    const maxBusinesses = Math.max(1, Number(plan.maxBusinesses ?? 1));
+    const base = {
+      plan: { id: plan.id, name: plan.name },
+      allowed: !isFreePlan(plan) && (!addonOnly || hasActiveSamePlan),
+      addonOnly,
+      maxBusinesses,
+      months,
+      days: Math.round(days),
+      expiresAt: expiresAt.toISOString(),
+    };
+    if (isFreePlan(plan)) {
+      return { ...base, workspaces: [] as BusinessAddonQuoteItem[] };
+    }
+    const workspaces = await this.prisma.businessWorkspace.findMany({
+      where: { ownerId: userId },
+      select: { id: true, name: true, industryKey: true },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+    });
+    const activations = await this.prisma.businessModuleActivation.findMany({
+      where: {
+        workspaceId: { in: workspaces.map((row) => row.id) },
+        paidUntil: { not: null },
+      },
+      select: { workspaceId: true, paidUntil: true },
+    });
+    const currentExpiry = new Map<string, Date>();
+    for (const row of activations) {
+      if (!row.paidUntil) continue;
+      const seen = currentExpiry.get(row.workspaceId);
+      if (!seen || row.paidUntil.getTime() > seen.getTime()) {
+        currentExpiry.set(row.workspaceId, row.paidUntil);
+      }
+    }
+    const items: BusinessAddonQuoteItem[] = [];
+    for (const workspace of workspaces) {
+      const packageKey = workspace.industryKey;
+      const [label, amount] = await Promise.all([
+        this.packages.label(packageKey),
+        this.packages.proratedPrice(packageKey, pricingMonths, days),
+      ]);
+      items.push({
+        workspaceId: workspace.id,
+        name: workspace.name,
+        industryKey: packageKey,
+        industryLabel: label,
+        amount,
+        months: pricingMonths,
+        paidUntil: expiresAt.toISOString(),
+        available: amount >= 1000,
+        currentPaidUntil: currentExpiry.get(workspace.id)?.toISOString() ?? null,
+      });
+    }
+    return { ...base, workspaces: items };
   }
 
   /**
@@ -365,13 +848,15 @@ export class SubscriptionsPaymentService {
     userId: string,
     plan: SubscriptionPlan,
     months = 1,
+    addons: BusinessAddon[] = [],
   ) {
     const previous = await this.prisma.user.findUnique({
       where: { id: userId },
       select: { planId: true, planExpiresAt: true },
     });
     const previousPlanId = previous?.planId ?? null;
-    const amount = planPriceForMonths(plan, months);
+    const businessAmount = addons.reduce((sum, item) => sum + item.amount, 0);
+    const amount = planPriceForMonths(plan, months) + businessAmount;
     const now = new Date();
     const subscription = await this.prisma.$transaction(async (tx) => {
       const pending = await tx.userSubscription.findMany({
@@ -437,15 +922,24 @@ export class SubscriptionsPaymentService {
       ]);
       throw error;
     }
+    // Grant the add-on packages once the plan is definitely booked; they end
+    // with the same term as the subscription so nothing outlives it.
+    await this.applyBusinessAddons(addons, subscription.expiresAt ?? new Date());
     const periodNote = months > 1 ? ` برای دوره‌ی ${months} ماهه` : '';
+    const bundleNote =
+      addons.length === 1
+        ? ` + مدیریت «${addons[0].label}»`
+        : addons.length > 1
+          ? ` + مدیریت ${addons.length} کسب‌وکار`
+          : '';
     await this.notifications.notify({
       userId,
       type: NotificationType.SUCCESS,
       title: 'اشتراک شما فعال شد',
       body:
         charged > 0
-          ? `بسته «${plan.name}»${periodNote} فعال شد و مبلغ ${charged.toLocaleString('fa-IR')} تومان به بدهی کیف پول شما اضافه شد؛ تا سررسید یک‌جا پرداخت کنید.`
-          : `بسته «${plan.name}»${periodNote} روی حساب شما فعال شد.`,
+          ? `بسته «${plan.name}»${periodNote}${bundleNote} فعال شد و مبلغ ${charged.toLocaleString('fa-IR')} تومان به بدهی کیف پول شما اضافه شد؛ تا سررسید یک‌جا پرداخت کنید.`
+          : `بسته «${plan.name}»${periodNote}${bundleNote} روی حساب شما فعال شد.`,
       link: '/dashboard/subscriptions',
     });
     await this.notifications.notifyAdmins({
@@ -471,7 +965,67 @@ export class SubscriptionsPaymentService {
       paymentCode: null,
       url: null,
       plan: { id: plan.id, name: plan.name },
+      withBusinessPackage: addons.length > 0,
+      businessAmount,
+      businessPackages: addons,
+      expiresAt: (subscription.expiresAt ?? new Date()).toISOString(),
     };
+  }
+
+  /** Grant a list of add-on packages, expiring together with the term. */
+  private async applyBusinessAddons(
+    addons: BusinessAddon[],
+    paidUntil: Date,
+  ): Promise<void> {
+    for (const addon of addons) {
+      if (!addon?.workspaceId || !addon?.packageKey) continue;
+      try {
+        await this.packages.activate(
+          addon.workspaceId,
+          addon.packageKey,
+          paidUntil,
+        );
+      } catch (error) {
+        this.logger.warn(
+          `granting business package «${addon.packageKey}» for ${addon.workspaceId} failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+  }
+
+  /**
+   * Same as {@link applyBusinessAddons} but for the JSON stored on a payment,
+   * so a callback or a later activation can re-grant idempotently.
+   */
+  private async grantStoredBusinessPackages(
+    raw: Prisma.JsonValue | null | undefined,
+    paidUntil: Date,
+  ): Promise<void> {
+    if (!Array.isArray(raw)) return;
+    const addons: BusinessAddon[] = [];
+    for (const item of raw) {
+      if (!item || typeof item !== 'object') continue;
+      const row = item as Record<string, unknown>;
+      if (
+        typeof row.workspaceId === 'string' &&
+        typeof row.packageKey === 'string'
+      ) {
+        addons.push({
+          workspaceId: row.workspaceId,
+          packageKey: row.packageKey,
+          label: typeof row.label === 'string' ? row.label : row.packageKey,
+          businessName:
+            typeof row.businessName === 'string' ? row.businessName : '',
+          amount: typeof row.amount === 'number' ? row.amount : 0,
+          months: typeof row.months === 'number' ? row.months : 0,
+          paidUntil:
+            typeof row.paidUntil === 'string' ? row.paidUntil : '',
+        });
+      }
+    }
+    await this.applyBusinessAddons(addons, paidUntil);
   }
 
   /**
@@ -585,9 +1139,11 @@ export class SubscriptionsPaymentService {
         );
         return reply(
           'success',
-          activation.pendingActivation
-            ? 'پرداخت شما تأیید شد؛ برای فعال‌سازی اشتراک جدید به صفحه‌ی اشتراک‌ها بروید.'
-            : 'پرداخت شما تأیید شد و اشتراک فعال است.',
+          activation.addonOnly
+            ? 'پرداخت شما تأیید شد و «بسته مدیریت کسب‌وکار» برای دوره‌ی باقی‌مانده فعال است.'
+            : activation.pendingActivation
+              ? 'پرداخت شما تأیید شد؛ برای فعال‌سازی اشتراک جدید به صفحه‌ی اشتراک‌ها بروید.'
+              : 'پرداخت شما تأیید شد و اشتراک فعال است.',
           activation.pendingActivation ? 'pending' : undefined,
         );
       }
@@ -633,9 +1189,11 @@ export class SubscriptionsPaymentService {
     );
     return reply(
       'success',
-      activation.pendingActivation
-        ? `پرداخت با موفقیت انجام شد؛ برای فعال‌سازی اشتراک «${payment.plan.name}» به صفحه‌ی اشتراک‌ها بروید.`
-        : `پرداخت با موفقیت انجام شد و اشتراک «${payment.plan.name}» فعال شد.`,
+      activation.addonOnly
+        ? 'پرداخت با موفقیت انجام شد و «بسته مدیریت کسب‌وکار» برای دوره‌ی باقی‌مانده فعال شد.'
+        : activation.pendingActivation
+          ? `پرداخت با موفقیت انجام شد؛ برای فعال‌سازی اشتراک «${payment.plan.name}» به صفحه‌ی اشتراک‌ها بروید.`
+          : `پرداخت با موفقیت انجام شد و اشتراک «${payment.plan.name}» فعال شد.`,
       activation.pendingActivation ? 'pending' : undefined,
     );
   }
@@ -681,21 +1239,34 @@ export class SubscriptionsPaymentService {
     paymentId: string,
     refId: string,
     verified: { payedDate?: string } | null,
-  ): Promise<{ subscriptionId: string | null; pendingActivation: boolean }> {
+  ): Promise<{
+    subscriptionId: string | null;
+    pendingActivation: boolean;
+    addonOnly: boolean;
+  }> {
     const payment = await this.prisma.subscriptionPayment.findUnique({
       where: { id: paymentId },
       include: { plan: true, user: { select: { fullName: true, email: true } } },
     });
-    if (!payment) return { subscriptionId: null, pendingActivation: false };
+    if (!payment) {
+      return { subscriptionId: null, pendingActivation: false, addonOnly: false };
+    }
     if (payment.status === PaymentStatus.PAID) {
       return {
         subscriptionId: payment.subscriptionId,
         pendingActivation: false,
+        addonOnly: payment.months <= 0,
       };
     }
 
     const now = new Date();
     const paidAt = verified?.payedDate ? new Date(verified.payedDate) : now;
+    // `months = 0` marks an add-on-only purchase (management bought mid-term
+    // for an existing subscription): no new term is created, the packages just
+    // expire together with the running subscription.
+    if (payment.months <= 0) {
+      return this.activateAddonOnlyPayment(payment, refId, paidAt, now);
+    }
     const months = payment.months || 1;
     const term = this.planTermLabel(months);
     const result = await this.prisma.$transaction(async (tx) => {
@@ -778,6 +1349,15 @@ export class SubscriptionsPaymentService {
     });
 
     const pendingActivation = result.status === SubscriptionStatus.PENDING;
+    // Grant the add-on packages (if any) with exactly the term expiry, so they
+    // run and end together with the subscription. Idempotent: re-granting only
+    // moves the same `paidUntil`.
+    if (!pendingActivation && payment.withBusinessPackage) {
+      await this.grantStoredBusinessPackages(
+        payment.businessPackages,
+        result.expiresAt ?? now,
+      );
+    }
     const termNote = ` (${term})`;
     await this.notifications.notify({
       userId: payment.userId,
@@ -836,7 +1416,91 @@ export class SubscriptionsPaymentService {
         }`,
       );
     }
-    return { subscriptionId: result.id, pendingActivation };
+    return { subscriptionId: result.id, pendingActivation, addonOnly: false };
+  }
+
+  /**
+   * Settle an add-on-only payment: the subscription term is untouched, only the
+   * «بسته مدیریت کسب‌وکار» packages are enabled until the running term ends.
+   */
+  private async activateAddonOnlyPayment(
+    payment: SubscriptionPayment & {
+      user?: { fullName: string | null; email: string | null } | null;
+    },
+    refId: string,
+    paidAt: Date,
+    now: Date,
+  ): Promise<{
+    subscriptionId: string | null;
+    pendingActivation: boolean;
+    addonOnly: boolean;
+  }> {
+    const account = await this.prisma.user.findUnique({
+      where: { id: payment.userId },
+      select: { planExpiresAt: true },
+    });
+    const paidUntil =
+      account?.planExpiresAt && account.planExpiresAt.getTime() > now.getTime()
+        ? account.planExpiresAt
+        : now;
+    await this.prisma.subscriptionPayment.update({
+      where: { id: payment.id },
+      data: {
+        status: PaymentStatus.PAID,
+        refId,
+        paidAt: Number.isNaN(paidAt.getTime()) ? now : paidAt,
+        verifiedAt: now,
+        failureReason: null,
+      },
+    });
+    await this.grantStoredBusinessPackages(payment.businessPackages, paidUntil);
+    await this.notifications.notify({
+      userId: payment.userId,
+      type: NotificationType.SUCCESS,
+      title: 'بسته مدیریت کسب‌وکار فعال شد',
+      body: `«بسته مدیریت کسب‌وکار» برای کسب‌وکارهای انتخابی تا پایان اشتراک فعلی (${paidUntil.toLocaleDateString('fa-IR')}) فعال شد؛ پس از آن اطلاعات باقی می‌ماند و فقط کنترل آن متوقف می‌شود.`,
+      link: '/dashboard/business',
+    });
+    await this.notifications.notifyAdmins({
+      category: 'SUBSCRIPTION',
+      scope: 'SUBSCRIPTION',
+      title: 'خرید افزودنی مدیریت کسب‌وکار',
+      body: `${payment.user?.fullName ?? payment.user?.email ?? 'کاربر'} «بسته مدیریت کسب‌وکار» را به مبلغ ${payment.amount.toLocaleString('fa-IR')} تومان برای دوره‌ی باقی‌مانده خریداری کرد.`,
+      type: NotificationType.SUCCESS,
+      link: '/jga4rm8j?section=subscriptions',
+      actorId: payment.userId,
+    });
+    await this.activity.log({
+      action: 'SUBSCRIPTION_PAID',
+      summary: `خرید افزودنی «بسته مدیریت کسب‌وکار» برای دوره‌ی باقی‌مانده`,
+      entityType: 'SUBSCRIPTION',
+      entityId: payment.id,
+    });
+    try {
+      await this.finance.recordSale({
+        sourceType: FINANCE_SOURCE_TYPES.SUBSCRIPTION,
+        sourceId: payment.id,
+        title: `افزودنی «بسته مدیریت کسب‌وکار»`,
+        amount: payment.amount,
+        paidAt: Number.isNaN(paidAt.getTime()) ? now : paidAt,
+        userId: payment.userId,
+        customerName: payment.user?.fullName ?? null,
+        customerEmail: payment.user?.email ?? null,
+        metadata: {
+          planId: payment.planId,
+          months: 0,
+          addonOnly: true,
+          refId,
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `invoice creation failed for add-on payment ${payment.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+    return { subscriptionId: null, pendingActivation: false, addonOnly: true };
   }
 
   /** Persian label for a billable term, used in invoices and notifications. */

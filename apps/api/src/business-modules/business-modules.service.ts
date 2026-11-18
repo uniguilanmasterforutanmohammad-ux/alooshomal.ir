@@ -14,7 +14,7 @@ import { randomBytes } from 'node:crypto';
 
 import { ActivityService } from '../activity/activity.service';
 import { paypingReturnBaseUrl } from '../common/app-url';
-import { addMonths } from '../common/plans';
+import { addMonths, isFreePlan } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
@@ -1039,6 +1039,12 @@ export class BusinessModulesService implements OnModuleInit {
    */
   async listManagements(userId: string): Promise<ManagementPackageView[]> {
     await this.ensureManagementsLoaded();
+    // The free plan cannot buy a «مدیریت کسب‌وکار»; it only gets the limited
+    // card/biolink of the base plan. Returning no package hides every purchase
+    // button instead of letting the buyer hit a wall at the gateway.
+    if (isFreePlan(await this.subscriptions.limitsForUser(userId))) {
+      return [];
+    }
     const workspace = await this.ensureWorkspace(userId);
     const prices = await this.prisma.businessModulePrice.findMany();
     const priceByKey = new Map(prices.map((row) => [row.moduleKey, row]));
@@ -1158,6 +1164,13 @@ export class BusinessModulesService implements OnModuleInit {
     returnTo?: string,
   ) {
     await this.ensureManagementsLoaded();
+    // Guard the purchase itself too: a free-plan user can never buy the add-on
+    // even if the client posts straight to this route.
+    if (isFreePlan(await this.subscriptions.limitsForUser(userId))) {
+      throw new ForbiddenException(
+        'اشتراک رایگان امکان خرید «بسته مدیریت کسب‌وکار» را ندارد؛ ابتدا به اکو یا پلاس ارتقا دهید.',
+      );
+    }
     const industry = this.management(packageKey);
     if (!industry) {
       throw new BadRequestException('مدیریت کسب‌وکار انتخاب‌شده معتبر نیست');

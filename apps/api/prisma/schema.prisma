@@ -1381,6 +1381,14 @@ model SubscriptionPlan {
   paypingProductCode3Months  String? @unique
   paypingProductCode6Months  String? @unique
   paypingProductCode12Months String? @unique
+  /// Same four products for the «+ بسته مدیریت کسب‌وکار» bundle, i.e. the
+  /// subscription term plus one business management package. Together with the
+  /// four codes above they make the 16 sellable products (2 plans × 4 terms ×
+  /// with/without package).
+  paypingProductCodeWithPackage           String? @unique
+  paypingProductCodeWithPackage3Months    String? @unique
+  paypingProductCodeWithPackage6Months    String? @unique
+  paypingProductCodeWithPackage12Months   String? @unique
   payments           SubscriptionPayment[]
 
   @@index([isActive, sortOrder])
@@ -1425,6 +1433,16 @@ model SubscriptionPayment {
   planId        String
   /// Amount in Toman, snapshotted from the plan at checkout time.
   amount        Int
+  /// Part of `amount` that buys the «بسته مدیریت کسب‌وکار» add-on (0 when the
+  /// subscription is bought on its own).
+  businessAmount Int          @default(0)
+  /// True when this checkout also buys one or more business management
+  /// packages (the add-on).
+  withBusinessPackage Boolean @default(false)
+  /// The add-on packages bought with this payment: a list of
+  /// `{ workspaceId, packageKey, label, amount, months, paidUntil }` entries —
+  /// one per business (Plus may buy the management for up to three).
+  businessPackages Json?
   /// Purchased term length in months (1 = monthly; 3/6/12 = discounted terms).
   months        Int           @default(1)
   status        PaymentStatus @default(PENDING)

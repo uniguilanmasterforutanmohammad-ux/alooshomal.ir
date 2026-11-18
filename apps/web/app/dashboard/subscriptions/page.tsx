@@ -7,6 +7,7 @@ import { BadgeCheck, Check, Crown, Sparkles } from 'lucide-react';
 import {
   api,
   type MySubscriptions,
+  type SubscriptionAddonQuote,
   type SubscriptionCheckout,
   type SubscriptionPayment,
   type SubscriptionPlan,
@@ -59,6 +60,20 @@ export default function SubscriptionsPage() {
   const [months, setMonths] = useState<PlanPeriodMonths>(1);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // «بسته مدیریت کسب‌وکار» add-on: which businesses are added to the cart for
+  // each plan, plus the server-side prorated quote that drives the amounts.
+  const [quotes, setQuotes] = useState<Record<string, SubscriptionAddonQuote>>(
+    {},
+  );
+  const [addonSelection, setAddonSelection] = useState<
+    Record<string, string[]>
+  >({});
+  // Mid-term add-on (no new term): which businesses get the management until
+  // the current subscription ends.
+  const [midtermQuote, setMidtermQuote] =
+    useState<SubscriptionAddonQuote | null>(null);
+  const [midtermSelection, setMidtermSelection] = useState<string[]>([]);
+  const [addonBusy, setAddonBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -83,6 +98,65 @@ export default function SubscriptionsPage() {
     }
     void load();
   }, [hydrated, token, router, load]);
+
+  // Refresh the «بسته مدیریت کسب‌وکار» quote for every paid plan whenever the
+  // term changes, so the cart always shows the exact prorated amount and the
+  // shared expiry date before the buyer reaches the gateway.
+  useEffect(() => {
+    if (!hydrated || !token || plans.length === 0) return;
+    let alive = true;
+    void (async () => {
+      const paid = plans.filter((plan) => !isFreePlan(plan));
+      const fetched = await Promise.all(
+        paid.map(async (plan) => {
+          try {
+            const quote = await api.get<SubscriptionAddonQuote>(
+              `/subscriptions/plans/${plan.id}/addon-quote?months=${months}`,
+            );
+            return [plan.id, quote] as const;
+          } catch {
+            return [plan.id, null] as const;
+          }
+        }),
+      );
+      if (!alive) return;
+      const next: Record<string, SubscriptionAddonQuote> = {};
+      for (const [id, quote] of fetched) {
+        if (quote) next[id] = quote;
+      }
+      setQuotes(next);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [hydrated, token, plans, months]);
+
+  // Quote for the mid-term add-on of the plan the user is already on: priced
+  // for the days left and expiring with the current subscription.
+  const currentPlanId = mine?.plan?.id ?? null;
+  const currentPlanPaid = Boolean(
+    mine?.plan && !isFreePlan(mine.plan) && currentPlanId,
+  );
+  useEffect(() => {
+    if (!hydrated || !token || !currentPlanId || !currentPlanPaid) {
+      setMidtermQuote(null);
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      try {
+        const quote = await api.get<SubscriptionAddonQuote>(
+          `/subscriptions/plans/${currentPlanId}/addon-quote?months=0`,
+        );
+        if (alive) setMidtermQuote(quote);
+      } catch {
+        if (alive) setMidtermQuote(null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [hydrated, token, currentPlanId, currentPlanPaid, mine?.planExpiresAt]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -120,11 +194,22 @@ export default function SubscriptionsPage() {
     try {
       // The free plan always runs on a monthly term.
       const planMonths = isFreePlan(plan) ? 1 : months;
-      const amount = planPriceForMonths(plan, planMonths);
+      const quote = quotes[plan.id];
+      const workspaceIds = isFreePlan(plan)
+        ? []
+        : (addonSelection[plan.id] ?? []);
+      const addonTotal = workspaceIds.reduce(
+        (sum, id) =>
+          sum +
+          (quote?.workspaces.find((item) => item.workspaceId === id)?.amount ??
+            0),
+        0,
+      );
+      const amount = planPriceForMonths(plan, planMonths) + addonTotal;
       if (amount >= 1000) {
         const checkout = await api.post<SubscriptionCheckout>(
           `/subscriptions/${plan.id}/checkout`,
-          { months: planMonths },
+          { months: planMonths, workspaceIds },
         );
         if (checkout?.wallet) {
           setMessage(
@@ -173,8 +258,60 @@ export default function SubscriptionsPage() {
     }
   }
 
-  const currentPlanId = mine?.plan?.id ?? null;
+  /** Buy the management add-on for the rest of the running term. */
+  async function startAddon() {
+    if (midtermSelection.length === 0) return;
+    setAddonBusy(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const checkout = await api.post<SubscriptionCheckout>(
+        '/subscriptions/addon/checkout',
+        {
+          workspaceIds: midtermSelection,
+          returnTo: '/dashboard/subscriptions',
+        },
+      );
+      if (checkout?.wallet) {
+        setMessage(
+          'هزینه‌ی افزودنی به کیف پول شما اضافه شد و بسته فعال شد.',
+        );
+        await load();
+        return;
+      }
+      if (!checkout?.url) {
+        throw new Error('لینک پرداخت از درگاه دریافت نشد');
+      }
+      window.location.href = checkout.url;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'شروع پرداخت ناموفق بود');
+    } finally {
+      setAddonBusy(false);
+    }
+  }
+
+  /** Add/remove one business from a plan's «بسته مدیریت کسب‌وکار» cart. */
+  function toggleAddonWorkspace(
+    planId: string,
+    workspaceId: string,
+    maxBusinesses: number,
+  ) {
+    setAddonSelection((prev) => {
+      const current = prev[planId] ?? [];
+      if (current.includes(workspaceId)) {
+        return { ...prev, [planId]: current.filter((id) => id !== workspaceId) };
+      }
+      if (current.length >= maxBusinesses) return prev;
+      return { ...prev, [planId]: [...current, workspaceId] };
+    });
+  }
+
   const currentSortOrder = mine?.plan?.sortOrder ?? 0;
+  const midtermTotal = (midtermQuote?.workspaces ?? []).reduce(
+    (sum, item) =>
+      midtermSelection.includes(item.workspaceId) ? sum + item.amount : sum,
+    0,
+  );
   // The active term length of the current plan. A subscription is only
   // "current" when both the plan *and* the purchased term match, so buying
   // «اکو سه‌ماهه» while «اکو یک‌ماهه» is active still shows the normal
@@ -272,6 +409,81 @@ export default function SubscriptionsPage() {
         </div>
       ) : null}
 
+      {midtermQuote?.allowed && midtermQuote.workspaces.length > 0 ? (
+        <div className="indeed-panel p-4">
+          <h3 className="text-sm font-extrabold text-ink">
+            افزودن «بسته مدیریت کسب‌وکار» به دوره‌ی فعلی
+          </h3>
+          <p className="mt-1 text-xs leading-6 text-muted">
+            بدون خرید دوره‌ی جدید؛ مبلغ بر اساس روزهای باقی‌مانده تا{' '}
+            {faDateTime(midtermQuote.expiresAt)} محاسبه می‌شود و مدیریت دقیقاً با
+            اشتراک فعلی شما منقضی می‌شود. تاریخ دقیق انقضا پیش از پرداخت همین
+            است.
+          </p>
+          <div className="mt-3 flex flex-col gap-1.5">
+            {midtermQuote.workspaces.map((item) => {
+              const checked = midtermSelection.includes(item.workspaceId);
+              return (
+                <label
+                  key={item.workspaceId}
+                  className={cn(
+                    'flex cursor-pointer items-start gap-2 rounded-md border px-2 py-1.5 text-xs',
+                    checked
+                      ? 'border-brand bg-brand-light/50'
+                      : 'border-transparent hover:border-brand/40',
+                    !item.available && 'cursor-not-allowed opacity-50',
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={checked}
+                    disabled={!item.available}
+                    onChange={() =>
+                      setMidtermSelection((prev) =>
+                        checked
+                          ? prev.filter((id) => id !== item.workspaceId)
+                          : prev.length >= midtermQuote.maxBusinesses
+                            ? prev
+                            : [...prev, item.workspaceId],
+                      )
+                    }
+                  />
+                  <span className="flex-1">
+                    <span className="font-bold text-ink">{item.name}</span>
+                    <span className="text-muted"> · {item.industryLabel}</span>
+                    {item.currentPaidUntil ? (
+                      <span className="block text-[10px] text-emerald-700">
+                        تمدید مدیریت فعلی تا{' '}
+                        {faDateTime(item.currentPaidUntil)}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="shrink-0 font-bold text-brand">
+                    {item.available ? faPrice(item.amount) : 'بدون تعرفه'}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs font-bold text-ink">
+              جمع افزودنی: {faPrice(midtermTotal)}
+            </span>
+            <button
+              type="button"
+              onClick={() => void startAddon()}
+              disabled={addonBusy || midtermSelection.length === 0}
+              className="indeed-btn indeed-btn-primary py-2 text-xs disabled:opacity-60"
+            >
+              {addonBusy
+                ? 'در حال انتقال به درگاه...'
+                : 'پرداخت و فعال‌سازی افزودنی'}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {pendingActivations.length > 0 ? (
         <div className="flex flex-col gap-3">
           {pendingActivations.map((request) => (
@@ -323,6 +535,18 @@ export default function SubscriptionsPage() {
           const amount = planPriceForMonths(plan, free ? 1 : months);
           const discount = free ? 0 : planDiscountPercent(plan, months);
           const busy = busyPlanId === plan.id;
+          const quote = free ? undefined : quotes[plan.id];
+          const selectedWorkspaces = free
+            ? []
+            : (addonSelection[plan.id] ?? []);
+          const addonTotal = selectedWorkspaces.reduce(
+            (sum, id) =>
+              sum +
+              (quote?.workspaces.find((item) => item.workspaceId === id)
+                ?.amount ?? 0),
+            0,
+          );
+          const totalAmount = amount + addonTotal;
           return (
             <div
               key={plan.id}
@@ -347,7 +571,7 @@ export default function SubscriptionsPage() {
               ) : null}
 
               <p className="mt-3 text-2xl font-extrabold text-brand">
-                {faPrice(amount)}
+                {faPrice(totalAmount)}
               </p>
               {!free && months > 1 && plan.price > 0 ? (
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
@@ -365,6 +589,89 @@ export default function SubscriptionsPage() {
                 <p className="mt-1 text-xs text-muted">
                   دوره‌ی ماهانه؛ تمدید خودکار
                 </p>
+              ) : null}
+
+              {free ? (
+                <p className="mt-3 rounded-lg border border-dashed border-[var(--vintage-border)] p-3 text-xs text-muted">
+                  برای خرید «بسته مدیریت کسب‌وکار» ابتدا به اکو یا پلاس ارتقا
+                  دهید؛ اشتراک رایگان این افزودنی را نمی‌پذیرد.
+                </p>
+              ) : quote && quote.workspaces.length > 0 ? (
+                <div className="mt-3 rounded-lg border border-dashed border-[var(--vintage-border)] p-3">
+                  <p className="text-xs font-bold text-ink">
+                    افزودن «بسته مدیریت کسب‌وکار» (روزشمار، تا{' '}
+                    {faDateTime(quote.expiresAt)})
+                  </p>
+                  <p className="mt-1 text-[11px] leading-5 text-muted">
+                    مدیریت برای مدت باقی‌مانده‌ی همین دوره محاسبه می‌شود و با
+                    اشتراک منقضی می‌گردد؛ اطلاعات پس از انقضا باقی می‌ماند و
+                    فقط کنترل آن متوقف می‌شود.
+                  </p>
+                  <div className="mt-2 flex flex-col gap-1.5">
+                    {quote.workspaces.map((item) => {
+                      const checked = selectedWorkspaces.includes(
+                        item.workspaceId,
+                      );
+                      return (
+                        <label
+                          key={item.workspaceId}
+                          className={cn(
+                            'flex cursor-pointer items-start gap-2 rounded-md border px-2 py-1.5 text-xs',
+                            checked
+                              ? 'border-brand bg-brand-light/50'
+                              : 'border-transparent hover:border-brand/40',
+                            !item.available && 'cursor-not-allowed opacity-50',
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            className="mt-0.5"
+                            checked={checked}
+                            disabled={!item.available}
+                            onChange={() =>
+                              toggleAddonWorkspace(
+                                plan.id,
+                                item.workspaceId,
+                                quote.maxBusinesses,
+                              )
+                            }
+                          />
+                          <span className="flex-1">
+                            <span className="font-bold text-ink">
+                              {item.name}
+                            </span>
+                            <span className="text-muted">
+                              {' '}
+                              · {item.industryLabel}
+                            </span>
+                            {item.currentPaidUntil ? (
+                              <span className="block text-[10px] text-emerald-700">
+                                تمدید مدیریت فعلی تا{' '}
+                                {faDateTime(item.currentPaidUntil)}
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="shrink-0 font-bold text-brand">
+                            {item.available
+                              ? faPrice(item.amount)
+                              : 'بدون تعرفه'}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  {selectedWorkspaces.length > 0 ? (
+                    <p className="mt-2 text-[11px] font-bold text-ink">
+                      جمع افزودنی:{' '}
+                      {faPrice(addonTotal)} برای {selectedWorkspaces.length}{' '}
+                      کسب‌وکار
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-[11px] text-muted">
+                      بدون انتخاب، فقط اشتراک {plan.name} خریداری می‌شود.
+                    </p>
+                  )}
+                </div>
               ) : null}
 
               <ul className="mt-4 flex flex-1 flex-col gap-2 text-sm">
@@ -396,10 +703,10 @@ export default function SubscriptionsPage() {
                     : isPending
                       ? 'در انتظار تأیید مدیر'
                       : busy
-                        ? amount >= 1000
+                        ? totalAmount >= 1000
                           ? 'در حال انتقال به درگاه...'
                           : 'در حال ثبت...'
-                        : amount >= 1000
+                        : totalAmount >= 1000
                           ? 'پرداخت و فعال‌سازی'
                           : 'درخواست اشتراک'}
               </button>
