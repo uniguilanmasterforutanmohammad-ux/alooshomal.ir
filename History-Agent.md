@@ -20,7 +20,44 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.42.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.43.0**.
+
+## ۱۴۰۵/۰۸/۲۸ — کتابخانه‌ی ماژول‌ها در مراحل «شروع آسان» — نسخه `v4.43.0`
+
+**هدف:** مدیر بتواند هر ماژول/محصول را از پنل «شروع آسان» انتخاب کند و آن را
+به‌عنوان یک مرحله در ویزارد قرار دهد: سرویس‌های zohal و api.ir، هر اشتراک، هر
+بسته‌ی مدیریت کسب‌وکار، بیولینک و کارت ویزیت.
+
+**تغییرات:**
+- `apps/api/src/onboarding/onboarding.constants.ts`: افزودن نوع مرحله‌ی
+  `module`، قرار دادن آن در مراحل دستی و فیلد `moduleKey` روی تعریف مرحله.
+- `apps/api/src/onboarding/dto/onboarding.dto.ts`: فیلد اختیاری `moduleKey`.
+- `apps/api/src/onboarding/onboarding.service.ts`: متد `getModuleCatalog`
+  (ساخت کتابخانه از zohal، api.ir، اشتراک‌ها، بسته‌های مدیریت، بیولینک و کارت
+  ویزیت)، اعتبارسنجی `moduleKey` در `setSteps`، حفظ آن در `sanitize` و
+  راهنمای مرحله‌ی `module`.
+- `apps/api/src/onboarding/onboarding.controller.ts`: مسیر
+  `GET /admin/onboarding/modules` با `@ApiOperation`.
+- `apps/api/src/onboarding/onboarding.module.ts`: افزودن `ApiIrModule` و
+  `ZohalModule`.
+- `apps/web/components/admin/AdminOnboardingSteps.tsx`: پنل «کتابخانه‌ی
+  ماژول‌ها و محصولات» با جستجو و دکمه‌ی افزودن، انتخاب ماژول برای مرحله‌ی
+  `module` و ارسال `moduleKey` هنگام ذخیره.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: نمایش مرحله‌ی ماژول با
+  کارت معرفی و دکمه‌ی رفتن به بخش مربوطه + تیک دستی کاربر.
+- `docs/API.md`: ثبت مسیر کتابخانه و توضیح `moduleKey`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api ./node_modules/.bin/tsc --noEmit --incremental false -p tsconfig.json` → exit 0.
+- `./apps/web/node_modules/.bin/tsc --noEmit -p apps/web/tsconfig.json` → exit 0.
+- `python3 scripts/check_modules.py` و `python3 scripts/check_api_docs.py` → exit 0.
+- `python3 scripts/sync_install.py` و سپس `--check` → exit 0.
+- `GET /admin/onboarding/modules` → ۱۱۱ آیتم (۳۵ zohal، ۶۶ api.ir، ۳ اشتراک،
+  ۵ بسته‌ی مدیریت، بیولینک و کارت ویزیت).
+- `PUT /admin/onboarding/steps` با یک مرحله‌ی `module` و `moduleKey` معتبر →
+  ذخیره شد و `/onboarding/me` آن را با راهنمای «در انتظار انجام این ماژول»
+  برگرداند؛ تیک و برداشتن تیک دستی هم کار کرد. `moduleKey` نامعتبر → ۴۰۰.
+  پیکربندی مراحل پس از تست به حالت اول برگردانده شد.
 
 ## ۱۴۰۵/۰۸/۲۸ — همگام‌سازی هر سرویس api.ir با محصول پی‌پینگ — نسخه `v4.42.0`
 

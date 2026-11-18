@@ -7,6 +7,7 @@ import {
 import { BiolinkStatus, PaymentStatus, Prisma } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
+import { ApiIrService } from '../apiir/apiir.service';
 import { BusinessModulesService } from '../business-modules/business-modules.service';
 import { industryKeyForCategoryName } from '../business-modules/business-modules.registry';
 import { isFreePlan } from '../common/plans';
@@ -14,6 +15,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { ProfileService } from '../profile/profile.service';
 import { SettingsService } from '../settings/settings.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { ZohalService } from '../zohal/zohal.service';
 import {
   DEFAULT_ONBOARDING_STEPS,
   MANUAL_STEP_KINDS,
@@ -41,6 +43,20 @@ const BUILT_IN_KINDS = new Set<OnboardingStepKind>(
 /** The kinds the user ticks off manually (welcome + admin-added steps). */
 const MANUAL_KINDS = new Set<OnboardingStepKind>(MANUAL_STEP_KINDS);
 
+/** One selectable module/product the admin can drop into a wizard step. */
+export interface OnboardingModuleOption {
+  /** stable key stored on the step (`plan:<id>`, `management:<key>`, …). */
+  key: string;
+  type: 'zohal' | 'apiir' | 'plan' | 'management' | 'biolink' | 'businessCard';
+  group: string;
+  label: string;
+  description: string;
+  href: string;
+  enabled: boolean;
+  /** Toman; 0 when the module is free or has no fixed price. */
+  price: number;
+}
+
 @Injectable()
 export class OnboardingService implements OnModuleInit {
   constructor(
@@ -50,6 +66,8 @@ export class OnboardingService implements OnModuleInit {
     private readonly modules: BusinessModulesService,
     private readonly subscriptions: SubscriptionsService,
     private readonly profile: ProfileService,
+    private readonly zohal: ZohalService,
+    private readonly apiir: ApiIrService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -267,11 +285,125 @@ export class OnboardingService implements OnModuleInit {
     return [...merged, ...customs];
   }
 
+  /**
+   * The library of modules/products the admin can place in a wizard step:
+   * Zohal and api.ir services, subscription plans, management packages and the
+   * two user-created assets (biolink / business card).
+   */
+  async getModuleCatalog(): Promise<{ items: OnboardingModuleOption[] }> {
+    const [zohal, apiir, plans, catalog] = await Promise.all([
+      this.zohal.listServices(),
+      this.apiir.listServices(),
+      this.subscriptions.listPlans(false),
+      this.modules.resolveCatalog(),
+    ]);
+    const items: OnboardingModuleOption[] = [];
+    for (const service of zohal.services) {
+      items.push({
+        key: `zohal:${service.key}`,
+        type: 'zohal',
+        group: 'zohal (استعلام هویت)',
+        label: service.label,
+        description: service.description,
+        href: '/dashboard/profile',
+        enabled: service.enabled,
+        price: service.price,
+      });
+    }
+    for (const service of apiir.services) {
+      items.push({
+        key: `apiir:${service.key}`,
+        type: 'apiir',
+        group: 'api.ir (استعلام)',
+        label: service.label,
+        description: service.description,
+        href: '/dashboard/profile',
+        enabled: service.enabled,
+        price: service.price,
+      });
+    }
+    for (const plan of plans) {
+      items.push({
+        key: `plan:${plan.id}`,
+        type: 'plan',
+        group: 'اشتراک‌ها',
+        label: `اشتراک ${plan.name}`,
+        description: plan.description ?? '',
+        href: '/dashboard/subscriptions',
+        enabled: plan.isActive,
+        price: plan.price,
+      });
+    }
+    const monthlyPrice = new Map<string, number>();
+    for (const row of catalog.prices) {
+      if (row.months === 1 && row.isActive) {
+        monthlyPrice.set(row.moduleKey, row.price);
+      }
+    }
+    for (const industry of catalog.industries) {
+      const price = industry.modules.reduce(
+        (sum, moduleKey) => sum + (monthlyPrice.get(moduleKey) ?? 0),
+        0,
+      );
+      items.push({
+        key: `management:${industry.key}`,
+        type: 'management',
+        group: 'مدیریت کسب‌وکار',
+        label: `مدیریت ${industry.label}`,
+        description: industry.description,
+        href: '/dashboard/subscriptions',
+        enabled: industry.available !== false,
+        price,
+      });
+    }
+    items.push(
+      {
+        key: 'biolink',
+        type: 'biolink',
+        group: 'ساخت و مدیریت',
+        label: 'بیولینک',
+        description: 'ساخت صفحه‌ی لینک اختصاصی کسب‌وکار.',
+        href: '/dashboard/biolinks',
+        enabled: true,
+        price: 0,
+      },
+      {
+        key: 'businessCard',
+        type: 'businessCard',
+        group: 'ساخت و مدیریت',
+        label: 'کارت ویزیت',
+        description: 'ساخت کارت ویزیت دیجیتال کسب‌وکار.',
+        href: '/dashboard/business-cards',
+        enabled: true,
+        price: 0,
+      },
+    );
+    return { items };
+  }
+
   /** Replace the step list (admin). Order of the array is the display order. */
   async setSteps(
     steps: OnboardingStepDto[],
     actorId?: string,
   ): Promise<OnboardingStepDef[]> {
+    const moduleSteps = steps.filter((step) => step.kind === 'module');
+    if (moduleSteps.length > 0) {
+      const catalog = await this.getModuleCatalog();
+      const validKeys = new Set(catalog.items.map((item) => item.key));
+      for (const step of moduleSteps) {
+        const key = (step.moduleKey ?? '').trim();
+        if (!key) {
+          throw new BadRequestException(
+            'برای مرحله‌ی ماژول، ماژول یا محصول موردنظر را انتخاب کنید.',
+          );
+        }
+        if (!validKeys.has(key)) {
+          throw new BadRequestException(
+            `ماژول انتخاب‌شده «${key}» در کتابخانه‌ی «شروع آسان» یافت نشد.`,
+          );
+        }
+      }
+    }
     const clean = this.sanitize(steps);
     if (clean.length === 0) {
       throw new BadRequestException('حداقل یک مرحله لازم است.');
@@ -901,6 +1033,8 @@ export class OnboardingService implements OnModuleInit {
         return 'در انتظار پرداخت نهایی';
       case 'approval':
         return 'در انتظار نتیجه استعلام';
+      case 'module':
+        return 'در انتظار انجام این ماژول';
       case 'welcome':
         return 'تکمیل نشده — برای شروع وارد شوید';
       default:
@@ -930,12 +1064,15 @@ export class OnboardingService implements OnModuleInit {
       if (seen.has(id)) continue;
       seen.add(id);
       const href = (step.href ?? '').trim();
+      const moduleKey = (step.moduleKey ?? '').trim();
+      if (step.kind === 'module' && !moduleKey) continue;
       result.push({
         id,
         kind: step.kind,
         title,
         description: (step.description ?? '').trim(),
         ...(href ? { href } : {}),
+        ...(step.kind === 'module' ? { moduleKey } : {}),
         enabled: step.enabled !== false,
         ...(step.optional === true ? { optional: true } : {}),
       });

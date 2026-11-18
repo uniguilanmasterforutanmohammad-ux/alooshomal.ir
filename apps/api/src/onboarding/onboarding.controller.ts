@@ -113,6 +113,15 @@ export class AdminOnboardingController {
     return { steps: await this.onboarding.getSteps() };
   }
 
+  @Get('modules')
+  @ApiOperation({
+    summary:
+      'کتابخانه‌ی ماژول‌ها و محصولات قابل قرار‌گرفتن در مراحل «شروع آسان» (zohal، api.ir، اشتراک‌ها، مدیریت کسب‌وکار، بیولینک و کارت ویزیت)',
+  })
+  modules() {
+    return this.onboarding.getModuleCatalog();
+  }
+
   @Put('steps')
   @ApiOperation({
     summary: 'ذخیره‌ی ترتیب/افزودن/حذف مراحل «شروع آسان»',

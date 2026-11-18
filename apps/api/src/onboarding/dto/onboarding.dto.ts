@@ -52,6 +52,16 @@ export class OnboardingStepDto {
   @MaxLength(300)
   href?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'برای مرحله‌ی ماژول: کلید ماژول/محصول از کتابخانه‌ی «شروع آسان» (مثل `plan:<id>`، `management:<key>`، `zohal:<key>`، `apiir:<key>`، `biolink` یا `businessCard`).',
+    example: 'plan:cmv3h20qk0001ow01nzajfpde',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  moduleKey?: string;
+
   @ApiProperty({ description: 'نمایش این مرحله به کاربران', default: true })
   @IsBoolean()
   enabled!: boolean;

@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ArrowRight,
   BadgeCheck,
+  Boxes,
   Building2,
   Check,
   ChevronDown,
@@ -61,6 +62,7 @@ type StepKind =
   | 'management'
   | 'invoice'
   | 'approval'
+  | 'module'
   | 'custom';
 
 interface OnboardingStep {
@@ -69,6 +71,7 @@ interface OnboardingStep {
   title: string;
   description: string;
   href?: string;
+  moduleKey?: string;
   enabled: boolean;
   optional?: boolean;
   done: boolean;
@@ -189,10 +192,11 @@ const STEP_ICON: Record<StepKind, typeof Sparkles> = {
   management: Building2,
   invoice: CreditCard,
   approval: Clock,
+  module: Boxes,
   custom: Sparkles,
 };
 
-const MANUAL_KINDS: StepKind[] = ['welcome', 'custom'];
+const MANUAL_KINDS: StepKind[] = ['welcome', 'module', 'custom'];
 
 function isManual(step: OnboardingStep): boolean {
   return MANUAL_KINDS.includes(step.kind);
@@ -1014,6 +1018,37 @@ export function OnboardingWizard() {
                 )}
                 {step.done ? 'ادامه' : 'شروع کنیم'}
               </button>
+            </div>
+          ) : null}
+
+          {step.kind === 'module' ? (
+            <div className="flex flex-col gap-3">
+              <div className="rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/60 p-4">
+                <p className="text-xs font-bold text-muted">ماژول این مرحله</p>
+                <p className="mt-1 text-sm font-bold text-ink">{step.title}</p>
+                {step.description ? (
+                  <p className="mt-1 text-xs leading-6 text-muted">
+                    {step.description}
+                  </p>
+                ) : null}
+                {step.moduleKey ? (
+                  <p className="mt-2 font-mono text-[10px] text-muted" dir="ltr">
+                    {step.moduleKey}
+                  </p>
+                ) : null}
+              </div>
+              {step.href ? (
+                <Link
+                  href={step.href}
+                  className="indeed-btn indeed-btn-primary w-fit py-2 text-xs"
+                >
+                  رفتن به این بخش
+                  <ArrowLeft className="size-4" aria-hidden />
+                </Link>
+              ) : null}
+              <p className="text-[11px] leading-6 text-muted">
+                پس از انجام این مورد، دکمه‌ی «این مرحله را انجام دادم» را بزنید.
+              </p>
             </div>
           ) : null}
 

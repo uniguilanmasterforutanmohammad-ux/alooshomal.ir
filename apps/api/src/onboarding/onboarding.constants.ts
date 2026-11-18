@@ -26,6 +26,7 @@ export type OnboardingStepKind =
   | 'management'
   | 'invoice'
   | 'approval'
+  | 'module'
   | 'custom';
 
 export const ONBOARDING_STEP_KINDS: OnboardingStepKind[] = [
@@ -38,6 +39,7 @@ export const ONBOARDING_STEP_KINDS: OnboardingStepKind[] = [
   'management',
   'invoice',
   'approval',
+  'module',
   'custom',
 ];
 
@@ -45,7 +47,11 @@ export const ONBOARDING_STEP_KINDS: OnboardingStepKind[] = [
  * Kinds whose completion is a manual tick by the user (no account data to
  * derive it from): the informational welcome screen and admin-added steps.
  */
-export const MANUAL_STEP_KINDS: OnboardingStepKind[] = ['welcome', 'custom'];
+export const MANUAL_STEP_KINDS: OnboardingStepKind[] = [
+  'welcome',
+  'module',
+  'custom',
+];
 
 export interface OnboardingStepDef {
   /** stable id; built-in steps use their `kind` as the id. */
@@ -55,6 +61,12 @@ export interface OnboardingStepDef {
   description: string;
   /** where the user continues this step (dashboard route). */
   href?: string;
+  /**
+   * For `kind: 'module'` steps: the catalog key of the module/product this
+   * step is bound to (`plan:<id>`, `management:<key>`, `zohal:<key>`,
+   * `apiir:<key>`, `biolink`, `businessCard`).
+   */
+  moduleKey?: string;
   /** disabled steps stay configured but are hidden from users. */
   enabled: boolean;
   /**
