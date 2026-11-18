@@ -195,6 +195,7 @@ export class BusinessModulesService implements OnModuleInit {
       await this.syncRegistryManagements();
       await this.alignRegistryManagements();
       await this.backfillPublicSlugs();
+      await this.backfillCardWorkspaceScopes();
       await this.reloadManagements();
     } catch {
       // The management tables may not exist yet on a very first boot.
@@ -310,6 +311,60 @@ export class BusinessModulesService implements OnModuleInit {
       await this.prisma.businessWorkspace.update({
         where: { id: row.id },
         data: { publicSlug: await this.uniquePublicSlug(row.name) },
+      });
+    }
+    await this.prisma.setting.create({
+      data: { key: marker, value: new Date().toISOString() },
+    });
+  }
+
+  /**
+   * One-time backfill for the workspace scoping added to business cards and
+   * biolinks: rows created before the column existed are attached to their
+   * owner's default workspace, so the panel keeps showing them.
+   */
+  private async backfillCardWorkspaceScopes(): Promise<void> {
+    const marker = 'cardWorkspaceScopeV1';
+    const done = await this.prisma.setting.findUnique({ where: { key: marker } });
+    if (done) return;
+    const select = { id: true, userId: true } as const;
+    const [cards, biolinks] = await Promise.all([
+      this.prisma.businessCard.findMany({ where: { workspaceId: null }, select }),
+      this.prisma.biolink.findMany({ where: { workspaceId: null }, select }),
+    ]);
+    const workspaceByOwner = new Map<string, string>();
+    for (const ownerId of new Set(
+      [...cards, ...biolinks].map((row) => row.userId),
+    )) {
+      try {
+        workspaceByOwner.set(ownerId, (await this.ensureWorkspace(ownerId)).id);
+      } catch {
+        // A user whose workspace cannot be resolved keeps a null scope.
+      }
+    }
+    const groupByOwner = (rows: typeof cards) => {
+      const grouped = new Map<string, string[]>();
+      for (const row of rows) {
+        const list = grouped.get(row.userId) ?? [];
+        list.push(row.id);
+        grouped.set(row.userId, list);
+      }
+      return grouped;
+    };
+    for (const [ownerId, ids] of groupByOwner(cards)) {
+      const workspaceId = workspaceByOwner.get(ownerId);
+      if (!workspaceId) continue;
+      await this.prisma.businessCard.updateMany({
+        where: { id: { in: ids } },
+        data: { workspaceId },
+      });
+    }
+    for (const [ownerId, ids] of groupByOwner(biolinks)) {
+      const workspaceId = workspaceByOwner.get(ownerId);
+      if (!workspaceId) continue;
+      await this.prisma.biolink.updateMany({
+        where: { id: { in: ids } },
+        data: { workspaceId },
       });
     }
     await this.prisma.setting.create({

@@ -9,6 +9,7 @@ import { BiolinkStatus, NotificationType } from '@prisma/client';
 
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { applyPlanMask, planLimitsFrom } from '../common/plans';
+import { BusinessModulesService } from '../business-modules/business-modules.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
 import { appUrl } from '../common/app-url';
@@ -35,6 +36,7 @@ export class BiolinksService {
     private readonly activity: ActivityService,
     private readonly facetsCache: FacetsCacheService,
     private readonly wallet: WalletService,
+    private readonly modules: BusinessModulesService,
   ) {}
 
   private async generateSlug(_fullName: string): Promise<string> {
@@ -120,12 +122,16 @@ export class BiolinksService {
       await this.assertLinkedBusinessCard(userId, businessCardId);
     }
     const slug = await this.generateSlug(dto.fullName);
+    // Scope the biolink to the business the owner is currently working in, so
+    // the panel's workspace switcher shows only that business's biolinks.
+    const workspaceId = await this.modules.getWorkspaceId(userId);
     const biolink = await this.prisma.biolink.create({
       data: {
         ...fields,
         businessCardId,
         slug,
         userId,
+        workspaceId,
         status: draft ? BiolinkStatus.DRAFT : BiolinkStatus.PENDING,
         isPublished: false,
       },
@@ -164,8 +170,9 @@ export class BiolinksService {
    * this to reopen a half-filled builder instead of starting blank.
    */
   async findLatestDraft(userId: string) {
+    const workspaceId = await this.modules.getWorkspaceId(userId);
     return this.prisma.biolink.findFirst({
-      where: { userId, status: BiolinkStatus.DRAFT },
+      where: { userId, workspaceId, status: BiolinkStatus.DRAFT },
       orderBy: { updatedAt: 'desc' },
       include: {
         city: true,
@@ -179,13 +186,21 @@ export class BiolinksService {
    * The signed-in user's biolinks, paginated. The page size is the admin
    * controlled `myListPageSize` setting; `page` is 1-based.
    */
-  async findMyBiolinks(userId: string, page = 1, limitOverride?: number) {
+  async findMyBiolinks(
+    userId: string,
+    page = 1,
+    limitOverride?: number,
+    allWorkspaces = false,
+  ) {
     const limit = limitOverride ?? (await this.settings.getMyListPageSize());
     const currentPage = Math.max(1, page);
+    const where = allWorkspaces
+      ? { userId }
+      : { userId, workspaceId: await this.modules.getWorkspaceId(userId) };
 
     const [biolinks, total] = await Promise.all([
       this.prisma.biolink.findMany({
-        where: { userId },
+        where,
         include: {
           city: true,
           business: true,
@@ -195,7 +210,7 @@ export class BiolinksService {
         skip: (currentPage - 1) * limit,
         take: limit,
       }),
-      this.prisma.biolink.count({ where: { userId } }),
+      this.prisma.biolink.count({ where }),
     ]);
 
     const targetIds = biolinks.map((item) => item.id);
@@ -277,8 +292,9 @@ export class BiolinksService {
    * biolinks are flagged as unselectable.
    */
   async linkableBusinessCards(userId: string, currentId?: string) {
+    const workspaceId = await this.modules.getWorkspaceId(userId);
     const rows = await this.prisma.businessCard.findMany({
-      where: { userId },
+      where: { userId, workspaceId },
       select: {
         id: true,
         slug: true,

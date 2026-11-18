@@ -8,6 +8,7 @@ import { BiolinkStatus, NotificationType } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
 import { OtpService } from '../auth/otp.service';
+import { BusinessModulesService } from '../business-modules/business-modules.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
@@ -51,6 +52,7 @@ export class BusinessCardClaimsService {
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
     private readonly settings: SettingsService,
+    private readonly modules: BusinessModulesService,
   ) {}
 
   private async assertEnabled(): Promise<void> {
@@ -362,10 +364,14 @@ export class BusinessCardClaimsService {
     },
     userId: string,
   ): Promise<void> {
+    // The claimed card must land in the new owner's own workspace, otherwise it
+    // would stay scoped to the importing account and never show in their panel.
+    const workspaceId = await this.modules.getWorkspaceId(userId);
     await this.prisma.businessCard.update({
       where: { id: card.id },
       data: {
         userId,
+        workspaceId,
         isUnclaimed: false,
         ...(card.isPublished
           ? {}

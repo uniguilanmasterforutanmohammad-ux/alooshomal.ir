@@ -65,8 +65,10 @@ export default function DashboardPage() {
   const load = useCallback(async () => {
     try {
       const [mine, cards, ticketSummary] = await Promise.all([
-        api.get<Paged<Biolink>>('/biolinks/mine'),
-        api.get<Paged<BusinessCard>>('/business-cards/mine'),
+        // `workspace=all`: the dashboard summary counts the user's items across
+        // every business, not only the workspace selected in the header.
+        api.get<Paged<Biolink>>('/biolinks/mine?workspace=all'),
+        api.get<Paged<BusinessCard>>('/business-cards/mine?workspace=all'),
         api.get<TicketSummary>('/tickets/mine/summary'),
       ]);
       setBiolinks(mine.items);

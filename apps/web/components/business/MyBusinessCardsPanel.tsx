@@ -53,6 +53,22 @@ export function MyBusinessCardsPanel({
     void load();
   }, [hydrated, token, router, load, nextPath]);
 
+  // The header workspace switcher only changes the id sent with each request;
+  // reload so the table never mixes two businesses. Needed on the standalone
+  // `/dashboard/cards` route too, which is outside the business-panel layout.
+  useEffect(() => {
+    function onWorkspaceChanged() {
+      setPage(1);
+      void load();
+    }
+    window.addEventListener('alooshomal:workspace-changed', onWorkspaceChanged);
+    return () =>
+      window.removeEventListener(
+        'alooshomal:workspace-changed',
+        onWorkspaceChanged,
+      );
+  }, [load]);
+
   async function remove(id: string, name: string) {
     if (!window.confirm(`آیا از حذف کارت ویزیت «${name}» مطمئن هستید؟ این کار بازگشت‌پذیر نیست.`)) {
       return;

@@ -989,12 +989,18 @@ model Biolink {
   /// Seeded by the admin bulk importer for load-testing; safe to delete en masse.
   isTestData Boolean @default(false)
 
+  /// The business workspace this biolink belongs to. The panel scopes the
+  /// owner's lists by the workspace selected in the header, so a user running
+  /// several businesses only sees that business's biolinks.
+  workspaceId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   city        City?           @relation(fields: [cityId], references: [id], onDelete: SetNull)
   business    BusinessCategory? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  workspace   BusinessWorkspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   businessCard BusinessCard?   @relation("BiolinkBusinessCard", fields: [businessCardId], references: [id], onDelete: SetNull)
   moderation  ModerationLog[]
   scanEvents  ScanEvent[]
@@ -1006,6 +1012,7 @@ model Biolink {
   @@index([slug])
   @@index([cityId])
   @@index([businessId])
+  @@index([workspaceId])
   @@index([status, isPublished])
   @@index([boostedUntil])
   @@index([pinnedAt])
@@ -1141,6 +1148,11 @@ model BusinessCard {
   /// claimed cards keep the link for history but are never deleted by rollback.
   importBatchId String?
 
+  /// The business workspace this card belongs to. The panel scopes the owner's
+  /// lists by the workspace selected in the header, so a user running several
+  /// businesses only sees that business's cards.
+  workspaceId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1148,6 +1160,7 @@ model BusinessCard {
   importBatch BusinessCardImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
   city        City?           @relation(fields: [cityId], references: [id], onDelete: SetNull)
   business    BusinessCategory? @relation(fields: [businessId], references: [id], onDelete: SetNull)
+  workspace   BusinessWorkspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
   linkedBiolinks Biolink[]    @relation("BiolinkBusinessCard")
   scans       BusinessCardScanEvent[]
   likes       BusinessCardLike[]
@@ -1160,6 +1173,7 @@ model BusinessCard {
   @@index([slug])
   @@index([cityId])
   @@index([businessId])
+  @@index([workspaceId])
   @@index([status, isPublished])
   @@index([boostedUntil])
   @@index([pinnedAt])
@@ -1957,6 +1971,8 @@ model BusinessWorkspace {
   stockMovements  RetailStockMovement[]
   cardAccount     CardToCardAccount?
   cardPayments    CardToCardPayment[]
+  businessCards   BusinessCard[]
+  biolinks        Biolink[]
 
   @@index([ownerId])
   @@index([industryKey])

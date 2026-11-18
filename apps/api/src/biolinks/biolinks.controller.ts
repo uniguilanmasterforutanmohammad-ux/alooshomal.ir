@@ -20,6 +20,7 @@ import { BusinessModuleGuard } from '../business-modules/business-module.guard';
 import { RequireModule } from '../business-modules/require-module.decorator';
 import { OptionalAuth } from '../common/decorators/optional-auth.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { MineQueryDto } from '../common/dto/mine-query.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { ProfileCompleteGuard } from '../common/guards/profile-complete.guard';
 import { RequirePermission } from '../auth/permissions.decorator';
@@ -53,9 +54,17 @@ export class BiolinksController {
 
   @Get('mine')
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'بیولینک‌های من (صفحه‌بندی‌شده)' })
-  mine(@CurrentUser() user: AuthUser, @Query() query: PaginationDto) {
-    return this.biolinksService.findMyBiolinks(user.id, query.page, query.limit);
+  @ApiOperation({
+    summary:
+      'بیولینک‌های من (صفحه‌بندی‌شده) — محدود به کسب‌وکار فعال؛ با workspace=all همه‌ی کسب‌وکارها',
+  })
+  mine(@CurrentUser() user: AuthUser, @Query() query: MineQueryDto) {
+    return this.biolinksService.findMyBiolinks(
+      user.id,
+      query.page,
+      query.limit,
+      query.workspace === 'all',
+    );
   }
 
   @Get('mine/draft')
