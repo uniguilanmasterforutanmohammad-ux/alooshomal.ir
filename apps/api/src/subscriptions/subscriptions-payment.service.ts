@@ -28,13 +28,13 @@ import {
 } from '../common/plans';
 import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
 import { FinanceService } from '../finance/finance.service';
-import { BusinessPackageService } from '../business-modules/business-package.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { WalletService } from '../wallet/wallet.service';
+import { BusinessPackageService } from './business-package.service';
 
 /**
  * Online subscription payment: PayPing checkout, the payment callback and

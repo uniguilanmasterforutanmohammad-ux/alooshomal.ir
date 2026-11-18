@@ -20,7 +20,31 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.37.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.37.1**.
+
+## ۱۴۰۵/۰۸/۲۷ — رفع خطای ساختار ماژولار در استقرار — نسخه `v4.37.1`
+
+**هدف:** رفع خطای `check_modules.py` در استقرار که به‌دلیل وجود دو فایل
+`*.module.ts` در پوشه‌ی `business-modules` رخ می‌داد و CI را متوقف می‌کرد.
+
+**تغییرات:**
+- `apps/api/src/subscriptions/business-package.service.ts`: انتقال سرویس
+  قیمت‌گذاری/فعال‌سازی بسته‌ی مدیریت کسب‌وکار از پوشه‌ی `business-modules` به
+  پوشه‌ی `subscriptions` (تنها مصرف‌کننده‌ی آن) و اصلاح مسیر import رجیستری.
+- `apps/api/src/business-modules/business-package.module.ts`: حذف؛ دیگر ماژول
+  جداگانه‌ای لازم نیست و پوشه‌ی `business-modules` دوباره دقیقاً یک ماژول دارد.
+- `apps/api/src/subscriptions/subscriptions.module.ts`: ثبت `BusinessPackageService`
+  در `providers` به‌جای import کردن `BusinessPackageModule`.
+- `apps/api/src/subscriptions/subscriptions.service.ts` و
+  `apps/api/src/subscriptions/subscriptions-payment.service.ts`: اصلاح مسیر
+  import سرویس منتقل‌شده.
+
+**تأیید/تست:**
+- `python3 scripts/check_modules.py` → exit 0 و پیام «ساختار ماژولار و رجیستری
+  ویژگی‌ها درست است».
+- `tsc --noEmit` روی `apps/api` اجرا شد؛ خطاهای باقی‌مانده همگی مربوط به
+  Prisma Client قدیمی/تولیدنشده در محیط محلی بودند و هیچ خطای import یا
+  مسیردهی در فایل‌های تغییریافته گزارش نشد.
 
 ## ۱۴۰۵/۰۸/۲۷ — ادغام اشتراک اصلی و «بسته مدیریت کسب‌وکار» — نسخه `v4.37.0`
 

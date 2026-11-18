@@ -26,8 +26,8 @@ import {
 } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
-import { BusinessPackageService } from '../business-modules/business-package.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { BusinessPackageService } from './business-package.service';
 import { SubscriptionsPaymentService } from './subscriptions-payment.service';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { DecideSubscriptionDto } from './dto/decide-subscription.dto';

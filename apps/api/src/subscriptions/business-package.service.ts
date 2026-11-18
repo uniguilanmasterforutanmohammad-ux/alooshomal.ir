@@ -1,7 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
-import { getBusinessModule, withDependencies } from './business-modules.registry';
+import {
+  getBusinessModule,
+  withDependencies,
+} from '../business-modules/business-modules.registry';
 
 export interface BusinessPackageTerm {
   months: 1 | 3 | 6 | 12;
