@@ -3,6 +3,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
   Injectable,
   NotFoundException,
   OnModuleInit,
@@ -1345,20 +1346,68 @@ export class BusinessModulesService implements OnModuleInit {
     if (!params.refId || !purchase.paymentCode) {
       return { redirectUrl: `${base}?purchase=failed` };
     }
+    const paymentRefId = Number(params.refId);
+    if (!Number.isFinite(paymentRefId)) {
+      return { redirectUrl: `${base}?purchase=failed` };
+    }
+    type VerifyResult = {
+      amount?: number;
+      clientRefId?: string;
+      paymentRefId?: number;
+      payedDate?: string;
+    };
+    let verified: VerifyResult | null = null;
+    let alreadyVerified = false;
     try {
       if (this.simulator.handles(purchase.paymentCode)) {
-        this.simulator.verifyPayment({
+        verified = this.simulator.verifyPayment({
           paymentCode: purchase.paymentCode,
           amount: purchase.amount,
           clientRefId: purchase.clientRefId,
         });
       } else {
-        await this.payping.verifyPayment({
+        // PayPing's `/v3/pay/verify` expects `paymentRefId` (number) plus the
+        // original `amount`; sending `refId` or omitting the amount is rejected
+        // and used to fail the purchase even though the bank had charged it.
+        verified = (await this.payping.verifyPayment({
+          paymentRefId,
           paymentCode: purchase.paymentCode,
-          refId: params.refId,
-        });
+          amount: purchase.amount,
+        })) as VerifyResult;
       }
-    } catch {
+    } catch (error) {
+      const current = await this.prisma.businessModulePurchase.findUnique({
+        where: { id: purchase.id },
+      });
+      if (current?.status === 'PAID') {
+        return { redirectUrl: `${base}?purchase=success` };
+      }
+      const upstreamStatus = (error as { paypingStatus?: number }).paypingStatus;
+      const status =
+        upstreamStatus ??
+        (error instanceof HttpException ? error.getStatus() : 500);
+      if (status === 409) {
+        // PayPing code 110: the transaction is already verified (e.g. a
+        // duplicated callback). Continue and activate instead of failing.
+        alreadyVerified = true;
+      } else if (status >= 500) {
+        // Verification is still processing upstream; keep the purchase open so
+        // a later callback can finish it.
+        return { redirectUrl: `${base}?purchase=pending` };
+      } else {
+        await this.prisma.businessModulePurchase.update({
+          where: { id: purchase.id },
+          data: { status: 'FAILED' },
+        });
+        return { redirectUrl: `${base}?purchase=failed` };
+      }
+    }
+    if (
+      !alreadyVerified &&
+      verified &&
+      typeof verified.amount === 'number' &&
+      verified.amount !== purchase.amount
+    ) {
       await this.prisma.businessModulePurchase.update({
         where: { id: purchase.id },
         data: { status: 'FAILED' },

@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -690,6 +691,10 @@ export class AccommodationsService {
     if (!params.refId || !booking.depositPaymentCode) {
       return { redirectUrl: `${base}?deposit=failed` };
     }
+    const paymentRefId = Number(params.refId);
+    if (!Number.isFinite(paymentRefId)) {
+      return { redirectUrl: `${base}?deposit=failed` };
+    }
     try {
       if (this.simulator.handles(booking.depositPaymentCode)) {
         this.simulator.verifyPayment({
@@ -698,13 +703,23 @@ export class AccommodationsService {
           clientRefId: booking.depositClientRefId,
         });
       } else {
+        // PayPing's `/v3/pay/verify` requires `paymentRefId` and the original
+        // `amount`; `refId` alone is rejected and failed a paid deposit.
         await this.payping.verifyPayment({
+          paymentRefId,
           paymentCode: booking.depositPaymentCode,
-          refId: params.refId,
+          amount: booking.depositAmount,
         });
       }
-    } catch {
-      return { redirectUrl: `${base}?deposit=failed` };
+    } catch (error) {
+      const upstreamStatus = (error as { paypingStatus?: number }).paypingStatus;
+      const status =
+        upstreamStatus ??
+        (error instanceof HttpException ? error.getStatus() : 500);
+      // 409 = PayPing code 110 (already verified): treat as paid.
+      if (status !== 409) {
+        return { redirectUrl: `${base}?deposit=failed` };
+      }
     }
     await this.prisma.accommodationBookingRequest.update({
       where: { id: booking.id },

@@ -71,6 +71,10 @@ function BusinessPanelContent() {
       void reload();
     } else if (purchase === 'failed') {
       toast.error('پرداخت انجام نشد یا لغو شد');
+    } else if (purchase === 'pending') {
+      toast.info(
+        'تأیید پرداخت در حال پردازش است؛ چند لحظه بعد صفحه را دوباره باز کنید.',
+      );
     }
   }, [searchParams, reload]);
 
