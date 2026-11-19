@@ -173,6 +173,8 @@ const MANAGEMENT_PAYPING_SETTING_PREFIX = 'businessManagementPayping:';
 export class BusinessModulesService implements OnModuleInit {
   private readonly logger = new Logger(BusinessModulesService.name);
   private managementCache: ManagementDefinition[] = [];
+  /** Serialises lazy workspace creation per owner to avoid duplicate rows. */
+  private readonly workspaceLocks = new Map<string, Promise<unknown>>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -494,12 +496,137 @@ export class BusinessModulesService implements OnModuleInit {
     );
   }
 
+  /** Run `fn` after every earlier workspace mutation of the same owner. */
+  private async withWorkspaceLock<T>(
+    userId: string,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    const previous = this.workspaceLocks.get(userId) ?? Promise.resolve();
+    const run = previous.catch(() => undefined).then(fn);
+    this.workspaceLocks.set(userId, run);
+    try {
+      return await run;
+    } finally {
+      if (this.workspaceLocks.get(userId) === run) {
+        this.workspaceLocks.delete(userId);
+      }
+    }
+  }
+
+  /**
+   * A workspace is a placeholder when it was created lazily by
+   * `ensureWorkspace` (or predates the `isPlaceholder` column) and has no
+   * onboarding draft. A user-created business always has either a real name or
+   * an onboarding draft, so it never matches this heuristic.
+   */
+  private isPlaceholderWorkspace(
+    row: {
+      name: string;
+      onboardingData: Prisma.JsonValue | null;
+      isPlaceholder: boolean;
+    },
+    fallback: string,
+  ): boolean {
+    if (row.isPlaceholder) return true;
+    if (row.onboardingData != null) return false;
+    const name = row.name.trim();
+    return name === 'کسب‌وکار من' || name === fallback.trim();
+  }
+
+  private hasWorkspaceContent(counts: {
+    businessCards?: number;
+    biolinks?: number;
+    purchases?: number;
+    properties?: number;
+    channels?: number;
+    bookingRequests?: number;
+    customers?: number;
+    interactions?: number;
+    products?: number;
+    orders?: number;
+    stockMovements?: number;
+    cardPayments?: number;
+  }): boolean {
+    return Object.values(counts).some((value) => (value ?? 0) > 0);
+  }
+
+  /**
+   * Removes empty placeholder workspaces once the owner has a real business.
+   * Without this a user who opened the business panel before finishing
+   * «شروع آسان» would keep seeing both «کسب‌وکار من» and their real business.
+   */
+  private async pruneEmptyPlaceholders(userId: string): Promise<void> {
+    const fallback = await this.fallbackName(userId);
+    const rows = await this.prisma.businessWorkspace.findMany({
+      where: { ownerId: userId },
+      select: {
+        id: true,
+        name: true,
+        onboardingData: true,
+        isDefault: true,
+        isPlaceholder: true,
+        _count: {
+          select: {
+            businessCards: true,
+            biolinks: true,
+            purchases: true,
+            properties: true,
+            channels: true,
+            bookingRequests: true,
+            customers: true,
+            interactions: true,
+            products: true,
+            orders: true,
+            stockMovements: true,
+            cardPayments: true,
+          },
+        },
+      },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+    });
+    const real = rows.filter(
+      (row) =>
+        !this.isPlaceholderWorkspace(row, fallback) ||
+        this.hasWorkspaceContent(row._count),
+    );
+    if (real.length === 0) return;
+
+    // A legacy placeholder that already has content is a real business now.
+    const legacyWithContent = rows.filter(
+      (row) =>
+        row.isPlaceholder && this.hasWorkspaceContent(row._count),
+    );
+    if (legacyWithContent.length > 0) {
+      await this.prisma.businessWorkspace.updateMany({
+        where: { id: { in: legacyWithContent.map((row) => row.id) } },
+        data: { isPlaceholder: false },
+      });
+    }
+
+    const empty = rows.filter(
+      (row) =>
+        this.isPlaceholderWorkspace(row, fallback) &&
+        !this.hasWorkspaceContent(row._count),
+    );
+    if (empty.length === 0) return;
+    await this.prisma.businessWorkspace.deleteMany({
+      where: { id: { in: empty.map((row) => row.id) } },
+    });
+    if (empty.some((row) => row.isDefault)) {
+      await this.prisma.businessWorkspace.update({
+        where: { id: real[0].id },
+        data: { isDefault: true },
+      });
+    }
+  }
+
   private async createWorkspaceRow(
     userId: string,
     name: string | undefined,
     industryKey: string,
     isDefault: boolean,
     onboardingData?: Prisma.InputJsonValue,
+    isPlaceholder = false,
   ) {
     await this.ensureManagementsLoaded();
     const industry =
@@ -517,6 +644,7 @@ export class BusinessModulesService implements OnModuleInit {
           industryKey: industry,
           publicSlug,
           isDefault,
+          isPlaceholder,
           ...(onboardingData ? { onboardingData } : {}),
         },
       });
@@ -552,31 +680,37 @@ export class BusinessModulesService implements OnModuleInit {
       // default workspace is used instead of breaking the whole panel.
     }
 
-    const existing = await this.prisma.businessWorkspace.findFirst({
-      where: { ownerId: userId },
-      include: { modules: true },
-      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-    });
-    if (existing) return existing;
-
-    try {
-      const created = await this.createWorkspaceRow(
-        userId,
-        undefined,
-        'generalBusiness',
-        true,
-      );
-      return this.prisma.businessWorkspace.findUniqueOrThrow({
-        where: { id: created.id },
-        include: { modules: true },
-      });
-    } catch {
-      return this.prisma.businessWorkspace.findFirstOrThrow({
+    return this.withWorkspaceLock(userId, async () => {
+      await this.pruneEmptyPlaceholders(userId);
+      const rows = await this.prisma.businessWorkspace.findMany({
         where: { ownerId: userId },
         include: { modules: true },
         orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
       });
-    }
+      const existing = rows.find((row) => !row.isPlaceholder) ?? rows[0];
+      if (existing) return existing;
+
+      try {
+        const created = await this.createWorkspaceRow(
+          userId,
+          undefined,
+          'generalBusiness',
+          true,
+          undefined,
+          true,
+        );
+        return this.prisma.businessWorkspace.findUniqueOrThrow({
+          where: { id: created.id },
+          include: { modules: true },
+        });
+      } catch {
+        return this.prisma.businessWorkspace.findFirstOrThrow({
+          where: { ownerId: userId },
+          include: { modules: true },
+          orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+        });
+      }
+    });
   }
 
   /**
@@ -594,39 +728,46 @@ export class BusinessModulesService implements OnModuleInit {
     },
   ) {
     await this.ensureManagementsLoaded();
-    const existing = await this.prisma.businessWorkspace.findFirst({
-      where: { ownerId: userId },
-      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
-    });
-    if (!existing) {
-      const created = await this.createWorkspaceRow(
-        userId,
-        dto.name,
-        dto.industryKey,
-        true,
-        dto.onboardingData,
-      );
-      await this.activity.log({
-        actor: { id: userId },
-        action: 'BUSINESS_WORKSPACE_CREATED',
-        summary: `ایجاد کسب‌وکار «${created.name}» از «شروع آسان»`,
-        entityType: 'BUSINESS_WORKSPACE',
-        entityId: created.id,
+    return this.withWorkspaceLock(userId, async () => {
+      await this.pruneEmptyPlaceholders(userId);
+      const rows = await this.prisma.businessWorkspace.findMany({
+        where: { ownerId: userId },
+        orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
       });
-      return created;
-    }
+      // Prefer the real business over a leftover placeholder, so submitting
+      // the wizard twice never creates a second workspace.
+      const existing = rows.find((row) => !row.isPlaceholder) ?? rows[0];
+      if (!existing) {
+        const created = await this.createWorkspaceRow(
+          userId,
+          dto.name,
+          dto.industryKey,
+          true,
+          dto.onboardingData,
+        );
+        await this.activity.log({
+          actor: { id: userId },
+          action: 'BUSINESS_WORKSPACE_CREATED',
+          summary: `ایجاد کسب‌وکار «${created.name}» از «شروع آسان»`,
+          entityType: 'BUSINESS_WORKSPACE',
+          entityId: created.id,
+        });
+        return created;
+      }
 
-    // The onboarding business step runs before any purchase, so the industry
-    // is editable. The locked check keeps a later edit from changing a paid
-    // management behind the user's back.
-    const locked = (await this.paidState(existing.id)).locked;
-    return this.prisma.businessWorkspace.update({
-      where: { id: existing.id },
-      data: {
-        name: dto.name.trim() || existing.name,
-        ...(locked ? {} : { industryKey: dto.industryKey }),
-        onboardingData: dto.onboardingData,
-      },
+      // The onboarding business step runs before any purchase, so the industry
+      // is editable. The locked check keeps a later edit from changing a paid
+      // management behind the user's back.
+      const locked = (await this.paidState(existing.id)).locked;
+      return this.prisma.businessWorkspace.update({
+        where: { id: existing.id },
+        data: {
+          name: dto.name.trim() || existing.name,
+          ...(locked ? {} : { industryKey: dto.industryKey }),
+          onboardingData: dto.onboardingData,
+          isPlaceholder: false,
+        },
+      });
     });
   }
 
@@ -699,6 +840,7 @@ export class BusinessModulesService implements OnModuleInit {
 
   async listWorkspaces(userId: string): Promise<WorkspaceSummary[]> {
     await this.ensureManagementsLoaded();
+    await this.pruneEmptyPlaceholders(userId);
     const rows = await this.prisma.businessWorkspace.findMany({
       where: { ownerId: userId },
       include: { modules: { where: { enabled: true }, select: { id: true } } },
@@ -722,8 +864,9 @@ export class BusinessModulesService implements OnModuleInit {
   ) {
     await this.ensureManagementsLoaded();
     const limits = await this.subscriptions.limitsForUser(userId);
+    await this.pruneEmptyPlaceholders(userId);
     const used = await this.prisma.businessWorkspace.count({
-      where: { ownerId: userId },
+      where: { ownerId: userId, isPlaceholder: false },
     });
     if (used >= limits.maxBusinesses) {
       throw new ForbiddenException({
@@ -737,6 +880,7 @@ export class BusinessModulesService implements OnModuleInit {
       dto.industryKey ?? 'generalBusiness',
       used === 0,
     );
+    await this.pruneEmptyPlaceholders(userId);
     await this.activity.log({
       action: 'BUSINESS_WORKSPACE_CREATED',
       summary: `ایجاد کسب‌وکار «${created.name}»`,

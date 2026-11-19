@@ -1993,6 +1993,10 @@ model BusinessWorkspace {
   /// The workspace the user lands on by default. Exactly one per owner is
   /// preferred; if none is flagged the oldest workspace is used.
   isDefault   Boolean  @default(false)
+  /// A lazily-created stand-in so business-scoped endpoints work before the
+  /// owner has finished «شروع آسان». It is hidden/removed as soon as a real
+  /// workspace exists, so the panel never shows a duplicate «کسب‌وکار من».
+  isPlaceholder Boolean @default(false)
   /// Data captured by the «شروع آسان» business step (title, city, category,
   /// mobile, address) before the business card exists.
   onboardingData Json?

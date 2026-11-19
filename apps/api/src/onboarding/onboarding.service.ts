@@ -613,16 +613,40 @@ export class OnboardingService implements OnModuleInit {
   private async businessState(
     userId: string,
   ): Promise<OnboardingBusinessState | null> {
-    const workspace = await this.prisma.businessWorkspace.findFirst({
-      where: { ownerId: userId },
-      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
       select: {
-        id: true,
-        name: true,
-        industryKey: true,
-        onboardingData: true,
+        firstName: true,
+        lastName: true,
+        fullName: true,
+        businessWorkspaces: {
+          orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+          select: {
+            id: true,
+            name: true,
+            industryKey: true,
+            onboardingData: true,
+            isPlaceholder: true,
+          },
+        },
       },
     });
+    const fallbackName =
+      [user?.firstName, user?.lastName].filter(Boolean).join(' ') ||
+      user?.fullName ||
+      'کسب‌وکار من';
+    const isPlaceholder = (workspace: {
+      name: string;
+      onboardingData: unknown;
+      isPlaceholder: boolean;
+    }) =>
+      workspace.isPlaceholder ||
+      (workspace.onboardingData == null &&
+        (workspace.name.trim() === 'کسب‌وکار من' ||
+          workspace.name.trim() === fallbackName.trim()));
+    const workspace =
+      user?.businessWorkspaces.find((row) => !isPlaceholder(row)) ??
+      user?.businessWorkspaces[0];
     if (!workspace) return null;
     const industry = await this.modules.managementLabel(workspace.industryKey);
     const draft =
@@ -896,6 +920,9 @@ export class OnboardingService implements OnModuleInit {
       this.prisma.user.findUnique({
         where: { id: userId },
         select: {
+          firstName: true,
+          lastName: true,
+          fullName: true,
           identityVerifiedAt: true,
           blueTickRequestedAt: true,
           verifiedAt: true,
@@ -920,10 +947,12 @@ export class OnboardingService implements OnModuleInit {
           businessWorkspaces: {
             select: {
               id: true,
+              name: true,
               industryKey: true,
+              onboardingData: true,
+              isPlaceholder: true,
               modules: { select: { paidUntil: true } },
             },
-            take: 1,
           },
         },
       }),
@@ -938,10 +967,26 @@ export class OnboardingService implements OnModuleInit {
 
     const cards = user.businessCards;
     const now = Date.now();
+    const fallbackName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+      user.fullName ||
+      'کسب‌وکار من';
+    const isPlaceholder = (workspace: {
+      name: string;
+      onboardingData: unknown;
+      isPlaceholder: boolean;
+    }) =>
+      workspace.isPlaceholder ||
+      (workspace.onboardingData == null &&
+        (workspace.name.trim() === 'کسب‌وکار من' ||
+          workspace.name.trim() === fallbackName.trim()));
+    const realWorkspace = user.businessWorkspaces.find(
+      (workspace) => !isPlaceholder(workspace),
+    );
     map.set('identity', Boolean(user.identityVerifiedAt));
     map.set(
       'business',
-      cards.length > 0 || user.businessWorkspaces.length > 0,
+      cards.length > 0 || Boolean(realWorkspace),
     );
     map.set('details', cards.some((card) => this.detailsComplete(card)));
     map.set(
@@ -967,7 +1012,7 @@ export class OnboardingService implements OnModuleInit {
 
     // The management step is optional: it is done once the workspace has a
     // paid package, or when its industry has no package to buy.
-    const workspace = user.businessWorkspaces[0];
+    const workspace = realWorkspace ?? user.businessWorkspaces[0];
     let managementDone = false;
     if (workspace) {
       const catalog = await this.modules.resolveCatalog();
