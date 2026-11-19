@@ -98,7 +98,7 @@ jobs:
             tag: 17-alpine
           - name: nginx
             source: docker.io/library/nginx
-            tag: 1.27-alpine
+            tag: 1.31.9-alpine
 
     steps:
       - name: Set up Docker Buildx
