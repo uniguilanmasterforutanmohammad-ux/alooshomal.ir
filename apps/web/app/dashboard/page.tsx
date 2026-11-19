@@ -181,18 +181,6 @@ export default function DashboardPage() {
                   ساخت کارت ویزیت
                 </Link>
               ) : null}
-              <Link
-                href="/biolinks"
-                className="indeed-btn indeed-btn-secondary py-2 text-sm"
-              >
-                دایرکتوری بیولینک‌ها
-              </Link>
-              <Link
-                href="/business-cards"
-                className="indeed-btn indeed-btn-secondary py-2 text-sm"
-              >
-                دایرکتوری کارت ویزیت
-              </Link>
               {isFeatureVisible('featureBoostRequests') ? (
                 <Link
                   href="/dashboard/boost"
