@@ -4,6 +4,7 @@ import { Briefcase, MapPin } from 'lucide-react';
 
 import { readableAccent } from '@/lib/card-spectrum';
 import { cn } from '@/lib/utils';
+import { VerificationBadge } from '@/components/ui/VerificationBadge';
 
 export interface BizCardRow {
   key: string;
@@ -38,6 +39,11 @@ interface Props {
   compact?: boolean;
   /** extra actions rendered at the bottom of the contact side */
   footer?: React.ReactNode;
+  /** white/blue identity tick shown beside the owner's name */
+  verification?: {
+    identity?: boolean;
+    businessLicense?: boolean;
+  } | null;
   /**
    * heading element; the public page keeps an <h1> for SEO, while the live
    * preview uses a plain paragraph so the outline is not flooded.
@@ -67,6 +73,7 @@ export function BusinessCardFace({
   accent,
   compact,
   footer,
+  verification,
   headingLevel = 'p',
   className,
 }: Props) {
@@ -104,7 +111,14 @@ export function BusinessCardFace({
         </div>
 
         <div className="bizcard-identity">
-          <Heading className="bizcard-name">{fullName || 'کارت ویزیت'}</Heading>
+          <div className="bizcard-name-line">
+            <Heading className="bizcard-name">{fullName || 'کارت ویزیت'}</Heading>
+            <VerificationBadge
+              identity={verification?.identity}
+              businessLicense={verification?.businessLicense}
+              className="bizcard-verify"
+            />
+          </div>
           {jobTitle ? <p className="bizcard-role">{jobTitle}</p> : null}
         </div>
 

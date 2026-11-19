@@ -1710,6 +1710,21 @@ a.record-row:hover {
   width: 100%;
 }
 
+.bizcard-name-line {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.bizcard-name-line .bizcard-name {
+  min-width: 0;
+}
+
+.bizcard-verify {
+  flex: 0 0 auto;
+}
+
 .bizcard-name {
   margin: 0;
   font-size: clamp(20px, 4.4vw, 26px);
@@ -1863,6 +1878,9 @@ a.bizcard-row:hover {
     padding: 30px 22px;
   }
   .bizcard:not(.bizcard-compact) .bizcard-tags {
+    justify-content: flex-start;
+  }
+  .bizcard:not(.bizcard-compact) .bizcard-name-line {
     justify-content: flex-start;
   }
   .bizcard:not(.bizcard-compact) .bizcard-main {

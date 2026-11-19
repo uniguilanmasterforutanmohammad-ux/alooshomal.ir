@@ -20,7 +20,27 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.43.3**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.43.4**.
+
+## ۱۴۰۵/۰۸/۲۸ — انتقال تیک سفید/آبی به بدنه‌ی کارت ویزیت — نسخه `v4.43.4`
+
+**هدف:** بالای صفحه‌ی عمومی کارت ویزیت خلوت‌تر شود و تیک تأیید هویت/جواز
+به‌جای نوار بالای صفحه، روی خودِ کارت و کنار نام صاحب کارت نمایش داده شود.
+
+**تغییرات:**
+- `apps/web/components/businesscard/BusinessCardFace.tsx`: پراپ اختیاری
+  `verification` و رندر `VerificationBadge` کنار نام در پنل هویت کارت.
+- `apps/web/components/businesscard/PublicBusinessCardView.tsx`: حذف تیک از
+  ردیف بالای صفحه و پاس‌دادن `businessCard.verification` به بدنه‌ی کارت.
+- `apps/web/app/globals.css`: چیدمان `.bizcard-name-line` و
+  `.bizcard-verify` برای قرارگرفتن تیک کنار نام در حالت عمودی و افقی.
+
+**تأیید/تست:**
+- `./apps/web/node_modules/.bin/tsc --noEmit -p apps/web/tsconfig.json` → exit 0.
+- رندر زنده‌ی `/business-cards/ygizpaaowo` با Chrome headless: در DOM،
+  `bizcard-name-line` شامل `VerificationBadge` با `aria-label="هویت تأیید شده — تیک سفید"`
+  است و ردیف `card-public-top` دیگر تیک ندارد.
+- `python3 scripts/sync_install.py` و سپس `--check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۸/۲۸ — حذف دکمه‌ی «شروع آسان» از دسترسی سریع پس از اتمام مراحل — نسخه `v4.43.3`
 

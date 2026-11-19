@@ -27,7 +27,6 @@ import {
   type BizCardSocial,
 } from '@/components/businesscard/BusinessCardFace';
 import { CardFit } from '@/components/ui/CardFit';
-import { VerificationBadge } from '@/components/ui/VerificationBadge';
 import { ClaimBusinessCardButton } from '@/components/business/ClaimBusinessCardButton';
 import { LikeButton } from '@/components/ui/LikeButton';
 import { OwnerEditButton } from '@/components/ui/OwnerEditButton';
@@ -229,11 +228,6 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
                 <ExternalLink className="size-3.5" aria-hidden />
                 صفحه کسب‌وکار
               </Link>
-              <VerificationBadge
-                identity={businessCard.verification?.identity}
-                businessLicense={businessCard.verification?.businessLicense}
-                className="record-pill"
-              />
               {businessCard.planName ? (
                 <span className="record-pill">
                   <Crown className="size-3.5" aria-hidden />
@@ -267,6 +261,7 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
               rows={rows}
               socials={socials}
               accent={businessCard.primaryColor}
+              verification={businessCard.verification}
               headingLevel="h1"
               footer={
                 businessCard.linkedBiolink ? (
