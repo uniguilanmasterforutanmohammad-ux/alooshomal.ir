@@ -50,28 +50,19 @@ export function BusinessPanelNav({
   modules: ResolvedBusinessModule[];
 }) {
   const pathname = usePathname();
-  const items = [
-    {
-      href: '/dashboard/business',
-      label: 'نمای کلی',
-      icon: LayoutDashboard,
-    },
-    ...modules
-      .filter((item) => item.enabled && item.nav)
-      .map((item) => ({
-        href: item.nav!.href,
-        label: item.nav!.label,
-        icon: moduleIcon(item.nav!.icon),
-      })),
-  ];
+  const items = modules
+    .filter((item) => item.enabled && item.nav)
+    .map((item) => ({
+      href: item.nav!.href,
+      label: item.nav!.label,
+      icon: moduleIcon(item.nav!.icon),
+    }));
 
   return (
     <nav className="flex flex-wrap gap-2">
       {items.map((item) => {
         const active =
-          pathname === item.href ||
-          (item.href !== '/dashboard/business' &&
-            pathname.startsWith(`${item.href}/`));
+          pathname === item.href || pathname.startsWith(`${item.href}/`);
         return (
           <Link
             key={item.href}
