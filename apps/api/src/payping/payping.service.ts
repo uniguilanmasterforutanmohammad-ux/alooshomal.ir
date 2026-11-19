@@ -407,6 +407,31 @@ export class PaypingService {
   }
 
   /**
+   * Find the code of an existing product whose title matches exactly. Used by
+   * the pricing sync so a product created earlier (in another environment or
+   * before the code was stored) is reused instead of duplicated.
+   */
+  async findProductCodeByTitle(title: string): Promise<string | null> {
+    const limit = 50;
+    let offset = 0;
+    for (let page = 0; page < 40; page += 1) {
+      const payload = await this.listProducts({ offset, limit });
+      const rows = this.productRows(payload);
+      if (!rows?.length) return null;
+      for (const row of rows) {
+        const rowTitle = row.title ?? row.Title ?? row.name ?? row.Name;
+        if (typeof rowTitle === 'string' && rowTitle.trim() === title) {
+          const code = this.productCode(row);
+          if (code) return code;
+        }
+      }
+      if (rows.length < limit) return null;
+      offset += rows.length;
+    }
+    return null;
+  }
+
+  /**
    * Admin cleanup: list every product (all pages) and delete it one by one.
    * Failures are reported instead of aborting, so one locked product cannot
    * stop the rest of the catalogue from being removed.

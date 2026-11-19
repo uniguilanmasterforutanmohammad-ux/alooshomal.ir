@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -20,6 +20,7 @@ import {
 
 import { Roles } from '../common/decorators/roles.decorator';
 import { Public } from '../common/decorators/public.decorator';
+import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { MAX_PRICE } from '../settings/settings.service';
 import { PricingService } from './pricing.service';
@@ -52,6 +53,16 @@ class UpdatePricingDto {
   @IsOptional()
   @IsBoolean()
   onlineOnly?: boolean;
+}
+
+class SyncPricingPaypingDto {
+  @ApiProperty({
+    description:
+      'کلید ردیف قیمت (مثلاً `setting:boostPrice`). فقط ردیف‌های پشتیبانی‌شده محصول پی‌پینگ می‌گیرند.',
+    example: 'setting:boostPrice',
+  })
+  @IsString()
+  key!: string;
 }
 
 @ApiTags('pricing')
@@ -89,5 +100,17 @@ export class AdminPricingController {
   @ApiOperation({ summary: 'به‌روزرسانی یک‌جای مبالغ خدمات دارای هزینه' })
   update(@Body() dto: UpdatePricingDto) {
     return this.pricing.update(dto.items ?? [], dto.onlineOnly);
+  }
+
+  @Post('payping-product')
+  @ApiOperation({
+    summary:
+      'ساخت/همگام‌سازی محصول پی‌پینگ برای یک ردیف قیمت (پله، تبلیغ دایرکتوری، تبلیغ صفحه‌ی اول)',
+  })
+  syncPaypingProduct(
+    @CurrentUser() admin: AuthUser,
+    @Body() dto: SyncPricingPaypingDto,
+  ) {
+    return this.pricing.syncPaypingProduct(dto.key, admin.id);
   }
 }

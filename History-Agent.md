@@ -20,7 +20,39 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.47.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.48.0**.
+
+## ۱۴۰۵/۰۸/۲۹ — همگام‌سازی پی‌پینگ برای پله و تبلیغات — نسخه `v4.48.0`
+
+**هدف:** برای سه خدمت «پله» (`boostPrice`)، «تبلیغ در صدر دایرکتوری»
+(`adDirectoryPrice`) و «تبلیغ در صفحه‌ی اول» (`adHomePrice`) امکان ساخت/همگام‌سازی
+محصول در درگاه پی‌پینگ فراهم شود و کد محصول در تنظیمات ذخیره گردد.
+
+**تغییرات:**
+- `apps/api/src/pricing/pricing.service.ts`: افزودن نگاشت محصولات پی‌پینگ برای سه
+  قیمت تنظیماتی، `getPaypingProductMap`، و `syncPaypingProduct` (ساخت/به‌روزرسانی
+  محصول با مبلغ جاری، ذخیره‌ی `{code, amount}` در تنظیمات، و استفاده‌ی مجدد از
+  محصول هم‌نام برای جلوگیری از تکرار). `PricingItem` فیلدهای `paypingSyncable` و
+  `payping` گرفت.
+- `apps/api/src/payping/payping.service.ts`: افزودن `findProductCodeByTitle` برای
+  یافتن محصول موجود با عنوان یکسان.
+- `apps/api/src/pricing/pricing.module.ts`: افزودن `ActivityModule` و `PaypingModule`.
+- `apps/api/src/pricing/pricing.controller.ts`: افزودن `POST admin/pricing/payping-product`
+  با DTO مستند (`@ApiOperation`/`@ApiProperty`).
+- `apps/web/components/admin/AdminPricingPanel.tsx`: افزودن ستون «پی‌پینگ» و دکمه‌ی
+  «همگام‌سازی با پی‌پینگ» برای سه ردیف مذکور، همراه با نمایش کد محصول و هشدار
+  تغییر قیمت.
+
+**تأیید/تست:**
+- `tsc --noEmit` در `apps/web` و داخل کانتینر `alooshomal-api` بدون خطا.
+- `python3 scripts/check_api_docs.py` → exit 0 (۵۳ کنترلر، ۵۳۶ مسیر).
+- `GET /api/admin/pricing`: سه ردیف `paypingSyncable=true` و `payping=null`
+  برگرداندند؛ `setting:feedTagPrice` همگام‌پذیر نبود.
+- `POST .../payping-product` با کلید غیرمجاز → 404؛ با سه کلید مجاز، درخواست به
+  پی‌پینگ ارسال شد ولی IP این ماشین توسعه (`37.98.62.38`) در فهرست مجاز پی‌پینگ
+  نیست و خطای ۴۰۰ برگشت (ساخت محصول باید از سرور تولید با IP مجاز انجام شود).
+- Playwright: در تب «قیمت خدمات» دقیقاً ۳ دکمه‌ی همگام‌سازی رندر شد و خطای IP
+  پی‌پینگ به‌صورت پیام خطا در UI نمایش داده شد.
 
 ## ۱۴۰۵/۰۸/۲۹ — ارتقای nginx به ۱.۳۱.۹ برای رفع RCE بحرانی — نسخه `v4.47.2`
 

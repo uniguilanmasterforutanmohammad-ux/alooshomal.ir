@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 
+import { ActivityModule } from '../activity/activity.module';
+import { PaypingModule } from '../payping/payping.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { SettingsModule } from '../settings/settings.module';
 import { ZohalModule } from '../zohal/zohal.module';
@@ -10,7 +12,13 @@ import {
 import { PricingService } from './pricing.service';
 
 @Module({
-  imports: [PrismaModule, SettingsModule, ZohalModule],
+  imports: [
+    ActivityModule,
+    PaypingModule,
+    PrismaModule,
+    SettingsModule,
+    ZohalModule,
+  ],
   controllers: [PublicPricingController, AdminPricingController],
   providers: [PricingService],
 })

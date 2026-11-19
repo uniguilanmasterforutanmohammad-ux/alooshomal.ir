@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Save } from 'lucide-react';
+import { Loader2, RefreshCw, Save } from 'lucide-react';
 
 import { api } from '@/lib/api';
 
@@ -14,6 +14,8 @@ interface PricingItem {
   source: 'SETTING' | 'ZOHAL' | 'PLAN' | 'FEED_PACKAGE';
   sourceId?: string;
   active?: boolean;
+  paypingSyncable?: boolean;
+  payping?: { code: string; amount: number | null } | null;
 }
 
 interface PricingPayload {
@@ -38,6 +40,7 @@ export function AdminPricingPanel() {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [syncingKey, setSyncingKey] = useState<string | null>(null);
   const [onlineOnly, setOnlineOnly] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -109,6 +112,45 @@ export function AdminPricingPanel() {
     }
   }
 
+  async function syncPayping(item: PricingItem) {
+    setSyncingKey(item.key);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await api.post<{
+        code: string;
+        amount: number;
+        updated: boolean;
+      }>('/admin/pricing/payping-product', { key: item.key });
+      setData((current) =>
+        current
+          ? {
+              ...current,
+              items: current.items.map((row) =>
+                row.key === item.key
+                  ? {
+                      ...row,
+                      payping: { code: result.code, amount: result.amount },
+                    }
+                  : row,
+              ),
+            }
+          : current,
+      );
+      setNotice(
+        result.updated
+          ? `محصول پی‌پینگ «${item.label}» به‌روزرسانی شد.`
+          : `محصول «${item.label}» در پی‌پینگ ساخته شد.`,
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'همگام‌سازی با پی‌پینگ ناموفق بود',
+      );
+    } finally {
+      setSyncingKey(null);
+    }
+  }
+
   if (loading) {
     return <p className="text-muted">در حال بارگذاری قیمت‌ها...</p>;
   }
@@ -151,12 +193,13 @@ export function AdminPricingPanel() {
             <h3 className="text-sm font-extrabold text-ink">{group}</h3>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[42rem] border-collapse text-sm">
+            <table className="w-full min-w-[52rem] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-[var(--vintage-border)] text-right text-xs text-muted">
                   <th className="px-4 py-2 font-bold">خدمت</th>
                   <th className="px-4 py-2 font-bold">مبلغ (تومان)</th>
                   <th className="px-4 py-2 font-bold">وضعیت</th>
+                  <th className="px-4 py-2 font-bold">پی‌پینگ</th>
                 </tr>
               </thead>
               <tbody>
@@ -183,6 +226,43 @@ export function AdminPricingPanel() {
                     </td>
                     <td className="px-4 py-3 text-xs text-muted">
                       {item.active === false ? 'غیرفعال' : 'فعال'}
+                    </td>
+                    <td className="px-4 py-3">
+                      {item.paypingSyncable ? (
+                        <div className="flex flex-col gap-1">
+                          <button
+                            type="button"
+                            disabled={syncingKey === item.key}
+                            onClick={() => void syncPayping(item)}
+                            title="ساخت/به‌روزرسانی محصول این خدمت در پی‌پینگ"
+                            className="indeed-btn indeed-btn-secondary w-fit py-1 text-[11px] disabled:opacity-50"
+                          >
+                            {syncingKey === item.key ? (
+                              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                            ) : (
+                              <RefreshCw className="size-3.5" aria-hidden />
+                            )}
+                            همگام‌سازی با پی‌پینگ
+                          </button>
+                          <span className="text-[11px] leading-5 text-muted">
+                            {item.payping ? (
+                              <>
+                                کد:{' '}
+                                <span className="font-mono text-ink" dir="ltr">
+                                  {item.payping.code}
+                                </span>
+                                {item.payping.amount !== item.price
+                                  ? ' — قیمت تغییر کرده؛ دوباره همگام‌سازی کنید.'
+                                  : ''}
+                              </>
+                            ) : (
+                              'محصول ساخته نشده است.'
+                            )}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted">—</span>
+                      )}
                     </td>
                   </tr>
                 ))}

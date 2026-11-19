@@ -1,4 +1,11 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadGatewayException,
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { ActivityService } from '../activity/activity.service';
+import { PaypingService } from '../payping/payping.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MAX_PRICE, SettingsService } from '../settings/settings.service';
 import { ZOHAL_SERVICES } from '../zohal/zohal.constants';
@@ -15,6 +22,10 @@ export interface PricingItem {
   source: PricingSource;
   sourceId?: string;
   active?: boolean;
+  /** True when a PayPing product can be mirrored for this row. */
+  paypingSyncable?: boolean;
+  /** PayPing product mirrored for this row (null until synced). */
+  payping?: { code: string; amount: number | null } | null;
 }
 
 export interface PricingUpdate {
@@ -33,6 +44,32 @@ const HIDDEN_PUBLIC_FEED_PACKAGE_LABELS = new Set([
 ]);
 
 /**
+ * Setting-backed prices that can be mirrored into a PayPing «آیتم مالی». The
+ * admin edits the price in «قیمت خدمات» and presses «همگام‌سازی» to create (or
+ * update) the matching product; the product code is stored under
+ * {@link PRICING_PAYPING_PRODUCT_PREFIX} so it survives price edits.
+ */
+const PRICING_PAYPING_PRODUCT_PREFIX = 'payping.pricing.';
+const PRICING_PAYPING_PRODUCTS: Record<
+  string,
+  { title: string; description: string }
+> = {
+  boostPrice: {
+    title: 'پله (ارتقای جایگاه در لیست مشاغل) — شمالی‌کارت',
+    description:
+      'ارتقای جایگاه کارت/بیولینک/پست در فهرست شمالی‌کارت برای یک دوره.',
+  },
+  adDirectoryPrice: {
+    title: 'تبلیغ در صدر دایرکتوری مشاغل — شمالی‌کارت',
+    description: 'نمایش هدفمند در صدر شهر/دسته‌بندی مشاغل در دایرکتوری.',
+  },
+  adHomePrice: {
+    title: 'تبلیغ در صفحه اول سایت — شمالی‌کارت',
+    description: 'نمایش در باکس تبلیغات صفحه‌ی اصلی شمالی‌کارت.',
+  },
+};
+
+/**
  * Single admin catalogue of every billable item. Dynamic rows (plans, feed
  * packages, Zohal services) are merged with the fixed setting-backed prices so
  * the «اشتراک‌ها» panel can show and edit them in one place. New paid features
@@ -44,6 +81,8 @@ export class PricingService {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly zohal: ZohalService,
+    private readonly payping: PaypingService,
+    private readonly activity: ActivityService,
   ) {}
 
   async list(): Promise<{
@@ -62,6 +101,7 @@ export class PricingService {
       plans,
       packages,
       zohal,
+      paypingProducts,
     ] = await Promise.all([
       this.settings.getBoostPrice(),
       this.settings.getAdHomePrice(),
@@ -76,6 +116,7 @@ export class PricingService {
         orderBy: [{ sortOrder: 'asc' }, { price: 'asc' }],
       }),
       this.zohal.listServices(),
+      this.getPaypingProductMap(),
     ]);
 
     const items: PricingItem[] = [
@@ -87,6 +128,8 @@ export class PricingService {
         price: boostPrice,
         source: 'SETTING',
         sourceId: 'boostPrice',
+        paypingSyncable: true,
+        payping: paypingProducts.boostPrice ?? null,
       },
       {
         key: 'setting:adHomePrice',
@@ -96,6 +139,8 @@ export class PricingService {
         price: adHomePrice,
         source: 'SETTING',
         sourceId: 'adHomePrice',
+        paypingSyncable: true,
+        payping: paypingProducts.adHomePrice ?? null,
       },
       {
         key: 'setting:adDirectoryPrice',
@@ -105,6 +150,8 @@ export class PricingService {
         price: adDirectoryPrice,
         source: 'SETTING',
         sourceId: 'adDirectoryPrice',
+        paypingSyncable: true,
+        payping: paypingProducts.adDirectoryPrice ?? null,
       },
       {
         key: 'setting:feedTagPrice',
@@ -291,5 +338,168 @@ export class PricingService {
       return;
     }
     throw new BadRequestException('کلید قیمت نامعتبر است.');
+  }
+
+  private async getSettingPrice(id: string): Promise<number> {
+    if (id === 'boostPrice') return this.settings.getBoostPrice();
+    if (id === 'adHomePrice') return this.settings.getAdHomePrice();
+    if (id === 'adDirectoryPrice') return this.settings.getAdDirectoryPrice();
+    if (id === 'feedTagPrice') return this.settings.getFeedTagPrice();
+    throw new BadRequestException('کلید قیمت نامعتبر است.');
+  }
+
+  private paypingProductKey(id: string) {
+    return `${PRICING_PAYPING_PRODUCT_PREFIX}${id}`;
+  }
+
+  /** Parse a stored product row, tolerating the legacy plain-code format. */
+  private parsePaypingProduct(
+    value: string | undefined,
+  ): { code: string; amount: number | null } | null {
+    const raw = value?.trim();
+    if (!raw) return null;
+    try {
+      const parsed = JSON.parse(raw) as { code?: unknown; amount?: unknown };
+      if (typeof parsed?.code === 'string' && parsed.code.trim()) {
+        return {
+          code: parsed.code.trim(),
+          amount:
+            typeof parsed.amount === 'number' && Number.isFinite(parsed.amount)
+              ? parsed.amount
+              : null,
+        };
+      }
+    } catch {
+      // Not JSON: fall through to the legacy plain-code format.
+    }
+    return { code: raw, amount: null };
+  }
+
+  /** PayPing product mirrored for each syncable setting price. */
+  async getPaypingProductMap(): Promise<
+    Record<string, { code: string; amount: number | null }>
+  > {
+    const rows = await this.prisma.setting.findMany({
+      where: { key: { startsWith: PRICING_PAYPING_PRODUCT_PREFIX } },
+    });
+    const byKey = new Map(rows.map((row) => [row.key, row.value]));
+    const map: Record<string, { code: string; amount: number | null }> = {};
+    for (const id of Object.keys(PRICING_PAYPING_PRODUCTS)) {
+      const parsed = this.parsePaypingProduct(
+        byKey.get(this.paypingProductKey(id)),
+      );
+      if (parsed) map[id] = parsed;
+    }
+    return map;
+  }
+
+  /**
+   * Mirror one setting-backed price (پله / تبلیغ دایرکتوری / تبلیغ صفحه‌ی اول)
+   * into a PayPing «آیتم مالی». The amount follows the admin-set price; a cached
+   * code is updated in place, and a 4xx (product deleted in the PayPing console)
+   * recreates it.
+   */
+  async syncPaypingProduct(
+    itemKey: string,
+    actorId?: string,
+  ): Promise<{
+    key: string;
+    code: string;
+    amount: number;
+    title: string;
+    updated: boolean;
+  }> {
+    const [kind, id] = itemKey.split(':', 2);
+    if (kind !== 'setting' || !id || !PRICING_PAYPING_PRODUCTS[id]) {
+      throw new NotFoundException(
+        'این ردیف قابلیت ساخت محصول در پی‌پینگ را ندارد.',
+      );
+    }
+    const meta = PRICING_PAYPING_PRODUCTS[id];
+    const price = await this.getSettingPrice(id);
+    if (price <= 0) {
+      throw new BadRequestException(
+        'ابتدا هزینه‌ی این خدمت را ثبت کنید؛ محصول بدون مبلغ ساخته نمی‌شود.',
+      );
+    }
+    if (price < 1000) {
+      throw new BadRequestException(
+        'حداقل مبلغ محصول در درگاه پی‌پینگ ۱٬۰۰۰ تومان است.',
+      );
+    }
+    const payload = {
+      title: meta.title,
+      description: meta.description.slice(0, 300),
+      amount: price,
+      defineAmountByUser: false,
+      haveTax: false,
+      unlimited: true,
+    };
+
+    const stored = this.parsePaypingProduct(
+      (
+        await this.prisma.setting.findUnique({
+          where: { key: this.paypingProductKey(id) },
+        })
+      )?.value,
+    );
+    let code: string | null = null;
+    let updated = false;
+    if (stored?.code) {
+      try {
+        await this.payping.updateProduct({ ...payload, code: stored.code });
+        code = stored.code;
+        updated = true;
+      } catch (error) {
+        const status = (error as { paypingStatus?: number } | null)
+          ?.paypingStatus;
+        // A 4xx means the cached product is gone (deleted in the PayPing
+        // console): recreate it below.
+        if (!(typeof status === 'number' && status >= 400 && status < 500)) {
+          throw error;
+        }
+      }
+    }
+    if (!code) {
+      // Reuse a product that already exists with this exact title (created in
+      // another environment or before its code was stored) instead of
+      // duplicating it.
+      const existing = await this.payping
+        .findProductCodeByTitle(meta.title)
+        .catch(() => null);
+      if (existing) {
+        await this.payping.updateProduct({ ...payload, code: existing });
+        code = existing;
+        updated = true;
+      }
+    }
+    if (!code) {
+      const created = (await this.payping.createProduct(payload)) as {
+        code?: string;
+      } | null;
+      if (!created?.code) {
+        throw new BadGatewayException(
+          'ساخت محصول در پی‌پینگ ناموفق بود؛ لطفاً دوباره تلاش کنید.',
+        );
+      }
+      code = created.code;
+    }
+
+    await this.prisma.setting.upsert({
+      where: { key: this.paypingProductKey(id) },
+      create: {
+        key: this.paypingProductKey(id),
+        value: JSON.stringify({ code, amount: price }),
+      },
+      update: { value: JSON.stringify({ code, amount: price }) },
+    });
+    await this.activity.log({
+      actor: actorId ? { id: actorId } : null,
+      action: 'PRICING_PAYPING_PRODUCT_SYNCED',
+      summary: `${updated ? 'به‌روزرسانی' : 'ساخت'} محصول پی‌پینگ «${meta.title}» با مبلغ ${price.toLocaleString('fa-IR')} تومان`,
+      entityType: 'SETTING',
+      entityId: this.paypingProductKey(id),
+    });
+    return { key: itemKey, code, amount: price, title: meta.title, updated };
   }
 }
