@@ -10,8 +10,8 @@ import { cn } from '@/lib/utils';
  *  - white: the owner completed the identity inquiry (شاهکار + هویتی)
  *  - blue:  the owner also verified the business license (جواز کسب)
  *
- * The hover/focus tooltip explains which one it is, so a visitor never has to
- * guess what the tick means.
+ * Only the white tick opens the hover/focus tooltip that explains it; the blue
+ * tick is self-explanatory and stays tooltip-free.
  */
 export function VerificationBadge({
   identity,
@@ -30,13 +30,14 @@ export function VerificationBadge({
   const label = blue
     ? 'هویت و جواز کسب تأیید شده — تیک آبی'
     : 'هویت تأیید شده — تیک سفید';
+  const showTooltip = !blue;
   return (
     <span
       className={cn(
         'group relative inline-flex items-center outline-none',
         className,
       )}
-      tabIndex={0}
+      tabIndex={showTooltip ? 0 : undefined}
       aria-label={label}
     >
       <BadgeCheck
@@ -48,17 +49,19 @@ export function VerificationBadge({
         )}
         aria-hidden
       />
-      <span
-        role="tooltip"
-        className={cn(
-          'pointer-events-none absolute z-30 hidden whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-bold text-white shadow-lg group-hover:block group-focus:block',
-          placement === 'bottom'
-            ? 'left-0 top-full mt-1'
-            : '-top-9 right-0',
-        )}
-      >
-        {label}
-      </span>
+      {showTooltip ? (
+        <span
+          role="tooltip"
+          className={cn(
+            'pointer-events-none absolute z-30 hidden whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-bold text-white shadow-lg group-hover:block group-focus:block',
+            placement === 'bottom'
+              ? 'left-0 top-full mt-1'
+              : '-top-9 right-0',
+          )}
+        >
+          {label}
+        </span>
+      ) : null}
     </span>
   );
 }
