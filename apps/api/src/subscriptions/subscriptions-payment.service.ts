@@ -39,6 +39,7 @@ import { SettingsService } from '../settings/settings.service';
 import { WalletService } from '../wallet/wallet.service';
 import { ZohalService } from '../zohal/zohal.service';
 import { BusinessPackageService } from './business-package.service';
+import { buildSubscriptionInvoiceLines } from './subscription-invoice';
 
 /**
  * Online subscription payment: PayPing checkout, the payment callback and
@@ -1831,11 +1832,20 @@ export class SubscriptionsPaymentService {
       entityId: result.id,
     });
     try {
+      const invoiceLines = buildSubscriptionInvoiceLines({
+        months,
+        amount: payment.amount,
+        businessAmount: payment.businessAmount,
+        identityAmount: payment.identityAmount,
+        businessPackages: payment.businessPackages,
+        planName: payment.plan.name,
+      });
       await this.finance.recordSale({
         sourceType: FINANCE_SOURCE_TYPES.SUBSCRIPTION,
         sourceId: payment.id,
         title: `خرید اشتراک «${payment.plan.name}» — ${term}`,
         amount: payment.amount,
+        items: invoiceLines,
         paidAt: Number.isNaN(paidAt.getTime()) ? now : paidAt,
         userId: payment.userId,
         customerName: payment.user?.fullName ?? null,
@@ -1848,6 +1858,7 @@ export class SubscriptionsPaymentService {
           expiresAt: result.expiresAt?.toISOString() ?? null,
           pendingActivation,
           refId,
+          paymentMethod: 'online',
         },
       });
     } catch (error) {
@@ -1867,6 +1878,7 @@ export class SubscriptionsPaymentService {
   private async activateAddonOnlyPayment(
     payment: SubscriptionPayment & {
       user?: { fullName: string | null; email: string | null } | null;
+      plan: { name: string };
     },
     refId: string,
     paidAt: Date,
@@ -1918,11 +1930,20 @@ export class SubscriptionsPaymentService {
       entityId: payment.id,
     });
     try {
+      const invoiceLines = buildSubscriptionInvoiceLines({
+        months: 0,
+        amount: payment.amount,
+        businessAmount: payment.businessAmount,
+        identityAmount: 0,
+        businessPackages: payment.businessPackages,
+        planName: payment.plan.name,
+      });
       await this.finance.recordSale({
         sourceType: FINANCE_SOURCE_TYPES.SUBSCRIPTION,
         sourceId: payment.id,
         title: `افزودنی «بسته مدیریت کسب‌وکار»`,
         amount: payment.amount,
+        items: invoiceLines,
         paidAt: Number.isNaN(paidAt.getTime()) ? now : paidAt,
         userId: payment.userId,
         customerName: payment.user?.fullName ?? null,
@@ -1932,6 +1953,7 @@ export class SubscriptionsPaymentService {
           months: 0,
           addonOnly: true,
           refId,
+          paymentMethod: 'online',
         },
       });
     } catch (error) {

@@ -29,6 +29,8 @@ export interface FinanceInvoice {
     fullName: string | null;
     firstName: string | null;
     lastName: string | null;
+    fatherName: string | null;
+    birthDate: string | null;
     nationalCode: string | null;
     email: string | null;
     phone: string | null;

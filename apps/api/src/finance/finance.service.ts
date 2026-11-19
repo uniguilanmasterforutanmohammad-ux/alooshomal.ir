@@ -37,6 +37,16 @@ export interface RecordSaleInput {
   description?: string | null;
   /** Pre-tax amount in Toman. */
   amount: number;
+  /**
+   * Optional itemised lines (one per product in the cart). When omitted the
+   * sale is archived as a single line equal to `amount`.
+   */
+  items?: Array<{
+    description: string;
+    quantity?: number;
+    unitPrice: number;
+    total?: number;
+  }> | null;
   taxAmount?: number | null;
   issuedAt?: Date | null;
   paidAt?: Date | null;
@@ -128,7 +138,32 @@ export class FinanceService implements OnModuleInit {
 
     const customer = await this.resolveCustomer(input);
     const taxAmount = Math.max(0, Math.floor(input.taxAmount ?? 0));
-    const subtotal = amount;
+    const items =
+      input.items && input.items.length > 0
+        ? input.items.map((item) => {
+            const quantity = Math.max(1, Math.floor(item.quantity ?? 1));
+            const unitPrice = Math.max(0, Math.floor(item.unitPrice));
+            const total = Math.max(
+              0,
+              Math.floor(item.total ?? unitPrice * quantity),
+            );
+            return {
+              description: item.description,
+              quantity,
+              unitPrice,
+              total,
+            };
+          })
+        : [
+            {
+              description: input.title,
+              quantity: 1,
+              unitPrice: amount,
+              total: amount,
+            },
+          ];
+    const itemsTotal = items.reduce((sum, item) => sum + item.total, 0);
+    const subtotal = itemsTotal > 0 ? itemsTotal : amount;
     const total = subtotal + taxAmount;
 
     try {
@@ -153,16 +188,7 @@ export class FinanceService implements OnModuleInit {
             paidAt: input.paidAt ?? null,
             metadata: input.metadata,
             createdById: input.createdById ?? null,
-            items: {
-              create: [
-                {
-                  description: input.title,
-                  quantity: 1,
-                  unitPrice: subtotal,
-                  total: subtotal,
-                },
-              ],
-            },
+            items: { create: items },
           },
         });
       });
@@ -278,6 +304,8 @@ export class FinanceService implements OnModuleInit {
             fullName: true,
             firstName: true,
             lastName: true,
+            fatherName: true,
+            birthDate: true,
             nationalCode: true,
             email: true,
             phone: true,

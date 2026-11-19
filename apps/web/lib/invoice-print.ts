@@ -105,6 +105,18 @@ export function printInvoiceDocument(invoice: FinanceInvoice): boolean {
     invoice.customerNationalCode ?? invoice.customer?.nationalCode ?? '—';
   const customerPhone = invoice.customerPhone ?? invoice.customer?.phone ?? '—';
   const customerEmail = invoice.customerEmail ?? invoice.customer?.email ?? '—';
+  const customerFatherName = invoice.customer?.fatherName ?? '—';
+  const customerBirthDate = invoice.customer?.birthDate ?? '—';
+  const paymentMethodRaw =
+    invoice.metadata && typeof invoice.metadata.paymentMethod === 'string'
+      ? invoice.metadata.paymentMethod
+      : null;
+  const paymentMethod =
+    paymentMethodRaw === 'wallet'
+      ? 'کیف پول'
+      : paymentMethodRaw === 'manual'
+        ? 'ثبت دستی'
+        : 'پرداخت آنلاین (درگاه بانکی)';
   const rows = items
     .map(
       (item, index) =>
@@ -204,6 +216,7 @@ export function printInvoiceDocument(invoice: FinanceInvoice): boolean {
       </table>
       <table>
         <tr><td class="k">تاریخ پرداخت</td><td class="v">${invoice.paidAt ? faDate(invoice.paidAt) : '—'}</td></tr>
+        <tr><td class="k">روش پرداخت</td><td class="v">${escapeHtml(paymentMethod)}</td></tr>
         <tr><td class="k">وضعیت</td><td class="v"><span class="badge ${isVoid ? 'void' : 'ok'}">${isVoid ? 'ابطال‌شده' : 'پرداخت‌شده / صادرشده'}</span></td></tr>
       </table>
     </div>
@@ -221,7 +234,9 @@ export function printInvoiceDocument(invoice: FinanceInvoice): boolean {
         <h2>خریدار</h2>
         <table>
           <tr><td class="k">نام و نام خانوادگی</td><td class="v">${escapeHtml(customerName)}</td></tr>
+          <tr><td class="k">نام پدر</td><td class="v">${escapeHtml(customerFatherName)}</td></tr>
           <tr><td class="k">کد ملی</td><td class="v" dir="ltr">${escapeHtml(customerNationalCode)}</td></tr>
+          <tr><td class="k">تاریخ تولد</td><td class="v" dir="ltr">${escapeHtml(customerBirthDate)}</td></tr>
           <tr><td class="k">موبایل</td><td class="v" dir="ltr">${escapeHtml(customerPhone)}</td></tr>
           <tr><td class="k">ایمیل</td><td class="v" dir="ltr">${escapeHtml(customerEmail)}</td></tr>
         </table>
@@ -240,6 +255,7 @@ export function printInvoiceDocument(invoice: FinanceInvoice): boolean {
       </thead>
       <tbody>${rows}</tbody>
     </table>
+    ${items.length > 1 ? '<div class="note" style="margin-top:10px">اقلام این فاکتور به‌صورت یک سبد خرید و با یک پرداخت یکجا تسویه شده‌اند.</div>' : ''}
 
     <div class="summary">
       <div class="words">

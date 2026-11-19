@@ -30,6 +30,7 @@ import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessPackageService } from './business-package.service';
 import { SubscriptionsPaymentService } from './subscriptions-payment.service';
+import { buildSubscriptionInvoiceLines } from './subscription-invoice';
 import { CreatePlanDto } from './dto/create-plan.dto';
 import { DecideSubscriptionDto } from './dto/decide-subscription.dto';
 import { RequestSubscriptionDto } from './dto/request-subscription.dto';
@@ -521,17 +522,41 @@ export class SubscriptionsService implements OnModuleInit {
   async paymentInvoice(userId: string, paymentId: string) {
     const payment = await this.prisma.subscriptionPayment.findFirst({
       where: { id: paymentId, userId },
-      select: { id: true, status: true },
+      select: {
+        id: true,
+        status: true,
+        amount: true,
+        months: true,
+        businessAmount: true,
+        identityAmount: true,
+        businessPackages: true,
+        plan: { select: { name: true } },
+      },
     });
     if (!payment) throw new NotFoundException('پرداخت یافت نشد');
-    const invoice = await this.prisma.invoice.findUnique({
+    let invoice = await this.prisma.invoice.findUnique({
       where: {
         sourceType_sourceId: {
           sourceType: FINANCE_SOURCE_TYPES.SUBSCRIPTION,
           sourceId: payment.id,
         },
       },
-      include: { items: true },
+      include: {
+        items: true,
+        customer: {
+          select: {
+            id: true,
+            fullName: true,
+            firstName: true,
+            lastName: true,
+            fatherName: true,
+            birthDate: true,
+            nationalCode: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
     });
     if (!invoice) {
       throw new NotFoundException(
@@ -539,6 +564,88 @@ export class SubscriptionsService implements OnModuleInit {
           ? 'فاکتور این پرداخت هنوز صادر نشده است؛ چند لحظه بعد دوباره تلاش کنید.'
           : 'برای این پرداخت فاکتوری صادر نشده است.',
       );
+    }
+
+    // Older invoices were archived as one line equal to the total even when
+    // the buyer paid for a cart (plan + business packages). Rebuild those
+    // lines from the payment snapshot so the downloadable invoice matches the
+    // products actually bought. Idempotent: only runs while lines are missing.
+    const lines = buildSubscriptionInvoiceLines({
+      months: payment.months,
+      amount: payment.amount,
+      businessAmount: payment.businessAmount,
+      identityAmount: payment.identityAmount,
+      businessPackages: payment.businessPackages,
+      planName: payment.plan.name,
+    });
+    if (lines.length > 1 && invoice.items.length < lines.length) {
+      const invoiceId = invoice.id;
+      await this.prisma.$transaction([
+        this.prisma.invoiceItem.deleteMany({ where: { invoiceId } }),
+        this.prisma.invoiceItem.createMany({
+          data: lines.map((line) => ({ ...line, invoiceId })),
+        }),
+      ]);
+      invoice = await this.prisma.invoice.findUnique({
+        where: { id: invoiceId },
+        include: {
+          items: true,
+          customer: {
+            select: {
+              id: true,
+              fullName: true,
+              firstName: true,
+              lastName: true,
+              fatherName: true,
+              birthDate: true,
+              nationalCode: true,
+              email: true,
+              phone: true,
+            },
+          },
+        },
+      });
+      if (!invoice) throw new NotFoundException('فاکتور یافت نشد');
+    }
+
+    // Fill any missing buyer snapshot from the verified account, so invoices
+    // issued before the customer fields were captured still print completely.
+    const customer = invoice.customer;
+    if (customer) {
+      const next = {
+        customerName: invoice.customerName ?? customer.fullName,
+        customerPhone: invoice.customerPhone ?? customer.phone,
+        customerEmail: invoice.customerEmail ?? customer.email,
+        customerNationalCode:
+          invoice.customerNationalCode ?? customer.nationalCode,
+      };
+      if (
+        next.customerName !== invoice.customerName ||
+        next.customerPhone !== invoice.customerPhone ||
+        next.customerEmail !== invoice.customerEmail ||
+        next.customerNationalCode !== invoice.customerNationalCode
+      ) {
+        invoice = await this.prisma.invoice.update({
+          where: { id: invoice.id },
+          data: next,
+          include: {
+            items: true,
+            customer: {
+              select: {
+                id: true,
+                fullName: true,
+                firstName: true,
+                lastName: true,
+                fatherName: true,
+                birthDate: true,
+                nationalCode: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        });
+      }
     }
     return invoice;
   }
