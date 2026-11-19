@@ -74,6 +74,16 @@ export class SubscriptionsController {
     return this.subscriptionsService.mySubscriptions(user.id);
   }
 
+  @Get('payments/:id/invoice')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary:
+      'فاکتور پرداخت اشتراک یا «بسته مدیریت کسب‌وکار» متعلق به کاربر (برای نمایش/دانلود)',
+  })
+  paymentInvoice(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.subscriptionsService.paymentInvoice(user.id, id);
+  }
+
   @Post('request')
   @UseGuards(ProfileCompleteGuard)
   @ApiBearerAuth()

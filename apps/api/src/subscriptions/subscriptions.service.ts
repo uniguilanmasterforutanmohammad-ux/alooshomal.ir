@@ -26,6 +26,7 @@ import {
 } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
+import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { BusinessPackageService } from './business-package.service';
 import { SubscriptionsPaymentService } from './subscriptions-payment.service';
@@ -425,7 +426,7 @@ export class SubscriptionsService implements OnModuleInit {
 
   async mySubscriptions(userId: string) {
     await this.refreshExpiredPlanForUser(userId);
-    const [account, requests, payments] = await Promise.all([
+    const [account, requests, payments, workspaces] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
         select: { plan: true, planExpiresAt: true },
@@ -447,7 +448,46 @@ export class SubscriptionsService implements OnModuleInit {
         orderBy: { createdAt: 'desc' },
         take: 20,
       }),
+      this.prisma.businessWorkspace.findMany({
+        where: { ownerId: userId, isPlaceholder: false },
+        select: {
+          id: true,
+          name: true,
+          industryKey: true,
+          modules: {
+            where: { enabled: true, paidUntil: { not: null } },
+            select: { paidUntil: true },
+            orderBy: { paidUntil: 'desc' },
+            take: 1,
+          },
+        },
+      }),
     ]);
+    // «بسته مدیریت کسب‌وکار» the user has actually bought: a workspace has at
+    // least one enabled, time-limited module that has not expired yet.
+    const now = new Date();
+    const activePackages = workspaces
+      .map((workspace) => {
+        const paidUntil = workspace.modules[0]?.paidUntil ?? null;
+        if (!paidUntil || paidUntil.getTime() <= now.getTime()) return null;
+        return {
+          workspaceId: workspace.id,
+          name: workspace.name,
+          packageKey: workspace.industryKey,
+          paidUntil,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+      .sort((a, b) => a.paidUntil.getTime() - b.paidUntil.getTime());
+    const packageKeys = [...new Set(activePackages.map((item) => item.packageKey))];
+    const labels =
+      packageKeys.length > 0
+        ? await this.prisma.businessManagement.findMany({
+            where: { key: { in: packageKeys } },
+            select: { key: true, label: true },
+          })
+        : [];
+    const labelByKey = new Map(labels.map((row) => [row.key, row.label]));
     const activeStarts = requests
       .filter(
         (request) =>
@@ -466,7 +506,41 @@ export class SubscriptionsService implements OnModuleInit {
       planExpiresAt: account?.planExpiresAt ?? null,
       requests,
       payments,
+      businessPackages: activePackages.map((item) => ({
+        ...item,
+        label: labelByKey.get(item.packageKey) ?? item.packageKey,
+      })),
     };
+  }
+
+  /**
+   * The archived invoice of one of the user's own subscription payments
+   * (including the mid-term «بسته مدیریت کسب‌وکار» add-on). Invoices are
+   * created by the finance module when a payment is marked PAID.
+   */
+  async paymentInvoice(userId: string, paymentId: string) {
+    const payment = await this.prisma.subscriptionPayment.findFirst({
+      where: { id: paymentId, userId },
+      select: { id: true, status: true },
+    });
+    if (!payment) throw new NotFoundException('پرداخت یافت نشد');
+    const invoice = await this.prisma.invoice.findUnique({
+      where: {
+        sourceType_sourceId: {
+          sourceType: FINANCE_SOURCE_TYPES.SUBSCRIPTION,
+          sourceId: payment.id,
+        },
+      },
+      include: { items: true },
+    });
+    if (!invoice) {
+      throw new NotFoundException(
+        payment.status === 'PAID'
+          ? 'فاکتور این پرداخت هنوز صادر نشده است؛ چند لحظه بعد دوباره تلاش کنید.'
+          : 'برای این پرداخت فاکتوری صادر نشده است.',
+      );
+    }
+    return invoice;
   }
 
   /**

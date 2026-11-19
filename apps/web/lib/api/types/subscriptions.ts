@@ -67,6 +67,17 @@ export interface MySubscriptions {
   planExpiresAt?: string | null;
   requests: UserSubscription[];
   payments?: SubscriptionPayment[];
+  /** «بسته مدیریت کسب‌وکار»هایی که کاربر خریده و هنوز معتبرند. */
+  businessPackages?: ActiveBusinessPackage[];
+}
+
+export interface ActiveBusinessPackage {
+  workspaceId: string;
+  /** نام کسب‌وکار */
+  name: string;
+  packageKey: string;
+  label: string;
+  paidUntil: string;
 }
 
 export type SubscriptionPaymentStatus =
@@ -92,6 +103,19 @@ export interface SubscriptionPayment {
   failureReason: string | null;
   createdAt: string;
   plan?: SubscriptionPlan;
+  /** True when the payment also included «بسته مدیریت کسب‌وکار». */
+  withBusinessPackage?: boolean;
+  /** Part of `amount` that paid for the add-on packages. */
+  businessAmount?: number;
+  businessPackages?: Array<{
+    workspaceId: string;
+    packageKey: string;
+    label: string;
+    businessName: string;
+    amount: number;
+    months: number;
+    paidUntil: string;
+  }> | null;
 }
 
 export interface SubscriptionCheckout {

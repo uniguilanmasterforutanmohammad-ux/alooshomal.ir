@@ -20,7 +20,43 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.44.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.45.0**.
+
+## ۱۴۰۵/۰۸/۲۸ — تب‌بندی اشتراک، نمایش بسته‌های مدیریت و فاکتور پرداخت‌ها — نسخه `v4.45.0`
+
+**هدف:** صفحه‌ی «اشتراک من» فقط اشتراک فعال و «بسته‌های مدیریت کسب‌وکار»ی که
+کاربر خریده را واضح نشان دهد، تمدید/ارتقا/خرید افزودنی به تب جدا برود، و
+پرداخت بسته مدیریت در تاریخچه دیده شود و فاکتور قابل دانلود داشته باشد.
+
+**تغییرات:**
+- `apps/api/src/subscriptions/subscriptions.service.ts`: `GET /subscriptions/me`
+  حالا `businessPackages` (کسب‌وکارهای دارای ماژول فعالِ زمان‌دار و برچسب
+  بسته‌ی صنف) را برمی‌گرداند و متد `paymentInvoice` فاکتور پرداخت متعلق به
+  همان کاربر را برمی‌گرداند.
+- `apps/api/src/subscriptions/subscriptions.controller.ts`: مسیر جدید
+  `GET /subscriptions/payments/:id/invoice` با `@ApiBearerAuth` و `@ApiOperation`.
+- `apps/web/app/dashboard/subscriptions/page.tsx`: سه تب «اشتراک فعلی» (بسته‌ی
+  فعال + بسته‌های مدیریت خریداری‌شده + فعال‌سازی‌های در انتظار)، «تمدید و ارتقا»
+  (دوره‌ی پرداخت، افزودنی میان‌دوره‌ای و کارت‌های پلن) و «تاریخچه پرداخت‌ها»
+  (درخواست‌ها + پرداخت‌ها)؛ پرداخت افزودنی با عنوان «بسته مدیریت کسب‌وکار» و
+  نام کسب‌وکارها نمایش داده می‌شود و دکمه‌ی «دانلود فاکتور» برای پرداخت‌های
+  موفق اضافه شد.
+- `apps/web/lib/invoice-print.ts`: قالب چاپ/PDF فاکتور از پنل مدیر استخراج شد
+  و به‌صورت مشترک استفاده می‌شود.
+- `apps/web/components/admin/AdminFinance.tsx`: چاپ فاکتور مدیر به همان ماژول
+  مشترک منتقل شد (بدون تغییر رفتار).
+- `apps/web/lib/api/types/subscriptions.ts`: تایپ `ActiveBusinessPackage` و
+  فیلدهای بسته مدیریت روی `SubscriptionPayment`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api ./node_modules/.bin/tsc --noEmit --incremental false -p tsconfig.json` → exit 0.
+- `docker exec alooshomal-web ./node_modules/.bin/tsc --noEmit` → exit 0.
+- `python3 scripts/check_api_docs.py` → exit 0 (۵۳ کنترلر / ۵۳۴ مسیر).
+- تست زنده با کاربر واقعی لوکال و JWT: `GET /api/subscriptions/me` →
+  `businessPackages` شامل «فروشگاه صنایع دستی فروتن» با برچسب «فروشگاه و
+  خرده‌فروشی» و `paidUntil` صحیح؛ `GET /api/subscriptions/payments/<id>/invoice`
+  → `INV-1405-000024` با `items` و مبلغ ۷۶۲٬۷۰۰؛ `GET /dashboard/subscriptions`
+  → HTTP 200 بدون خطای کامپایل.
 
 ## ۱۴۰۵/۰۸/۲۸ — پوشش کامل کادر عکس کارت ویزیت در صفحه‌ی اصلی — نسخه `v4.44.1`
 

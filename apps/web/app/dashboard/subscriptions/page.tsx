@@ -2,10 +2,18 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { BadgeCheck, Check, Crown, Sparkles } from 'lucide-react';
+import {
+  BadgeCheck,
+  Check,
+  Crown,
+  Download,
+  Receipt,
+  Sparkles,
+} from 'lucide-react';
 
 import {
   api,
+  type FinanceInvoice,
   type MySubscriptions,
   type SubscriptionAddonQuote,
   type SubscriptionCheckout,
@@ -13,6 +21,7 @@ import {
   type SubscriptionPlan,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { printInvoiceDocument } from '@/lib/invoice-print';
 import {
   PLAN_PERIODS,
   PLAN_PERIOD_LABELS,
@@ -36,6 +45,14 @@ const PAYMENT_LABELS: Record<string, string> = {
   FAILED: 'پرداخت ناموفق',
   CANCELED: 'لغو شده',
 };
+
+type PageTab = 'current' | 'plans' | 'history';
+
+const PAGE_TABS: Array<{ key: PageTab; label: string }> = [
+  { key: 'current', label: 'اشتراک فعلی' },
+  { key: 'plans', label: 'تمدید و ارتقا' },
+  { key: 'history', label: 'تاریخچه پرداخت‌ها' },
+];
 
 function faPrice(amount: number): string {
   if (amount <= 0) return 'رایگان';
@@ -74,6 +91,8 @@ export default function SubscriptionsPage() {
     useState<SubscriptionAddonQuote | null>(null);
   const [midtermSelection, setMidtermSelection] = useState<string[]>([]);
   const [addonBusy, setAddonBusy] = useState(false);
+  const [tab, setTab] = useState<PageTab>('current');
+  const [invoiceBusy, setInvoiceBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -306,6 +325,24 @@ export default function SubscriptionsPage() {
     });
   }
 
+  /** Fetch the archived invoice of one payment and open its print/PDF view. */
+  async function downloadInvoice(paymentId: string) {
+    setInvoiceBusy(paymentId);
+    setError(null);
+    try {
+      const invoice = await api.get<FinanceInvoice>(
+        `/subscriptions/payments/${paymentId}/invoice`,
+      );
+      if (!printInvoiceDocument(invoice)) {
+        setError('مرورگر پنجره‌ی چاپ را مسدود کرد؛ اجازه‌ی بازشدن پنجره را بدهید.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'دریافت فاکتور ناموفق بود');
+    } finally {
+      setInvoiceBusy(null);
+    }
+  }
+
   const currentSortOrder = mine?.plan?.sortOrder ?? 0;
   const midtermTotal = (midtermQuote?.workspaces ?? []).reduce(
     (sum, item) =>
@@ -347,38 +384,50 @@ export default function SubscriptionsPage() {
       <div>
         <h2 className="text-xl font-extrabold text-ink">اشتراک من</h2>
         <p className="text-sm text-muted">
-          بسته مناسب خود را انتخاب کنید؛ تمدید همان بسته به دوره‌ی فعلی اضافه
-          می‌شود و خرید بسته‌ی دیگر پیش از پایان دوره، پس از پرداخت نیاز به
-          تأیید فعال‌سازی شما دارد.
+          در تب «اشتراک فعلی» فقط بسته‌ی فعال و «بسته‌های مدیریت کسب‌وکار»ی که
+          خریده‌اید نمایش داده می‌شود. تمدید، ارتقا و خرید افزودنی در تب «تمدید
+          و ارتقا» و فاکتورها در تب «تاریخچه پرداخت‌ها» قرار دارند.
         </p>
       </div>
 
-      <div className="indeed-panel flex flex-wrap items-center gap-2 p-4">
-        <span className="text-sm font-bold text-ink">دوره‌ی پرداخت:</span>
-        {PLAN_PERIODS.map((period) => (
+      <div
+        role="tablist"
+        aria-label="بخش‌های اشتراک"
+        className="indeed-panel flex flex-wrap gap-1 p-1"
+      >
+        {PAGE_TABS.map((item) => (
           <button
-            key={period}
+            key={item.key}
             type="button"
-            onClick={() => setMonths(period)}
-            aria-pressed={months === period}
+            role="tab"
+            aria-selected={tab === item.key}
+            onClick={() => setTab(item.key)}
             className={cn(
-              'rounded-full border px-3 py-1.5 text-xs font-bold transition',
-              months === period
-                ? 'border-brand bg-brand text-white'
-                : 'border-[var(--vintage-border)] text-muted hover:border-brand hover:text-brand',
+              'flex-1 rounded-lg px-3 py-2 text-xs font-bold transition sm:text-sm',
+              tab === item.key
+                ? 'bg-brand text-white'
+                : 'text-muted hover:bg-brand-light/60 hover:text-brand',
             )}
           >
-            {PLAN_PERIOD_LABELS[period]}
-            {period > 1 ? <span className="ms-1 font-normal">({period} ماه)</span> : null}
+            {item.label}
           </button>
         ))}
-        <span className="w-full text-xs text-muted sm:w-auto">
-          دوره‌های سه‌ماهه، شش‌ماهه و یک‌ساله بر پایه‌ی قیمت ماهانه و با تخفیف
-          محاسبه می‌شوند. پلن رایگان همیشه ماهانه است و در پایان هر ماه
-          به‌صورت خودکار تمدید می‌شود.
-        </span>
       </div>
 
+      {message ? (
+        <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700">{message}</p>
+      ) : null}
+      {error ? (
+        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
+      ) : null}
+
+      {tab === 'current' ? (
+        <div className="flex flex-col gap-5">
+      {!mine?.plan ? (
+        <p className="indeed-panel p-4 text-sm text-muted">
+          هنوز اشتراک فعالی ندارید؛ از تب «تمدید و ارتقا» یک بسته انتخاب کنید.
+        </p>
+      ) : null}
       {mine?.plan ? (
         <div className="indeed-panel flex items-center gap-3 p-4">
           <span className="vintage-avatar flex size-10 items-center justify-center">
@@ -408,6 +457,97 @@ export default function SubscriptionsPage() {
           </div>
         </div>
       ) : null}
+
+      <div className="indeed-panel p-4">
+        <h3 className="flex items-center gap-2 text-sm font-extrabold text-ink">
+          <Receipt className="size-4 text-brand" aria-hidden />
+          بسته‌های مدیریت کسب‌وکار خریداری‌شده
+        </h3>
+        {mine?.businessPackages && mine.businessPackages.length > 0 ? (
+          <ul className="mt-3 flex flex-col gap-2">
+            {mine.businessPackages.map((item) => (
+              <li
+                key={item.workspaceId}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--vintage-border)] px-3 py-2 text-xs"
+              >
+                <span className="font-bold text-ink">{item.name}</span>
+                <span className="text-muted">{item.label}</span>
+                <span className="text-emerald-700">
+                  فعال تا {faDateTime(item.paidUntil)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-2 text-xs leading-6 text-muted">
+            هنوز «بسته مدیریت کسب‌وکار» فعالی ندارید. برای خرید آن به تب «تمدید و
+            ارتقا» بروید.
+          </p>
+        )}
+      </div>
+
+      {pendingActivations.length > 0 ? (
+        <div className="flex flex-col gap-3">
+          {pendingActivations.map((request) => (
+            <div
+              key={request.id}
+              className="indeed-panel border-amber-300 bg-amber-50/60 p-4 dark:border-amber-800/60 dark:bg-amber-950/20"
+            >
+              <p className="text-sm font-extrabold text-amber-900 dark:text-amber-100">
+                اشتراک «{request.plan?.name ?? '—'}»
+                {request.months && request.months > 1
+                  ? ` (${request.months} ماهه)`
+                  : ' (یک‌ماهه)'}{' '}
+                پرداخت شد و آماده‌ی فعال‌سازی است.
+              </p>
+              <p className="mt-1 text-xs leading-6 text-amber-800 dark:text-amber-200">
+                با فعال‌سازی این اشتراک، مانده‌ی روزهای اشتراک فعلی شما
+                {mine?.plan?.name ? ` («${mine.plan.name}»)` : ''} از بین می‌رود.
+              </p>
+              <button
+                type="button"
+                onClick={() => void activatePending(request.id)}
+                disabled={busyPlanId === request.id}
+                className="indeed-btn indeed-btn-primary mt-3 py-2 text-xs disabled:opacity-60"
+              >
+                {busyPlanId === request.id
+                  ? 'در حال فعال‌سازی...'
+                  : `فعال‌سازی اشتراک ${request.plan?.name ?? ''}`}
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+        </div>
+      ) : null}
+
+      {tab === 'plans' ? (
+        <div className="flex flex-col gap-5">
+      <div className="indeed-panel flex flex-wrap items-center gap-2 p-4">
+        <span className="text-sm font-bold text-ink">دوره‌ی پرداخت:</span>
+        {PLAN_PERIODS.map((period) => (
+          <button
+            key={period}
+            type="button"
+            onClick={() => setMonths(period)}
+            aria-pressed={months === period}
+            className={cn(
+              'rounded-full border px-3 py-1.5 text-xs font-bold transition',
+              months === period
+                ? 'border-brand bg-brand text-white'
+                : 'border-[var(--vintage-border)] text-muted hover:border-brand hover:text-brand',
+            )}
+          >
+            {PLAN_PERIOD_LABELS[period]}
+            {period > 1 ? <span className="ms-1 font-normal">({period} ماه)</span> : null}
+          </button>
+        ))}
+        <span className="w-full text-xs text-muted sm:w-auto">
+          دوره‌های سه‌ماهه، شش‌ماهه و یک‌ساله بر پایه‌ی قیمت ماهانه و با تخفیف
+          محاسبه می‌شوند. پلن رایگان همیشه ماهانه است و در پایان هر ماه
+          به‌صورت خودکار تمدید می‌شود.
+        </span>
+      </div>
 
       {midtermQuote?.allowed && midtermQuote.workspaces.length > 0 ? (
         <div className="indeed-panel p-4">
@@ -482,46 +622,6 @@ export default function SubscriptionsPage() {
             </button>
           </div>
         </div>
-      ) : null}
-
-      {pendingActivations.length > 0 ? (
-        <div className="flex flex-col gap-3">
-          {pendingActivations.map((request) => (
-            <div
-              key={request.id}
-              className="indeed-panel border-amber-300 bg-amber-50/60 p-4 dark:border-amber-800/60 dark:bg-amber-950/20"
-            >
-              <p className="text-sm font-extrabold text-amber-900 dark:text-amber-100">
-                اشتراک «{request.plan?.name ?? '—'}»
-                {request.months && request.months > 1
-                  ? ` (${request.months} ماهه)`
-                  : ' (یک‌ماهه)'}{' '}
-                پرداخت شد و آماده‌ی فعال‌سازی است.
-              </p>
-              <p className="mt-1 text-xs leading-6 text-amber-800 dark:text-amber-200">
-                با فعال‌سازی این اشتراک، مانده‌ی روزهای اشتراک فعلی شما
-                {mine?.plan?.name ? ` («${mine.plan.name}»)` : ''} از بین می‌رود.
-              </p>
-              <button
-                type="button"
-                onClick={() => void activatePending(request.id)}
-                disabled={busyPlanId === request.id}
-                className="indeed-btn indeed-btn-primary mt-3 py-2 text-xs disabled:opacity-60"
-              >
-                {busyPlanId === request.id
-                  ? 'در حال فعال‌سازی...'
-                  : `فعال‌سازی اشتراک ${request.plan?.name ?? ''}`}
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : null}
-
-      {message ? (
-        <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700">{message}</p>
-      ) : null}
-      {error ? (
-        <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>
       ) : null}
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -714,7 +814,11 @@ export default function SubscriptionsPage() {
           );
         })}
       </div>
+        </div>
+      ) : null}
 
+      {tab === 'history' ? (
+        <div className="flex flex-col gap-5">
       {mine && mine.requests.length > 0 ? (
         <div className="indeed-panel overflow-hidden">
           <div className="border-b border-dashed border-[var(--vintage-border)] px-5 py-3">
@@ -771,44 +875,83 @@ export default function SubscriptionsPage() {
             </h3>
           </div>
           <ul className="divide-y divide-[var(--vintage-border)]">
-            {mine.payments.map((payment: SubscriptionPayment) => (
-              <li
-                key={payment.id}
-                className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm"
-              >
-                <span className="font-bold text-ink">
-                  {payment.plan?.name ?? '—'}
-                </span>
-                <span className="text-xs text-muted">
-                  {faPrice(payment.amount)}
-                </span>
-                <span
-                  className={cn(
-                    'rounded-full px-2 py-0.5 text-[11px] font-bold',
-                    payment.status === 'PAID'
-                      ? 'bg-green-50 text-green-700'
-                      : payment.status === 'FAILED'
-                        ? 'bg-red-50 text-red-700'
-                        : 'bg-amber-50 text-amber-700',
-                  )}
+            {mine.payments.map((payment: SubscriptionPayment) => {
+              const addonOnly = (payment.months ?? 1) === 0;
+              const addonNames = (payment.businessPackages ?? [])
+                .map((item) => item.businessName || item.label)
+                .filter(Boolean);
+              return (
+                <li
+                  key={payment.id}
+                  className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm"
                 >
-                  {PAYMENT_LABELS[payment.status] ?? payment.status}
-                </span>
-                <span className="w-full text-xs text-muted">
-                  تاریخ: {faDateTime(payment.createdAt)}
-                  {payment.months && payment.months > 1
-                    ? ` · دوره‌ی ${payment.months} ماهه`
-                    : ''}
-                  {payment.refId ? ` · کد رهگیری: ${payment.refId}` : ''}
-                </span>
-                {payment.failureReason ? (
-                  <span className="w-full text-xs text-red-600">
-                    {payment.failureReason}
+                  <span className="font-bold text-ink">
+                    {addonOnly
+                      ? 'بسته مدیریت کسب‌وکار'
+                      : payment.plan?.name ?? '—'}
                   </span>
-                ) : null}
-              </li>
-            ))}
+                  <span className="text-xs text-muted">
+                    {faPrice(payment.amount)}
+                  </span>
+                  <span
+                    className={cn(
+                      'rounded-full px-2 py-0.5 text-[11px] font-bold',
+                      payment.status === 'PAID'
+                        ? 'bg-green-50 text-green-700'
+                        : payment.status === 'FAILED'
+                          ? 'bg-red-50 text-red-700'
+                          : 'bg-amber-50 text-amber-700',
+                    )}
+                  >
+                    {PAYMENT_LABELS[payment.status] ?? payment.status}
+                  </span>
+                  <span className="w-full text-xs text-muted">
+                    تاریخ: {faDateTime(payment.createdAt)}
+                    {addonOnly
+                      ? ' · افزودنی میان‌دوره‌ای'
+                      : payment.months && payment.months > 1
+                        ? ` · دوره‌ی ${payment.months} ماهه`
+                        : ''}
+                    {payment.refId ? ` · کد رهگیری: ${payment.refId}` : ''}
+                  </span>
+                  {payment.withBusinessPackage ? (
+                    <span className="w-full text-xs text-muted">
+                      شامل «بسته مدیریت کسب‌وکار»
+                      {addonNames.length > 0
+                        ? `: ${addonNames.join('، ')}`
+                        : ''}
+                    </span>
+                  ) : null}
+                  {payment.failureReason ? (
+                    <span className="w-full text-xs text-red-600">
+                      {payment.failureReason}
+                    </span>
+                  ) : null}
+                  {payment.status === 'PAID' ? (
+                    <button
+                      type="button"
+                      onClick={() => void downloadInvoice(payment.id)}
+                      disabled={invoiceBusy === payment.id}
+                      className="indeed-btn indeed-btn-secondary flex items-center gap-1.5 py-1.5 text-[11px] disabled:opacity-60"
+                    >
+                      <Download className="size-3.5" aria-hidden />
+                      {invoiceBusy === payment.id
+                        ? 'در حال دریافت...'
+                        : 'دانلود فاکتور'}
+                    </button>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
+        </div>
+      ) : null}
+      {(!mine ||
+        (mine.requests.length === 0 && (mine.payments?.length ?? 0) === 0)) ? (
+        <p className="indeed-panel p-4 text-sm text-muted">
+          هنوز پرداخت یا درخواستی ثبت نشده است.
+        </p>
+      ) : null}
         </div>
       ) : null}
     </div>
