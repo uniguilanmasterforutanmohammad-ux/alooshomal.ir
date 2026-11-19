@@ -6,9 +6,11 @@ import {
   BadgeCheck,
   Check,
   Crown,
+  CalendarDays,
   Download,
   Receipt,
   Sparkles,
+  Store,
 } from 'lucide-react';
 
 import {
@@ -464,20 +466,26 @@ export default function SubscriptionsPage() {
           بسته‌های مدیریت کسب‌وکار خریداری‌شده
         </h3>
         {mine?.businessPackages && mine.businessPackages.length > 0 ? (
-          <ul className="mt-3 flex flex-col gap-2">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {mine.businessPackages.map((item) => (
-              <li
+              <div
                 key={item.workspaceId}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--vintage-border)] px-3 py-2 text-xs"
+                className="flex items-start gap-3 rounded-xl border border-[var(--vintage-border)] bg-white/60 p-4"
               >
-                <span className="font-bold text-ink">{item.name}</span>
-                <span className="text-muted">{item.label}</span>
-                <span className="text-emerald-700">
-                  فعال تا {faDateTime(item.paidUntil)}
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-light text-brand">
+                  <Store className="size-5" aria-hidden />
                 </span>
-              </li>
+                <div className="min-w-0 flex-1">
+                  <p className="text-base font-extrabold text-ink">{item.name}</p>
+                  <p className="mt-0.5 text-sm text-muted">{item.label}</p>
+                  <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700">
+                    <CalendarDays className="size-3.5" aria-hidden />
+                    فعال تا {faDateTime(item.paidUntil)}
+                  </p>
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
         ) : (
           <p className="mt-2 text-xs leading-6 text-muted">
             هنوز «بسته مدیریت کسب‌وکار» فعالی ندارید. برای خرید آن به تب «تمدید و
@@ -883,14 +891,14 @@ export default function SubscriptionsPage() {
               return (
                 <li
                   key={payment.id}
-                  className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 text-sm"
+                  className="flex flex-wrap items-center justify-between gap-2 px-5 py-4 text-sm"
                 >
-                  <span className="font-bold text-ink">
+                  <span className="text-base font-extrabold text-ink">
                     {addonOnly
                       ? 'بسته مدیریت کسب‌وکار'
                       : payment.plan?.name ?? '—'}
                   </span>
-                  <span className="text-xs text-muted">
+                  <span className="text-sm font-bold text-brand">
                     {faPrice(payment.amount)}
                   </span>
                   <span
@@ -915,11 +923,19 @@ export default function SubscriptionsPage() {
                     {payment.refId ? ` · کد رهگیری: ${payment.refId}` : ''}
                   </span>
                   {payment.withBusinessPackage ? (
-                    <span className="w-full text-xs text-muted">
+                    <span className="flex w-full flex-wrap items-center gap-1.5 text-xs text-muted">
                       شامل «بسته مدیریت کسب‌وکار»
                       {addonNames.length > 0
-                        ? `: ${addonNames.join('، ')}`
-                        : ''}
+                        ? addonNames.map((name) => (
+                            <span
+                              key={name}
+                              className="inline-flex items-center gap-1 rounded-full bg-brand-light px-2 py-0.5 font-bold text-brand"
+                            >
+                              <Store className="size-3" aria-hidden />
+                              {name}
+                            </span>
+                          ))
+                        : null}
                     </span>
                   ) : null}
                   {payment.failureReason ? (
