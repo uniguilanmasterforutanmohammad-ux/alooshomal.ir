@@ -101,6 +101,12 @@ export function BoostTable({
   // The «پست‌ها» tab follows the admin's feed feature switch: when the feed
   // feature is disabled, feed posts are not offered for boosting here either.
   const feedsEnabled = features.featureFeedPosts !== false;
+  // Each advertising action follows its own admin switch. A disabled action is
+  // hidden entirely so the user cannot even start the request.
+  const boostEnabled = features.featureBoostRequests !== false;
+  const homeAdEnabled = features.featureAdRequests !== false;
+  const directoryAdEnabled = features.featureAdDirectoryRequests !== false;
+  const anyActionEnabled = boostEnabled || homeAdEnabled || directoryAdEnabled;
   const tabs = feedsEnabled ? TABS : TABS.filter((item) => item.key !== 'feeds');
   const [tab, setTab] = useState<Tab>('biolinks');
   const [busy, setBusy] = useState<string | null>(null);
@@ -222,12 +228,19 @@ export function BoostTable({
     : rows.length;
 
   // Hide feed rows from the request history too while the feed feature is off.
-  const requests = feedsEnabled
-    ? data?.requests ?? []
-    : (data?.requests ?? []).filter((request) => request.kind !== 'FEED');
-  const adRequests = feedsEnabled
+  const requests = !boostEnabled
+    ? []
+    : feedsEnabled
+      ? data?.requests ?? []
+      : (data?.requests ?? []).filter((request) => request.kind !== 'FEED');
+  const adRequests = (feedsEnabled
     ? data?.adRequests ?? []
-    : (data?.adRequests ?? []).filter((request) => request.kind !== 'FEED');
+    : (data?.adRequests ?? []).filter((request) => request.kind !== 'FEED')
+  ).filter((request) =>
+    (request.placement ?? 'HOME') === 'DIRECTORY'
+      ? directoryAdEnabled
+      : homeAdEnabled,
+  );
 
   const meta = data?.meta
     ? {
@@ -263,6 +276,16 @@ export function BoostTable({
 
       {loading ? (
         <p className="text-muted">در حال بارگذاری...</p>
+      ) : !anyActionEnabled ? (
+        <div className="indeed-panel p-10 text-center">
+          <p className="text-lg font-bold text-ink">
+            ثبت درخواست تبلیغ غیرفعال است
+          </p>
+          <p className="mt-2 text-sm text-muted">
+            «پله»، «تبلیغ در دایرکتوری» و «تبلیغ در صفحه اول» توسط مدیر سامانه
+            غیرفعال شده‌اند.
+          </p>
+        </div>
       ) : rows.length === 0 ? (
         <div className="indeed-panel p-10 text-center">
           <p className="text-lg font-bold text-ink">موردی برای نمایش نیست</p>
@@ -381,6 +404,7 @@ export function BoostTable({
                     </td>
                     <td className="dash-actions px-3 py-3" data-label="عملیات">
                       <div className="flex flex-wrap items-center gap-1.5">
+                        {boostEnabled ? (
                         <button
                           type="button"
                           disabled={
@@ -414,6 +438,8 @@ export function BoostTable({
                                 ? BOOST_STATUS_LABELS.APPROVED
                                 : 'پله'}
                         </button>
+                        ) : null}
+                        {directoryAdEnabled ? (
                         <button
                           type="button"
                           disabled={
@@ -447,6 +473,8 @@ export function BoostTable({
                                 ? 'تبلیغ دایرکتوری تأییدشده'
                                 : 'تبلیغ در دایرکتوری'}
                         </button>
+                        ) : null}
+                        {homeAdEnabled ? (
                         <button
                           type="button"
                           disabled={
@@ -480,6 +508,7 @@ export function BoostTable({
                                 ? 'تبلیغ تأییدشده'
                                 : 'تبلیغ در صفحه اول'}
                         </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
