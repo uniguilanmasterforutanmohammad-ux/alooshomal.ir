@@ -40,6 +40,7 @@ interface ApiIrServiceItem {
 
 interface ApiIrStatus {
   configured: boolean;
+  simulated: boolean;
   baseUrl: string;
   enabledCount: number;
   total: number;
@@ -57,6 +58,7 @@ interface ApiIrCallResult {
   data: unknown;
   httpStatus: number | null;
   latencyMs: number;
+  simulated?: boolean;
 }
 
 /**
@@ -277,10 +279,18 @@ export function AdminApiIr() {
             <p
               className={cn(
                 'mt-1 font-bold',
-                data?.status.configured ? 'text-emerald-700' : 'text-red-700',
+                data?.status.simulated
+                  ? 'text-sky-700'
+                  : data?.status.configured
+                    ? 'text-emerald-700'
+                    : 'text-red-700',
               )}
             >
-              {data?.status.configured ? 'تنظیم شده' : 'تنظیم نشده'}
+              {data?.status.simulated
+                ? 'شبیه‌سازی لوکال (بدون هزینه)'
+                : data?.status.configured
+                  ? 'تنظیم شده'
+                  : 'تنظیم نشده'}
             </p>
           </div>
           <div className="rounded-lg border border-line bg-surface p-3">
@@ -296,12 +306,22 @@ export function AdminApiIr() {
             </p>
           </div>
         </div>
-        <p className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs leading-6 text-amber-800">
-          <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-          هر فراخوانی واقعی api.ir از اعتبار حساب api.ir کم می‌شود. دکمه‌ی «آزمایش»
-          یک درخواست واقعی است؛ فقط هنگام نیاز از آن استفاده کنید. کلید فقط سمت
-          سرور نگه داشته می‌شود.
-        </p>
+        {data?.status.simulated ? (
+          <p className="mt-3 flex items-start gap-2 rounded-lg bg-sky-50 p-3 text-xs leading-6 text-sky-800">
+            <FlaskConical className="mt-0.5 size-4 shrink-0" aria-hidden />
+            حالت شبیه‌سازی لوکال فعال است: همه‌ی استعلام‌ها پاسخ ساختگی برمی‌گردانند
+            و هیچ درخواست واقعی به api.ir ارسال نمی‌شود؛ بنابراین هزینه‌ای از
+            اعتبار حساب کم نمی‌شود. برای خاموش‌کردن، `APIIR_SIMULATOR=false` را
+            تنظیم کنید.
+          </p>
+        ) : (
+          <p className="mt-3 flex items-start gap-2 rounded-lg bg-amber-50 p-3 text-xs leading-6 text-amber-800">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+            هر فراخوانی واقعی api.ir از اعتبار حساب api.ir کم می‌شود. دکمه‌ی «آزمایش»
+            یک درخواست واقعی است؛ فقط هنگام نیاز از آن استفاده کنید. کلید فقط سمت
+            سرور نگه داشته می‌شود.
+          </p>
+        )}
       </div>
 
       {groups.map(([group, services]) => (
@@ -369,38 +389,43 @@ export function AdminApiIr() {
                     </span>
                   </div>
 
-                  {service.price > 0 ? (
-                    <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-line bg-background p-2">
-                      <button
-                        type="button"
-                        disabled={busyKey === service.key}
-                        onClick={() => void syncPayping(service)}
-                        className="indeed-btn indeed-btn-secondary py-1 text-[11px]"
-                      >
-                        {busyKey === service.key ? (
-                          <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                        ) : (
-                          <RefreshCw className="size-3.5" aria-hidden />
-                        )}
-                        همگام‌سازی با پی‌پینگ
-                      </button>
-                      <span className="text-[11px] leading-5 text-muted">
-                        {service.payping ? (
-                          <>
-                            محصول درگاه:{' '}
-                            <span className="font-mono text-ink" dir="ltr">
-                              {service.payping.code}
-                            </span>
-                            {service.payping.amount !== service.price
-                              ? ' — قیمت تغییر کرده؛ برای به‌روزرسانی مبلغ دوباره همگام‌سازی کنید.'
-                              : ''}
-                          </>
-                        ) : (
-                          'محصول درگاه ساخته نشده است.'
-                        )}
-                      </span>
-                    </div>
-                  ) : null}
+                  <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-line bg-background p-2">
+                    <button
+                      type="button"
+                      disabled={busyKey === service.key || service.price <= 0}
+                      onClick={() => void syncPayping(service)}
+                      title={
+                        service.price <= 0
+                          ? 'ابتدا هزینه‌ی این استعلام را ثبت کنید'
+                          : 'ساخت/به‌روزرسانی محصول این استعلام در پی‌پینگ'
+                      }
+                      className="indeed-btn indeed-btn-secondary py-1 text-[11px] disabled:opacity-50"
+                    >
+                      {busyKey === service.key ? (
+                        <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <RefreshCw className="size-3.5" aria-hidden />
+                      )}
+                      همگام‌سازی با پی‌پینگ
+                    </button>
+                    <span className="text-[11px] leading-5 text-muted">
+                      {service.price <= 0
+                        ? 'برای ساخت محصول، ابتدا هزینه‌ی استعلام را ثبت کنید.'
+                        : service.payping
+                          ? (
+                            <>
+                              محصول درگاه:{' '}
+                              <span className="font-mono text-ink" dir="ltr">
+                                {service.payping.code}
+                              </span>
+                              {service.payping.amount !== service.price
+                                ? ' — قیمت تغییر کرده؛ برای به‌روزرسانی مبلغ دوباره همگام‌سازی کنید.'
+                                : ''}
+                            </>
+                          )
+                          : 'محصول درگاه ساخته نشده است.'}
+                    </span>
+                  </div>
 
                   <p className="mt-2 text-[11px] text-muted">
                     تعرفه‌ی api.ir برای هر استعلام:{' '}
@@ -419,7 +444,7 @@ export function AdminApiIr() {
                     className="indeed-btn indeed-btn-secondary mt-3 py-1 text-[11px]"
                   >
                     <FlaskConical className="size-3.5" aria-hidden />
-                    آزمایش (هزینه‌زا)
+                    {data?.status.simulated ? 'آزمایش (شبیه‌سازی، بدون هزینه)' : 'آزمایش (هزینه‌زا)'}
                   </button>
 
                   {testKey === service.key ? (

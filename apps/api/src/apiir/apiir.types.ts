@@ -37,6 +37,8 @@ export interface ApiIrCallResult<T = Record<string, unknown>> {
   data: T | null;
   httpStatus: number | null;
   latencyMs: number;
+  /** True when the answer came from the local simulator (no real call/cost). */
+  simulated?: boolean;
 }
 
 /** Payload of `POST /api/sw1/License` — اعتبار مجوز شغلی (پروانه کسب). */

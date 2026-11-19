@@ -32,6 +32,8 @@ const APIIR_PAYPING_PRODUCT_PREFIX = 'apiir.payping.';
 /** Admin-facing description of the api.ir connection. */
 export interface ApiIrStatus {
   configured: boolean;
+  /** Local simulator: calls return fake data and never cost api.ir credit. */
+  simulated: boolean;
   baseUrl: string;
   enabledCount: number;
   total: number;
@@ -56,6 +58,7 @@ export class ApiIrService {
   private readonly logger = new Logger(ApiIrService.name);
   private readonly baseUrl: string;
   private readonly token: string;
+  private readonly simulated: boolean;
 
   constructor(
     config: ConfigService,
@@ -74,6 +77,23 @@ export class ApiIrService {
       process.env['APIIR_TOKEN'] ??
       '';
     this.token = raw.trim();
+
+    const nodeEnv = (
+      config.get<string>('NODE_ENV') ?? 'development'
+    ).toLowerCase();
+    const appUrl =
+      config.get<string>('NEXT_PUBLIC_APP_URL') ?? 'http://localhost:3000';
+    const flag = (config.get<string>('APIIR_SIMULATOR') ?? '')
+      .trim()
+      .toLowerCase();
+    this.simulated =
+      flag === 'true' ||
+      (flag !== 'false' && nodeEnv !== 'production' && isLoopback(appUrl));
+    if (this.simulated) {
+      this.logger.warn(
+        'api.ir simulator is ENABLED — inquiries return fake data and cost nothing.',
+      );
+    }
   }
 
   get configured(): boolean {
@@ -82,6 +102,10 @@ export class ApiIrService {
 
   get publicBaseUrl(): string {
     return this.baseUrl;
+  }
+
+  get isSimulated(): boolean {
+    return this.simulated;
   }
 
   private settingKey(key: string) {
@@ -376,6 +400,7 @@ export class ApiIrService {
     return {
       status: {
         configured: this.configured,
+        simulated: this.simulated,
         baseUrl: this.baseUrl,
         enabledCount: services.filter((service) => service.enabled).length,
         total: services.length,
@@ -398,6 +423,9 @@ export class ApiIrService {
     options: { force?: boolean } = {},
   ): Promise<ApiIrCallResult<T>> {
     const service = this.findService(key);
+    if (this.simulated) {
+      return this.simulatedResult<T>(service, payload);
+    }
     if (!this.configured) {
       throw new ServiceUnavailableException(
         'کلید api.ir تنظیم نشده است. مقدار API_KEY_API.IR را در محیط سرور قرار دهید.',
@@ -453,6 +481,106 @@ export class ApiIrService {
     }
   }
 
+  /**
+   * Local stand-in for api.ir: returns a plausible, success-shaped payload
+   * built from the submitted fields. It never touches the network, so a
+   * development run cannot spend the api.ir account credit.
+   */
+  private simulatedResult<T>(
+    service: ApiIrServiceDef,
+    payload: Record<string, unknown>,
+  ): ApiIrCallResult<T> {
+    const data = this.simulatedData(service.key, payload);
+    return {
+      ok: true,
+      code: 0,
+      message: 'پاسخ شبیه‌سازی‌شده (محیط لوکال) — بدون فراخوانی واقعی و بدون هزینه',
+      data: data as T,
+      httpStatus: 200,
+      latencyMs: 18,
+      simulated: true,
+    };
+  }
+
+  private simulatedData(
+    key: string,
+    payload: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const now = new Date();
+    const nationalCode =
+      typeof payload.nationalCode === 'string' && payload.nationalCode
+        ? payload.nationalCode
+        : '0013529536';
+    const mobile =
+      typeof payload.mobile === 'string' && payload.mobile
+        ? payload.mobile
+        : '09120000000';
+    const base = {
+      simulated: true,
+      reference: `SIM-${now.getTime().toString(36).toUpperCase()}`,
+      checkedAt: now.toISOString(),
+    };
+    if (key === 'license') {
+      return {
+        ...base,
+        title: 'پروانه کسب (شبیه‌سازی)',
+        trackingCode:
+          typeof payload.trackingCode === 'string'
+            ? payload.trackingCode
+            : 'SIM-LICENSE',
+        fullName: 'محمد فروتن',
+        fatherName: 'قدیر',
+        nationalCode,
+        phone: mobile,
+        issueDate: '1400/01/01',
+        expireDate: '1405/01/01',
+        province: 'مازندران',
+        city: 'بابلسر',
+        address: 'خیابان اصلی، پلاک ۱ (شبیه‌سازی)',
+        postalCode: '4775144333',
+        isActive: true,
+      };
+    }
+    if (
+      key === 'personinfo' ||
+      key === 'persondata' ||
+      key === 'nationalitystatus'
+    ) {
+      return {
+        ...base,
+        firstName: 'محمد',
+        lastName: 'فروتن',
+        fullName: 'محمد فروتن',
+        fatherName: 'قدیر',
+        nationalCode,
+        birthDate:
+          typeof payload.birthDate === 'string'
+            ? payload.birthDate
+            : '1370/04/05',
+        alive: true,
+        matched: true,
+      };
+    }
+    if (key.startsWith('shahkar')) {
+      return {
+        ...base,
+        matched: true,
+        nationalCode,
+        mobile,
+        message: 'تطبیق کد ملی و موبایل موفق (شبیه‌سازی)',
+      };
+    }
+    if (key === 'sana') {
+      return { ...base, registered: true, nationalCode, isCompany: false };
+    }
+    return {
+      ...base,
+      ...payload,
+      success: true,
+      message: 'استعلام با موفقیت شبیه‌سازی شد.',
+    };
+  }
+
   /** api.ir answers with `{ data, success, code, message }`. */
   private normalise<T = Record<string, unknown>>(
     parsed: unknown,
@@ -503,5 +631,14 @@ export class ApiIrService {
       throw new BadRequestException('کد پیگیری مجوز الزامی است');
     }
     return this.call('license', { trackingCode: code });
+  }
+}
+
+function isLoopback(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostname);
+  } catch {
+    return false;
   }
 }
