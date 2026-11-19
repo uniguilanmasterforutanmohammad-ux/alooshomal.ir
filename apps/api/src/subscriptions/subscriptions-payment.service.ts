@@ -1703,10 +1703,20 @@ export class SubscriptionsPaymentService {
     const result = await this.prisma.$transaction(async (tx) => {
       const account = await tx.user.findUnique({
         where: { id: payment.userId },
-        select: { planId: true, planExpiresAt: true },
+        select: {
+          planId: true,
+          planExpiresAt: true,
+          plan: { select: { name: true } },
+        },
       });
+      // The free plan is the automatic starter plan, not a paid term the user
+      // would lose by upgrading. Buying Eco/Plus from it must activate right
+      // away (and grant the management packages in the same payment) instead
+      // of parking the purchase behind a manual activation step.
+      const currentIsFree = isFreePlan(account?.plan);
       const activeOtherPlan = Boolean(
-        account?.planId &&
+        !currentIsFree &&
+          account?.planId &&
           account.planId !== payment.planId &&
           account.planExpiresAt &&
           account.planExpiresAt.getTime() > now.getTime(),
