@@ -119,6 +119,7 @@ function SuggestionCard({ item }: { item: HomeBusinessCard }) {
         <VerificationBadge
           identity={item.ownerIdentityVerified ?? item.ownerVerified}
           businessLicense={item.ownerBusinessLicenseVerified}
+          placement="bottom"
           className="absolute left-2 top-2 flex size-6 items-center justify-center rounded-full bg-[var(--footer-tile)] shadow-sm"
         />
         <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-[var(--footer-tile)] px-2 py-0.5 text-[10px] font-bold text-[var(--footer-ink)] shadow-sm">
@@ -193,6 +194,7 @@ function LatestCard({ item }: { item: HomeBusinessCard }) {
           <VerificationBadge
             identity={item.ownerIdentityVerified ?? item.ownerVerified}
             businessLicense={item.ownerBusinessLicenseVerified}
+            placement="bottom"
             className="mt-0.5 shrink-0"
           />
         </div>

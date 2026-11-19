@@ -17,10 +17,13 @@ export function VerificationBadge({
   identity,
   businessLicense,
   className,
+  placement = 'top',
 }: {
   identity?: boolean;
   businessLicense?: boolean;
   className?: string;
+  /** Where the hover tooltip opens; `bottom` avoids clipping inside cards. */
+  placement?: 'top' | 'bottom';
 }) {
   if (!identity && !businessLicense) return null;
   const blue = Boolean(businessLicense);
@@ -47,7 +50,12 @@ export function VerificationBadge({
       />
       <span
         role="tooltip"
-        className="pointer-events-none absolute -top-9 right-0 z-30 hidden whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-bold text-white shadow-lg group-hover:block group-focus:block"
+        className={cn(
+          'pointer-events-none absolute z-30 hidden whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-bold text-white shadow-lg group-hover:block group-focus:block',
+          placement === 'bottom'
+            ? 'left-0 top-full mt-1'
+            : '-top-9 right-0',
+        )}
       >
         {label}
       </span>
