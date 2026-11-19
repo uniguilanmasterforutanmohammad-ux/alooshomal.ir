@@ -1809,7 +1809,7 @@ export class BusinessModulesService implements OnModuleInit {
             where: { clientRefId },
           })
         : null;
-    const base = `${paypingReturnBaseUrl()}/dashboard/business`;
+    const base = `${paypingReturnBaseUrl()}/dashboard/business/overview`;
     if (!purchase) {
       return { redirectUrl: `${base}?purchase=failed` };
     }

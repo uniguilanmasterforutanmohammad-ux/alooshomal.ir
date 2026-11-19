@@ -20,7 +20,29 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.46.7**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.46.8**.
+
+## ۱۴۰۵/۰۸/۲۸ — باز شدن پنل کسب‌وکار روی تب «کارت‌های ویزیت» — نسخه `v4.46.8`
+
+**هدف:** ورود به `/dashboard/business` ابتدا تب «کارت‌های ویزیت» را نشان دهد،
+نه صفحه‌ی مدیریت کسب‌وکار.
+
+**تغییرات:**
+- `apps/web/app/dashboard/business/page.tsx`: تبدیل به ریدایرکت سروری به
+  `/dashboard/business/cards`.
+- `apps/web/app/dashboard/business/overview/page.tsx`: انتقال صفحه‌ی قبلی
+  «مدیریت کسب‌وکار» (ساخت/حذف کسب‌وکار و خرید مدیریت) به این مسیر؛ `returnTo`
+  خرید هم به همین مسیر تغییر کرد.
+- `apps/web/components/business/BusinessPanelNav.tsx`: افزودن لینک کوچک
+  «مدیریت کسب‌وکار» در انتهای نوار تب‌ها برای دسترسی به صفحه‌ی مدیریت.
+- `apps/api/src/business-modules/business-modules.service.ts`: بازگشت درگاه
+  خرید مدیریت به `/dashboard/business/overview` تا پیام موفقیت نمایش داده شود.
+
+**تأیید/تست:**
+- `cd apps/web && ./node_modules/.bin/tsc --noEmit` → exit 0.
+- `docker exec alooshomal-api npx tsc -p tsconfig.json --noEmit` → exit 0.
+- `curl -I http://localhost:3000/dashboard/business` → `307` با
+  `Location: /dashboard/business/cards`؛ مسیرهای `cards` و `overview` → `200`.
 
 ## ۱۴۰۵/۰۸/۲۸ — حذف میان‌برهای دایرکتوری از دسترسی سریع داشبورد — نسخه `v4.46.7`
 

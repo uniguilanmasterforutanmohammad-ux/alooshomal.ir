@@ -13,6 +13,7 @@ import {
   ImagePlus,
   LayoutDashboard,
   PackageCheck,
+  Settings,
   ShoppingBag,
   Users,
   type LucideIcon,
@@ -59,7 +60,7 @@ export function BusinessPanelNav({
     }));
 
   return (
-    <nav className="flex flex-wrap gap-2">
+    <nav className="flex flex-wrap items-center gap-2">
       {items.map((item) => {
         const active =
           pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -80,6 +81,14 @@ export function BusinessPanelNav({
           </Link>
         );
       })}
+      <Link
+        href="/dashboard/business/overview"
+        prefetch={false}
+        className="ms-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-xs font-bold text-muted transition hover:text-brand"
+      >
+        <Settings className="size-4" aria-hidden />
+        مدیریت کسب‌وکار
+      </Link>
     </nav>
   );
 }
