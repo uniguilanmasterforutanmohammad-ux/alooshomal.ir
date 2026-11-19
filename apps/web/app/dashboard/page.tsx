@@ -8,6 +8,7 @@ import { BadgeCheck, Clock, Eye, IdCard, LifeBuoy } from 'lucide-react';
 import { api, type Biolink, type BusinessCard, type Paged } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useFeatures } from '@/lib/features';
+import { useProfileStatus } from '@/lib/profile-status';
 
 interface TicketSummary {
   open: number;
@@ -54,6 +55,9 @@ export default function DashboardPage() {
   const router = useRouter();
   const { token, user, hydrated } = useAuth();
   const { isFeatureVisible } = useFeatures();
+  const { status: profileStatus } = useProfileStatus(
+    hydrated && Boolean(token),
+  );
   const [biolinks, setBiolinks] = useState<Biolink[]>([]);
   const [businessCards, setBusinessCards] = useState<BusinessCard[]>([]);
   const [summary, setSummary] = useState<TicketSummary>({
@@ -152,7 +156,8 @@ export default function DashboardPage() {
               <h3 className="text-sm font-extrabold text-ink">دسترسی سریع</h3>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3">
-              {isFeatureVisible('featureOnboarding') ? (
+              {isFeatureVisible('featureOnboarding') &&
+              profileStatus?.onboardingFinished !== true ? (
                 <Link
                   href="/dashboard/onboarding"
                   className="indeed-btn indeed-btn-primary py-2 text-sm"
