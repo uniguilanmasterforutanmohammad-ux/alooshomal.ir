@@ -20,10 +20,13 @@ import {
   DEFAULT_ONBOARDING_STEPS,
   MANUAL_STEP_KINDS,
   ONBOARDING_FINISHED_STEP_ID,
+  ONBOARDING_STEP_DATA_PREFIX,
   ONBOARDING_STEPS_SETTING_KEY,
   ONBOARDING_STEP_KINDS,
   type OnboardingDocument,
   type OnboardingBusinessState,
+  type OnboardingModuleField,
+  type OnboardingModuleInfo,
   type OnboardingProgressPayload,
   type OnboardingStepDef,
   type OnboardingStepKind,
@@ -33,6 +36,7 @@ import type {
   AddOnboardingDocumentDto,
   OnboardingStepDto,
   SaveOnboardingBusinessDto,
+  SaveOnboardingStepDataDto,
 } from './dto/onboarding.dto';
 
 /** The built-in kinds whose completion is derived from account data. */
@@ -55,6 +59,8 @@ export interface OnboardingModuleOption {
   enabled: boolean;
   /** Toman; 0 when the module is free or has no fixed price. */
   price: number;
+  /** Inputs the user must fill for this module (empty for non-inquiry items). */
+  fields: OnboardingModuleField[];
 }
 
 @Injectable()
@@ -308,6 +314,7 @@ export class OnboardingService implements OnModuleInit {
         href: '/dashboard/profile',
         enabled: service.enabled,
         price: service.price,
+        fields: service.fields ?? [],
       });
     }
     for (const service of apiir.services) {
@@ -320,6 +327,7 @@ export class OnboardingService implements OnModuleInit {
         href: '/dashboard/profile',
         enabled: service.enabled,
         price: service.price,
+        fields: service.fields ?? [],
       });
     }
     for (const plan of plans) {
@@ -332,6 +340,7 @@ export class OnboardingService implements OnModuleInit {
         href: '/dashboard/subscriptions',
         enabled: plan.isActive,
         price: plan.price,
+        fields: [],
       });
     }
     const monthlyPrice = new Map<string, number>();
@@ -354,6 +363,7 @@ export class OnboardingService implements OnModuleInit {
         href: '/dashboard/subscriptions',
         enabled: industry.available !== false,
         price,
+        fields: [],
       });
     }
     items.push(
@@ -366,6 +376,7 @@ export class OnboardingService implements OnModuleInit {
         href: '/dashboard/biolinks',
         enabled: true,
         price: 0,
+        fields: [],
       },
       {
         key: 'businessCard',
@@ -376,6 +387,7 @@ export class OnboardingService implements OnModuleInit {
         href: '/dashboard/business-cards',
         enabled: true,
         price: 0,
+        fields: [],
       },
     );
     return { items };
@@ -435,7 +447,18 @@ export class OnboardingService implements OnModuleInit {
     // itself (name/industry/draft only, no card or biolink). We still ensure
     // the default plan is assigned for accounts that predate that rule.
     await this.subscriptions.limitsForUser(userId);
-    const [done, history, documents, business, finished] = await Promise.all([
+    const hasModuleSteps = steps.some(
+      (step) => step.kind === 'module' && step.moduleKey,
+    );
+    const [
+      done,
+      history,
+      documents,
+      business,
+      finished,
+      moduleCatalog,
+      stepDataRows,
+    ] = await Promise.all([
       this.completionMap(userId),
       this.prisma.identityInquiryLog.findMany({
         where: { userId },
@@ -453,10 +476,55 @@ export class OnboardingService implements OnModuleInit {
         },
         select: { stepId: true },
       }),
+      hasModuleSteps
+        ? this.getModuleCatalog()
+        : Promise.resolve({ items: [] as OnboardingModuleOption[] }),
+      this.prisma.setting.findMany({
+        where: {
+          key: { startsWith: `${ONBOARDING_STEP_DATA_PREFIX}${userId}:` },
+        },
+      }),
     ]);
+    const moduleByKey = new Map(
+      moduleCatalog.items.map((item) => [item.key, item]),
+    );
+    const stepData = new Map<string, Record<string, unknown>>();
+    for (const row of stepDataRows) {
+      const stepId = row.key.slice(
+        `${ONBOARDING_STEP_DATA_PREFIX}${userId}:`.length,
+      );
+      try {
+        const parsed = JSON.parse(row.value) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          stepData.set(stepId, parsed as Record<string, unknown>);
+        }
+      } catch {
+        // Ignore malformed rows; the form simply starts empty.
+      }
+    }
     const states: OnboardingStepState[] = steps.map((step) => {
       const isDone = done.get(step.id) ?? false;
-      return { ...step, done: isDone, hint: this.hintFor(step, isDone) };
+      const module =
+        step.kind === 'module' && step.moduleKey
+          ? moduleByKey.get(step.moduleKey)
+          : null;
+      return {
+        ...step,
+        done: isDone,
+        hint: this.hintFor(step, isDone),
+        module: module
+          ? ({
+              key: module.key,
+              type: module.type,
+              label: module.label,
+              description: module.description,
+              href: module.href,
+              price: module.price,
+              fields: module.fields ?? [],
+            } satisfies OnboardingModuleInfo)
+          : null,
+        data: stepData.get(step.id) ?? null,
+      };
     });
     const completed = states.filter((step) => step.done).length;
     return {
@@ -850,12 +918,79 @@ export class OnboardingService implements OnModuleInit {
       'بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.',
     );
     const step = await this.findCustomStep(stepId);
+    if (step.kind === 'module' && step.moduleKey) {
+      const catalog = await this.getModuleCatalog();
+      const module = catalog.items.find((item) => item.key === step.moduleKey);
+      if (module && module.fields.length > 0) {
+        throw new BadRequestException(
+          'این مرحله فرم اطلاعات دارد؛ اطلاعات خواسته‌شده را پر و ثبت کنید.',
+        );
+      }
+    }
     await this.prisma.onboardingStepCompletion.upsert({
       where: { userId_stepId: { userId, stepId: step.id } },
       create: { userId, stepId: step.id },
       update: { completedAt: new Date() },
     });
     return this.getMyProgress(userId);
+  }
+
+  /**
+   * Save the inputs of a `module` step (an inquiry the admin placed in the
+   * wizard) and mark it done. Only known fields are stored, and required ones
+   * must be present, so the form cannot be completed with missing data.
+   */
+  async saveModuleStepData(
+    userId: string,
+    stepId: string,
+    data: SaveOnboardingStepDataDto['data'],
+  ) {
+    await this.settings.assertFeatureEnabled(
+      'featureOnboarding',
+      'بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.',
+    );
+    const step = await this.findCustomStep(stepId);
+    if (step.kind !== 'module' || !step.moduleKey) {
+      throw new BadRequestException('این مرحله فرم اطلاعات ندارد.');
+    }
+    const catalog = await this.getModuleCatalog();
+    const module = catalog.items.find((item) => item.key === step.moduleKey);
+    if (!module) {
+      throw new NotFoundException('ماژول این مرحله یافت نشد.');
+    }
+    const clean: Record<string, unknown> = {};
+    for (const field of module.fields) {
+      const raw = data?.[field.name];
+      const value =
+        typeof raw === 'string' ? raw.trim() : raw;
+      if (
+        field.required &&
+        (value === undefined || value === null || value === '')
+      ) {
+        throw new BadRequestException(`مقدار «${field.label}» الزامی است.`);
+      }
+      if (value !== undefined && value !== null && value !== '') {
+        clean[field.name] = value;
+      }
+    }
+    await this.prisma.setting.upsert({
+      where: { key: this.stepDataKey(userId, step.id) },
+      create: {
+        key: this.stepDataKey(userId, step.id),
+        value: JSON.stringify(clean),
+      },
+      update: { value: JSON.stringify(clean) },
+    });
+    await this.prisma.onboardingStepCompletion.upsert({
+      where: { userId_stepId: { userId, stepId: step.id } },
+      create: { userId, stepId: step.id },
+      update: { completedAt: new Date() },
+    });
+    return this.getMyProgress(userId);
+  }
+
+  private stepDataKey(userId: string, stepId: string) {
+    return `${ONBOARDING_STEP_DATA_PREFIX}${userId}:${stepId}`;
   }
 
   /** Undo a custom step tick. */
@@ -867,6 +1002,9 @@ export class OnboardingService implements OnModuleInit {
     const step = await this.findCustomStep(stepId);
     await this.prisma.onboardingStepCompletion.deleteMany({
       where: { userId, stepId: step.id },
+    });
+    await this.prisma.setting.deleteMany({
+      where: { key: this.stepDataKey(userId, step.id) },
     });
     return this.getMyProgress(userId);
   }

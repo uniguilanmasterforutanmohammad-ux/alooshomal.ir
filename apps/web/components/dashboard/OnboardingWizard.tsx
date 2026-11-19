@@ -76,6 +76,26 @@ interface OnboardingStep {
   optional?: boolean;
   done: boolean;
   hint: string;
+  module?: OnboardingModuleInfo | null;
+  data?: Record<string, unknown> | null;
+}
+
+interface OnboardingModuleField {
+  name: string;
+  label: string;
+  required?: boolean;
+  type?: 'text' | 'date' | 'boolean' | 'file';
+  placeholder?: string;
+}
+
+interface OnboardingModuleInfo {
+  key: string;
+  type: 'zohal' | 'apiir' | 'plan' | 'management' | 'biolink' | 'businessCard';
+  label: string;
+  description: string;
+  href: string;
+  price: number;
+  fields: OnboardingModuleField[];
 }
 
 interface OnboardingPayload {
@@ -236,6 +256,12 @@ export function OnboardingWizard() {
   const [birthIso, setBirthIso] = useState('');
   const [paying, setPaying] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // Values typed into an admin-added `module` step's dynamic form, keyed by
+  // step id then field name. Saved values come back as `step.data`.
+  const [moduleDraft, setModuleDraft] = useState<
+    Record<string, Record<string, string>>
+  >({});
+  const [moduleUploading, setModuleUploading] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [myPlanId, setMyPlanId] = useState<string | null>(null);
@@ -580,6 +606,79 @@ export function OnboardingWizard() {
       /* api layer surfaces the error */
     } finally {
       setUploading(false);
+    }
+  }
+
+  function moduleValue(step: OnboardingStep, field: OnboardingModuleField): string {
+    const draft = moduleDraft[step.id]?.[field.name];
+    if (draft !== undefined) return draft;
+    const saved = step.data?.[field.name];
+    return saved === undefined || saved === null ? '' : String(saved);
+  }
+
+  function setModuleValue(
+    step: OnboardingStep,
+    field: OnboardingModuleField,
+    value: string,
+  ) {
+    setModuleDraft((prev) => ({
+      ...prev,
+      [step.id]: { ...(prev[step.id] ?? {}), [field.name]: value },
+    }));
+  }
+
+  async function uploadModuleFile(
+    step: OnboardingStep,
+    field: OnboardingModuleField,
+    file: File,
+  ) {
+    const key = `${step.id}:${field.name}`;
+    setModuleUploading(key);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const uploaded = await api.upload<{ url: string }>(
+        '/uploads/document',
+        form,
+      );
+      setModuleValue(step, field, uploaded.url);
+      toast.success('فایل با موفقیت آپلود شد.');
+    } catch {
+      /* api layer surfaces the error */
+    } finally {
+      setModuleUploading(null);
+    }
+  }
+
+  /** Submit the dynamic form of one admin-added module step. */
+  async function saveModuleStep(step: OnboardingStep) {
+    const fields = step.module?.fields ?? [];
+    const data: Record<string, unknown> = {};
+    for (const field of fields) {
+      const raw = moduleValue(step, field).trim();
+      if (field.required && !raw) {
+        toast.error(`مقدار «${field.label}» الزامی است.`);
+        return;
+      }
+      if (raw) data[field.name] = field.type === 'boolean' ? raw === 'true' : raw;
+    }
+    setBusyStepId(step.id);
+    try {
+      const next = await api.post<OnboardingPayload>(
+        `/onboarding/steps/${step.id}/data`,
+        { data },
+      );
+      setPayload(next);
+      setModuleDraft((prev) => {
+        const copy = { ...prev };
+        delete copy[step.id];
+        return copy;
+      });
+      toast.success('اطلاعات این مرحله ثبت شد.');
+    } catch {
+      /* api layer surfaces the error */
+    } finally {
+      setBusyStepId(null);
     }
   }
 
@@ -1037,18 +1136,99 @@ export function OnboardingWizard() {
                   </p>
                 ) : null}
               </div>
-              {step.href ? (
-                <Link
-                  href={step.href}
-                  className="indeed-btn indeed-btn-primary w-fit py-2 text-xs"
-                >
-                  رفتن به این بخش
-                  <ArrowLeft className="size-4" aria-hidden />
-                </Link>
-              ) : null}
-              <p className="text-[11px] leading-6 text-muted">
-                پس از انجام این مورد، دکمه‌ی «این مرحله را انجام دادم» را بزنید.
-              </p>
+              {(step.module?.fields?.length ?? 0) > 0 ? (
+                <div className="rounded-xl border border-[var(--vintage-border)] bg-white p-4">
+                  <p className="text-xs font-bold text-muted">
+                    اطلاعات موردنیاز این مرحله
+                  </p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    {step.module!.fields.map((field) => {
+                      const value = moduleValue(step, field);
+                      const uploadKey = `${step.id}:${field.name}`;
+                      return (
+                        <label
+                          key={field.name}
+                          className="flex flex-col gap-1 text-[11px] font-bold text-muted"
+                        >
+                          {field.label}
+                          {field.required ? ' *' : ''}
+                          {field.type === 'boolean' ? (
+                            <select
+                              className="indeed-input mt-1 py-1.5 text-xs"
+                              value={value}
+                              onChange={(event) =>
+                                setModuleValue(step, field, event.target.value)
+                              }
+                            >
+                              <option value="">—</option>
+                              <option value="true">بله</option>
+                              <option value="false">خیر</option>
+                            </select>
+                          ) : field.type === 'file' ? (
+                            <span className="mt-1 flex flex-col gap-1">
+                              <input
+                                type="file"
+                                className="text-[11px]"
+                                disabled={moduleUploading === uploadKey}
+                                onChange={(event) => {
+                                  const file = event.target.files?.[0];
+                                  if (file) {
+                                    void uploadModuleFile(step, field, file);
+                                  }
+                                }}
+                              />
+                              {value ? (
+                                <span className="text-[10px] text-emerald-700">
+                                  فایل انتخاب شده است.
+                                </span>
+                              ) : null}
+                            </span>
+                          ) : (
+                            <input
+                              className="indeed-input mt-1 py-1.5 text-xs"
+                              dir={field.type === 'date' ? 'ltr' : undefined}
+                              placeholder={field.placeholder}
+                              value={value}
+                              onChange={(event) =>
+                                setModuleValue(step, field, event.target.value)
+                              }
+                            />
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void saveModuleStep(step)}
+                    disabled={busyStepId === step.id}
+                    className="indeed-btn indeed-btn-primary mt-3 w-fit py-2 text-xs disabled:opacity-60"
+                  >
+                    {busyStepId === step.id ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Check className="size-4" aria-hidden />
+                    )}
+                    {step.done ? 'به‌روزرسانی اطلاعات' : 'ثبت اطلاعات و تکمیل مرحله'}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {step.href ? (
+                    <Link
+                      href={step.href}
+                      className="indeed-btn indeed-btn-primary w-fit py-2 text-xs"
+                    >
+                      رفتن به این بخش
+                      <ArrowLeft className="size-4" aria-hidden />
+                    </Link>
+                  ) : null}
+                  <p className="text-[11px] leading-6 text-muted">
+                    پس از انجام این مورد، دکمه‌ی «این مرحله را انجام دادم» را
+                    بزنید.
+                  </p>
+                </>
+              )}
             </div>
           ) : null}
 
@@ -1791,7 +1971,9 @@ export function OnboardingWizard() {
             )
           ) : null}
 
-          {isManual(step) && step.kind !== 'welcome' ? (
+          {isManual(step) &&
+          step.kind !== 'welcome' &&
+          !(step.kind === 'module' && (step.module?.fields?.length ?? 0) > 0) ? (
             <button
               type="button"
               onClick={() => void toggleManualStep(step)}

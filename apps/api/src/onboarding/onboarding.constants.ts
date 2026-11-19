@@ -10,6 +10,14 @@
 export const ONBOARDING_STEPS_SETTING_KEY = 'onboardingSteps';
 
 /**
+ * Per-user, per-step form data collected by a `module` step (e.g. the inputs
+ * of an api.ir/Zohal inquiry the admin placed in the wizard). Stored as a
+ * setting key so the wizard can show what the user already entered without a
+ * schema migration.
+ */
+export const ONBOARDING_STEP_DATA_PREFIX = 'onboardingStepData:';
+
+/**
  * Sentinel completion row written when the user presses «پایان مراحل» on the
  * final step. It is not a real wizard step; it only records that the user has
  * dismissed onboarding so the dashboard can stop advertising «شروع آسان».
@@ -74,6 +82,26 @@ export interface OnboardingStepDef {
    * reach the final step. The admin can mark any step optional.
    */
   optional?: boolean;
+}
+
+/** One input the user must fill for a module step. */
+export interface OnboardingModuleField {
+  name: string;
+  label: string;
+  required?: boolean;
+  type?: 'text' | 'date' | 'boolean' | 'file';
+  placeholder?: string;
+}
+
+/** Module/product details attached to a `module` step for the wizard form. */
+export interface OnboardingModuleInfo {
+  key: string;
+  type: 'zohal' | 'apiir' | 'plan' | 'management' | 'biolink' | 'businessCard';
+  label: string;
+  description: string;
+  href: string;
+  price: number;
+  fields: OnboardingModuleField[];
 }
 
 export const DEFAULT_ONBOARDING_STEPS: OnboardingStepDef[] = [
@@ -141,6 +169,10 @@ export interface OnboardingStepState extends OnboardingStepDef {
   done: boolean;
   /** human-readable hint for the current state (Persian). */
   hint: string;
+  /** For `module` steps: the catalog entry (with its form fields). */
+  module?: OnboardingModuleInfo | null;
+  /** Values the user already submitted for this module step. */
+  data?: Record<string, unknown> | null;
 }
 
 export interface OnboardingProgressPayload {

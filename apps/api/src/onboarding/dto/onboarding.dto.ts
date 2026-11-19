@@ -5,6 +5,7 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   MaxLength,
@@ -83,6 +84,16 @@ export class UpdateOnboardingStepsDto {
   @ValidateNested({ each: true })
   @Type(() => OnboardingStepDto)
   steps!: OnboardingStepDto[];
+}
+
+export class SaveOnboardingStepDataDto {
+  @ApiProperty({
+    description:
+      'مقادیر فرم مرحله‌ی ماژول؛ کلیدها همان نام فیلدهای تعریف‌شده در ماژول هستند.',
+    example: { nationalCode: '0012345679', birthDate: '1370/01/01' },
+  })
+  @IsObject()
+  data!: Record<string, unknown>;
 }
 
 export class SelectOnboardingPlanDto {

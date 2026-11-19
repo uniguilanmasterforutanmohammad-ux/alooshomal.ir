@@ -44,6 +44,12 @@ interface ModuleOption {
   href: string;
   enabled: boolean;
   price: number;
+  fields?: Array<{
+    name: string;
+    label: string;
+    required?: boolean;
+    type?: 'text' | 'date' | 'boolean' | 'file';
+  }>;
 }
 
 const KIND_LABEL: Record<StepKind, string> = {
@@ -431,21 +437,47 @@ export function AdminOnboardingSteps() {
               </label>
             </div>
             {step.kind === 'module' ? (
-              <label className="mt-2 block text-[11px] font-bold text-muted">
-                ماژول/محصول متصل
-                <select
-                  className="indeed-input mt-1 py-1.5 text-xs"
-                  value={step.moduleKey ?? ''}
-                  onChange={(event) => changeModule(index, event.target.value)}
-                >
-                  <option value="">— انتخاب ماژول —</option>
-                  {modules.map((item) => (
-                    <option key={item.key} value={item.key}>
-                      {item.group} — {item.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <div className="mt-2">
+                <label className="block text-[11px] font-bold text-muted">
+                  ماژول/محصول متصل
+                  <select
+                    className="indeed-input mt-1 py-1.5 text-xs"
+                    value={step.moduleKey ?? ''}
+                    onChange={(event) => changeModule(index, event.target.value)}
+                  >
+                    <option value="">— انتخاب ماژول —</option>
+                    {modules.map((item) => (
+                      <option key={item.key} value={item.key}>
+                        {item.group} — {item.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {(() => {
+                  const selected = modules.find(
+                    (item) => item.key === step.moduleKey,
+                  );
+                  const fields = selected?.fields ?? [];
+                  return fields.length > 0 ? (
+                    <p className="mt-1.5 rounded-lg bg-brand-light/40 px-2 py-1.5 text-[11px] leading-5 text-muted">
+                      اطلاعاتی که از کاربر گرفته می‌شود:{' '}
+                      <b className="text-ink">
+                        {fields
+                          .map(
+                            (field) =>
+                              `${field.label}${field.required ? ' *' : ''}`,
+                          )
+                          .join('، ')}
+                      </b>
+                    </p>
+                  ) : (
+                    <p className="mt-1.5 text-[11px] leading-5 text-muted">
+                      این ماژول فرم ورودی ندارد؛ کاربر فقط لینک را باز می‌کند و
+                      مرحله را تیک می‌زند.
+                    </p>
+                  );
+                })()}
+              </div>
             ) : null}
             <label className="mt-2 block text-[11px] font-bold text-muted">
               توضیح

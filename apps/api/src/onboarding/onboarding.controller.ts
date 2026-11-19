@@ -10,6 +10,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import {
   AddOnboardingDocumentDto,
   SaveOnboardingBusinessDto,
+  SaveOnboardingStepDataDto,
   SelectOnboardingPlanDto,
   UpdateOnboardingStepsDto,
 } from './dto/onboarding.dto';
@@ -33,6 +34,19 @@ export class OnboardingController {
   @ApiOperation({ summary: 'تیک‌زدن یک مرحله‌ی سفارشی (مراحل پیش‌فرض خودکارند)' })
   complete(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.onboarding.completeStep(user.id, id);
+  }
+
+  @Post('steps/:id/data')
+  @ApiOperation({
+    summary:
+      'ثبت اطلاعات فرم مرحله‌ی ماژول (استعلام/محصول انتخاب‌شده توسط مدیر) و تکمیل آن مرحله',
+  })
+  saveStepData(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: SaveOnboardingStepDataDto,
+  ) {
+    return this.onboarding.saveModuleStepData(user.id, id, dto.data);
   }
 
   @Post('finish')

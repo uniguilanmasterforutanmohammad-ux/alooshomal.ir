@@ -20,7 +20,43 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.47.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.47.1**.
+
+## ۱۴۰۵/۰۸/۲۹ — فرم پویای مراحل ماژول در «شروع آسان» — نسخه `v4.47.1`
+
+**هدف:** وقتی مدیر در «شروع آسان» یک مرحله از نوع «ماژول» (مثل استعلام api.ir یا
+زوهال) اضافه می‌کند، کاربر نهایی در همان مرحله باید ورودی‌های موردنیاز آن ماژول
+را پر و ثبت کند؛ نه اینکه فقط لینک را باز کند و مرحله را دستی تیک بزند.
+
+**تغییرات:**
+- `apps/api/src/onboarding/onboarding.constants.ts`: افزودن `ONBOARDING_STEP_DATA_PREFIX`،
+  تایپ‌های `OnboardingModuleField`/`OnboardingModuleInfo` و فیلدهای `module`/`data`
+  به `OnboardingStepState`.
+- `apps/api/src/onboarding/onboarding.service.ts`: کاتالوگ ماژول‌ها اکنون `fields`
+  هر سرویس را برمی‌گرداند؛ `getMyProgress` برای مراحل ماژول، تعریف ماژول و
+  داده‌های ذخیره‌شده‌ی کاربر را ضمیمه می‌کند؛ `saveModuleStepData` فیلدهای الزامی
+  را اعتبارسنجی و ذخیره می‌کند و مرحله را کامل می‌کند؛ `completeStep` برای مراحل
+  ماژولِ دارای فرم خطا می‌دهد؛ `uncompleteStep` داده‌ی ذخیره‌شده را پاک می‌کند.
+- `apps/api/src/onboarding/dto/onboarding.dto.ts`: افزودن `SaveOnboardingStepDataDto`.
+- `apps/api/src/onboarding/onboarding.controller.ts`: افزودن مسیر
+  `POST onboarding/steps/:id/data` با `@ApiOperation`.
+- `apps/web/components/admin/AdminOnboardingSteps.tsx`: نمایش فهرست فیلدهایی که از
+  کاربر خواسته می‌شود (یا پیام «بدون ورودی») برای ماژول انتخاب‌شده.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: رندر فرم پویا
+  (text/date/boolean/file با آپلود سند) برای مراحل ماژول و ثبت آن؛ مخفی‌کردن تیک
+  دستی برای این مراحل.
+
+**تأیید/تست:**
+- `tsc --noEmit` در `apps/web` و داخل کانتینر `alooshomal-api` بدون خطا.
+- `python3 scripts/check_api_docs.py` → exit 0 (۵۳ کنترلر، ۵۳۵ مسیر).
+- تست API با توکن کاربر واقعی: `GET /api/onboarding/me` فیلد `trackingCode` را در
+  `module.fields` برگرداند؛ `POST .../data` با داده‌ی خالی → 400 و با
+  `{trackingCode:"BL999888"}` → 201 و `done=true` و `data` ذخیره شد؛
+  `POST .../complete` دستی → 400؛ `DELETE .../complete` داده را پاک کرد.
+- تست Playwright: فرم «اطلاعات موردنیاز این مرحله» و فیلد «کد پیگیری» رندر شد،
+  ثبت موفق پیام «اطلاعات این مرحله ثبت شد» داد و دکمه به «به‌روزرسانی اطلاعات»
+  تغییر کرد؛ صفحه‌ی مدیر نیز راهنمای فیلدها را نشان داد. تنظیمات مراحل و داده‌های
+  تست پس از بررسی به حالت اول بازگردانده و پاک شدند.
 
 ## ۱۴۰۵/۰۸/۲۹ — شبیه‌سازی لوکال api.ir و نمایش همیشگی همگام‌سازی پی‌پینگ — نسخه `v4.47.0`
 
