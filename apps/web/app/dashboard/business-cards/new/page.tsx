@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { BusinessCardForm, type BusinessCardFormValues } from '@/components/businesscard/BusinessCardForm';
 import { ProfileRequiredNotice } from '@/components/dashboard/ProfileRequiredNotice';
 import { Alert, isQuotaMessage } from '@/components/ui/Alert';
+import { SuccessDialog } from '@/components/ui/SuccessDialog';
 import { api, type BusinessCard } from '@/lib/api';
 import { useProfileStatus } from '@/lib/profile-status';
 
@@ -16,6 +17,7 @@ export default function NewBusinessCardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quota, setQuota] = useState(false);
+  const [successOpen, setSuccessOpen] = useState(false);
   const { completed, loading: profileLoading } = useProfileStatus();
 
   // Reopen the user's most recent unfinished draft (if any) so a saved
@@ -50,7 +52,11 @@ export default function NewBusinessCardPage() {
       } else {
         await api.post<BusinessCard>('/business-cards', payload);
       }
-      router.push(options?.draft ? '/dashboard/business-cards' : '/dashboard');
+      if (options?.draft) {
+        router.push('/dashboard/business-cards');
+      } else {
+        setSuccessOpen(true);
+      }
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'ذخیره کارت ویزیت ناموفق بود';
@@ -77,8 +83,27 @@ export default function NewBusinessCardPage() {
     return <ProfileRequiredNotice action="ساخت کارت ویزیت" />;
   }
 
+  const goToCards = () => {
+    setSuccessOpen(false);
+    router.push('/dashboard/business-cards');
+  };
+  const goToDashboard = () => {
+    setSuccessOpen(false);
+    router.push('/dashboard');
+  };
+
   return (
     <div>
+      <SuccessDialog
+        open={successOpen}
+        title="کارت ویزیت شما ساخته شد"
+        description="کارت ویزیت ثبت شد و پس از تأیید مدیر در فهرست عمومی نمایش داده می‌شود. می‌توانید همین حالا آن را در پنل ببینید."
+        primaryLabel="مشاهده کارت ویزیت‌های من"
+        onPrimary={goToCards}
+        secondaryLabel="بازگشت به داشبورد"
+        onSecondary={goToDashboard}
+        onClose={goToCards}
+      />
       <h1 className="text-2xl font-extrabold text-ink">
         {draft ? 'ادامه‌ی تکمیل کارت ویزیت' : 'ساخت کارت ویزیت جدید'}
       </h1>

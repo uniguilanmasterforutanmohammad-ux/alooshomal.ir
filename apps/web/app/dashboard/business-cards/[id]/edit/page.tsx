@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 import { BusinessCardForm, type BusinessCardFormValues } from '@/components/businesscard/BusinessCardForm';
+import { SuccessDialog } from '@/components/ui/SuccessDialog';
 import { api, type BusinessCard } from '@/lib/api';
 
 export default function EditBiolinkPage() {
@@ -12,6 +13,7 @@ export default function EditBiolinkPage() {
   const [businessCard, setBusinessCard] = useState<BusinessCard | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<'published' | 'draft' | null>(null);
 
   useEffect(() => {
     api
@@ -36,7 +38,7 @@ export default function EditBiolinkPage() {
         (payload as Record<string, unknown>).draft = true;
       }
       await api.patch<BusinessCard>(`/business-cards/${params.id}`, payload);
-      router.push(options?.draft ? '/dashboard/business-cards' : '/dashboard');
+      setSaved(options?.draft ? 'draft' : 'published');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره کارت ویزیت ناموفق بود');
     } finally {
@@ -46,6 +48,33 @@ export default function EditBiolinkPage() {
 
   return (
     <div>
+      <SuccessDialog
+        open={saved !== null}
+        title={
+          saved === 'draft'
+            ? 'پیش‌نویس کارت ویزیت ذخیره شد'
+            : 'تغییرات کارت ویزیت ذخیره شد'
+        }
+        description={
+          saved === 'draft'
+            ? 'پیش‌نویس شما به‌صورت خصوصی ذخیره شد و تا ارسال برای تأیید، در فهرست عمومی نمایش داده نمی‌شود.'
+            : 'تغییرات برای تأیید مدیر ارسال شد و پس از تأیید در فهرست عمومی به‌روز می‌شود.'
+        }
+        primaryLabel="مشاهده کارت ویزیت‌های من"
+        onPrimary={() => {
+          setSaved(null);
+          router.push('/dashboard/business-cards');
+        }}
+        secondaryLabel="بازگشت به داشبورد"
+        onSecondary={() => {
+          setSaved(null);
+          router.push('/dashboard');
+        }}
+        onClose={() => {
+          setSaved(null);
+          router.push('/dashboard/business-cards');
+        }}
+      />
       <h1 className="text-2xl font-extrabold text-ink">ویرایش کارت ویزیت</h1>
       <p className="text-sm text-muted">
         تغییرات را مستقیم روی پیش‌نمایش اعمال کنید؛ با «ذخیره تغییرات» برای تأیید

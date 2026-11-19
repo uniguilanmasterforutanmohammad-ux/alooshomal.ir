@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 import { BiolinkForm, type BiolinkFormValues } from '@/components/biolink/BiolinkForm';
+import { SuccessDialog } from '@/components/ui/SuccessDialog';
 import { api, type Biolink } from '@/lib/api';
 import { DEFAULT_TEMPLATE_KEY } from '@/lib/biolink-templates';
 
@@ -13,6 +14,7 @@ export default function EditBiolinkPage() {
   const [biolink, setBiolink] = useState<Biolink | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState<'published' | 'draft' | null>(null);
 
   useEffect(() => {
     api
@@ -37,7 +39,7 @@ export default function EditBiolinkPage() {
         (payload as Record<string, unknown>).draft = true;
       }
       await api.patch<Biolink>(`/biolinks/${params.id}`, payload);
-      router.push(options?.draft ? '/dashboard/biolinks' : '/dashboard');
+      setSaved(options?.draft ? 'draft' : 'published');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ذخیره بیولینک ناموفق بود');
     } finally {
@@ -47,6 +49,33 @@ export default function EditBiolinkPage() {
 
   return (
     <div>
+      <SuccessDialog
+        open={saved !== null}
+        title={
+          saved === 'draft'
+            ? 'پیش‌نویس بیولینک ذخیره شد'
+            : 'تغییرات بیولینک ذخیره شد'
+        }
+        description={
+          saved === 'draft'
+            ? 'پیش‌نویس شما به‌صورت خصوصی ذخیره شد و تا ارسال برای تأیید، در فهرست عمومی نمایش داده نمی‌شود.'
+            : 'تغییرات برای تأیید مدیر ارسال شد و پس از تأیید در فهرست عمومی به‌روز می‌شود.'
+        }
+        primaryLabel="مشاهده بیولینک‌های من"
+        onPrimary={() => {
+          setSaved(null);
+          router.push('/dashboard/biolinks');
+        }}
+        secondaryLabel="بازگشت به داشبورد"
+        onSecondary={() => {
+          setSaved(null);
+          router.push('/dashboard');
+        }}
+        onClose={() => {
+          setSaved(null);
+          router.push('/dashboard/biolinks');
+        }}
+      />
       <h1 className="text-2xl font-extrabold text-ink">ویرایش بیولینک</h1>
       <p className="text-sm text-muted">
         تغییرات را مستقیم روی پیش‌نمایش اعمال کنید؛ با «ذخیره تغییرات» برای تأیید

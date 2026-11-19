@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { BiolinkForm, type BiolinkFormValues } from '@/components/biolink/BiolinkForm';
 import { ProfileRequiredNotice } from '@/components/dashboard/ProfileRequiredNotice';
 import { Alert, isQuotaMessage } from '@/components/ui/Alert';
+import { SuccessDialog } from '@/components/ui/SuccessDialog';
 import { api, type Biolink } from '@/lib/api';
 import { useProfileStatus } from '@/lib/profile-status';
 
@@ -16,6 +17,7 @@ export default function NewBiolinkPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quota, setQuota] = useState(false);
+  const [successOpen, setSuccessOpen] = useState(false);
   const { completed, loading: profileLoading } = useProfileStatus();
 
   // Reopen the user's most recent unfinished draft (if any) so a saved
@@ -50,7 +52,11 @@ export default function NewBiolinkPage() {
       } else {
         await api.post<Biolink>('/biolinks', payload);
       }
-      router.push(options?.draft ? '/dashboard/biolinks' : '/dashboard');
+      if (options?.draft) {
+        router.push('/dashboard/biolinks');
+      } else {
+        setSuccessOpen(true);
+      }
       return true;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'ذخیره بیولینک ناموفق بود';
@@ -77,8 +83,27 @@ export default function NewBiolinkPage() {
     return <ProfileRequiredNotice action="ساخت بیولینک" />;
   }
 
+  const goToBiolinks = () => {
+    setSuccessOpen(false);
+    router.push('/dashboard/biolinks');
+  };
+  const goToDashboard = () => {
+    setSuccessOpen(false);
+    router.push('/dashboard');
+  };
+
   return (
     <div>
+      <SuccessDialog
+        open={successOpen}
+        title="بیولینک شما ساخته شد"
+        description="بیولینک ثبت شد و پس از تأیید مدیر در فهرست عمومی نمایش داده می‌شود. می‌توانید همین حالا آن را در پنل ببینید."
+        primaryLabel="مشاهده بیولینک‌های من"
+        onPrimary={goToBiolinks}
+        secondaryLabel="بازگشت به داشبورد"
+        onSecondary={goToDashboard}
+        onClose={goToBiolinks}
+      />
       <h1 className="text-2xl font-extrabold text-ink">
         {draft ? 'ادامه‌ی تکمیل بیولینک' : 'ساخت بیولینک جدید'}
       </h1>
