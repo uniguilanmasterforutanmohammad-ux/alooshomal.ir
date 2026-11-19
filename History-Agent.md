@@ -20,7 +20,41 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.43.4**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.44.0**.
+
+## ۱۴۰۵/۰۸/۲۸ — شبیه‌سازی محلی استعلام هویت و شاهکار — نسخه `v4.44.0`
+
+**هدف:** در لوکال پرداخت‌ها از قبل شبیه‌سازی می‌شدند ولی دو استعلام هزینه‌دار
+زحل (شاهکار و استعلام هویتی) واقعی و هزینه‌زا بودند؛ حالا این دو هم بدون توکن
+و بدون کسر وجه، همیشه «تطبیق موفق» برمی‌گردانند تا مراحل تکمیل پروفایل،
+«شروع آسان» و تیک آبی محلی کامل شوند.
+
+**تغییرات:**
+- `apps/api/src/zohal/zohal.service.ts`: افزودن سوئیچ `IDENTITY_SIMULATOR` و
+  فعال‌سازی خودکار روی اجرای غیرproduction با `NEXT_PUBLIC_APP_URL` لوکال
+  (همان قاعده‌ی `PAYMENT_SIMULATOR`)؛ پاسخ شبیه‌سازی‌شده‌ی `shahkar` و
+  `national_identity_inquiry` با `httpStatus: null` تا هیچ هزینه‌ای در کیف پول
+  ثبت نشود؛ پرکردن نام از پروفایل همان حساب (یا «کاربر آزمایشی»)؛
+  `identityInquiryAvailable()` در حالت شبیه‌سازی بدون نیاز به `ZOHAL_TOKEN`
+  مقدار `true` می‌دهد؛ و تیک آبی فقط برای فراخوانی واقعی از کیف پول کسر می‌کند.
+- `apps/web/app/payments/simulate/page.tsx`: افزودن callback استعلام هویت به
+  فهرست مسیرهای مجاز درگاه آزمایشی تا خرید بسته‌ی هویت در لوکال کامل شود.
+- `.env.example`، `docker-compose.yml`، `docker-compose.prod.yml`: متغیر
+  `IDENTITY_SIMULATOR` (خالی = خودکار؛ `false` = واقعی؛ `true` = شبیه‌سازی روی
+  staging).
+- `docs/DEVELOPMENT.md`، `docs/ZOHAL.md`: مستندسازی رفتار شبیه‌ساز هویت.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api ./node_modules/.bin/tsc --noEmit --incremental false -p tsconfig.json` → exit 0.
+- `docker exec alooshomal-web ./node_modules/.bin/tsc --noEmit` → exit 0.
+- `python3 scripts/check_api_docs.py` → exit 0 (۵۳ کنترلر / ۵۳۳ مسیر).
+- لاگ API: `[ZohalService] Identity simulator is ENABLED — …` پس از ری‌استارت watch.
+- تست زنده با کاربر موقت + سشن + JWT: `POST /api/profile/identity/checkout`
+  → درگاه آزمایشی (`SIM-…`) → `GET /api/profile/identity/payments/callback`
+  → ریدایرکت `?identity=success`؛ در DB نام/نام‌خانوادگی از پروفایل پر شد،
+  `identityVerifiedAt` ست شد، دو ردیف `identity_inquiry_logs` با `amount=0` و
+  هیچ ردیف کیف پولی ساخته نشد؛ `POST /api/profile/blue-tick/request` هم بدون
+  کسر وجه موفق شد. کاربر تست حذف شد.
 
 ## ۱۴۰۵/۰۸/۲۸ — انتقال تیک سفید/آبی به بدنه‌ی کارت ویزیت — نسخه `v4.43.4`
 

@@ -157,6 +157,9 @@ services:
       # stays server-side; each service is switched on from the «زحل» panel.
       ZOHAL_TOKEN: ${ZOHAL_TOKEN:-}
       ZOHAL_BASE_URL: ${ZOHAL_BASE_URL:-https://service.zohal.io}
+      # Simulated Shahkar/identity inquiry. Empty = auto (on for
+      # non-production + localhost), same rule as PAYMENT_SIMULATOR.
+      IDENTITY_SIMULATOR: ${IDENTITY_SIMULATOR:-}
       # api.ir inquiry services (business-license/پروانه کسب, banking, …). The
       # bearer key stays server-side; each service is switched on from the
       # «api.ir» panel. The dotted variable name is passed through from `.env`.

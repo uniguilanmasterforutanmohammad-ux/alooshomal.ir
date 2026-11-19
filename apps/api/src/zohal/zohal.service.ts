@@ -37,6 +37,21 @@ const IDENTITY_BUNDLE_KEY = 'identity_bundle';
 const IDENTITY_LICENSE_BUNDLE_KEY = 'identity_license_bundle';
 const IDENTITY_SERVICE_KEYS = ['shahkar', 'national_identity_inquiry'] as const;
 
+/** Whether a service key is one of the two paid identity inquiries. */
+function isIdentityServiceKey(key: string): boolean {
+  return (IDENTITY_SERVICE_KEYS as readonly string[]).includes(key);
+}
+
+/** Loopback check used to auto-enable the simulator on a local machine. */
+function isLoopbackUrl(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(hostname);
+  } catch {
+    return false;
+  }
+}
+
 /** Admin-facing description of the Zohal connection. */
 export interface ZohalStatus {
   configured: boolean;
@@ -63,6 +78,7 @@ export class ZohalService {
   private readonly logger = new Logger(ZohalService.name);
   private readonly baseUrl: string;
   private readonly token: string;
+  private readonly simulatorEnabled: boolean;
 
   constructor(
     config: ConfigService,
@@ -77,6 +93,28 @@ export class ZohalService {
       config.get<string>('ZOHAL_BASE_URL') ?? 'https://service.zohal.io'
     ).replace(/\/+$/, '');
     this.token = (config.get<string>('ZOHAL_TOKEN') ?? '').trim();
+
+    // Local/staging stand-in for the two paid identity inquiries. When
+    // `IDENTITY_SIMULATOR` is unset it turns itself on for any non-production
+    // run whose public site URL is a loopback host, so a developer can finish
+    // the identity flow without a Zohal token or a real (billed) inquiry.
+    const nodeEnv = (
+      config.get<string>('NODE_ENV') ?? 'development'
+    ).toLowerCase();
+    const appUrl = (
+      config.get<string>('NEXT_PUBLIC_APP_URL') ?? 'http://localhost:3000'
+    ).replace(/\/+$/, '');
+    const flag = (config.get<string>('IDENTITY_SIMULATOR') ?? '')
+      .trim()
+      .toLowerCase();
+    this.simulatorEnabled =
+      flag === 'true' ||
+      (flag !== 'false' && nodeEnv !== 'production' && isLoopbackUrl(appUrl));
+    if (this.simulatorEnabled) {
+      this.logger.warn(
+        'Identity simulator is ENABLED — Shahkar/identity inquiries are not sent to Zohal and are not charged.',
+      );
+    }
   }
 
   get configured(): boolean {
@@ -85,6 +123,11 @@ export class ZohalService {
 
   get publicBaseUrl(): string {
     return this.baseUrl;
+  }
+
+  /** Whether Shahkar/identity inquiries are answered locally. */
+  get identitySimulated(): boolean {
+    return this.simulatorEnabled;
   }
 
   private settingKey(key: string) {
@@ -497,14 +540,17 @@ export class ZohalService {
     options: { force?: boolean } = {},
   ): Promise<ZohalCallResult<T>> {
     const service = this.findService(key);
-    if (!this.configured) {
-      throw new ServiceUnavailableException(
-        'توکن زحل تنظیم نشده است. مقدار ZOHAL_TOKEN را در محیط سرور قرار دهید.',
-      );
-    }
     if (!options.force && !(await this.isServiceEnabled(key))) {
       throw new ForbiddenException(
         `سرویس «${service.label}» در پنل مدیریت غیرفعال است.`,
+      );
+    }
+    if (this.simulatorEnabled && isIdentityServiceKey(key)) {
+      return this.simulatedIdentityCall<T>(key, payload);
+    }
+    if (!this.configured) {
+      throw new ServiceUnavailableException(
+        'توکن زحل تنظیم نشده است. مقدار ZOHAL_TOKEN را در محیط سرور قرار دهید.',
       );
     }
 
@@ -592,16 +638,91 @@ export class ZohalService {
     };
   }
 
+  /**
+   * Local answer for the two paid identity inquiries. Both are reported as a
+   * successful match with `httpStatus: null`, which is the same signal a
+   * network failure uses and therefore never charges the user's wallet.
+   */
+  private async simulatedIdentityCall<T>(
+    key: string,
+    payload: Record<string, unknown>,
+  ): Promise<ZohalCallResult<T>> {
+    const nationalCode =
+      typeof payload.national_code === 'string'
+        ? payload.national_code.trim()
+        : '';
+    if (key === 'shahkar') {
+      return {
+        ok: true,
+        result: 1,
+        message: 'شبیه‌سازی محلی — شماره موبایل با کد ملی تطبیق داده شد.',
+        errorCode: null,
+        data: { matched: true } as T,
+        httpStatus: null,
+        latencyMs: 0,
+      };
+    }
+
+    const profile = await this.simulatedIdentityProfile(nationalCode);
+    return {
+      ok: true,
+      result: 1,
+      message: 'شبیه‌سازی محلی — استعلام هویت انجام شد.',
+      errorCode: null,
+      data: {
+        matched: true,
+        first_name: profile.firstName,
+        last_name: profile.lastName,
+        father_name: profile.fatherName,
+        national_code: nationalCode || null,
+        alive: true,
+        is_dead: false,
+      } as T,
+      httpStatus: null,
+      latencyMs: 0,
+    };
+  }
+
+  /**
+   * Reuse the name already saved on the account (registration or a previous
+   * edit) instead of inventing one, so the simulated inquiry fills the profile
+   * with something recognisable.
+   */
+  private async simulatedIdentityProfile(nationalCode: string): Promise<{
+    firstName: string;
+    lastName: string;
+    fatherName: string;
+  }> {
+    const user = nationalCode
+      ? await this.prisma.user.findFirst({
+          where: { nationalCode },
+          select: { firstName: true, lastName: true, fullName: true },
+        })
+      : null;
+    const firstName = user?.firstName?.trim() ?? '';
+    const lastName = user?.lastName?.trim() ?? '';
+    if (firstName && lastName) {
+      return { firstName, lastName, fatherName: 'شبیه‌سازی' };
+    }
+    const [firstPart, ...rest] = (user?.fullName ?? '').trim().split(/\s+/);
+    return {
+      firstName: firstPart || 'کاربر',
+      lastName: rest.join(' ') || 'آزمایشی',
+      fatherName: 'شبیه‌سازی',
+    };
+  }
+
   // -------------------------------------------------------------------------
   //  Identity helpers (profile completion + blue tick)
   // -------------------------------------------------------------------------
 
   /** Whether the identity-inquiry feature is usable right now. */
   async identityInquiryAvailable(): Promise<boolean> {
-    if (!this.configured) return false;
     if (!(await this.settings.isFeatureEnabled('featureIdentityInquiry'))) {
       return false;
     }
+    if (this.simulatorEnabled) return true;
+    if (!this.configured) return false;
     return this.isServiceEnabled('national_identity_inquiry');
   }
 
@@ -707,15 +828,19 @@ export class ZohalService {
         phoneMatchVerifiedAt: true,
       },
     });
-    const price = await this.getServicePrice('shahkar');
-    await this.wallet.charge({
-      userId,
-      kind: WalletEntryKind.PHONE_MATCH,
-      amount: price,
-      title: 'تطبیق شماره موبایل و کد ملی',
-      sourceType: 'ZOHAL',
-      sourceId: 'shahkar',
-    });
+    // A simulated (or failed) call answered nothing upstream, so it must not
+    // consume the paid inquiry.
+    if (inquiry.httpStatus !== null) {
+      const price = await this.getServicePrice('shahkar');
+      await this.wallet.charge({
+        userId,
+        kind: WalletEntryKind.PHONE_MATCH,
+        amount: price,
+        title: 'تطبیق شماره موبایل و کد ملی',
+        sourceType: 'ZOHAL',
+        sourceId: 'shahkar',
+      });
+    }
     await this.activity.log({
       actor: { id: userId },
       action: 'BLUE_TICK_REQUESTED',
