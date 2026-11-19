@@ -140,6 +140,7 @@ export class SubscriptionsController {
         workspaceIds: dto?.workspaceIds,
         identity: dto?.identity,
         managementPackageKey: dto?.managementPackageKey,
+        moduleStepIds: dto?.moduleStepIds,
       },
     );
   }

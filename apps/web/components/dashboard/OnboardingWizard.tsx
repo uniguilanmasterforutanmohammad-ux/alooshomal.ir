@@ -78,6 +78,7 @@ interface OnboardingStep {
   hint: string;
   module?: OnboardingModuleInfo | null;
   data?: Record<string, unknown> | null;
+  result?: unknown | null;
 }
 
 interface OnboardingModuleField {
@@ -108,6 +109,17 @@ interface OnboardingPayload {
   documents: OnboardingDocument[];
   business: OnboardingBusinessState | null;
   finished?: boolean;
+  cart?: OnboardingCartItem[];
+  cartTotal?: number;
+  pendingModuleDelivery?: boolean;
+}
+
+interface OnboardingCartItem {
+  stepId: string;
+  moduleKey: string;
+  type: 'zohal' | 'apiir' | 'plan' | 'management' | 'biolink' | 'businessCard';
+  label: string;
+  amount: number;
 }
 
 interface OnboardingBusinessState {
@@ -262,6 +274,8 @@ export function OnboardingWizard() {
     Record<string, Record<string, string>>
   >({});
   const [moduleUploading, setModuleUploading] = useState<string | null>(null);
+  // Guards the fallback delivery so a paid module checkout is delivered once.
+  const moduleDeliveryRef = useRef(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [myPlanId, setMyPlanId] = useState<string | null>(null);
@@ -429,6 +443,65 @@ export function OnboardingWizard() {
       `${window.location.pathname}${query ? `?${query}` : ''}`,
     );
   }, [load]);
+
+  // The combined checkout returns with `?payment=success&modules=pending` when
+  // priced module steps were paid: run their inquiries now (already paid).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('modules');
+    if (!status) return;
+    void (async () => {
+      if (status === 'pending') {
+        try {
+          const result = await api.post<{
+            delivered: number;
+            results: Array<{ stepId: string; ok: boolean }>;
+          }>('/onboarding/cart/deliver', {});
+          if (result.delivered > 0) {
+            const failed = result.results.filter((entry) => !entry.ok).length;
+            if (failed === 0) {
+              toast.success('استعلام‌های خریداری‌شده با موفقیت انجام شد.');
+            } else {
+              toast.error(
+                `${failed.toLocaleString('fa-IR')} استعلام ناموفق بود؛ بعداً از پروفایل دوباره تلاش کنید.`,
+              );
+            }
+          }
+        } catch {
+          toast.error('اجرای استعلام‌های خریداری‌شده ناموفق بود.');
+        }
+        await load();
+      }
+    })();
+    params.delete('modules');
+    const query = params.toString();
+    window.history.replaceState(
+      {},
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}`,
+    );
+  }, [load]);
+
+  // Fallback: if the gateway redirect (and its `modules=pending` flag) was
+  // lost, still deliver any paid-but-undelivered module inquiries on load.
+  useEffect(() => {
+    if (!payload?.pendingModuleDelivery || moduleDeliveryRef.current) return;
+    moduleDeliveryRef.current = true;
+    void (async () => {
+      try {
+        const result = await api.post<{ delivered: number }>(
+          '/onboarding/cart/deliver',
+          {},
+        );
+        if (result.delivered > 0) {
+          toast.success('استعلام‌های خریداری‌شده انجام شد.');
+          await load();
+        }
+      } catch {
+        /* retried on the next load */
+      }
+    })();
+  }, [payload?.pendingModuleDelivery, load]);
 
   // A subscription paid from the onboarding plan step returns here. Refresh
   // progress and move to the next step once the paid plan is active.
@@ -762,6 +835,7 @@ export function OnboardingWizard() {
               : {}),
           }
         : undefined;
+    const moduleStepIds = (payload?.cart ?? []).map((item) => item.stepId);
     setInvoiceBusy(true);
     try {
       const checkout = await api.post<SubscriptionCheckout>(
@@ -770,6 +844,7 @@ export function OnboardingWizard() {
           months: planMonths,
           returnTo: '/dashboard/onboarding',
           workspaceIds,
+          ...(moduleStepIds.length > 0 ? { moduleStepIds } : {}),
           ...(includeManagement && selectedManagementPackage
             ? { managementPackageKey: selectedManagementPackage.key }
             : {}),
@@ -866,18 +941,22 @@ export function OnboardingWizard() {
     Boolean(selectedPlan) &&
     !isFreePlan(selectedPlan) &&
     managementAmount >= 1000;
+  const cart = payload.cart ?? [];
+  const cartTotal =
+    payload.cartTotal ?? cart.reduce((sum, item) => sum + item.amount, 0);
   const invoiceTotalAmount =
     planAmount +
     (includeManagement ? managementAmount : 0) +
     (identityVerified ? 0 : identityTotal) +
-    (licenseSelected ? licensePrice : 0);
+    (licenseSelected ? licensePrice : 0) +
+    cartTotal;
   const planSelected = Boolean(selectedPlan);
   /** Identity/license items that still need to be paid on this invoice. */
   const identityPayable =
     !identityVerified ||
     (licenseSelected && !payload?.identity?.businessLicenseVerified);
   /** The invoice can be paid when it carries a plan or a pending inquiry. */
-  const invoicePayable = planSelected || identityPayable;
+  const invoicePayable = planSelected || identityPayable || cartTotal > 0;
   const invoiceNeedsPayment = invoicePayable && invoiceTotalAmount >= 1000;
   const managementDecided =
     !showManagement || withManagement || managementSkipped;
@@ -1134,6 +1213,21 @@ export function OnboardingWizard() {
                   <p className="mt-2 font-mono text-[10px] text-muted" dir="ltr">
                     {step.moduleKey}
                   </p>
+                ) : null}
+                {step.module && step.module.price > 0 ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-brand-light/50 px-2.5 py-1.5 text-[11px] font-bold text-ink">
+                    <span>هزینه‌ی این خدمت: {faPrice(step.module.price)}</span>
+                    {step.module.type === 'apiir' ||
+                    step.module.type === 'zohal' ? (
+                      <span className="font-normal text-muted">
+                        با استفاده از این خدمت، به صورتحساب نهایی اضافه می‌شود.
+                      </span>
+                    ) : (
+                      <span className="font-normal text-muted">
+                        در مرحله‌ی اشتراک/مدیریت محاسبه می‌شود.
+                      </span>
+                    )}
+                  </div>
                 ) : null}
               </div>
               {(step.module?.fields?.length ?? 0) > 0 ? (
@@ -1801,6 +1895,20 @@ export function OnboardingWizard() {
                       </span>
                     </li>
                   ) : null}
+                  {cart.map((item) => (
+                    <li
+                      key={item.stepId}
+                      className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs"
+                    >
+                      <span className="flex items-center gap-2 text-muted">
+                        <Sparkles className="size-3.5 text-brand" aria-hidden />
+                        {item.label}
+                      </span>
+                      <span className="font-bold text-ink">
+                        {faPrice(item.amount)}
+                      </span>
+                    </li>
+                  ))}
                 </ul>
                 <div className="flex items-center justify-between border-t border-[var(--vintage-border)] bg-brand-light/40 px-4 py-2.5 text-xs">
                   <span className="font-extrabold text-ink">مبلغ قابل پرداخت</span>
@@ -2021,6 +2129,16 @@ export function OnboardingWizard() {
                   <span className="hidden text-[10px] font-bold text-amber-700 sm:inline dark:text-amber-300">
                     ابتدا این مرحله را کامل کنید
                   </span>
+                ) : null}
+                {isOptional && !step.done ? (
+                  <button
+                    type="button"
+                    onClick={nextStep}
+                    className="indeed-btn indeed-btn-secondary py-2 text-xs"
+                    title="این مرحله اختیاری است؛ می‌توانید بعداً آن را انجام دهید"
+                  >
+                    بعداً
+                  </button>
                 ) : null}
                 <button
                   type="button"

@@ -20,7 +20,48 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.48.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.49.0**.
+
+## ۱۴۰۵/۰۸/۲۹ — سبد خرید مراحل ماژول و عبور از مراحل اختیاری — نسخه `v4.49.0`
+
+**هدف:** مراحل ماژولِ دارای هزینه که مدیر به «شروع آسان» اضافه می‌کند، در همان
+مرحله به کاربر نشان داده شوند و با استفاده از خدمت به سبد خرید/صورتحساب نهایی
+اضافه گردند؛ و کاربر بتواند از مراحل اختیاری با دکمه‌ی «بعداً» عبور کند.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `moduleAmount`، `moduleItems` و
+  `moduleConsumedAt` به `SubscriptionPayment` (افزایشی).
+- `apps/api/src/onboarding/onboarding.constants.ts`: افزودن `ONBOARDING_CART_PREFIX`،
+  `ONBOARDING_MODULE_RESULT_PREFIX`، تایپ `OnboardingCartItem`، و فیلدهای
+  `cart`/`cartTotal`/`pendingModuleDelivery`/`result`.
+- `apps/api/src/onboarding/onboarding.service.ts`: ثبت/حذف خودکار ماژول‌های دارای
+  هزینه در سبد هنگام تکمیل/لغو مرحله، بازگرداندن سبد در `getMyProgress`، و
+  `deliverPaidCart` برای اجرای idempotent استعلام‌های پرداخت‌شده (api.ir/Zohal) و
+  ذخیره‌ی نتیجه.
+- `apps/api/src/onboarding/onboarding.controller.ts`: افزودن `POST onboarding/cart/deliver`.
+- `apps/api/src/subscriptions/dto/checkout-subscription.dto.ts` و
+  `subscriptions.controller.ts`: افزودن `moduleStepIds` به پرداخت.
+- `apps/api/src/subscriptions/subscriptions-payment.service.ts`: خواندن سبد سرور،
+  افزودن `moduleAmount` به مبلغ/محصول پی‌پینگ، ذخیره‌ی `moduleItems` روی پرداخت، و
+  پرچم `modules=pending` در کال‌بک.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: نمایش هزینه‌ی ماژول در
+  مرحله، نمایش اقلام سبد در صورتحساب نهایی، ارسال `moduleStepIds` هنگام پرداخت،
+  اجرای خودکار تحویل پس از پرداخت (و fallback روی بارگذاری)، و دکمه‌ی «بعداً» برای
+  مراحل اختیاری.
+- `docs/API.md`: مستندسازی مسیرها و فیلدهای جدید.
+
+**تأیید/تست:**
+- `tsc --noEmit` در `apps/web` و داخل کانتینر `alooshomal-api` بدون خطا.
+- `python3 scripts/check_api_docs.py` → exit 0 (۵۳ کنترلر، ۵۳۷ مسیر).
+- تست API با توکن کاربر: تکمیل مرحله‌ی `apiir:license` (۵۶٬۰۰۰ تومان) سبد را پر
+  کرد (`cartTotal=56000`)؛ `POST /subscriptions/:plan/checkout` با `moduleStepIds`
+  مبلغ ۱۵۵٬۰۰۰ (۹۹٬۰۰۰ اشتراک + ۵۶٬۰۰۰ ماژول) و `moduleAmount=56000` برگرداند؛
+  کال‌بک شبیه‌ساز `modules=pending` داد؛ `POST /onboarding/cart/deliver` استعلام
+  را اجرا کرد، نتیجه را ذخیره و سبد را خالی کرد، و فراخوانی دوم `delivered=0`
+  بود (idempotent).
+- Playwright: نشان قیمت «هزینه‌ی این خدمت: ۵۶٬۰۰۰ تومان»، یادداشت افزودن به
+  صورتحساب، و دکمه‌ی «بعداً» برای مرحله‌ی اختیاری رندر شد. تنظیمات مراحل و
+  داده‌های تست پس از بررسی بازگردانده/پاک شدند.
 
 ## ۱۴۰۵/۰۸/۲۹ — همگام‌سازی پی‌پینگ برای پله و تبلیغات — نسخه `v4.48.0`
 

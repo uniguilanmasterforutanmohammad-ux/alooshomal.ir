@@ -19,12 +19,15 @@ import { ZohalService } from '../zohal/zohal.service';
 import {
   DEFAULT_ONBOARDING_STEPS,
   MANUAL_STEP_KINDS,
+  ONBOARDING_CART_PREFIX,
   ONBOARDING_FINISHED_STEP_ID,
+  ONBOARDING_MODULE_RESULT_PREFIX,
   ONBOARDING_STEP_DATA_PREFIX,
   ONBOARDING_STEPS_SETTING_KEY,
   ONBOARDING_STEP_KINDS,
   type OnboardingDocument,
   type OnboardingBusinessState,
+  type OnboardingCartItem,
   type OnboardingModuleField,
   type OnboardingModuleInfo,
   type OnboardingProgressPayload,
@@ -458,6 +461,9 @@ export class OnboardingService implements OnModuleInit {
       finished,
       moduleCatalog,
       stepDataRows,
+      cartRow,
+      resultRows,
+      pendingModulePayment,
     ] = await Promise.all([
       this.completionMap(userId),
       this.prisma.identityInquiryLog.findMany({
@@ -484,6 +490,23 @@ export class OnboardingService implements OnModuleInit {
           key: { startsWith: `${ONBOARDING_STEP_DATA_PREFIX}${userId}:` },
         },
       }),
+      this.prisma.setting.findUnique({
+        where: { key: this.cartKey(userId) },
+      }),
+      this.prisma.setting.findMany({
+        where: {
+          key: { startsWith: `${ONBOARDING_MODULE_RESULT_PREFIX}${userId}:` },
+        },
+      }),
+      this.prisma.subscriptionPayment.findFirst({
+        where: {
+          userId,
+          status: PaymentStatus.PAID,
+          moduleAmount: { gt: 0 },
+          moduleConsumedAt: null,
+        },
+        select: { id: true },
+      }),
     ]);
     const moduleByKey = new Map(
       moduleCatalog.items.map((item) => [item.key, item]),
@@ -500,6 +523,17 @@ export class OnboardingService implements OnModuleInit {
         }
       } catch {
         // Ignore malformed rows; the form simply starts empty.
+      }
+    }
+    const stepResults = new Map<string, unknown>();
+    for (const row of resultRows) {
+      const stepId = row.key.slice(
+        `${ONBOARDING_MODULE_RESULT_PREFIX}${userId}:`.length,
+      );
+      try {
+        stepResults.set(stepId, JSON.parse(row.value) as unknown);
+      } catch {
+        // Ignore malformed rows.
       }
     }
     const states: OnboardingStepState[] = steps.map((step) => {
@@ -524,9 +558,11 @@ export class OnboardingService implements OnModuleInit {
             } satisfies OnboardingModuleInfo)
           : null,
         data: stepData.get(step.id) ?? null,
+        result: stepResults.get(step.id) ?? null,
       };
     });
     const completed = states.filter((step) => step.done).length;
+    const cart = this.parseCart(cartRow?.value);
     return {
       steps: states,
       completed,
@@ -537,6 +573,9 @@ export class OnboardingService implements OnModuleInit {
       documents,
       business,
       finished: Boolean(finished),
+      cart,
+      cartTotal: cart.reduce((sum, item) => sum + item.amount, 0),
+      pendingModuleDelivery: Boolean(pendingModulePayment),
     };
   }
 
@@ -918,9 +957,10 @@ export class OnboardingService implements OnModuleInit {
       'بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.',
     );
     const step = await this.findCustomStep(stepId);
+    let module: OnboardingModuleOption | undefined;
     if (step.kind === 'module' && step.moduleKey) {
       const catalog = await this.getModuleCatalog();
-      const module = catalog.items.find((item) => item.key === step.moduleKey);
+      module = catalog.items.find((item) => item.key === step.moduleKey);
       if (module && module.fields.length > 0) {
         throw new BadRequestException(
           'این مرحله فرم اطلاعات دارد؛ اطلاعات خواسته‌شده را پر و ثبت کنید.',
@@ -932,6 +972,7 @@ export class OnboardingService implements OnModuleInit {
       create: { userId, stepId: step.id },
       update: { completedAt: new Date() },
     });
+    await this.syncCartForStep(userId, step, module);
     return this.getMyProgress(userId);
   }
 
@@ -986,11 +1027,91 @@ export class OnboardingService implements OnModuleInit {
       create: { userId, stepId: step.id },
       update: { completedAt: new Date() },
     });
+    await this.syncCartForStep(userId, step, module);
     return this.getMyProgress(userId);
   }
 
   private stepDataKey(userId: string, stepId: string) {
     return `${ONBOARDING_STEP_DATA_PREFIX}${userId}:${stepId}`;
+  }
+
+  private cartKey(userId: string) {
+    return `${ONBOARDING_CART_PREFIX}${userId}`;
+  }
+
+  private normaliseCartItems(parsed: unknown): OnboardingCartItem[] {
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (item): item is OnboardingCartItem =>
+        Boolean(item) &&
+        typeof item === 'object' &&
+        typeof (item as OnboardingCartItem).stepId === 'string' &&
+        typeof (item as OnboardingCartItem).moduleKey === 'string' &&
+        typeof (item as OnboardingCartItem).label === 'string' &&
+        typeof (item as OnboardingCartItem).amount === 'number',
+    );
+  }
+
+  private parseCart(value: string | undefined): OnboardingCartItem[] {
+    if (!value) return [];
+    try {
+      return this.normaliseCartItems(JSON.parse(value));
+    } catch {
+      return [];
+    }
+  }
+
+  private async readCart(userId: string): Promise<OnboardingCartItem[]> {
+    const row = await this.prisma.setting.findUnique({
+      where: { key: this.cartKey(userId) },
+    });
+    return this.parseCart(row?.value);
+  }
+
+  private async writeCart(userId: string, items: OnboardingCartItem[]) {
+    if (items.length === 0) {
+      await this.prisma.setting.deleteMany({
+        where: { key: this.cartKey(userId) },
+      });
+      return;
+    }
+    await this.prisma.setting.upsert({
+      where: { key: this.cartKey(userId) },
+      create: { key: this.cartKey(userId), value: JSON.stringify(items) },
+      update: { value: JSON.stringify(items) },
+    });
+  }
+
+  /**
+   * Add a priced module step to the user's cart when it is used, or drop it
+   * when the step is free/not a module. Called on every completion so the cart
+   * always matches what the user actually opted into.
+   */
+  private async syncCartForStep(
+    userId: string,
+    step: OnboardingStepDef,
+    module?: OnboardingModuleOption,
+  ) {
+    const cart = await this.readCart(userId);
+    const without = cart.filter((item) => item.stepId !== step.id);
+    if (
+      step.kind === 'module' &&
+      step.moduleKey &&
+      module &&
+      module.price > 0 &&
+      // Plans and management packages are already charged by their own
+      // dedicated steps; only inquiry modules are extra cart items.
+      (module.type === 'apiir' || module.type === 'zohal')
+    ) {
+      without.push({
+        stepId: step.id,
+        moduleKey: module.key,
+        type: module.type,
+        label: module.label,
+        amount: module.price,
+      });
+    }
+    await this.writeCart(userId, without);
   }
 
   /** Undo a custom step tick. */
@@ -1006,7 +1127,85 @@ export class OnboardingService implements OnModuleInit {
     await this.prisma.setting.deleteMany({
       where: { key: this.stepDataKey(userId, step.id) },
     });
+    const cart = await this.readCart(userId);
+    await this.writeCart(
+      userId,
+      cart.filter((item) => item.stepId !== step.id),
+    );
     return this.getMyProgress(userId);
+  }
+
+  private async readStepData(
+    userId: string,
+    stepId: string,
+  ): Promise<Record<string, unknown>> {
+    const row = await this.prisma.setting.findUnique({
+      where: { key: this.stepDataKey(userId, stepId) },
+    });
+    if (!row?.value) return {};
+    try {
+      const parsed = JSON.parse(row.value) as unknown;
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : {};
+    } catch {
+      return {};
+    }
+  }
+
+  /**
+   * Run the paid module inquiries after the onboarding invoice was settled.
+   * Only api.ir/Zohal modules are executable here; other module types are
+   * delivered by their own flows. Idempotent: the payment is marked consumed
+   * and the cart cleared, so a reload never runs (or charges) twice.
+   */
+  async deliverPaidCart(userId: string) {
+    await this.settings.assertFeatureEnabled(
+      'featureOnboarding',
+      'بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.',
+    );
+    const payment = await this.prisma.subscriptionPayment.findFirst({
+      where: {
+        userId,
+        status: PaymentStatus.PAID,
+        moduleAmount: { gt: 0 },
+        moduleConsumedAt: null,
+      },
+      orderBy: { paidAt: 'desc' },
+    });
+    if (!payment) {
+      return { delivered: 0, results: [] as Array<{ stepId: string; ok: boolean }> };
+    }
+    const items = this.normaliseCartItems(payment.moduleItems);
+    const results: Array<{ stepId: string; ok: boolean }> = [];
+    for (const item of items) {
+      const [prefix, key] = item.moduleKey.split(':', 2);
+      if (!key || (prefix !== 'apiir' && prefix !== 'zohal')) {
+        continue;
+      }
+      const payload = await this.readStepData(userId, item.stepId);
+      try {
+        const result =
+          prefix === 'apiir'
+            ? await this.apiir.call(key, payload)
+            : await this.zohal.call(key, payload);
+        const resultKey = `${ONBOARDING_MODULE_RESULT_PREFIX}${userId}:${item.stepId}`;
+        await this.prisma.setting.upsert({
+          where: { key: resultKey },
+          create: { key: resultKey, value: JSON.stringify(result) },
+          update: { value: JSON.stringify(result) },
+        });
+        results.push({ stepId: item.stepId, ok: result.ok });
+      } catch {
+        results.push({ stepId: item.stepId, ok: false });
+      }
+    }
+    await this.prisma.subscriptionPayment.update({
+      where: { id: payment.id },
+      data: { moduleConsumedAt: new Date() },
+    });
+    await this.writeCart(userId, []);
+    return { delivered: results.length, results };
   }
 
   /**

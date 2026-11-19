@@ -1455,6 +1455,16 @@ model SubscriptionPayment {
   /// Set once the paid identity inquiry actually ran, so a page reload never
   /// runs (or charges) it twice.
   identityConsumedAt DateTime?
+  /// Part of `amount` that pays admin-added onboarding module steps (0 when
+  /// the user did not use any priced module in the wizard).
+  moduleAmount Int            @default(0)
+  /// The module-step items paid with this checkout: a list of
+  /// `{ stepId, moduleKey, type, label, amount }` entries snapshotted at
+  /// checkout time so the post-payment delivery runs exactly what was paid.
+  moduleItems  Json?
+  /// Set once the paid module steps were delivered (their inquiries ran), so a
+  /// page reload never runs them twice.
+  moduleConsumedAt DateTime?
   /// The add-on packages bought with this payment: a list of
   /// `{ workspaceId, packageKey, label, amount, months, paidUntil }` entries —
   /// one per business (Plus may buy the management for up to three).

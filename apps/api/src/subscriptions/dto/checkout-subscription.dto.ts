@@ -112,6 +112,23 @@ export class CheckoutSubscriptionDto {
   managementPackageKey?: string;
 
   /**
+   * Onboarding cart module steps to charge in this checkout. Only the steps
+   * already present in the user's server-side cart are charged; the client
+   * merely selects which ones to pay for now.
+   */
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      'شناسه‌ی مراحل ماژولِ سبد خرید «شروع آسان» که باید در همین پرداخت حساب شوند.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(64, { each: true })
+  moduleStepIds?: string[];
+
+  /**
    * Identity inquiry paid together with the subscription (new accounts must
    * verify before the plan is useful). Omitted = no identity charge.
    */

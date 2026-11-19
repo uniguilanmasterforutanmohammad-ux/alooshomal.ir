@@ -49,6 +49,15 @@ export class OnboardingController {
     return this.onboarding.saveModuleStepData(user.id, id, dto.data);
   }
 
+  @Post('cart/deliver')
+  @ApiOperation({
+    summary:
+      'اجرای استعلام‌های ماژول‌هایی که همراه پرداخت نهایی خریداری شده‌اند (بدون کسر مجدد)',
+  })
+  deliverCart(@CurrentUser() user: AuthUser) {
+    return this.onboarding.deliverPaidCart(user.id);
+  }
+
   @Post('finish')
   @ApiOperation({
     summary: 'ثبت پایان «شروع آسان» و توقف نمایش آن در پنل کاربری',

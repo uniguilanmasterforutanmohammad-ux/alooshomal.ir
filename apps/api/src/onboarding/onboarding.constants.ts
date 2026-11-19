@@ -18,6 +18,19 @@ export const ONBOARDING_STEPS_SETTING_KEY = 'onboardingSteps';
 export const ONBOARDING_STEP_DATA_PREFIX = 'onboardingStepData:';
 
 /**
+ * Per-user onboarding cart. When the user actually uses a priced module step
+ * (submits its form or completes it), the module is added here so the final
+ * invoice can charge for it in the single checkout. Stored as a JSON setting.
+ */
+export const ONBOARDING_CART_PREFIX = 'onboardingCart:';
+
+/**
+ * Per-user, per-step result of a paid module inquiry (api.ir/Zohal) that ran
+ * after the onboarding invoice was settled. Stored as a JSON setting.
+ */
+export const ONBOARDING_MODULE_RESULT_PREFIX = 'onboardingModuleResult:';
+
+/**
  * Sentinel completion row written when the user presses «پایان مراحل» on the
  * final step. It is not a real wizard step; it only records that the user has
  * dismissed onboarding so the dashboard can stop advertising «شروع آسان».
@@ -104,6 +117,16 @@ export interface OnboardingModuleInfo {
   fields: OnboardingModuleField[];
 }
 
+/** One priced module the user opted into, shown in the wizard's cart. */
+export interface OnboardingCartItem {
+  stepId: string;
+  moduleKey: string;
+  type: OnboardingModuleInfo['type'];
+  label: string;
+  /** Toman; snapshotted from the module catalog when the step was used. */
+  amount: number;
+}
+
 export const DEFAULT_ONBOARDING_STEPS: OnboardingStepDef[] = [
   {
     id: 'welcome',
@@ -173,6 +196,8 @@ export interface OnboardingStepState extends OnboardingStepDef {
   module?: OnboardingModuleInfo | null;
   /** Values the user already submitted for this module step. */
   data?: Record<string, unknown> | null;
+  /** Result of the paid inquiry that ran for this module step, if any. */
+  result?: unknown | null;
 }
 
 export interface OnboardingProgressPayload {
@@ -191,6 +216,12 @@ export interface OnboardingProgressPayload {
   documents: OnboardingDocument[];
   /** Draft captured by the business step before the card exists. */
   business: OnboardingBusinessState | null;
+  /** Priced modules the user used; charged on the final invoice. */
+  cart: OnboardingCartItem[];
+  /** Sum of {@link cart} amounts in Toman. */
+  cartTotal: number;
+  /** True when a paid checkout still has module inquiries to deliver. */
+  pendingModuleDelivery: boolean;
 }
 
 /** Snapshot of the «شروع آسان» business draft. */

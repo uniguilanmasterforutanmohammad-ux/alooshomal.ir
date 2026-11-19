@@ -417,7 +417,7 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 | `GET` | `/subscriptions/plans` | فهرست بسته‌های فعال (عمومی). |
 | `GET` | `/subscriptions/me` | بسته‌ی فعلی (به‌همراه `planStartedAt`/`planExpiresAt`)، درخواست‌ها (با `startsAt`/`expiresAt` و وضعیت پرداخت) و ۲۰ پرداخت آخر کاربر. |
 | `POST` | `/subscriptions/request` | درخواست اشتراک رایگان/بدون پرداخت (در انتظار تأیید مدیر)؛ بدنه‌ی اختیاری `{ planId, note, months }`. |
-| `POST` | `/subscriptions/:planId/checkout` | شروع پرداخت آنلاین؛ بدنه‌ی اختیاری `{ months, returnTo, workspaceIds }` (۱/۳/۶/۱۲)، خروجی `{ paymentId, amount, months, url, paymentCode, paypingProductCode, withBusinessPackage, businessAmount, businessPackages, expiresAt }`. با `workspaceIds` مبلغ افزودنی هر کسب‌وکار روزشمار به مبلغ اشتراک اضافه می‌شود. `returnTo` یک مسیر داخلی مثل `/dashboard/onboarding` است و پس از کال‌بک همان‌جا برگردانده می‌شود. در حالت «پرداخت فقط آنلاین» همیشه به درگاه می‌رود و کیف پول بدهکار نمی‌شود. |
+| `POST` | `/subscriptions/:planId/checkout` | شروع پرداخت آنلاین؛ بدنه‌ی اختیاری `{ months, returnTo, workspaceIds, identity, managementPackageKey, moduleStepIds }` (۱/۳/۶/۱۲)، خروجی `{ paymentId, amount, months, url, paymentCode, paypingProductCode, withBusinessPackage, businessAmount, businessPackages, identityAmount, moduleAmount, moduleItems, expiresAt }`. با `workspaceIds` مبلغ افزودنی هر کسب‌وکار روزشمار به مبلغ اشتراک اضافه می‌شود. `moduleStepIds` مراحل ماژولِ سبد «شروع آسان» را (که سرور هنگام استفاده‌ی کاربر ثبت کرده) به همین پرداخت اضافه می‌کند. `returnTo` یک مسیر داخلی مثل `/dashboard/onboarding` است و پس از کال‌بک همان‌جا برگردانده می‌شود. در حالت «پرداخت فقط آنلاین» همیشه به درگاه می‌رود و کیف پول بدهکار نمی‌شود. |
 | `GET` | `/subscriptions/plans/:planId/addon-quote` | استعلام افزودنی برای کسب‌وکارهای کاربر؛ `months` یکی از ۱/۳/۶/۱۲ یا `0` (میان‌دوره) است. خروجی شامل `allowed`، `maxBusinesses`، `expiresAt` و فهرست کسب‌وکارها با `amount` و `currentPaidUntil` (برای تفکیک «افزودن» از «تمدید»). |
 | `POST` | `/subscriptions/addon/checkout` | خرید میان‌دوره‌ای افزودنی روی اشتراک فعال؛ بدنه‌ی اختیاری `{ workspaceIds, returnTo }`. دوره‌ی جدید ساخته نمی‌شود و بسته در انقضای فعلی تمام می‌شود. |
 | `POST` | `/subscriptions/:id/activate` | فعال‌سازی اشتراک پرداخت‌شده‌ای که به‌دلیل وجود یک دوره‌ی فعال دیگر، در وضعیت `PENDING` مانده است. با فعال‌سازی، دوره‌ی قبلی لغو و مانده‌ی روزهایش حذف می‌شود. |
@@ -630,10 +630,12 @@ api.ir فقط سمت سرور (`API_KEY_API.IR`؛ جایگزین `APIIR_TOKEN`) 
 
 | متد | مسیر | دسترسی | توضیح |
 | --- | --- | --- | --- |
-| `GET` | `/onboarding/me` | کاربر | مراحل فعال + وضعیت تکمیل/راهنمای هر مرحله + شمارش پیشرفت + وضعیت هویت (`identity`) + سابقه‌ی استعلام‌ها (`history`) + مدارک آپلودشده (`documents`) + کسب‌وکار ثبت‌شده‌ی «شروع آسان» (`business`). |
+| `GET` | `/onboarding/me` | کاربر | مراحل فعال + وضعیت تکمیل/راهنمای هر مرحله + شمارش پیشرفت + وضعیت هویت (`identity`) + سابقه‌ی استعلام‌ها (`history`) + مدارک آپلودشده (`documents`) + کسب‌وکار ثبت‌شده‌ی «شروع آسان» (`business`) + سبد خرید ماژول‌های دارای هزینه (`cart`, `cartTotal`) + پرچم `pendingModuleDelivery` برای استعلام‌های پرداخت‌شده‌ی در انتظار اجرا. |
 | `POST` | `/onboarding/business` | کاربر | ساخت/به‌روزرسانی کسب‌وکار مرحله ۲ (فقط فضای کسب‌وکار، بدون کارت ویزیت و بیولینک)؛ بدنه `{ name, cityId?, businessId?, mobile?, address?, fullName? }`. دسته‌بندی انتخاب‌شده تعیین می‌کند در مرحله‌ی طرح، «مدیریت کسب‌وکار» پیشنهاد شود یا نه. |
 | `POST` | `/onboarding/steps/:id/complete` | کاربر | تیک‌زدن یک مرحله‌ی سفارشی. |
 | `DELETE` | `/onboarding/steps/:id/complete` | کاربر | برداشتن تیک یک مرحله‌ی سفارشی. |
+| `POST` | `/onboarding/steps/:id/data` | کاربر | ثبت فرم پویای مرحله‌ی ماژول؛ بدنه `{ data: Record<string, unknown> }`. فیلدهای الزامی ماژول اعتبارسنجی می‌شوند، داده ذخیره و مرحله کامل می‌شود، و اگر ماژول قیمت داشته باشد به سبد خرید اضافه می‌گردد. |
+| `POST` | `/onboarding/cart/deliver` | کاربر | اجرای استعلام‌های ماژول (api.ir/Zohal) که همراه پرداخت نهایی خریداری شده‌اند؛ idempotent و بدون کسر مجدد. |
 | `POST` | `/onboarding/documents` | کاربر | ثبت فایل آپلودشده (خروجی `/uploads/document`) در فهرست مدارک حساب؛ بدنه `{ url, name?, size?, contentType? }`. |
 | `DELETE` | `/onboarding/documents/:id` | کاربر | حذف یک مدرک از حساب. |
 | `GET` | `/admin/onboarding/steps` | ADMIN | فهرست مراحل پیکربندی‌شده. |

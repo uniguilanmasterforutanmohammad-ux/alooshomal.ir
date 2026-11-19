@@ -32,6 +32,10 @@ import {
 import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
 import { FinanceService } from '../finance/finance.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import {
+  ONBOARDING_CART_PREFIX,
+  type OnboardingCartItem,
+} from '../onboarding/onboarding.constants';
 import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -521,6 +525,8 @@ export class SubscriptionsPaymentService {
       workspaceIds?: string[] | null;
       identity?: CheckoutIdentityInput | null;
       managementPackageKey?: string | null;
+      /** Onboarding cart step ids to charge in this checkout. */
+      moduleStepIds?: string[] | null;
     } = {},
   ) {
     const plan = await this.requirePlan(planId);
@@ -588,8 +594,19 @@ export class SubscriptionsPaymentService {
     const businessAmount = addons.reduce((sum, item) => sum + item.amount, 0);
     const identity = await this.resolveIdentityCharge(user, options.identity);
     const identityAmount = identity.amount;
+    const moduleItems = await this.resolveOnboardingModules(
+      userId,
+      options.moduleStepIds,
+    );
+    const moduleAmount = moduleItems.reduce(
+      (sum, item) => sum + item.amount,
+      0,
+    );
     const amount =
-      planPriceForMonths(plan, months) + businessAmount + identityAmount;
+      planPriceForMonths(plan, months) +
+      businessAmount +
+      identityAmount +
+      moduleAmount;
     if (amount < 1000) {
       throw new BadRequestException(
         'مبلغ این اشتراک برای پرداخت آنلاین معتبر نیست؛ از درخواست اشتراک استفاده کنید.',
@@ -599,7 +616,11 @@ export class SubscriptionsPaymentService {
     // Online-only mode (the current policy) always goes through the gateway,
     // so a purchase can never leave a negative wallet balance behind.
     const onlineOnly = await this.settings.getPaymentsOnlineOnly();
-    if (!onlineOnly && (await this.settings.isFeatureEnabled('featureWallet'))) {
+    if (
+      !onlineOnly &&
+      moduleItems.length === 0 &&
+      (await this.settings.isFeatureEnabled('featureWallet'))
+    ) {
       return this.purchaseViaWallet(userId, plan, months, addons);
     }
 
@@ -609,7 +630,7 @@ export class SubscriptionsPaymentService {
       : await this.ensurePlanProduct(plan, months, {
           withBusinessPackage: addons.length > 0,
           businessAmount,
-          extraAmount: identityAmount,
+          extraAmount: identityAmount + moduleAmount,
         });
 
     // Supersede any previous unpaid attempt for the same plan.
@@ -633,6 +654,11 @@ export class SubscriptionsPaymentService {
         payerName: user.fullName ?? undefined,
         businessAmount,
         identityAmount,
+        moduleAmount,
+        moduleItems:
+          moduleItems.length > 0
+            ? (moduleItems as unknown as Prisma.InputJsonValue)
+            : undefined,
         identityData: identity.data
           ? (identity.data as unknown as Prisma.InputJsonValue)
           : undefined,
@@ -713,6 +739,8 @@ export class SubscriptionsPaymentService {
       businessPackages: addons,
       identityAmount,
       identityPending: identityAmount > 0,
+      moduleAmount,
+      moduleItems,
       /** ISO expiry the plan and every add-on package share. */
       expiresAt: expiresAt.toISOString(),
     };
@@ -1046,6 +1074,44 @@ export class SubscriptionsPaymentService {
    * caller did not request it), so the same checkout can serve both new and
    * returning users.
    */
+  /**
+   * Read the user's onboarding cart and keep only the requested module steps.
+   * The cart is written server-side when a priced module step is used, so its
+   * amounts are trusted; the client only names which steps to pay for.
+   */
+  private async resolveOnboardingModules(
+    userId: string,
+    stepIds?: string[] | null,
+  ): Promise<OnboardingCartItem[]> {
+    const row = await this.prisma.setting.findUnique({
+      where: { key: `${ONBOARDING_CART_PREFIX}${userId}` },
+    });
+    if (!row?.value) return [];
+    let items: OnboardingCartItem[] = [];
+    try {
+      const parsed = JSON.parse(row.value) as unknown;
+      if (Array.isArray(parsed)) {
+        items = parsed.filter(
+          (item): item is OnboardingCartItem =>
+            Boolean(item) &&
+            typeof item === 'object' &&
+            typeof (item as OnboardingCartItem).stepId === 'string' &&
+            typeof (item as OnboardingCartItem).moduleKey === 'string' &&
+            typeof (item as OnboardingCartItem).label === 'string' &&
+            typeof (item as OnboardingCartItem).amount === 'number' &&
+            (item as OnboardingCartItem).amount > 0,
+        );
+      }
+    } catch {
+      return [];
+    }
+    if (stepIds && stepIds.length > 0) {
+      const wanted = new Set(stepIds);
+      items = items.filter((item) => wanted.has(item.stepId));
+    }
+    return items;
+  }
+
   private async resolveIdentityCharge(
     user: {
       id: string;
@@ -1493,6 +1559,14 @@ export class SubscriptionsPaymentService {
           !payment.identityConsumedAt
             ? 'pending'
             : undefined,
+        // Priced onboarding module steps are paid here but their inquiries run
+        // on the onboarding page, like the identity bundle.
+        modules:
+          status === 'success' &&
+          payment.moduleAmount > 0 &&
+          !payment.moduleConsumedAt
+            ? 'pending'
+            : undefined,
       });
     if (payment.status === PaymentStatus.PAID) {
       return reply(
@@ -1633,12 +1707,14 @@ export class SubscriptionsPaymentService {
       returnTo?: string | null;
       activation?: 'pending';
       identity?: 'pending' | 'failed';
+      modules?: 'pending';
     },
   ) {
     const params = new URLSearchParams({ payment: status });
     if (planName) params.set('plan', planName);
     if (options?.activation) params.set('activation', options.activation);
     if (options?.identity) params.set('identity', options.identity);
+    if (options?.modules) params.set('modules', options.modules);
     const safeReturnTo =
       options?.returnTo && /^\/(?!\/)/.test(options.returnTo)
         ? options.returnTo
