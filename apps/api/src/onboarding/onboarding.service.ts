@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import {
   BiolinkStatus,
+  IdentityInquiryKind,
   PaymentStatus,
   Prisma,
 } from '@prisma/client';
@@ -634,7 +635,7 @@ export class OnboardingService implements OnModuleInit {
       licenseTrackingCode?: string | null;
     };
     try {
-      await this.profile.runPaidIdentityBundle(userId, data);
+      const result = await this.profile.runPaidIdentityBundle(userId, data);
       await this.prisma.subscriptionPayment.update({
         where: { id: payment.id },
         data: { identityConsumedAt: new Date() },
@@ -642,8 +643,9 @@ export class OnboardingService implements OnModuleInit {
       return {
         ran: true,
         success: true,
-        businessLicenseVerified: Boolean(data.withLicense),
-        message: 'استعلام هویت با موفقیت انجام شد.',
+        businessLicenseVerified: result.businessLicenseVerified,
+        message:
+          result.businessLicenseMessage ?? 'استعلام هویت با موفقیت انجام شد.',
       };
     } catch (error) {
       await this.prisma.subscriptionPayment.update({
@@ -875,19 +877,37 @@ export class OnboardingService implements OnModuleInit {
 
   /** The identity fields currently stored on the account (read-only snapshot). */
   private async identityState(userId: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        nationalCode: true,
-        birthDate: true,
-        firstName: true,
-        lastName: true,
-        fatherName: true,
-        phoneMatchVerifiedAt: true,
-        identityVerifiedAt: true,
-        businessLicenseVerifiedAt: true,
-      },
-    });
+    const [user, latestLicense] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          nationalCode: true,
+          birthDate: true,
+          firstName: true,
+          lastName: true,
+          fatherName: true,
+          phoneMatchVerifiedAt: true,
+          identityVerifiedAt: true,
+          businessLicenseVerifiedAt: true,
+        },
+      }),
+      this.prisma.identityInquiryLog.findFirst({
+        where: { userId, kind: IdentityInquiryKind.BUSINESS_LICENSE },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          status: true,
+          matched: true,
+          message: true,
+          firstName: true,
+          lastName: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+    const licenseOwnerName =
+      [latestLicense?.firstName, latestLicense?.lastName]
+        .filter(Boolean)
+        .join(' ') || null;
     return {
       nationalCode: user?.nationalCode ?? null,
       birthDate: user?.birthDate ?? null,
@@ -897,6 +917,14 @@ export class OnboardingService implements OnModuleInit {
       phoneMatched: Boolean(user?.phoneMatchVerifiedAt),
       verified: Boolean(user?.identityVerifiedAt),
       businessLicenseVerified: Boolean(user?.businessLicenseVerifiedAt),
+      businessLicenseStatus: user?.businessLicenseVerifiedAt
+        ? 'SUCCESS'
+        : (latestLicense?.status ?? null),
+      businessLicenseMessage: user?.businessLicenseVerifiedAt
+        ? null
+        : (latestLicense?.message ?? null),
+      businessLicenseOwnerName: licenseOwnerName,
+      businessLicenseCheckedAt: latestLicense?.createdAt ?? null,
     };
   }
 

@@ -49,6 +49,45 @@ function pickAllowed(changes: Prisma.JsonObject): Partial<Record<AllowedField, s
   return picked;
 }
 
+const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
+const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+
+/** Normalises Persian/Arabic digits and letters before comparing names. */
+function normalizeIdentityText(value: string | null | undefined): string {
+  return (value ?? '')
+    .replace(/[۰-۹]/g, (digit) => String(PERSIAN_DIGITS.indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String(ARABIC_DIGITS.indexOf(digit)))
+    .replace(/[يى]/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[\u200c\u200e\u200f]/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+function normalizeNationalCode(value: string | null | undefined): string {
+  return normalizeIdentityText(value).replace(/\s+/g, '');
+}
+
+/**
+ * Compares two full names token by token so a different word order or extra
+ * spacing in the upstream payload does not break an otherwise equal name.
+ */
+function sameFullName(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): boolean {
+  const a = normalizeIdentityText(left);
+  const b = normalizeIdentityText(right);
+  if (!a || !b) return false;
+  const leftTokens = a.split(' ').sort();
+  const rightTokens = b.split(' ').sort();
+  return (
+    leftTokens.length === rightTokens.length &&
+    leftTokens.every((token, index) => token === rightTokens[index])
+  );
+}
+
 @Injectable()
 export class ProfileService {
   constructor(
@@ -1113,7 +1152,14 @@ export class ProfileService {
     return Boolean(user?.businessLicenseVerifiedAt);
   }
 
-  /** Optional third leg of the bundle: api.ir business-license inquiry. */
+  /**
+   * Optional third leg of the bundle: api.ir business-license inquiry.
+   *
+   * The blue tick is only granted when the license owner's national code and
+   * full name match the identity already verified for this account. A mismatch
+   * is a valid inquiry result (not an upstream error), so the payment is still
+   * consumed and the exact reason is logged and shown to the user.
+   */
   private async performBusinessLicense(userId: string, trackingCode: string) {
     const inquiry = await this.apiir.inquiryLicense(trackingCode);
     if (!inquiry.ok) {
@@ -1121,21 +1167,84 @@ export class ProfileService {
         inquiry.message || 'استعلام جواز کسب انجام نشد؛ لطفاً دوباره تلاش کنید.',
       );
     }
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        nationalCode: true,
+        firstName: true,
+        lastName: true,
+        fullName: true,
+      },
+    });
+    if (!user) throw new NotFoundException('کاربر یافت نشد');
+
+    const data = (inquiry.data ?? {}) as {
+      fullName?: string | null;
+      nationalCode?: string | null;
+      isActive?: boolean | null;
+    };
+    const licenseNationalCode = normalizeNationalCode(data.nationalCode);
+    const identityNationalCode = normalizeNationalCode(user.nationalCode);
+    const licenseName = data.fullName ?? null;
+    const identityName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+      user.fullName;
+
+    const nationalCodeMatches =
+      Boolean(licenseNationalCode) &&
+      Boolean(identityNationalCode) &&
+      licenseNationalCode === identityNationalCode;
+    const nameMatches = sameFullName(licenseName, identityName);
+    const matched = nationalCodeMatches && nameMatches;
+
+    let message: string;
+    if (!licenseNationalCode || !licenseName) {
+      message =
+        'اطلاعات مالک جواز (کد ملی و نام) در پاسخ استعلام یافت نشد؛ تیک آبی صادر نشد.';
+    } else if (!nationalCodeMatches && !nameMatches) {
+      message =
+        'کد ملی و نام و نام خانوادگی مالک جواز با اطلاعات هویتی تأییدشده‌ی شما مطابقت ندارد؛ تیک آبی صادر نشد.';
+    } else if (!nationalCodeMatches) {
+      message =
+        'کد ملی مالک جواز با کد ملی هویت تأییدشده‌ی شما مطابقت ندارد؛ تیک آبی صادر نشد.';
+    } else if (!nameMatches) {
+      message =
+        'نام و نام خانوادگی مالک جواز با نام و نام خانوادگی هویت تأییدشده‌ی شما مطابقت ندارد؛ تیک آبی صادر نشد.';
+    } else {
+      message = 'استعلام جواز کسب با موفقیت انجام شد و تیک آبی صادر شد.';
+    }
+
+    const nameParts = (licenseName ?? '').trim().split(/\s+/).filter(Boolean);
     await this.prisma.user.update({
       where: { id: userId },
       data: {
-        businessLicenseVerifiedAt: new Date(),
+        businessLicenseVerifiedAt: matched ? new Date() : null,
         businessLicenseData: (inquiry.data ?? {}) as Prisma.InputJsonValue,
       },
     });
+    await this.logInquiry({
+      userId,
+      kind: IdentityInquiryKind.BUSINESS_LICENSE,
+      status: matched
+        ? IdentityInquiryStatus.SUCCESS
+        : IdentityInquiryStatus.FAILED,
+      nationalCode: licenseNationalCode || user.nationalCode,
+      matched,
+      firstName: nameParts[0] ?? null,
+      lastName: nameParts.slice(1).join(' ') || null,
+      message,
+      raw: inquiry.data ?? null,
+    });
     await this.activity.log({
       actor: { id: userId },
-      action: 'BUSINESS_LICENSE_VERIFIED',
-      summary: 'استعلام جواز کسب با موفقیت انجام شد (تیک آبی)',
+      action: matched ? 'BUSINESS_LICENSE_VERIFIED' : 'BUSINESS_LICENSE_REJECTED',
+      summary: matched
+        ? 'استعلام جواز کسب با موفقیت انجام شد (تیک آبی)'
+        : `استعلام جواز کسب انجام شد اما تیک آبی صادر نشد: ${message}`,
       entityType: 'USER',
       entityId: userId,
     });
-    return inquiry;
+    return { ...inquiry, matched, message };
   }
 
   /**
@@ -1225,7 +1334,11 @@ export class ProfileService {
       withLicense?: boolean;
       licenseTrackingCode?: string | null;
     },
-  ): Promise<{ identityVerified: boolean; businessLicenseVerified: boolean }> {
+  ): Promise<{
+    identityVerified: boolean;
+    businessLicenseVerified: boolean;
+    businessLicenseMessage: string | null;
+  }> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -1241,17 +1354,25 @@ export class ProfileService {
         data.birthDate ?? null,
       );
     }
+    let businessLicenseVerified = Boolean(user.businessLicenseVerifiedAt);
+    let businessLicenseMessage: string | null = null;
     if (data.withLicense && !user.businessLicenseVerifiedAt) {
       if (!data.licenseTrackingCode) {
         throw new BadRequestException(
           'کد پیگیری جواز کسب برای این پرداخت ثبت نشده است.',
         );
       }
-      await this.performBusinessLicense(userId, data.licenseTrackingCode);
+      const license = await this.performBusinessLicense(
+        userId,
+        data.licenseTrackingCode,
+      );
+      businessLicenseVerified = license.matched;
+      businessLicenseMessage = license.message;
     }
     return {
       identityVerified: true,
-      businessLicenseVerified: Boolean(data.withLicense),
+      businessLicenseVerified,
+      businessLicenseMessage,
     };
   }
 

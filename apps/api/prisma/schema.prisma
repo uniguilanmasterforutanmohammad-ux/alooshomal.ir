@@ -422,10 +422,12 @@ model User {
   identityVerifiedAt DateTime?
   /// Raw (already normalised) identity inquiry payload, kept for audit.
   identityInquiryData Json?
-  /// Set after the paid «استعلام جواز کسب» succeeds (the optional third leg of
-  /// the onboarding identity bundle). Grants the blue tick in the wizard.
+  /// Set only when the paid «استعلام جواز کسب» succeeds *and* the license
+  /// owner matches the verified identity (national code + full name). Grants
+  /// the blue tick in the wizard.
   businessLicenseVerifiedAt DateTime?
-  /// Raw api.ir license inquiry payload, kept for audit.
+  /// Raw api.ir license inquiry payload of the latest attempt, kept for audit
+  /// (even when the owner did not match, so the admin can see the reason).
   businessLicenseData Json?
   /// «تیک آبی» — set after a successful identity inquiry and admin approval.
   verifiedAt   DateTime?
@@ -533,6 +535,10 @@ enum IdentityInquiryKind {
   PHONE_MATCH
   /// Paid identity inquiry (name / father name) with national code + birth date.
   IDENTITY_INQUIRY
+  /// «استعلام جواز کسب» — api.ir business-license inquiry. The blue tick is
+  /// only granted when the license owner's national code and full name match
+  /// the verified identity of the account.
+  BUSINESS_LICENSE
 }
 
 /// Outcome of one attempt. `CACHED` means the result was already known (from a

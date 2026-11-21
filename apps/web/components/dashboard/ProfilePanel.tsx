@@ -57,7 +57,7 @@ interface ProfilePayload {
 
 interface IdentityLog {
   id: string;
-  kind: 'PHONE_MATCH' | 'IDENTITY_INQUIRY';
+  kind: 'PHONE_MATCH' | 'IDENTITY_INQUIRY' | 'BUSINESS_LICENSE';
   status: 'SUCCESS' | 'FAILED' | 'CACHED';
   nationalCode: string | null;
   birthDate: string | null;
@@ -332,7 +332,9 @@ export function ProfilePanel() {
                     <b className="text-ink">
                       {log.kind === 'PHONE_MATCH'
                         ? 'تطبیق شماره موبایل (شاهکار)'
-                        : 'استعلام اطلاعات هویتی'}
+                        : log.kind === 'BUSINESS_LICENSE'
+                          ? 'استعلام جواز کسب'
+                          : 'استعلام اطلاعات هویتی'}
                     </b>
                     <span className="text-muted">
                       {new Date(log.createdAt).toLocaleString('fa-IR')}

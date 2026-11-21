@@ -263,7 +263,7 @@ export interface OnboardingIdentityState {
 /** One row of the persisted inquiry history shown under the wizard. */
 export interface OnboardingIdentityLog {
   id: string;
-  kind: 'PHONE_MATCH' | 'IDENTITY_INQUIRY';
+  kind: 'PHONE_MATCH' | 'IDENTITY_INQUIRY' | 'BUSINESS_LICENSE';
   status: 'SUCCESS' | 'FAILED' | 'CACHED';
   nationalCode: string | null;
   birthDate: string | null;

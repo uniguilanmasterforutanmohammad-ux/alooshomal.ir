@@ -53,6 +53,8 @@ interface DetailUser {
   birthDate: string | null;
   phoneMatchVerifiedAt: string | null;
   identityVerifiedAt: string | null;
+  businessLicenseVerifiedAt: string | null;
+  businessLicenseData: Record<string, unknown> | null;
   verifiedAt: string | null;
   blueTickRequestedAt: string | null;
   blueTickNote: string | null;
@@ -287,6 +289,7 @@ interface IdentityInquiry {
   fatherName: string | null;
   message: string | null;
   amount: number;
+  raw: unknown;
   createdAt: string;
 }
 
@@ -490,6 +493,7 @@ const KIND_LABELS: Record<string, string> = {
   FEED: 'پست',
   PHONE_MATCH: 'تطبیق موبایل',
   IDENTITY_INQUIRY: 'استعلام هویتی',
+  BUSINESS_LICENSE: 'استعلام جواز کسب',
   SUBSCRIPTION: 'اشتراک',
   BOOST: 'افزایش بازدید',
   AD_HOME: 'تبلیغ صفحه اصلی',
@@ -980,6 +984,16 @@ export function AdminUserDetail({
             }
           />
           <Field
+            label="تیک آبی (جواز کسب)"
+            value={
+              user.businessLicenseVerifiedAt
+                ? `تأییدشده — ${faDate(user.businessLicenseVerifiedAt)}`
+                : user.businessLicenseData
+                  ? 'استعلام شده — مالک جواز مطابقت ندارد'
+                  : 'استعلام نشده'
+            }
+          />
+          <Field
             label="تطبیق موبایل"
             value={user.phoneMatchVerifiedAt ? faDate(user.phoneMatchVerifiedAt) : '—'}
           />
@@ -990,6 +1004,20 @@ export function AdminUserDetail({
           ) : null}
           {user.blueTickNote ? <Field label="یادداشت تیک آبی" value={user.blueTickNote} /> : null}
         </dl>
+
+        {user.businessLicenseData ? (
+          <details className="mt-4 rounded-lg border border-[var(--vintage-border)] bg-soft p-3">
+            <summary className="cursor-pointer text-xs font-bold text-ink">
+              پاسخ کامل استعلام جواز کسب
+            </summary>
+            <pre
+              dir="ltr"
+              className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all text-[11px] leading-5 text-muted"
+            >
+              {JSON.stringify(user.businessLicenseData, null, 2)}
+            </pre>
+          </details>
+        ) : null}
 
         {documents.length > 0 ? (
           <div className="mt-4">
@@ -1529,7 +1557,16 @@ export function AdminUserDetail({
 
       <Section title="استعلام‌های هویتی" count={data.identityInquiries.length}>
         <DataTable
-          head={['نوع', 'وضعیت', 'کد ملی', 'موبایل', 'نتیجه', 'مبلغ', 'تاریخ']}
+          head={[
+            'نوع',
+            'وضعیت',
+            'کد ملی',
+            'موبایل',
+            'نتیجه',
+            'مبلغ',
+            'تاریخ',
+            'پاسخ کامل',
+          ]}
           empty="استعلامی ثبت نشده است."
         >
           {data.identityInquiries.map((row) => (
@@ -1548,6 +1585,23 @@ export function AdminUserDetail({
               </td>
               <td className="px-3 py-2 text-xs text-muted">{toman(row.amount)}</td>
               <td className="px-3 py-2 text-xs text-muted">{faDateTime(row.createdAt)}</td>
+              <td className="px-3 py-2 text-xs text-muted">
+                {row.raw ? (
+                  <details>
+                    <summary className="cursor-pointer font-bold text-brand">
+                      مشاهده
+                    </summary>
+                    <pre
+                      dir="ltr"
+                      className="mt-1 max-h-56 min-w-[240px] overflow-auto whitespace-pre-wrap break-all text-[10px] leading-5"
+                    >
+                      {JSON.stringify(row.raw, null, 2)}
+                    </pre>
+                  </details>
+                ) : (
+                  '—'
+                )}
+              </td>
             </tr>
           ))}
         </DataTable>

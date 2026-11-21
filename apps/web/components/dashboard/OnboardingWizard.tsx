@@ -153,6 +153,10 @@ interface IdentityState {
   phoneMatched: boolean;
   verified: boolean;
   businessLicenseVerified: boolean;
+  businessLicenseStatus: 'SUCCESS' | 'FAILED' | 'CACHED' | null;
+  businessLicenseMessage: string | null;
+  businessLicenseOwnerName: string | null;
+  businessLicenseCheckedAt: string | null;
 }
 
 /** Tariff of the identity bundle and the optional license inquiry. */
@@ -174,7 +178,7 @@ interface CatalogIndustry {
 
 interface IdentityLog {
   id: string;
-  kind: 'PHONE_MATCH' | 'IDENTITY_INQUIRY';
+  kind: 'PHONE_MATCH' | 'IDENTITY_INQUIRY' | 'BUSINESS_LICENSE';
   status: 'SUCCESS' | 'FAILED' | 'CACHED';
   nationalCode: string | null;
   birthDate: string | null;
@@ -201,6 +205,7 @@ interface ZohalPrice {
 const LOG_KIND_LABEL: Record<IdentityLog['kind'], string> = {
   PHONE_MATCH: 'تطبیق شماره موبایل',
   IDENTITY_INQUIRY: 'استعلام هویت',
+  BUSINESS_LICENSE: 'استعلام جواز کسب',
 };
 
 const LOG_STATUS_LABEL: Record<IdentityLog['status'], string> = {
@@ -1490,8 +1495,9 @@ export function OnboardingWizard() {
                       </span>
                       <span className="mt-0.5 block text-[11px] leading-6 text-muted">
                         اگر تیک بزنید، در همان پرداخت جواز کسب هم استعلام می‌شود و
-                        تیک آبی می‌گیرید؛ در غیر این صورت فقط تیک سفید دریافت
-                        می‌کنید.
+                        در صورت تطبیق کد ملی و نام و نام خانوادگی مالک جواز با
+                        هویت شما تیک آبی می‌گیرید؛ در غیر این صورت فقط تیک سفید
+                        دریافت می‌کنید و دلیل عدم تعلق تیک آبی نمایش داده می‌شود.
                       </span>
                       <span className="mt-1 block text-[11px] font-bold text-sky-700 dark:text-sky-300">
                         هزینه: {faPrice(licensePrice)}
@@ -1520,6 +1526,29 @@ export function OnboardingWizard() {
                       />
                     </div>
                   ) : null}
+                </div>
+              ) : null}
+
+              {showLicense &&
+              !payload.identity?.businessLicenseVerified &&
+              payload.identity?.businessLicenseStatus === 'FAILED' ? (
+                <div className="rounded-xl border border-red-200 bg-red-50/70 p-4 text-xs leading-6 text-red-800 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-200">
+                  <b>تیک آبی به حساب شما تعلق نگرفت.</b>
+                  <p className="mt-1">
+                    {payload.identity.businessLicenseMessage ??
+                      'اطلاعات مالک جواز با اطلاعات هویتی تأییدشده‌ی شما مطابقت ندارد.'}
+                  </p>
+                  {payload.identity.businessLicenseOwnerName ? (
+                    <p className="mt-1 text-[11px]">
+                      مالک جواز در استعلام:{' '}
+                      {payload.identity.businessLicenseOwnerName}
+                    </p>
+                  ) : null}
+                  <p className="mt-1 text-[11px]">
+                    برای دریافت تیک آبی، کد پیگیری جوازی را وارد کنید که کد ملی و
+                    نام و نام خانوادگی مالک آن دقیقاً با هویت تأییدشده‌ی شما
+                    یکسان باشد.
+                  </p>
                 </div>
               ) : null}
 
@@ -2126,6 +2155,13 @@ export function OnboardingWizard() {
                       کسب‌وکار شما پس از تأیید مدیر در صفحه‌ی مشاغل و دایرکتوری
                       نمایش داده می‌شود.
                     </p>
+                    {!payload.identity?.businessLicenseVerified &&
+                    payload.identity?.businessLicenseStatus === 'FAILED' ? (
+                      <p className="mx-auto mt-2 max-w-md rounded-lg bg-red-50 px-3 py-2 text-[11px] leading-6 text-red-700 dark:bg-red-950/40 dark:text-red-200">
+                        {payload.identity.businessLicenseMessage ??
+                          'اطلاعات مالک جواز با اطلاعات هویتی شما مطابقت نداشت؛ تیک آبی صادر نشد.'}
+                      </p>
+                    ) : null}
                     <span className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[var(--vintage-surface)] px-3 py-1 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200 dark:text-emerald-300 dark:ring-emerald-800/60">
                       <BadgeCheck className="size-3.5" aria-hidden />
                       {payload.identity?.businessLicenseVerified

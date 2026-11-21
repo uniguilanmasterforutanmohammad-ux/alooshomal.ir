@@ -110,6 +110,8 @@ export class AdminUsersService {
         phoneMatchVerifiedAt: true,
         identityVerifiedAt: true,
         identityInquiryData: true,
+        businessLicenseVerifiedAt: true,
+        businessLicenseData: true,
         verifiedAt: true,
         blueTickRequestedAt: true,
         blueTickNote: true,
