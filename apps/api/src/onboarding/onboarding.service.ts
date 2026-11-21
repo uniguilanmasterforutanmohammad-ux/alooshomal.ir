@@ -186,7 +186,9 @@ export class OnboardingService implements OnModuleInit {
         ...(refreshCopy
           ? { title: base.title, description: base.description }
           : {}),
-        optional: base.optional === true,
+        // Respect the admin's per-step «اختیاری» toggle. Only fall back to the
+        // shipped default when the stored config predates the field.
+        optional: step.optional ?? base.optional === true,
       };
       if (base.href) next.href = base.href;
       else delete next.href;
@@ -445,6 +447,11 @@ export class OnboardingService implements OnModuleInit {
       'بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.',
     );
     const steps = (await this.getSteps()).filter((step) => step.enabled);
+    const identityStep = steps.find((step) => step.kind === 'identity');
+    // The identity inquiry is only mandatory when its step is enabled and not
+    // marked optional. A disabled or optional-skipped step must not keep the
+    // invoice/approval steps open forever.
+    const identityRequired = Boolean(identityStep && !identityStep.optional);
     const identity = await this.identityState(userId);
     // The business step now runs before identity and creates the workspace
     // itself (name/industry/draft only, no card or biolink). We still ensure
@@ -465,7 +472,7 @@ export class OnboardingService implements OnModuleInit {
       resultRows,
       pendingModulePayment,
     ] = await Promise.all([
-      this.completionMap(userId),
+      this.completionMap(userId, { identityRequired }),
       this.prisma.identityInquiryLog.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
@@ -1252,7 +1259,10 @@ export class OnboardingService implements OnModuleInit {
    * One map of step id → done. Built-in rules read the user's account once;
    * custom steps read the manual completion rows.
    */
-  private async completionMap(userId: string): Promise<Map<string, boolean>> {
+  private async completionMap(
+    userId: string,
+    options?: { identityRequired?: boolean },
+  ): Promise<Map<string, boolean>> {
     const [user, completions] = await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -1364,14 +1374,17 @@ export class OnboardingService implements OnModuleInit {
     }
     map.set('management', managementDone);
 
-    // The invoice is settled once the paid plan is active and the identity
-    // inquiry has been completed (both are bought in the same payment).
+    // The invoice is settled once the paid plan is active and, when the
+    // identity step is mandatory, the identity inquiry has been completed.
+    // Optional or disabled identity steps do not block the final steps.
+    const identityRequired = options?.identityRequired ?? true;
     const identityDone = Boolean(user.identityVerifiedAt);
+    const identitySettled = !identityRequired || identityDone;
     const planSettled = paidPlanActive || (freePlanChosen && freePlanActive);
-    map.set('invoice', planSettled && identityDone);
+    map.set('invoice', planSettled && identitySettled);
     map.set(
       'approval',
-      identityDone && planSettled,
+      identitySettled && planSettled,
     );
     return map;
   }
@@ -1456,7 +1469,9 @@ export class OnboardingService implements OnModuleInit {
         ...(href ? { href } : {}),
         ...(step.kind === 'module' ? { moduleKey } : {}),
         enabled: step.enabled !== false,
-        ...(step.optional === true ? { optional: true } : {}),
+        ...(typeof step.optional === 'boolean'
+          ? { optional: step.optional }
+          : {}),
       });
     }
     return result;

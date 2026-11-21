@@ -309,6 +309,13 @@ export function OnboardingWizard() {
     success: boolean;
     message: string | null;
   } | null>(null);
+  // Optional identity step: the inquiry is only charged after the user
+  // explicitly continues with it (not when the step is skipped or disabled).
+  const [identityOptedIn, setIdentityOptedIn] = useState(false);
+
+  function markIdentityOptIn(value: boolean) {
+    setIdentityOptedIn(value);
+  }
 
   const load = useCallback(async () => {
     try {
@@ -546,6 +553,7 @@ export function OnboardingWizard() {
     if (payload?.identity?.phoneMatched) {
       // The national code / birth date are already stored on the account; the
       // backend falls back to them when the checkout omits them.
+      markIdentityOptIn(true);
       nextStep();
       return;
     }
@@ -562,6 +570,7 @@ export function OnboardingWizard() {
       toast.error('برای استعلام جواز کسب، کد پیگیری جواز را وارد کنید.');
       return;
     }
+    markIdentityOptIn(true);
     nextStep();
   }
 
@@ -808,9 +817,8 @@ export function OnboardingWizard() {
     const birthDate = jalali
       ? `${jalali.year}/${String(jalali.month).padStart(2, '0')}/${String(jalali.day).padStart(2, '0')}`
       : undefined;
-    const needsIdentity = !identityVerified;
-    const needsLicense =
-      licenseSelected && !payload?.identity?.businessLicenseVerified;
+    const needsIdentity = identityChargeable;
+    const needsLicense = licenseChargeable;
     if (needsIdentity && !payload?.identity?.phoneMatched) {
       if (!/^\d{10}$/.test(nationalCode.trim()) || !birthDate) {
         toast.error(
@@ -903,6 +911,26 @@ export function OnboardingWizard() {
   const showLicense = Boolean(identityQuote?.licenseAvailable) && licensePrice > 0;
   const identityVerified = Boolean(payload.identity?.verified);
   const licenseSelected = withLicense && showLicense;
+  const identityStep =
+    steps.find((entry) => entry.kind === 'identity') ?? null;
+  // A disabled identity step is absent from `steps`; an optional one only
+  // charges when the user explicitly opted in. Both cases must stay off the
+  // invoice, otherwise the buyer is charged for an inquiry they never entered.
+  const identityChargeable =
+    Boolean(identityStep) &&
+    !identityVerified &&
+    (!identityStep?.optional || identityOptedIn);
+  const licenseChargeable =
+    Boolean(identityStep) &&
+    licenseSelected &&
+    !payload?.identity?.businessLicenseVerified;
+  // Whether an identity result should be shown on the final step at all. A
+  // disabled or optional-skipped step leaves the account unverified by design.
+  const identityExpected =
+    Boolean(identityResult) ||
+    identityVerified ||
+    (Boolean(identityStep) &&
+      (!identityStep?.optional || identityOptedIn));
   const businessState = payload.business;
   // Every available management package is listed; the quote for the chosen
   // plan carries the prorated price of each one.
@@ -947,14 +975,12 @@ export function OnboardingWizard() {
   const invoiceTotalAmount =
     planAmount +
     (includeManagement ? managementAmount : 0) +
-    (identityVerified ? 0 : identityTotal) +
-    (licenseSelected ? licensePrice : 0) +
+    (identityChargeable ? identityTotal : 0) +
+    (licenseChargeable ? licensePrice : 0) +
     cartTotal;
   const planSelected = Boolean(selectedPlan);
   /** Identity/license items that still need to be paid on this invoice. */
-  const identityPayable =
-    !identityVerified ||
-    (licenseSelected && !payload?.identity?.businessLicenseVerified);
+  const identityPayable = identityChargeable || licenseChargeable;
   /** The invoice can be paid when it carries a plan or a pending inquiry. */
   const invoicePayable = planSelected || identityPayable || cartTotal > 0;
   const invoiceNeedsPayment = invoicePayable && invoiceTotalAmount >= 1000;
@@ -1028,6 +1054,25 @@ export function OnboardingWizard() {
   function nextStep() {
     if (!stepUnlocked) return;
     goTo(safeIndex + 1);
+  }
+  /**
+   * The footer's primary button: on the identity step it validates and marks
+   * the inquiry as opted in, while an optional step with no inputs is simply
+   * skipped (and never charged on the invoice).
+   */
+  function advanceStep() {
+    if (step.kind === 'identity' && !identityVerified) {
+      const hasInput =
+        Boolean(nationalCode.trim()) || Boolean(birthIso) || withLicense;
+      if (isOptional && !identityInputsReady && !hasInput) {
+        markIdentityOptIn(false);
+        nextStep();
+        return;
+      }
+      saveIdentityAndNext();
+      return;
+    }
+    nextStep();
   }
   function prevStep() {
     goTo(safeIndex - 1);
@@ -1850,7 +1895,7 @@ export function OnboardingWizard() {
                   </span>
                 </div>
                 <ul className="divide-y divide-[var(--vintage-border)]">
-                  {!identityVerified && identityTotal > 0 ? (
+                  {identityChargeable && identityTotal > 0 ? (
                     <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
                       <span className="flex items-center gap-2 text-muted">
                         <ShieldCheck className="size-3.5 text-brand" aria-hidden />
@@ -1861,7 +1906,7 @@ export function OnboardingWizard() {
                       </span>
                     </li>
                   ) : null}
-                  {licenseSelected ? (
+                  {licenseChargeable ? (
                     <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
                       <span className="flex items-center gap-2 text-muted">
                         <ShieldCheck className="size-3.5 text-sky-600" aria-hidden />
@@ -2056,10 +2101,15 @@ export function OnboardingWizard() {
                         : 'تیک سفید'}
                     </span>
                   </div>
-                ) : (
+                ) : identityExpected ? (
                   <div className="rounded-2xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-5 text-center text-xs leading-6 text-muted">
                     نتیجه‌ی استعلام هویت در حال بررسی است؛ چند لحظه بعد این صفحه
                     را دوباره باز کنید.
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-5 text-center text-xs leading-6 text-muted">
+                    استعلام هویت در این مسیر انجام نشده است. در صورت نیاز می‌توانید
+                    آن را از بخش پروفایل انجام دهید.
                   </div>
                 )}
 
@@ -2133,7 +2183,10 @@ export function OnboardingWizard() {
                 {isOptional && !step.done ? (
                   <button
                     type="button"
-                    onClick={nextStep}
+                    onClick={() => {
+                      if (step.kind === 'identity') markIdentityOptIn(false);
+                      nextStep();
+                    }}
                     className="indeed-btn indeed-btn-secondary py-2 text-xs"
                     title="این مرحله اختیاری است؛ می‌توانید بعداً آن را انجام دهید"
                   >
@@ -2142,7 +2195,7 @@ export function OnboardingWizard() {
                 ) : null}
                 <button
                   type="button"
-                  onClick={nextStep}
+                  onClick={advanceStep}
                   disabled={!stepUnlocked}
                   className={cn(
                     'indeed-btn indeed-btn-primary py-2 text-xs',
