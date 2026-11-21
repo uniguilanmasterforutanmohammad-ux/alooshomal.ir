@@ -36,6 +36,7 @@ import {
   RequestContactOtpDto,
   RequestProfileChangeDto,
   UpdateIdentityDto,
+  VerifyAdditionalPhoneDto,
   VerifyContactChangeDto,
 } from './dto/profile.dto';
 import { ProfileService } from './profile.service';
@@ -88,6 +89,18 @@ export class ProfileController {
   })
   inquiryIdentity(@CurrentUser() user: AuthUser) {
     return this.profile.inquiryIdentity(user.id);
+  }
+
+  @Post('phones/verify')
+  @ApiOperation({
+    summary:
+      'استعلام شاهکار برای یک شماره‌ی موبایل اضافه (کسب‌وکار) و ذخیره‌ی نتیجه برای استفاده‌ی مجدد',
+  })
+  verifyAdditionalPhone(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: VerifyAdditionalPhoneDto,
+  ) {
+    return this.profile.verifyAdditionalPhone(user.id, dto);
   }
 
   @Post('identity/checkout')

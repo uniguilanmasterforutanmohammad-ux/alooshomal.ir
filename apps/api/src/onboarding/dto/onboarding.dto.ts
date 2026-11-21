@@ -157,6 +157,18 @@ export class SaveOnboardingBusinessDto {
   @MaxLength(30)
   mobile?: string;
 
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      'شماره‌های موبایل اضافه‌ی کسب‌وکار؛ هر کدام باید قبلاً با شاهکار تأیید شده باشد.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsString({ each: true })
+  @MaxLength(30, { each: true })
+  additionalMobiles?: string[];
+
   @ApiPropertyOptional({ description: 'آدرس کسب‌وکار' })
   @IsOptional()
   @IsString()

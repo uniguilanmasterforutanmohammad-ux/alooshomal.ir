@@ -69,6 +69,23 @@ export class MatchIdentityPhoneDto {
   birthDate!: string;
 }
 
+/** Verify an extra business mobile against the user's national code. */
+export class VerifyAdditionalPhoneDto {
+  @ApiProperty({ example: '09123456789' })
+  @IsString()
+  @MaxLength(20)
+  phone!: string;
+
+  @ApiPropertyOptional({
+    example: '0012345678',
+    description: 'کد ملی صاحب شماره؛ اگر ثبت شده باشد باید همان کد ملی حساب باشد.',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{10}$/, { message: 'کد ملی باید دقیقاً ۱۰ رقم باشد' })
+  nationalCode?: string;
+}
+
 /** Body of `POST /profile/identity/checkout` — optional when already saved. */
 export class IdentityCheckoutDto {
   @ApiPropertyOptional({ example: '0012345678' })

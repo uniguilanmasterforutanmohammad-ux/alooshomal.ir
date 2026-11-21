@@ -4,10 +4,17 @@ import {
   NotFoundException,
   OnModuleInit,
 } from '@nestjs/common';
-import { BiolinkStatus, PaymentStatus, Prisma } from '@prisma/client';
+import {
+  BiolinkStatus,
+  IdentityInquiryKind,
+  IdentityInquiryStatus,
+  PaymentStatus,
+  Prisma,
+} from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
 import { ApiIrService } from '../apiir/apiir.service';
+import { OtpService } from '../auth/otp.service';
 import { BusinessModulesService } from '../business-modules/business-modules.service';
 import { industryKeyForCategoryName } from '../business-modules/business-modules.registry';
 import { isFreePlan } from '../common/plans';
@@ -695,23 +702,78 @@ export class OnboardingService implements OnModuleInit {
     const industryKey = category
       ? industryKeyForCategoryName(category.name)
       : 'generalBusiness';
-    const onboardingData: Record<string, string> = { name };
-    for (const key of [
-      'cityId',
-      'businessId',
-      'mobile',
-      'address',
-      'fullName',
-    ] as const) {
+    const primaryMobile = dto.mobile
+      ? OtpService.normalizePhone(dto.mobile)
+      : null;
+    const additionalMobiles = Array.from(
+      new Set(
+        (dto.additionalMobiles ?? [])
+          .map((value) => OtpService.normalizePhone(value))
+          .filter((value) => value !== primaryMobile),
+      ),
+    );
+    await this.assertVerifiedBusinessMobiles(userId, [
+      ...(primaryMobile ? [primaryMobile] : []),
+      ...additionalMobiles,
+    ]);
+    const onboardingData: Record<string, unknown> = { name };
+    for (const key of ['cityId', 'businessId', 'address', 'fullName'] as const) {
       const value = dto[key]?.trim();
       if (value) onboardingData[key] = value;
     }
+    if (primaryMobile) onboardingData.mobile = primaryMobile;
+    onboardingData.additionalMobiles = additionalMobiles;
     await this.modules.upsertOnboardingBusiness(userId, {
       name,
       industryKey,
       onboardingData: onboardingData as Prisma.InputJsonValue,
     });
     return this.getMyProgress(userId);
+  }
+
+  /**
+   * Business mobiles (the primary one and every extra contact) must either be
+   * the OTP-verified login phone or a number that passed Shahkar for this user.
+   * This blocks a crafted request from storing an unverified number.
+   */
+  private async assertVerifiedBusinessMobiles(
+    userId: string,
+    mobiles: string[],
+  ): Promise<void> {
+    if (mobiles.length === 0) return;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { phone: true, phoneVerified: true, nationalCode: true },
+    });
+    if (!user) throw new NotFoundException('کاربر یافت نشد');
+    const verified = new Set<string>();
+    if (user.phone && user.phoneVerified) verified.add(user.phone);
+    const logs = await this.prisma.identityInquiryLog.findMany({
+      where: {
+        userId,
+        kind: IdentityInquiryKind.PHONE_MATCH,
+        status: IdentityInquiryStatus.SUCCESS,
+        phone: { in: mobiles },
+      },
+      select: { phone: true, nationalCode: true },
+    });
+    for (const log of logs) {
+      if (!log.phone) continue;
+      if (
+        user.nationalCode &&
+        log.nationalCode &&
+        log.nationalCode !== user.nationalCode
+      ) {
+        continue;
+      }
+      verified.add(log.phone);
+    }
+    const invalid = mobiles.filter((phone) => !verified.has(phone));
+    if (invalid.length > 0) {
+      throw new BadRequestException(
+        `شماره‌ی ${invalid.join('، ')} با شاهکار به نام شما تأیید نشده است؛ ابتدا استعلام شاهکار را انجام دهید.`,
+      );
+    }
   }
 
   /** The documents the user uploaded for the blue-tick review (newest first). */
@@ -775,6 +837,11 @@ export class OnboardingService implements OnModuleInit {
       cityId: typeof draft.cityId === 'string' ? draft.cityId : null,
       businessId: typeof draft.businessId === 'string' ? draft.businessId : null,
       mobile: typeof draft.mobile === 'string' ? draft.mobile : null,
+      additionalMobiles: Array.isArray(draft.additionalMobiles)
+        ? draft.additionalMobiles.filter(
+            (value): value is string => typeof value === 'string',
+          )
+        : [],
       address: typeof draft.address === 'string' ? draft.address : null,
       fullName: typeof draft.fullName === 'string' ? draft.fullName : null,
     };

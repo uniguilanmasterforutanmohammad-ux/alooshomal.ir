@@ -119,7 +119,14 @@ export class ProfileService {
 
   /** Profile of the current user plus their latest pending change request. */
   async me(userId: string) {
-    const [user, pending, identityInquiryAvailable, identityHistory, onboardingFinished] =
+    const [
+      user,
+      pending,
+      identityInquiryAvailable,
+      identityHistory,
+      onboardingFinished,
+      phoneMatchLogs,
+    ] =
       await Promise.all([
       this.prisma.user.findUnique({
         where: { id: userId },
@@ -127,6 +134,7 @@ export class ProfileService {
           id: true,
           email: true,
           phone: true,
+          phoneVerified: true,
           fullName: true,
           firstName: true,
           lastName: true,
@@ -153,7 +161,7 @@ export class ProfileService {
       this.prisma.identityInquiryLog.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
-        take: 25,
+        take: 100,
       }),
       this.prisma.onboardingStepCompletion.findUnique({
         where: {
@@ -164,12 +172,48 @@ export class ProfileService {
         },
         select: { stepId: true },
       }),
+      this.prisma.identityInquiryLog.findMany({
+        where: {
+          userId,
+          kind: IdentityInquiryKind.PHONE_MATCH,
+          status: IdentityInquiryStatus.SUCCESS,
+          phone: { not: null },
+        },
+        orderBy: { createdAt: 'desc' },
+        select: { phone: true, nationalCode: true, createdAt: true },
+      }),
     ]);
     if (!user) {
       throw new NotFoundException('کاربر یافت نشد');
     }
     // Never leak the hash itself — only whether a password has been set.
     const { passwordHash, ...rest } = user;
+    const verifiedPhones: Array<{
+      phone: string;
+      nationalCode: string | null;
+      verifiedAt: Date | null;
+      source: 'ACCOUNT' | 'SHAHKAR';
+    }> = [];
+    const seenPhones = new Set<string>();
+    if (user.phone && user.phoneVerified) {
+      verifiedPhones.push({
+        phone: user.phone,
+        nationalCode: user.nationalCode,
+        verifiedAt: user.createdAt,
+        source: 'ACCOUNT',
+      });
+      seenPhones.add(user.phone);
+    }
+    for (const log of phoneMatchLogs) {
+      if (!log.phone || seenPhones.has(log.phone)) continue;
+      seenPhones.add(log.phone);
+      verifiedPhones.push({
+        phone: log.phone,
+        nationalCode: log.nationalCode,
+        verifiedAt: log.createdAt,
+        source: 'SHAHKAR',
+      });
+    }
     return {
       ...rest,
       hasPassword: Boolean(passwordHash),
@@ -186,6 +230,7 @@ export class ProfileService {
         fatherName: user.fatherName,
       },
       identityHistory,
+      verifiedPhones,
       pendingChange: pending,
     };
   }
@@ -363,6 +408,183 @@ export class ProfileService {
       raw: inquiry.data ?? null,
     });
     return { matched: true, ...updated, charged };
+  }
+
+  /**
+   * Verify an *additional* mobile (a business number, not the login phone)
+   * against the user's national code with Shahkar. The result is kept in the
+   * inquiry log so the same number can be reused later without paying twice.
+   */
+  async verifyAdditionalPhone(
+    userId: string,
+    dto: { phone: string; nationalCode?: string },
+  ) {
+    await this.settings.assertFeatureEnabled(
+      'featureIdentityInquiry',
+      'استعلام هویت موقتاً توسط مدیر غیرفعال شده است.',
+    );
+    const phone = OtpService.normalizePhone(dto.phone);
+    const me = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        phone: true,
+        phoneVerified: true,
+        nationalCode: true,
+      },
+    });
+    if (!me) throw new NotFoundException('کاربر یافت نشد');
+
+    const nationalCode = (dto.nationalCode ?? me.nationalCode ?? '').trim();
+    if (!isValidNationalCode(nationalCode)) {
+      throw new BadRequestException('کد ملی وارد‌شده معتبر نیست');
+    }
+    if (me.nationalCode && me.nationalCode !== nationalCode) {
+      throw new BadRequestException(
+        'کد ملی باید همان کد ملی ثبت‌شده برای حساب شما باشد.',
+      );
+    }
+    const owner = await this.prisma.user.findUnique({
+      where: { nationalCode },
+      select: { id: true },
+    });
+    if (owner && owner.id !== userId) {
+      throw new ConflictException('این کد ملی قبلاً برای حساب دیگری ثبت شده است');
+    }
+
+    // The login phone is already OTP-verified at sign-up; no need to buy a
+    // Shahkar inquiry for the number the account already owns.
+    if (me.phone === phone && me.phoneVerified) {
+      await this.logInquiry({
+        userId,
+        kind: IdentityInquiryKind.PHONE_MATCH,
+        status: IdentityInquiryStatus.CACHED,
+        nationalCode,
+        phone,
+        matched: true,
+        message: 'شماره‌ی اصلی حساب قبلاً تأیید شده بود؛ هزینه‌ی مجدد ثبت نشد.',
+      });
+      return {
+        matched: true,
+        cached: true,
+        charged: 0,
+        phone,
+        nationalCode,
+        verifiedAt: null,
+      };
+    }
+
+    const existing = await this.prisma.identityInquiryLog.findFirst({
+      where: {
+        userId,
+        kind: IdentityInquiryKind.PHONE_MATCH,
+        status: IdentityInquiryStatus.SUCCESS,
+        phone,
+        nationalCode,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (existing) {
+      await this.logInquiry({
+        userId,
+        kind: IdentityInquiryKind.PHONE_MATCH,
+        status: IdentityInquiryStatus.CACHED,
+        nationalCode,
+        phone,
+        matched: true,
+        message: 'این شماره قبلاً با شاهکار تأیید شده بود؛ هزینه‌ی مجدد ثبت نشد.',
+      });
+      return {
+        matched: true,
+        cached: true,
+        charged: 0,
+        phone,
+        nationalCode,
+        verifiedAt: existing.createdAt,
+      };
+    }
+
+    const inquiry = await this.zohal.verifyPhoneOwnership(phone, nationalCode);
+    const price = await this.zohal.getServicePrice('shahkar');
+    let charged = 0;
+    if (inquiry.httpStatus !== null) {
+      charged = await this.wallet.charge({
+        userId,
+        kind: WalletEntryKind.PHONE_MATCH,
+        amount: price,
+        title: 'تطبیق شماره موبایل و کد ملی (شاهکار)',
+        sourceType: 'ZOHAL',
+        sourceId: 'shahkar',
+        idempotencyKey: `identity:phone-match:${userId}:${nationalCode}:${phone}`,
+      });
+    }
+
+    if (!inquiry.ok) {
+      await this.logInquiry({
+        userId,
+        kind: IdentityInquiryKind.PHONE_MATCH,
+        status: IdentityInquiryStatus.FAILED,
+        nationalCode,
+        phone,
+        matched: null,
+        message: inquiry.message ?? 'استعلام شاهکار انجام نشد',
+        amount: charged,
+        raw: inquiry.data ?? null,
+      });
+      throw new BadRequestException(
+        inquiry.message || 'استعلام شاهکار انجام نشد؛ لطفاً دوباره تلاش کنید.',
+      );
+    }
+    if (!inquiry.data?.matched) {
+      await this.logInquiry({
+        userId,
+        kind: IdentityInquiryKind.PHONE_MATCH,
+        status: IdentityInquiryStatus.FAILED,
+        nationalCode,
+        phone,
+        matched: false,
+        message: 'شماره‌ی موبایل با کد ملی تطبیق نداشت',
+        amount: charged,
+        raw: inquiry.data ?? null,
+      });
+      throw new BadRequestException(
+        'این شماره به نام این کد ملی نیست؛ شماره و کد ملی را بررسی کنید.',
+      );
+    }
+
+    // Keep the national code on the account so every later inquiry is checked
+    // against the same identity, even before the birth date is captured.
+    if (!me.nationalCode) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { nationalCode },
+      });
+    }
+    await this.activity.log({
+      actor: { id: userId },
+      action: 'IDENTITY_PHONE_MATCHED',
+      summary: `تأیید شماره موبایل اضافه با شاهکار: ${phone}`,
+      entityType: 'USER',
+      entityId: userId,
+    });
+    await this.logInquiry({
+      userId,
+      kind: IdentityInquiryKind.PHONE_MATCH,
+      status: IdentityInquiryStatus.SUCCESS,
+      nationalCode,
+      phone,
+      matched: true,
+      message: 'شماره موبایل با کد ملی تطبیق داده شد',
+      amount: charged,
+      raw: inquiry.data ?? null,
+    });
+    return {
+      matched: true,
+      cached: false,
+      charged,
+      phone,
+      nationalCode,
+      verifiedAt: new Date(),
+    };
   }
 
   /**

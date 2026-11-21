@@ -130,6 +130,7 @@ interface OnboardingBusinessState {
   cityId: string | null;
   businessId: string | null;
   mobile: string | null;
+  additionalMobiles?: string[];
   address: string | null;
   fullName: string | null;
 }
@@ -999,6 +1000,7 @@ export function OnboardingWizard() {
         cityId: businessState.cityId ?? '',
         businessId: businessState.businessId ?? '',
         mobile: businessState.mobile ?? '',
+        additionalMobiles: businessState.additionalMobiles ?? [],
         address: businessState.address ?? '',
       }
     : null;

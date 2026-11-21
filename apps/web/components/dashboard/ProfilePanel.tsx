@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   BadgeCheck,
+  History,
   IdCard,
   KeyRound,
   Mail,
@@ -50,6 +51,31 @@ interface ProfilePayload {
   createdAt: string;
   hasPassword: boolean;
   pendingChange: ProfileChangeRequest | null;
+  identityHistory?: IdentityLog[];
+  verifiedPhones?: VerifiedPhone[];
+}
+
+interface IdentityLog {
+  id: string;
+  kind: 'PHONE_MATCH' | 'IDENTITY_INQUIRY';
+  status: 'SUCCESS' | 'FAILED' | 'CACHED';
+  nationalCode: string | null;
+  birthDate: string | null;
+  phone: string | null;
+  matched: boolean | null;
+  firstName: string | null;
+  lastName: string | null;
+  fatherName: string | null;
+  message: string | null;
+  amount: number;
+  createdAt: string;
+}
+
+interface VerifiedPhone {
+  phone: string;
+  nationalCode: string | null;
+  verifiedAt: string | null;
+  source: 'ACCOUNT' | 'SHAHKAR';
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -240,6 +266,106 @@ export function ProfilePanel() {
               رفتن به شروع آسان
             </Link>
           </div>
+        )}
+      </div>
+
+      <div className="indeed-panel p-5 md:col-span-2">
+        <h2 className="flex items-center gap-2 text-sm font-extrabold text-ink">
+          <History className="size-4 text-brand" aria-hidden />
+          سابقه‌ی استعلام‌ها و شماره‌های تأییدشده
+        </h2>
+        <p className="mt-1 text-xs leading-6 text-muted">
+          شماره‌های تأییدشده و نتیجه‌ی همه‌ی استعلام‌های شاهکار/هویت شما برای
+          استفاده‌ی مجدد همین‌جا نگه داشته می‌شود؛ لازم نیست استعلام تکراری
+          بگیرید.
+        </p>
+
+        {profile.verifiedPhones?.length ? (
+          <div className="mt-4">
+            <p className="text-xs font-bold text-ink">شماره‌های تأییدشده</p>
+            <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+              {profile.verifiedPhones.map((entry) => (
+                <li
+                  key={entry.phone}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs dark:border-emerald-800/60 dark:bg-emerald-950/30"
+                >
+                  <span className="flex items-center gap-2">
+                    <Phone className="size-4 text-emerald-600" aria-hidden />
+                    <span dir="ltr" className="font-bold text-ink">
+                      {entry.phone}
+                    </span>
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                    {entry.source === 'ACCOUNT' ? 'شماره‌ی حساب' : 'تأیید شاهکار'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {profile.identityHistory?.length ? (
+          <div className="mt-4">
+            <p className="text-xs font-bold text-ink">آخرین استعلام‌ها</p>
+            <ul className="mt-2 flex flex-col gap-2">
+              {profile.identityHistory.map((log) => (
+                <li
+                  key={log.id}
+                  className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/50 p-3 text-[11px] leading-6"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        log.status === 'SUCCESS'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : log.status === 'CACHED'
+                            ? 'bg-sky-100 text-sky-700'
+                            : 'bg-red-100 text-red-700'
+                      }`}
+                    >
+                      {log.status === 'SUCCESS'
+                        ? 'موفق'
+                        : log.status === 'CACHED'
+                          ? 'از قبل تأییدشده'
+                          : 'ناموفق'}
+                    </span>
+                    <b className="text-ink">
+                      {log.kind === 'PHONE_MATCH'
+                        ? 'تطبیق شماره موبایل (شاهکار)'
+                        : 'استعلام اطلاعات هویتی'}
+                    </b>
+                    <span className="text-muted">
+                      {new Date(log.createdAt).toLocaleString('fa-IR')}
+                    </span>
+                    <span className="ms-auto text-muted">
+                      {log.amount > 0
+                        ? `مبلغ: ${log.amount.toLocaleString('fa-IR')} تومان`
+                        : 'بدون هزینه'}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-muted">
+                    {[
+                      log.phone ? `شماره: ${log.phone}` : null,
+                      log.nationalCode ? `کد ملی: ${log.nationalCode}` : null,
+                      log.birthDate ? `تاریخ تولد: ${log.birthDate}` : null,
+                      [log.firstName, log.lastName].filter(Boolean).join(' ') ||
+                        null,
+                      log.fatherName ? `نام پدر: ${log.fatherName}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' — ') || '—'}
+                  </p>
+                  {log.message ? (
+                    <p className="mt-0.5 text-[10px] text-muted">{log.message}</p>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="mt-4 rounded-lg border border-dashed border-[var(--vintage-border)] p-3 text-xs text-muted">
+            هنوز استعلامی ثبت نشده است.
+          </p>
         )}
       </div>
 

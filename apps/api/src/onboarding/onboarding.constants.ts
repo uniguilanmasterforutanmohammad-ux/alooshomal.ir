@@ -233,6 +233,7 @@ export interface OnboardingBusinessState {
   cityId: string | null;
   businessId: string | null;
   mobile: string | null;
+  additionalMobiles: string[];
   address: string | null;
   fullName: string | null;
 }
