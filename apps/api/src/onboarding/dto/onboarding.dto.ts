@@ -151,7 +151,10 @@ export class SaveOnboardingBusinessDto {
   @MaxLength(64)
   businessId?: string;
 
-  @ApiPropertyOptional({ description: 'شماره موبایل کسب‌وکار' })
+  @ApiPropertyOptional({
+    description:
+      'شماره موبایل کسب‌وکار؛ در مرحله‌ی استعلام هویت با کد ملی کاربر و شاهکار تأیید می‌شود.',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(30)
@@ -160,7 +163,7 @@ export class SaveOnboardingBusinessDto {
   @ApiPropertyOptional({
     type: [String],
     description:
-      'شماره‌های موبایل اضافه‌ی کسب‌وکار؛ هر کدام باید قبلاً با شاهکار تأیید شده باشد.',
+      'شماره‌های موبایل اضافه‌ی کسب‌وکار؛ همه با همان کد ملی مرحله‌ی استعلام هویت و شاهکار بررسی می‌شوند.',
   })
   @IsOptional()
   @IsArray()

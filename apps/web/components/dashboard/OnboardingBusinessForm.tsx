@@ -18,6 +18,7 @@ import {
 import { Input } from '@/components/ui/Input';
 import { api, type TaxonomyItem } from '@/lib/api';
 import { toast } from '@/lib/toast';
+import { cn } from '@/lib/utils';
 
 /** The draft the onboarding business step keeps on the workspace. */
 export interface OnboardingBusinessDraft {
@@ -94,12 +95,9 @@ export function OnboardingBusinessForm({
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [accountNationalCode, setAccountNationalCode] = useState('');
   const [verifiedPhones, setVerifiedPhones] = useState<VerifiedPhone[]>([]);
   const [mobileMode, setMobileMode] = useState<'change' | 'add' | null>(null);
   const [verifyPhone, setVerifyPhone] = useState('');
-  const [verifyNationalCode, setVerifyNationalCode] = useState('');
-  const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState<string | null>(null);
   const initialized = useRef(false);
 
@@ -115,9 +113,7 @@ export function OnboardingBusinessForm({
         ]);
         setCities(cityList);
         setBusinesses(businessList);
-        setAccountNationalCode(profile?.nationalCode ?? '');
         setVerifiedPhones(profile?.verifiedPhones ?? []);
-        setVerifyNationalCode(profile?.nationalCode ?? '');
         if (initial) {
           setValues({
             name: initial.name ?? '',
@@ -152,7 +148,6 @@ export function OnboardingBusinessForm({
   function openMobileMode(mode: 'change' | 'add') {
     setMobileMode(mode);
     setVerifyPhone(mode === 'change' ? values.mobile : '');
-    setVerifyNationalCode(accountNationalCode);
     setVerifyError(null);
   }
 
@@ -174,67 +169,25 @@ export function OnboardingBusinessForm({
   const primaryMobileVerified =
     Boolean(values.mobile) &&
     verifiedPhones.some((entry) => entry.phone === values.mobile);
+  const verifiedPhoneSet = new Set(verifiedPhones.map((entry) => entry.phone));
 
-  async function verifyMobile() {
+  /**
+   * The business step only collects the number. Shahkar verification happens
+   * in the identity step, where the national code is entered and used to check
+   * every saved business mobile at once.
+   */
+  function applyPhone() {
     if (!/^09\d{9}$/.test(verifyPhone.trim())) {
       setVerifyError('شماره موبایل معتبر نیست (مثال: 09123456789).');
       return;
     }
-    if (!/^\d{10}$/.test(verifyNationalCode.trim())) {
-      setVerifyError('کد ملی باید دقیقاً ۱۰ رقم باشد.');
-      return;
-    }
-    setVerifying(true);
+    applyVerifiedPhone(verifyPhone.trim(), mobileMode ?? 'add');
+    setMobileMode(null);
+    setVerifyPhone('');
     setVerifyError(null);
-    try {
-      const result = await api.post<{
-        matched: boolean;
-        phone: string;
-        nationalCode: string;
-        cached?: boolean;
-      }>('/profile/phones/verify', {
-        phone: verifyPhone.trim(),
-        nationalCode: verifyNationalCode.trim(),
-      });
-      const phone = result.phone;
-      setAccountNationalCode(result.nationalCode);
-      setVerifiedPhones((prev) =>
-        prev.some((entry) => entry.phone === phone)
-          ? prev
-          : [
-              {
-                phone,
-                nationalCode: result.nationalCode,
-                verifiedAt: new Date().toISOString(),
-                source: 'SHAHKAR',
-              },
-              ...prev,
-            ],
-      );
-      if (mobileMode === 'change') {
-        setField('mobile', phone);
-      } else {
-        setValues((prev) => ({
-          ...prev,
-          additionalMobiles: prev.additionalMobiles.includes(phone)
-            ? prev.additionalMobiles
-            : [...prev.additionalMobiles, phone],
-        }));
-      }
-      toast.success(
-        result.cached
-          ? 'این شماره قبلاً با شاهکار تأیید شده بود.'
-          : 'شماره موبایل با شاهکار تأیید شد.',
-      );
-      setMobileMode(null);
-      setVerifyPhone('');
-    } catch (err) {
-      setVerifyError(
-        err instanceof Error ? err.message : 'استعلام شاهکار ناموفق بود',
-      );
-    } finally {
-      setVerifying(false);
-    }
+    toast.success(
+      'شماره ثبت شد؛ در مرحله‌ی «استعلام هویت» با کد ملی شما بررسی می‌شود.',
+    );
   }
 
   async function submit() {
@@ -375,7 +328,9 @@ export function OnboardingBusinessForm({
             inputMode="tel"
             value={values.mobile}
             readOnly
-            hint="شماره‌ی ثبت‌شده‌ی حساب شما؛ برای تغییر، از دکمه‌های زیر استفاده کنید."
+            aria-readonly="true"
+            className="!bg-[var(--vintage-paper)] !text-ink font-bold cursor-not-allowed focus:!border-[var(--vintage-border)] focus:!shadow-none"
+            hint="شماره‌ی ثبت‌شده‌ی حساب شما؛ غیرقابل ویرایش است. برای تغییر یا افزودن شماره، از دکمه‌های زیر استفاده کنید."
           />
           <div className="md:col-span-2 rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-3">
             <p className="flex items-center gap-2 text-xs font-bold text-ink">
@@ -383,14 +338,14 @@ export function OnboardingBusinessForm({
               شماره‌های موبایل کسب‌وکار
             </p>
             <p className="mt-1 text-[11px] leading-6 text-muted">
-              شماره‌ی موبایل جدید نیز باید به نام کاربر باشد و با استعلام شاهکار
-              (کد ملی + شماره موبایل) تأیید شود. شماره‌ی اصلی حساب از قبل تأیید
-              شده است و بدون استعلام مجدد قابل استفاده است.
+              شماره‌ی موبایل جدید را همین‌جا وارد کنید؛ کد ملی را در مرحله‌ی
+              «استعلام هویت» می‌گیریم و با همان کد ملی، همه‌ی شماره‌های کسب‌وکار
+              با شاهکار استعلام می‌شوند. شماره‌ی اصلی حساب از قبل تأیید شده است.
             </p>
             {values.mobile && !primaryMobileVerified ? (
               <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] leading-6 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
-                این شماره هنوز با شاهکار تأیید نشده است؛ برای ذخیره‌ی کسب‌وکار،
-                ابتدا آن را از دکمه‌ی «تغییر شماره موبایل» استعلام کنید.
+                این شماره هنوز با شاهکار تأیید نشده است؛ در مرحله‌ی «استعلام
+                هویت» با کد ملی شما بررسی می‌شود.
               </p>
             ) : null}
             <div className="mt-2 flex flex-wrap gap-2">
@@ -472,23 +427,14 @@ export function OnboardingBusinessForm({
               <div className="mt-3 rounded-xl border border-brand/30 bg-[var(--vintage-surface)] p-3">
                 <p className="text-xs font-extrabold text-ink">
                   {mobileMode === 'change'
-                    ? 'استعلام شاهکار برای شماره‌ی جدید'
-                    : 'استعلام شاهکار برای شماره‌ی اضافه'}
+                    ? 'ثبت شماره‌ی جدید کسب‌وکار'
+                    : 'افزودن شماره‌ی جدید کسب‌وکار'}
                 </p>
-                <div className="mt-2 grid gap-3 sm:grid-cols-2">
-                  <Input
-                    label="کد ملی صاحب شماره"
-                    dir="ltr"
-                    inputMode="numeric"
-                    maxLength={10}
-                    value={verifyNationalCode}
-                    readOnly={Boolean(accountNationalCode)}
-                    onChange={(event) =>
-                      setVerifyNationalCode(
-                        event.target.value.replace(/\D/g, ''),
-                      )
-                    }
-                  />
+                <p className="mt-1 text-[11px] leading-6 text-muted">
+                  فقط شماره را وارد کنید؛ استعلام شاهکار با کد ملی شما در مرحله‌ی
+                  «استعلام هویت» انجام می‌شود.
+                </p>
+                <div className="mt-2">
                   <Input
                     label="شماره موبایل جدید"
                     dir="ltr"
@@ -511,16 +457,11 @@ export function OnboardingBusinessForm({
                 <div className="mt-2 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    onClick={() => void verifyMobile()}
-                    disabled={verifying}
+                    onClick={() => applyPhone()}
                     className="indeed-btn indeed-btn-primary py-2 text-xs"
                   >
-                    {verifying ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                    ) : (
-                      <ShieldCheck className="size-4" aria-hidden />
-                    )}
-                    {verifying ? 'در حال استعلام...' : 'استعلام شاهکار'}
+                    <Check className="size-4" aria-hidden />
+                    ثبت شماره
                   </button>
                   <button
                     type="button"
@@ -541,9 +482,30 @@ export function OnboardingBusinessForm({
                     className="flex items-center justify-between gap-2 rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-xs"
                   >
                     <span className="flex items-center gap-2 text-ink">
-                      <ShieldCheck className="size-3.5 text-emerald-600" aria-hidden />
+                      {verifiedPhoneSet.has(phone) ? (
+                        <ShieldCheck
+                          className="size-3.5 text-emerald-600"
+                          aria-hidden
+                        />
+                      ) : (
+                        <Phone
+                          className="size-3.5 text-amber-600"
+                          aria-hidden
+                        />
+                      )}
                       <span dir="ltr">{phone}</span>
-                      <span className="text-[10px] text-muted">تأییدشده با شاهکار</span>
+                      <span
+                        className={cn(
+                          'text-[10px]',
+                          verifiedPhoneSet.has(phone)
+                            ? 'text-emerald-700'
+                            : 'text-amber-700',
+                        )}
+                      >
+                        {verifiedPhoneSet.has(phone)
+                          ? 'تأییدشده با شاهکار'
+                          : 'در انتظار استعلام در مرحله‌ی هویت'}
+                      </span>
                     </span>
                     <button
                       type="button"

@@ -6,8 +6,6 @@ import {
 } from '@nestjs/common';
 import {
   BiolinkStatus,
-  IdentityInquiryKind,
-  IdentityInquiryStatus,
   PaymentStatus,
   Prisma,
 } from '@prisma/client';
@@ -716,10 +714,22 @@ export class OnboardingService implements OnModuleInit {
           .filter((value) => value !== primaryMobile),
       ),
     );
-    await this.assertVerifiedBusinessMobiles(userId, [
-      ...(primaryMobile ? [primaryMobile] : []),
-      ...additionalMobiles,
-    ]);
+    // The business step only collects the numbers. Before the identity step
+    // there is no national code yet, so the numbers stay pending and are
+    // verified with Shahkar when the identity inquiry runs. A user who already
+    // has a national code (identity done) gets every new number checked now.
+    const owner = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { nationalCode: true },
+    });
+    if (owner?.nationalCode) {
+      await this.profile.verifyBusinessPhones(
+        userId,
+        owner.nationalCode,
+        [...(primaryMobile ? [primaryMobile] : []), ...additionalMobiles],
+        { throwOnFailure: true },
+      );
+    }
     const onboardingData: Record<string, unknown> = { name };
     for (const key of ['cityId', 'businessId', 'address', 'fullName'] as const) {
       const value = dto[key]?.trim();
@@ -733,51 +743,6 @@ export class OnboardingService implements OnModuleInit {
       onboardingData: onboardingData as Prisma.InputJsonValue,
     });
     return this.getMyProgress(userId);
-  }
-
-  /**
-   * Business mobiles (the primary one and every extra contact) must either be
-   * the OTP-verified login phone or a number that passed Shahkar for this user.
-   * This blocks a crafted request from storing an unverified number.
-   */
-  private async assertVerifiedBusinessMobiles(
-    userId: string,
-    mobiles: string[],
-  ): Promise<void> {
-    if (mobiles.length === 0) return;
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { phone: true, phoneVerified: true, nationalCode: true },
-    });
-    if (!user) throw new NotFoundException('کاربر یافت نشد');
-    const verified = new Set<string>();
-    if (user.phone && user.phoneVerified) verified.add(user.phone);
-    const logs = await this.prisma.identityInquiryLog.findMany({
-      where: {
-        userId,
-        kind: IdentityInquiryKind.PHONE_MATCH,
-        status: IdentityInquiryStatus.SUCCESS,
-        phone: { in: mobiles },
-      },
-      select: { phone: true, nationalCode: true },
-    });
-    for (const log of logs) {
-      if (!log.phone) continue;
-      if (
-        user.nationalCode &&
-        log.nationalCode &&
-        log.nationalCode !== user.nationalCode
-      ) {
-        continue;
-      }
-      verified.add(log.phone);
-    }
-    const invalid = mobiles.filter((phone) => !verified.has(phone));
-    if (invalid.length > 0) {
-      throw new BadRequestException(
-        `شماره‌ی ${invalid.join('، ')} با شاهکار به نام شما تأیید نشده است؛ ابتدا استعلام شاهکار را انجام دهید.`,
-      );
-    }
   }
 
   /** The documents the user uploaded for the blue-tick review (newest first). */

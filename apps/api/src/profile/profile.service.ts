@@ -305,6 +305,7 @@ export class ProfileService {
         matched: true,
         message: 'قبلاً تطبیق داده شده بود؛ هزینه‌ی مجدد ثبت نشد.',
       });
+      await this.verifyBusinessMobilesForUser(userId, nationalCode);
       return {
         matched: true,
         cached: true,
@@ -407,6 +408,9 @@ export class ProfileService {
       amount: charged,
       raw: inquiry.data ?? null,
     });
+    // The business step only collects the contact numbers; the national code
+    // captured here verifies all of them with the same Shahkar inquiry.
+    await this.verifyBusinessMobilesForUser(userId, nationalCode);
     return { matched: true, ...updated, charged };
   }
 
@@ -585,6 +589,115 @@ export class ProfileService {
       nationalCode,
       verifiedAt: new Date(),
     };
+  }
+
+  /**
+   * Verify every business contact number against one national code with
+   * Shahkar. The onboarding identity step calls this after the paid identity
+   * bundle so the business form only has to collect the phone number itself.
+   * Already-verified numbers (the login phone or an earlier successful log)
+   * are skipped without a second upstream call.
+   */
+  async verifyBusinessPhones(
+    userId: string,
+    nationalCode: string,
+    phones: string[],
+    options: { throwOnFailure?: boolean } = {},
+  ): Promise<Array<{ phone: string; matched: boolean; message?: string | null }>> {
+    const code = nationalCode.trim();
+    if (!isValidNationalCode(code)) {
+      throw new BadRequestException('کد ملی وارد‌شده معتبر نیست');
+    }
+    const unique = Array.from(
+      new Set(
+        phones
+          .map((value) => OtpService.normalizePhone(value))
+          .filter((value) => /^09\d{9}$/.test(value)),
+      ),
+    );
+    if (unique.length === 0) return [];
+
+    const me = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { phone: true, phoneVerified: true },
+    });
+    if (!me) throw new NotFoundException('کاربر یافت نشد');
+
+    const verified = new Set<string>();
+    if (me.phone && me.phoneVerified) verified.add(me.phone);
+    const logs = await this.prisma.identityInquiryLog.findMany({
+      where: {
+        userId,
+        kind: IdentityInquiryKind.PHONE_MATCH,
+        status: IdentityInquiryStatus.SUCCESS,
+        nationalCode: code,
+        phone: { in: unique },
+      },
+      select: { phone: true },
+    });
+    for (const log of logs) {
+      if (log.phone) verified.add(log.phone);
+    }
+
+    const results: Array<{
+      phone: string;
+      matched: boolean;
+      message?: string | null;
+    }> = [];
+    for (const phone of unique) {
+      if (verified.has(phone)) {
+        results.push({ phone, matched: true });
+        continue;
+      }
+      const inquiry = await this.zohal.verifyPhoneOwnership(phone, code);
+      const matched = Boolean(inquiry.ok && inquiry.data?.matched);
+      const message = matched
+        ? 'شماره موبایل کسب‌وکار با کد ملی تطبیق داده شد'
+        : inquiry.message || 'شماره‌ی موبایل با کد ملی تطبیق نداشت';
+      await this.logInquiry({
+        userId,
+        kind: IdentityInquiryKind.PHONE_MATCH,
+        status: matched
+          ? IdentityInquiryStatus.SUCCESS
+          : IdentityInquiryStatus.FAILED,
+        nationalCode: code,
+        phone,
+        matched,
+        message,
+        raw: inquiry.data ?? null,
+      });
+      results.push({ phone, matched, message });
+      if (!matched && options.throwOnFailure) {
+        throw new BadRequestException(
+          `شماره‌ی ${phone} با کد ملی شما تطبیق نداشت؛ شماره را اصلاح کنید.`,
+        );
+      }
+    }
+    return results;
+  }
+
+  /** Gather the workspace contact numbers and verify them with Shahkar. */
+  private async verifyBusinessMobilesForUser(
+    userId: string,
+    nationalCode: string,
+  ): Promise<void> {
+    const workspace = await this.prisma.businessWorkspace.findFirst({
+      where: { ownerId: userId, isPlaceholder: false },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+      select: { onboardingData: true },
+    });
+    const draft =
+      workspace?.onboardingData && typeof workspace.onboardingData === 'object'
+        ? (workspace.onboardingData as Record<string, unknown>)
+        : {};
+    const phones = [
+      draft.mobile,
+      ...(Array.isArray(draft.additionalMobiles)
+        ? draft.additionalMobiles
+        : []),
+    ].filter((value): value is string => typeof value === 'string');
+    if (phones.length === 0) return;
+    await this.verifyBusinessPhones(userId, nationalCode, phones);
   }
 
   /**

@@ -1465,6 +1465,12 @@ export function OnboardingWizard() {
                 </div>
               )}
 
+              <div className="rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/50 p-3 text-[11px] leading-6 text-muted">
+                با همین کد ملی، شماره‌ی اصلی حساب و همه‌ی شماره‌های کسب‌وکار
+                شما با شاهکار تطبیق داده می‌شوند؛ نیازی به استعلام جداگانه‌ی هر
+                شماره نیست.
+              </div>
+
               {showLicense && !payload.identity?.businessLicenseVerified ? (
                 <div className="flex flex-col gap-3 rounded-xl border border-sky-200 bg-sky-50/60 p-3 dark:border-sky-800/60 dark:bg-sky-950/30">
                   <label className="flex cursor-pointer items-start gap-3">
