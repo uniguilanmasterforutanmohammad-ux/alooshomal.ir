@@ -845,13 +845,18 @@ export class ProfileService {
       };
     }
 
-    const licenseAmount = withLicense
-      ? await this.apiir.getServicePrice('license')
-      : 0;
-    const { total: identityTotal } = await this.zohal.identityBundlePrice();
+    const [bundle, licenseAmount] = await Promise.all([
+      this.zohal.identityBundleQuote(),
+      withLicense ? this.apiir.getServicePrice('license') : Promise.resolve(0),
+    ]);
+    if (!user.identityVerifiedAt && !bundle.available) {
+      throw new BadRequestException(
+        'استعلام هویت در حال حاضر فعال نیست؛ لطفاً بعداً دوباره تلاش کنید.',
+      );
+    }
     // An account that already has a white tick only pays for the license leg
     // (the wizard lets it upgrade to the blue tick without paying twice).
-    const total = (user.identityVerifiedAt ? 0 : identityTotal) + licenseAmount;
+    const total = (user.identityVerifiedAt ? 0 : bundle.total) + licenseAmount;
     if (total < 1000) {
       throw new BadRequestException(
         'تعرفه‌ی استعلام هویت برای پرداخت آنلاین معتبر نیست؛ با پشتیبانی تماس بگیرید.',
@@ -972,17 +977,18 @@ export class ProfileService {
    * that inquiry is actually offered right now (service enabled + priced).
    */
   async identityQuote() {
-    const [{ total: identityTotal }, licensePrice, enabled] = await Promise.all([
-      this.zohal.identityBundlePrice(),
+    const [bundle, licensePrice, enabled] = await Promise.all([
+      this.zohal.identityBundleQuote(),
       this.apiir.getServicePrice('license'),
       this.apiir.getEnabledMap(),
     ]);
     const licenseAvailable = (enabled.license ?? false) && licensePrice > 0;
     return {
-      identityTotal,
+      identityTotal: bundle.total,
+      identityAvailable: bundle.available,
       licensePrice,
       licenseAvailable,
-      total: identityTotal + (licenseAvailable ? licensePrice : 0),
+      total: bundle.total + (licenseAvailable ? licensePrice : 0),
     };
   }
 

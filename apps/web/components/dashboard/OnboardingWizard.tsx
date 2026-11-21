@@ -158,6 +158,7 @@ interface IdentityState {
 /** Tariff of the identity bundle and the optional license inquiry. */
 interface IdentityQuote {
   identityTotal: number;
+  identityAvailable?: boolean;
   licensePrice: number;
   licenseAvailable: boolean;
   total: number;
@@ -908,6 +909,8 @@ export function OnboardingWizard() {
   const identityTotal =
     identityQuote?.identityTotal ??
     identityServices.reduce((total, item) => total + (item.price ?? 0), 0);
+  const identityAvailable =
+    identityQuote?.identityAvailable ?? identityServices.length >= 2;
   const licensePrice = identityQuote?.licensePrice ?? 0;
   const showLicense = Boolean(identityQuote?.licenseAvailable) && licensePrice > 0;
   const identityVerified = Boolean(payload.identity?.verified);
@@ -918,10 +921,12 @@ export function OnboardingWizard() {
   // charges when the user explicitly opted in. Both cases must stay off the
   // invoice, otherwise the buyer is charged for an inquiry they never entered.
   const identityChargeable =
+    identityAvailable &&
     Boolean(identityStep) &&
     !identityVerified &&
     (!identityStep?.optional || identityOptedIn);
   const licenseChargeable =
+    identityAvailable &&
     Boolean(identityStep) &&
     licenseSelected &&
     !payload?.identity?.businessLicenseVerified;
@@ -930,7 +935,8 @@ export function OnboardingWizard() {
   const identityExpected =
     Boolean(identityResult) ||
     identityVerified ||
-    (Boolean(identityStep) &&
+    (identityAvailable &&
+      Boolean(identityStep) &&
       (!identityStep?.optional || identityOptedIn));
   const businessState = payload.business;
   // Every available management package is listed; the quote for the chosen
@@ -988,6 +994,7 @@ export function OnboardingWizard() {
   const managementDecided =
     !showManagement || withManagement || managementSkipped;
   const identityInputsReady =
+    !identityAvailable ||
     identityVerified ||
     Boolean(payload.identity?.phoneMatched) ||
     (/^\d{10}$/.test(nationalCode.trim()) &&
@@ -1064,6 +1071,10 @@ export function OnboardingWizard() {
    */
   function advanceStep() {
     if (step.kind === 'identity' && !identityVerified) {
+      if (!identityAvailable) {
+        nextStep();
+        return;
+      }
       const hasInput =
         Boolean(nationalCode.trim()) || Boolean(birthIso) || withLicense;
       if (isOptional && !identityInputsReady && !hasInput) {
@@ -1375,6 +1386,17 @@ export function OnboardingWizard() {
 
           {step.kind === 'identity' ? (
             <div className="flex flex-col gap-3">
+              {!identityAvailable ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-xs leading-6 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
+                  <b>استعلام هویت در حال حاضر فعال نیست.</b>
+                  <p className="mt-1">
+                    سرویس‌های شاهکار/استعلام هویتی توسط مدیر غیرفعال شده‌اند؛
+                    این مرحله هزینه‌ای در صورتحساب ندارد و می‌توانید بدون آن
+                    ادامه دهید.
+                  </p>
+                </div>
+              ) : (
+                <>
               {payload.identity?.verified ? (
                 <div
                   className={cn(
@@ -1538,6 +1560,8 @@ export function OnboardingWizard() {
                   </Link>
                 </div>
               ) : null}
+                </>
+              )}
             </div>
           ) : null}
 

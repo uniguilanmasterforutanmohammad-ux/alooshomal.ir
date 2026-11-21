@@ -455,10 +455,14 @@ export class OnboardingService implements OnModuleInit {
     );
     const steps = (await this.getSteps()).filter((step) => step.enabled);
     const identityStep = steps.find((step) => step.kind === 'identity');
+    const identityBundle = await this.zohal.identityBundleQuote();
     // The identity inquiry is only mandatory when its step is enabled and not
-    // marked optional. A disabled or optional-skipped step must not keep the
-    // invoice/approval steps open forever.
-    const identityRequired = Boolean(identityStep && !identityStep.optional);
+    // marked optional, and the underlying Shahkar/identity services are on.
+    // A disabled or optional-skipped step must not keep the invoice/approval
+    // steps open forever.
+    const identityRequired = Boolean(
+      identityStep && !identityStep.optional && identityBundle.available,
+    );
     const identity = await this.identityState(userId);
     // The business step now runs before identity and creates the workspace
     // itself (name/industry/draft only, no card or biolink). We still ensure

@@ -431,12 +431,52 @@ export class ZohalService {
   }
 
   /**
+   * Saleable identity bundle: both Shahkar and the identity inquiry must be
+   * switched on and priced. A disabled service is never charged, so the
+   * onboarding invoice cannot include a stopped inquiry.
+   */
+  async identityBundleQuote(): Promise<{
+    shahkar: number;
+    identity: number;
+    total: number;
+    available: boolean;
+    shahkarEnabled: boolean;
+    identityEnabled: boolean;
+  }> {
+    const [enabled, prices, identityFeature] = await Promise.all([
+      this.getEnabledMap(),
+      this.getPriceMap(),
+      this.settings.isFeatureEnabled('featureIdentityInquiry'),
+    ]);
+    const shahkarEnabled = Boolean(enabled.shahkar);
+    const identityEnabled = Boolean(enabled.national_identity_inquiry);
+    const shahkar = shahkarEnabled ? prices.shahkar ?? 0 : 0;
+    const identity = identityEnabled
+      ? prices.national_identity_inquiry ?? 0
+      : 0;
+    const available =
+      identityFeature &&
+      shahkarEnabled &&
+      identityEnabled &&
+      shahkar > 0 &&
+      identity > 0;
+    return {
+      shahkar,
+      identity,
+      total: available ? shahkar + identity : 0,
+      available,
+      shahkarEnabled,
+      identityEnabled,
+    };
+  }
+
+  /**
    * The single PayPing product for «شاهکار + استعلام هویتی». Both inquiries
    * must run for a verified identity, so they are sold as one product whose
    * amount is the sum of the two service prices.
    */
   async ensureIdentityBundleProduct(): Promise<string | null> {
-    const { total } = await this.identityBundlePrice();
+    const { total } = await this.identityBundleQuote();
     return this.ensureProduct(
       IDENTITY_BUNDLE_KEY,
       'استعلام هویت (شاهکار + هویتی) — شمالی‌کارت',
@@ -453,7 +493,7 @@ export class ZohalService {
   async ensureIdentityLicenseBundleProduct(
     licenseAmount: number,
   ): Promise<string | null> {
-    const { total } = await this.identityBundlePrice();
+    const { total } = await this.identityBundleQuote();
     return this.ensureProduct(
       IDENTITY_LICENSE_BUNDLE_KEY,
       'استعلام هویت و جواز کسب (شاهکار + هویتی + جواز) — شمالی‌کارت',

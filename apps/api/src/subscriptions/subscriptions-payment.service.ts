@@ -1166,13 +1166,21 @@ export class SubscriptionsPaymentService {
       nationalCode = nationalCode || '';
       birthDate = birthDate || '';
     }
-    const [{ total: identityTotal }, licensePrice] = await Promise.all([
-      this.zohal.identityBundlePrice(),
+    const [identityBundle, licensePrice] = await Promise.all([
+      this.zohal.identityBundleQuote(),
       needsLicense ? this.apiir.getServicePrice('license') : Promise.resolve(0),
     ]);
+    if (needsIdentity && !identityBundle.available) {
+      throw new BadRequestException(
+        'استعلام هویت در حال حاضر فعال نیست؛ لطفاً بعداً دوباره تلاش کنید.',
+      );
+    }
     const amount = Math.max(
       0,
-      Math.round((needsIdentity ? identityTotal : 0) + (needsLicense ? licensePrice : 0)),
+      Math.round(
+        (needsIdentity ? identityBundle.total : 0) +
+          (needsLicense ? licensePrice : 0),
+      ),
     );
     return {
       amount,

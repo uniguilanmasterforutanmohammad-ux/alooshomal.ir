@@ -20,7 +20,43 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.50.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.50.1**.
+
+## ۱۴۰۵/۰۸/۳۰ — حذف استعلام هویت غیرفعال از صورتحساب و پرداخت — نسخه `v4.50.1`
+
+**هدف:** وقتی سرویس‌های شاهکار/استعلام هویتی یا سوئیچ «استعلام خودکار هویت» در
+پنل مدیریت خاموش است، نه استعلامی گرفته شود و نه هزینه‌ای با عنوان «شاهکار
+(تطابق کد ملی و موبایل)» در صورتحساب/پرداخت نهایی بیاید.
+
+**تغییرات:**
+- `apps/api/src/zohal/zohal.service.ts`: افزودن `identityBundleQuote()` که
+  فعال‌بودن هر دو سرویس (و سوئیچ `featureIdentityInquiry`) و مثبت‌بودن تعرفه را
+  بررسی می‌کند؛ در غیر این صورت `total = 0` و `available = false` برمی‌گرداند.
+  ساخت محصولات PayPing استعلام هویت هم از همین مقدار استفاده می‌کند.
+- `apps/api/src/profile/profile.service.ts`: `identityQuote()` فیلد
+  `identityAvailable` را برمی‌گرداند و مبلغ استعلام غیرفعال صفر می‌شود؛
+  `identityCheckout()` در حالت غیرفعال خطای ۴۰۰ می‌دهد.
+- `apps/api/src/subscriptions/subscriptions-payment.service.ts`:
+  `resolveIdentityCharge()` مبلغ را از quote می‌گیرد و اگر استعلام لازم ولی
+  غیرفعال باشد، پرداخت را با ۴۰۰ متوقف می‌کند.
+- `apps/api/src/onboarding/onboarding.service.ts`: مرحله‌ی هویت فقط وقتی الزامی
+  است که سرویس در دسترس باشد؛ پس صورتحساب/تأیید نهایی بدون استعلام غیرفعال
+  کامل می‌شود.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: ردیف استعلام و جواز فقط
+  با `identityAvailable` شارژ می‌شود، مرحله‌ی هویت در حالت غیرفعال رد می‌شود و
+  پیام راهنما نمایش داده می‌شود.
+
+**تأیید/تست:**
+- `npx tsc --noEmit` در کانتینرهای `alooshomal-api` و `alooshomal-web` بدون خطا.
+- با غیرفعال‌کردن موقت `zohal.service.shahkar` و
+  `zohal.service.national_identity_inquiry` در دیتابیس محلی:
+  `GET /api/profile/identity/quote` مقدار `identityTotal: 0` و
+  `identityAvailable: false` داد، `GET /api/onboarding/me` مرحله‌ی
+  صورتحساب/تأیید را کامل نشان داد، و `POST /api/subscriptions/:plan/checkout`
+  با ورودی هویت خطای ۴۰۰ «استعلام هویت در حال حاضر فعال نیست…» داد. سپس
+  تنظیمات دیتابیس به حالت اولیه بازگردانده شد.
+- `python3 scripts/sync_install.py --check` بدون تغییر معلق و
+  `python3 scripts/check_api_docs.py` با ۵۳ کنترلر/۵۳۸ مسیر و exit 0.
 
 ## ۱۴۰۵/۰۸/۳۰ — شماره‌ی موبایل کسب‌وکار با شاهکار و نگه‌داری سابقه‌ی استعلام‌ها در پروفایل — نسخه `v4.50.0`
 
