@@ -17,6 +17,7 @@ import { RegisterDto } from './dto/register.dto';
 import { RequestCodeDto } from './dto/request-code.dto';
 import { RequestEmailOtpDto } from './dto/request-email-otp.dto';
 import { DevAdminSmsTestDto } from './dto/dev-admin-sms-test.dto';
+import { DevQuickLoginDto } from './dto/dev-quick-login.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SetPasswordDto } from './dto/set-password.dto';
 import { VerifyPhoneDto } from './dto/verify-phone.dto';
@@ -270,6 +271,35 @@ export class AuthController {
   })
   devAdminSmsTest(@Body() dto: DevAdminSmsTestDto) {
     return this.authService.sendDevAdminSmsTest(dto);
+  }
+
+  @Public()
+  @Get('dev/admin')
+  @ApiOperation({
+    summary:
+      'شناسه‌ی مدیر محلی برای پیش‌پرکردن فرم ورود (فقط محیط توسعه؛ در پروداکشن ۴۰۴)',
+  })
+  devAdminIdentity() {
+    return this.authService.devAdminIdentity();
+  }
+
+  @Public()
+  @Post('dev/quick-login')
+  @HttpCode(200)
+  @ApiOperation({
+    summary:
+      'ورود سریع مدیر با کد یکبارمصرف فیک و بدون OTP واقعی (فقط محیط توسعه؛ در پروداکشن ۴۰۴)',
+  })
+  async devQuickLogin(
+    @Body() dto: DevQuickLoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const payload = await this.authService.devAdminLogin(dto.method ?? 'email', {
+      userAgent: clientUserAgent(req),
+      ip: clientIp(req),
+    });
+    return this.withRefreshCookie(res, payload);
   }
 
   @Public()

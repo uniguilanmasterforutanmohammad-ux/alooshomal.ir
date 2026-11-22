@@ -64,7 +64,8 @@ export function UserEmailAuth({ next }: { next: string }) {
       setFlow(data.flow === 'register' ? 'register' : 'login');
       setTarget(data.email ?? email);
       setDevCode(data.devCode ?? null);
-      setCode('');
+      // Dev-only: prefill the fake code returned by the API.
+      setCode(data.devCode ?? '');
       setSecondsLeft(data.expiresIn ?? 90);
       setOtpStep(true);
     } catch (err) {
@@ -91,7 +92,7 @@ export function UserEmailAuth({ next }: { next: string }) {
       // still finish through `register/verify` (default plan + admin notice).
       setTarget(data.email ?? email);
       setDevCode(data.devCode ?? null);
-      setCode('');
+      setCode(data.devCode ?? '');
       setSecondsLeft(data.expiresIn ?? 90);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'ارسال کد ناموفق بود';

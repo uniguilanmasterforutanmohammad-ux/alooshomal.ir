@@ -86,6 +86,12 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
    `POST /api/auth/dev/sms-test` (ارسال واقعی OTP با `{ phone }`) و
    `POST /api/auth/dev/admin-sms-test` (ارسال واقعی قالب مشترک مدیران با
    `{ phone, section?, subject? }`). جزئیات در `docs/SMS.md`.
+   برای راحتی ورود در محیط توسعه، دو مسیر کمکی دیگر هم (فقط dev؛ در پروداکشن
+   ۴۰۴) وجود دارد: `GET /api/auth/dev/admin` که ایمیل/موبایل مدیر محلی را برای
+   پیش‌پرکردن فرم برمی‌گرداند، و `POST /api/auth/dev/quick-login` با بدنه‌ی
+   `{ method?: 'email' | 'phone' }` که مدیر/ناظر محلی را با «کد یکبارمصرف فیک»
+   و بدون OTP واقعی وارد می‌کند. دکمه‌های «ورود سریع مدیر» در صفحه‌ی `/login`
+   فقط در حالت توسعه از همین مسیر استفاده می‌کنند.
 2. در بالای صفحه‌ی Swagger روی **Authorize** بزنید و توکن را در قالب
    `Bearer <token>` وارد کنید.
 3. گزینه‌ی `persistAuthorization` فعال است، پس توکن بین رفرش‌ها حفظ می‌شود.

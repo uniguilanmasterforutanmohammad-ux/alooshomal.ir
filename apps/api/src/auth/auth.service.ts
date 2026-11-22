@@ -10,6 +10,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { createHash } from 'node:crypto';
+import { Role } from '@prisma/client';
 
 import { NotificationsService } from '../notifications/notifications.service';
 import { RATE_LIMITS, RateLimitService } from '../common/rate-limit.service';
@@ -42,7 +43,7 @@ const DUMMY_BCRYPT_HASH = bcrypt.hashSync(
 );
 
 /** Roles allowed to use the email + password sign-in path. */
-const ADMIN_LOGIN_ROLES = new Set(['ADMIN', 'MODERATOR']);
+const ADMIN_LOGIN_ROLES = new Set<Role>(['ADMIN', 'MODERATOR']);
 
 /** `admin@example.com` → `ad***@example.com`, safe to echo to the client. */
 function maskEmail(email: string | null): string | null {
@@ -179,6 +180,66 @@ export class AuthService {
       throw new ServiceUnavailableException('ارسال پیامک ناموفق بود');
     }
     return { phone: maskPhone(phone), sent: true, section, subject };
+  }
+
+  /**
+   * Development-only helper: the local admin/manager identity, so the sign-in
+   * page can prefill the form on a developer machine. Production responds 404.
+   */
+  async devAdminIdentity() {
+    if (process.env.NODE_ENV === 'production') {
+      throw new NotFoundException('مسیر یافت نشد');
+    }
+    const admin = await this.prisma.user.findFirst({
+      where: { role: { in: [...ADMIN_LOGIN_ROLES] }, isActive: true },
+      orderBy: { createdAt: 'asc' },
+      select: { email: true, phone: true, fullName: true },
+    });
+    return {
+      email: admin?.email ?? null,
+      phone: admin?.phone ?? null,
+      name: admin?.fullName ?? null,
+    };
+  }
+
+  /**
+   * Development-only helper: sign a local admin/manager in with a *fake* OTP
+   * (none is requested or checked), so a developer can reach the panel without
+   * the code round-trip. Supports both the email and phone identities.
+   * Production responds 404.
+   */
+  async devAdminLogin(
+    method: 'email' | 'phone' = 'email',
+    context: SessionContext = {},
+  ) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new NotFoundException('مسیر یافت نشد');
+    }
+    const admin = await this.prisma.user.findFirst({
+      where: {
+        role: { in: [...ADMIN_LOGIN_ROLES] },
+        isActive: true,
+        ...(method === 'phone'
+          ? { phone: { not: null } }
+          : { email: { not: null } }),
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    if (!admin) {
+      throw new NotFoundException(
+        'حساب مدیریتی برای ورود سریع در این محیط یافت نشد',
+      );
+    }
+    await this.activity.log({
+      actor: { id: admin.id, email: admin.email, role: admin.role },
+      action: 'USER_LOGIN',
+      summary: `[dev] ورود سریع مدیر بدون کد یکبارمصرف: ${
+        admin.fullName ?? admin.email ?? admin.phone ?? admin.id
+      }`,
+      entityType: 'USER',
+      entityId: admin.id,
+    });
+    return this.buildAuthResponse(admin, context);
   }
 
   /**

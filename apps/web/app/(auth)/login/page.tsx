@@ -7,6 +7,11 @@ import { ArrowRight, Mail, Smartphone } from 'lucide-react';
 
 import { AuthForm } from '@/components/auth/AuthForm';
 import { UserEmailAuth } from '@/components/auth/UserEmailAuth';
+import {
+  DevAdminLogin,
+  type DevAdminIdentity,
+} from '@/components/auth/DevAdminLogin';
+import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useAuthMethods } from '@/lib/auth-settings';
 import { postLoginPath } from '@/lib/post-login';
@@ -26,6 +31,21 @@ function AuthPageContent() {
     useAuthMethods();
 
   const [mode, setMode] = useState<'phone' | 'email'>('phone');
+  // Local dev aid: the admin identity used to prefill the form / quick-login.
+  const isDev = process.env.NODE_ENV !== 'production';
+  const [devAdmin, setDevAdmin] = useState<DevAdminIdentity | null>(null);
+  const [devAdminReady, setDevAdminReady] = useState(!isDev);
+
+  useEffect(() => {
+    if (!isDev) return;
+    api
+      .get<DevAdminIdentity>('/auth/dev/admin')
+      .then((identity) => setDevAdmin(identity))
+      .catch(() => {
+        /* dev helper unavailable; the regular form still works */
+      })
+      .finally(() => setDevAdminReady(true));
+  }, [isDev]);
 
   // An already signed-in visitor has no reason to see the login form: send them
   // straight to their panel (a limited admin has no dashboard, so it gets the
@@ -95,16 +115,25 @@ function AuthPageContent() {
               در حال حاضر هیچ روش ورودی توسط مدیر فعال نیست. لطفاً بعداً تلاش کنید.
             </p>
           ) : mode === 'phone' ? (
-            <AuthForm
-              next={next}
-              onEmailLogin={
-                emailLoginEnabled ? () => setMode('email') : undefined
-              }
-            />
+            isDev && !devAdminReady ? (
+              <p className="p-3 text-sm text-muted">
+                در حال آماده‌سازی ورود توسعه...
+              </p>
+            ) : (
+              <AuthForm
+                next={next}
+                defaultIdentifier={devAdmin?.email ?? undefined}
+                onEmailLogin={
+                  emailLoginEnabled ? () => setMode('email') : undefined
+                }
+              />
+            )
           ) : (
             <UserEmailAuth next={next} />
           )}
         </div>
+
+        {isDev ? <DevAdminLogin next={next} identity={devAdmin} /> : null}
 
       </div>
     </div>

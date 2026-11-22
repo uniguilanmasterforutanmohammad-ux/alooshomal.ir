@@ -43,16 +43,21 @@ function formatSeconds(total: number): string {
 export function AuthForm({
   next,
   onEmailLogin,
+  defaultIdentifier,
 }: {
   next?: string;
   onEmailLogin?: () => void;
+  /** Dev-only: prefill the identifier (e.g. the local admin email). */
+  defaultIdentifier?: string;
 }) {
   const setSession = useAuth((state) => state.setSession);
   const target = safeInternalPath(next);
 
   const [step, setStep] = useState<Step>('phone');
-  const [identifier, setIdentifier] = useState('');
-  const [mode, setMode] = useState<'phone' | 'email'>('phone');
+  const [identifier, setIdentifier] = useState(() => defaultIdentifier ?? '');
+  const [mode, setMode] = useState<'phone' | 'email'>(() =>
+    defaultIdentifier?.includes('@') ? 'email' : 'phone',
+  );
   const [code, setCode] = useState('');
   const [devCode, setDevCode] = useState<string | null>(null);
   const [channel, setChannel] = useState<'bale' | 'sms' | 'dev' | null>(null);
@@ -112,6 +117,8 @@ export function AuthForm({
         setMode('email');
         setIdentifier(value);
         setDevCode(result.devCode ?? null);
+        // Dev-only: prefill the fake code returned by the API.
+        setCode(result.devCode ?? '');
         setChannel(null);
         setSecondsLeft(result.expiresIn ?? 90);
       } else {
@@ -122,6 +129,7 @@ export function AuthForm({
         setMode('phone');
         setIdentifier(result.phone);
         setDevCode(result.devCode ?? null);
+        setCode(result.devCode ?? '');
         setChannel(result.channel ?? null);
         setPreferredChannel('auto');
         setSecondsLeft(result.expiresIn ?? 90);
@@ -139,6 +147,7 @@ export function AuthForm({
     setLoading(true);
     setError(null);
     try {
+      let nextCode = '';
       if (mode === 'email') {
         const result = await api.post<RequestCodeResult>(
           '/auth/email-otp/request',
@@ -146,6 +155,7 @@ export function AuthForm({
         );
         setDevCode(result.devCode ?? null);
         setSecondsLeft(result.expiresIn ?? 90);
+        nextCode = result.devCode ?? '';
       } else {
         const result = await api.post<RequestCodeResult>(
           '/auth/phone/request-code',
@@ -158,8 +168,9 @@ export function AuthForm({
         setDevCode(result.devCode ?? null);
         setChannel(result.channel ?? null);
         setSecondsLeft(result.expiresIn ?? 90);
+        nextCode = result.devCode ?? '';
       }
-      setCode('');
+      setCode(nextCode);
     } catch (err) {
       handleCodeRequestError(err, 'ارسال کد ناموفق بود');
     } finally {
@@ -184,7 +195,7 @@ export function AuthForm({
       setChannel(result.channel ?? null);
       setPreferredChannel('sms');
       setSecondsLeft(result.expiresIn ?? 90);
-      setCode('');
+      setCode(result.devCode ?? '');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ارسال پیامک ناموفق بود');
     } finally {
