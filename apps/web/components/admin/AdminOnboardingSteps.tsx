@@ -31,9 +31,38 @@ interface EditableStep {
   description: string;
   href?: string;
   moduleKey?: string;
+  fieldOverrides?: Record<string, FieldOverride>;
   enabled: boolean;
   optional?: boolean;
 }
+
+type PrefillSource =
+  | 'userMobile'
+  | 'userNationalCode'
+  | 'userBirthDate'
+  | 'userFullName';
+
+interface FieldOption {
+  value: string;
+  label: string;
+}
+
+interface FieldOverride {
+  label?: string;
+  placeholder?: string;
+  required?: boolean;
+  readonly?: boolean;
+  datePicker?: boolean;
+  prefill?: PrefillSource;
+  options?: FieldOption[];
+}
+
+const PREFILL_LABELS: Record<PrefillSource, string> = {
+  userMobile: 'موبایل ثبت‌نام کاربر',
+  userNationalCode: 'کد ملی کاربر',
+  userBirthDate: 'تاریخ تولد کاربر',
+  userFullName: 'نام و نام خانوادگی کاربر',
+};
 
 interface ModuleOption {
   key: string;
@@ -196,9 +225,66 @@ export function AdminOnboardingSteps() {
     const item = modules.find((entry) => entry.key === key);
     update(index, {
       moduleKey: key,
+      fieldOverrides: {},
       ...(item
         ? { title: item.label, description: item.description, href: item.href }
         : {}),
+    });
+  }
+
+  function updateFieldOverride(
+    index: number,
+    fieldName: string,
+    patch: Partial<FieldOverride>,
+  ) {
+    setSteps((prev) =>
+      prev.map((step, position) => {
+        if (position !== index) return step;
+        const current = step.fieldOverrides?.[fieldName] ?? {};
+        const next: FieldOverride = { ...current, ...patch };
+        if (next.label !== undefined && !next.label.trim()) delete next.label;
+        if (next.placeholder !== undefined && !next.placeholder.trim()) {
+          delete next.placeholder;
+        }
+        if (next.prefill === undefined) delete next.prefill;
+        if (!next.options?.length) delete next.options;
+        return {
+          ...step,
+          fieldOverrides: {
+            ...(step.fieldOverrides ?? {}),
+            [fieldName]: next,
+          },
+        };
+      }),
+    );
+    setMessage(null);
+  }
+
+  /** Label of a boolean option (`true`/`false`), with the built-in fallback. */
+  function booleanLabel(override: FieldOverride | undefined, value: boolean) {
+    return (
+      override?.options?.find((option) => option.value === String(value))
+        ?.label ?? (value ? 'بله' : 'خیر')
+    );
+  }
+
+  function setBooleanLabel(
+    index: number,
+    fieldName: string,
+    value: boolean,
+    label: string,
+  ) {
+    const step = steps[index];
+    const override = step?.fieldOverrides?.[fieldName];
+    const trueLabel =
+      value === true ? label : booleanLabel(override, true);
+    const falseLabel =
+      value === false ? label : booleanLabel(override, false);
+    updateFieldOverride(index, fieldName, {
+      options: [
+        { value: 'true', label: trueLabel.trim() || 'بله' },
+        { value: 'false', label: falseLabel.trim() || 'خیر' },
+      ],
     });
   }
 
@@ -215,6 +301,9 @@ export function AdminOnboardingSteps() {
         ...(step.href && step.href.trim() ? { href: step.href.trim() } : {}),
         ...(step.kind === 'module' && step.moduleKey
           ? { moduleKey: step.moduleKey }
+          : {}),
+        ...(step.kind === 'module' && step.fieldOverrides
+          ? { fieldOverrides: step.fieldOverrides }
           : {}),
         enabled: step.enabled,
         optional: step.optional === true,
@@ -465,23 +554,203 @@ export function AdminOnboardingSteps() {
                     (item) => item.key === step.moduleKey,
                   );
                   const fields = selected?.fields ?? [];
-                  return fields.length > 0 ? (
-                    <p className="mt-1.5 rounded-lg bg-brand-light/40 px-2 py-1.5 text-[11px] leading-5 text-muted">
-                      اطلاعاتی که از کاربر گرفته می‌شود:{' '}
-                      <b className="text-ink">
-                        {fields
-                          .map(
-                            (field) =>
-                              `${field.label}${field.required ? ' *' : ''}`,
-                          )
-                          .join('، ')}
-                      </b>
-                    </p>
-                  ) : (
-                    <p className="mt-1.5 text-[11px] leading-5 text-muted">
-                      این ماژول فرم ورودی ندارد؛ کاربر فقط لینک را باز می‌کند و
-                      مرحله را تیک می‌زند.
-                    </p>
+                  if (fields.length === 0) {
+                    return (
+                      <p className="mt-1.5 text-[11px] leading-5 text-muted">
+                        این ماژول فرم ورودی ندارد؛ کاربر فقط لینک را باز می‌کند و
+                        مرحله را تیک می‌زند.
+                      </p>
+                    );
+                  }
+                  return (
+                    <div className="mt-2 rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/50 p-3">
+                      <p className="text-[11px] font-extrabold text-ink">
+                        فرم این ماژول — سفارشی‌سازی هر فیلد
+                      </p>
+                      <p className="mt-1 text-[11px] leading-5 text-muted">
+                        برای استعلام‌های مبتنی بر موبایل (مثل شاهکار) فیلد
+                        موبایل را روی «موبایل ثبت‌نام کاربر» بگذارید و «قفل برای
+                        کاربر» را تیک بزنید تا مقدار از حساب خوانده و
+                        غیرقابل‌ویرایش شود. فیلدهای بولی را با برچسب دلخواه
+                        (مثل مرد/زن) و فیلدهای تاریخ را با دیتاپیکر شمسی سایت
+                        نمایش دهید.
+                      </p>
+                      <div className="mt-2 flex flex-col gap-2">
+                        {fields.map((field) => {
+                          const override =
+                            step.fieldOverrides?.[field.name] ?? {};
+                          return (
+                            <div
+                              key={field.name}
+                              className="rounded-lg border border-[var(--vintage-border)] bg-white p-2.5"
+                            >
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-[11px] font-extrabold text-ink">
+                                  {field.label}
+                                </span>
+                                <code
+                                  className="rounded bg-[var(--vintage-paper)] px-1.5 py-0.5 text-[10px] text-muted"
+                                  dir="ltr"
+                                >
+                                  {field.name}
+                                </code>
+                                {field.type ? (
+                                  <span className="rounded-full bg-brand-light px-1.5 text-[9px] font-bold text-brand">
+                                    {field.type}
+                                  </span>
+                                ) : null}
+                                {field.required ? (
+                                  <span className="text-[9px] font-bold text-amber-600">
+                                    الزامی
+                                  </span>
+                                ) : null}
+                              </div>
+                              <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                <label className="text-[10px] font-bold text-muted">
+                                  برچسب نمایش
+                                  <input
+                                    className="indeed-input mt-1 py-1 text-[11px]"
+                                    value={override.label ?? ''}
+                                    placeholder={field.label}
+                                    onChange={(event) =>
+                                      updateFieldOverride(index, field.name, {
+                                        label: event.target.value,
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <label className="text-[10px] font-bold text-muted">
+                                  متن راهنما
+                                  <input
+                                    className="indeed-input mt-1 py-1 text-[11px]"
+                                    value={override.placeholder ?? ''}
+                                    placeholder="اختیاری"
+                                    onChange={(event) =>
+                                      updateFieldOverride(index, field.name, {
+                                        placeholder: event.target.value,
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <label className="text-[10px] font-bold text-muted">
+                                  مقدار پیش‌فرض از حساب
+                                  <select
+                                    className="indeed-input mt-1 py-1 text-[11px]"
+                                    value={override.prefill ?? ''}
+                                    onChange={(event) =>
+                                      updateFieldOverride(index, field.name, {
+                                        prefill: (event.target.value ||
+                                          undefined) as
+                                          | PrefillSource
+                                          | undefined,
+                                      })
+                                    }
+                                  >
+                                    <option value="">— بدون پیش‌فرض —</option>
+                                    {(
+                                      Object.keys(
+                                        PREFILL_LABELS,
+                                      ) as PrefillSource[]
+                                    ).map((source) => (
+                                      <option key={source} value={source}>
+                                        {PREFILL_LABELS[source]}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                                <div className="flex flex-col gap-1 pt-4 text-[10px] font-bold text-muted">
+                                  <label className="flex items-center gap-1.5">
+                                    <input
+                                      type="checkbox"
+                                      checked={override.readonly ?? false}
+                                      onChange={(event) =>
+                                        updateFieldOverride(
+                                          index,
+                                          field.name,
+                                          { readonly: event.target.checked },
+                                        )
+                                      }
+                                    />
+                                    قفل برای کاربر (غیرقابل ویرایش)
+                                  </label>
+                                  <label className="flex items-center gap-1.5">
+                                    <input
+                                      type="checkbox"
+                                      checked={
+                                        override.required ??
+                                        field.required ??
+                                        false
+                                      }
+                                      onChange={(event) =>
+                                        updateFieldOverride(
+                                          index,
+                                          field.name,
+                                          { required: event.target.checked },
+                                        )
+                                      }
+                                    />
+                                    الزامی
+                                  </label>
+                                  {field.type === 'date' ? (
+                                    <label className="flex items-center gap-1.5">
+                                      <input
+                                        type="checkbox"
+                                        checked={override.datePicker ?? true}
+                                        onChange={(event) =>
+                                          updateFieldOverride(
+                                            index,
+                                            field.name,
+                                            {
+                                              datePicker:
+                                                event.target.checked,
+                                            },
+                                          )
+                                        }
+                                      />
+                                      دیتاپیکر شمسی سایت
+                                    </label>
+                                  ) : null}
+                                </div>
+                                {field.type === 'boolean' ? (
+                                  <>
+                                    <label className="text-[10px] font-bold text-muted">
+                                      برچسب مقدار «بله» (true)
+                                      <input
+                                        className="indeed-input mt-1 py-1 text-[11px]"
+                                        value={booleanLabel(override, true)}
+                                        onChange={(event) =>
+                                          setBooleanLabel(
+                                            index,
+                                            field.name,
+                                            true,
+                                            event.target.value,
+                                          )
+                                        }
+                                      />
+                                    </label>
+                                    <label className="text-[10px] font-bold text-muted">
+                                      برچسب مقدار «خیر» (false)
+                                      <input
+                                        className="indeed-input mt-1 py-1 text-[11px]"
+                                        value={booleanLabel(override, false)}
+                                        onChange={(event) =>
+                                          setBooleanLabel(
+                                            index,
+                                            field.name,
+                                            false,
+                                            event.target.value,
+                                          )
+                                        }
+                                      />
+                                    </label>
+                                  </>
+                                ) : null}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })()}
               </div>

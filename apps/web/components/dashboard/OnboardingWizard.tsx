@@ -41,7 +41,7 @@ import {
   type SubscriptionPlan,
   type TaxonomyItem,
 } from '@/lib/api';
-import { isoToJalali } from '@/lib/jalali';
+import { isoToJalali, jalaliToIso, parseJalali } from '@/lib/jalali';
 import {
   PLAN_PERIODS,
   PLAN_PERIOD_LABELS,
@@ -96,6 +96,14 @@ interface OnboardingModuleField {
   required?: boolean;
   type?: 'text' | 'date' | 'boolean' | 'file';
   placeholder?: string;
+  /** Default value computed by the server from the user's account. */
+  value?: string;
+  /** Locked prefill: the user must not change this value. */
+  readonly?: boolean;
+  /** Custom labels for a boolean field (e.g. مرد/زن). */
+  options?: Array<{ value: string; label: string }>;
+  /** Use the site's Jalali date picker (default true for date fields). */
+  datePicker?: boolean;
 }
 
 interface OnboardingModuleInfo {
@@ -299,6 +307,21 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toLocaleString('fa-IR', {
     maximumFractionDigits: 1,
   })} مگابایت`;
+}
+
+/** «۱۴۰۵/۰۸/۱۸» → ISO, for the Jalali picker's `value` prop. */
+function jalaliToIsoValue(value: string): string {
+  const parsed = parseJalali(value);
+  return parsed ? jalaliToIso(parsed.year, parsed.month, parsed.day) : '';
+}
+
+/** ISO → «۱۴۰۵/۰۸/۱۸», the format the module inquiry APIs expect. */
+function isoToJalaliValue(iso: string): string {
+  const date = isoToJalali(iso);
+  if (!date) return '';
+  return `${date.year}/${String(date.month).padStart(2, '0')}/${String(
+    date.day,
+  ).padStart(2, '0')}`;
 }
 
 /**
@@ -766,10 +789,12 @@ export function OnboardingWizard() {
   }
 
   function moduleValue(step: OnboardingStep, field: OnboardingModuleField): string {
+    if (field.readonly && field.value !== undefined) return field.value;
     const draft = moduleDraft[step.id]?.[field.name];
     if (draft !== undefined) return draft;
     const saved = step.data?.[field.name];
-    return saved === undefined || saved === null ? '' : String(saved);
+    if (saved !== undefined && saved !== null) return String(saved);
+    return field.value ?? '';
   }
 
   function setModuleValue(
@@ -1587,6 +1612,12 @@ export function OnboardingWizard() {
                     {step.module!.fields.map((field) => {
                       const value = moduleValue(step, field);
                       const uploadKey = `${step.id}:${field.name}`;
+                      const booleanOptions = field.options?.length
+                        ? field.options
+                        : [
+                            { value: 'true', label: 'بله' },
+                            { value: 'false', label: 'خیر' },
+                          ];
                       return (
                         <label
                           key={field.name}
@@ -1598,20 +1629,29 @@ export function OnboardingWizard() {
                             <select
                               className="indeed-input mt-1 py-1.5 text-xs"
                               value={value}
+                              disabled={field.readonly}
                               onChange={(event) =>
                                 setModuleValue(step, field, event.target.value)
                               }
                             >
-                              <option value="">—</option>
-                              <option value="true">بله</option>
-                              <option value="false">خیر</option>
+                              {field.required ? null : (
+                                <option value="">—</option>
+                              )}
+                              {booleanOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
                             </select>
                           ) : field.type === 'file' ? (
                             <span className="mt-1 flex flex-col gap-1">
                               <input
                                 type="file"
                                 className="text-[11px]"
-                                disabled={moduleUploading === uploadKey}
+                                disabled={
+                                  moduleUploading === uploadKey ||
+                                  field.readonly === true
+                                }
                                 onChange={(event) => {
                                   const file = event.target.files?.[0];
                                   if (file) {
@@ -1625,17 +1665,40 @@ export function OnboardingWizard() {
                                 </span>
                               ) : null}
                             </span>
+                          ) : field.type === 'date' &&
+                            field.datePicker !== false ? (
+                            <JalaliDatePicker
+                              value={jalaliToIsoValue(value)}
+                              onChange={(iso) =>
+                                setModuleValue(
+                                  step,
+                                  field,
+                                  isoToJalaliValue(iso),
+                                )
+                              }
+                              placeholder={field.placeholder}
+                              disabled={field.readonly === true}
+                              className="mt-1"
+                            />
                           ) : (
                             <input
                               className="indeed-input mt-1 py-1.5 text-xs"
                               dir={field.type === 'date' ? 'ltr' : undefined}
                               placeholder={field.placeholder}
                               value={value}
+                              readOnly={field.readonly === true}
                               onChange={(event) =>
                                 setModuleValue(step, field, event.target.value)
                               }
                             />
                           )}
+                          {field.readonly ? (
+                            <span className="flex items-center gap-1 text-[10px] font-normal text-muted">
+                              <Lock className="size-3" aria-hidden />
+                              این مقدار از اطلاعات حساب شما خوانده می‌شود و
+                              قابل تغییر نیست.
+                            </span>
+                          ) : null}
                         </label>
                       );
                     })}

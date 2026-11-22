@@ -88,6 +88,13 @@ export interface OnboardingStepDef {
    * `apiir:<key>`, `biolink`, `businessCard`).
    */
   moduleKey?: string;
+  /**
+   * For `kind: 'module'` steps: per-field tweaks the admin applied to the
+   * module's built-in form (custom label, default from the user's account,
+   * read-only lock, boolean labels, Jalali date picker, …). Keyed by the
+   * field `name` exposed by the module catalog.
+   */
+  fieldOverrides?: Record<string, OnboardingFieldOverride>;
   /** disabled steps stay configured but are hidden from users. */
   enabled: boolean;
   /**
@@ -97,6 +104,48 @@ export interface OnboardingStepDef {
   optional?: boolean;
 }
 
+/**
+ * Account values an admin can prefill a module field with, so the user does
+ * not have to re-type data the platform already knows (e.g. the phone they
+ * signed up with).
+ */
+export const ONBOARDING_FIELD_PREFILLS = [
+  'userMobile',
+  'userNationalCode',
+  'userBirthDate',
+  'userFullName',
+] as const;
+
+export type OnboardingFieldPrefill =
+  (typeof ONBOARDING_FIELD_PREFILLS)[number];
+
+/** One selectable option for a boolean/select field (value → display label). */
+export interface OnboardingFieldOption {
+  /** Stored/sent value, e.g. `true` or `false`. */
+  value: string;
+  /** Persian label shown to the user, e.g. «مرد» or «زن». */
+  label: string;
+}
+
+/**
+ * Admin override for one field of a module step. Every property is optional:
+ * whatever is left out falls back to the field's built-in definition.
+ */
+export interface OnboardingFieldOverride {
+  /** Replaces the field label shown to the user. */
+  label?: string;
+  placeholder?: string;
+  required?: boolean;
+  /** Prefill the field from the signed-in user's account data. */
+  prefill?: OnboardingFieldPrefill;
+  /** Lock the prefilled value so the user cannot change it. */
+  readonly?: boolean;
+  /** Custom labels for a `boolean` field (e.g. «مرد»/«زن» instead of بله/خیر). */
+  options?: OnboardingFieldOption[];
+  /** Render a `date` field with the site's Jalali date picker. */
+  datePicker?: boolean;
+}
+
 /** One input the user must fill for a module step. */
 export interface OnboardingModuleField {
   name: string;
@@ -104,6 +153,14 @@ export interface OnboardingModuleField {
   required?: boolean;
   type?: 'text' | 'date' | 'boolean' | 'file';
   placeholder?: string;
+  /** Default value computed from the user's account (see `prefill`). */
+  value?: string;
+  /** True when the user must not change the value (locked prefill). */
+  readonly?: boolean;
+  /** Custom labels for a boolean field. */
+  options?: OnboardingFieldOption[];
+  /** When true, a `date` field uses the site's Jalali date picker. */
+  datePicker?: boolean;
 }
 
 /** Module/product details attached to a `module` step for the wizard form. */

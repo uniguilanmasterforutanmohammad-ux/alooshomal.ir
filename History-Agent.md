@@ -20,7 +20,49 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.63.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.64.0**.
+
+## ۱۴۰۵/۰۹/۰۱ — سفارشی‌سازی فیلدهای فرم مراحل «شروع آسان» توسط ادمین — نسخه `v4.64.0`
+
+**هدف:** در «ساخت فرم ← شروع سریع» (`?section=settings-onboarding`) ادمین بتواند
+فرم هر مرحله‌ی ماژول را سفارشی کند: برای استعلام‌های مبتنی بر موبایل (مثل
+شاهکار) مقدار از شماره‌ی ثبت‌نام کاربر خوانده و غیرقابل‌تغییر شود، فیلدهای بولی
+با برچسب دلخواه (مثل مرد/زن) نمایش داده شوند، و فیلدهای تاریخ با دیتاپیکر شمسی
+سایت گرفته شوند.
+
+**تغییرات:**
+- `apps/api/src/onboarding/onboarding.constants.ts`: افزودن
+  `OnboardingFieldPrefill`، `OnboardingFieldOption` و `OnboardingFieldOverride`
+  و فیلد `fieldOverrides` به `OnboardingStepDef`؛ گسترش `OnboardingModuleField`
+  با `value`/`readonly`/`options`/`datePicker`.
+- `apps/api/src/onboarding/dto/onboarding.dto.ts`: `OnboardingFieldOptionDto` و
+  `OnboardingFieldOverrideDto` و افزودن `fieldOverrides` به `OnboardingStepDto`
+  (`@ApiExtraModels` برای ثبت شمای OpenAPI).
+- `apps/api/src/onboarding/onboarding.service.ts`: افزودن `prefillValue` و
+  `resolveModuleFields` برای اعمال بازنویسی‌ها و پیش‌فرض‌گیری از حساب کاربر؛
+  اعتبارسنجی گزینه‌های بولی و اجبار مقدار فیلدهای `readonly` در
+  `saveModuleStepData`؛ ثبت `phone`/`fullName` در `identityState`؛ پاک‌سازی و
+  نگه‌داری `fieldOverrides` در `sanitize`.
+- `apps/web/components/admin/AdminOnboardingSteps.tsx`: ویرایشگر هر فیلد مرحله‌ی
+  ماژول (برچسب، راهنما، مقدار پیش‌فرض از حساب، قفل‌بودن، الزامی، دیتاپیکر شمسی و
+  برچسب‌های بولی مرد/زن).
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: رندر فیلدهای قفل‌شده/پیش‌پر،
+  گزینه‌های بولی سفارشی، دیتاپیکر شمسی برای فیلدهای تاریخ و تبدیل تاریخ شمسی↔ISO.
+- `docs/API.md`: مستندسازی `fieldOverrides` و رفتار `readonly`/گزینه‌ها.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.64.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- `python3 scripts/check_api_docs.py` با موفقیت (exit 0) و ثبت
+  `OnboardingFieldOverrideDto`/`OnboardingFieldOptionDto` در `GET /api/docs-json`.
+- تست واقعی روی کانتینر API: ورود ادمین، `PUT /admin/onboarding/steps` با
+  `fieldOverrides` و بازخوانی موفق؛ سپس `GET /onboarding/me` با کاربر دارای
+  موبایل، پیش‌پر‌شدن `mobile`/`national_code` از حساب و `readonly: true`، برچسب
+  مرد/زن برای `gender` و `datePicker: true` برای `birth_date` را نشان داد.
+- تست مسیر ذخیره: `POST /onboarding/steps/:id/data` با موبایل اشتباه، مقدار قفل‌شده
+  را از حساب بازنویسی کرد؛ گزینه‌ی معتبر بولی پذیرفته و مقدار نامعتبر با ۴۰۰ رد شد.
+- `python3 scripts/sync_install.py` و `--check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۱ — بازطراحی واریزی‌ها و پرداخت‌های کاربر در پنل کاربران — نسخه `v4.63.0`
 

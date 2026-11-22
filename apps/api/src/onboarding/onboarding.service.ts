@@ -30,9 +30,13 @@ import {
   ONBOARDING_STEP_DATA_PREFIX,
   ONBOARDING_STEPS_SETTING_KEY,
   ONBOARDING_STEP_KINDS,
+  ONBOARDING_FIELD_PREFILLS,
   type OnboardingDocument,
   type OnboardingBusinessState,
   type OnboardingCartItem,
+  type OnboardingFieldOption,
+  type OnboardingFieldOverride,
+  type OnboardingFieldPrefill,
   type OnboardingModuleField,
   type OnboardingModuleInfo,
   type OnboardingProgressPayload,
@@ -604,7 +608,11 @@ export class OnboardingService implements OnModuleInit {
               description: module.description,
               href: module.href,
               price: module.price,
-              fields: module.fields ?? [],
+              fields: this.resolveModuleFields(
+                module.fields ?? [],
+                step.fieldOverrides,
+                identity,
+              ),
             } satisfies OnboardingModuleInfo)
           : null,
         data: stepData.get(step.id) ?? null,
@@ -931,6 +939,8 @@ export class OnboardingService implements OnModuleInit {
       this.prisma.user.findUnique({
         where: { id: userId },
         select: {
+          phone: true,
+          fullName: true,
           nationalCode: true,
           birthDate: true,
           firstName: true,
@@ -959,6 +969,8 @@ export class OnboardingService implements OnModuleInit {
         .filter(Boolean)
         .join(' ') || null;
     return {
+      phone: user?.phone ?? null,
+      fullName: user?.fullName ?? null,
       nationalCode: user?.nationalCode ?? null,
       birthDate: user?.birthDate ?? null,
       firstName: user?.firstName ?? null,
@@ -1098,6 +1110,86 @@ export class OnboardingService implements OnModuleInit {
   }
 
   /**
+   * Value of an account field used to prefill a module input, or an empty
+   * string when the account does not have it yet.
+   */
+  private prefillValue(
+    source: OnboardingFieldPrefill,
+    identity: {
+      phone?: string | null;
+      fullName?: string | null;
+      nationalCode?: string | null;
+      birthDate?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+    },
+  ): string {
+    switch (source) {
+      case 'userMobile':
+        return identity.phone ?? '';
+      case 'userNationalCode':
+        return identity.nationalCode ?? '';
+      case 'userBirthDate':
+        return identity.birthDate ?? '';
+      case 'userFullName':
+        return (
+          [identity.firstName, identity.lastName].filter(Boolean).join(' ') ||
+          identity.fullName ||
+          ''
+        );
+      default:
+        return '';
+    }
+  }
+
+  /**
+   * Merge the admin's per-step `fieldOverrides` into a module's built-in form
+   * fields and resolve any account-based prefill. The result is what the wizard
+   * renders (and what {@link saveModuleStepData} validates against).
+   */
+  private resolveModuleFields(
+    fields: OnboardingModuleField[],
+    overrides: Record<string, OnboardingFieldOverride> | undefined,
+    identity: {
+      phone?: string | null;
+      fullName?: string | null;
+      nationalCode?: string | null;
+      birthDate?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+    },
+  ): OnboardingModuleField[] {
+    return fields.map((field) => {
+      const defaults: OnboardingModuleField =
+        field.type === 'date' ? { ...field, datePicker: true } : { ...field };
+      const override = overrides?.[field.name];
+      if (!override) return defaults;
+      const resolved: OnboardingModuleField = {
+        ...defaults,
+        ...(override.label !== undefined ? { label: override.label } : {}),
+        ...(override.placeholder !== undefined
+          ? { placeholder: override.placeholder }
+          : {}),
+        ...(override.required !== undefined
+          ? { required: override.required }
+          : {}),
+        ...(override.readonly !== undefined
+          ? { readonly: override.readonly }
+          : {}),
+        ...(override.datePicker !== undefined
+          ? { datePicker: override.datePicker }
+          : {}),
+        ...(override.options?.length ? { options: override.options } : {}),
+      };
+      if (override.prefill) {
+        const value = this.prefillValue(override.prefill, identity);
+        if (value) resolved.value = value;
+      }
+      return resolved;
+    });
+  }
+
+  /**
    * Save the inputs of a `module` step (an inquiry the admin placed in the
    * wizard) and mark it done. Only known fields are stored, and required ones
    * must be present, so the form cannot be completed with missing data.
@@ -1120,9 +1212,19 @@ export class OnboardingService implements OnModuleInit {
     if (!module) {
       throw new NotFoundException('ماژول این مرحله یافت نشد.');
     }
+    const identity = await this.identityState(userId);
+    const fields = this.resolveModuleFields(
+      module.fields,
+      step.fieldOverrides,
+      identity,
+    );
     const clean: Record<string, unknown> = {};
-    for (const field of module.fields) {
-      const raw = data?.[field.name];
+    for (const field of fields) {
+      // A locked, account-prefilled field ignores whatever the client sent.
+      const raw =
+        field.readonly && field.value !== undefined
+          ? field.value
+          : (data?.[field.name] ?? field.value);
       const value =
         typeof raw === 'string' ? raw.trim() : raw;
       if (
@@ -1130,6 +1232,27 @@ export class OnboardingService implements OnModuleInit {
         (value === undefined || value === null || value === '')
       ) {
         throw new BadRequestException(`مقدار «${field.label}» الزامی است.`);
+      }
+      if (value !== undefined && value !== null && value !== '') {
+        if (
+          field.options?.length &&
+          !field.options.some((option) => option.value === String(value))
+        ) {
+          throw new BadRequestException(
+            `مقدار «${field.label}» یکی از گزینه‌های مجاز نیست.`,
+          );
+        }
+        if (
+          field.type === 'boolean' &&
+          value !== true &&
+          value !== false &&
+          value !== 'true' &&
+          value !== 'false'
+        ) {
+          throw new BadRequestException(
+            `مقدار «${field.label}» باید بله یا خیر باشد.`,
+          );
+        }
       }
       if (value !== undefined && value !== null && value !== '') {
         clean[field.name] = value;
@@ -1595,6 +1718,10 @@ export class OnboardingService implements OnModuleInit {
       const href = (step.href ?? '').trim();
       const moduleKey = (step.moduleKey ?? '').trim();
       if (step.kind === 'module' && !moduleKey) continue;
+      const fieldOverrides =
+        step.kind === 'module'
+          ? this.sanitizeFieldOverrides(step.fieldOverrides)
+          : undefined;
       result.push({
         id,
         kind: step.kind,
@@ -1602,6 +1729,7 @@ export class OnboardingService implements OnModuleInit {
         description: (step.description ?? '').trim(),
         ...(href ? { href } : {}),
         ...(step.kind === 'module' ? { moduleKey } : {}),
+        ...(fieldOverrides ? { fieldOverrides } : {}),
         enabled: step.enabled !== false,
         ...(typeof step.optional === 'boolean'
           ? { optional: step.optional }
@@ -1609,5 +1737,64 @@ export class OnboardingService implements OnModuleInit {
       });
     }
     return result;
+  }
+
+  /**
+   * Keep only well-formed per-field overrides. Unknown keys are dropped, so a
+   * stored config stays valid even after a module's form changes.
+   */
+  private sanitizeFieldOverrides(
+    input: unknown,
+  ): Record<string, OnboardingFieldOverride> | undefined {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      return undefined;
+    }
+    const result: Record<string, OnboardingFieldOverride> = {};
+    for (const [name, rawValue] of Object.entries(
+      input as Record<string, unknown>,
+    )) {
+      const fieldName = name.trim();
+      if (!fieldName) continue;
+      if (!rawValue || typeof rawValue !== 'object' || Array.isArray(rawValue)) {
+        continue;
+      }
+      const raw = rawValue as Record<string, unknown>;
+      const override: OnboardingFieldOverride = {};
+      if (typeof raw.label === 'string' && raw.label.trim()) {
+        override.label = raw.label.trim();
+      }
+      if (typeof raw.placeholder === 'string') {
+        override.placeholder = raw.placeholder.trim();
+      }
+      if (typeof raw.required === 'boolean') override.required = raw.required;
+      if (typeof raw.readonly === 'boolean') override.readonly = raw.readonly;
+      if (typeof raw.datePicker === 'boolean') {
+        override.datePicker = raw.datePicker;
+      }
+      if (
+        typeof raw.prefill === 'string' &&
+        (ONBOARDING_FIELD_PREFILLS as readonly string[]).includes(raw.prefill)
+      ) {
+        override.prefill = raw.prefill as OnboardingFieldPrefill;
+      }
+      if (Array.isArray(raw.options)) {
+        const options: OnboardingFieldOption[] = [];
+        for (const entry of raw.options) {
+          if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+            continue;
+          }
+          const option = entry as Record<string, unknown>;
+          const value =
+            typeof option.value === 'string' ? option.value.trim() : '';
+          const label =
+            typeof option.label === 'string' ? option.label.trim() : '';
+          if (!value || !label) continue;
+          options.push({ value, label });
+        }
+        if (options.length) override.options = options;
+      }
+      if (Object.keys(override).length > 0) result[fieldName] = override;
+    }
+    return Object.keys(result).length > 0 ? result : undefined;
   }
 }

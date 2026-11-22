@@ -13,13 +13,94 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  ApiExtraModels,
+  ApiProperty,
+  ApiPropertyOptional,
+} from '@nestjs/swagger';
 
 import {
   ONBOARDING_STEP_KINDS,
+  ONBOARDING_FIELD_PREFILLS,
   type OnboardingStepKind,
 } from '../onboarding.constants';
 
+export class OnboardingFieldOptionDto {
+  @ApiProperty({
+    description: 'مقدار ذخیره/ارسال‌شده برای این گزینه',
+    example: 'true',
+  })
+  @IsString()
+  @MaxLength(120)
+  value!: string;
+
+  @ApiProperty({
+    description: 'برچسب نمایش‌داده‌شده به کاربر',
+    example: 'مرد',
+  })
+  @IsString()
+  @MaxLength(120)
+  label!: string;
+}
+
+export class OnboardingFieldOverrideDto {
+  @ApiPropertyOptional({ description: 'برچسب جدید فیلد', example: 'موبایل ثبت‌نام' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  label?: string;
+
+  @ApiPropertyOptional({
+    description: 'متن راهنمای داخل فیلد',
+    example: '09121234567',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  placeholder?: string;
+
+  @ApiPropertyOptional({ description: 'الزامی‌بودن فیلد را بازنویسی می‌کند' })
+  @IsOptional()
+  @IsBoolean()
+  required?: boolean;
+
+  @ApiPropertyOptional({
+    enum: ONBOARDING_FIELD_PREFILLS,
+    description:
+      'مقدار پیش‌فرض از اطلاعات حساب کاربر: موبایل ثبت‌نام، کد ملی، تاریخ تولد یا نام و نام خانوادگی.',
+  })
+  @IsOptional()
+  @IsIn(ONBOARDING_FIELD_PREFILLS)
+  prefill?: (typeof ONBOARDING_FIELD_PREFILLS)[number];
+
+  @ApiPropertyOptional({
+    description: 'قفل‌کردن مقدار پیش‌فرض تا کاربر نتواند آن را تغییر دهد.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  readonly?: boolean;
+
+  @ApiPropertyOptional({
+    type: [OnboardingFieldOptionDto],
+    description:
+      'گزینه‌های فیلد بولی؛ برای مثال نگاشت «true» به «مرد» و «false» به «زن».',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ValidateNested({ each: true })
+  @Type(() => OnboardingFieldOptionDto)
+  options?: OnboardingFieldOptionDto[];
+
+  @ApiPropertyOptional({
+    description: 'استفاده از دیتاپیکر شمسی سایت برای فیلدهای تاریخ.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  datePicker?: boolean;
+}
+
+@ApiExtraModels(OnboardingFieldOverrideDto, OnboardingFieldOptionDto)
 export class OnboardingStepDto {
   @ApiPropertyOptional({
     description:
@@ -62,6 +143,21 @@ export class OnboardingStepDto {
   @IsString()
   @MaxLength(120)
   moduleKey?: string;
+
+  @ApiPropertyOptional({
+    type: 'object',
+    additionalProperties: { $ref: '#/components/schemas/OnboardingFieldOverrideDto' },
+    description:
+      'برای مرحله‌ی ماژول: بازنویسی هر فیلد فرم با کلید نام فیلد (مثل `mobile`). مقدار پیش‌فرض از حساب، قفل‌بودن، برچسب بولی سفارشی و دیتاپیکر شمسی از اینجا تنظیم می‌شود.',
+    example: {
+      mobile: { prefill: 'userMobile', readonly: true, label: 'موبایل ثبت‌نام' },
+      gender: { options: [{ value: 'true', label: 'مرد' }, { value: 'false', label: 'زن' }] },
+      birth_date: { datePicker: true },
+    },
+  })
+  @IsOptional()
+  @IsObject()
+  fieldOverrides?: Record<string, OnboardingFieldOverrideDto>;
 
   @ApiProperty({ description: 'نمایش این مرحله به کاربران', default: true })
   @IsBoolean()
