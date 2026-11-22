@@ -7,6 +7,7 @@ import {
   Bookmark,
   Building2,
   Coins,
+  CreditCard,
   Crown,
   Headset,
   IdCard,
@@ -76,6 +77,8 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
     items: [
       { href: '/dashboard/subscriptions', label: 'اشتراک من', icon: Crown, exact: false },
       { href: '/dashboard/wallet', label: 'کیف پول', icon: Wallet, exact: false, feature: 'featureWallet' },
+      { href: '/dashboard/payments', label: 'پرداخت‌های من', icon: CreditCard, exact: false, feature: 'featureMyPayments' },
+      { href: '/dashboard/inquiries', label: 'استعلام و خدمات', icon: ShieldCheck, exact: false, feature: 'featureZohalInquiries' },
       { href: '/dashboard/boost', label: 'افزایش بازدید و تبلیغات', icon: TrendingUp, exact: false, feature: 'featureBoostRequests' },
       { href: '/dashboard/points', label: 'امتیاز من', icon: Coins, exact: false, feature: 'featureNews' },
       { href: '/dashboard/reporter', label: 'شهروند خبرنگار', icon: Newspaper, exact: false, feature: 'featureNews' },

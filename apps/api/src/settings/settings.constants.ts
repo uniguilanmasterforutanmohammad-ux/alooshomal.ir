@@ -416,6 +416,22 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     default: true,
   },
   {
+    key: 'featureZohalInquiries',
+    label: 'خرید استعلام‌ها و محصولات ترکیبی زحل',
+    description:
+      'بخش «استعلام و خدمات» در داشبورد کاربر: خرید آنلاین ماژول‌های هزینه‌دار زحل و محصولات ترکیبی که مدیر ساخته است. با پرداخت، همه‌ی ماژول‌های محصول اجرا می‌شوند.',
+    group: 'احراز هویت',
+    default: true,
+  },
+  {
+    key: 'featureMyPayments',
+    label: 'بخش «پرداخت‌های من»',
+    description:
+      'نمایش همه‌ی پرداخت‌های کاربر (اشتراک، استعلام، کیف پول، پله و تبلیغ) همراه با جزئیات سفارش و وضعیت موفق/ناموفق در داشبورد کاربری.',
+    group: 'احراز هویت',
+    default: true,
+  },
+  {
     key: 'featureOnboarding',
     label: 'بخش «شروع آسان» در داشبورد کاربری',
     description:

@@ -11,6 +11,7 @@ const ALLOWED_CALLBACKS = [
   '/api/wallet/payments/callback',
   '/api/business-modules/payments/callback',
   '/api/profile/identity/payments/callback',
+  '/api/zohal/payments/callback',
 ];
 
 function isLoopbackHost(hostname: string): boolean {

@@ -5,10 +5,15 @@ import {
   AlertTriangle,
   BadgeCheck,
   CheckCircle2,
+  Combine,
+  Pencil,
+  Plus,
   FlaskConical,
   Loader2,
   RefreshCw,
   ShieldCheck,
+  Trash2,
+  UploadCloud,
   XCircle,
 } from 'lucide-react';
 
@@ -47,10 +52,33 @@ interface ZohalStatus {
 interface ZohalServicesResponse {
   status: ZohalStatus;
   services: ZohalService[];
+  composites?: ZohalComposite[];
   payping?: {
     products: Record<string, string | null>;
     identityBundleAmount: number;
   };
+}
+
+interface ZohalCompositeService {
+  key: string;
+  label: string;
+  group: string;
+  price: number;
+  enabled: boolean;
+}
+
+interface ZohalComposite {
+  key: string;
+  label: string;
+  description: string | null;
+  serviceKeys: string[];
+  amount: number;
+  enabled: boolean;
+  serviceLabels: string[];
+  services: ZohalCompositeService[];
+  purchasable: boolean;
+  issues: string[];
+  paypingCode: string | null;
 }
 
 interface ZohalCallResult {
@@ -105,6 +133,16 @@ export function AdminZohal() {
   const [blueTick, setBlueTick] = useState<BlueTickResponse | null>(null);
   const [blueTickBusy, setBlueTickBusy] = useState<string | null>(null);
   const [syncingProducts, setSyncingProducts] = useState(false);
+  const [syncKey, setSyncKey] = useState<string | null>(null);
+  const [compositeBusy, setCompositeBusy] = useState<string | null>(null);
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [compositeForm, setCompositeForm] = useState({
+    label: '',
+    description: '',
+    amount: '',
+    serviceKeys: [] as string[],
+    enabled: true,
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -233,6 +271,102 @@ export function AdminZohal() {
       toast.error(err instanceof Error ? err.message : 'همگام‌سازی محصولات ناموفق بود');
     } finally {
       setSyncingProducts(false);
+    }
+  }
+
+  async function syncOneProduct(key: string) {
+    setSyncKey(key);
+    try {
+      const endpoint =
+        key === 'identity_bundle'
+          ? '/admin/zohal/identity-bundle/payping-product'
+          : key.startsWith('composite:')
+            ? `/admin/zohal/composites/${key.slice('composite:'.length)}/payping-product`
+            : `/admin/zohal/services/${key}/payping-product`;
+      const result = await api.post<{ code: string | null }>(endpoint);
+      toast[
+        result.code ? 'success' : 'error'
+      ](
+        result.code
+          ? 'محصول پی‌پینگ ساخته/بروزرسانی شد.'
+          : 'ساخت محصول ممکن نشد؛ فعال/هزینه‌دار بودن ماژول و تنظیمات درگاه را بررسی کنید.',
+      );
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'همگام‌سازی محصول ناموفق بود');
+    } finally {
+      setSyncKey(null);
+    }
+  }
+
+  function resetCompositeForm() {
+    setEditingKey(null);
+    setCompositeForm({
+      label: '',
+      description: '',
+      amount: '',
+      serviceKeys: [],
+      enabled: true,
+    });
+  }
+
+  function editComposite(composite: ZohalComposite) {
+    setEditingKey(composite.key);
+    setCompositeForm({
+      label: composite.label,
+      description: composite.description ?? '',
+      amount: composite.amount > 0 ? String(composite.amount) : '',
+      serviceKeys: [...composite.serviceKeys],
+      enabled: composite.enabled,
+    });
+  }
+
+  async function saveComposite() {
+    if (!compositeForm.label.trim()) {
+      toast.error('نام محصول را وارد کنید.');
+      return;
+    }
+    if (compositeForm.serviceKeys.length === 0) {
+      toast.error('حداقل یک ماژول را انتخاب کنید.');
+      return;
+    }
+    setCompositeBusy('save');
+    try {
+      const body = {
+        label: compositeForm.label.trim(),
+        description: compositeForm.description.trim() || undefined,
+        serviceKeys: compositeForm.serviceKeys,
+        amount: Number(compositeForm.amount || 0),
+        enabled: compositeForm.enabled,
+      };
+      if (editingKey) {
+        await api.patch(`/admin/zohal/composites/${editingKey}`, body);
+        toast.success('محصول ترکیبی بروزرسانی شد.');
+      } else {
+        await api.post('/admin/zohal/composites', body);
+        toast.success('محصول ترکیبی ساخته شد.');
+      }
+      resetCompositeForm();
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ثبت محصول ترکیبی ناموفق بود');
+    } finally {
+      setCompositeBusy(null);
+    }
+  }
+
+  async function deleteComposite(composite: ZohalComposite) {
+    if (!window.confirm(`محصول ترکیبی «${composite.label}» حذف شود؟`)) return;
+    setCompositeBusy(composite.key);
+    try {
+      await api.delete(`/admin/zohal/composites/${composite.key}`);
+      toast.success('محصول ترکیبی حذف شد.');
+      if (editingKey === composite.key) resetCompositeForm();
+      await load();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'حذف محصول ترکیبی ناموفق بود');
+    } finally {
+      setCompositeBusy(null);
     }
   }
 
@@ -379,6 +513,7 @@ export function AdminZohal() {
                 <th className="border-b border-line p-2 text-right">خدمت</th>
                 <th className="border-b border-line p-2 text-right">مبلغ (تومان)</th>
                 <th className="border-b border-line p-2 text-right">کد محصول</th>
+                <th className="border-b border-line p-2 text-right">عملیات</th>
               </tr>
             </thead>
             <tbody>
@@ -401,6 +536,21 @@ export function AdminZohal() {
                     <td className="border-b border-line p-2 text-muted" dir="ltr">
                       {data?.payping?.products?.[service.key] ?? 'ساخته نشده'}
                     </td>
+                    <td className="border-b border-line p-2">
+                      <button
+                        type="button"
+                        disabled={syncKey === service.key}
+                        onClick={() => void syncOneProduct(service.key)}
+                        className="indeed-btn indeed-btn-secondary py-1 text-[11px]"
+                      >
+                        {syncKey === service.key ? (
+                          <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                        ) : (
+                          <UploadCloud className="size-3.5" aria-hidden />
+                        )}
+                        همگام‌سازی
+                      </button>
+                    </td>
                   </tr>
                 ))}
               <tr>
@@ -415,9 +565,277 @@ export function AdminZohal() {
                 <td className="p-2 text-muted" dir="ltr">
                   {data?.payping?.products?.identity_bundle ?? 'ساخته نشده'}
                 </td>
+                <td className="p-2">
+                  <button
+                    type="button"
+                    disabled={syncKey === 'identity_bundle'}
+                    onClick={() => void syncOneProduct('identity_bundle')}
+                    className="indeed-btn indeed-btn-secondary py-1 text-[11px]"
+                  >
+                    {syncKey === 'identity_bundle' ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <UploadCloud className="size-3.5" aria-hidden />
+                    )}
+                    همگام‌سازی
+                  </button>
+                </td>
               </tr>
+              {(data?.composites ?? []).map((composite) => (
+                <tr key={composite.key}>
+                  <td className="border-t border-line p-2 text-ink">
+                    {composite.label}
+                    <span className="mr-1 text-[10px] text-muted">
+                      ({composite.serviceLabels.join(' + ')})
+                    </span>
+                  </td>
+                  <td className="border-t border-line p-2 text-muted">
+                    {composite.amount.toLocaleString('fa-IR')}
+                  </td>
+                  <td className="border-t border-line p-2 text-muted" dir="ltr">
+                    {composite.paypingCode ?? 'ساخته نشده'}
+                  </td>
+                  <td className="border-t border-line p-2">
+                    <button
+                      type="button"
+                      disabled={syncKey === `composite:${composite.key}`}
+                      onClick={() =>
+                        void syncOneProduct(`composite:${composite.key}`)
+                      }
+                      className="indeed-btn indeed-btn-secondary py-1 text-[11px]"
+                    >
+                      {syncKey === `composite:${composite.key}` ? (
+                        <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <UploadCloud className="size-3.5" aria-hidden />
+                      )}
+                      همگام‌سازی
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div className="indeed-panel p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-extrabold text-ink">
+              <Combine className="size-4 text-brand" aria-hidden />
+              محصولات ترکیبی (چند ماژول در یک محصول)
+            </h2>
+            <p className="mt-1 text-xs leading-6 text-muted">
+              چند ماژول هزینه‌دار را انتخاب کنید و یک محصول بسازید؛ کاربر با یک
+              پرداخت همه‌ی آن‌ها را دریافت می‌کند. مبلغ خالی یعنی جمع تعرفه‌ی
+              ماژول‌ها.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-xl border border-line bg-surface p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-[11px] font-bold text-muted">
+              نام محصول *
+              <input
+                className="indeed-input mt-1 py-1 text-xs"
+                value={compositeForm.label}
+                onChange={(event) =>
+                  setCompositeForm((current) => ({
+                    ...current,
+                    label: event.target.value,
+                  }))
+                }
+                placeholder="مثلاً استعلام هویت و جواز کسب"
+              />
+            </label>
+            <label className="text-[11px] font-bold text-muted">
+              مبلغ ثابت (تومان) — خالی = جمع تعرفه‌ها
+              <input
+                className="indeed-input mt-1 py-1 text-xs"
+                dir="ltr"
+                inputMode="numeric"
+                value={compositeForm.amount}
+                onChange={(event) =>
+                  setCompositeForm((current) => ({
+                    ...current,
+                    amount: event.target.value.replace(/\D/g, ''),
+                  }))
+                }
+              />
+            </label>
+          </div>
+          <label className="mt-3 block text-[11px] font-bold text-muted">
+            توضیح
+            <input
+              className="indeed-input mt-1 py-1 text-xs"
+              value={compositeForm.description}
+              onChange={(event) =>
+                setCompositeForm((current) => ({
+                  ...current,
+                  description: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <div className="mt-3">
+            <p className="text-[11px] font-bold text-muted">ماژول‌ها *</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {(data?.services ?? [])
+                .filter((service) => !service.fields.some((f) => f.type === 'file'))
+                .map((service) => {
+                  const checked = compositeForm.serviceKeys.includes(service.key);
+                  return (
+                    <label
+                      key={service.key}
+                      className={cn(
+                        'flex cursor-pointer items-start gap-2 rounded-lg border p-2 text-[11px]',
+                        checked
+                          ? 'border-brand bg-brand-light text-brand'
+                          : 'border-line bg-background text-muted',
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={checked}
+                        onChange={(event) =>
+                          setCompositeForm((current) => ({
+                            ...current,
+                            serviceKeys: event.target.checked
+                              ? [...current.serviceKeys, service.key]
+                              : current.serviceKeys.filter(
+                                  (key) => key !== service.key,
+                                ),
+                          }))
+                        }
+                      />
+                      <span>
+                        <span className="block font-bold text-ink">
+                          {service.label}
+                        </span>
+                        <span className="block">
+                          {service.price > 0
+                            ? `${service.price.toLocaleString('fa-IR')} تومان`
+                            : 'رایگان'}
+                          {!service.enabled ? ' — غیرفعال' : ''}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-1.5 text-[11px] font-bold text-muted">
+              <input
+                type="checkbox"
+                checked={compositeForm.enabled}
+                onChange={(event) =>
+                  setCompositeForm((current) => ({
+                    ...current,
+                    enabled: event.target.checked,
+                  }))
+                }
+              />
+              فعال برای فروش
+            </label>
+            <button
+              type="button"
+              disabled={compositeBusy === 'save'}
+              onClick={() => void saveComposite()}
+              className="indeed-btn indeed-btn-primary py-1 text-[11px]"
+            >
+              {compositeBusy === 'save' ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : editingKey ? (
+                <Pencil className="size-3.5" aria-hidden />
+              ) : (
+                <Plus className="size-3.5" aria-hidden />
+              )}
+              {editingKey ? 'ذخیره تغییرات' : 'ساخت محصول ترکیبی'}
+            </button>
+            {editingKey ? (
+              <button
+                type="button"
+                onClick={resetCompositeForm}
+                className="indeed-btn indeed-btn-secondary py-1 text-[11px]"
+              >
+                انصراف
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          {(data?.composites ?? []).length === 0 ? (
+            <p className="text-xs text-muted">هنوز محصول ترکیبی ساخته نشده است.</p>
+          ) : (
+            (data?.composites ?? []).map((composite) => (
+              <div
+                key={composite.key}
+                className="rounded-xl border border-line bg-surface p-4"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-bold text-ink">{composite.label}</p>
+                    <p className="mt-1 text-[11px] text-muted">
+                      {composite.serviceLabels.join(' + ')}
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      'rounded-full px-2 py-0.5 text-[10px] font-bold',
+                      composite.enabled
+                        ? 'bg-emerald-50 text-emerald-700'
+                        : 'bg-slate-100 text-slate-600',
+                    )}
+                  >
+                    {composite.enabled ? 'فعال' : 'غیرفعال'}
+                  </span>
+                </div>
+                <p className="mt-2 text-xs font-bold text-brand">
+                  {composite.amount.toLocaleString('fa-IR')} تومان
+                </p>
+                {composite.issues.length > 0 ? (
+                  <p className="mt-2 rounded-lg bg-amber-50 p-2 text-[10px] leading-5 text-amber-800">
+                    {composite.issues.join('؛ ')}
+                  </p>
+                ) : null}
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => editComposite(composite)}
+                    className="indeed-btn indeed-btn-secondary py-1 text-[11px]"
+                  >
+                    <Pencil className="size-3.5" aria-hidden />
+                    ویرایش
+                  </button>
+                  <button
+                    type="button"
+                    disabled={syncKey === `composite:${composite.key}`}
+                    onClick={() =>
+                      void syncOneProduct(`composite:${composite.key}`)
+                    }
+                    className="indeed-btn indeed-btn-secondary py-1 text-[11px]"
+                  >
+                    <UploadCloud className="size-3.5" aria-hidden />
+                    پی‌پینگ
+                  </button>
+                  <button
+                    type="button"
+                    disabled={compositeBusy === composite.key}
+                    onClick={() => void deleteComposite(composite)}
+                    className="indeed-btn indeed-btn-secondary py-1 text-[11px] text-red-700"
+                  >
+                    <Trash2 className="size-3.5" aria-hidden />
+                    حذف
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -500,7 +918,19 @@ export function AdminZohal() {
                 <div key={service.key} className="rounded-xl border border-line bg-surface p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-sm font-bold text-ink">{service.label}</p>
+                      <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-ink">
+                        {service.label}
+                        <span
+                          className={cn(
+                            'rounded-full px-2 py-0.5 text-[10px] font-bold',
+                            service.price > 0
+                              ? 'bg-amber-50 text-amber-700'
+                              : 'bg-emerald-50 text-emerald-700',
+                          )}
+                        >
+                          {service.price > 0 ? 'غیر رایگان' : 'رایگان'}
+                        </span>
+                      </p>
                       <p className="mt-1 text-[11px] leading-5 text-muted">{service.description}</p>
                       <p className="mt-1 font-mono text-[10px] text-muted" dir="ltr">
                         {service.method} {service.path}

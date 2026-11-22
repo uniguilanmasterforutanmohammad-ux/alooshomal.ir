@@ -583,6 +583,18 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 | `GET` | `/zohal/pricing` | عمومی | تعرفه‌ی عمومی سرویس‌های استعلام؛ فقط سرویس‌های فعال و دارای قیمت بیشتر از صفر برمی‌گردند (سرویس غیرفعال از صفحه‌ی «تعرفه‌ها» حذف می‌شود). |
 | `POST` | `/admin/zohal/services/:key/test` | ADMIN | فراخوانی آزمایشی واقعی (هزینه‌زا) با `{ payload }`. |
 | `POST` | `/admin/zohal/payping-products` | ADMIN | ساخت/همگام‌سازی محصول پی‌پینگ همه‌ی خدمات فعال؛ دو استعلام «شاهکار» و «هویتی» به‌صورت یک محصول واحد با مبلغ جمع دو تعرفه ساخته می‌شوند. |
+| `POST` | `/admin/zohal/services/:key/payping-product` | ADMIN | ساخت/همگام‌سازی محصول پی‌پینگ یک ماژول (برای دو ماژول هویتی، محصول واحد استعلام هویت). |
+| `POST` | `/admin/zohal/identity-bundle/payping-product` | ADMIN | ساخت/همگام‌سازی محصول واحد «شاهکار + هویتی». |
+| `GET` | `/admin/zohal/composites` | ADMIN | فهرست محصولات ترکیبی ساخته‌شده از چند ماژول + قیمت محاسبه‌شده، وضعیت فروش و کد محصول پی‌پینگ. |
+| `POST` | `/admin/zohal/composites` | ADMIN | ساخت محصول ترکیبی با `{ label, serviceKeys[], amount?, enabled?, description? }`؛ `amount=0` یعنی جمع تعرفه‌ی ماژول‌ها. |
+| `PATCH` | `/admin/zohal/composites/:key` | ADMIN | ویرایش محصول ترکیبی. |
+| `DELETE` | `/admin/zohal/composites/:key` | ADMIN | حذف محصول ترکیبی. |
+| `POST` | `/admin/zohal/composites/:key/payping-product` | ADMIN | ساخت/همگام‌سازی محصول پی‌پینگ یک محصول ترکیبی. |
+| `GET` | `/zohal/offer` | کاربر | ماژول‌های هزینه‌دار و محصولات ترکیبی قابل خرید آنلاین همراه با فیلدهای ورودی. |
+| `POST` | `/zohal/composites/:key/checkout` | کاربر | شروع پرداخت محصول ترکیبی با `{ payload, returnTo? }`؛ پس از تأیید درگاه همه‌ی ماژول‌ها اجرا و نتیجه در پرداخت ذخیره می‌شود. |
+| `POST` | `/zohal/services/:key/checkout` | کاربر | خرید آنلاین یک ماژول هزینه‌دار (همان مسیر تحویل محصول ترکیبی). |
+| `GET`/`POST` | `/zohal/payments/callback` | عمومی | بازگشت درگاه برای پرداخت محصول ترکیبی/ماژول؛ تأیید تراکنش، اجرای ماژول‌ها و هدایت به `returnTo` با `payment=success|failed`. |
+| `GET` | `/payments/mine` | کاربر | فهرست یکپارچه‌ی همه‌ی پرداخت‌های کاربر (اشتراک، استعلام، کیف پول، پله و تبلیغ) با جزئیات سفارش، وضعیت و نتیجه‌ی ماژول‌ها. |
 | `GET` | `/admin/zohal/blue-tick` | ADMIN | درخواست‌های تیک آبی در انتظار بررسی + آخرین حساب‌های تأییدشده. |
 | `PATCH` | `/admin/zohal/blue-tick/:id` | ADMIN | تأیید/رد درخواست تیک آبی (`{ decision, reason? }`). |
 | `GET` | `/profile/identity-inquiry/status` | کاربر | آیا استعلام خودکار هویت در دسترس است؟ |

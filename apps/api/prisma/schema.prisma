@@ -1719,7 +1719,16 @@ model ServicePayment {
   userId        String
   /// Stable service identifier, e.g. `identity_bundle`.
   serviceKey    String
+  /// Human-readable title of what was bought (bundle name or composite label).
+  title         String?
   amount        Int
+  /// Snapshot of the composite modules bought with this payment:
+  /// `[{ serviceKey, label, amount, payload }]`. Null for the legacy identity
+  /// bundle, whose inputs live in the dedicated columns below.
+  items         Json?
+  /// Result of every module call after the gateway confirmed the payment:
+  /// `[{ serviceKey, label, ok, message, data }]`.
+  result        Json?
   /// Identity inputs snapshotted at checkout so the callback can run the
   /// inquiries even if the user edits their profile meanwhile.
   nationalCode  String?

@@ -225,11 +225,15 @@ interface GatewayPayment extends PaymentBase {
   clientRefId?: string;
   refId?: string | null;
   serviceKey?: string;
+  title?: string | null;
+  nationalCode?: string | null;
+  withLicense?: boolean;
   consumedAt?: string | null;
 }
 
 interface RequestPayment extends PaymentBase {
   target: string;
+  refId?: string | null;
   boostRequest: {
     id: string;
     kind: string;
@@ -551,6 +555,79 @@ function statusLabel(value: string | null | undefined): string {
 function kindLabel(value: string | null | undefined): string {
   if (!value) return '—';
   return KIND_LABELS[value] ?? value;
+}
+
+interface UnifiedPaymentRow {
+  id: string;
+  kind: string;
+  title: string;
+  amount: number;
+  status: string;
+  createdAt: string;
+  paidAt: string | null;
+  refId: string | null;
+  failureReason: string | null;
+}
+
+/** Merge every gateway transaction of a user into one chronological feed. */
+function buildUnifiedPayments(data: UserDetailPayload): UnifiedPaymentRow[] {
+  const rows: UnifiedPaymentRow[] = [];
+  for (const row of data.subscriptionPayments) {
+    rows.push({
+      id: row.id,
+      kind: 'اشتراک',
+      title: `${row.plan.name} — ${row.months} ماه`,
+      amount: row.amount,
+      status: row.status,
+      createdAt: row.createdAt,
+      paidAt: row.paidAt,
+      refId: null,
+      failureReason: row.failureReason,
+    });
+  }
+  for (const row of data.servicePayments) {
+    const title = row.title?.trim() || row.serviceKey || 'استعلام خدمت';
+    rows.push({
+      id: row.id,
+      kind: 'استعلام/خدمت',
+      title: row.nationalCode ? `${title} — ${row.nationalCode}` : title,
+      amount: row.amount,
+      status: row.status,
+      createdAt: row.createdAt,
+      paidAt: row.paidAt,
+      refId: row.refId ?? null,
+      failureReason: row.failureReason,
+    });
+  }
+  for (const row of data.walletPayments) {
+    rows.push({
+      id: row.id,
+      kind: 'کیف پول',
+      title: 'تسویه بدهی کیف پول',
+      amount: row.amount,
+      status: row.status,
+      createdAt: row.createdAt,
+      paidAt: row.paidAt,
+      refId: row.refId ?? null,
+      failureReason: row.failureReason,
+    });
+  }
+  for (const row of data.requestPayments) {
+    rows.push({
+      id: row.id,
+      kind: 'پله/تبلیغ',
+      title: kindLabel(row.target),
+      amount: row.amount,
+      status: row.status,
+      createdAt: row.createdAt,
+      paidAt: row.paidAt,
+      refId: row.refId ?? null,
+      failureReason: row.failureReason,
+    });
+  }
+  return rows.sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
 }
 
 function isImageUrl(url: string): boolean {
@@ -1360,6 +1437,36 @@ export function AdminUserDetail({
         </div>
 
         <div className="mt-5">
+          <h4 className="mb-2 text-xs font-extrabold text-ink">
+            پرداخت‌های کاربر (همه‌ی تراکنش‌ها)
+          </h4>
+          <DataTable
+            head={['نوع', 'عنوان سفارش', 'مبلغ', 'وضعیت', 'تاریخ', 'کد پیگیری']}
+            empty="تراکنشی ثبت نشده است."
+          >
+            {buildUnifiedPayments(data).map((row) => (
+              <tr key={`${row.kind}-${row.id}`} className="border-t border-[var(--vintage-border)]">
+                <td className="px-3 py-2 text-xs text-muted">{row.kind}</td>
+                <td className="px-3 py-2 text-xs font-semibold text-ink">
+                  {row.title}
+                  {row.failureReason ? (
+                    <span className="mt-0.5 block text-[10px] font-normal text-red-600">
+                      {row.failureReason}
+                    </span>
+                  ) : null}
+                </td>
+                <td className="px-3 py-2 text-xs font-bold text-ink">{toman(row.amount)}</td>
+                <td className="px-3 py-2"><StatusPill value={row.status} /></td>
+                <td className="px-3 py-2 text-xs text-muted">{faDateTime(row.createdAt)}</td>
+                <td dir="ltr" className="px-3 py-2 text-right text-[11px] text-muted">
+                  {row.refId ?? '—'}
+                </td>
+              </tr>
+            ))}
+          </DataTable>
+        </div>
+
+        <div className="mt-5">
           <h4 className="mb-2 flex items-center gap-1 text-xs font-extrabold text-ink">
             <Wallet className="size-4" aria-hidden />
             گردش کیف پول
@@ -1418,7 +1525,7 @@ export function AdminUserDetail({
               {data.servicePayments.map((row) => (
                 <tr key={row.id} className="border-t border-[var(--vintage-border)]">
                   <td className="px-3 py-2 text-xs font-semibold text-ink">
-                    {row.serviceKey ?? '—'}
+                    {row.title?.trim() || row.serviceKey || '—'}
                   </td>
                   <td className="px-3 py-2 text-xs text-muted">{toman(row.amount)}</td>
                   <td className="px-3 py-2"><StatusPill value={row.status} /></td>

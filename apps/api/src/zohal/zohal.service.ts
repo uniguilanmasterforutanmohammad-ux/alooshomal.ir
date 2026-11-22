@@ -7,10 +7,15 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { WalletEntryKind } from '@prisma/client';
+import { PaymentStatus, Prisma, WalletEntryKind } from '@prisma/client';
+import { randomBytes } from 'node:crypto';
 
 import { ActivityService } from '../activity/activity.service';
+import { paypingReturnBaseUrl } from '../common/app-url';
 import { FacetsCacheService } from '../common/facets-cache.service';
+import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
+import { FinanceService } from '../finance/finance.service';
+import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
@@ -22,6 +27,8 @@ import {
 } from './zohal.constants';
 import type {
   ZohalCallResult,
+  ZohalComposite,
+  ZohalCompositeView,
   ZohalIdentity,
   ZohalServiceDef,
 } from './zohal.types';
@@ -36,6 +43,11 @@ const IDENTITY_BUNDLE_KEY = 'identity_bundle';
 /** One product for the identity bundle plus the optional business license. */
 const IDENTITY_LICENSE_BUNDLE_KEY = 'identity_license_bundle';
 const IDENTITY_SERVICE_KEYS = ['shahkar', 'national_identity_inquiry'] as const;
+
+/** Setting that stores the admin-defined composite products as a JSON array. */
+const COMPOSITE_SETTING_KEY = 'zohal.composites';
+/** PayPing product key prefix for composites (kept apart from service keys). */
+const COMPOSITE_PRODUCT_PREFIX = 'composite:';
 
 /** Whether a service key is one of the two paid identity inquiries. */
 function isIdentityServiceKey(key: string): boolean {
@@ -88,6 +100,8 @@ export class ZohalService {
     private readonly wallet: WalletService,
     private readonly facets: FacetsCacheService,
     private readonly payping: PaypingService,
+    private readonly simulator: PaymentSimulatorService,
+    private readonly finance: FinanceService,
   ) {
     this.baseUrl = (
       config.get<string>('ZOHAL_BASE_URL') ?? 'https://service.zohal.io'
@@ -262,19 +276,231 @@ export class ZohalService {
     };
   }
 
+  // -------------------------------------------------------------------------
+  //  Composite products (ادمین چند ماژول را یک محصول می‌کند)
+  // -------------------------------------------------------------------------
+
+  private async readComposites(): Promise<ZohalComposite[]> {
+    const row = await this.prisma.setting.findUnique({
+      where: { key: COMPOSITE_SETTING_KEY },
+    });
+    if (!row?.value) return [];
+    try {
+      const parsed = JSON.parse(row.value) as unknown;
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(
+        (item): item is ZohalComposite =>
+          Boolean(item) &&
+          typeof (item as ZohalComposite).key === 'string' &&
+          Array.isArray((item as ZohalComposite).serviceKeys),
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  private async writeComposites(items: ZohalComposite[]): Promise<void> {
+    await this.prisma.setting.upsert({
+      where: { key: COMPOSITE_SETTING_KEY },
+      create: { key: COMPOSITE_SETTING_KEY, value: JSON.stringify(items) },
+      update: { value: JSON.stringify(items) },
+    });
+  }
+
+  private assertServiceKeys(serviceKeys: string[]): void {
+    if (!Array.isArray(serviceKeys) || serviceKeys.length === 0) {
+      throw new BadRequestException('حداقل یک ماژول را انتخاب کنید.');
+    }
+    for (const key of serviceKeys) {
+      this.findService(key);
+    }
+  }
+
+  /** Effective price of a composite (fixed amount or sum of its modules). */
+  private async resolveCompositeAmount(
+    composite: Pick<ZohalComposite, 'amount' | 'serviceKeys'>,
+  ): Promise<number> {
+    if (composite.amount > 0) return Math.floor(composite.amount);
+    const prices = await this.getPriceMap();
+    return composite.serviceKeys.reduce(
+      (sum, key) => sum + (prices[key] ?? 0),
+      0,
+    );
+  }
+
+  /**
+   * Admin view of one composite: resolved price, module labels and whether it
+   * can actually be sold online right now (all modules enabled, priced and
+   * without file inputs).
+   */
+  private async compositeView(
+    composite: ZohalComposite,
+  ): Promise<ZohalCompositeView> {
+    const [enabled, prices, amount] = await Promise.all([
+      this.getEnabledMap(),
+      this.getPriceMap(),
+      this.resolveCompositeAmount(composite),
+    ]);
+    const services = composite.serviceKeys
+      .map((key) => ZOHAL_SERVICES.find((service) => service.key === key))
+      .filter((service): service is ZohalServiceDef => Boolean(service));
+    const missing: string[] = [];
+    for (const service of services) {
+      if (!enabled[service.key]) missing.push(`«${service.label}» غیرفعال است`);
+      else if ((prices[service.key] ?? 0) <= 0)
+        missing.push(`«${service.label}» تعرفه ندارد`);
+      if (service.fields.some((field) => field.type === 'file'))
+        missing.push(`«${service.label}» به فایل نیاز دارد`);
+    }
+    const paypingRow = await this.prisma.setting.findUnique({
+      where: {
+        key: this.productSettingKey(`${COMPOSITE_PRODUCT_PREFIX}${composite.key}`),
+      },
+    });
+    return {
+      ...composite,
+      amount,
+      serviceLabels: services.map((service) => service.label),
+      services: services.map((service) => ({
+        key: service.key,
+        label: service.label,
+        group: service.group,
+        price: prices[service.key] ?? 0,
+        enabled: enabled[service.key],
+      })),
+      purchasable: composite.enabled && amount >= 1000 && missing.length === 0,
+      issues: missing,
+      paypingCode: paypingRow?.value ?? null,
+    };
+  }
+
+  async listComposites(): Promise<ZohalCompositeView[]> {
+    const composites = await this.readComposites();
+    return Promise.all(composites.map((item) => this.compositeView(item)));
+  }
+
+  async createComposite(
+    dto: {
+      label: string;
+      description?: string;
+      serviceKeys: string[];
+      amount?: number;
+      enabled?: boolean;
+    },
+    actorId?: string,
+  ) {
+    const label = dto.label.trim();
+    if (!label) throw new BadRequestException('نام محصول را وارد کنید.');
+    this.assertServiceKeys(dto.serviceKeys);
+    const composites = await this.readComposites();
+    const now = new Date().toISOString();
+    const composite: ZohalComposite = {
+      key: `comp_${randomBytes(6).toString('hex')}`,
+      label,
+      description: dto.description?.trim() || null,
+      serviceKeys: [...new Set(dto.serviceKeys)],
+      amount: Math.max(0, Math.floor(dto.amount ?? 0)),
+      enabled: dto.enabled ?? true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    composites.push(composite);
+    await this.writeComposites(composites);
+    await this.activity.log({
+      actor: actorId ? { id: actorId } : null,
+      action: 'ZOHAL_COMPOSITE_CREATED',
+      summary: `ساخت محصول ترکیبی زحل «${composite.label}»`,
+      entityType: 'SETTING',
+      entityId: COMPOSITE_SETTING_KEY,
+    });
+    return this.compositeView(composite);
+  }
+
+  async updateComposite(
+    key: string,
+    dto: {
+      label?: string;
+      description?: string;
+      serviceKeys?: string[];
+      amount?: number;
+      enabled?: boolean;
+    },
+    actorId?: string,
+  ) {
+    const composites = await this.readComposites();
+    const index = composites.findIndex((item) => item.key === key);
+    if (index < 0) throw new NotFoundException('محصول ترکیبی یافت نشد');
+    if (dto.serviceKeys) this.assertServiceKeys(dto.serviceKeys);
+    const current = composites[index];
+    const updated: ZohalComposite = {
+      ...current,
+      label: dto.label !== undefined ? dto.label.trim() : current.label,
+      description:
+        dto.description !== undefined
+          ? dto.description.trim() || null
+          : current.description,
+      serviceKeys: dto.serviceKeys
+        ? [...new Set(dto.serviceKeys)]
+        : current.serviceKeys,
+      amount:
+        dto.amount !== undefined
+          ? Math.max(0, Math.floor(dto.amount))
+          : current.amount,
+      enabled: dto.enabled !== undefined ? dto.enabled : current.enabled,
+      updatedAt: new Date().toISOString(),
+    };
+    if (!updated.label) {
+      throw new BadRequestException('نام محصول را وارد کنید.');
+    }
+    composites[index] = updated;
+    await this.writeComposites(composites);
+    await this.activity.log({
+      actor: actorId ? { id: actorId } : null,
+      action: 'ZOHAL_COMPOSITE_UPDATED',
+      summary: `ویرایش محصول ترکیبی زحل «${updated.label}»`,
+      entityType: 'SETTING',
+      entityId: COMPOSITE_SETTING_KEY,
+    });
+    return this.compositeView(updated);
+  }
+
+  async deleteComposite(key: string, actorId?: string) {
+    const composites = await this.readComposites();
+    const target = composites.find((item) => item.key === key);
+    if (!target) throw new NotFoundException('محصول ترکیبی یافت نشد');
+    await this.writeComposites(composites.filter((item) => item.key !== key));
+    await this.prisma.setting
+      .delete({
+        where: {
+          key: this.productSettingKey(`${COMPOSITE_PRODUCT_PREFIX}${key}`),
+        },
+      })
+      .catch(() => undefined);
+    await this.activity.log({
+      actor: actorId ? { id: actorId } : null,
+      action: 'ZOHAL_COMPOSITE_DELETED',
+      summary: `حذف محصول ترکیبی زحل «${target.label}»`,
+      entityType: 'SETTING',
+      entityId: COMPOSITE_SETTING_KEY,
+    });
+    return { key, deleted: true };
+  }
+
   /** Connection status + every service with its current switch state. */
   async listServices(): Promise<{
     status: ZohalStatus;
     services: Array<ZohalServiceDef & { enabled: boolean; price: number }>;
+    composites: ZohalCompositeView[];
     payping: {
       products: Record<string, string | null>;
       identityBundleAmount: number;
     };
   }> {
-    const [enabled, prices, payping] = await Promise.all([
+    const [enabled, prices, payping, composites] = await Promise.all([
       this.getEnabledMap(),
       this.getPriceMap(),
       this.getPaypingProducts(),
+      this.listComposites(),
     ]);
     const services = ZOHAL_SERVICES.map((service) => ({
       ...service,
@@ -289,6 +515,7 @@ export class ZohalService {
         total: services.length,
       },
       services,
+      composites,
       payping,
     };
   }
@@ -319,6 +546,10 @@ export class ZohalService {
       products[service.key] = byKey.get(service.key) ?? null;
     }
     products[IDENTITY_BUNDLE_KEY] = byKey.get(IDENTITY_BUNDLE_KEY) ?? null;
+    for (const composite of await this.readComposites()) {
+      products[`${COMPOSITE_PRODUCT_PREFIX}${composite.key}`] =
+        byKey.get(`${COMPOSITE_PRODUCT_PREFIX}${composite.key}`) ?? null;
+    }
     const { total } = await this.identityBundlePrice();
     return { products, identityBundleAmount: total };
   }
@@ -503,6 +734,44 @@ export class ZohalService {
   }
 
   /**
+   * Create or refresh the PayPing product of one Zohal module. The two
+   * identity modules are merged into the identity bundle, so they are skipped
+   * here (the bundle has its own product).
+   */
+  async syncServiceProduct(key: string): Promise<string | null> {
+    const service = this.findService(key);
+    if (isIdentityServiceKey(key)) {
+      return this.ensureIdentityBundleProduct();
+    }
+    const [enabled, price] = await Promise.all([
+      this.isServiceEnabled(key),
+      this.getServicePrice(key),
+    ]);
+    if (!enabled || price < 1000) return null;
+    return this.ensureProduct(
+      service.key,
+      `${service.label} — شمالی‌کارت`,
+      price,
+      service.description,
+    );
+  }
+
+  /** Create or refresh the PayPing product of one composite. */
+  async syncCompositeProduct(key: string): Promise<string | null> {
+    const composites = await this.readComposites();
+    const composite = composites.find((item) => item.key === key);
+    if (!composite) throw new NotFoundException('محصول ترکیبی یافت نشد');
+    const amount = await this.resolveCompositeAmount(composite);
+    return this.ensureProduct(
+      `${COMPOSITE_PRODUCT_PREFIX}${composite.key}`,
+      `${composite.label} — شمالی‌کارت`,
+      amount,
+      composite.description ??
+        'چند استعلام زحل در یک پرداخت؛ همه‌ی ماژول‌های این محصول پس از پرداخت اجرا می‌شوند.',
+    );
+  }
+
+  /**
    * Admin action: mirror every enabled, priced service into PayPing. The two
    * identity inquiries are intentionally merged into one bundle product.
    */
@@ -563,7 +832,491 @@ export class ZohalService {
       }
     }
 
+    for (const composite of await this.readComposites()) {
+      const productKey = `${COMPOSITE_PRODUCT_PREFIX}${composite.key}`;
+      try {
+        products[productKey] = await this.syncCompositeProduct(composite.key);
+      } catch (error) {
+        this.logger.warn(
+          `PayPing product for Zohal composite ${composite.key} failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+        products[productKey] = null;
+      }
+    }
+
     return { products, identityBundleAmount };
+  }
+
+  // -------------------------------------------------------------------------
+  //  User-facing offer & composite checkout
+  // -------------------------------------------------------------------------
+
+  /** Fields a buyer must fill for a composite (union of its modules). */
+  private compositeFields(serviceKeys: string[]) {
+    const fields = new Map<
+      string,
+      {
+        name: string;
+        label: string;
+        required: boolean;
+        type: string;
+        placeholder?: string;
+      }
+    >();
+    for (const key of serviceKeys) {
+      const service = ZOHAL_SERVICES.find((item) => item.key === key);
+      if (!service) continue;
+      for (const field of service.fields) {
+        const existing = fields.get(field.name);
+        if (!existing) {
+          fields.set(field.name, {
+            name: field.name,
+            label: field.label,
+            required: Boolean(field.required),
+            type: field.type ?? 'text',
+            placeholder: field.placeholder,
+          });
+        } else if (field.required) {
+          existing.required = true;
+        }
+      }
+    }
+    return [...fields.values()];
+  }
+
+  /**
+   * Everything a signed-in user can buy online right now: priced modules
+   * without file inputs plus the admin-defined composites.
+   */
+  async publicOffer() {
+    await this.settings.assertFeatureEnabled('featureZohalInquiries');
+    const [enabled, prices, composites] = await Promise.all([
+      this.getEnabledMap(),
+      this.getPriceMap(),
+      this.listComposites(),
+    ]);
+    const services = ZOHAL_SERVICES.filter((service) => {
+      if (!enabled[service.key]) return false;
+      if ((prices[service.key] ?? 0) <= 0) return false;
+      if (service.fields.some((field) => field.type === 'file')) return false;
+      return true;
+    }).map((service) => ({
+      key: service.key,
+      label: service.label,
+      group: service.group,
+      description: service.description,
+      price: prices[service.key] ?? 0,
+      fields: this.compositeFields([service.key]),
+    }));
+    return {
+      services,
+      composites: composites
+        .filter((composite) => composite.purchasable)
+        .map((composite) => ({
+          key: composite.key,
+          label: composite.label,
+          description: composite.description,
+          amount: composite.amount,
+          serviceLabels: composite.serviceLabels,
+          fields: this.compositeFields(composite.serviceKeys),
+        })),
+    };
+  }
+
+  /** Validate the buyer inputs against every module's required fields. */
+  private assertCompositePayload(
+    serviceKeys: string[],
+    payload: Record<string, unknown>,
+  ): void {
+    for (const field of this.compositeFields(serviceKeys)) {
+      if (!field.required) continue;
+      const value = payload[field.name];
+      if (value === undefined || value === null || String(value).trim() === '') {
+        throw new BadRequestException(`مقدار «${field.label}» الزامی است.`);
+      }
+    }
+  }
+
+  private safeReturnTo(value?: string | null): string {
+    return value && /^\/(?!\/)/.test(value)
+      ? value.slice(0, 200)
+      : '/dashboard/inquiries';
+  }
+
+  /**
+   * Create one gateway payment for a composite. The selected modules and the
+   * buyer's inputs are snapshotted on the payment so the callback can run all
+   * of them after the gateway confirms the amount.
+   */
+  async checkoutComposite(
+    userId: string,
+    key: string,
+    payload: Record<string, unknown> = {},
+    returnTo?: string,
+  ) {
+    await this.settings.assertFeatureEnabled('featureZohalInquiries');
+    const composites = await this.readComposites();
+    const composite = composites.find((item) => item.key === key);
+    if (!composite) throw new NotFoundException('محصول ترکیبی یافت نشد');
+    if (!composite.enabled) {
+      throw new BadRequestException('این محصول در حال حاضر غیرفعال است.');
+    }
+    const view = await this.compositeView(composite);
+    if (!view.purchasable) {
+      throw new BadRequestException(
+        view.issues[0] ?? 'این محصول در حال حاضر قابل خرید نیست.',
+      );
+    }
+    this.assertCompositePayload(composite.serviceKeys, payload);
+    const amount = view.amount;
+    if (amount < 1000) {
+      throw new BadRequestException('مبلغ این محصول برای پرداخت آنلاین معتبر نیست.');
+    }
+    const modules = composite.serviceKeys.map((serviceKey) => {
+      const service = this.findService(serviceKey);
+      return {
+        serviceKey,
+        label: service.label,
+        amount: view.services.find((item) => item.key === serviceKey)?.price ?? 0,
+        payload,
+      };
+    });
+    return this.startServiceCheckout(userId, {
+      serviceKey: `${COMPOSITE_PRODUCT_PREFIX}${composite.key}`,
+      title: composite.label,
+      amount,
+      modules,
+      returnTo,
+    });
+  }
+
+  /** Buy one priced module on its own (same delivery path as a composite). */
+  async checkoutService(
+    userId: string,
+    key: string,
+    payload: Record<string, unknown> = {},
+    returnTo?: string,
+  ) {
+    await this.settings.assertFeatureEnabled('featureZohalInquiries');
+    const service = this.findService(key);
+    const [enabled, price] = await Promise.all([
+      this.isServiceEnabled(key),
+      this.getServicePrice(key),
+    ]);
+    if (!enabled) {
+      throw new BadRequestException('این ماژول در حال حاضر غیرفعال است.');
+    }
+    if (service.fields.some((field) => field.type === 'file')) {
+      throw new BadRequestException(
+        'این ماژول به فایل نیاز دارد و از این مسیر قابل خرید نیست.',
+      );
+    }
+    if (price < 1000) {
+      throw new BadRequestException('تعرفه‌ی این ماژول برای پرداخت آنلاین معتبر نیست.');
+    }
+    this.assertCompositePayload([key], payload);
+    return this.startServiceCheckout(userId, {
+      serviceKey: key,
+      title: service.label,
+      amount: price,
+      modules: [{ serviceKey: key, label: service.label, amount: price, payload }],
+      returnTo,
+    });
+  }
+
+  private async startServiceCheckout(
+    userId: string,
+    input: {
+      serviceKey: string;
+      title: string;
+      amount: number;
+      modules: Array<{
+        serviceKey: string;
+        label: string;
+        amount: number;
+        payload: Record<string, unknown>;
+      }>;
+      returnTo?: string;
+    },
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, phone: true, email: true, fullName: true },
+    });
+    if (!user) throw new NotFoundException('کاربر یافت نشد');
+    const { serviceKey, title, amount, modules } = input;
+    const items = { modules, returnTo: this.safeReturnTo(input.returnTo) };
+
+    await this.prisma.servicePayment.updateMany({
+      where: { userId, serviceKey, status: PaymentStatus.PENDING },
+      data: {
+        status: PaymentStatus.CANCELED,
+        failureReason: 'پرداخت جدید جایگزین شد',
+      },
+    });
+    const clientRefId = randomBytes(16).toString('hex');
+    const payment = await this.prisma.servicePayment.create({
+      data: {
+        userId,
+        serviceKey,
+        title,
+        amount,
+        items: items as unknown as Prisma.InputJsonValue,
+        clientRefId,
+      },
+    });
+
+    const returnUrl = `${paypingReturnBaseUrl()}/api/zohal/payments/callback`;
+    let result: { paymentCode?: string; url?: string } | null = null;
+    try {
+      result = this.simulator.isEnabled
+        ? this.simulator.createPayment({
+            amount,
+            returnUrl,
+            clientRefId,
+            description: `${title} — شمالی‌کارت`,
+          })
+        : ((await this.payping.createPayment({
+            amount,
+            returnUrl,
+            payerIdentity: user.phone ?? user.email ?? undefined,
+            payerName: user.fullName ?? undefined,
+            description: `${title} — شمالی‌کارت`,
+            clientRefId,
+            isReversible: false,
+          })) as { paymentCode?: string; url?: string } | null);
+    } catch (error) {
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.FAILED,
+          failureReason:
+            error instanceof Error
+              ? error.message.slice(0, 300)
+              : 'ساخت پرداخت ناموفق بود',
+        },
+      });
+      throw error;
+    }
+    if (!result?.paymentCode || !result?.url) {
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: { status: PaymentStatus.FAILED, failureReason: 'پاسخ نامعتبر از درگاه' },
+      });
+      throw new BadRequestException('ساخت پرداخت در درگاه ناموفق بود');
+    }
+    const updated = await this.prisma.servicePayment.update({
+      where: { id: payment.id },
+      data: { paymentCode: result.paymentCode, gatewayUrl: result.url },
+    });
+    return {
+      paymentId: updated.id,
+      amount: updated.amount,
+      url: updated.gatewayUrl,
+      paymentCode: updated.paymentCode,
+    };
+  }
+
+  private compositeItems(payment: {
+    items: Prisma.JsonValue | null;
+  }): {
+    modules: Array<{
+      serviceKey: string;
+      label: string;
+      amount: number;
+      payload: Record<string, unknown>;
+    }>;
+    returnTo: string;
+  } {
+    const raw = (payment.items ?? {}) as {
+      modules?: unknown;
+      returnTo?: unknown;
+    };
+    const modules = Array.isArray(raw.modules)
+      ? (raw.modules as Array<Record<string, unknown>>)
+          .filter((item) => typeof item?.serviceKey === 'string')
+          .map((item) => ({
+            serviceKey: String(item.serviceKey),
+            label: String(item.label ?? item.serviceKey),
+            amount: Number(item.amount ?? 0),
+            payload:
+              item.payload && typeof item.payload === 'object'
+                ? (item.payload as Record<string, unknown>)
+                : {},
+          }))
+      : [];
+    return {
+      modules,
+      returnTo: this.safeReturnTo(
+        typeof raw.returnTo === 'string' ? raw.returnTo : null,
+      ),
+    };
+  }
+
+  /** Run every module of a paid composite and store the results. */
+  private async runCompositePayment(paymentId: string) {
+    const payment = await this.prisma.servicePayment.findUnique({
+      where: { id: paymentId },
+    });
+    if (!payment) throw new NotFoundException('پرداخت یافت نشد');
+    if (payment.consumedAt) return;
+    const { modules } = this.compositeItems(payment);
+    const results: Array<Record<string, unknown>> = [];
+    for (const module of modules) {
+      try {
+        const result = await this.call(module.serviceKey, module.payload, {
+          force: true,
+        });
+        results.push({
+          serviceKey: module.serviceKey,
+          label: module.label,
+          ok: result.ok,
+          message: result.message,
+          data: result.data,
+          latencyMs: result.latencyMs,
+        });
+      } catch (error) {
+        results.push({
+          serviceKey: module.serviceKey,
+          label: module.label,
+          ok: false,
+          message:
+            error instanceof Error ? error.message : 'اجرای ماژول ناموفق بود',
+          data: null,
+          latencyMs: null,
+        });
+      }
+    }
+    await this.prisma.servicePayment.update({
+      where: { id: payment.id },
+      data: {
+        result: results as unknown as Prisma.InputJsonValue,
+        consumedAt: new Date(),
+      },
+    });
+  }
+
+  /** Gateway return URL for composite payments. */
+  async handleCompositePaymentCallback(params: {
+    paymentCode?: string;
+    refId?: string;
+    clientRefId?: string;
+    status?: number;
+  }) {
+    const paymentCode = params.paymentCode?.trim() || undefined;
+    const clientRefId = params.clientRefId?.trim() || undefined;
+    const refId = params.refId?.trim() || undefined;
+    const payment = paymentCode
+      ? await this.prisma.servicePayment.findUnique({ where: { paymentCode } })
+      : clientRefId
+        ? await this.prisma.servicePayment.findUnique({ where: { clientRefId } })
+        : null;
+    if (!payment) {
+      return { redirectUrl: `${paypingReturnBaseUrl()}/dashboard/inquiries?payment=failed` };
+    }
+    const { returnTo } = this.compositeItems(payment);
+    const redirect = (status: 'success' | 'failed') => {
+      const separator = returnTo.includes('?') ? '&' : '?';
+      return {
+        redirectUrl: `${paypingReturnBaseUrl()}${returnTo}${separator}payment=${status}`,
+      };
+    };
+    if (payment.status === PaymentStatus.PAID) {
+      if (!payment.consumedAt) {
+        try {
+          await this.runCompositePayment(payment.id);
+        } catch {
+          return redirect('failed');
+        }
+      }
+      return redirect('success');
+    }
+    if (payment.status === PaymentStatus.CANCELED) return redirect('failed');
+    if (params.status === 0) {
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.FAILED,
+          failureReason: 'پرداخت توسط کاربر لغو شد یا درگاه آن را ناموفق اعلام کرد',
+        },
+      });
+      return redirect('failed');
+    }
+    if (!refId || !payment.paymentCode) {
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: { status: PaymentStatus.FAILED, failureReason: 'اطلاعات بازگشتی ناقص است' },
+      });
+      return redirect('failed');
+    }
+    let verified: { amount?: number } | null = null;
+    try {
+      verified = this.simulator.handles(payment.paymentCode)
+        ? this.simulator.verifyPayment({
+            paymentCode: payment.paymentCode,
+            amount: payment.amount,
+            clientRefId: payment.clientRefId,
+          })
+        : ((await this.payping.verifyPayment({
+            paymentRefId: Number(refId),
+            paymentCode: payment.paymentCode,
+            amount: payment.amount,
+          })) as { amount?: number } | null);
+    } catch (error) {
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: {
+          status: PaymentStatus.FAILED,
+          failureReason:
+            error instanceof Error ? error.message.slice(0, 300) : 'تأیید پرداخت ناموفق بود',
+        },
+      });
+      return redirect('failed');
+    }
+    if (!verified || Number(verified.amount ?? 0) !== payment.amount) {
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: { status: PaymentStatus.FAILED, failureReason: 'مبلغ تأییدشده مطابق نیست' },
+      });
+      return redirect('failed');
+    }
+    await this.prisma.servicePayment.update({
+      where: { id: payment.id },
+      data: {
+        status: PaymentStatus.PAID,
+        refId,
+        paidAt: new Date(),
+        verifiedAt: new Date(),
+      },
+    });
+    try {
+      await this.finance.recordSale({
+        sourceType: FINANCE_SOURCE_TYPES.SERVICE_PAYMENT,
+        sourceId: payment.id,
+        title: payment.title ?? 'محصول ترکیبی استعلام زحل',
+        amount: payment.amount,
+        paidAt: new Date(),
+        userId: payment.userId,
+        metadata: { serviceKey: payment.serviceKey, refId },
+      });
+    } catch {
+      // Invoicing is best-effort; the paid modules must still run.
+    }
+    try {
+      await this.runCompositePayment(payment.id);
+      return redirect('success');
+    } catch (error) {
+      await this.prisma.servicePayment.update({
+        where: { id: payment.id },
+        data: {
+          failureReason:
+            error instanceof Error ? error.message.slice(0, 300) : 'اجرای استعلام ناموفق بود',
+        },
+      });
+      return redirect('failed');
+    }
   }
 
   // -------------------------------------------------------------------------
