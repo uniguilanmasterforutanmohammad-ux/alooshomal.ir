@@ -1,4 +1,5 @@
 import type { ZohalServiceDef } from './zohal.types';
+import { ZOHAL_RESPONSE_FIELDS } from './zohal.response-fields';
 
 export const ZOHAL_SERVICE_SETTING_PREFIX = 'zohal.service.';
 export const ZOHAL_PRICE_SETTING_PREFIX = 'zohal.price.';
@@ -9,7 +10,7 @@ export const ZOHAL_PRICE_SETTING_PREFIX = 'zohal.price.';
  * profile/blue-tick flow needs out of the box; everything else starts off and
  * the admin can switch it on from «زحل».
  */
-export const ZOHAL_SERVICES: ZohalServiceDef[] = [
+const ZOHAL_SERVICE_DEFS: ZohalServiceDef[] = [
   {
     key: "shahkar",
     label: "شاهکار (تطابق کد ملی و موبایل)",
@@ -456,5 +457,17 @@ export const ZOHAL_SERVICES: ZohalServiceDef[] = [
     ],
   },
 ];
+
+/**
+ * The catalogue with each service's response `data` fields attached, taken
+ * from the official OpenAPI contract. The panel offers these as the comparable
+ * «فیلد پاسخ استعلام» of a module.
+ */
+export const ZOHAL_SERVICES: ZohalServiceDef[] = ZOHAL_SERVICE_DEFS.map(
+  (service) => {
+    const responseFields = ZOHAL_RESPONSE_FIELDS[service.path];
+    return responseFields?.length ? { ...service, responseFields } : service;
+  },
+);
 
 export const ZOHAL_GROUPS = ['احراز هویت', 'احراز هویت ویدیویی', 'بانکی', 'خدماتی'] as const;

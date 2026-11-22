@@ -9,6 +9,20 @@ export interface ZohalField {
   placeholder?: string;
 }
 
+/**
+ * One field the Zohal response `data` object carries, taken from the official
+ * OpenAPI spec. Used by the admin to pick the field a module's result is
+ * compared against.
+ */
+export interface ZohalResponseField {
+  /** wire name of the response field, e.g. `national_code`. */
+  name: string;
+  /** Persian label for the panel. */
+  label: string;
+  /** example value from the spec, shown as a hint in the panel. */
+  example?: string;
+}
+
 /** One Zohal web service, mirroring a path in the official OpenAPI spec. */
 export interface ZohalServiceDef {
   /** stable id, also used in the `zohal.service.<key>` setting key. */
@@ -21,6 +35,8 @@ export interface ZohalServiceDef {
   /** path placeholders such as `session_id` (for GET result endpoints). */
   pathParams?: string[];
   fields: ZohalField[];
+  /** fields the response `data` object returns (may be empty). */
+  responseFields?: ZohalResponseField[];
   /** enabled when the admin never touched the switch. */
   defaultEnabled: boolean;
 }

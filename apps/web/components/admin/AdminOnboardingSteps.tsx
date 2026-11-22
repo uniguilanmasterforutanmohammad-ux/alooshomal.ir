@@ -52,6 +52,14 @@ interface MatchRule {
   compareTo: MatchSource;
   field?: string;
   mode?: MatchMode;
+  /** UI-only: true when the admin types a field name by hand. */
+  manual?: boolean;
+}
+
+interface ResponseField {
+  name: string;
+  label: string;
+  example?: string;
 }
 
 const MATCH_SOURCE_LABELS: Record<MatchSource, string> = {
@@ -110,6 +118,8 @@ interface ModuleOption {
     required?: boolean;
     type?: 'text' | 'date' | 'boolean' | 'file';
   }>;
+  /** Response fields the module returns (from the provider's OpenAPI spec). */
+  responseFields?: ResponseField[];
   /** True for an admin-defined composite of several modules. */
   composite?: boolean;
 }
@@ -378,7 +388,16 @@ export function AdminOnboardingSteps() {
           ? { onSuccess: step.onSuccess }
           : {}),
         ...(step.kind === 'module' && step.match?.length
-          ? { match: step.match }
+          ? {
+              match: step.match.map((rule) => ({
+                resultField: rule.resultField,
+                compareTo: rule.compareTo,
+                ...(rule.compareTo === 'field' && rule.field
+                  ? { field: rule.field }
+                  : {}),
+                ...(rule.mode ? { mode: rule.mode } : {}),
+              })),
+            }
           : {}),
         ...(step.kind === 'module' && step.requires?.length
           ? { requires: step.requires }
@@ -720,6 +739,7 @@ export function AdminOnboardingSteps() {
                     (item) => item.key === step.moduleKey,
                   );
                   const fieldOptions = selected?.fields ?? [];
+                  const responseFields = selected?.responseFields ?? [];
                   const rules = step.match ?? [];
                   const updateRule = (
                     ruleIndex: number,
@@ -776,17 +796,93 @@ export function AdminOnboardingSteps() {
                               <div className="grid gap-2 sm:grid-cols-2">
                                 <label className="text-[10px] font-bold text-muted">
                                   فیلد پاسخ استعلام
-                                  <input
-                                    className="indeed-input mt-1 py-1 text-[11px]"
-                                    dir="ltr"
-                                    value={rule.resultField}
-                                    placeholder="nationalCode"
-                                    onChange={(event) =>
-                                      updateRule(ruleIndex, {
-                                        resultField: event.target.value,
-                                      })
-                                    }
-                                  />
+                                  {responseFields.length > 0 &&
+                                  !rule.manual ? (
+                                    <select
+                                      className="indeed-input mt-1 py-1 text-[11px]"
+                                      dir="ltr"
+                                      value={
+                                        responseFields.some(
+                                          (field) =>
+                                            field.name === rule.resultField,
+                                        )
+                                          ? rule.resultField
+                                          : ''
+                                      }
+                                      onChange={(event) => {
+                                        if (
+                                          event.target.value === '__manual__'
+                                        ) {
+                                          updateRule(ruleIndex, {
+                                            manual: true,
+                                          });
+                                        } else {
+                                          updateRule(ruleIndex, {
+                                            resultField: event.target.value,
+                                            manual: false,
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      <option value="">
+                                        — انتخاب فیلد پاسخ —
+                                      </option>
+                                      {responseFields.map((field) => (
+                                        <option
+                                          key={field.name}
+                                          value={field.name}
+                                        >
+                                          {field.label} ({field.name})
+                                          {field.example
+                                            ? ` — نمونه: ${field.example}`
+                                            : ''}
+                                        </option>
+                                      ))}
+                                      <option value="__manual__">
+                                        — ورود دستی نام فیلد —
+                                      </option>
+                                    </select>
+                                  ) : (
+                                    <span className="mt-1 flex items-center gap-1">
+                                      <input
+                                        className="indeed-input py-1 text-[11px]"
+                                        dir="ltr"
+                                        value={rule.resultField}
+                                        placeholder="nationalCode"
+                                        onChange={(event) =>
+                                          updateRule(ruleIndex, {
+                                            resultField: event.target.value,
+                                          })
+                                        }
+                                      />
+                                      {responseFields.length > 0 ? (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            updateRule(ruleIndex, {
+                                              manual: false,
+                                              resultField: '',
+                                            })
+                                          }
+                                          className="whitespace-nowrap rounded-md border border-[var(--vintage-border)] px-1.5 py-1 text-[9px] font-bold text-brand hover:bg-brand-light"
+                                        >
+                                          انتخاب از فهرست
+                                        </button>
+                                      ) : null}
+                                    </span>
+                                  )}
+                                  {(() => {
+                                    const match = responseFields.find(
+                                      (field) =>
+                                        field.name === rule.resultField,
+                                    );
+                                    return match?.example ? (
+                                      <span className="mt-0.5 block text-[9px] font-normal text-muted">
+                                        مقدار نمونه:{' '}
+                                        <code dir="ltr">{match.example}</code>
+                                      </span>
+                                    ) : null;
+                                  })()}
                                 </label>
                                 <label className="text-[10px] font-bold text-muted">
                                   مقایسه با

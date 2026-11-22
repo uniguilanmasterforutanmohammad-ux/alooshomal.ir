@@ -44,6 +44,7 @@ import {
   type OnboardingMatchRule,
   type OnboardingModuleField,
   type OnboardingModuleInfo,
+  type OnboardingModuleResponseField,
   type OnboardingProgressPayload,
   type OnboardingStepDef,
   type OnboardingStepOnSuccess,
@@ -116,6 +117,8 @@ export interface OnboardingModuleOption {
   price: number;
   /** Inputs the user must fill for this module (empty for non-inquiry items). */
   fields: OnboardingModuleField[];
+  /** Response fields the module's inquiry returns (name + example). */
+  responseFields: OnboardingModuleResponseField[];
   /** True when this item is an admin-defined composite of several modules. */
   composite?: boolean;
 }
@@ -374,6 +377,7 @@ export class OnboardingService implements OnModuleInit {
         enabled: service.enabled,
         price: service.price,
         fields: service.fields ?? [],
+        responseFields: service.responseFields ?? [],
       });
     }
     for (const composite of zohal.composites) {
@@ -389,6 +393,7 @@ export class OnboardingService implements OnModuleInit {
         enabled: composite.purchasable,
         price: composite.amount,
         fields: composite.fields ?? [],
+        responseFields: [],
         composite: true,
       });
     }
@@ -403,6 +408,7 @@ export class OnboardingService implements OnModuleInit {
         enabled: service.enabled,
         price: service.price,
         fields: service.fields ?? [],
+        responseFields: service.responseFields ?? [],
       });
     }
     for (const composite of apiir.composites ?? []) {
@@ -418,6 +424,7 @@ export class OnboardingService implements OnModuleInit {
         enabled: composite.purchasable,
         price: composite.amount,
         fields: composite.fields ?? [],
+        responseFields: [],
         composite: true,
       });
     }
@@ -432,6 +439,7 @@ export class OnboardingService implements OnModuleInit {
         enabled: plan.isActive,
         price: plan.price,
         fields: [],
+        responseFields: [],
       });
     }
     const monthlyPrice = new Map<string, number>();
@@ -455,6 +463,7 @@ export class OnboardingService implements OnModuleInit {
         enabled: industry.available !== false,
         price,
         fields: [],
+        responseFields: [],
       });
     }
     items.push(
@@ -468,6 +477,7 @@ export class OnboardingService implements OnModuleInit {
         enabled: true,
         price: 0,
         fields: [],
+        responseFields: [],
       },
       {
         key: 'businessCard',
@@ -479,6 +489,7 @@ export class OnboardingService implements OnModuleInit {
         enabled: true,
         price: 0,
         fields: [],
+        responseFields: [],
       },
     );
     return { items };
@@ -656,6 +667,7 @@ export class OnboardingService implements OnModuleInit {
                 step.fieldOverrides,
                 identity,
               ),
+              responseFields: module.responseFields ?? [],
             } satisfies OnboardingModuleInfo)
           : null,
         data: stepData.get(step.id) ?? null,

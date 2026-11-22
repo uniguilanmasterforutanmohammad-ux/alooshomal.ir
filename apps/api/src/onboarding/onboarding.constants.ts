@@ -245,6 +245,19 @@ export interface OnboardingModuleInfo {
   href: string;
   price: number;
   fields: OnboardingModuleField[];
+  /**
+   * Fields the module's inquiry response carries (name + example), used by the
+   * admin to pick the «فیلد پاسخ استعلام» for a match rule. Empty for modules
+   * whose response shape is unknown or has no object payload.
+   */
+  responseFields: OnboardingModuleResponseField[];
+}
+
+/** One response field a module returns, with an example value. */
+export interface OnboardingModuleResponseField {
+  name: string;
+  label: string;
+  example?: string;
 }
 
 /** One priced module the user opted into, shown in the wizard's cart. */

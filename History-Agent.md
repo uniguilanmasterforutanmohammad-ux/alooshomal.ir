@@ -20,7 +20,52 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.68.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.69.0**.
+
+## ۱۴۰۵/۰۹/۰۱ — کشویی «فیلد پاسخ استعلام» از قرارداد OpenAPI زحل و api.ir — نسخه `v4.69.0`
+
+**هدف:** در «تطبیق نتیجه‌ی استعلام» (بخش «برای موفق‌شمردن») به‌جای تایپ دستی نام
+فیلد پاسخ، همه‌ی مقادیری که آن ماژول برمی‌گرداند به‌صورت کشویی همراه با مقدار
+نمونه نمایش داده شود. منبع داده، قرارداد OpenAPI سرویس‌های api.ir
+(`/api/sw1/*`) و زحل (`api-1.json`) است.
+
+**تغییرات:**
+- `apps/api/src/apiir/apiir.types.ts`: افزودن `ApiIrResponseField` و فیلد
+  `responseFields` به `ApiIrServiceDef`.
+- `apps/api/src/zohal/zohal.types.ts`: افزودن `ZohalResponseField` و فیلد
+  `responseFields` به `ZohalServiceDef`.
+- `scripts/sync_apiir_catalog.py`: استخراج فیلدهای پاسخ از شمای پاسخ هر سرویس
+  (نام، توضیح فارسی به‌عنوان برچسب، و `default`/`example` به‌عنوان مقدار نمونه) و
+  افزودن نگاشت `SERVICE_OVERRIDES` برای حفظ متن دستی «VehicleCard».
+- `apps/api/src/apiir/apiir.constants.ts`: بازتولید با `responseFields` برای
+  همه‌ی سرویس‌های دارای شمای شیئی (۴۳ سرویس).
+- `scripts/sync_zohal_response_fields.py` (جدید) و
+  `apps/api/src/zohal/zohal.response-fields.ts` (تولیدی): نگاشت
+  «path → فیلدهای پاسخ» از `api-1.json` با برچسب‌های فارسی و مقدار نمونه.
+- `apps/api/src/zohal/zohal.constants.ts`: چسباندن فیلدهای پاسخ به هر سرویس بر
+  اساس `path`.
+- `apps/api/src/onboarding/onboarding.constants.ts` و
+  `apps/api/src/onboarding/onboarding.service.ts`: افزودن
+  `OnboardingModuleResponseField` و `responseFields` به کتابخانه‌ی ماژول‌های
+  «شروع آسان» و به payload مرحله.
+- `apps/web/components/admin/AdminOnboardingSteps.tsx`: کشویی «فیلد پاسخ استعلام»
+  با گزینه‌های «برچسب (name) — نمونه: …»، گزینه‌ی «ورود دستی نام فیلد» و نمایش
+  مقدار نمونه‌ی فیلد انتخاب‌شده.
+- `docs/API.md` و `docs/ZOHAL.md`: مستندسازی `responseFields` و اسکریپت تولید.
+
+**تأیید/تست:**
+- `python3 scripts/sync_apiir_catalog.py --spec <api.ir spec>` و
+  `python3 scripts/sync_zohal_response_fields.py --spec api-1.json` بدون خطا؛
+  بازتولید api.ir تنها «افزودن» داشت (بدون تغییر در برچسب/توضیح سرویس‌ها).
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا؛
+  `python3 scripts/check_api_docs.py` → exit 0.
+- بررسی `GET /admin/onboarding/modules`: سرویس‌های نمونه فیلدهای پاسخ را
+  برگرداندند (`apiir:license` ۱۳ فیلد، `zohal:national_identity_inquiry` ۷ فیلد،
+  `zohal:shahkar` ۱ فیلد).
+- بررسی UI با `playwright-core`/google-chrome: کشویی فیلد پاسخ با گزینه‌های
+  برچسب/نام/نمونه، گزینه‌ی ورود دستی و راهنمای «مقدار نمونه» بدون خطای صفحه
+  رندر شد. تنظیمات مرحله پس از تست بازگردانی شد.
 
 ## ۱۴۰۵/۰۹/۰۱ — پیش‌نیاز و زنجیره‌ی استعلام‌ها در مراحل ماژول — نسخه `v4.68.0`
 

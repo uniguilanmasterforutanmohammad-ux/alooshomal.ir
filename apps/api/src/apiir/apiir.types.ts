@@ -9,6 +9,20 @@ export interface ApiIrField {
   placeholder?: string;
 }
 
+/**
+ * One field the api.ir response `data` object carries, taken from the official
+ * OpenAPI schema. The admin uses it to pick the field a module's result is
+ * compared against (the `match` rule of a wizard step).
+ */
+export interface ApiIrResponseField {
+  /** wire name of the response field, e.g. `nationalCode`. */
+  name: string;
+  /** Persian label taken from the spec description. */
+  label: string;
+  /** example value from the spec, shown as a hint in the panel. */
+  example?: string;
+}
+
 /** One api.ir web service, mirroring a path in the official OpenAPI spec. */
 export interface ApiIrServiceDef {
   /** stable id, also used in the `apiir.service.<key>` setting key. */
@@ -19,6 +33,8 @@ export interface ApiIrServiceDef {
   method: 'POST' | 'GET';
   path: string;
   fields: ApiIrField[];
+  /** fields the response `data` object returns (may be empty). */
+  responseFields?: ApiIrResponseField[];
   /**
    * Official api.ir tariff for one call, in Toman (what api.ir charges *us*).
    * Taken from the provider's panel (`https://p.api.ir/service/list`, behind a

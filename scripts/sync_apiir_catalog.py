@@ -149,6 +149,15 @@ FIELD_LABELS: dict[str, str] = {
 
 DATE_FIELDS = {"birthDate"}
 
+# A few services carry poor metadata in the spec (English summary, empty
+# description). Keep the hand-written Persian copy stable across regenerations.
+SERVICE_OVERRIDES: dict[str, dict[str, str]] = {
+    "VehicleCard": {
+        "label": "استعلام کارت و سند خودرو",
+        "description": "اطلاعات مربوط به کارت خودرو و سند مالکیت را ارائه می‌دهد تا صحت و اعتبار مدارک مالکیت وسیله نقلیه را تایید کند. این سرویس برای جلوگیری از جعل مدارک و تضمین اصالت خودرو در معاملات و نقل‌وانتقالات کاربردی است. فرمت صحیح پل",
+    },
+}
+
 
 def fetch_spec(path: str | None) -> dict:
     if path:
@@ -215,6 +224,51 @@ def build_fields(properties: dict, required: set[str]) -> list[str]:
     return lines
 
 
+def dereference(schemas: dict, schema: dict) -> dict:
+    schema = schema if isinstance(schema, dict) else {}
+    ref = schema.get("$ref")
+    if ref:
+        return schemas.get(ref.rsplit("/", 1)[-1], {}) or {}
+    return schema
+
+
+def resolve_data_schema(schemas: dict, operation: dict) -> dict:
+    """Schema of the `data` object inside the api.ir result envelope."""
+    responses = operation.get("responses", {}) or {}
+    node = responses.get("200") or responses.get("201") or {}
+    content = (node.get("content") or {}).get("application/json", {})
+    outer = dereference(schemas, content.get("schema", {}))
+    data = dereference(schemas, (outer.get("properties") or {}).get("data", {}))
+    if not data.get("properties"):
+        for option in data.get("oneOf", []) or []:
+            candidate = dereference(schemas, option)
+            if candidate.get("properties"):
+                return candidate
+    return data
+
+
+def build_response_fields(schemas: dict, operation: dict) -> list[str]:
+    """Response `data` fields (name, Persian label, example) for one service."""
+    schema = resolve_data_schema(schemas, operation)
+    properties = schema.get("properties") or {}
+    lines: list[str] = []
+    for name, prop in properties.items():
+        prop = prop if isinstance(prop, dict) else {}
+        label = collapse(prop.get("description")) or FIELD_LABELS.get(name) or name
+        example = prop.get("default")
+        if example is None:
+            example = prop.get("example")
+        parts = [f"name: {single_quote(name)}", f"label: {single_quote(label)}"]
+        if isinstance(example, bool):
+            parts.append(f"example: {single_quote('true' if example else 'false')}")
+        elif isinstance(example, (int, float)):
+            parts.append(f"example: {single_quote(str(example))}")
+        elif isinstance(example, str) and example.strip():
+            parts.append(f"example: {single_quote(example.strip()[:60])}")
+        lines.append("      { " + ", ".join(parts) + " },")
+    return lines
+
+
 def render(spec: dict, tariffs: dict[str, int] | None = None) -> str:
     tariffs = tariffs or {}
     schemas = spec.get("components", {}).get("schemas", {})
@@ -228,6 +282,7 @@ def render(spec: dict, tariffs: dict[str, int] | None = None) -> str:
         if not operation:
             continue
         raw_key = path.rsplit("/", 1)[-1]
+        override = SERVICE_OVERRIDES.get(raw_key, {})
         properties: dict = {}
         required: set[str] = set()
         content = (operation.get("requestBody") or {}).get("content", {})
@@ -242,13 +297,17 @@ def render(spec: dict, tariffs: dict[str, int] | None = None) -> str:
         services.append(
             {
                 "key": raw_key.lower(),
-                "label": collapse(operation.get("summary")) or raw_key,
+                "label": override.get("label")
+                or collapse(operation.get("summary"))
+                or raw_key,
                 "group": GROUPS.get(raw_key, "سایر"),
-                "description": collapse(operation.get("description"))
+                "description": override.get("description")
+                or collapse(operation.get("description"))
                 or collapse(operation.get("summary")),
                 "path": path,
                 "tariff": tariffs.get(raw_key.lower()),
                 "fields": build_fields(properties, required),
+                "responseFields": build_response_fields(schemas, operation),
             }
         )
 
@@ -272,6 +331,10 @@ def render(spec: dict, tariffs: dict[str, int] | None = None) -> str:
             body.append("    ],")
         else:
             body.append("    fields: [],")
+        if service["responseFields"]:
+            body.append("    responseFields: [")
+            body.extend(service["responseFields"])
+            body.append("    ],")
         body.append("  },")
 
     header = "/**\n"

@@ -24,6 +24,30 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
       { name: 'code', label: 'کد', required: true, placeholder: '121302310622' },
       { name: 'codeType', label: 'نوع کد', required: true },
     ],
+    responseFields: [
+      { name: 'id', label: 'شناسه', example: '1' },
+      { name: 'uniqeCode', label: 'کد یکتا', example: '12345678901234' },
+      { name: 'fidaCode', label: 'کد فیدا', example: '987654321' },
+      { name: 'birthDate', label: 'تاریخ تولید میلادی', example: '2025-12-31T00:00:00' },
+      { name: 'birthDatePersian', label: 'تاریخ تولد شمسی', example: '1370/01/01' },
+      { name: 'firstName', label: 'نام', example: 'علی' },
+      { name: 'lastName', label: 'نام خانوادگی', example: 'رضایی' },
+      { name: 'fatherName', label: 'نام پدر', example: 'محمد' },
+      { name: 'grandFatherName', label: 'نام پدر بزرگ', example: 'حسین' },
+      { name: 'gender', label: 'جنسیت', example: '1' },
+      { name: 'provinceID', label: 'شناسه استان', example: '10' },
+      { name: 'province', label: 'نام استان', example: 'تهران' },
+      { name: 'nationalityID', label: 'شناسه ملیت', example: '1' },
+      { name: 'nationalityName', label: 'نام ملیت', example: 'افغانستان' },
+      { name: 'status', label: 'وضعیت', example: '1' },
+      { name: 'familyID', label: 'شناسه خانواده', example: '1234567890' },
+      { name: 'exit', label: 'خروج؟', example: 'true' },
+      { name: 'identityCode', label: 'کد شناسایی', example: '1234567890' },
+      { name: 'relative', label: 'relative', example: '0' },
+      { name: 'education', label: 'تحصیلات', example: '0' },
+      { name: 'isActive', label: 'فعال', example: 'true' },
+      { name: 'deleteAt', label: 'حذف شده؟' },
+    ],
   },
   {
     key: 'passportstatus',
@@ -35,6 +59,18 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'nationalCode', label: 'کد ملی', required: true, placeholder: '0010007700' },
       { name: 'mobile', label: 'موبایل', required: true, placeholder: '09120000000' },
+    ],
+    responseFields: [
+      { name: 'hasRequest', label: 'آیا درخواست گذرنامه ثبت شده است؟', example: 'false' },
+      { name: 'requestStatus', label: 'وضعیت درخواست گذرنامه', example: 'ثبت نشده' },
+      { name: 'requestDate', label: 'تاریخ ثبت درخواست', example: '1404/01/01' },
+      { name: 'postalTrackingCode', label: 'کد رهگیری پستی', example: 'PT123456789' },
+      { name: 'hasPassport', label: 'آیا گذرنامه صادر شده است؟', example: 'false' },
+      { name: 'passportNumber', label: 'شماره گذرنامه', example: 'A12345678' },
+      { name: 'issueDate', label: 'تاریخ صدور گذرنامه', example: '1404/01/15' },
+      { name: 'expirationDate', label: 'تاریخ انقضای گذرنامه', example: '1414/01/15' },
+      { name: 'passportStatus', label: 'وضعیت فعلی گذرنامه', example: 'فعال' },
+      { name: 'personFound', label: 'آیا فرد در سیستم یافت شد؟', example: 'true' },
     ],
   },
   {
@@ -48,6 +84,15 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
       { name: 'nationalCode', label: 'کد ملی', required: true, placeholder: '0010007700' },
       { name: 'birthDate', label: 'تاریخ تولد', required: true, type: 'date', placeholder: '1371/1/1' },
     ],
+    responseFields: [
+      { name: 'nationalCode', label: 'کد ملی', example: '0010007700' },
+      { name: 'firstName', label: 'نام', example: 'علی' },
+      { name: 'lastName', label: 'نام خانوادگی', example: 'رضایی' },
+      { name: 'fatherName', label: 'نام پدر', example: 'محمد' },
+      { name: 'gender', label: 'جنسیت آقا=1 خانم=2', example: '1' },
+      { name: 'alive', label: 'زنده بودن', example: 'true' },
+      { name: 'imageBase64', label: 'تصویر به فرمت base64 در صورت وجود', example: 'iVBORw0KGgoAAAANSUhEUgAA...' },
+    ],
   },
   {
     key: 'personinfo',
@@ -59,6 +104,14 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'nationalCode', label: 'کد ملی', required: true, placeholder: '0010007700' },
       { name: 'birthDate', label: 'تاریخ تولد', required: true, type: 'date', placeholder: '1371/1/1' },
+    ],
+    responseFields: [
+      { name: 'nationalCode', label: 'کد ملی استعلام شده', example: '0010007700' },
+      { name: 'firstName', label: 'نام', example: 'محسن' },
+      { name: 'lastName', label: 'نام خانوادگی', example: 'اکبری' },
+      { name: 'fatherName', label: 'نام پدر', example: 'علی' },
+      { name: 'gender', label: 'جنسیت (زن/مرد)', example: '1' },
+      { name: 'alive', label: 'وضعیت حیات (زنده/مرده)', example: 'true' },
     ],
   },
   {
@@ -128,6 +181,15 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
       { name: 'speechThreshold', label: 'آستانه تطبیق گفتار' },
       { name: 'speechText', label: 'متن تصادفی گفتار', required: true, placeholder: 'بهار فصل شگوفه هاست' },
     ],
+    responseFields: [
+      { name: 'matchingScore', label: 'میزان تطبیق چهره', example: '95' },
+      { name: 'isMatch', label: 'تطبیق', example: 'true' },
+      { name: 'livenessScore', label: 'میزان تطبیق زنده سنجی', example: '85' },
+      { name: 'isLiveness', label: 'زنده بودن', example: 'true' },
+      { name: 'speechScore', label: 'میزان تطبیق گفتار', example: '55' },
+      { name: 'isSpeechMatched', label: 'تطبیق گفتار', example: 'true' },
+      { name: 'isPassed', label: 'نتیجه نهایی', example: 'true' },
+    ],
   },
   {
     key: 'videoverifyspeechtext',
@@ -148,6 +210,10 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'nationalCode', label: 'کد ملی', required: true, placeholder: '0010007700' },
     ],
+    responseFields: [
+      { name: 'count', label: 'تعداد تسهیلات فعال کاربر', example: '3' },
+      { name: 'info', label: 'info' },
+    ],
   },
   {
     key: 'bankaccountinfo',
@@ -160,6 +226,11 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
       { name: 'accountNumber', label: 'شماره حساب', required: true, placeholder: '3022.100.18878774.1' },
       { name: 'bankCode', label: 'کد بانک', placeholder: '012' },
     ],
+    responseFields: [
+      { name: 'iban', label: 'شماره شبا', example: 'IR820540102680020817909002' },
+      { name: 'active', label: 'وضعیت فعال بودن', example: 'true' },
+      { name: 'owners', label: 'مالک کارت' },
+    ],
   },
   {
     key: 'bankcardinfo',
@@ -171,6 +242,11 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'cardNumber', label: 'شماره کارت', required: true, placeholder: '6037990000000000' },
     ],
+    responseFields: [
+      { name: 'name', label: 'نام کارت', example: 'امیر تبریزی' },
+      { name: 'iban', label: 'شماره شبا', example: 'IR820540102680020817909002' },
+      { name: 'accountNumber', label: 'شماره حساب', example: '122.344.1234567890.1' },
+    ],
   },
   {
     key: 'cardinfo',
@@ -181,6 +257,9 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     path: '/api/sw1/CardInfo',
     fields: [
       { name: 'cardNumber', label: 'شماره کارت', required: true, placeholder: '6037990000000000' },
+    ],
+    responseFields: [
+      { name: 'name', label: 'نام کارت', example: 'بانک ملت' },
     ],
   },
   {
@@ -218,6 +297,11 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'cardNumber', label: 'شماره کارت', required: true, placeholder: '6037990000000000' },
     ],
+    responseFields: [
+      { name: 'name', label: 'نام', example: 'علی رضایی' },
+      { name: 'iban', label: 'شبا', example: 'IR820540102680020817909002' },
+      { name: 'bankName', label: 'نام بانک', example: 'بانک ملت' },
+    ],
   },
   {
     key: 'chequecolor',
@@ -230,6 +314,10 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
       { name: 'nationalCode', label: 'کد ملی', required: true, placeholder: '0010007700' },
       { name: 'isCompany', label: 'شخص حقوقی', required: true, type: 'boolean' },
     ],
+    responseFields: [
+      { name: 'chequeColor', label: 'کد رنگ چک', example: 'سفید' },
+      { name: 'chequeColorCode', label: 'سفید=1 زرد=2 نارنجی=3 قهوه‌ای=4 قرمز=5', example: '1' },
+    ],
   },
   {
     key: 'chequeinfo',
@@ -241,6 +329,16 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'chequeID', label: 'شناسه چک صیادی', required: true, placeholder: '111110010007700' },
     ],
+    responseFields: [
+      { name: 'iban', label: 'شماره شبا دارنده چک', example: 'IR820540102680020817909002' },
+      { name: 'issuedDate', label: 'تاریخ صدور دسته چک', example: '1403/01/15' },
+      { name: 'expirationDate', label: 'تاریخ انقضای دسته چک', example: '1406/01/15' },
+      { name: 'serialNumber', label: 'شماره سریال', example: '12345678' },
+      { name: 'seriesNumber', label: 'شماره سری', example: '987654' },
+      { name: 'chequeType', label: 'نوع چک (BANS: عادی، CHD: الکترونیک، CHS: موردی، CHT: بانکی)', example: 'BANS' },
+      { name: 'branchCode', label: 'کد شعبه', example: '1026' },
+      { name: 'name', label: 'نام و نام خانوادگی دارنده دسته چک', example: 'علی محمدی' },
+    ],
   },
   {
     key: 'ibaninfo',
@@ -251,6 +349,11 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     path: '/api/sw1/IbanInfo',
     fields: [
       { name: 'iban', label: 'شبا', required: true, placeholder: 'IR820540102680020817909002' },
+    ],
+    responseFields: [
+      { name: 'name', label: 'نام', example: 'علی رضایی' },
+      { name: 'bankName', label: 'نام بانک', example: 'بانک ملت' },
+      { name: 'active', label: 'فعال است؟', example: 'true' },
     ],
   },
   {
@@ -288,6 +391,11 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'nationalCode', label: 'کد ملی', required: true, placeholder: '0010007700' },
     ],
+    responseFields: [
+      { name: 'count', label: 'تعداد چک برگشتی', example: '0' },
+      { name: 'sumAmount', label: 'جمع مبلغ چک های برگشتی', example: '250000000' },
+      { name: 'sumBouncedAmount', label: 'جمع مبلغ برگشتی چک ها', example: '250000000' },
+    ],
   },
   {
     key: 'unpaidchequelite',
@@ -298,6 +406,9 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     path: '/api/sw1/UnpaidChequeLite',
     fields: [
       { name: 'nationalCode', label: 'کد ملی', required: true, placeholder: '0010007700' },
+    ],
+    responseFields: [
+      { name: 'count', label: 'تعداد چک برگشتی', example: '0' },
     ],
   },
   {
@@ -310,6 +421,13 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'nationalCode', label: 'کد ملی', required: true, placeholder: '0010007700' },
     ],
+    responseFields: [
+      { name: 'nationalCode', label: 'کد ملی کاربر', example: '0012345678' },
+      { name: 'legalId', label: 'شناسه ملی شخص حقوقی', example: '10101234567' },
+      { name: 'name', label: 'نام و نام خانوادگی کاربر', example: 'رضا محمدی' },
+      { name: 'count', label: 'تعداد چک برگشتی', example: '0' },
+      { name: 'chequeList', label: 'لیست چک‌های برگشتی کاربر' },
+    ],
   },
   {
     key: 'companyinfo',
@@ -321,6 +439,19 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'nationalID', label: 'شناسه ملی شرکت', required: true, placeholder: '14007650912' },
     ],
+    responseFields: [
+      { name: 'companyType', label: 'نوع شرکت', example: 'شركت سهامي خاص' },
+      { name: 'name', label: 'نام شرکت', example: 'شرکت نمونه' },
+      { name: 'nationalID', label: 'شناسه ملی', example: '14000567890' },
+      { name: 'registerNumber', label: 'شماره ثبت', example: '12345' },
+      { name: 'registerDate', label: 'تاریخ ثبت', example: '1400/01/01' },
+      { name: 'active', label: 'وضعیت فعال بودن', example: 'true' },
+      { name: 'address', label: 'آدرس ثبتی', example: 'تهران، خیابان انقلاب، پلاک 12' },
+      { name: 'postalCode', label: 'کد پستی', example: '1234567890' },
+      { name: 'province', label: 'استان', example: 'تهران' },
+      { name: 'city', label: 'شهر', example: 'تهران' },
+      { name: 'endDate', label: 'تاریخ انحلال' },
+    ],
   },
   {
     key: 'companymembers',
@@ -331,6 +462,10 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     path: '/api/sw1/CompanyMembers',
     fields: [
       { name: 'nationalID', label: 'شناسه ملی شرکت', required: true, placeholder: '14007650912' },
+    ],
+    responseFields: [
+      { name: 'boardMembers', label: 'اعضاء شرکت' },
+      { name: 'shareHolders', label: 'سهامدار' },
     ],
   },
   {
@@ -354,6 +489,15 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'nationalID', label: 'شناسه ملی شرکت', required: true, placeholder: '14000567890' },
     ],
+    responseFields: [
+      { name: 'allowedTopics', label: 'موضوعات مجاز', example: 'کلیه اوراق اسناد بهادار تعهد آور شرکت ...' },
+      { name: 'signholders', label: 'صاحبان امضای مجاز اجباری و معمولی' },
+      { name: 'signatureFullText', label: 'متن کامل اگهی', example: 'کلیه اوراق اسناد بهادار تعهد آور شرکت از قبیل چک سفته بروات ' },
+      { name: 'newspaperDate', label: 'تاریخ روزنامه', example: '2025-01-01T00:00:00' },
+      { name: 'newsletterDate', label: 'تاریخ نامه', example: '2025-01-02T00:00:00' },
+      { name: 'title', label: 'نام شرکت', example: 'دیجی یکالا' },
+      { name: 'boardMembers', label: 'لیست اعضا سهام داران' },
+    ],
   },
   {
     key: 'enamad',
@@ -364,6 +508,15 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     path: '/api/sw1/Enamad',
     fields: [
       { name: 'domain', label: 'دامنه', required: true, placeholder: 'mci.ir' },
+    ],
+    responseFields: [
+      { name: 'domain', label: 'دامنه' },
+      { name: 'title', label: 'title' },
+      { name: 'province', label: 'province' },
+      { name: 'city', label: 'city' },
+      { name: 'star', label: 'star' },
+      { name: 'addDate', label: 'addDate' },
+      { name: 'expDate', label: 'expDate' },
     ],
   },
   {
@@ -376,6 +529,21 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'trackingCode', label: 'کد پیگیری', required: true, placeholder: 'BL123456' },
     ],
+    responseFields: [
+      { name: 'title', label: 'عنوان مجوز', example: 'خدمات نرم افزاری' },
+      { name: 'trackingCode', label: 'کد پیگیری مجوز', example: 'BL123456' },
+      { name: 'isuuer', label: 'صادر کننده مجوز', example: 'اتاق اصناف' },
+      { name: 'fullName', label: 'نام کامل', example: 'علی رضایی' },
+      { name: 'fatherName', label: 'نام پدر', example: 'محمد' },
+      { name: 'nationalCode', label: 'کد ملی', example: '0010007700' },
+      { name: 'phone', label: 'تلفن', example: '09120000000' },
+      { name: 'issueDate', label: 'تاریخ صدور', example: '1402/01/01' },
+      { name: 'expireDate', label: 'تاریخ انقضاء<', example: '1402/01/01' },
+      { name: 'province', label: 'استان', example: 'تهران' },
+      { name: 'city', label: 'شهر', example: 'تهران' },
+      { name: 'address', label: 'آدرس' },
+      { name: 'postalCode', label: 'کد پستی' },
+    ],
   },
   {
     key: 'medicallicense',
@@ -387,6 +555,15 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'medicalCode', label: 'کد مجوز پزشکی', required: true, placeholder: 'BL123456' },
     ],
+    responseFields: [
+      { name: 'firstName', label: 'نام', example: 'علی' },
+      { name: 'lastName', label: 'نام خانوادگی', example: 'محمدی' },
+      { name: 'medicalCode', label: 'کد نظام پزشکی', example: '123456' },
+      { name: 'degree', label: 'مدرک تحصیلی', example: 'پزشک عمومی' },
+      { name: 'city', label: 'شهر', example: 'تهران' },
+      { name: 'membershipType', label: 'نوع عضویت', example: 'عضو اصلی' },
+      { name: 'licenses', label: 'لیست مجوزها' },
+    ],
   },
   {
     key: 'taxrecords',
@@ -397,6 +574,9 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     path: '/api/sw1/TaxRecords',
     fields: [
       { name: 'inquiryCode', label: 'کد استعلام', required: true, placeholder: '14007650912' },
+    ],
+    responseFields: [
+      { name: 'records', label: 'لیست پرونده ها' },
     ],
   },
   {
@@ -422,6 +602,9 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
       { name: 'nationalCode', label: 'کد ملی', required: true, placeholder: '0010007700' },
       { name: 'mobile', label: 'موبایل', required: true, placeholder: '09120000000' },
     ],
+    responseFields: [
+      { name: 'licenses', label: 'گواهینامه ها' },
+    ],
   },
   {
     key: 'drivinglisense',
@@ -433,6 +616,9 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'nationalCode', label: 'کد ملی', required: true, placeholder: '0010007700' },
       { name: 'mobile', label: 'موبایل', required: true, placeholder: '09120000000' },
+    ],
+    responseFields: [
+      { name: 'lisenses', label: 'گواهینامه ها' },
     ],
   },
   {
@@ -447,6 +633,12 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
       { name: 'mobile', label: 'موبایل', required: true, placeholder: '09120000000' },
       { name: 'licenseNumber', label: 'شماره گواهینامه', required: true, placeholder: '20983905093' },
     ],
+    responseFields: [
+      { name: 'licenseNumber', label: 'شماره گواهینامه', example: '9380904743' },
+      { name: 'negativeScore', label: 'امتیاز منفی گواهینامه', example: '2' },
+      { name: 'offenseCount', label: 'تعداد خلافی', example: '5' },
+      { name: 'rule', label: 'حکم یا قانون مرتبط با وضعیت گواهینامه', example: '-' },
+    ],
   },
   {
     key: 'militarystatus',
@@ -458,6 +650,9 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'nationalCode', label: 'کد ملی', required: true, placeholder: '0012345678' },
       { name: 'birthDate', label: 'تاریخ تولد', required: true, type: 'date', placeholder: '1370/05/20' },
+    ],
+    responseFields: [
+      { name: 'isAllowed', label: 'مجاز بودن شخص از نظر وضعیت نظام وظیفه', example: 'false' },
     ],
   },
   {
@@ -471,6 +666,11 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
       { name: 'nationalCode', label: 'کد ملی', required: true, placeholder: '0010007700' },
       { name: 'plateNumber', label: 'شماره پلاک', required: true, placeholder: 'ایران 11 – 1111 ب 11' },
     ],
+    responseFields: [
+      { name: 'plateHistory', label: 'تاریخچه پلاک' },
+      { name: 'description', label: 'شرح / وضعیت پلاک', example: 'دارای مالک - نصب برروی وسیله' },
+      { name: 'serialNumber', label: 'شماره سریال پلاک', example: '123456789' },
+    ],
   },
   {
     key: 'vehiclecard',
@@ -483,6 +683,18 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
       { name: 'nationalCode', label: 'کد ملی', required: true, placeholder: '0010007700' },
       { name: 'plateNumber', label: 'شماره پلاک', required: true, placeholder: 'ایران 11 – 1111 ب 11' },
     ],
+    responseFields: [
+      { name: 'cardPostalBarcode', label: 'بارکد پستی کارت', example: '1234567890' },
+      { name: 'cardStatus', label: 'cardStatus' },
+      { name: 'cardIssuanceDate', label: 'تاریخ صدور کارت', example: '2025-01-01T00:00:00' },
+      { name: 'cardPrintDate', label: 'تاریخ چاپ کارت', example: '2025-01-02T00:00:00' },
+      { name: 'isSmart', label: 'کارت هوشمند هست یا نه', example: 'true' },
+      { name: 'cardType', label: 'نوع کارت' },
+      { name: 'documentStatus', label: 'وضعیت سند', example: '1' },
+      { name: 'documentIssuanceDate', label: 'تاریخ صدور سند', example: '2025-01-03T00:00:00' },
+      { name: 'documentPrintDate', label: 'تاریخ چاپ سند', example: '2025-01-04T00:00:00' },
+      { name: 'documentType', label: 'نوع سند' },
+    ],
   },
   {
     key: 'vehicleinfo',
@@ -494,6 +706,13 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'nationalCode', label: 'کد ملی', required: true, placeholder: '0010007700' },
       { name: 'plateNumber', label: 'شماره پلاک', required: true, placeholder: 'ایران 11 – 1111 ب 11' },
+    ],
+    responseFields: [
+      { name: 'name', label: 'نام خودرو', example: 'پژو 206' },
+      { name: 'engineNumber', label: 'شماره موتور', example: 'MHA882UJJAJOAQ' },
+      { name: 'chassisNumber', label: 'شماره شاسی', example: 'N9JINJWJ2NXVAI31' },
+      { name: 'vin', label: 'شماره VIN', example: 'UK3939028JMJ3P202' },
+      { name: 'model', label: 'مدل', example: '1403' },
     ],
   },
   {
@@ -508,6 +727,11 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
       { name: 'mobile', label: 'موبایل', required: true, placeholder: '09120001111' },
       { name: 'plateNumber', label: 'شماره پلاک', required: true, placeholder: 'ایران 11 – 1111 ب 11' },
     ],
+    responseFields: [
+      { name: 'violations', label: 'لیست خلافی‌های خودرو' },
+      { name: 'totalAmount', label: 'مبلغ کل جریمه‌ها', example: '600000' },
+      { name: 'count', label: 'تعداد', example: '600000' },
+    ],
   },
   {
     key: 'geotoaddress',
@@ -519,6 +743,11 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'latitude', label: 'طول جغرافیایی', required: true },
       { name: 'longitude', label: 'عرض جغرافیایی', required: true },
+    ],
+    responseFields: [
+      { name: 'province', label: 'استان', example: 'تهران' },
+      { name: 'city', label: 'شهر', example: 'تهران' },
+      { name: 'address', label: 'آدرس', example: 'تهران، خیابان انقلاب، پلاک 12' },
     ],
   },
   {
@@ -542,6 +771,22 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'ip', label: 'آدرس IP', required: true, placeholder: '5.212.154.19' },
     ],
+    responseFields: [
+      { name: 'query', label: 'آی پی استعلام شده', example: '5.212.154.19' },
+      { name: 'status', label: 'وضعیت', example: 'success' },
+      { name: 'country', label: 'کشور', example: 'Iran' },
+      { name: 'countryCode', label: 'کد کشور', example: 'IR' },
+      { name: 'region', label: 'کد منطقه', example: '30' },
+      { name: 'regionName', label: 'نام منطقه', example: 'Tehran Province' },
+      { name: 'city', label: 'شهر', example: 'Tehran' },
+      { name: 'zip', label: 'کد پستی', example: '13243676865' },
+      { name: 'lat', label: 'طول جغرافیایی', example: '35.1327' },
+      { name: 'lon', label: 'عرض جغرافیایی', example: '50.2916' },
+      { name: 'timezone', label: 'منطقه', example: 'Asia/Tehran' },
+      { name: 'isp', label: 'آی اس پی', example: 'Mobile Communication Company of Iran' },
+      { name: 'org', label: 'سازمان', example: 'Mobile Communication Company' },
+      { name: 'as', label: 'شناسه بین‌المللی سیستم شبکه', example: 'AS197207 Mobile Communication Company of Iran PLC' },
+    ],
   },
   {
     key: 'myip',
@@ -562,6 +807,20 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'postalCode', label: 'کد پستی', required: true, placeholder: '1234567890' },
     ],
+    responseFields: [
+      { name: 'province', label: 'استان', example: 'تهران' },
+      { name: 'city', label: 'شهر', example: 'تهران' },
+      { name: 'town', label: 'شهرستان / بخش', example: 'مرکز' },
+      { name: 'district', label: 'منطقه / ناحیه', example: '1' },
+      { name: 'street', label: 'خیابان اصلی', example: 'انقلاب' },
+      { name: 'street2', label: 'خیابان فرعی / کوچه', example: '12' },
+      { name: 'number', label: 'پلاک', example: '10' },
+      { name: 'floor', label: 'طبقه', example: '1' },
+      { name: 'sideFloor', label: 'جهت طبقه (مثلاً شرقی یا غربی)', example: 'شرقی' },
+      { name: 'buildingName', label: 'نام ساختمان', example: 'ساختمان نمونه' },
+      { name: 'description', label: 'توضیحات تکمیلی', example: 'بدون توضیح' },
+      { name: 'address', label: 'آدرس', example: 'تهران تهران خیابان استاد مطهری ...' },
+    ],
   },
   {
     key: 'postalcodelocation',
@@ -572,6 +831,11 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     path: '/api/sw1/PostalCodeLocation',
     fields: [
       { name: 'postalCode', label: 'کد پستی', required: true, placeholder: '1234567890' },
+    ],
+    responseFields: [
+      { name: 'mapUrl', label: 'لینک نمایش لوکیشن', example: 'https://maps.google.com/?q=34.6892,55.3890' },
+      { name: 'lat', label: 'عرض جغرافیایی', example: '35.6892' },
+      { name: 'long', label: 'طول جغرافیایی', example: '51.389' },
     ],
   },
   {
@@ -584,6 +848,23 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'postalCode', label: 'کد پستی', required: true, placeholder: '1234567890' },
     ],
+    responseFields: [
+      { name: 'province', label: 'استان', example: 'تهران' },
+      { name: 'city', label: 'شهر', example: 'تهران' },
+      { name: 'town', label: 'شهرستان / بخش', example: 'مرکز' },
+      { name: 'district', label: 'منطقه / ناحیه', example: '1' },
+      { name: 'street', label: 'خیابان اصلی', example: 'انقلاب' },
+      { name: 'street2', label: 'خیابان فرعی / کوچه', example: '12' },
+      { name: 'number', label: 'پلاک', example: '10' },
+      { name: 'floor', label: 'طبقه', example: '1' },
+      { name: 'sideFloor', label: 'جهت طبقه (مثلاً شرقی یا غربی)', example: 'شرقی' },
+      { name: 'buildingName', label: 'نام ساختمان', example: 'ساختمان نمونه' },
+      { name: 'description', label: 'توضیحات تکمیلی', example: 'بدون توضیح' },
+      { name: 'address', label: 'آدرس', example: 'تهران تهران خیابان استاد مطهری ...' },
+      { name: 'mapUrl', label: 'لینک نمایش لوکیشن', example: 'https://maps.google.com/?q==34.6892,55.3890' },
+      { name: 'lat', label: 'عرض جغرافیایی', example: '35.6892' },
+      { name: 'long', label: 'طول جغرافیایی', example: '51.389' },
+    ],
   },
   {
     key: 'postaltracking',
@@ -594,6 +875,19 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     path: '/api/sw1/PostalTracking',
     fields: [
       { name: 'trackingCode', label: 'کد پیگیری', required: true, placeholder: '1234567890' },
+    ],
+    responseFields: [
+      { name: 'postType', label: 'نوع ارسال', example: 'سفارشی' },
+      { name: 'sourcePostOffice', label: 'دفتر پست مبدا', example: 'دفتر پست مرکزی تهران' },
+      { name: 'source', label: 'مبدا', example: 'تهران' },
+      { name: 'destination', label: 'مقصد', example: 'مشهد' },
+      { name: 'senderName', label: 'فرستنده', example: 'علی رضایی' },
+      { name: 'receiverName', label: 'گیرنده', example: 'سارا احمدی' },
+      { name: 'sourcePostalCode', label: 'کدپستی مبدا', example: '1234567890' },
+      { name: 'destinationPostalCode', label: 'کدپستی مقصد', example: '0987654321' },
+      { name: 'weight', label: 'وزن', example: '500 گرم' },
+      { name: 'totalAmount', label: 'هزینه', example: '150000 ریال' },
+      { name: 'details', label: 'جزئیات' },
     ],
   },
   {
@@ -606,6 +900,12 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'billID', label: 'شناسه قبض', required: true, placeholder: '1100151403410' },
     ],
+    responseFields: [
+      { name: 'amount', label: 'مبلغ', example: '150000' },
+      { name: 'billID', label: 'شناسه قبض', example: '1100151403410' },
+      { name: 'payID', label: 'شناسه پرداخت', example: '987654321' },
+      { name: 'date', label: 'تاریخ', example: '1404/01/01' },
+    ],
   },
   {
     key: 'gasbillinfo',
@@ -616,6 +916,14 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     path: '/api/sw1/GasBillInfo',
     fields: [
       { name: 'billID', label: 'شناسه قبض', required: true, placeholder: '1100151403410' },
+    ],
+    responseFields: [
+      { name: 'info', label: 'info' },
+      { name: 'print', label: 'print' },
+      { name: 'amount', label: 'مبلغ', example: '150000' },
+      { name: 'billID', label: 'شناسه قبض', example: '1100151403410' },
+      { name: 'payID', label: 'شناسه پرداخت', example: '987654321' },
+      { name: 'date', label: 'تاریخ', example: '1404/01/01' },
     ],
   },
   {
@@ -628,6 +936,12 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'billID', label: 'شناسه قبض', required: true, placeholder: '1100151403410' },
     ],
+    responseFields: [
+      { name: 'amount', label: 'مبلغ', example: '150000' },
+      { name: 'billID', label: 'شناسه قبض', example: '1100151403410' },
+      { name: 'payID', label: 'شناسه پرداخت', example: '987654321' },
+      { name: 'date', label: 'تاریخ', example: '1404/01/01' },
+    ],
   },
   {
     key: 'powerbillinfo',
@@ -638,6 +952,14 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     path: '/api/sw1/PowerBillInfo',
     fields: [
       { name: 'billID', label: 'شناسه قبض', required: true, placeholder: '1100151403410' },
+    ],
+    responseFields: [
+      { name: 'info', label: 'info' },
+      { name: 'print', label: 'print' },
+      { name: 'amount', label: 'مبلغ', example: '150000' },
+      { name: 'billID', label: 'شناسه قبض', example: '1100151403410' },
+      { name: 'payID', label: 'شناسه پرداخت', example: '987654321' },
+      { name: 'date', label: 'تاریخ', example: '1404/01/01' },
     ],
   },
   {
@@ -650,6 +972,12 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     fields: [
       { name: 'billID', label: 'شناسه قبض', required: true, placeholder: '1100151403410' },
     ],
+    responseFields: [
+      { name: 'amount', label: 'مبلغ', example: '150000' },
+      { name: 'billID', label: 'شناسه قبض', example: '1100151403410' },
+      { name: 'payID', label: 'شناسه پرداخت', example: '987654321' },
+      { name: 'date', label: 'تاریخ', example: '1404/01/01' },
+    ],
   },
   {
     key: 'watterbillinfo',
@@ -660,6 +988,14 @@ export const APIIR_SERVICES: ApiIrServiceDef[] = [
     path: '/api/sw1/WatterBillInfo',
     fields: [
       { name: 'billID', label: 'شناسه قبض', required: true, placeholder: '1100151403410' },
+    ],
+    responseFields: [
+      { name: 'info', label: 'info' },
+      { name: 'print', label: 'print' },
+      { name: 'amount', label: 'مبلغ', example: '150000' },
+      { name: 'billID', label: 'شناسه قبض', example: '1100151403410' },
+      { name: 'payID', label: 'شناسه پرداخت', example: '987654321' },
+      { name: 'date', label: 'تاریخ', example: '1404/01/01' },
     ],
   },
   {
