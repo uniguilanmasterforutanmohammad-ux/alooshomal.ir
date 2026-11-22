@@ -38,6 +38,7 @@ import {
 } from '../onboarding/onboarding.constants';
 import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
+import { resolvePendingBusinessPhones } from '../profile/business-identity-phones';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { WalletService } from '../wallet/wallet.service';
@@ -1134,9 +1135,6 @@ export class SubscriptionsPaymentService {
     }
     const needsIdentity = !user.identityVerifiedAt;
     const needsLicense = withLicense && !user.businessLicenseVerifiedAt;
-    if (!needsIdentity && !needsLicense) {
-      return { amount: 0, data: null };
-    }
     let nationalCode = (input.nationalCode ?? user.nationalCode ?? '').trim();
     let birthDate = (input.birthDate ?? user.birthDate ?? '').trim();
     if (needsIdentity) {
@@ -1166,11 +1164,26 @@ export class SubscriptionsPaymentService {
       nationalCode = nationalCode || '';
       birthDate = birthDate || '';
     }
+    // Every changed/added business mobile is its own Shahkar inquiry, priced
+    // on top of the primary identity bundle.
+    const pendingExtraPhones = await resolvePendingBusinessPhones(
+      this.prisma,
+      user.id,
+      user.phone,
+      nationalCode || user.nationalCode || null,
+    );
+    const needsExtraPhones = pendingExtraPhones.length > 0;
+    if (!needsIdentity && !needsLicense && !needsExtraPhones) {
+      return { amount: 0, data: null };
+    }
+    if (needsExtraPhones && !isValidNationalCode(nationalCode)) {
+      throw new BadRequestException('کد ملی وارد‌شده معتبر نیست');
+    }
     const [identityBundle, licensePrice] = await Promise.all([
       this.zohal.identityBundleQuote(),
       needsLicense ? this.apiir.getServicePrice('license') : Promise.resolve(0),
     ]);
-    if (needsIdentity && !identityBundle.available) {
+    if ((needsIdentity || needsExtraPhones) && !identityBundle.available) {
       throw new BadRequestException(
         'استعلام هویت در حال حاضر فعال نیست؛ لطفاً بعداً دوباره تلاش کنید.',
       );
@@ -1179,6 +1192,9 @@ export class SubscriptionsPaymentService {
       0,
       Math.round(
         (needsIdentity ? identityBundle.total : 0) +
+          (needsExtraPhones
+            ? identityBundle.shahkar * pendingExtraPhones.length
+            : 0) +
           (needsLicense ? licensePrice : 0),
       ),
     );

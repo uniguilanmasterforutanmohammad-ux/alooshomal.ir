@@ -31,6 +31,7 @@ import { ONBOARDING_FINISHED_STEP_ID } from '../onboarding/onboarding.constants'
 import { PrismaService } from '../prisma/prisma.service';
 import { ZohalService } from '../zohal/zohal.service';
 import { WalletService } from '../wallet/wallet.service';
+import { resolvePendingBusinessPhones } from './business-identity-phones';
 
 // Only these profile fields may be changed through a request. Everything else
 // (role, password, ...) is intentionally out of scope. Phone/email changes are
@@ -946,12 +947,6 @@ export class ProfileService {
         'برای استعلام جواز کسب، کد پیگیری جواز را وارد کنید.',
       );
     }
-    if (
-      user.identityVerifiedAt &&
-      (!withLicense || (await this.hasVerifiedBusinessLicense(userId)))
-    ) {
-      return { alreadyVerified: true, amount: 0, url: null, paid: false };
-    }
     if (!user.phone || !user.phoneVerified) {
       throw new BadRequestException(
         'برای استعلام هویت، ابتدا باید شماره موبایل حساب تأیید شده باشد.',
@@ -972,6 +967,20 @@ export class ProfileService {
     });
     if (owner && owner.id !== userId) {
       throw new ConflictException('این کد ملی قبلاً برای حساب دیگری ثبت شده است');
+    }
+    // Each changed/added business mobile is a separate Shahkar inquiry.
+    const pendingExtraPhones = await resolvePendingBusinessPhones(
+      this.prisma,
+      userId,
+      user.phone,
+      nationalCode,
+    );
+    if (
+      user.identityVerifiedAt &&
+      pendingExtraPhones.length === 0 &&
+      (!withLicense || (await this.hasVerifiedBusinessLicense(userId)))
+    ) {
+      return { alreadyVerified: true, amount: 0, url: null, paid: false };
     }
 
     // A verified-but-not-yet-consumed payment is reused, so a browser refresh
@@ -1001,14 +1010,20 @@ export class ProfileService {
       this.zohal.identityBundleQuote(),
       withLicense ? this.apiir.getServicePrice('license') : Promise.resolve(0),
     ]);
-    if (!user.identityVerifiedAt && !bundle.available) {
+    if (
+      (!user.identityVerifiedAt || pendingExtraPhones.length > 0) &&
+      !bundle.available
+    ) {
       throw new BadRequestException(
         'استعلام هویت در حال حاضر فعال نیست؛ لطفاً بعداً دوباره تلاش کنید.',
       );
     }
     // An account that already has a white tick only pays for the license leg
     // (the wizard lets it upgrade to the blue tick without paying twice).
-    const total = (user.identityVerifiedAt ? 0 : bundle.total) + licenseAmount;
+    const total =
+      (user.identityVerifiedAt ? 0 : bundle.total) +
+      bundle.shahkar * pendingExtraPhones.length +
+      licenseAmount;
     if (total < 1000) {
       throw new BadRequestException(
         'تعرفه‌ی استعلام هویت برای پرداخت آنلاین معتبر نیست؛ با پشتیبانی تماس بگیرید.',
@@ -1137,6 +1152,8 @@ export class ProfileService {
     const licenseAvailable = (enabled.license ?? false) && licensePrice > 0;
     return {
       identityTotal: bundle.total,
+      shahkarPrice: bundle.shahkar,
+      identityPrice: bundle.identity,
       identityAvailable: bundle.available,
       licensePrice,
       licenseAvailable,
@@ -1266,6 +1283,13 @@ export class ProfileService {
         payment.nationalCode,
         payment.birthDate,
       );
+    } else if (payment.nationalCode) {
+      // The white tick already exists; only the extra business mobiles that
+      // were paid for in this bundle still need their Shahkar match.
+      await this.verifyBusinessMobilesForUser(
+        payment.userId,
+        payment.nationalCode,
+      );
     }
     if (payment.withLicense && !user.businessLicenseVerifiedAt) {
       if (!payment.licenseTrackingCode) {
@@ -1342,6 +1366,7 @@ export class ProfileService {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
+        nationalCode: true,
         identityVerifiedAt: true,
         businessLicenseVerifiedAt: true,
       },
@@ -1353,6 +1378,14 @@ export class ProfileService {
         data.nationalCode ?? null,
         data.birthDate ?? null,
       );
+    } else {
+      // Extra business mobiles can be paid for even when the white tick is
+      // already issued; the identity call itself is skipped but each new
+      // number still needs its own Shahkar match.
+      const nationalCode = (data.nationalCode ?? user.nationalCode ?? '').trim();
+      if (nationalCode) {
+        await this.verifyBusinessMobilesForUser(userId, nationalCode);
+      }
     }
     let businessLicenseVerified = Boolean(user.businessLicenseVerifiedAt);
     let businessLicenseMessage: string | null = null;

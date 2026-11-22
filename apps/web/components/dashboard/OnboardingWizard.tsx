@@ -26,6 +26,7 @@ import {
   Loader2,
   Lock,
   PartyPopper,
+  Phone,
   ShieldCheck,
   Sparkles,
   Upload,
@@ -170,6 +171,10 @@ interface IdentityState {
 /** Tariff of the identity bundle and the optional license inquiry. */
 interface IdentityQuote {
   identityTotal: number;
+  /** Price of one Shahkar phone-ownership inquiry. */
+  shahkarPrice?: number;
+  /** Price of the national-code + birth-date identity inquiry. */
+  identityPrice?: number;
   identityAvailable?: boolean;
   licensePrice: number;
   licenseAvailable: boolean;
@@ -341,6 +346,9 @@ export function OnboardingWizard() {
   // Identity step: the optional «جواز کسب» leg that turns the white tick into
   // a blue tick. Both its price and availability come from the server quote.
   const [identityQuote, setIdentityQuote] = useState<IdentityQuote | null>(null);
+  // Numbers already matched with Shahkar (account phone + earlier inquiries).
+  // A changed/added business mobile that is already here is not charged again.
+  const [verifiedPhones, setVerifiedPhones] = useState<string[]>([]);
   const [withLicense, setWithLicense] = useState(false);
   const [licenseTrackingCode, setLicenseTrackingCode] = useState('');
   // Plan step: the «مدیریت کسب‌وکار» add-on offered only when the step-2
@@ -430,6 +438,12 @@ export function OnboardingWizard() {
       .get<IdentityQuote>('/profile/identity/quote')
       .then((quote) => setIdentityQuote(quote))
       .catch(() => setIdentityQuote(null));
+    void api
+      .get<{ verifiedPhones?: Array<{ phone: string }> }>('/profile/me')
+      .then((me) =>
+        setVerifiedPhones((me.verifiedPhones ?? []).map((entry) => entry.phone)),
+      )
+      .catch(() => setVerifiedPhones([]));
     void api
       .get<{ industries?: CatalogIndustry[] }>('/business-modules/catalog')
       .then((catalog) => setCatalogIndustries(catalog.industries ?? []))
@@ -910,6 +924,10 @@ export function OnboardingWizard() {
       : undefined;
     const needsIdentity = identityChargeable;
     const needsLicense = licenseChargeable;
+    const needsExtraPhones = extraIdentityChargeable;
+    const identityNationalCode =
+      nationalCode.trim() || payload?.identity?.nationalCode || '';
+    const identityBirthDate = birthDate || payload?.identity?.birthDate || undefined;
     if (needsIdentity && !payload?.identity?.phoneMatched) {
       if (!/^\d{10}$/.test(nationalCode.trim()) || !birthDate) {
         toast.error(
@@ -918,16 +936,23 @@ export function OnboardingWizard() {
         return;
       }
     }
+    if (needsExtraPhones && !/^\d{10}$/.test(identityNationalCode)) {
+      toast.error(
+        'برای استعلام شاهکار شماره‌های کسب‌وکار، ابتدا کد ملی را در مرحله‌ی استعلام وارد کنید.',
+      );
+      return;
+    }
     if (needsLicense && !licenseTrackingCode.trim()) {
       toast.error('برای استعلام جواز کسب، کد پیگیری جواز را وارد کنید.');
       return;
     }
     const identity =
-      needsIdentity || needsLicense
+      needsIdentity || needsLicense || needsExtraPhones
         ? {
-            ...(needsIdentity
-              ? { nationalCode: nationalCode.trim(), birthDate }
+            ...(identityNationalCode
+              ? { nationalCode: identityNationalCode }
               : {}),
+            ...(identityBirthDate ? { birthDate: identityBirthDate } : {}),
             withLicense: needsLicense,
             ...(needsLicense
               ? { licenseTrackingCode: licenseTrackingCode.trim() }
@@ -1003,6 +1028,10 @@ export function OnboardingWizard() {
   const identityTotal =
     identityQuote?.identityTotal ??
     identityServices.reduce((total, item) => total + (item.price ?? 0), 0);
+  const shahkarPrice =
+    identityQuote?.shahkarPrice ??
+    identityServices.find((item) => item.key === 'shahkar')?.price ??
+    0;
   const identityAvailable =
     identityQuote?.identityAvailable ?? identityServices.length >= 2;
   const licensePrice = identityQuote?.licensePrice ?? 0;
@@ -1044,16 +1073,40 @@ export function OnboardingWizard() {
   // for (the phone(s), national code, license tracking code or business).
   const invoiceNationalCode =
     payload.identity?.nationalCode?.trim() || nationalCode.trim();
-  const invoicePhones = Array.from(
+  const invoiceBirthDate = (() => {
+    const jalali = isoToJalali(birthIso);
+    if (jalali) {
+      return `${jalali.year}/${String(jalali.month).padStart(2, '0')}/${String(
+        jalali.day,
+      ).padStart(2, '0')}`;
+    }
+    return payload.identity?.birthDate ?? '';
+  })();
+  // The primary line is the account phone the user registered with. Every
+  // changed/added business mobile is a separate Shahkar line with its own fee.
+  const accountPhone = user?.phone ?? '';
+  const verifiedPhoneSet = new Set(verifiedPhones);
+  const extraBusinessPhones = Array.from(
     new Set(
-      [
-        businessState?.mobile,
-        ...(businessState?.additionalMobiles ?? []),
-        user?.phone,
-      ].filter((phone): phone is string => Boolean(phone && phone.trim())),
+      [businessState?.mobile, ...(businessState?.additionalMobiles ?? [])].filter(
+        (phone): phone is string =>
+          Boolean(
+            phone &&
+              phone.trim() &&
+              phone !== accountPhone &&
+              !verifiedPhoneSet.has(phone),
+          ),
+      ),
     ),
   );
-  const invoicePhoneText = invoicePhones.join('، ');
+  const extraIdentityChargeable =
+    identityAvailable &&
+    Boolean(identityStep) &&
+    (identityVerified || !identityStep?.optional || identityOptedIn) &&
+    extraBusinessPhones.length > 0;
+  const extraIdentityAmount = extraIdentityChargeable
+    ? shahkarPrice * extraBusinessPhones.length
+    : 0;
   const invoiceBusinessName = businessState?.name ?? 'کسب‌وکار شما';
   // Every available management package is listed; the quote for the chosen
   // plan carries the prorated price of each one.
@@ -1141,11 +1194,13 @@ export function OnboardingWizard() {
     planAmount +
     (includeManagement ? managementAmount : 0) +
     (identityChargeable ? identityTotal : 0) +
+    extraIdentityAmount +
     (licenseChargeable ? licensePrice : 0) +
     cartTotal;
   const planSelected = Boolean(selectedPlan);
   /** Identity/license items that still need to be paid on this invoice. */
-  const identityPayable = identityChargeable || licenseChargeable;
+  const identityPayable =
+    identityChargeable || extraIdentityChargeable || licenseChargeable;
   /** The invoice can be paid when it carries a plan or a pending inquiry. */
   const invoicePayable = planSelected || identityPayable || cartTotal > 0;
   const invoiceNeedsPayment = invoicePayable && invoiceTotalAmount >= 1000;
@@ -2259,11 +2314,14 @@ export function OnboardingWizard() {
                       label="استعلام هویت و تطبیق موبایل"
                       context={
                         [
-                          invoicePhones.length
-                            ? `برای شماره ${invoicePhoneText}`
+                          accountPhone
+                            ? `برای شماره ${accountPhone}`
                             : '',
                           invoiceNationalCode
                             ? `کد ملی ${invoiceNationalCode}`
+                            : '',
+                          invoiceBirthDate
+                            ? `تاریخ تولد ${invoiceBirthDate}`
                             : '',
                         ]
                           .filter(Boolean)
@@ -2272,6 +2330,26 @@ export function OnboardingWizard() {
                       amount={identityTotal}
                     />
                   ) : null}
+                  {extraIdentityChargeable
+                    ? extraBusinessPhones.map((phone) => (
+                        <InvoiceLine
+                          key={`extra-phone-${phone}`}
+                          icon={
+                            <Phone
+                              className="size-3.5 shrink-0 text-brand"
+                              aria-hidden
+                            />
+                          }
+                          label={`استعلام شاهکار شماره ${phone}`}
+                          context={
+                            phone === businessState?.mobile
+                              ? 'شماره تغییر یافته در مرحله کسب‌وکار'
+                              : 'شماره افزوده‌شده در مرحله کسب‌وکار'
+                          }
+                          amount={shahkarPrice}
+                        />
+                      ))
+                    : null}
                   {licenseChargeable ? (
                     <InvoiceLine
                       icon={
