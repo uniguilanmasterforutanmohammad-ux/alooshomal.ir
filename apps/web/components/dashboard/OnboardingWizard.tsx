@@ -38,6 +38,7 @@ import {
   type SubscriptionAddonQuotePackage,
   type SubscriptionCheckout,
   type SubscriptionPlan,
+  type TaxonomyItem,
 } from '@/lib/api';
 import { isoToJalali } from '@/lib/jalali';
 import {
@@ -355,6 +356,12 @@ export function OnboardingWizard() {
   // admin to define one; the request is filed as a support ticket.
   const [managementRequestSent, setManagementRequestSent] = useState(false);
   const [managementRequestBusy, setManagementRequestBusy] = useState(false);
+  const [managementRequestNote, setManagementRequestNote] = useState('');
+  // Step-2 category taxonomy, used to put the exact selected category name in
+  // the management request ticket (the workspace only keeps the industry key).
+  const [businessCategories, setBusinessCategories] = useState<TaxonomyItem[]>(
+    [],
+  );
   // Result of the identity inquiry that runs right after the combined payment.
   const [identityResult, setIdentityResult] = useState<{
     success: boolean;
@@ -427,6 +434,10 @@ export function OnboardingWizard() {
       .get<{ industries?: CatalogIndustry[] }>('/business-modules/catalog')
       .then((catalog) => setCatalogIndustries(catalog.industries ?? []))
       .catch(() => setCatalogIndustries([]));
+    void api
+      .get<TaxonomyItem[]>('/businesses')
+      .then((list) => setBusinessCategories(list))
+      .catch(() => setBusinessCategories([]));
   }, [load]);
 
   // The management add-on price is prorated for the chosen term; refresh the
@@ -835,13 +846,22 @@ export function OnboardingWizard() {
   async function requestManagementPackage() {
     const business = payload?.business ?? null;
     if (!business || managementRequestBusy || managementRequestSent) return;
+    const category = businessCategories.find(
+      (entry) => entry.id === business.businessId,
+    );
+    const categoryName = category?.name ?? business.industryLabel;
+    const note = managementRequestNote.trim();
     setManagementRequestBusy(true);
     try {
       await api.post('/tickets', {
-        subject: 'درخواست بسته مدیریت کسب‌وکار',
+        subject: `درخواست بسته مدیریت کسب‌وکار — ${categoryName}`.slice(0, 160),
         message: [
           `درخواست بسته‌ی مدیریت برای کسب‌وکار «${business.name}» ثبت شد.`,
-          `دسته‌بندی مرحله‌ی کسب‌وکار: «${business.industryLabel}» (${business.industryKey}).`,
+          `دسته‌بندی انتخاب‌شده در مرحله‌ی کسب‌وکار: «${categoryName}»${
+            business.businessId ? ` (شناسه: ${business.businessId})` : ''
+          }.`,
+          `صنف/بسته‌ی پیشنهادی سامانه: «${business.industryLabel}» (${business.industryKey}).`,
+          `توضیح دقیق کسب‌وکار متقاضی: ${note || '—'}`,
           'لطفاً بسته‌ی مدیریت مناسب این کسب‌وکار را تعریف یا فعال کنید.',
         ].join('\n'),
         priority: 'NORMAL',
@@ -1013,6 +1033,13 @@ export function OnboardingWizard() {
       Boolean(identityStep) &&
       (!identityStep?.optional || identityOptedIn));
   const businessState = payload.business;
+  const selectedBusinessCategory =
+    businessCategories.find((entry) => entry.id === businessState?.businessId) ??
+    null;
+  const selectedBusinessCategoryName =
+    selectedBusinessCategory?.name ??
+    businessState?.industryLabel ??
+    'دسته‌بندی ثبت نشده';
   // Invoice context: every service line states the exact subject it is charged
   // for (the phone(s), national code, license tracking code or business).
   const invoiceNationalCode =
@@ -2155,10 +2182,29 @@ export function OnboardingWizard() {
                     درخواست بسته مدیریت این کسب‌وکار
                   </p>
                   <p className="mt-1 text-[11px] leading-6 text-muted">
-                    برای دسته‌بندی «{businessState?.industryLabel}» هنوز بسته‌ی
+                    برای دسته‌بندی «{selectedBusinessCategoryName}» هنوز بسته‌ی
                     مدیریتی تعریف نشده است. با ثبت درخواست، تیم پشتیبانی بسته‌ی
                     مناسب کسب‌وکار شما را آماده می‌کند.
                   </p>
+                  <label className="mt-3 flex flex-col gap-1.5">
+                    <span className="text-[11px] font-bold text-ink">
+                      توضیح دقیق کسب‌وکار متقاضی
+                    </span>
+                    <textarea
+                      className="indeed-input min-h-20 resize-y text-xs leading-6"
+                      maxLength={1000}
+                      value={managementRequestNote}
+                      disabled={managementRequestSent}
+                      onChange={(event) =>
+                        setManagementRequestNote(event.target.value)
+                      }
+                      placeholder="مثلاً: فروشگاه لوازم خانگی با ۲ شعبه در بابل؛ نیاز به مدیریت سفارش، باشگاه مشتریان و گالری محصولات."
+                    />
+                    <span className="text-[10px] leading-5 text-muted">
+                      این توضیح همراه دسته‌بندی انتخابی برای مدیر ارسال
+                      می‌شود.
+                    </span>
+                  </label>
                   <button
                     type="button"
                     onClick={() => void requestManagementPackage()}
