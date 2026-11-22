@@ -14,6 +14,10 @@ import {
 } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
+import {
+  getBusinessModule,
+  INDUSTRY_PACKAGES,
+} from '../business-modules/business-modules.registry';
 import { jalaliParts } from '../common/jalali';
 import { PrismaService } from '../prisma/prisma.service';
 import { resolveBoostTargetLabels } from '../boosts/boosts-targets';
@@ -666,7 +670,13 @@ export class FinanceService implements OnModuleInit {
       if (invoice) created += 1;
     };
 
-    const [subscriptions, requestPayments, feedTags, servicePayments] =
+    const [
+      subscriptions,
+      requestPayments,
+      feedTags,
+      servicePayments,
+      modulePurchases,
+    ] =
       await Promise.all([
       this.prisma.subscriptionPayment.findMany({
         where: { status: PaymentStatus.PAID },
@@ -694,6 +704,9 @@ export class FinanceService implements OnModuleInit {
         include: {
           user: { select: { fullName: true, email: true, phone: true } },
         },
+      }),
+      this.prisma.businessModulePurchase.findMany({
+        where: { status: 'PAID' },
       }),
     ]);
 
@@ -763,6 +776,34 @@ export class FinanceService implements OnModuleInit {
         customerPhone: payment.user?.phone ?? null,
         customerEmail: payment.user?.email ?? null,
         metadata: { serviceKey: payment.serviceKey, refId: payment.refId },
+      });
+    }
+
+    for (const purchase of modulePurchases) {
+      const paidAt = purchase.paidAt ?? purchase.createdAt;
+      const isPackage = purchase.moduleKey.startsWith('package:');
+      const key = isPackage
+        ? purchase.moduleKey.slice('package:'.length)
+        : purchase.moduleKey;
+      const label = isPackage
+        ? (INDUSTRY_PACKAGES.find((item) => item.key === key)?.label ?? key)
+        : (getBusinessModule(key)?.label ?? key);
+      await ensure({
+        sourceType: FINANCE_SOURCE_TYPES.BUSINESS_MODULE,
+        sourceId: purchase.id,
+        title: isPackage
+          ? `خرید مدیریت کسب‌وکار «${label}»`
+          : `خرید ماژول «${label}»`,
+        amount: purchase.amount,
+        issuedAt: paidAt,
+        paidAt,
+        userId: purchase.userId,
+        metadata: {
+          moduleKey: purchase.moduleKey,
+          months: purchase.months,
+          workspaceId: purchase.workspaceId,
+          expiresAt: purchase.expiresAt?.toISOString() ?? null,
+        },
       });
     }
 

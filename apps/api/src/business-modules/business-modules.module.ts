@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { ActivityModule } from '../activity/activity.module';
+import { FinanceModule } from '../finance/finance.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { PaypingModule } from '../payping/payping.module';
 import { SettingsModule } from '../settings/settings.module';
@@ -20,6 +21,7 @@ import { PublicBusinessExtrasController } from './public-business-extras.control
     PaypingModule,
     NotificationsModule,
     ActivityModule,
+    FinanceModule,
   ],
   controllers: [
     BusinessModulesController,

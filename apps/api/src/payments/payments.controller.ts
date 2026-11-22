@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
@@ -16,5 +16,13 @@ export class PaymentsController {
   })
   mine(@CurrentUser() user: AuthUser) {
     return this.payments.mine(user.id);
+  }
+
+  @Get('invoices/:id')
+  @ApiOperation({
+    summary: 'فاکتور کامل یکی از پرداخت‌های من (فقط برای صاحب همان فاکتور)',
+  })
+  invoice(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.payments.invoice(user.id, id);
   }
 }

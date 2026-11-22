@@ -16,6 +16,8 @@ import { randomBytes } from 'node:crypto';
 import { ActivityService } from '../activity/activity.service';
 import { paypingReturnBaseUrl } from '../common/app-url';
 import { addMonths, isFreePlan } from '../common/plans';
+import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
+import { FinanceService } from '../finance/finance.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
@@ -192,6 +194,7 @@ export class BusinessModulesService implements OnModuleInit {
     private readonly simulator: PaymentSimulatorService,
     private readonly notifications: NotificationsService,
     private readonly activity: ActivityService,
+    private readonly finance: FinanceService,
   ) {}
 
   /**
@@ -1603,6 +1606,7 @@ export class BusinessModulesService implements OnModuleInit {
         months,
         isExtension ? targetPaidUntil : undefined,
       );
+      await this.recordModuleInvoice(purchase, { isExtension });
       await this.notifications.notify({
         userId,
         type: NotificationType.SUCCESS,
@@ -1760,6 +1764,53 @@ export class BusinessModulesService implements OnModuleInit {
     return { definition, price };
   }
 
+  /**
+   * Archive a paid module/package purchase as an invoice, so every settled
+   * business-module payment shows up in the admin finance panel and the user's
+   * «پرداخت‌های من» with full details (rule: every payment has an invoice).
+   * Idempotent per purchase id.
+   */
+  private async recordModuleInvoice(
+    purchase: {
+      id: string;
+      workspaceId: string;
+      moduleKey: string;
+      userId: string;
+      amount: number;
+      months: number;
+      paidAt: Date | null;
+      expiresAt: Date | null;
+    },
+    options: { isExtension?: boolean } = {},
+  ) {
+    const isPackage = purchase.moduleKey.startsWith('package:');
+    const key = isPackage
+      ? purchase.moduleKey.slice('package:'.length)
+      : purchase.moduleKey;
+    const label = isPackage
+      ? (this.management(key)?.label ?? key)
+      : (getBusinessModule(key)?.label ?? key);
+    const isExtension = options.isExtension ?? false;
+    const paidAt = purchase.paidAt ?? new Date();
+    await this.finance.recordSale({
+      sourceType: FINANCE_SOURCE_TYPES.BUSINESS_MODULE,
+      sourceId: purchase.id,
+      title: isPackage
+        ? `${isExtension ? 'تمدید' : 'خرید'} مدیریت کسب‌وکار «${label}»`
+        : `خرید ماژول «${label}»`,
+      amount: purchase.amount,
+      issuedAt: paidAt,
+      paidAt,
+      userId: purchase.userId,
+      metadata: {
+        moduleKey: purchase.moduleKey,
+        months: purchase.months,
+        workspaceId: purchase.workspaceId,
+        expiresAt: purchase.expiresAt?.toISOString() ?? null,
+      },
+    });
+  }
+
   async purchase(
     userId: string,
     moduleKey: string,
@@ -1812,6 +1863,7 @@ export class BusinessModulesService implements OnModuleInit {
         idempotencyKey: `business-module:${purchase.id}`,
       });
       await this.activateModule(workspace.id, moduleKey, months);
+      await this.recordModuleInvoice(purchase);
       await this.notifications.notify({
         userId,
         type: NotificationType.SUCCESS,
@@ -2046,6 +2098,16 @@ export class BusinessModulesService implements OnModuleInit {
         purchase.months,
       );
     }
+    await this.recordModuleInvoice(
+      {
+        ...purchase,
+        paidAt: new Date(),
+        expiresAt:
+          purchase.expiresAt ??
+          (purchase.months > 0 ? addMonths(new Date(), purchase.months) : null),
+      },
+      { isExtension },
+    );
     await this.notifications.notify({
       userId: purchase.userId,
       type: NotificationType.SUCCESS,

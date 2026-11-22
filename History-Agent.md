@@ -20,7 +20,47 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.75.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.76.0**.
+
+> **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
+> همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
+> `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
+> `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
+> جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۲ — فاکتور و سابقه‌ی کامل برای هر پرداخت (قانون ۱۱) — نسخه `v4.76.0`
+
+**هدف:** قانون دائمی «هر پرداخت باید فاکتور و سابقه‌ی کامل داشته باشد» را
+اضافه کنیم و شکاف واقعی را ببندیم: خرید ماژول/مدیریت کسب‌وکار تا پیش از این
+هیچ فاکتوری در پنل مالی ادمین و هیچ ردیفی در «پرداخت‌های من» کاربر نداشت.
+
+**تغییرات:**
+- `AGENTS.md`: افزودن «قانون ۱۱ — فاکتور و سابقه‌ی کامل برای هر پرداخت».
+- `History-Agent.md`: ثبت همین قانون در سربرگ و این ورودی.
+- `apps/api/src/finance/finance.constants.ts`: منبع جدید
+  `BUSINESS_MODULE: 'BUSINESS_MODULE_PAYMENT'` و برچسب فارسی آن.
+- `apps/api/src/business-modules/business-modules.service.ts` و
+  `business-modules.module.ts`: تزریق `FinanceService` و ثبت فاکتور در سه مسیر
+  پرداخت (کیف پول مدیریت، کیف پول ماژول، کال‌بک درگاه) با عنوان کامل و
+  metadata (ماژول، دوره، انقضا، فضای کسب‌وکار).
+- `apps/api/src/finance/finance.service.ts`: افزودن خریدهای PAID ماژول/مدیریت
+  به `backfill()` تا فاکتورهای قدیمی خودکار صادر شوند.
+- `apps/api/src/payments/payments.service.ts` و `payments.controller.ts`:
+  افزودن نوع `BUSINESS_MODULE` به «پرداخت‌های من»، `invoiceId` برای هر ردیف، و
+  مسیر `GET /payments/invoices/:id` (فقط صاحب فاکتور) با اقلام و خریدار کامل.
+- `apps/web/app/dashboard/payments/page.tsx`: نمایش ماژول کسب‌وکار و دکمه‌ی
+  «مشاهده و چاپ فاکتور» برای هر پرداخت دارای فاکتور.
+- `docs/API.md`: مستندسازی `GET /payments/invoices/:id` و به‌روزرسانی توضیح
+  `/payments/mine`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا؛ `check_api_docs.py` exit 0.
+- `POST /admin/finance/backfill` اجرا شد و برای خرید PAID ماژول CRM فاکتور
+  `INV-1405-000036` با عنوان «خرید ماژول «مدیریت مشتریان (CRM)»» و مبلغ
+  ۱٬۸۰۰٬۰۰۰ تومان ثبت/تأیید شد.
+- `GET /payments/invoices/:id` با توکن کاربر غیرمالک، `404 فاکتور یافت نشد`
+  برگرداند (محدود به صاحب فاکتور) و `GET /payments/mine` بدون خطا پاسخ داد.
 
 ## ۱۴۰۵/۰۹/۰۱ — پیش‌پرکردن و قفل فیلدهای کارت ویزیت/بیولینک + سبد استعلام شاهکار — نسخه `v4.75.0`
 

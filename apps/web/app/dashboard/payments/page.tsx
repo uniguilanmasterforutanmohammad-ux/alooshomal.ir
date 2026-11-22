@@ -6,12 +6,15 @@ import {
   CheckCircle2,
   Clock3,
   CreditCard,
+  FileText,
   Loader2,
   XCircle,
 } from 'lucide-react';
 
 import { api } from '@/lib/api';
+import type { FinanceInvoice } from '@/lib/api/types/finance';
 import { useAuth } from '@/lib/auth';
+import { printInvoiceDocument } from '@/lib/invoice-print';
 import { cn } from '@/lib/utils';
 
 interface PaymentDetailRow {
@@ -21,7 +24,7 @@ interface PaymentDetailRow {
 
 interface MyPayment {
   id: string;
-  kind: 'SUBSCRIPTION' | 'SERVICE' | 'WALLET' | 'BOOST' | 'AD';
+  kind: 'SUBSCRIPTION' | 'SERVICE' | 'WALLET' | 'BOOST' | 'AD' | 'BUSINESS_MODULE';
   title: string;
   amount: number;
   status: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELED';
@@ -30,6 +33,7 @@ interface MyPayment {
   refId: string | null;
   failureReason: string | null;
   details: PaymentDetailRow[];
+  invoiceId: string | null;
   results: Array<{ label: string; ok: boolean; message: string }>;
 }
 
@@ -39,6 +43,7 @@ const KIND_LABELS: Record<MyPayment['kind'], string> = {
   WALLET: 'کیف پول',
   BOOST: 'پله',
   AD: 'تبلیغ',
+  BUSINESS_MODULE: 'ماژول کسب‌وکار',
 };
 
 const STATUS_META: Record<
@@ -86,6 +91,21 @@ export default function MyPaymentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | MyPayment['status']>('all');
+  const [invoiceBusy, setInvoiceBusy] = useState<string | null>(null);
+
+  async function openInvoice(invoiceId: string) {
+    setInvoiceBusy(invoiceId);
+    try {
+      const invoice = await api.get<FinanceInvoice>(`/payments/invoices/${invoiceId}`);
+      if (!printInvoiceDocument(invoice)) {
+        setError('نمایش فاکتور ناموفق بود؛ ممکن است پنجره‌ی چاپ مسدود شده باشد.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'دریافت فاکتور ناموفق بود');
+    } finally {
+      setInvoiceBusy(null);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -134,8 +154,8 @@ export default function MyPaymentsPage() {
           پرداخت‌های من
         </h1>
         <p className="mt-1 text-sm leading-7 text-muted">
-          همه‌ی پرداخت‌های شما (اشتراک، استعلام، کیف پول، پله و تبلیغ) همراه با
-          جزئیات سفارش و وضعیت موفق یا ناموفق.
+          همه‌ی پرداخت‌های شما (اشتراک، استعلام، کیف پول، پله، تبلیغ و ماژول
+          کسب‌وکار) همراه با جزئیات سفارش، وضعیت و فاکتور رسمی.
         </p>
       </div>
 
@@ -245,6 +265,24 @@ export default function MyPaymentsPage() {
                     </p>
                   ) : null}
                 </div>
+
+                {payment.invoiceId ? (
+                  <button
+                    type="button"
+                    onClick={() => void openInvoice(payment.invoiceId!)}
+                    disabled={invoiceBusy === payment.invoiceId}
+                    className="indeed-btn indeed-btn-secondary mt-2 py-1.5 text-[11px]"
+                  >
+                    {invoiceBusy === payment.invoiceId ? (
+                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    ) : (
+                      <FileText className="size-3.5" aria-hidden />
+                    )}
+                    {invoiceBusy === payment.invoiceId
+                      ? 'در حال دریافت فاکتور...'
+                      : 'مشاهده و چاپ فاکتور'}
+                  </button>
+                ) : null}
 
                 {payment.failureReason ? (
                   <p className="mt-2 rounded-lg bg-red-50 p-2 text-[11px] text-red-700">

@@ -1,15 +1,20 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PaymentStatus } from '@prisma/client';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
+import {
+  getBusinessModule,
+  INDUSTRY_PACKAGES,
+} from '../business-modules/business-modules.registry';
 
 export type PaymentKind =
   | 'SUBSCRIPTION'
   | 'SERVICE'
   | 'WALLET'
   | 'BOOST'
-  | 'AD';
+  | 'AD'
+  | 'BUSINESS_MODULE';
 
 export interface PaymentDetailRow {
   label: string;
@@ -27,6 +32,8 @@ export interface MyPayment {
   refId: string | null;
   failureReason: string | null;
   details: PaymentDetailRow[];
+  /** The archived invoice of this payment (null while pending / not issued). */
+  invoiceId: string | null;
   /** Per-module outcome for a paid composite (empty otherwise). */
   results: Array<{
     label: string;
@@ -57,7 +64,8 @@ export class PaymentsService {
 
   async mine(userId: string, take = 100): Promise<MyPayment[]> {
     await this.settings.assertFeatureEnabled('featureMyPayments');
-    const [subscriptions, services, wallets, requests] = await Promise.all([
+    const [subscriptions, services, wallets, requests, modulePurchases, invoices] =
+      await Promise.all([
       this.prisma.subscriptionPayment.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
@@ -82,6 +90,15 @@ export class PaymentsService {
           boostRequest: { select: { kind: true, targetId: true } },
           adRequest: { select: { kind: true, placement: true, targetId: true } },
         },
+      }),
+      this.prisma.businessModulePurchase.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take,
+      }),
+      this.prisma.invoice.findMany({
+        where: { customerUserId: userId, sourceId: { not: null } },
+        select: { id: true, sourceId: true },
       }),
     ]);
 
@@ -117,6 +134,7 @@ export class PaymentsService {
         failureReason: payment.failureReason ?? null,
         details,
         results: [],
+        invoiceId: null,
       });
     }
 
@@ -162,6 +180,7 @@ export class PaymentsService {
         failureReason: payment.failureReason ?? null,
         details,
         results,
+        invoiceId: null,
       });
     }
 
@@ -178,6 +197,7 @@ export class PaymentsService {
         failureReason: payment.failureReason ?? null,
         details: [{ label: 'نوع', value: 'شارژ/تسویه کیف پول' }],
         results: [],
+        invoiceId: null,
       });
     }
 
@@ -200,12 +220,90 @@ export class PaymentsService {
         failureReason: payment.failureReason ?? null,
         details: [{ label: 'نوع', value: isBoost ? 'پله' : 'تبلیغ' }],
         results: [],
+        invoiceId: null,
       });
+    }
+
+    for (const purchase of modulePurchases) {
+      const isPackage = purchase.moduleKey.startsWith('package:');
+      const key = isPackage
+        ? purchase.moduleKey.slice('package:'.length)
+        : purchase.moduleKey;
+      const label = isPackage
+        ? (INDUSTRY_PACKAGES.find((item) => item.key === key)?.label ?? key)
+        : (getBusinessModule(key)?.label ?? key);
+      const details: PaymentDetailRow[] = [
+        { label: 'نوع', value: isPackage ? 'مدیریت کسب‌وکار' : 'ماژول کسب‌وکار' },
+        { label: 'عنوان', value: label },
+        { label: 'دوره', value: `${faNumber(purchase.months)} ماه` },
+      ];
+      if (purchase.expiresAt) {
+        details.push({
+          label: 'اعتبار تا',
+          value: new Date(purchase.expiresAt).toLocaleDateString('fa-IR'),
+        });
+      }
+      items.push({
+        id: purchase.id,
+        kind: 'BUSINESS_MODULE',
+        title: isPackage
+          ? `مدیریت کسب‌وکار «${label}»`
+          : `ماژول «${label}»`,
+        amount: purchase.amount,
+        status: purchase.status as PaymentStatus,
+        createdAt: purchase.createdAt.toISOString(),
+        paidAt: purchase.paidAt?.toISOString() ?? null,
+        refId: null,
+        failureReason: null,
+        details,
+        results: [],
+        invoiceId: null,
+      });
+    }
+
+    // Attach the archived invoice id to each payment so the UI can offer the
+    // full invoice for every settled sale (rule: every payment has an invoice).
+    const invoiceBySourceId = new Map(
+      invoices
+        .filter((row): row is { id: string; sourceId: string } => Boolean(row.sourceId))
+        .map((row) => [row.sourceId, row.id]),
+    );
+    for (const item of items) {
+      item.invoiceId = invoiceBySourceId.get(item.id) ?? null;
     }
 
     items.sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
     return items.slice(0, take);
+  }
+
+  /**
+   * One archived invoice belonging to the signed-in user, with its line items
+   * and buyer snapshot — used by the «فاکتور» button on «پرداخت‌های من».
+   * Owner-scoped: a user can never read another buyer's invoice.
+   */
+  async invoice(userId: string, invoiceId: string) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, customerUserId: userId },
+      include: {
+        items: true,
+        customer: {
+          select: {
+            id: true,
+            fullName: true,
+            firstName: true,
+            lastName: true,
+            fatherName: true,
+            birthDate: true,
+            nationalCode: true,
+            email: true,
+            phone: true,
+          },
+        },
+      },
+    });
+    if (!invoice) throw new NotFoundException('فاکتور یافت نشد');
+    return invoice;
   }
 }
