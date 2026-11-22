@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ForbiddenException,
   Injectable,
@@ -38,10 +39,15 @@ const REQUEST_TIMEOUT_MS = 25_000;
 
 /** Setting prefix for the PayPing product mirrored from one Zohal service. */
 const PAYPING_PRODUCT_SETTING_PREFIX = 'payping.product.zohal.';
-/** One product for the two identity inquiries that always run together. */
-const IDENTITY_BUNDLE_KEY = 'identity_bundle';
-/** One product for the identity bundle plus the optional business license. */
-const IDENTITY_LICENSE_BUNDLE_KEY = 'identity_license_bundle';
+/**
+ * Legacy combined products that used to merge the two identity inquiries into
+ * a single PayPing product. They are no longer created; the keys are kept only
+ * so a sync can delete the stale product and its cached code.
+ */
+const LEGACY_IDENTITY_BUNDLE_KEYS = [
+  'identity_bundle',
+  'identity_license_bundle',
+] as const;
 const IDENTITY_SERVICE_KEYS = ['shahkar', 'national_identity_inquiry'] as const;
 
 /** Setting that stores the admin-defined composite products as a JSON array. */
@@ -493,7 +499,6 @@ export class ZohalService {
     composites: ZohalCompositeView[];
     payping: {
       products: Record<string, string | null>;
-      identityBundleAmount: number;
     };
   }> {
     const [enabled, prices, payping, composites] = await Promise.all([
@@ -523,7 +528,6 @@ export class ZohalService {
   /** Codes of the PayPing products already mirrored from Zohal services. */
   async getPaypingProducts(): Promise<{
     products: Record<string, string | null>;
-    identityBundleAmount: number;
   }> {
     const rows = await this.prisma.setting.findMany({
       where: { key: { startsWith: PAYPING_PRODUCT_SETTING_PREFIX } },
@@ -536,22 +540,13 @@ export class ZohalService {
     );
     const products: Record<string, string | null> = {};
     for (const service of ZOHAL_SERVICES) {
-      if (
-        IDENTITY_SERVICE_KEYS.includes(
-          service.key as (typeof IDENTITY_SERVICE_KEYS)[number],
-        )
-      ) {
-        continue;
-      }
       products[service.key] = byKey.get(service.key) ?? null;
     }
-    products[IDENTITY_BUNDLE_KEY] = byKey.get(IDENTITY_BUNDLE_KEY) ?? null;
     for (const composite of await this.readComposites()) {
       products[`${COMPOSITE_PRODUCT_PREFIX}${composite.key}`] =
         byKey.get(`${COMPOSITE_PRODUCT_PREFIX}${composite.key}`) ?? null;
     }
-    const { total } = await this.identityBundlePrice();
-    return { products, identityBundleAmount: total };
+    return { products };
   }
 
   /**
@@ -594,21 +589,32 @@ export class ZohalService {
 
   /**
    * Create or refresh one PayPing product and cache its code in settings.
-   * Returns `null` when the gateway is unavailable or the amount is below the
-   * gateway minimum, so callers can keep working without a product.
+   * Throws a descriptive error when the gateway is unavailable, the amount is
+   * below the gateway minimum or PayPing refuses to create the product, so the
+   * admin panel can show the real reason instead of a generic failure.
    */
   private async ensureProduct(
     key: string,
     title: string,
     amount: number,
     description?: string | null,
-  ): Promise<string | null> {
-    if (!this.payping.configured || amount < 1000) return null;
+  ): Promise<string> {
+    if (!this.payping.configured) {
+      throw new ServiceUnavailableException(
+        'توکن پی‌پینگ تنظیم نشده است؛ ابتدا تنظیمات درگاه را کامل کنید.',
+      );
+    }
+    if (!Number.isFinite(amount) || amount < 1000) {
+      throw new BadRequestException(
+        'حداقل مبلغ محصول در درگاه پی‌پینگ ۱٬۰۰۰ تومان است.',
+      );
+    }
+    const safeTitle = title.trim().slice(0, 120);
     const settingKey = this.productSettingKey(key);
     const row = await this.prisma.setting.findUnique({ where: { key: settingKey } });
     const payload = {
-      title,
-      description: description ?? undefined,
+      title: safeTitle,
+      description: description?.slice(0, 300) ?? undefined,
       amount,
       defineAmountByUser: false,
       haveTax: false,
@@ -636,29 +642,44 @@ export class ZohalService {
       }
     }
 
+    // Reuse a product that already exists with this exact title (created in
+    // another environment or before its code was stored) instead of
+    // duplicating it and letting PayPing reject the duplicate title.
+    const existing = await this.payping
+      .findProductCodeByTitle(safeTitle)
+      .catch(() => null);
+    if (existing && existing !== row?.value) {
+      try {
+        await this.payping.updateProduct({ ...payload, code: existing });
+        await this.prisma.setting.upsert({
+          where: { key: settingKey },
+          create: { key: settingKey, value: existing },
+          update: { value: existing },
+        });
+        return existing;
+      } catch (error) {
+        this.logger.warn(
+          `PayPing product ${existing} reuse failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    }
+
     const created = (await this.payping.createProduct(payload)) as {
       code?: string;
     } | null;
-    if (!created?.code) return null;
+    if (!created?.code) {
+      throw new BadGatewayException(
+        'ساخت محصول در پی‌پینگ ناموفق بود؛ لطفاً دوباره تلاش کنید.',
+      );
+    }
     await this.prisma.setting.upsert({
       where: { key: settingKey },
       create: { key: settingKey, value: created.code },
       update: { value: created.code },
     });
     return created.code;
-  }
-
-  /** Current price of the two identity inquiries and their combined total. */
-  async identityBundlePrice(): Promise<{
-    shahkar: number;
-    identity: number;
-    total: number;
-  }> {
-    const [shahkar, identity] = await Promise.all([
-      this.getServicePrice('shahkar'),
-      this.getServicePrice('national_identity_inquiry'),
-    ]);
-    return { shahkar, identity, total: shahkar + identity };
   }
 
   /**
@@ -702,52 +723,30 @@ export class ZohalService {
   }
 
   /**
-   * The single PayPing product for «شاهکار + استعلام هویتی». Both inquiries
-   * must run for a verified identity, so they are sold as one product whose
-   * amount is the sum of the two service prices.
+   * Create or refresh the PayPing product of one Zohal module. Every module —
+   * including the two identity inquiries — gets its own independent product,
+   * so it can be sold alone or as part of a composite.
    */
-  async ensureIdentityBundleProduct(): Promise<string | null> {
-    const { total } = await this.identityBundleQuote();
-    return this.ensureProduct(
-      IDENTITY_BUNDLE_KEY,
-      'استعلام هویت (شاهکار + هویتی) — شمالی‌کارت',
-      total,
-      'تطبیق شماره موبایل با کد ملی و استعلام اطلاعات هویتی در یک پرداخت.',
-    );
-  }
-
-  /**
-   * The single PayPing product for «شاهکار + هویتی + جواز کسب». When the user
-   * ticks the business-license inquiry, all three legs are sold as one product
-   * whose amount is the identity bundle plus the api.ir license price.
-   */
-  async ensureIdentityLicenseBundleProduct(
-    licenseAmount: number,
-  ): Promise<string | null> {
-    const { total } = await this.identityBundleQuote();
-    return this.ensureProduct(
-      IDENTITY_LICENSE_BUNDLE_KEY,
-      'استعلام هویت و جواز کسب (شاهکار + هویتی + جواز) — شمالی‌کارت',
-      total + licenseAmount,
-      'تطبیق شماره موبایل، استعلام هویت و استعلام جواز کسب در یک پرداخت.',
-    );
-  }
-
-  /**
-   * Create or refresh the PayPing product of one Zohal module. The two
-   * identity modules are merged into the identity bundle, so they are skipped
-   * here (the bundle has its own product).
-   */
-  async syncServiceProduct(key: string): Promise<string | null> {
+  async syncServiceProduct(key: string): Promise<string> {
     const service = this.findService(key);
-    if (isIdentityServiceKey(key)) {
-      return this.ensureIdentityBundleProduct();
-    }
     const [enabled, price] = await Promise.all([
       this.isServiceEnabled(key),
       this.getServicePrice(key),
     ]);
-    if (!enabled || price < 1000) return null;
+    if (!enabled) {
+      throw new BadRequestException(
+        `ماژول «${service.label}» غیرفعال است؛ ابتدا آن را فعال کنید.`,
+      );
+    }
+    if (price < 1000) {
+      throw new BadRequestException(
+        `تعرفه‌ی «${service.label}» باید حداقل ۱٬۰۰۰ تومان باشد${
+          price > 0
+            ? ` (فعلی: ${price.toLocaleString('fa-IR')} تومان)`
+            : ' (فعلی: ثبت نشده)'
+        }.`,
+      );
+    }
     return this.ensureProduct(
       service.key,
       `${service.label} — شمالی‌کارت`,
@@ -756,28 +755,43 @@ export class ZohalService {
     );
   }
 
-  /** Create or refresh the PayPing product of one composite. */
-  async syncCompositeProduct(key: string): Promise<string | null> {
+  /**
+   * Create or refresh the PayPing product of one composite. The composite
+   * price is derived from its modules (unless a fixed amount is set), and the
+   * modules keep their own independent products.
+   */
+  async syncCompositeProduct(key: string): Promise<string> {
     const composites = await this.readComposites();
     const composite = composites.find((item) => item.key === key);
     if (!composite) throw new NotFoundException('محصول ترکیبی یافت نشد');
-    const amount = await this.resolveCompositeAmount(composite);
+    if (!composite.enabled) {
+      throw new BadRequestException('این محصول ترکیبی غیرفعال است.');
+    }
+    const view = await this.compositeView(composite);
+    if (view.issues.length > 0) {
+      throw new BadRequestException(view.issues[0]);
+    }
+    if (view.amount < 1000) {
+      throw new BadRequestException(
+        'مبلغ این محصول ترکیبی باید حداقل ۱٬۰۰۰ تومان باشد.',
+      );
+    }
     return this.ensureProduct(
       `${COMPOSITE_PRODUCT_PREFIX}${composite.key}`,
       `${composite.label} — شمالی‌کارت`,
-      amount,
+      view.amount,
       composite.description ??
         'چند استعلام زحل در یک پرداخت؛ همه‌ی ماژول‌های این محصول پس از پرداخت اجرا می‌شوند.',
     );
   }
 
   /**
-   * Admin action: mirror every enabled, priced service into PayPing. The two
-   * identity inquiries are intentionally merged into one bundle product.
+   * Admin action: mirror every enabled, priced service into PayPing. Each
+   * module gets its own product; the legacy combined identity product is
+   * removed from PayPing and from the cached settings.
    */
   async syncPaypingProducts(): Promise<{
     products: Record<string, string | null>;
-    identityBundleAmount: number;
   }> {
     const [enabled, prices] = await Promise.all([
       this.getEnabledMap(),
@@ -786,13 +800,6 @@ export class ZohalService {
     const products: Record<string, string | null> = {};
 
     for (const service of ZOHAL_SERVICES) {
-      if (
-        IDENTITY_SERVICE_KEYS.includes(
-          service.key as (typeof IDENTITY_SERVICE_KEYS)[number],
-        )
-      ) {
-        continue;
-      }
       if (!enabled[service.key]) continue;
       const price = prices[service.key] ?? 0;
       if (price < 1000) continue;
@@ -813,25 +820,6 @@ export class ZohalService {
       }
     }
 
-    const identityBundleAmount =
-      (prices.shahkar ?? 0) + (prices.national_identity_inquiry ?? 0);
-    if (
-      enabled.shahkar &&
-      enabled.national_identity_inquiry &&
-      identityBundleAmount >= 1000
-    ) {
-      try {
-        products[IDENTITY_BUNDLE_KEY] = await this.ensureIdentityBundleProduct();
-      } catch (error) {
-        this.logger.warn(
-          `PayPing identity bundle product failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-        products[IDENTITY_BUNDLE_KEY] = null;
-      }
-    }
-
     for (const composite of await this.readComposites()) {
       const productKey = `${COMPOSITE_PRODUCT_PREFIX}${composite.key}`;
       try {
@@ -846,7 +834,36 @@ export class ZohalService {
       }
     }
 
-    return { products, identityBundleAmount };
+    await this.removeLegacyIdentityBundleProducts();
+    return { products };
+  }
+
+  /**
+   * Delete the old «شاهکار + هویتی» combined product from PayPing (when its
+   * code is cached) and drop the setting row, so it can never be recreated.
+   */
+  private async removeLegacyIdentityBundleProducts(): Promise<void> {
+    for (const key of LEGACY_IDENTITY_BUNDLE_KEYS) {
+      const settingKey = this.productSettingKey(key);
+      const row = await this.prisma.setting.findUnique({
+        where: { key: settingKey },
+      });
+      if (!row) continue;
+      if (row.value && this.payping.configured) {
+        try {
+          await this.payping.deleteProduct(row.value);
+        } catch (error) {
+          this.logger.warn(
+            `Deleting legacy PayPing product ${row.value} failed: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+      }
+      await this.prisma.setting
+        .delete({ where: { key: settingKey } })
+        .catch(() => undefined);
+    }
   }
 
   // -------------------------------------------------------------------------

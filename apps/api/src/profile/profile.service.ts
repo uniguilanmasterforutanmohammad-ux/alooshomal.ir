@@ -1035,14 +1035,6 @@ export class ProfileService {
         'تعرفه‌ی استعلام هویت برای پرداخت آنلاین معتبر نیست؛ با پشتیبانی تماس بگیرید.',
       );
     }
-    const productCode = (
-      withLicense
-        ? await this.zohal
-            .ensureIdentityLicenseBundleProduct(licenseAmount)
-            .catch(() => null)
-        : await this.zohal.ensureIdentityBundleProduct().catch(() => null)
-    ) as string | null;
-
     await this.prisma.servicePayment.updateMany({
       where: { userId, serviceKey: 'identity_bundle', status: PaymentStatus.PENDING },
       data: {
@@ -1120,7 +1112,6 @@ export class ProfileService {
       url: updated.gatewayUrl,
       paid: false,
       paymentCode: updated.paymentCode,
-      productCode,
     };
   }
 

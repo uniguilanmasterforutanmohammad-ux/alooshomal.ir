@@ -595,9 +595,8 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 | `PATCH` | `/admin/zohal/services/:key` | ADMIN | فعال/غیرفعال‌کردن یک سرویس (`{ enabled }`). |
 | `GET` | `/zohal/pricing` | عمومی | تعرفه‌ی عمومی سرویس‌های استعلام؛ فقط سرویس‌های فعال و دارای قیمت بیشتر از صفر برمی‌گردند (سرویس غیرفعال از صفحه‌ی «تعرفه‌ها» حذف می‌شود). |
 | `POST` | `/admin/zohal/services/:key/test` | ADMIN | فراخوانی آزمایشی واقعی (هزینه‌زا) با `{ payload }`. |
-| `POST` | `/admin/zohal/payping-products` | ADMIN | ساخت/همگام‌سازی محصول پی‌پینگ همه‌ی خدمات فعال؛ دو استعلام «شاهکار» و «هویتی» به‌صورت یک محصول واحد با مبلغ جمع دو تعرفه ساخته می‌شوند. |
-| `POST` | `/admin/zohal/services/:key/payping-product` | ADMIN | ساخت/همگام‌سازی محصول پی‌پینگ یک ماژول (برای دو ماژول هویتی، محصول واحد استعلام هویت). |
-| `POST` | `/admin/zohal/identity-bundle/payping-product` | ADMIN | ساخت/همگام‌سازی محصول واحد «شاهکار + هویتی». |
+| `POST` | `/admin/zohal/payping-products` | ADMIN | ساخت/همگام‌سازی محصول پی‌پینگ همه‌ی ماژول‌های فعال؛ هر ماژول (از جمله «شاهکار» و «استعلام هویتی») محصول مستقل خودش را می‌گیرد. محصول واحد قدیمی «شاهکار + هویتی» در همین همگام‌سازی از پی‌پینگ حذف می‌شود. |
+| `POST` | `/admin/zohal/services/:key/payping-product` | ADMIN | ساخت/همگام‌سازی محصول پی‌پینگ یک ماژول مستقل؛ در صورت نبود توکن، غیرفعال‌بودن ماژول یا تعرفه‌ی کمتر از ۱٬۰۰۰ تومان، پیام خطای مشخص برمی‌گرداند. |
 | `GET` | `/admin/zohal/composites` | ADMIN | فهرست محصولات ترکیبی ساخته‌شده از چند ماژول + قیمت محاسبه‌شده، وضعیت فروش و کد محصول پی‌پینگ. |
 | `POST` | `/admin/zohal/composites` | ADMIN | ساخت محصول ترکیبی با `{ label, serviceKeys[], amount?, enabled?, description? }`؛ `amount=0` یعنی جمع تعرفه‌ی ماژول‌ها. |
 | `PATCH` | `/admin/zohal/composites/:key` | ADMIN | ویرایش محصول ترکیبی. |
@@ -612,7 +611,7 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 | `PATCH` | `/admin/zohal/blue-tick/:id` | ADMIN | تأیید/رد درخواست تیک آبی (`{ decision, reason? }`). |
 | `GET` | `/profile/identity-inquiry/status` | کاربر | آیا استعلام خودکار هویت در دسترس است؟ |
 | `GET` | `/profile/identity/status` | کاربر | وضعیت دو مرحله‌ی هویت (`phoneMatched`، `verified`) و مشخصات ذخیره‌شده. |
-| `POST` | `/profile/identity/checkout` | کاربر | شروع پرداخت آنلاین محصول واحد «شاهکار + استعلام هویتی»؛ بدنه‌ی اختیاری `{ nationalCode, birthDate, withLicense?, licenseTrackingCode? }`. با `withLicense` هر سه استعلام (شاهکار + هویتی + جواز کسب) به‌صورت یک محصول واحد با مبلغ جمع سه تعرفه فروخته می‌شوند. تیک آبی فقط وقتی صادر می‌شود که کد ملی و نام و نام خانوادگی مالک جواز با هویت تأییدشده‌ی حساب یکسان باشد؛ در غیر این صورت دلیل عدم تعلق تیک آبی در `identity` و در سابقه‌ی استعلام‌ها ثبت و نمایش داده می‌شود. خروجی `{ url, amount, paid, alreadyVerified }`. در حالت پرداخت فقط آنلاین، کیف پول بدهکار نمی‌شود. |
+| `POST` | `/profile/identity/checkout` | کاربر | شروع پرداخت آنلاین استعلام هویت؛ بدنه‌ی اختیاری `{ nationalCode, birthDate, withLicense?, licenseTrackingCode? }`. با `withLicense` هر سه استعلام (شاهکار + هویتی + جواز کسب) در یک پرداخت با مبلغ جمع تعرفه‌ها فروخته می‌شوند (بدون ساخت محصول ترکیبی در پی‌پینگ). تیک آبی فقط وقتی صادر می‌شود که کد ملی و نام و نام خانوادگی مالک جواز با هویت تأییدشده‌ی حساب یکسان باشد؛ در غیر این صورت دلیل عدم تعلق تیک آبی در `identity` و در سابقه‌ی استعلام‌ها ثبت و نمایش داده می‌شود. خروجی `{ url, amount, paid, alreadyVerified }`. در حالت پرداخت فقط آنلاین، کیف پول بدهکار نمی‌شود. |
 | `POST` | `/profile/identity/verify` | کاربر | اجرای هر دو استعلام پس از پرداخت موفق، بدون کسر مجدد (برای تلاش دوباره پس از خطای موقت). |
 | `GET` | `/profile/identity/quote` | کاربر | تعرفه‌ی استعلام هویت و جواز کسب پیش از پرداخت؛ خروجی `{ identityTotal, licensePrice, licenseAvailable, total }`. |
 | `GET` | `/profile/identity/payments/callback` | عمومی | بازگشت از درگاه؛ تراکنش را تأیید، هر دو استعلام را اجرا و به `/dashboard/onboarding?identity=success|failed` هدایت می‌کند. |

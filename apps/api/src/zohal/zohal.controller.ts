@@ -75,7 +75,7 @@ export class AdminZohalController {
   @Post('payping-products')
   @ApiOperation({
     summary:
-      'ساخت/همگام‌سازی محصول پی‌پینگ همه‌ی خدمات فعال (دو استعلام هویتی به‌صورت یک محصول واحد)',
+      'ساخت/همگام‌سازی محصول پی‌پینگ همه‌ی ماژول‌های فعال (هر ماژول یک محصول مستقل)',
   })
   syncPaypingProducts() {
     return this.zohal.syncPaypingProducts();
@@ -87,14 +87,6 @@ export class AdminZohalController {
   })
   syncServiceProduct(@Param('key') key: string) {
     return this.zohal.syncServiceProduct(key).then((code) => ({ key, code }));
-  }
-
-  @Post('identity-bundle/payping-product')
-  @ApiOperation({ summary: 'ساخت/همگام‌سازی محصول واحد استعلام هویت' })
-  syncIdentityBundle() {
-    return this.zohal
-      .ensureIdentityBundleProduct()
-      .then((code) => ({ key: 'identity_bundle', code }));
   }
 
   @Get('composites')

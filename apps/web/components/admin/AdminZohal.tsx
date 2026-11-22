@@ -55,7 +55,6 @@ interface ZohalServicesResponse {
   composites?: ZohalComposite[];
   payping?: {
     products: Record<string, string | null>;
-    identityBundleAmount: number;
   };
 }
 
@@ -260,12 +259,9 @@ export function AdminZohal() {
     try {
       const result = await api.post<{
         products: Record<string, string | null>;
-        identityBundleAmount: number;
       }>('/admin/zohal/payping-products');
       const count = Object.values(result.products).filter(Boolean).length;
-      toast.success(
-        `${count} محصول پی‌پینگ ساخته/همگام شد؛ محصول واحد استعلام هویت: ${result.identityBundleAmount.toLocaleString('fa-IR')} تومان.`,
-      );
+      toast.success(`${count} محصول پی‌پینگ ساخته/همگام شد.`);
       await load();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'همگام‌سازی محصولات ناموفق بود');
@@ -278,18 +274,16 @@ export function AdminZohal() {
     setSyncKey(key);
     try {
       const endpoint =
-        key === 'identity_bundle'
-          ? '/admin/zohal/identity-bundle/payping-product'
-          : key.startsWith('composite:')
-            ? `/admin/zohal/composites/${key.slice('composite:'.length)}/payping-product`
-            : `/admin/zohal/services/${key}/payping-product`;
+        key.startsWith('composite:')
+          ? `/admin/zohal/composites/${key.slice('composite:'.length)}/payping-product`
+          : `/admin/zohal/services/${key}/payping-product`;
       const result = await api.post<{ code: string | null }>(endpoint);
       toast[
         result.code ? 'success' : 'error'
       ](
         result.code
           ? 'محصول پی‌پینگ ساخته/بروزرسانی شد.'
-          : 'ساخت محصول ممکن نشد؛ فعال/هزینه‌دار بودن ماژول و تنظیمات درگاه را بررسی کنید.',
+          : 'ساخت محصول ممکن نشد؛ پاسخ درگاه کد محصول برنگرداند.',
       );
       await load();
     } catch (err) {
@@ -484,9 +478,10 @@ export function AdminZohal() {
               محصولات پی‌پینگ خدمات و استعلام‌ها
             </h2>
             <p className="mt-1 text-xs leading-6 text-muted">
-              برای هر خدمت فعال یک محصول در درگاه ساخته می‌شود. دو استعلام
-              «شاهکار» و «استعلام هویتی» با هم ادغام می‌شوند و مبلغشان جمع شده و
-              به‌صورت یک محصول واحد ساخته می‌شود.
+              برای هر ماژول فعال یک محصول مستقل در درگاه ساخته می‌شود؛ حتی
+              «شاهکار» و «استعلام هویتی» هم جداگانه قیمت می‌گیرند. محصولات
+              ترکیبی مبلغشان از جمع تعرفه‌ی همین ماژول‌ها محاسبه می‌شود و
+              ماژول‌ها همچنان مستقل قابل فروش می‌مانند.
             </p>
           </div>
           <button
@@ -519,11 +514,7 @@ export function AdminZohal() {
             <tbody>
               {(data?.services ?? [])
                 .filter(
-                  (service) =>
-                    service.enabled &&
-                    service.price > 0 &&
-                    service.key !== 'shahkar' &&
-                    service.key !== 'national_identity_inquiry',
+                  (service) => service.enabled && service.price > 0,
                 )
                 .map((service) => (
                   <tr key={service.key}>
@@ -553,34 +544,6 @@ export function AdminZohal() {
                     </td>
                   </tr>
                 ))}
-              <tr>
-                <td className="p-2 text-ink">
-                  استعلام هویت (شاهکار + هویتی) — محصول واحد
-                </td>
-                <td className="p-2 text-muted">
-                  {(data?.payping?.identityBundleAmount ?? 0).toLocaleString(
-                    'fa-IR',
-                  )}
-                </td>
-                <td className="p-2 text-muted" dir="ltr">
-                  {data?.payping?.products?.identity_bundle ?? 'ساخته نشده'}
-                </td>
-                <td className="p-2">
-                  <button
-                    type="button"
-                    disabled={syncKey === 'identity_bundle'}
-                    onClick={() => void syncOneProduct('identity_bundle')}
-                    className="indeed-btn indeed-btn-secondary py-1 text-[11px]"
-                  >
-                    {syncKey === 'identity_bundle' ? (
-                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                    ) : (
-                      <UploadCloud className="size-3.5" aria-hidden />
-                    )}
-                    همگام‌سازی
-                  </button>
-                </td>
-              </tr>
               {(data?.composites ?? []).map((composite) => (
                 <tr key={composite.key}>
                   <td className="border-t border-line p-2 text-ink">
@@ -629,7 +592,8 @@ export function AdminZohal() {
             <p className="mt-1 text-xs leading-6 text-muted">
               چند ماژول هزینه‌دار را انتخاب کنید و یک محصول بسازید؛ کاربر با یک
               پرداخت همه‌ی آن‌ها را دریافت می‌کند. مبلغ خالی یعنی جمع تعرفه‌ی
-              ماژول‌ها.
+              ماژول‌ها. هر ماژول مستقل هم محصول خودش را دارد و با ترکیب‌شدن
+              حذف نمی‌شود.
             </p>
           </div>
         </div>
@@ -914,13 +878,7 @@ export function AdminZohal() {
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
             {services.map((service) => {
               const hasFile = service.fields.some((field) => field.type === 'file');
-              // The two identity inquiries share one combined PayPing product.
-              const isIdentity =
-                service.key === 'shahkar' ||
-                service.key === 'national_identity_inquiry';
-              const paypingCode = isIdentity
-                ? data?.payping?.products?.identity_bundle
-                : data?.payping?.products?.[service.key];
+              const paypingCode = data?.payping?.products?.[service.key];
               return (
                 <div
                   key={service.key}
