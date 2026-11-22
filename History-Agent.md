@@ -20,7 +20,38 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.60.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.61.0**.
+
+## ۱۴۰۵/۰۹/۰۱ — نمایش محصولات ترکیبی زحل در کتابخانه‌ی «شروع آسان» — نسخه `v4.61.0`
+
+**هدف:** در `?section=settings-onboarding` بخش «کتابخانه‌ی ماژول‌ها و محصولات»،
+محصولات ترکیبی ساخته‌شده در زحل هم نمایش داده شوند و پس از پرداخت، همه‌ی
+ماژول‌های آن‌ها به ترتیب اجرا شوند.
+
+**تغییرات:**
+- `apps/api/src/zohal/zohal.types.ts`: افزودن `fields` (اجتماع فیلدهای ماژول‌ها)
+  به `ZohalCompositeView`.
+- `apps/api/src/zohal/zohal.service.ts`: `compositeView` فیلدهای ترکیبی را
+  برمی‌گرداند؛ متدهای `getComposite` و `runComposite` (اجرای ترتیبی همه‌ی
+  ماژول‌ها با `force` و ثبت نتیجه‌ی هر ماژول) اضافه شد.
+- `apps/api/src/onboarding/onboarding.service.ts`: کتابخانه‌ی ماژول‌ها
+  محصولات ترکیبی زحل را با کلید `zohal:composite:<key>`، قیمت محاسبه‌شده،
+  فیلدهای مشترک و پرچم `composite` برمی‌گرداند؛ `deliverPaidCart` کلیدهای
+  ترکیبی را به‌درستی تجزیه و به‌صورت ترتیبی اجرا می‌کند.
+- `apps/web/components/admin/AdminOnboardingSteps.tsx`: نشان «ترکیبی» برای
+  آیتم‌های ترکیبی در کتابخانه.
+- `docs/API.md`: به‌روزرسانی توضیح کتابخانه و اجرای سبد.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.61.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- ساخت محصول ترکیبی «شاهکار + استعلام هویتی» با API و بررسی
+  `GET /admin/onboarding/modules`: آیتم `zohal:composite:<key>` با قیمت
+  ۷۵٬۱۰۰ تومان و فیلدهای `mobile, national_code, birth_date, gender` دیده شد.
+- شبیه‌سازی پرداخت سبد و `POST /onboarding/cart/deliver`: نتیجه شامل
+  `shahkar` و سپس `national_identity_inquiry` با `ok: true` و به همان ترتیب.
+- `python3 scripts/sync_install.py` و `--check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۱ — فروش مستقل ماژول‌های هویتی و رفع خطای ساخت محصول پی‌پینگ — نسخه `v4.60.0`
 

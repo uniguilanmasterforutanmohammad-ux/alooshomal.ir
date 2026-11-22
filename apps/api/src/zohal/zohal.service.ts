@@ -30,6 +30,7 @@ import type {
   ZohalCallResult,
   ZohalComposite,
   ZohalCompositeView,
+  ZohalField,
   ZohalIdentity,
   ZohalServiceDef,
 } from './zohal.types';
@@ -367,6 +368,7 @@ export class ZohalService {
       ...composite,
       amount,
       serviceLabels: services.map((service) => service.label),
+      fields: this.compositeFields(composite.serviceKeys),
       services: services.map((service) => ({
         key: service.key,
         label: service.label,
@@ -383,6 +385,82 @@ export class ZohalService {
   async listComposites(): Promise<ZohalCompositeView[]> {
     const composites = await this.readComposites();
     return Promise.all(composites.map((item) => this.compositeView(item)));
+  }
+
+  /** One composite with its resolved price, fields and saleability. */
+  async getComposite(key: string): Promise<ZohalCompositeView> {
+    const composites = await this.readComposites();
+    const composite = composites.find((item) => item.key === key);
+    if (!composite) throw new NotFoundException('محصول ترکیبی یافت نشد');
+    return this.compositeView(composite);
+  }
+
+  /**
+   * Run every module of a composite **in the admin-defined order**. Used after
+   * a payment settles (onboarding cart or a direct composite checkout). A
+   * failing module does not abort the rest; the caller receives one result per
+   * module so the panel can show exactly what succeeded.
+   */
+  async runComposite(
+    key: string,
+    payload: Record<string, unknown> = {},
+    options: { userId?: string | null } = {},
+  ): Promise<{
+    key: string;
+    label: string;
+    amount: number;
+    ok: boolean;
+    modules: Array<{
+      serviceKey: string;
+      label: string;
+      ok: boolean;
+      message: string;
+      data: unknown;
+      latencyMs: number | null;
+    }>;
+  }> {
+    const view = await this.getComposite(key);
+    const modules: Array<{
+      serviceKey: string;
+      label: string;
+      ok: boolean;
+      message: string;
+      data: unknown;
+      latencyMs: number | null;
+    }> = [];
+    for (const service of view.services) {
+      try {
+        const result = await this.call(service.key, payload, {
+          force: true,
+          userId: options.userId ?? null,
+        });
+        modules.push({
+          serviceKey: service.key,
+          label: service.label,
+          ok: result.ok,
+          message: result.message,
+          data: result.data,
+          latencyMs: result.latencyMs,
+        });
+      } catch (error) {
+        modules.push({
+          serviceKey: service.key,
+          label: service.label,
+          ok: false,
+          message:
+            error instanceof Error ? error.message : 'اجرای ماژول ناموفق بود',
+          data: null,
+          latencyMs: null,
+        });
+      }
+    }
+    return {
+      key: view.key,
+      label: view.label,
+      amount: view.amount,
+      ok: modules.length > 0 && modules.every((module) => module.ok),
+      modules,
+    };
   }
 
   async createComposite(
@@ -878,7 +956,7 @@ export class ZohalService {
         name: string;
         label: string;
         required: boolean;
-        type: string;
+        type: ZohalField['type'];
         placeholder?: string;
       }
     >();

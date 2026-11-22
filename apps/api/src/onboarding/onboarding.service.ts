@@ -69,6 +69,8 @@ export interface OnboardingModuleOption {
   price: number;
   /** Inputs the user must fill for this module (empty for non-inquiry items). */
   fields: OnboardingModuleField[];
+  /** True when this item is an admin-defined composite of several modules. */
+  composite?: boolean;
 }
 
 @Injectable()
@@ -325,6 +327,22 @@ export class OnboardingService implements OnModuleInit {
         enabled: service.enabled,
         price: service.price,
         fields: service.fields ?? [],
+      });
+    }
+    for (const composite of zohal.composites) {
+      items.push({
+        key: `zohal:composite:${composite.key}`,
+        type: 'zohal',
+        group: 'zohal (محصولات ترکیبی)',
+        label: composite.label,
+        description:
+          composite.description?.trim() ||
+          `ترکیب: ${composite.serviceLabels.join(' + ')}`,
+        href: '/dashboard/profile',
+        enabled: composite.purchasable,
+        price: composite.amount,
+        fields: composite.fields ?? [],
+        composite: true,
       });
     }
     for (const service of apiir.services) {
@@ -1266,23 +1284,43 @@ export class OnboardingService implements OnModuleInit {
     const items = this.normaliseCartItems(payment.moduleItems);
     const results: Array<{ stepId: string; ok: boolean }> = [];
     for (const item of items) {
-      const [prefix, key] = item.moduleKey.split(':', 2);
-      if (!key || (prefix !== 'apiir' && prefix !== 'zohal')) {
+      const separator = item.moduleKey.indexOf(':');
+      const prefix = separator < 0 ? '' : item.moduleKey.slice(0, separator);
+      const rest = separator < 0 ? '' : item.moduleKey.slice(separator + 1);
+      if (!rest || (prefix !== 'apiir' && prefix !== 'zohal')) {
         continue;
       }
+      const isComposite = rest.startsWith('composite:');
+      const key = isComposite ? rest.slice('composite:'.length) : rest;
+      if (!key) continue;
       const payload = await this.readStepData(userId, item.stepId);
       try {
-        const result =
-          prefix === 'apiir'
-            ? await this.apiir.call(key, payload, { userId })
-            : await this.zohal.call(key, payload, { userId });
+        let ok: boolean;
+        let result: unknown;
+        if (isComposite) {
+          // Composite items run every underlying module in the admin-defined
+          // order; the api.ir variant is wired in the api.ir panel.
+          if (prefix !== 'zohal') continue;
+          const composite = await this.zohal.runComposite(key, payload, {
+            userId,
+          });
+          ok = composite.ok;
+          result = composite;
+        } else {
+          const call =
+            prefix === 'apiir'
+              ? await this.apiir.call(key, payload, { userId })
+              : await this.zohal.call(key, payload, { userId });
+          ok = call.ok;
+          result = call;
+        }
         const resultKey = `${ONBOARDING_MODULE_RESULT_PREFIX}${userId}:${item.stepId}`;
         await this.prisma.setting.upsert({
           where: { key: resultKey },
           create: { key: resultKey, value: JSON.stringify(result) },
           update: { value: JSON.stringify(result) },
         });
-        results.push({ stepId: item.stepId, ok: result.ok });
+        results.push({ stepId: item.stepId, ok });
       } catch {
         results.push({ stepId: item.stepId, ok: false });
       }

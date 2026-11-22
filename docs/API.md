@@ -675,11 +675,11 @@ HTTP، پیام، تأخیر، مبلغ و payload/response). این جدول م
 | `POST` | `/onboarding/steps/:id/complete` | کاربر | تیک‌زدن یک مرحله‌ی سفارشی. |
 | `DELETE` | `/onboarding/steps/:id/complete` | کاربر | برداشتن تیک یک مرحله‌ی سفارشی. |
 | `POST` | `/onboarding/steps/:id/data` | کاربر | ثبت فرم پویای مرحله‌ی ماژول؛ بدنه `{ data: Record<string, unknown> }`. فیلدهای الزامی ماژول اعتبارسنجی می‌شوند، داده ذخیره و مرحله کامل می‌شود، و اگر ماژول قیمت داشته باشد به سبد خرید اضافه می‌گردد. |
-| `POST` | `/onboarding/cart/deliver` | کاربر | اجرای استعلام‌های ماژول (api.ir/Zohal) که همراه پرداخت نهایی خریداری شده‌اند؛ idempotent و بدون کسر مجدد. |
+| `POST` | `/onboarding/cart/deliver` | کاربر | اجرای استعلام‌های ماژول (api.ir/Zohal) که همراه پرداخت نهایی خریداری شده‌اند؛ برای محصولات ترکیبی، همه‌ی ماژول‌ها به ترتیب تعریف‌شده اجرا می‌شوند. idempotent و بدون کسر مجدد. |
 | `POST` | `/onboarding/documents` | کاربر | ثبت فایل آپلودشده (خروجی `/uploads/document`) در فهرست مدارک حساب؛ بدنه `{ url, name?, size?, contentType? }`. |
 | `DELETE` | `/onboarding/documents/:id` | کاربر | حذف یک مدرک از حساب. |
 | `GET` | `/admin/onboarding/steps` | ADMIN | فهرست مراحل پیکربندی‌شده. |
-| `GET` | `/admin/onboarding/modules` | ADMIN | کتابخانه‌ی ماژول‌ها/محصولات قابل قرار‌گرفتن در مراحل: zohal، api.ir، اشتراک‌ها، مدیریت کسب‌وکار، بیولینک و کارت ویزیت (هر آیتم با `key`، `label`، `href`، `enabled` و `price`). |
+| `GET` | `/admin/onboarding/modules` | ADMIN | کتابخانه‌ی ماژول‌ها/محصولات قابل قرار‌گرفتن در مراحل: zohal، محصولات ترکیبی zohal، api.ir، اشتراک‌ها، مدیریت کسب‌وکار، بیولینک و کارت ویزیت (هر آیتم با `key`، `label`، `href`، `enabled`، `price` و برای ترکیبی‌ها `composite: true`). |
 | `PUT` | `/admin/onboarding/steps` | ADMIN | ذخیره‌ی فهرست/ترتیب/فعال‌بودن/اختیاری‌بودن مراحل (`{ steps: [{ ..., optional?, moduleKey? }] }`). برای `kind: "module"` مقدار `moduleKey` باید یکی از کلیدهای کتابخانه باشد. |
 
 ترتیب مراحل پیش‌فرض «شروع آسان»: `welcome` → `business` → `identity` → `plan` →

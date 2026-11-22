@@ -50,6 +50,8 @@ interface ModuleOption {
     required?: boolean;
     type?: 'text' | 'date' | 'boolean' | 'file';
   }>;
+  /** True for an admin-defined composite of several modules. */
+  composite?: boolean;
 }
 
 const KIND_LABEL: Record<StepKind, string> = {
@@ -308,6 +310,11 @@ export function AdminOnboardingSteps() {
                   >
                     <Plus className="size-3" aria-hidden />
                     {item.label}
+                    {item.composite ? (
+                      <span className="rounded-full bg-brand-light px-1.5 text-[9px] font-bold text-brand">
+                        ترکیبی
+                      </span>
+                    ) : null}
                     {item.price > 0 ? (
                       <span className="text-[10px] text-muted">
                         {item.price.toLocaleString('fa-IR')}

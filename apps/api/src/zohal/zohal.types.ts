@@ -71,6 +71,8 @@ export interface ZohalComposite {
 /** Admin-facing composite with its resolved price and saleability. */
 export interface ZohalCompositeView extends ZohalComposite {
   serviceLabels: string[];
+  /** Union of the input fields of every module (rendered as one form). */
+  fields: ZohalField[];
   services: Array<{
     key: string;
     label: string;
