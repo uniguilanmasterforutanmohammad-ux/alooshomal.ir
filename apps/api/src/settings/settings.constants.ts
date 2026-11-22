@@ -14,16 +14,15 @@ export const DEFAULT_DIRECTORY_DISPLAY_MODE: DirectoryDisplayMode = 'PAGINATION'
  * The looks each public directory can render in (mirrors `DirectoryView` on the
  * web side). The admin may enable/disable each one per directory.
  */
-export const DIRECTORY_VIEW_KEYS = ['list', 'tiles', 'notebook'] as const;
+export const DIRECTORY_VIEW_KEYS = ['tiles', 'notebook'] as const;
 export type DirectoryViewKey = (typeof DIRECTORY_VIEW_KEYS)[number];
 export const BUSINESS_CARD_VIEWS_KEY = 'businessCardDirectoryViews';
 export const DEFAULT_BUSINESS_CARD_VIEWS: DirectoryViewKey[] = [
-  'list',
   'tiles',
   'notebook',
 ];
 export const BIOLINK_VIEWS_KEY = 'biolinkDirectoryViews';
-export const DEFAULT_BIOLINK_VIEWS: DirectoryViewKey[] = ['list', 'tiles'];
+export const DEFAULT_BIOLINK_VIEWS: DirectoryViewKey[] = ['tiles'];
 
 export const ADMIN_LIST_PAGE_SIZE_KEY = 'adminListPageSize';
 export const DEFAULT_ADMIN_LIST_PAGE_SIZE = 10;

@@ -108,24 +108,15 @@ export function DirectoryBiolinkContent({
 
   return (
     <main className="container-page py-6 directory-shell">
-      <div className="mb-5 flex shrink-0 flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <Users className="size-7 text-brand" aria-hidden />
-          <div>
-            <h1 className="text-xl font-extrabold text-ink">دایرکتوری بیولینک‌ها</h1>
-            <p className="text-sm text-muted">
-              {meta
-                ? `${meta.total.toLocaleString('fa-IR')} بیولینک منتشرشده — نمایش ${items.length.toLocaleString('fa-IR')} مورد`
-                : 'در حال بارگذاری...'}
-            </p>
-          </div>
+      {allowedViews.length > 1 ? (
+        <div className="mb-5 flex shrink-0 justify-end">
+          <DirectoryViewSwitch
+            value={view}
+            onChange={setView}
+            views={allowedViews}
+          />
         </div>
-        <DirectoryViewSwitch
-          value={view}
-          onChange={setView}
-          views={allowedViews}
-        />
-      </div>
+      ) : null}
 
       <div className="shrink-0">
         <DirectoryBiolinkFilters

@@ -119,22 +119,11 @@ export function DirectoryBusinessCardContent({
 
   return (
     <main className="container-page py-6 directory-shell">
-      <div className="directory-head mb-5 flex shrink-0 flex-wrap items-center justify-between gap-3">
-        <div className="directory-head-text flex items-center gap-3">
-          <Users className="size-7 text-brand" aria-hidden />
-          <div className="min-w-0">
-            <h1 className="directory-head-title text-xl font-extrabold text-ink">
-              دایرکتوری کارت‌های ویزیت
-            </h1>
-            <p className="directory-head-sub text-sm text-muted">
-              {meta
-                ? `${meta.total.toLocaleString('fa-IR')} کارت ویزیت منتشرشده — نمایش ${items.length.toLocaleString('fa-IR')} مورد`
-                : 'در حال بارگذاری...'}
-            </p>
-          </div>
+      {allowedViews.length > 1 ? (
+        <div className="mb-5 flex shrink-0 justify-end">
+          <DirectoryViewSwitch value={view} onChange={setView} views={allowedViews} />
         </div>
-        <DirectoryViewSwitch value={view} onChange={setView} views={allowedViews} />
-      </div>
+      ) : null}
 
       <div className="shrink-0">
         <DirectoryBusinessCardFilters

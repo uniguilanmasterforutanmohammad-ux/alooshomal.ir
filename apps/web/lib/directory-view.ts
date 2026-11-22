@@ -19,8 +19,8 @@ const STORAGE_KEY = 'alooshomal:directory-view';
 export type DirectoryViewKind = 'business-cards' | 'biolinks';
 
 const DEFAULT_VIEWS: Record<DirectoryViewKind, DirectoryView[]> = {
-  'business-cards': ['list', 'tiles', 'notebook'],
-  biolinks: ['list', 'tiles'],
+  'business-cards': ['tiles', 'notebook'],
+  biolinks: ['tiles'],
 };
 
 interface PublicViewSettings {
@@ -46,8 +46,11 @@ export function useDirectoryViews(kind: DirectoryViewKind): DirectoryView[] {
           kind === 'business-cards'
             ? result.businessCardDirectoryViews
             : result.biolinkDirectoryViews;
-        const clean = (raw ?? []).filter((entry): entry is DirectoryView =>
-          ALL_VIEWS.includes(entry as DirectoryView),
+        // The classic split list is retired on the public directories; the
+        // tile/notebook looks are the only supported ones now.
+        const clean = (raw ?? []).filter(
+          (entry): entry is DirectoryView =>
+            entry !== 'list' && ALL_VIEWS.includes(entry as DirectoryView),
         );
         if (clean.length > 0) setViews(clean);
       })
@@ -63,15 +66,15 @@ export function useDirectoryViews(kind: DirectoryViewKind): DirectoryView[] {
 }
 
 /**
- * Remembers whether the visitor prefers the classic split list, the tiled grid
- * or the «دفترچه تلفن» notebook. Persisted in `localStorage` so the choice
- * sticks across both directory pages and reloads; defaults to the classic list.
+ * Remembers whether the visitor prefers the tiled grid or the «دفترچه تلفن»
+ * notebook. Persisted in `localStorage` so the choice sticks across both
+ * directory pages and reloads; defaults to the first enabled look.
  *
  * `preferred` (e.g. a `?view=notebook` deep-link) wins over the stored value on
  * first mount, so shared links open in the intended look. `allowed` narrows the
  * accepted values — the notebook is only meaningful for the business-card
- * directory, so the biolink page passes `['list', 'tiles']` and a notebook
- * preference stored on the other page never sticks there.
+ * directory, so the biolink page passes `['tiles']` and a notebook preference
+ * stored on the other page never sticks there.
  */
 export function useDirectoryView({
   preferred = null,
@@ -82,7 +85,7 @@ export function useDirectoryView({
 } = {}) {
   const allowedKey = allowed.join(',');
   const [view, setView] = useState<DirectoryView>(
-    preferred && allowed.includes(preferred) ? preferred : (allowed[0] ?? 'list'),
+    preferred && allowed.includes(preferred) ? preferred : (allowed[0] ?? 'tiles'),
   );
 
   // When a preferred view is supplied (deep link), it takes effect immediately —
@@ -91,7 +94,7 @@ export function useDirectoryView({
     if (preferred && allowed.includes(preferred)) setView(preferred);
   }, [preferred, allowed]);
 
-  // Read once on mount (client-only, so SSR always renders the list first).
+  // Read once on mount (client-only, so SSR renders the first enabled look).
   useEffect(() => {
     if (preferred) return;
     try {
@@ -108,7 +111,7 @@ export function useDirectoryView({
   // offered, fall back to the first enabled look.
   useEffect(() => {
     if (!allowed.includes(view)) {
-      setView(allowed[0] ?? 'list');
+      setView(allowed[0] ?? 'tiles');
     }
     // `allowedKey` covers the list identity; `view` is read but must not retrigger.
     // eslint-disable-next-line react-hooks/exhaustive-deps
