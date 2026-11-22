@@ -813,19 +813,16 @@ export class OnboardingService implements OnModuleInit {
       select: { id: true, identityData: true },
     });
     if (!payment) {
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: {
-          identityVerifiedAt: true,
-          businessLicenseVerifiedAt: true,
-        },
-      });
-      return {
-        ran: false,
-        success: Boolean(user?.identityVerifiedAt),
-        businessLicenseVerified: Boolean(user?.businessLicenseVerifiedAt),
-        message: null as string | null,
-      };
+      return this.identityRunOutcome(userId, null);
+    }
+    // Atomically claim the paid identity run so a concurrent request (or a
+    // page reload mid-flight) can never run — and charge — it twice.
+    const claimed = await this.prisma.subscriptionPayment.updateMany({
+      where: { id: payment.id, identityConsumedAt: null },
+      data: { identityConsumedAt: new Date() },
+    });
+    if (claimed.count === 0) {
+      return this.identityRunOutcome(userId, null);
     }
     const data = (payment.identityData ?? {}) as {
       nationalCode?: string | null;
@@ -835,10 +832,6 @@ export class OnboardingService implements OnModuleInit {
     };
     try {
       const result = await this.profile.runPaidIdentityBundle(userId, data);
-      await this.prisma.subscriptionPayment.update({
-        where: { id: payment.id },
-        data: { identityConsumedAt: new Date() },
-      });
       return {
         ran: true,
         success: true,
@@ -847,10 +840,6 @@ export class OnboardingService implements OnModuleInit {
           result.businessLicenseMessage ?? 'استعلام هویت با موفقیت انجام شد.',
       };
     } catch (error) {
-      await this.prisma.subscriptionPayment.update({
-        where: { id: payment.id },
-        data: { identityConsumedAt: new Date() },
-      });
       return {
         ran: true,
         success: false,
@@ -861,6 +850,27 @@ export class OnboardingService implements OnModuleInit {
             : 'استعلام هویت انجام نشد؛ لطفاً اطلاعات را اصلاح و دوباره تلاش کنید.',
       };
     }
+  }
+
+  /**
+   * Outcome reported when no paid, unconsumed identity bundle is waiting
+   * (either nothing was bought or another request already delivered it); it
+   * mirrors the user's current verification state without running anything.
+   */
+  private async identityRunOutcome(userId: string, message: string | null) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        identityVerifiedAt: true,
+        businessLicenseVerifiedAt: true,
+      },
+    });
+    return {
+      ran: false,
+      success: Boolean(user?.identityVerifiedAt),
+      businessLicenseVerified: Boolean(user?.businessLicenseVerifiedAt),
+      message,
+    };
   }
 
   /** Record that the user finished the wizard (idempotent). */
@@ -1698,6 +1708,18 @@ export class OnboardingService implements OnModuleInit {
     if (!payment) {
       return { delivered: 0, results: [] as Array<{ stepId: string; ok: boolean }> };
     }
+    // Atomically claim this delivery before running any inquiry. Two requests
+    // can arrive at the same moment (the checkout redirect and the load-time
+    // fallback), and a read-then-write consume would let both run — and charge
+    // — the same paid modules twice. Only the request that flips
+    // `moduleConsumedAt` from NULL proceeds.
+    const claimed = await this.prisma.subscriptionPayment.updateMany({
+      where: { id: payment.id, moduleConsumedAt: null },
+      data: { moduleConsumedAt: new Date() },
+    });
+    if (claimed.count === 0) {
+      return { delivered: 0, results: [] as Array<{ stepId: string; ok: boolean }> };
+    }
     const items = this.normaliseCartItems(payment.moduleItems);
     const stepById = new Map(
       (await this.getSteps()).map((step) => [step.id, step] as const),
@@ -1782,10 +1804,6 @@ export class OnboardingService implements OnModuleInit {
         results.push({ stepId: item.stepId, ok: false });
       }
     }
-    await this.prisma.subscriptionPayment.update({
-      where: { id: payment.id },
-      data: { moduleConsumedAt: new Date() },
-    });
     await this.writeCart(userId, []);
     return { delivered: results.length, results };
   }
@@ -1886,10 +1904,28 @@ export class OnboardingService implements OnModuleInit {
   /** The `data` payload of a stored module result (or null). */
   private moduleResultData(result: unknown): Record<string, unknown> | null {
     if (!result || typeof result !== 'object') return null;
-    const data = (result as Record<string, unknown>).data;
-    return data && typeof data === 'object' && !Array.isArray(data)
-      ? (data as Record<string, unknown>)
-      : null;
+    const record = result as Record<string, unknown>;
+    const data = record.data;
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      return data as Record<string, unknown>;
+    }
+    // A composite inquiry (several modules delivered behind one paid step)
+    // nests each module's payload under `modules[].data`. Merge them so the
+    // identity name fields, the match rules and the stored profile data work
+    // exactly as they do for a single-module step.
+    const modules = record.modules;
+    if (Array.isArray(modules)) {
+      const merged: Record<string, unknown> = {};
+      for (const entry of modules) {
+        if (!entry || typeof entry !== 'object') continue;
+        const inner = (entry as Record<string, unknown>).data;
+        if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+          Object.assign(merged, inner as Record<string, unknown>);
+        }
+      }
+      if (Object.keys(merged).length > 0) return merged;
+    }
+    return null;
   }
 
   /** Best-effort first/last name extraction from an identity-style payload. */

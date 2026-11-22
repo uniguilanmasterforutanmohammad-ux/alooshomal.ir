@@ -20,7 +20,62 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.71.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.71.1**.
+
+## ۱۴۰۵/۰۹/۰۱ — یک‌بار اجرا و ثبت نتیجه‌ی استعلام‌های ترکیبی «شروع آسان» — نسخه `v4.71.1`
+
+**هدف:** رفع دو ایراد گزارش‌شده روی فایل واقعی ادمین
+(`onboarding-steps-2026-11-22.json`): (۱) استعلام‌های یک مرحله‌ی ترکیبی
+«شاهکار+هویتی» و «جواز کسب» دو بار اجرا و کسر می‌شدند، و (۲) با موفق‌بودن
+استعلام هویت، نام/اطلاعات کاربر در دیتابیس ثبت نمی‌شد.
+
+**ریشه‌ی مشکل (بازتولید لوکال):**
+- در بازگشت از درگاه، دو افکت هم‌زمان `POST /onboarding/cart/deliver` را صدا
+  می‌زدند (افکت `modules=pending` و افکت fallback بارگذاری) و سرویس با
+  الگوی «خواندن سپس نوشتن» (`moduleConsumedAt: null`) اجازه می‌داد هر دو یک
+  پرداخت را اجرا کنند؛ نتیجه: ۲× شاهکار، ۲× هویتی، ۲× جواز کسب.
+- نتیجه‌ی استعلام ترکیبی، `data` را زیر `modules[].data` می‌گذارد ولی
+  `moduleResultData` فقط `data` سطح بالا را می‌خواند؛ پس استخراج نام/کدملی،
+  قواعد `match` و ذخیره‌ی `identityInquiryData` برای مرحله‌ی ترکیبی بی‌اثر بود
+  (تیک سفید صادر می‌شد ولی نام کاربر ذخیره نمی‌شد).
+
+**تغییرات:**
+- `apps/api/src/onboarding/onboarding.service.ts`:
+  - `deliverPaidCart`: پرداخت با `updateMany({ where: { id, moduleConsumedAt: null } })`
+    به‌صورت اتمیک claim می‌شود؛ فقط درخواستی که claim را می‌گیرد اجرا می‌کند و
+    درخواست دوم `{ delivered: 0, results: [] }` برمی‌گرداند (حذف آپدیت انتهایی).
+  - `runPendingIdentity`: همان claim اتمیک روی `identityConsumedAt` و استخراج
+    پاسخ «بدون سفارش در انتظار» به کمک متد کمکی `identityRunOutcome`.
+  - `moduleResultData`: برای نتیجه‌ی ترکیبی، `data` همه‌ی `modules[]` در یک شیء
+    ادغام می‌شود تا استخراج نام/کدملی، `match` و ذخیره‌ی داده کار کند.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: افکت‌های
+  `modules=pending` و fallback از یک هلپر تک‌پروازِ `deliverPaidModules`
+  (با `moduleDeliveryRef`) استفاده می‌کنند تا در هر بارگذاری فقط یک درخواست
+  ارسال شود.
+- `docs/API.md`: به‌روزرسانی توضیح `POST /onboarding/cart/deliver`
+  (ادغام داده‌ی محصول ترکیبی و claim اتمیک).
+
+**تأیید/تست:**
+- بازتولید لوکال با ایمپورت همان فایل و یک پرداخت PAID: پیش از اصلاح، دو
+  درخواست هم‌زمان `cart/deliver` در `inquiry_logs` مقدار ۲× `shahkar`،
+  ۲× `national_identity_inquiry` و ۲× `license` ثبت کرد و هر دو درخواست
+  `delivered: 2` برگرداندند. پس از اصلاح، درخواست دوم `{ delivered: 0 }` و
+  فقط یک‌بار هر استعلام اجرا شد.
+- تست مرورگر با `playwright-core`: با توکن کاربر و آدرس
+  `/dashboard/onboarding?payment=success&modules=pending` (هر دو افکت فعال)،
+  فقط ۱ درخواست به `/onboarding/cart/deliver` ثبت شد و `inquiry_logs` یک
+  `shahkar` + یک `national_identity_inquiry` + یک `license` داشت.
+- صحت ثبت داده: با خالی‌کردن نام کاربر و اجرای موفق مرحله‌ی ترکیبی،
+  `firstName`/`lastName` و `identityInquiryData` (شامل `matched` و
+  `first_name`/`last_name`) در کاربر ذخیره شد.
+- `identity/run` هم‌زمان: درخواست اول `ran: true` و دوم `ran: false`.
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا؛
+  `python3 scripts/check_api_docs.py` exit 0؛
+  `npx eslint components/dashboard/OnboardingWizard.tsx` ۰ error (۸ warning
+  از قبل موجود).
+- وضعیت لوکال تست‌شده به حالت اولیه برگشت (تنظیم `onboardingSteps`،
+  `zohal.composites`، فیلدهای کاربر و حذف پرداخت‌های آزمایشی).
 
 ## ۱۴۰۵/۰۹/۰۱ — ورود/بازیابی مراحل «شروع آسان» از فایل JSON — نسخه `v4.71.0`
 

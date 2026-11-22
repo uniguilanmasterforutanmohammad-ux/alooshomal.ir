@@ -351,7 +351,8 @@ export function OnboardingWizard() {
     Record<string, Record<string, string>>
   >({});
   const [moduleUploading, setModuleUploading] = useState<string | null>(null);
-  // Guards the fallback delivery so a paid module checkout is delivered once.
+  // Guards the paid-module delivery so a checkout is delivered once per page
+  // load, even when both the redirect effect and the fallback effect fire.
   const moduleDeliveryRef = useRef(false);
   const businessFormRef = useRef<OnboardingBusinessFormHandle | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -569,6 +570,30 @@ export function OnboardingWizard() {
 
   // The combined checkout returns with `?payment=success&modules=pending` when
   // priced module steps were paid: run their inquiries now (already paid).
+  // A single in-flight request per page load: the redirect effect and the
+  // load-time fallback below both want to deliver, and firing them together
+  // used to run (and charge) every paid inquiry twice. The server also claims
+  // the payment atomically, so even two browsers cannot double-run it.
+  const deliverPaidModules = useCallback(async () => {
+    if (moduleDeliveryRef.current) {
+      return {
+        delivered: 0,
+        results: [] as Array<{ stepId: string; ok: boolean }>,
+      };
+    }
+    moduleDeliveryRef.current = true;
+    try {
+      return await api.post<{
+        delivered: number;
+        results: Array<{ stepId: string; ok: boolean }>;
+      }>('/onboarding/cart/deliver', {});
+    } catch (error) {
+      // Let the fallback retry on a later load if the request never landed.
+      moduleDeliveryRef.current = false;
+      throw error;
+    }
+  }, []);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const status = params.get('modules');
@@ -576,10 +601,7 @@ export function OnboardingWizard() {
     void (async () => {
       if (status === 'pending') {
         try {
-          const result = await api.post<{
-            delivered: number;
-            results: Array<{ stepId: string; ok: boolean }>;
-          }>('/onboarding/cart/deliver', {});
+          const result = await deliverPaidModules();
           if (result.delivered > 0) {
             const failed = result.results.filter((entry) => !entry.ok).length;
             if (failed === 0) {
@@ -603,19 +625,15 @@ export function OnboardingWizard() {
       '',
       `${window.location.pathname}${query ? `?${query}` : ''}`,
     );
-  }, [load]);
+  }, [load, deliverPaidModules]);
 
   // Fallback: if the gateway redirect (and its `modules=pending` flag) was
   // lost, still deliver any paid-but-undelivered module inquiries on load.
   useEffect(() => {
     if (!payload?.pendingModuleDelivery || moduleDeliveryRef.current) return;
-    moduleDeliveryRef.current = true;
     void (async () => {
       try {
-        const result = await api.post<{ delivered: number }>(
-          '/onboarding/cart/deliver',
-          {},
-        );
+        const result = await deliverPaidModules();
         if (result.delivered > 0) {
           toast.success('استعلام‌های خریداری‌شده انجام شد.');
           await load();
@@ -624,7 +642,7 @@ export function OnboardingWizard() {
         /* retried on the next load */
       }
     })();
-  }, [payload?.pendingModuleDelivery, load]);
+  }, [payload?.pendingModuleDelivery, load, deliverPaidModules]);
 
   // A subscription paid from the onboarding plan step returns here. Refresh
   // progress and move to the next step once the paid plan is active.
