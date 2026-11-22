@@ -319,6 +319,22 @@ export function OnboardingWizard() {
   // Optional identity step: the inquiry is only charged after the user
   // explicitly continues with it (not when the step is skipped or disabled).
   const [identityOptedIn, setIdentityOptedIn] = useState(false);
+  // The step chips are a horizontal scroller on phones; keep the active chip
+  // in view so a long journey never hides the current step off-screen.
+  const stepsRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const container = stepsRef.current;
+    if (!container) return;
+    const active = container.querySelector<HTMLElement>(
+      '[data-state="active"]',
+    );
+    active?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'center',
+    });
+  }, [index, payload?.steps.length]);
 
   function markIdentityOptIn(value: boolean) {
     setIdentityOptedIn(value);
@@ -1097,33 +1113,36 @@ export function OnboardingWizard() {
   }
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] shadow-[0_24px_70px_-40px_rgba(58,40,28,0.55)] dark:shadow-[0_24px_70px_-40px_rgba(0,0,0,0.8)]">
+    <section className="onboarding-card overflow-hidden rounded-3xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] shadow-[0_24px_70px_-40px_rgba(58,40,28,0.55)] dark:shadow-[0_24px_70px_-40px_rgba(0,0,0,0.8)]">
       {/* progress header */}
-      <header className="relative overflow-hidden border-b border-[var(--vintage-border)] bg-gradient-to-l from-brand/15 via-brand-light/70 to-[var(--vintage-surface)] p-5 sm:p-6">
+      <header className="onboarding-progress relative overflow-hidden border-b border-[var(--vintage-border)] bg-gradient-to-l from-brand/15 via-brand-light/70 to-[var(--vintage-surface)] p-5 sm:p-6">
         <div
           aria-hidden
           className="pointer-events-none absolute -left-10 -top-16 size-48 rounded-full bg-brand/10 blur-2xl"
         />
-        <div className="relative flex flex-wrap items-center justify-between gap-3">
-          <span className="flex items-center gap-2.5 text-base font-extrabold text-ink">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-brand text-white shadow-sm">
+        <div className="onboarding-progress-top relative flex flex-wrap items-center justify-between gap-3">
+          <span className="onboarding-progress-title flex items-center gap-2.5 text-base font-extrabold text-ink">
+            <span className="onboarding-progress-icon flex size-9 items-center justify-center rounded-xl bg-brand text-white shadow-sm">
               <Sparkles className="size-4" aria-hidden />
             </span>
-            شروع آسان
+            مسیر تکمیل
           </span>
-          <span className="rounded-full bg-[var(--vintage-surface)] px-3 py-1 text-xs font-bold text-brand shadow-sm ring-1 ring-brand/10">
+          <span className="onboarding-progress-count rounded-full bg-[var(--vintage-surface)] px-3 py-1 text-xs font-bold text-brand shadow-sm ring-1 ring-brand/10">
             مرحله‌ی {(safeIndex + 1).toLocaleString('fa-IR')} از{' '}
             {steps.length.toLocaleString('fa-IR')}
           </span>
         </div>
-        <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-[var(--vintage-surface)] ring-1 ring-brand/10">
+        <div className="onboarding-progress-track relative mt-4 h-2 overflow-hidden rounded-full bg-[var(--vintage-surface)] ring-1 ring-brand/10">
           <div
-            className="h-full rounded-full bg-gradient-to-l from-brand to-brand-hover transition-all duration-500"
+            className="onboarding-progress-fill h-full rounded-full bg-gradient-to-l from-brand to-brand-hover transition-all duration-500"
             style={{ width: `${percent}%` }}
           />
         </div>
         {/* step dots */}
-        <div className="relative mt-4 flex items-center gap-2">
+        <div
+          ref={stepsRef}
+          className="onboarding-steps relative mt-4 flex items-center gap-2"
+        >
           {steps.map((entry, position) => {
             const active = position === safeIndex;
             const unlocked = canEnter(position);
@@ -1136,8 +1155,11 @@ export function OnboardingWizard() {
                 title={entry.title}
                 aria-label={entry.title}
                 aria-current={active ? 'step' : undefined}
+                data-state={
+                  active ? 'active' : entry.done ? 'done' : unlocked ? 'open' : 'locked'
+                }
                 className={cn(
-                  'group flex flex-1 items-center gap-1.5 rounded-full border px-1.5 py-1 text-[10px] font-bold transition',
+                  'onboarding-step group flex flex-1 items-center gap-1.5 rounded-full border px-1.5 py-1 text-[10px] font-bold transition',
                   active
                     ? 'border-brand bg-brand text-white shadow-sm'
                     : entry.done
@@ -1149,7 +1171,7 @@ export function OnboardingWizard() {
               >
                 <span
                   className={cn(
-                    'flex size-5 shrink-0 items-center justify-center rounded-full text-[10px]',
+                    'onboarding-step-no flex size-5 shrink-0 items-center justify-center rounded-full text-[10px]',
                     active
                       ? 'bg-white/20'
                       : entry.done
@@ -1165,7 +1187,7 @@ export function OnboardingWizard() {
                     <Lock className="size-2.5" aria-hidden />
                   )}
                 </span>
-                <span className="hidden truncate sm:inline">{entry.title}</span>
+                <span className="truncate">{entry.title}</span>
               </button>
             );
           })}
@@ -1173,7 +1195,7 @@ export function OnboardingWizard() {
       </header>
 
       {/* the single step card */}
-      <div className="bg-gradient-to-b from-[var(--vintage-surface)] to-[var(--vintage-paper)]/30 p-5 sm:p-6">
+      <div className="onboarding-body bg-gradient-to-b from-[var(--vintage-surface)] to-[var(--vintage-paper)]/30 p-5 sm:p-6">
         <div
           className={cn(
             'mx-auto flex flex-col gap-4',
@@ -1185,7 +1207,7 @@ export function OnboardingWizard() {
           <div className="flex items-start gap-3">
             <span
               className={cn(
-                'flex size-12 shrink-0 items-center justify-center rounded-2xl border text-sm font-extrabold shadow-sm',
+                'onboarding-step-icon flex size-12 shrink-0 items-center justify-center rounded-2xl border text-sm font-extrabold shadow-sm',
                 step.done
                   ? 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300'
                   : 'border-brand/20 bg-brand-light text-brand',
@@ -2221,7 +2243,7 @@ export function OnboardingWizard() {
           {/* ---------------------------------------------------------------- */}
           {/* footer navigation                                                */}
           {/* ---------------------------------------------------------------- */}
-          <div className="mt-1 flex items-center justify-between gap-3 border-t border-dashed border-[var(--vintage-border)] pt-4">
+          <div className="onboarding-footer mt-1 flex items-center justify-between gap-3 border-t border-dashed border-[var(--vintage-border)] pt-4">
             <button
               type="button"
               onClick={prevStep}

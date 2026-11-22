@@ -1,0 +1,608 @@
+/*
+  «شروع آسان» — سبک سبز و موبایل‌محور برگرفته از نمونه‌ی بهترینو.
+  همه‌ی قواعد زیر به `.onboarding-behtarino` محدود شده‌اند تا تم کهنه‌ی
+  داشبورد در بقیه‌ی صفحه‌ها دست‌نخورده بماند. توکن‌های --vintage-* هم داخل
+  همین محدوده بازتعریف می‌شوند؛ چون Tailwind رنگ‌های `brand`/`ink`/`muted`
+  را از همین متغیرها می‌خواند، کل ویزارد به‌طور خودکار سبز می‌شود.
+*/
+
+body:has(.onboarding-behtarino),
+.onboarding-behtarino {
+  --ob-h: 158;
+  --ob-bg: hsl(150 18% 96%);
+  --ob-paper: hsl(0 0% 99%);
+  --ob-paper-2: hsl(150 14% 93%);
+  --ob-line: hsl(155 12% 86%);
+  --ob-muted: hsl(160 8% 45%);
+  --ob-ink: hsl(165 17% 17%);
+  --ob-green-50: hsl(var(--ob-h) 44% 94%);
+  --ob-green-100: hsl(var(--ob-h) 42% 86%);
+  --ob-green-300: hsl(var(--ob-h) 43% 65%);
+  --ob-green-500: hsl(var(--ob-h) 52% 39%);
+  --ob-green-700: hsl(var(--ob-h) 52% 28%);
+  --ob-gold: hsl(39 76% 48%);
+  --ob-shadow: 0 10px 30px hsl(160 18% 20% / 0.08);
+
+  --vintage-paper: var(--ob-bg);
+  --vintage-surface: var(--ob-paper);
+  --vintage-ring: var(--ob-green-100);
+  --vintage-accent: var(--ob-green-500);
+  --vintage-accent-dark: var(--ob-green-700);
+  --vintage-accent-hover: var(--ob-green-300);
+  --vintage-ink: var(--ob-ink);
+  --vintage-ink-soft: var(--ob-muted);
+  --vintage-border: var(--ob-line);
+  --vintage-radius: 14px;
+  --indeed-blue: var(--ob-green-500);
+  --indeed-blue-hover: var(--ob-green-700);
+  --indeed-blue-light: var(--ob-green-50);
+  --indeed-text: var(--ob-ink);
+  --indeed-text-muted: var(--ob-muted);
+  --indeed-border: var(--ob-line);
+  --indeed-bg: var(--ob-bg);
+  --indeed-bg-soft: var(--ob-paper-2);
+  --indeed-radius: 14px;
+
+  color: var(--ob-ink);
+  font-family: 'Vazirmatn', 'Shabnam', ui-sans-serif, system-ui, sans-serif;
+  color-scheme: light;
+}
+
+/* The dashboard chrome (sidebar + sticky header) follows the same green
+   palette while this page is mounted, so the page does not sit inside a
+   brown dashed frame. `:has()` keeps the override scoped to this route. */
+html[data-theme] body:has(.onboarding-behtarino) aside,
+html[data-skin] body:has(.onboarding-behtarino) aside {
+  border-left-color: var(--ob-line);
+  border-left-style: solid;
+  background: var(--ob-paper);
+}
+
+html[data-theme] body:has(.onboarding-behtarino),
+html[data-skin] body:has(.onboarding-behtarino) {
+  background-color: var(--ob-bg);
+  background-image: none;
+}
+
+html[data-theme] body:has(.onboarding-behtarino) header.sticky,
+html[data-skin] body:has(.onboarding-behtarino) header.sticky {
+  border-bottom-color: var(--ob-line);
+  border-bottom-style: solid;
+  background: color-mix(in srgb, var(--ob-paper) 92%, transparent);
+}
+
+html[data-theme] body:has(.onboarding-behtarino) .vintage-avatar,
+html[data-skin] body:has(.onboarding-behtarino) .vintage-avatar {
+  border: 0;
+  border-radius: 12px;
+  background: var(--ob-green-500);
+  box-shadow: none;
+}
+
+/* ---------- hero / brand head ---------- */
+.onboarding-behtarino .onboarding-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  padding: 20px 20px 22px;
+  color: #f3faf6;
+  background: linear-gradient(145deg, hsl(158 49% 39%), hsl(158 48% 29%));
+  box-shadow: 0 14px 34px hsl(158 40% 22% / 0.22);
+}
+
+.onboarding-behtarino .onboarding-hero::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: -48px;
+  bottom: -78px;
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  background: #ffffff12;
+  pointer-events: none;
+}
+
+.onboarding-behtarino .onboarding-hero-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.onboarding-behtarino .onboarding-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.onboarding-behtarino .onboarding-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: 13px;
+  background: #f2f8f2;
+  color: var(--ob-green-700);
+  box-shadow: 0 4px 12px hsl(158 40% 18% / 0.18);
+}
+
+.onboarding-behtarino .onboarding-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.35;
+}
+
+.onboarding-behtarino .onboarding-brand-text strong {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.onboarding-behtarino .onboarding-brand-text small {
+  font-size: 11px;
+  color: #dcefe4;
+}
+
+.onboarding-behtarino .onboarding-hero-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  border: 1px solid #ffffff3d;
+  background: #ffffff1a;
+  color: #f3faf6;
+  font-size: 11px;
+  font-weight: 700;
+  transition: background 0.18s ease;
+}
+
+.onboarding-behtarino .onboarding-hero-link:hover {
+  background: #ffffff2e;
+}
+
+.onboarding-behtarino .onboarding-hero-sub {
+  position: relative;
+  z-index: 1;
+  margin: 14px 0 0;
+  max-width: 46ch;
+  font-size: 12px;
+  line-height: 1.9;
+  color: #e1f1e8;
+}
+
+.onboarding-behtarino .onboarding-benefits {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.onboarding-behtarino .onboarding-benefits span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid #ffffff33;
+  background: #ffffff1f;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #f3faf6;
+}
+
+.onboarding-behtarino .onboarding-benefits svg {
+  color: #d9f5e5;
+}
+
+/* ---------- wizard card ---------- */
+.onboarding-behtarino .onboarding-card {
+  overflow: hidden;
+  border: 1px solid var(--ob-line);
+  border-radius: 24px;
+  background: var(--ob-paper);
+  box-shadow: var(--ob-shadow);
+}
+
+/* ---------- progress header ---------- */
+.onboarding-behtarino .onboarding-progress {
+  padding: 16px 16px 14px;
+  border-bottom: 1px solid var(--ob-line);
+  background: var(--ob-paper);
+  background-image: none;
+}
+
+.onboarding-behtarino .onboarding-progress > [aria-hidden] {
+  display: none;
+}
+
+.onboarding-behtarino .onboarding-progress-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--ob-ink);
+}
+
+.onboarding-behtarino .onboarding-progress-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: var(--ob-green-500);
+  color: #fff;
+  box-shadow: 0 4px 10px hsl(158 45% 30% / 0.2);
+}
+
+.onboarding-behtarino .onboarding-progress-count {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--ob-green-50);
+  color: var(--ob-green-700);
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.onboarding-behtarino .onboarding-progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--ob-paper-2);
+  box-shadow: none;
+}
+
+.onboarding-behtarino .onboarding-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(to left, var(--ob-green-500), var(--ob-green-700));
+}
+
+/* ---------- step chips ---------- */
+.onboarding-behtarino .onboarding-steps {
+  display: flex;
+  gap: 7px;
+  margin-inline: -2px;
+  padding: 2px 2px 4px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.onboarding-behtarino .onboarding-steps::-webkit-scrollbar {
+  display: none;
+}
+
+.onboarding-behtarino .onboarding-step {
+  flex: 0 0 auto;
+  min-height: 34px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  scroll-snap-align: start;
+}
+
+.onboarding-behtarino .onboarding-step[data-state='active'] {
+  border-color: var(--ob-green-500);
+  background: var(--ob-green-500);
+  color: #fff;
+  box-shadow: 0 4px 12px hsl(158 40% 30% / 0.18);
+}
+
+.onboarding-behtarino .onboarding-step[data-state='done'] {
+  border-color: var(--ob-green-100);
+  background: var(--ob-green-50);
+  color: var(--ob-green-700);
+}
+
+.onboarding-behtarino .onboarding-step[data-state='locked'] {
+  border-color: var(--ob-line);
+  background: var(--ob-paper-2);
+  color: color-mix(in srgb, var(--ob-muted) 70%, var(--ob-paper));
+}
+
+.onboarding-behtarino .onboarding-step-no {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: 999px;
+  font-size: 10px;
+  background: var(--ob-paper-2);
+}
+
+.onboarding-behtarino .onboarding-step[data-state='active'] .onboarding-step-no {
+  background: #ffffff2b;
+}
+
+.onboarding-behtarino .onboarding-step[data-state='done'] .onboarding-step-no {
+  background: var(--ob-green-100);
+}
+
+/* ---------- step body ---------- */
+.onboarding-behtarino .onboarding-body {
+  padding: 18px 16px 20px;
+  background: var(--ob-bg);
+  background-image: none;
+}
+
+.onboarding-behtarino .onboarding-step-icon {
+  border-radius: 16px;
+}
+
+.onboarding-behtarino .onboarding-footer {
+  border-top-color: var(--ob-line);
+}
+
+/* ---------- shared controls ---------- */
+.onboarding-behtarino .indeed-input {
+  min-height: 44px;
+  padding: 10px 13px;
+  border: 1px solid var(--ob-line);
+  border-radius: 12px;
+  background: var(--ob-paper);
+  color: var(--ob-ink);
+  font-family: inherit;
+}
+
+.onboarding-behtarino .indeed-input::placeholder {
+  color: color-mix(in srgb, var(--ob-muted) 70%, var(--ob-paper));
+}
+
+.onboarding-behtarino .indeed-input:focus {
+  border-color: var(--ob-green-500);
+  box-shadow: 0 0 0 3px hsl(158 52% 39% / 0.16);
+}
+
+.onboarding-behtarino .indeed-btn {
+  min-height: 44px;
+  padding: 11px 18px;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  gap: 7px;
+}
+
+.onboarding-behtarino .indeed-btn-primary {
+  border-color: var(--ob-green-500);
+  background: var(--ob-green-500);
+  background-image: none;
+  color: #f7fbf8;
+  box-shadow: 0 6px 16px hsl(158 45% 30% / 0.18);
+}
+
+.onboarding-behtarino .indeed-btn-primary:hover {
+  background: var(--ob-green-700);
+  filter: none;
+  transform: translateY(-1px);
+}
+
+.onboarding-behtarino .indeed-btn-secondary {
+  border-color: var(--ob-line);
+  background: var(--ob-paper);
+  color: var(--ob-green-700);
+  box-shadow: none;
+}
+
+.onboarding-behtarino .indeed-btn-secondary:hover {
+  border-color: var(--ob-green-300);
+  background: var(--ob-green-50);
+  transform: translateY(-1px);
+}
+
+.onboarding-behtarino .indeed-btn-primary:disabled {
+  border-color: var(--ob-line);
+  background: var(--ob-paper-2);
+  color: color-mix(in srgb, var(--ob-muted) 75%, var(--ob-paper));
+}
+
+.onboarding-behtarino .indeed-panel {
+  border: 1px solid var(--ob-line);
+  border-radius: 20px;
+  background: var(--ob-paper);
+  box-shadow: var(--ob-shadow);
+}
+
+/*
+  The page is deliberately always light (like the reference app). The global
+  theme still adds `dark:` utilities to the wizard's alert boxes and controls,
+  so this guard re-asserts the light palette when the dashboard is in dark
+  mode. The higher specificity also beats the twitter/modern skin overrides.
+*/
+html[data-theme] .onboarding-behtarino .indeed-input,
+html[data-skin] .onboarding-behtarino .indeed-input {
+  border-color: var(--ob-line);
+  background: var(--ob-paper);
+  color: var(--ob-ink);
+}
+
+html[data-theme] .onboarding-behtarino .indeed-btn-primary,
+html[data-skin] .onboarding-behtarino .indeed-btn-primary {
+  border-color: var(--ob-green-500);
+  background: var(--ob-green-500);
+  background-image: none;
+  color: #f7fbf8;
+  box-shadow: 0 6px 16px hsl(158 45% 30% / 0.18);
+}
+
+html[data-theme] .onboarding-behtarino .indeed-btn-primary:hover,
+html[data-skin] .onboarding-behtarino .indeed-btn-primary:hover {
+  border-color: var(--ob-green-700);
+  background: var(--ob-green-700);
+  background-image: none;
+  color: #f7fbf8;
+}
+
+html[data-theme] .onboarding-behtarino .indeed-btn-secondary,
+html[data-skin] .onboarding-behtarino .indeed-btn-secondary {
+  border-color: var(--ob-line);
+  background: var(--ob-paper);
+  color: var(--ob-green-700);
+  box-shadow: none;
+}
+
+html[data-theme] .onboarding-behtarino .indeed-btn-secondary:hover,
+html[data-skin] .onboarding-behtarino .indeed-btn-secondary:hover {
+  border-color: var(--ob-green-300);
+  background: var(--ob-green-50);
+  color: var(--ob-green-700);
+}
+
+html[data-theme] .onboarding-behtarino .bg-white,
+html[data-skin] .onboarding-behtarino .bg-white {
+  background-color: var(--ob-paper);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:bg-amber-950'],
+html[data-skin] .onboarding-behtarino [class*='dark:bg-amber-950'] {
+  background-color: hsl(44 78% 94%);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:bg-emerald-9'],
+html[data-skin] .onboarding-behtarino [class*='dark:bg-emerald-9'] {
+  background-color: hsl(152 76% 95%);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:bg-red-950'],
+html[data-skin] .onboarding-behtarino [class*='dark:bg-red-950'] {
+  background-color: hsl(0 86% 97%);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:bg-sky-950'],
+html[data-skin] .onboarding-behtarino [class*='dark:bg-sky-950'] {
+  background-color: hsl(204 94% 94%);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:border-amber-800'],
+html[data-skin] .onboarding-behtarino [class*='dark:border-amber-800'] {
+  border-color: hsl(46 97% 65%);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:border-emerald-800'],
+html[data-skin] .onboarding-behtarino [class*='dark:border-emerald-800'] {
+  border-color: hsl(152 76% 80%);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:border-red-800'],
+html[data-skin] .onboarding-behtarino [class*='dark:border-red-800'] {
+  border-color: hsl(0 94% 82%);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:border-sky-800'],
+html[data-skin] .onboarding-behtarino [class*='dark:border-sky-800'] {
+  border-color: hsl(201 94% 78%);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:text-amber-'],
+html[data-skin] .onboarding-behtarino [class*='dark:text-amber-'] {
+  color: hsl(35 92% 33%);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:text-emerald-'],
+html[data-skin] .onboarding-behtarino [class*='dark:text-emerald-'] {
+  color: hsl(161 94% 30%);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:text-red-'],
+html[data-skin] .onboarding-behtarino [class*='dark:text-red-'] {
+  color: hsl(0 72% 51%);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:text-sky-'],
+html[data-skin] .onboarding-behtarino [class*='dark:text-sky-'] {
+  color: hsl(201 96% 32%);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:from-emerald-950'],
+html[data-skin] .onboarding-behtarino [class*='dark:from-emerald-950'] {
+  --tw-gradient-from: hsl(152 76% 95%);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:via-emerald-950'],
+html[data-skin] .onboarding-behtarino [class*='dark:via-emerald-950'] {
+  --tw-gradient-via: hsl(152 76% 95%);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:to-[var(--vintage-surface)]'],
+html[data-skin] .onboarding-behtarino [class*='dark:to-[var(--vintage-surface)]'] {
+  --tw-gradient-to: var(--ob-paper);
+}
+
+html[data-theme] .onboarding-behtarino [class*='dark:ring-emerald-800'],
+html[data-skin] .onboarding-behtarino [class*='dark:ring-emerald-800'] {
+  --tw-ring-color: hsl(152 76% 80%);
+}
+
+/* ---------- feature-disabled card ---------- */
+.onboarding-behtarino .onboarding-disabled {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 32px 20px;
+  border: 1px solid var(--ob-line);
+  border-radius: 24px;
+  background: var(--ob-paper);
+  box-shadow: var(--ob-shadow);
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--ob-muted);
+}
+
+/* ---------- mobile refinements ---------- */
+@media (max-width: 640px) {
+  .onboarding-behtarino .onboarding-hero {
+    border-radius: 20px;
+    padding: 16px 16px 18px;
+  }
+
+  .onboarding-behtarino .onboarding-card {
+    border-radius: 20px;
+  }
+
+  .onboarding-behtarino .onboarding-progress {
+    padding: 14px 13px 12px;
+  }
+
+  .onboarding-behtarino .onboarding-body {
+    padding: 16px 13px 18px;
+  }
+
+  .onboarding-behtarino .indeed-btn {
+    min-height: 46px;
+    padding: 12px 16px;
+  }
+
+  .onboarding-behtarino .onboarding-footer {
+    flex-wrap: wrap;
+  }
+
+  .onboarding-behtarino .onboarding-footer .indeed-btn {
+    flex: 1 1 auto;
+  }
+
+  .onboarding-behtarino .onboarding-footer > .flex {
+    flex: 1 1 100%;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 380px) {
+  .onboarding-behtarino .onboarding-brand-text strong {
+    font-size: 16px;
+  }
+
+  .onboarding-behtarino .onboarding-hero-link {
+    padding: 6px 9px;
+    font-size: 10px;
+  }
+}
