@@ -34,7 +34,11 @@ import { FinanceService } from '../finance/finance.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
   ONBOARDING_CART_PREFIX,
+  ONBOARDING_STEP_DATA_PREFIX,
+  ONBOARDING_STEPS_SETTING_KEY,
+  isOptionalModuleStepUnused,
   type OnboardingCartItem,
+  type OnboardingStepDef,
 } from '../onboarding/onboarding.constants';
 import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
@@ -1114,6 +1118,49 @@ export class SubscriptionsPaymentService {
       const wanted = new Set(stepIds);
       items = items.filter((item) => wanted.has(item.stepId));
     }
+    if (items.length === 0) return items;
+    // An optional module the user left empty must never be billed, even if a
+    // stale cart entry survived an admin edit. Read the step definitions and
+    // the user's saved inputs to drop those entries before pricing.
+    const [stepsRow, dataRows] = await Promise.all([
+      this.prisma.setting.findUnique({
+        where: { key: ONBOARDING_STEPS_SETTING_KEY },
+      }),
+      this.prisma.setting.findMany({
+        where: {
+          key: { startsWith: `${ONBOARDING_STEP_DATA_PREFIX}${userId}:` },
+        },
+      }),
+    ]);
+    let steps: OnboardingStepDef[] = [];
+    try {
+      const parsed = stepsRow?.value ? (JSON.parse(stepsRow.value) as unknown) : [];
+      if (Array.isArray(parsed)) steps = parsed as OnboardingStepDef[];
+    } catch {
+      steps = [];
+    }
+    const stepById = new Map(steps.map((step) => [step.id, step] as const));
+    const dataByStep = new Map<string, Record<string, unknown>>();
+    for (const dataRow of dataRows) {
+      const stepId = dataRow.key.slice(
+        `${ONBOARDING_STEP_DATA_PREFIX}${userId}:`.length,
+      );
+      try {
+        const parsed = JSON.parse(dataRow.value) as unknown;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          dataByStep.set(stepId, parsed as Record<string, unknown>);
+        }
+      } catch {
+        // Ignore malformed step data.
+      }
+    }
+    items = items.filter(
+      (item) =>
+        !isOptionalModuleStepUnused(
+          stepById.get(item.stepId),
+          dataByStep.get(item.stepId),
+        ),
+    );
     return items;
   }
 

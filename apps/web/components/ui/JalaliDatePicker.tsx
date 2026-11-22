@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CalendarDays,
   ChevronLeft,
@@ -59,6 +60,16 @@ export function JalaliDatePicker({
   'aria-label': ariaLabel,
 }: JalaliDatePickerProps) {
   const [open, setOpen] = useState(false);
+  // The calendar is rendered in a portal with fixed coordinates so a parent
+  // with `overflow-hidden` (or a page that cannot scroll) can never clip it.
+  // It opens below the input and flips above when there is not enough room.
+  const [dropUp, setDropUp] = useState(false);
+  const [coords, setCoords] = useState<{
+    left: number;
+    width: number;
+    top: number;
+    bottom: number;
+  } | null>(null);
   // `draft` holds what the user is typing; `null` means "show the value".
   const [draft, setDraft] = useState<string | null>(null);
   const text = draft ?? formatJalali(value);
@@ -68,20 +79,38 @@ export function JalaliDatePicker({
     month: initial.month,
   });
   const rootRef = useRef<HTMLDivElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!open) return;
     function onPointerDown(event: MouseEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      const target = event.target as Node;
+      if (
+        !rootRef.current?.contains(target) &&
+        !popupRef.current?.contains(target)
+      ) {
+        setOpen(false);
+      }
     }
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') setOpen(false);
     }
+    // Fixed coordinates go stale on page scroll/resize; close instead of
+    // drifting. Scrolling *inside* the calendar must not close it.
+    function onViewportChange(event: Event) {
+      const target = event.target;
+      if (target instanceof Node && popupRef.current?.contains(target)) return;
+      setOpen(false);
+    }
     document.addEventListener('mousedown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('scroll', onViewportChange, true);
+    window.addEventListener('resize', onViewportChange);
     return () => {
       document.removeEventListener('mousedown', onPointerDown);
       document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('scroll', onViewportChange, true);
+      window.removeEventListener('resize', onViewportChange);
     };
   }, [open]);
 
@@ -102,6 +131,25 @@ export function JalaliDatePicker({
     if (disabled) return;
     const base = isoToJalali(value) ?? today;
     if (base) setView({ year: base.year, month: base.month });
+    const rect = rootRef.current?.getBoundingClientRect();
+    if (rect) {
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      // The calendar is ~22rem tall; open upward when there is clearly more
+      // room above than below.
+      setDropUp(spaceBelow < 360 && spaceAbove > spaceBelow);
+      const width = Math.max(rect.width, 288);
+      const left = Math.max(
+        8,
+        Math.min(rect.left, window.innerWidth - width - 8),
+      );
+      setCoords({
+        left,
+        width,
+        top: rect.bottom + 8,
+        bottom: window.innerHeight - rect.top + 8,
+      });
+    }
     setOpen(true);
   }
 
@@ -193,11 +241,21 @@ export function JalaliDatePicker({
         ) : null}
       </div>
 
-      {open ? (
+      {open && coords && typeof document !== 'undefined'
+        ? createPortal(
         <div
+          ref={popupRef}
           role="dialog"
           aria-label="تقویم شمسی"
-          className="absolute z-50 mt-2 w-72 rounded-2xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-3 shadow-2xl ring-1 ring-black/5"
+          style={{
+            position: 'fixed',
+            left: coords.left,
+            width: coords.width,
+            ...(dropUp
+              ? { bottom: coords.bottom }
+              : { top: coords.top }),
+          }}
+          className="z-[60] max-h-[min(22rem,70vh)] overflow-y-auto rounded-2xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-3 shadow-2xl ring-1 ring-black/5"
         >
           <div className="mb-2 flex items-center justify-between gap-1">
             <button
@@ -315,8 +373,10 @@ export function JalaliDatePicker({
               بستن
             </button>
           </div>
-        </div>
-      ) : null}
+        </div>,
+        document.body,
+      )
+        : null}
     </div>
   );
 }

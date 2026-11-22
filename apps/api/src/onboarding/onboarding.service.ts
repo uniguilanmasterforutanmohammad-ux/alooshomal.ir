@@ -34,6 +34,7 @@ import {
   ONBOARDING_FIELD_PREFILLS,
   ONBOARDING_MATCH_SOURCES,
   ONBOARDING_MATCH_MODES,
+  isOptionalModuleStepUnused,
   type OnboardingDocument,
   type OnboardingBusinessState,
   type OnboardingCartItem,
@@ -772,10 +773,17 @@ export class OnboardingService implements OnModuleInit {
         .filter((step) => step.kind === 'module' && step.moduleKey)
         .map((step) => step.id),
     );
+    const stepById = new Map(steps.map((step) => [step.id, step] as const));
     const storedCart = this.parseCart(cartRow?.value);
-    const cart = storedCart.filter((item) =>
-      activeModuleStepIds.has(item.stepId),
-    );
+    const cart = storedCart.filter((item) => {
+      if (!activeModuleStepIds.has(item.stepId)) return false;
+      // The admin may mark a step optional after the user already used it; an
+      // optional step whose inputs are now empty must not stay in the cart.
+      return !isOptionalModuleStepUnused(
+        stepById.get(item.stepId),
+        stepData.get(item.stepId),
+      );
+    });
     if (cart.length !== storedCart.length) {
       await this.writeCart(userId, cart);
     }
@@ -1387,9 +1395,13 @@ export class OnboardingService implements OnModuleInit {
     const isEmpty = (value: unknown) =>
       value === undefined || value === null || value === '';
     // An optional module left untouched is a valid "skip": no inquiry, no fee.
-    const skipped = step.optional === true && resolved.every((entry) =>
-      isEmpty(entry.value),
-    );
+    // Readonly prefilled fields are filled by the server, so they must not
+    // count as user input; otherwise an optional step whose only filled field
+    // is a locked prefill (e.g. the account's national code) would be billed
+    // even though the user never entered the required license number.
+    const skipped =
+      step.optional === true &&
+      resolved.every((entry) => entry.field.readonly || isEmpty(entry.value));
     // A dependent module (e.g. a license lookup) only runs once its
     // prerequisites are fulfilled; block the submit early so the user does not
     // reach the invoice with an inquiry that cannot run.
@@ -1444,13 +1456,17 @@ export class OnboardingService implements OnModuleInit {
         clean[field.name] = value;
       }
     }
+    // A skipped optional step stores no user input, so the cart/checkout can
+    // reliably tell it apart from a filled one even if the admin later edits
+    // the step. A skipped step never runs, so its prefills are not needed.
+    const stored = skipped ? {} : clean;
     await this.prisma.setting.upsert({
       where: { key: this.stepDataKey(userId, step.id) },
       create: {
         key: this.stepDataKey(userId, step.id),
-        value: JSON.stringify(clean),
+        value: JSON.stringify(stored),
       },
-      update: { value: JSON.stringify(clean) },
+      update: { value: JSON.stringify(stored) },
     });
     await this.prisma.onboardingStepCompletion.upsert({
       where: { userId_stepId: { userId, stepId: step.id } },
@@ -1822,6 +1838,17 @@ export class OnboardingService implements OnModuleInit {
         continue;
       }
       const payload = await this.readStepData(userId, item.stepId);
+      if (isOptionalModuleStepUnused(step, payload)) {
+        // The user left this optional inquiry empty, so it was never meant to
+        // run (and must not have been charged).
+        results.push({
+          stepId: item.stepId,
+          ok: false,
+          matched: false,
+          message: 'این مرحله‌ی اختیاری خالی مانده و استعلامی اجرا نشد.',
+        });
+        continue;
+      }
       try {
         let ok: boolean;
         let result: unknown;
@@ -2080,7 +2107,11 @@ export class OnboardingService implements OnModuleInit {
   /** Best-effort first/last name extraction from an identity-style payload. */
   private extractIdentityNames(
     data: Record<string, unknown> | null,
-  ): { firstName: string | null; lastName: string | null } {
+  ): {
+    firstName: string | null;
+    lastName: string | null;
+    fatherName: string | null;
+  } {
     const pick = (...keys: string[]): string => {
       for (const key of keys) {
         const value = data?.[key];
@@ -2101,6 +2132,7 @@ export class OnboardingService implements OnModuleInit {
     return {
       firstName: firstName || null,
       lastName: lastName || null,
+      fatherName: pick('father_name', 'fatherName') || null,
     };
   }
 
@@ -2164,6 +2196,7 @@ export class OnboardingService implements OnModuleInit {
           ...(names.firstName && names.lastName
             ? { fullName: `${names.firstName} ${names.lastName}` }
             : {}),
+          ...(names.fatherName ? { fatherName: names.fatherName } : {}),
           ...(data
             ? { identityInquiryData: data as Prisma.InputJsonValue }
             : {}),
@@ -2190,6 +2223,7 @@ export class OnboardingService implements OnModuleInit {
           matched: true,
           firstName: names.firstName,
           lastName: names.lastName,
+          fatherName: names.fatherName,
           raw: (data ?? undefined) as Prisma.InputJsonValue | undefined,
           message: `احراز هویت از نتیجه‌ی موفق ماژول «${label}».`,
         },
@@ -2216,6 +2250,7 @@ export class OnboardingService implements OnModuleInit {
           matched: true,
           firstName: names.firstName,
           lastName: names.lastName,
+          fatherName: names.fatherName,
           raw: (data ?? undefined) as Prisma.InputJsonValue | undefined,
           message: `استعلام جواز کسب از نتیجه‌ی موفق ماژول «${label}».`,
         },
@@ -2240,6 +2275,7 @@ export class OnboardingService implements OnModuleInit {
           matched: false,
           firstName: names.firstName,
           lastName: names.lastName,
+          fatherName: names.fatherName,
           raw: data as Prisma.InputJsonValue,
           message:
             options.matchMessage ??

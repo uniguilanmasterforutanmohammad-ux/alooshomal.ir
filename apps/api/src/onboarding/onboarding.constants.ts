@@ -10,6 +10,26 @@
 export const ONBOARDING_STEPS_SETTING_KEY = 'onboardingSteps';
 
 /**
+ * True when a module step is optional and the user left every input empty, so
+ * it must be treated as a deliberate skip: no inquiry runs and nothing is
+ * charged. Shared by the wizard payload, the checkout and the delivery so a
+ * stale cart entry can never bill an untouched optional inquiry.
+ */
+export function isOptionalModuleStepUnused(
+  step: Pick<OnboardingStepDef, 'kind' | 'optional'> | undefined,
+  data: Record<string, unknown> | null | undefined,
+): boolean {
+  if (!step || step.kind !== 'module' || step.optional !== true) return false;
+  if (!data) return true;
+  return Object.values(data).every(
+    (value) =>
+      value === undefined ||
+      value === null ||
+      (typeof value === 'string' && value.trim() === ''),
+  );
+}
+
+/**
  * Per-user, per-step form data collected by a `module` step (e.g. the inputs
  * of an api.ir/Zohal inquiry the admin placed in the wizard). Stored as a
  * setting key so the wizard can show what the user already entered without a

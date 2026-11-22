@@ -909,8 +909,11 @@ export function OnboardingWizard() {
       raw: moduleValue(step, field).trim(),
     }));
     // An optional step the user left completely empty is a valid skip: no
-    // inquiry runs and nothing is added to the invoice.
-    const skipped = step.optional === true && values.every(({ raw }) => !raw);
+    // inquiry runs and nothing is added to the invoice. Readonly prefilled
+    // fields are filled by the server, so they must not count as user input.
+    const skipped =
+      step.optional === true &&
+      values.every(({ field, raw }) => field.readonly || !raw);
     const data: Record<string, unknown> = {};
     if (!skipped) {
       for (const { field, raw } of values) {
