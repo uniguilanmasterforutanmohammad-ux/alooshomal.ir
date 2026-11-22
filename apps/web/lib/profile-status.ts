@@ -12,6 +12,16 @@ export interface MyProfileStatus {
   nationalCode: string | null;
   profileCompleted: boolean;
   onboardingFinished?: boolean;
+  identity?: {
+    phoneMatched: boolean;
+    verified: boolean;
+    nationalCode: string | null;
+    birthDate: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    fatherName: string | null;
+    businessLicenseVerified: boolean;
+  } | null;
 }
 
 /**

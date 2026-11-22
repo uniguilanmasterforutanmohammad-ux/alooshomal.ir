@@ -16,6 +16,8 @@ export interface GatewayCallbackPayload {
   clientRefId?: string;
   /** `1` = paid, `0` = cancelled/failed (PayPing). */
   status?: number;
+  /** Internal path to return the browser to after a verified payment. */
+  returnTo?: string;
 }
 
 type Dict = Record<string, unknown>;
@@ -72,6 +74,7 @@ export function parseGatewayCallback(
       asString(merged.refid),
     clientRefId: asString(merged.clientRefId),
     status: asNumber(merged.status),
+    returnTo: asString(merged.returnTo),
   };
 }
 

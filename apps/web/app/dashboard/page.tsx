@@ -156,6 +156,32 @@ export default function DashboardPage() {
               <h3 className="text-sm font-extrabold text-ink">دسترسی سریع</h3>
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3">
+              {profileStatus?.identity?.verified ? (
+                <span className="flex items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-xs font-bold text-emerald-700">
+                  <BadgeCheck className="size-4" aria-hidden />
+                  تیک سفید فعال
+                </span>
+              ) : (
+                <Link
+                  href="/dashboard/inquiries?tick=white"
+                  className="indeed-btn indeed-btn-primary py-2 text-sm"
+                >
+                  دریافت تیک سفید
+                </Link>
+              )}
+              {profileStatus?.identity?.businessLicenseVerified ? (
+                <span className="flex items-center justify-center gap-1.5 rounded-lg border border-sky-200 bg-sky-50 px-2 py-2 text-xs font-bold text-sky-700">
+                  <BadgeCheck className="size-4" aria-hidden />
+                  تیک آبی فعال
+                </span>
+              ) : (
+                <Link
+                  href="/dashboard/inquiries?tick=blue"
+                  className="indeed-btn indeed-btn-primary py-2 text-sm"
+                >
+                  دریافت تیک آبی
+                </Link>
+              )}
               {isFeatureVisible('featureOnboarding') &&
               profileStatus?.onboardingFinished !== true ? (
                 <Link

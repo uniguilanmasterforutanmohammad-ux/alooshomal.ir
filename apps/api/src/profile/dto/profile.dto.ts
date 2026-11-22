@@ -119,6 +119,16 @@ export class IdentityCheckoutDto {
   @IsString()
   @MaxLength(80)
   licenseTrackingCode?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'مسیر داخلی بازگشت پس از پرداخت (مثلاً `/dashboard/inquiries`).',
+    example: '/dashboard/inquiries',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  returnTo?: string;
 }
 
 export class RequestProfileChangeDto {

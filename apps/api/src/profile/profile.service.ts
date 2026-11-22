@@ -933,6 +933,7 @@ export class ProfileService {
       birthDate?: string;
       withLicense?: boolean;
       licenseTrackingCode?: string;
+      returnTo?: string;
     } = {},
   ) {
     await this.settings.assertFeatureEnabled(
@@ -1062,7 +1063,13 @@ export class ProfileService {
       },
     });
 
-    const returnUrl = `${paypingReturnBaseUrl()}/api/profile/identity/payments/callback`;
+    // Carry the post-payment destination through the gateway so the user lands
+    // back on the page they started from (e.g. `/dashboard/inquiries`).
+    const safeReturnTo =
+      dto.returnTo && /^\/(?!\/)/.test(dto.returnTo) ? dto.returnTo : null;
+    const returnUrl = `${paypingReturnBaseUrl()}/api/profile/identity/payments/callback${
+      safeReturnTo ? `?returnTo=${encodeURIComponent(safeReturnTo)}` : ''
+    }`;
     let result: { paymentCode?: string; url?: string } | null = null;
     try {
       result = this.simulator.isEnabled
@@ -1421,9 +1428,16 @@ export class ProfileService {
     refId?: string;
     clientRefId?: string;
     status?: number;
+    returnTo?: string;
   }) {
-    const successUrl = `${paypingReturnBaseUrl()}/dashboard/onboarding?identity=success`;
-    const failedUrl = `${paypingReturnBaseUrl()}/dashboard/onboarding?identity=failed`;
+    const base = `${paypingReturnBaseUrl()}`;
+    const safeReturnTo =
+      params.returnTo && /^\/(?!\/)/.test(params.returnTo)
+        ? params.returnTo
+        : '/dashboard/onboarding';
+    const separator = safeReturnTo.includes('?') ? '&' : '?';
+    const successUrl = `${base}${safeReturnTo}${separator}identity=success`;
+    const failedUrl = `${base}${safeReturnTo}${separator}identity=failed`;
     const paymentCode = params.paymentCode?.trim() || undefined;
     const refId = params.refId?.trim() || undefined;
     const clientRefId = params.clientRefId?.trim() || undefined;
