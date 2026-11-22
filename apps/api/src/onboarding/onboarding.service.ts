@@ -47,7 +47,9 @@ import {
   type OnboardingModuleResponseField,
   type OnboardingProgressPayload,
   type OnboardingStepDef,
+  type OnboardingStepExport,
   type OnboardingStepOnSuccess,
+  type OnboardingStepsExport,
   type OnboardingStepKind,
   type OnboardingStepState,
 } from './onboarding.constants';
@@ -175,6 +177,69 @@ export class OnboardingService implements OnModuleInit {
     } catch {
       return DEFAULT_ONBOARDING_STEPS;
     }
+  }
+
+  /**
+   * A self-contained export of every configured «شروع آسان» step: the stored
+   * configuration plus each module resolved from the catalog (label, price,
+   * built-in form fields, effective fields with the admin's overrides applied,
+   * and the comparable response fields). Used by the admin panel to download
+   * the whole configuration as JSON.
+   */
+  async exportSteps(): Promise<OnboardingStepsExport> {
+    const [steps, catalog] = await Promise.all([
+      this.getSteps(),
+      this.getModuleCatalog(),
+    ]);
+    const moduleByKey = new Map(
+      catalog.items.map((item) => [item.key, item] as const),
+    );
+    const exported: OnboardingStepExport[] = steps.map((step) => {
+      const module = step.moduleKey
+        ? moduleByKey.get(step.moduleKey)
+        : undefined;
+      const fields = module?.fields ?? [];
+      return {
+        id: step.id,
+        kind: step.kind,
+        title: step.title,
+        description: step.description,
+        ...(step.href ? { href: step.href } : {}),
+        enabled: step.enabled,
+        optional: step.optional === true,
+        ...(step.moduleKey ? { moduleKey: step.moduleKey } : {}),
+        module: module
+          ? {
+              key: module.key,
+              type: module.type,
+              label: module.label,
+              description: module.description,
+              href: module.href,
+              price: module.price,
+              fields,
+              responseFields: module.responseFields ?? [],
+              group: module.group,
+              enabled: module.enabled,
+              composite: module.composite === true,
+              resolvedFields: this.resolveModuleFields(
+                fields,
+                step.fieldOverrides,
+                {},
+              ),
+            }
+          : null,
+        ...(step.fieldOverrides ? { fieldOverrides: step.fieldOverrides } : {}),
+        ...(step.onSuccess ? { onSuccess: step.onSuccess } : {}),
+        ...(step.match ? { match: step.match } : {}),
+        ...(step.requires ? { requires: step.requires } : {}),
+      };
+    });
+    return {
+      schema: 'onboarding-steps/v1',
+      exportedAt: new Date().toISOString(),
+      count: exported.length,
+      steps: exported,
+    };
   }
 
   /**

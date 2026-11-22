@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
+  Download,
   Loader2,
   Plus,
   Save,
@@ -157,6 +158,7 @@ export function AdminOnboardingSteps() {
   const [moduleQuery, setModuleQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -418,6 +420,38 @@ export function AdminOnboardingSteps() {
     }
   }
 
+  /**
+   * Download the complete «شروع آسان» configuration (every step plus its
+   * resolved module items and response fields) as a JSON file.
+   */
+  async function exportSteps() {
+    setExporting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const data = await api.get<Record<string, unknown>>(
+        '/admin/onboarding/steps/export',
+      );
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const stamp = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `onboarding-steps-${stamp}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setMessage('خروجی JSON مراحل دانلود شد.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'دریافت خروجی ناموفق بود');
+    } finally {
+      setExporting(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="indeed-panel flex items-center gap-2 p-5 text-sm text-muted">
@@ -442,6 +476,19 @@ export function AdminOnboardingSteps() {
           >
             <Plus className="size-4" aria-hidden />
             افزودن مرحله
+          </button>
+          <button
+            type="button"
+            onClick={() => void exportSteps()}
+            disabled={exporting}
+            className="indeed-btn indeed-btn-secondary py-2 text-xs"
+          >
+            {exporting ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Download className="size-4" aria-hidden />
+            )}
+            خروجی JSON
           </button>
           <button
             type="button"

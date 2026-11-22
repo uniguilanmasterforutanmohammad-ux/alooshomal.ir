@@ -20,7 +20,39 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.69.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.70.0**.
+
+## ۱۴۰۵/۰۹/۰۱ — خروجی کامل مراحل «شروع آسان» — نسخه `v4.70.0`
+
+**هدف:** ادمین بتواند همه‌ی مراحل ساخته‌شده‌ی «شروع آسان» را به‌صورت یک فایل
+خودبسنده استخراج کند؛ شامل تمام مراحل و مواردشان (ماژول، فرم و بازنویسی‌ها،
+قواعد تطبیق، پیش‌نیازها و تیک‌های پس از موفقیت).
+
+**تغییرات:**
+- `apps/api/src/onboarding/onboarding.constants.ts`: افزودن `OnboardingStepExport`
+  و `OnboardingStepsExport`.
+- `apps/api/src/onboarding/onboarding.service.ts`: افزودن `exportSteps()` که هر
+  مرحله را با پیکربندی کامل و ماژولِ حل‌شده (`label`, `price`, `group`, `type`،
+  `fields`، `resolvedFields` با اعمال `fieldOverrides` و `responseFields`)
+  برمی‌گرداند.
+- `apps/api/src/onboarding/onboarding.controller.ts`: مسیر جدید
+  `GET /admin/onboarding/steps/export` (ADMIN).
+- `apps/web/components/admin/AdminOnboardingSteps.tsx`: دکمه‌ی «خروجی JSON» که
+  خروجی را دریافت و به‌صورت فایل `onboarding-steps-YYYY-MM-DD.json` دانلود می‌کند.
+- `docs/API.md`: مستندسازی مسیر جدید.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا؛
+  `python3 scripts/check_api_docs.py` → «۵۶۵ مسیر» و exit 0؛ مسیر در
+  `GET /api/docs-json` با `summary` دیده شد.
+- فراخوانی `GET /admin/onboarding/steps/export` با توکن مدیر: `schema`، `count`
+  و همه‌ی مراحل برگشتند؛ برای مرحله‌ی ماژول، `match`/`requires`/`onSuccess`/
+  `fieldOverrides` و `module.fields`/`module.resolvedFields`/`module.responseFields`
+  کامل بودند.
+- بررسی UI با `playwright-core`/google-chrome: دکمه‌ی «خروجی JSON» فایل
+  `onboarding-steps-2026-11-22.json` را با `schema: onboarding-steps/v1` و ۸ مرحله
+  دانلود کرد و خطای صفحه‌ای ثبت نشد.
 
 ## ۱۴۰۵/۰۹/۰۱ — کشویی «فیلد پاسخ استعلام» از قرارداد OpenAPI زحل و api.ir — نسخه `v4.69.0`
 

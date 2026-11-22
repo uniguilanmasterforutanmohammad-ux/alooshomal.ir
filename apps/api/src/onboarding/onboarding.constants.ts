@@ -260,6 +260,43 @@ export interface OnboardingModuleResponseField {
   example?: string;
 }
 
+/**
+ * One step of the self-contained «شروع آسان» export document: the stored
+ * configuration plus the resolved module (catalog details, effective form
+ * fields and comparable response fields).
+ */
+export interface OnboardingStepExport {
+  id: string;
+  kind: OnboardingStepKind;
+  title: string;
+  description: string;
+  href?: string;
+  enabled: boolean;
+  optional: boolean;
+  moduleKey?: string;
+  module:
+    | (OnboardingModuleInfo & {
+        group: string;
+        enabled: boolean;
+        composite: boolean;
+        /** Built-in fields with the admin's `fieldOverrides` applied. */
+        resolvedFields: OnboardingModuleField[];
+      })
+    | null;
+  fieldOverrides?: Record<string, OnboardingFieldOverride>;
+  onSuccess?: OnboardingStepOnSuccess;
+  match?: OnboardingMatchRule[];
+  requires?: string[];
+}
+
+/** Full payload of `GET /admin/onboarding/steps/export`. */
+export interface OnboardingStepsExport {
+  schema: 'onboarding-steps/v1';
+  exportedAt: string;
+  count: number;
+  steps: OnboardingStepExport[];
+}
+
 /** One priced module the user opted into, shown in the wizard's cart. */
 export interface OnboardingCartItem {
   stepId: string;

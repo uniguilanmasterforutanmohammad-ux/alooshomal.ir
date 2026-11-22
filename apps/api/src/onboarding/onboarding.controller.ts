@@ -136,6 +136,15 @@ export class AdminOnboardingController {
     return { steps: await this.onboarding.getSteps() };
   }
 
+  @Get('steps/export')
+  @ApiOperation({
+    summary:
+      'خروجی کامل و خودبسنده‌ی همه‌ی مراحل «شروع آسان» (JSON) برای استخراج و پشتیبان‌گیری',
+  })
+  exportSteps() {
+    return this.onboarding.exportSteps();
+  }
+
   @Get('modules')
   @ApiOperation({
     summary:
