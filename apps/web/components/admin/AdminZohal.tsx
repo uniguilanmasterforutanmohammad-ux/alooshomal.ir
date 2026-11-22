@@ -914,8 +914,18 @@ export function AdminZohal() {
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
             {services.map((service) => {
               const hasFile = service.fields.some((field) => field.type === 'file');
+              // The two identity inquiries share one combined PayPing product.
+              const isIdentity =
+                service.key === 'shahkar' ||
+                service.key === 'national_identity_inquiry';
+              const paypingCode = isIdentity
+                ? data?.payping?.products?.identity_bundle
+                : data?.payping?.products?.[service.key];
               return (
-                <div key={service.key} className="rounded-xl border border-line bg-surface p-4">
+                <div
+                  key={service.key}
+                  className="min-w-0 rounded-xl border border-line bg-surface p-4"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="flex flex-wrap items-center gap-1.5 text-sm font-bold text-ink">
@@ -932,7 +942,10 @@ export function AdminZohal() {
                         </span>
                       </p>
                       <p className="mt-1 text-[11px] leading-5 text-muted">{service.description}</p>
-                      <p className="mt-1 font-mono text-[10px] text-muted" dir="ltr">
+                      <p
+                        className="mt-1 break-all font-mono text-[10px] text-muted"
+                        dir="ltr"
+                      >
                         {service.method} {service.path}
                       </p>
                     </div>
@@ -983,14 +996,36 @@ export function AdminZohal() {
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => openTest(service)}
-                    className="indeed-btn indeed-btn-secondary mt-3 py-1 text-[11px]"
-                  >
-                    <FlaskConical className="size-3.5" aria-hidden />
-                    آزمایش (هزینه‌زا)
-                  </button>
+                  <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openTest(service)}
+                      className="indeed-btn indeed-btn-secondary py-1 text-[11px]"
+                    >
+                      <FlaskConical className="size-3.5" aria-hidden />
+                      آزمایش (هزینه‌زا)
+                    </button>
+                    <button
+                      type="button"
+                      disabled={syncKey === service.key}
+                      onClick={() => void syncOneProduct(service.key)}
+                      className="indeed-btn indeed-btn-secondary py-1 text-[11px]"
+                    >
+                      {syncKey === service.key ? (
+                        <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <UploadCloud className="size-3.5" aria-hidden />
+                      )}
+                      همگام‌سازی پی‌پینگ
+                    </button>
+                    <span
+                      className="min-w-0 break-all font-mono text-[10px] text-muted"
+                      dir="ltr"
+                      title="کد محصول پی‌پینگ"
+                    >
+                      {paypingCode ?? 'ساخته نشده'}
+                    </span>
+                  </div>
 
                   {testKey === service.key ? (
                     <div className="mt-3 rounded-lg border border-line bg-background p-3">
