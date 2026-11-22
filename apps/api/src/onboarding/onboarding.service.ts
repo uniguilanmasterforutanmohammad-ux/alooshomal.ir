@@ -1606,11 +1606,16 @@ export class OnboardingService implements OnModuleInit {
   /**
    * Order cart items so a module that requires another module in the same
    * cart runs after it, letting the dependent module read the prerequisite's
-   * fresh result.
+   * fresh result. Items are first sorted by their position in the configured
+   * wizard (the admin's step order), so the execution order is deterministic
+   * and matches the numbered steps the user sees — never the order the cart
+   * happened to be filled in. The `requires` edges then pull any remaining
+   * prerequisite ahead of its dependent.
    */
   private orderItemsByRequires(
     items: OnboardingCartItem[],
     stepById: Map<string, OnboardingStepDef>,
+    stepOrder: Map<string, number>,
   ): OnboardingCartItem[] {
     const byStep = new Map(items.map((item) => [item.stepId, item] as const));
     const visited = new Set<string>();
@@ -1624,7 +1629,12 @@ export class OnboardingService implements OnModuleInit {
       }
       ordered.push(item);
     };
-    for (const item of items) visit(item);
+    const byWizardOrder = [...items].sort((a, b) => {
+      const left = stepOrder.get(a.stepId) ?? Number.MAX_SAFE_INTEGER;
+      const right = stepOrder.get(b.stepId) ?? Number.MAX_SAFE_INTEGER;
+      return left - right;
+    });
+    for (const item of byWizardOrder) visit(item);
     return ordered;
   }
 
@@ -1737,8 +1747,14 @@ export class OnboardingService implements OnModuleInit {
       };
     }
     const items = this.normaliseCartItems(payment.moduleItems);
+    const configuredSteps = await this.getSteps();
     const stepById = new Map(
-      (await this.getSteps()).map((step) => [step.id, step] as const),
+      configuredSteps.map((step) => [step.id, step] as const),
+    );
+    // Position of each step in the admin-configured wizard, used to run the
+    // inquiries in the same order the user sees them.
+    const stepOrder = new Map(
+      configuredSteps.map((step, index) => [step.id, index] as const),
     );
     const identitySelect = {
       nationalCode: true,
@@ -1761,7 +1777,11 @@ export class OnboardingService implements OnModuleInit {
       matched: boolean;
       message: string | null;
     }> = [];
-    for (const item of this.orderItemsByRequires(items, stepById)) {
+    for (const item of this.orderItemsByRequires(
+      items,
+      stepById,
+      stepOrder,
+    )) {
       // A prerequisite module earlier in this same delivery may have just
       // written the national code / name to the account (e.g. the identity
       // step before the business-license lookup). Re-read it so match rules
