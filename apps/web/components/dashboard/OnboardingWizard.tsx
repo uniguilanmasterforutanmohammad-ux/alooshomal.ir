@@ -998,13 +998,28 @@ export function OnboardingWizard() {
   // package may be bought. When the category has no package, the user can
   // file a request instead of seeing a grid of disabled options.
   const businessIndustryKey = businessState?.industryKey ?? null;
+  const catalogCategoryPackage =
+    catalogIndustries.find((entry) => entry.key === businessIndustryKey) ??
+    null;
+  // Existence comes from the catalog, not the current plan's quote: a free
+  // plan marks the package `available: false`, but the card must still show
+  // (disabled) so the user understands why it cannot be bought.
+  const categoryPackageExists = Boolean(catalogCategoryPackage?.available);
   const categoryManagementPackage =
     managementPackages.find((entry) => entry.key === businessIndustryKey) ??
-    null;
-  const hasCategoryPackage = Boolean(
-    categoryManagementPackage && categoryManagementPackage.available !== false,
-  );
-  const showManagementRequest = Boolean(businessState) && !hasCategoryPackage;
+    (categoryPackageExists && catalogCategoryPackage
+      ? {
+          key: catalogCategoryPackage.key,
+          label: catalogCategoryPackage.label,
+          amount: 0,
+          months: planMonths,
+          available: true,
+        }
+      : null);
+  const hasCategoryPackage =
+    categoryPackageExists && Boolean(categoryManagementPackage);
+  const showManagementRequest =
+    Boolean(businessState) && !categoryPackageExists;
   // The plan step sells every plan, including the free one.
   const selectablePlans = plans;
   const paidPlans = selectablePlans.filter((plan) => !isFreePlan(plan));
@@ -2006,9 +2021,10 @@ export function OnboardingWizard() {
                     )?.description;
                     const isSelected =
                       withManagement && selectedManagementKey === pkg.key;
+                    const freePlanSelected =
+                      Boolean(selectedPlan) && isFreePlan(selectedPlan);
                     const disabled =
-                      pkg.available === false ||
-                      (Boolean(selectedPlan) && isFreePlan(selectedPlan));
+                      pkg.available === false || freePlanSelected;
                     return (
                       <label
                         className={cn(
@@ -2051,19 +2067,26 @@ export function OnboardingWizard() {
                             {description}
                           </span>
                         ) : null}
-                        <span className="mt-2 block text-sm font-extrabold text-brand">
-                          {pkg.amount > 0
-                            ? faPrice(pkg.amount)
-                            : 'در حال محاسبه…'}
-                          <span className="text-[10px] font-normal text-muted">
-                            {' '}
-                            / {PLAN_PERIOD_LABELS[planMonths]}
+                        {freePlanSelected ? (
+                          <span className="mt-2 block text-sm font-extrabold text-muted">
+                            —
                           </span>
-                        </span>
+                        ) : (
+                          <span className="mt-2 block text-sm font-extrabold text-brand">
+                            {pkg.amount > 0
+                              ? faPrice(pkg.amount)
+                              : 'در حال محاسبه…'}
+                            <span className="text-[10px] font-normal text-muted">
+                              {' '}
+                              / {PLAN_PERIOD_LABELS[planMonths]}
+                            </span>
+                          </span>
+                        )}
                         {disabled ? (
                           <span className="mt-1 block text-[10px] font-bold text-amber-700 dark:text-amber-300">
-                            با اشتراک رایگان قابل خرید نیست؛ اکو یا بلاس انتخاب
-                            کنید.
+                            {freePlanSelected
+                              ? 'در اشتراک رایگان امکان خرید بسته مدیریت کسب‌وکار وجود ندارد؛ برای خرید، اشتراک اکو یا بلاس را انتخاب کنید.'
+                              : 'این بسته در حال حاضر قابل خرید نیست.'}
                           </span>
                         ) : null}
                       </label>
