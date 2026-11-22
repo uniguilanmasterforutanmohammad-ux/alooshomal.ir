@@ -33,6 +33,7 @@ interface EditableStep {
   moduleKey?: string;
   fieldOverrides?: Record<string, FieldOverride>;
   onSuccess?: OnSuccess;
+  match?: MatchRule[];
   enabled: boolean;
   optional?: boolean;
 }
@@ -41,6 +42,29 @@ interface OnSuccess {
   grantWhiteTick?: boolean;
   grantBlueTick?: boolean;
 }
+
+type MatchSource = 'userNationalCode' | 'userFullName' | 'userMobile' | 'field';
+type MatchMode = 'normalized' | 'exact' | 'nameMatch';
+
+interface MatchRule {
+  resultField: string;
+  compareTo: MatchSource;
+  field?: string;
+  mode?: MatchMode;
+}
+
+const MATCH_SOURCE_LABELS: Record<MatchSource, string> = {
+  userNationalCode: 'کد ملی کاربر',
+  userFullName: 'نام و نام خانوادگی کاربر',
+  userMobile: 'موبایل ثبت‌نام کاربر',
+  field: 'مقدار یک فیلد این فرم',
+};
+
+const MATCH_MODE_LABELS: Record<MatchMode, string> = {
+  normalized: 'عادی‌سازی‌شده (ارقام/حروف نرمال، فاصله نادیده)',
+  exact: 'دقیق (کاراکتر‌به‌کاراکتر)',
+  nameMatch: 'تطبیق نام (بی‌حساسیت به ترتیب کلمات)',
+};
 
 type PrefillSource =
   | 'userMobile'
@@ -277,6 +301,18 @@ export function AdminOnboardingSteps() {
     setMessage(null);
   }
 
+  /** Replace the whole match-rule list of one step. */
+  function setMatchRules(index: number, rules: MatchRule[]) {
+    setSteps((prev) =>
+      prev.map((step, position) =>
+        position === index
+          ? { ...step, match: rules.length ? rules : undefined }
+          : step,
+      ),
+    );
+    setMessage(null);
+  }
+
   /** Label of a boolean option (`true`/`false`), with the built-in fallback. */
   function booleanLabel(override: FieldOverride | undefined, value: boolean) {
     return (
@@ -324,6 +360,9 @@ export function AdminOnboardingSteps() {
           : {}),
         ...(step.kind === 'module' && step.onSuccess
           ? { onSuccess: step.onSuccess }
+          : {}),
+        ...(step.kind === 'module' && step.match?.length
+          ? { match: step.match }
           : {}),
         enabled: step.enabled,
         optional: step.optional === true,
@@ -604,6 +643,174 @@ export function AdminOnboardingSteps() {
                     </label>
                   </div>
                 </div>
+                {(() => {
+                  const selected = modules.find(
+                    (item) => item.key === step.moduleKey,
+                  );
+                  const fieldOptions = selected?.fields ?? [];
+                  const rules = step.match ?? [];
+                  const updateRule = (
+                    ruleIndex: number,
+                    patch: Partial<MatchRule>,
+                  ) => {
+                    setMatchRules(
+                      index,
+                      rules.map((rule, position) =>
+                        position === ruleIndex ? { ...rule, ...patch } : rule,
+                      ),
+                    );
+                  };
+                  return (
+                    <div className="mt-3 rounded-xl border border-[var(--vintage-border)] bg-white p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[11px] font-extrabold text-ink">
+                          تطبیق نتیجه‌ی استعلام (برای موفق‌شمردن)
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMatchRules(index, [
+                              ...rules,
+                              {
+                                resultField: '',
+                                compareTo: 'userNationalCode',
+                              },
+                            ])
+                          }
+                          className="inline-flex items-center gap-1 rounded-md border border-[var(--vintage-border)] px-2 py-1 text-[10px] font-bold text-brand hover:bg-brand-light"
+                        >
+                          <Plus className="size-3" aria-hidden />
+                          افزودن قاعده
+                        </button>
+                      </div>
+                      <p className="mt-1 text-[11px] leading-5 text-muted">
+                        اگر برای این ماژول قاعده تعیین کنید، استعلام فقط زمانی
+                        «مثبت» شمرده می‌شود که همه‌ی قاعده‌ها برقرار باشند.
+                        نمونه: فیلد پاسخ nationalCode را با «کد ملی کاربر»
+                        مقایسه کنید تا جواز کسبِ متعلق به شخص دیگر پذیرفته نشود.
+                        بدون قاعده، هر پاسخ موفق مثبت است.
+                      </p>
+                      {rules.length === 0 ? (
+                        <p className="mt-2 text-[10px] font-bold text-muted">
+                          قاعده‌ای تعیین نشده است.
+                        </p>
+                      ) : (
+                        <div className="mt-2 flex flex-col gap-2">
+                          {rules.map((rule, ruleIndex) => (
+                            <div
+                              key={ruleIndex}
+                              className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-2"
+                            >
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <label className="text-[10px] font-bold text-muted">
+                                  فیلد پاسخ استعلام
+                                  <input
+                                    className="indeed-input mt-1 py-1 text-[11px]"
+                                    dir="ltr"
+                                    value={rule.resultField}
+                                    placeholder="nationalCode"
+                                    onChange={(event) =>
+                                      updateRule(ruleIndex, {
+                                        resultField: event.target.value,
+                                      })
+                                    }
+                                  />
+                                </label>
+                                <label className="text-[10px] font-bold text-muted">
+                                  مقایسه با
+                                  <select
+                                    className="indeed-input mt-1 py-1 text-[11px]"
+                                    value={rule.compareTo}
+                                    onChange={(event) =>
+                                      updateRule(ruleIndex, {
+                                        compareTo: event.target
+                                          .value as MatchSource,
+                                        ...(event.target.value === 'field'
+                                          ? {}
+                                          : { field: undefined }),
+                                      })
+                                    }
+                                  >
+                                    {(
+                                      Object.keys(
+                                        MATCH_SOURCE_LABELS,
+                                      ) as MatchSource[]
+                                    ).map((source) => (
+                                      <option key={source} value={source}>
+                                        {MATCH_SOURCE_LABELS[source]}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                                {rule.compareTo === 'field' ? (
+                                  <label className="text-[10px] font-bold text-muted">
+                                    فیلد فرم
+                                    <select
+                                      className="indeed-input mt-1 py-1 text-[11px]"
+                                      value={rule.field ?? ''}
+                                      onChange={(event) =>
+                                        updateRule(ruleIndex, {
+                                          field:
+                                            event.target.value || undefined,
+                                        })
+                                      }
+                                    >
+                                      <option value="">— انتخاب فیلد —</option>
+                                      {fieldOptions.map((field) => (
+                                        <option
+                                          key={field.name}
+                                          value={field.name}
+                                        >
+                                          {field.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
+                                ) : null}
+                                <label className="text-[10px] font-bold text-muted">
+                                  نوع مقایسه
+                                  <select
+                                    className="indeed-input mt-1 py-1 text-[11px]"
+                                    value={rule.mode ?? 'normalized'}
+                                    onChange={(event) =>
+                                      updateRule(ruleIndex, {
+                                        mode: event.target.value as MatchMode,
+                                      })
+                                    }
+                                  >
+                                    {(
+                                      Object.keys(
+                                        MATCH_MODE_LABELS,
+                                      ) as MatchMode[]
+                                    ).map((mode) => (
+                                      <option key={mode} value={mode}>
+                                        {MATCH_MODE_LABELS[mode]}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </label>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setMatchRules(
+                                    index,
+                                    rules.filter(
+                                      (_, position) => position !== ruleIndex,
+                                    ),
+                                  )
+                                }
+                                className="mt-2 text-[10px] font-bold text-red-500 hover:underline"
+                              >
+                                حذف این قاعده
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 {(() => {
                   const selected = modules.find(
                     (item) => item.key === step.moduleKey,

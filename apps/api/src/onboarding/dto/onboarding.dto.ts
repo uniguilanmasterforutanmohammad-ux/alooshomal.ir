@@ -22,6 +22,8 @@ import {
 import {
   ONBOARDING_STEP_KINDS,
   ONBOARDING_FIELD_PREFILLS,
+  ONBOARDING_MATCH_SOURCES,
+  ONBOARDING_MATCH_MODES,
   type OnboardingStepKind,
 } from '../onboarding.constants';
 
@@ -120,7 +122,51 @@ export class OnboardingStepOnSuccessDto {
   grantBlueTick?: boolean;
 }
 
-@ApiExtraModels(OnboardingFieldOverrideDto, OnboardingFieldOptionDto)
+export class OnboardingMatchRuleDto {
+  @ApiProperty({
+    description:
+      'نام فیلدی از پاسخ استعلام که مقایسه می‌شود (مثل `nationalCode` یا `fullName`).',
+    example: 'nationalCode',
+  })
+  @IsString()
+  @MaxLength(120)
+  resultField!: string;
+
+  @ApiProperty({
+    enum: ONBOARDING_MATCH_SOURCES,
+    description:
+      'مقدار مرجع مقایسه: کد ملی/نام/موبایل کاربر یا یک فیلد از فرم همین مرحله.',
+    example: 'userNationalCode',
+  })
+  @IsIn(ONBOARDING_MATCH_SOURCES)
+  compareTo!: (typeof ONBOARDING_MATCH_SOURCES)[number];
+
+  @ApiPropertyOptional({
+    description:
+      'وقتی `compareTo` برابر `field` است، نام فیلد فرمی که مقدارش مبنا قرار می‌گیرد.',
+    example: 'nationalCode',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  field?: string;
+
+  @ApiPropertyOptional({
+    enum: ONBOARDING_MATCH_MODES,
+    default: 'normalized',
+    description:
+      'نوع مقایسه: `normalized` (پیش‌فرض، با نرمال‌سازی ارقام/حروف)، `exact` (دقیق) یا `nameMatch` (تطبیق نام بدون حساسیت به ترتیب کلمات).',
+  })
+  @IsOptional()
+  @IsIn(ONBOARDING_MATCH_MODES)
+  mode?: (typeof ONBOARDING_MATCH_MODES)[number];
+}
+
+@ApiExtraModels(
+  OnboardingFieldOverrideDto,
+  OnboardingFieldOptionDto,
+  OnboardingMatchRuleDto,
+)
 export class OnboardingStepDto {
   @ApiPropertyOptional({
     description:
@@ -188,6 +234,21 @@ export class OnboardingStepDto {
   @ValidateNested()
   @Type(() => OnboardingStepOnSuccessDto)
   onSuccess?: OnboardingStepOnSuccessDto;
+
+  @ApiPropertyOptional({
+    type: [OnboardingMatchRuleDto],
+    description:
+      'برای مرحله‌ی ماژول: قواعد تطبیق نتیجه‌ی استعلام. اگر تنظیم شود، فقط وقتی همه‌ی قواعد برقرار باشند استعلام «مثبت» شمرده می‌شود (مثلاً کد ملی مالک جواز برابر کد ملی کاربر). بدون قاعده، هر استعلام موفق مثبت است.',
+    example: [
+      { resultField: 'nationalCode', compareTo: 'userNationalCode' },
+    ],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @ValidateNested({ each: true })
+  @Type(() => OnboardingMatchRuleDto)
+  match?: OnboardingMatchRuleDto[];
 
   @ApiProperty({ description: 'نمایش این مرحله به کاربران', default: true })
   @IsBoolean()

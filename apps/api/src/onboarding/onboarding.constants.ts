@@ -102,6 +102,15 @@ export interface OnboardingStepDef {
    * out the white tick, or a license inquiry and hand out the blue tick).
    */
   onSuccess?: OnboardingStepOnSuccess;
+  /**
+   * For `kind: 'module'` steps: when set, the inquiry only counts as
+   * «مثبت/موفق» if every rule passes. Each rule compares a field of the
+   * inquiry response (e.g. `nationalCode` returned by the business-license
+   * lookup) against a value taken from the user's account or from the
+   * submitted form. Empty means "any successful call counts", the legacy
+   * behaviour.
+   */
+  match?: OnboardingMatchRule[];
   /** disabled steps stay configured but are hidden from users. */
   enabled: boolean;
   /**
@@ -159,6 +168,47 @@ export interface OnboardingStepOnSuccess {
   grantWhiteTick?: boolean;
   /** «تیک آبی» — استعلام جواز کسب. */
   grantBlueTick?: boolean;
+}
+
+/**
+ * Values a `match` rule can compare an inquiry response field against. Three
+ * come from the signed-in user's account; `field` reads a value the user just
+ * submitted in the step's own form.
+ */
+export const ONBOARDING_MATCH_SOURCES = [
+  'userNationalCode',
+  'userFullName',
+  'userMobile',
+  'field',
+] as const;
+
+export type OnboardingMatchSource =
+  (typeof ONBOARDING_MATCH_SOURCES)[number];
+
+/** How strictly a `match` rule compares the two values. */
+export const ONBOARDING_MATCH_MODES = [
+  'normalized',
+  'exact',
+  'nameMatch',
+] as const;
+
+export type OnboardingMatchMode = (typeof ONBOARDING_MATCH_MODES)[number];
+
+/**
+ * One comparison that must pass for a module inquiry to count as positive.
+ * Example: compare the `nationalCode` of the business-license response with
+ * the user's own national code so a license belonging to someone else is not
+ * accepted.
+ */
+export interface OnboardingMatchRule {
+  /** Field of the inquiry response data to compare, e.g. `nationalCode`. */
+  resultField: string;
+  /** What the response field is compared against. */
+  compareTo: OnboardingMatchSource;
+  /** When `compareTo` is `field`, the submitted form field name to read. */
+  field?: string;
+  /** Comparison mode; defaults to `normalized`. */
+  mode?: OnboardingMatchMode;
 }
 
 /** One input the user must fill for a module step. */

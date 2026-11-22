@@ -834,14 +834,24 @@ export function OnboardingWizard() {
   /** Submit the dynamic form of one admin-added module step. */
   async function saveModuleStep(step: OnboardingStep): Promise<boolean> {
     const fields = step.module?.fields ?? [];
+    const values = fields.map((field) => ({
+      field,
+      raw: moduleValue(step, field).trim(),
+    }));
+    // An optional step the user left completely empty is a valid skip: no
+    // inquiry runs and nothing is added to the invoice.
+    const skipped = step.optional === true && values.every(({ raw }) => !raw);
     const data: Record<string, unknown> = {};
-    for (const field of fields) {
-      const raw = moduleValue(step, field).trim();
-      if (field.required && !raw) {
-        toast.error(`مقدار «${field.label}» الزامی است.`);
-        return false;
+    if (!skipped) {
+      for (const { field, raw } of values) {
+        if (field.required && !raw) {
+          toast.error(`مقدار «${field.label}» الزامی است.`);
+          return false;
+        }
+        if (raw) {
+          data[field.name] = field.type === 'boolean' ? raw === 'true' : raw;
+        }
       }
-      if (raw) data[field.name] = field.type === 'boolean' ? raw === 'true' : raw;
     }
     setBusyStepId(step.id);
     try {
@@ -855,7 +865,11 @@ export function OnboardingWizard() {
         delete copy[step.id];
         return copy;
       });
-      toast.success('اطلاعات این مرحله ثبت شد.');
+      toast.success(
+        skipped
+          ? 'این مرحله‌ی اختیاری بدون استعلام رد شد.'
+          : 'اطلاعات این مرحله ثبت شد.',
+      );
       return true;
     } catch {
       /* api layer surfaces the error */
@@ -1585,6 +1599,13 @@ export function OnboardingWizard() {
                 {step.moduleKey ? (
                   <p className="mt-2 font-mono text-[10px] text-muted" dir="ltr">
                     {step.moduleKey}
+                  </p>
+                ) : null}
+                {step.optional ? (
+                  <p className="mt-2 rounded-lg bg-sky-50 px-2.5 py-1.5 text-[11px] font-bold leading-5 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300">
+                    این مرحله اختیاری است؛ می‌توانید آن را رد کنید. اگر کادرهای
+                    اطلاعات را خالی بگذارید، استعلامی انجام نمی‌شود و هزینه‌ای
+                    دریافت نمی‌گردد.
                   </p>
                 ) : null}
                 {step.module && step.module.price > 0 ? (

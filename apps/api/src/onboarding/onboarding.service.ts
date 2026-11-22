@@ -32,12 +32,16 @@ import {
   ONBOARDING_STEPS_SETTING_KEY,
   ONBOARDING_STEP_KINDS,
   ONBOARDING_FIELD_PREFILLS,
+  ONBOARDING_MATCH_SOURCES,
+  ONBOARDING_MATCH_MODES,
   type OnboardingDocument,
   type OnboardingBusinessState,
   type OnboardingCartItem,
   type OnboardingFieldOption,
   type OnboardingFieldOverride,
   type OnboardingFieldPrefill,
+  type OnboardingMatchMode,
+  type OnboardingMatchRule,
   type OnboardingModuleField,
   type OnboardingModuleInfo,
   type OnboardingProgressPayload,
@@ -60,6 +64,43 @@ const BUILT_IN_KINDS = new Set<OnboardingStepKind>(
 
 /** The kinds the user ticks off manually (welcome + admin-added steps). */
 const MANUAL_KINDS = new Set<OnboardingStepKind>(MANUAL_STEP_KINDS);
+
+const PERSIAN_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
+const ARABIC_DIGITS = '٠١٢٣٤٥٦٧٨٩';
+
+/** Normalises Persian/Arabic digits and letters before comparing values. */
+function normalizeIdentityText(value: string | null | undefined): string {
+  return (value ?? '')
+    .replace(/[۰-۹]/g, (digit) => String(PERSIAN_DIGITS.indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String(ARABIC_DIGITS.indexOf(digit)))
+    .replace(/[يى]/g, 'ی')
+    .replace(/ك/g, 'ک')
+    .replace(/[\u200c\u200e\u200f]/g, ' ')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+/** Loose equality: digits/letters normalised and every whitespace ignored. */
+function normalizeMatchValue(value: string | null | undefined): string {
+  return normalizeIdentityText(value).replace(/\s+/g, '').toLowerCase();
+}
+
+/** Token-wise name comparison so word order/extra spacing does not matter. */
+function sameFullName(
+  left: string | null | undefined,
+  right: string | null | undefined,
+): boolean {
+  const a = normalizeIdentityText(left);
+  const b = normalizeIdentityText(right);
+  if (!a || !b) return false;
+  const leftTokens = a.split(' ').sort();
+  const rightTokens = b.split(' ').sort();
+  return (
+    leftTokens.length === rightTokens.length &&
+    leftTokens.every((token, index) => token === rightTokens[index])
+  );
+}
 
 /** One selectable module/product the admin can drop into a wizard step. */
 export interface OnboardingModuleOption {
@@ -1220,19 +1261,27 @@ export class OnboardingService implements OnModuleInit {
       step.fieldOverrides,
       identity,
     );
-    const clean: Record<string, unknown> = {};
-    for (const field of fields) {
-      // A locked, account-prefilled field ignores whatever the client sent.
+    // Resolve every field first (locked prefills ignore the client), so we can
+    // tell whether an optional step was left completely empty.
+    const resolved = fields.map((field) => {
       const raw =
         field.readonly && field.value !== undefined
           ? field.value
           : (data?.[field.name] ?? field.value);
-      const value =
-        typeof raw === 'string' ? raw.trim() : raw;
-      if (
-        field.required &&
-        (value === undefined || value === null || value === '')
-      ) {
+      return {
+        field,
+        value: typeof raw === 'string' ? raw.trim() : raw,
+      };
+    });
+    const isEmpty = (value: unknown) =>
+      value === undefined || value === null || value === '';
+    // An optional module left untouched is a valid "skip": no inquiry, no fee.
+    const skipped = step.optional === true && resolved.every((entry) =>
+      isEmpty(entry.value),
+    );
+    const clean: Record<string, unknown> = {};
+    for (const { field, value } of resolved) {
+      if (!skipped && field.required && isEmpty(value)) {
         throw new BadRequestException(`مقدار «${field.label}» الزامی است.`);
       }
       if (value !== undefined && value !== null && value !== '') {
@@ -1273,7 +1322,7 @@ export class OnboardingService implements OnModuleInit {
       create: { userId, stepId: step.id },
       update: { completedAt: new Date() },
     });
-    await this.syncCartForStep(userId, step, module);
+    await this.syncCartForStep(userId, step, module, !skipped);
     return this.getMyProgress(userId);
   }
 
@@ -1331,16 +1380,20 @@ export class OnboardingService implements OnModuleInit {
   /**
    * Add a priced module step to the user's cart when it is used, or drop it
    * when the step is free/not a module. Called on every completion so the cart
-   * always matches what the user actually opted into.
+   * always matches what the user actually opted into. `used` is false when an
+   * optional step was submitted empty: the user skipped the inquiry, so it
+   * must not be charged.
    */
   private async syncCartForStep(
     userId: string,
     step: OnboardingStepDef,
     module?: OnboardingModuleOption,
+    used = true,
   ) {
     const cart = await this.readCart(userId);
     const without = cart.filter((item) => item.stepId !== step.id);
     if (
+      used &&
       step.kind === 'module' &&
       step.moduleKey &&
       module &&
@@ -1426,6 +1479,16 @@ export class OnboardingService implements OnModuleInit {
     const stepById = new Map(
       (await this.getSteps()).map((step) => [step.id, step] as const),
     );
+    const identity = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        nationalCode: true,
+        firstName: true,
+        lastName: true,
+        fullName: true,
+        phone: true,
+      },
+    });
     const results: Array<{ stepId: string; ok: boolean }> = [];
     for (const item of items) {
       const separator = item.moduleKey.indexOf(':');
@@ -1465,7 +1528,10 @@ export class OnboardingService implements OnModuleInit {
           update: { value: JSON.stringify(result) },
         });
         const step = stepById.get(item.stepId);
-        if (step?.onSuccess && this.isPositiveModuleResult(result)) {
+        const positive =
+          this.isPositiveModuleResult(result) &&
+          this.matchRulesPass(step, result, payload, identity);
+        if (step?.onSuccess && positive) {
           await this.applyModuleSuccessTicks(userId, step, result);
         }
         results.push({ stepId: item.stepId, ok });
@@ -1496,6 +1562,82 @@ export class OnboardingService implements OnModuleInit {
       if (typeof matched === 'boolean') return matched;
     }
     return true;
+  }
+
+  /**
+   * Apply an admin-step's `match` rules to an inquiry response. With no rules
+   * the call is accepted as-is (legacy behaviour); with rules, every rule must
+   * match or the inquiry is treated as failed (so no ticks are granted). This
+   * is how, for example, a business-license lookup whose response carries the
+   * owner's national code is checked against the signed-in user.
+   */
+  private matchRulesPass(
+    step: OnboardingStepDef | undefined,
+    result: unknown,
+    payload: Record<string, unknown>,
+    identity: {
+      nationalCode?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      fullName?: string | null;
+      phone?: string | null;
+    } | null,
+  ): boolean {
+    const rules = step?.match ?? [];
+    if (rules.length === 0) return true;
+    const data = this.moduleResultData(result);
+    if (!data) return false;
+    return rules.every((rule) => {
+      const actual = data[rule.resultField];
+      let expected: unknown;
+      switch (rule.compareTo) {
+        case 'userNationalCode':
+          expected = identity?.nationalCode ?? null;
+          break;
+        case 'userMobile':
+          expected = identity?.phone ?? null;
+          break;
+        case 'userFullName':
+          expected =
+            [identity?.firstName, identity?.lastName]
+              .filter(Boolean)
+              .join(' ') ||
+            identity?.fullName ||
+            null;
+          break;
+        case 'field':
+          expected = rule.field ? payload[rule.field] : undefined;
+          break;
+        default:
+          expected = undefined;
+      }
+      if (
+        actual === undefined ||
+        actual === null ||
+        expected === undefined ||
+        expected === null ||
+        expected === ''
+      ) {
+        return false;
+      }
+      return this.compareMatchValues(
+        String(actual),
+        String(expected),
+        rule.mode ?? 'normalized',
+      );
+    });
+  }
+
+  private compareMatchValues(
+    actual: string,
+    expected: string,
+    mode: OnboardingMatchMode,
+  ): boolean {
+    if (mode === 'exact') return actual.trim() === expected.trim();
+    if (mode === 'nameMatch') return sameFullName(actual, expected);
+    const a = normalizeMatchValue(actual);
+    const b = normalizeMatchValue(expected);
+    return Boolean(a) && a === b;
   }
 
   /** The `data` payload of a stored module result (or null). */
@@ -1892,6 +2034,8 @@ export class OnboardingService implements OnModuleInit {
         step.kind === 'module'
           ? this.sanitizeOnSuccess(step.onSuccess)
           : undefined;
+      const match =
+        step.kind === 'module' ? this.sanitizeMatchRules(step.match) : undefined;
       result.push({
         id,
         kind: step.kind,
@@ -1901,6 +2045,7 @@ export class OnboardingService implements OnModuleInit {
         ...(step.kind === 'module' ? { moduleKey } : {}),
         ...(fieldOverrides ? { fieldOverrides } : {}),
         ...(onSuccess ? { onSuccess } : {}),
+        ...(match ? { match } : {}),
         enabled: step.enabled !== false,
         ...(typeof step.optional === 'boolean'
           ? { optional: step.optional }
@@ -1931,6 +2076,46 @@ export class OnboardingService implements OnModuleInit {
     return onSuccess.grantWhiteTick || onSuccess.grantBlueTick
       ? onSuccess
       : undefined;
+  }
+
+  /**
+   * Keep only well-formed `match` rules; returns undefined when none survive,
+   * so a step with no comparison stays lean and keeps the legacy "any
+   * successful call counts" behaviour.
+   */
+  private sanitizeMatchRules(
+    input: unknown,
+  ): OnboardingMatchRule[] | undefined {
+    if (!Array.isArray(input)) return undefined;
+    const rules: OnboardingMatchRule[] = [];
+    for (const entry of input) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+      const raw = entry as Record<string, unknown>;
+      const resultField =
+        typeof raw.resultField === 'string' ? raw.resultField.trim() : '';
+      if (!resultField) continue;
+      if (
+        typeof raw.compareTo !== 'string' ||
+        !(ONBOARDING_MATCH_SOURCES as readonly string[]).includes(raw.compareTo)
+      ) {
+        continue;
+      }
+      const compareTo = raw.compareTo as OnboardingMatchRule['compareTo'];
+      const rule: OnboardingMatchRule = { resultField, compareTo };
+      if (compareTo === 'field') {
+        const field = typeof raw.field === 'string' ? raw.field.trim() : '';
+        if (!field) continue;
+        rule.field = field;
+      }
+      if (
+        typeof raw.mode === 'string' &&
+        (ONBOARDING_MATCH_MODES as readonly string[]).includes(raw.mode)
+      ) {
+        rule.mode = raw.mode as OnboardingMatchMode;
+      }
+      rules.push(rule);
+    }
+    return rules.length > 0 ? rules : undefined;
   }
 
   /**

@@ -20,7 +20,53 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.66.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.67.0**.
+
+## ۱۴۰۵/۰۹/۰۱ — قواعد تطبیق نتیجه‌ی استعلام و رفتار مرحله‌ی اختیاری ماژول — نسخه `v4.67.0`
+
+**هدف:** در «ساخت فرم ← شروع سریع» ادمین بتواند برای هر مرحله‌ی ماژول قاعده‌ی
+«تطبیق نتیجه» تعیین کند؛ برخی استعلام‌ها (مثل استعلام جواز کسب که فقط با شماره
+جواز گرفته می‌شود و کد ملی/نام برمی‌گرداند) تنها وقتی «موفق» شمرده شوند که پاسخ
+با یک مقدار مرجع (کد ملی کاربر یا یک فیلد فرم) بخواند و سپس اقدام
+(`onSuccess`: تیک سفید/آبی) اجرا شود. همچنین اگر مرحله اختیاری باشد، با خالی
+ماندن کادرها استعلامی اجرا و هزینه‌ای دریافت نشود و اختیاری‌بودن به کاربر قید گردد.
+
+**تغییرات:**
+- `apps/api/src/onboarding/onboarding.constants.ts`: افزودن `OnboardingMatchRule`،
+  `ONBOARDING_MATCH_SOURCES` (`userNationalCode`/`userFullName`/`userMobile`/`field`)
+  و `ONBOARDING_MATCH_MODES` (`normalized`/`exact`/`nameMatch`) و فیلد `match` روی
+  `OnboardingStepDef`.
+- `apps/api/src/onboarding/dto/onboarding.dto.ts`: افزودن `OnboardingMatchRuleDto`
+  و فیلد `match` به `OnboardingStepDto`.
+- `apps/api/src/onboarding/onboarding.service.ts`: `sanitizeMatchRules` برای ذخیره‌ی
+  امن قواعد؛ `matchRulesPass`/`compareMatchValues` و نرمال‌سازی ارقام/حروف برای
+  اعمال قواعد در `deliverPaidCart` (نتیجه فقط با برقراریِ همه‌ی قواعد «مثبت»
+  شمرده و تیک‌ها صادر می‌شود)؛ `saveModuleStepData` حالا مرحله‌ی اختیاریِ کاملاً خالی
+  را «رد‌شده» ثبت می‌کند و `syncCartForStep` با پرچم `used` آن را به سبد/صورتحساب
+  اضافه نمی‌کند.
+- `apps/web/components/admin/AdminOnboardingSteps.tsx`: بخش «تطبیق نتیجه‌ی استعلام»
+  با افزودن/حذف قاعده (فیلد پاسخ، مرجع مقایسه، فیلد فرم و نوع مقایسه) و ارسال
+  `match` در ذخیره‌سازی.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: ثبت مرحله‌ی اختیاری با
+  کادرهای خالی به‌عنوان «رد‌شده» (بدون استعلام/هزینه) و نمایش پیام اختیاری‌بودن در
+  کارت ماژول.
+- `docs/API.md`: به‌روزرسانی توضیح `POST /onboarding/steps/:id/data`،
+  `POST /onboarding/cart/deliver` و `PUT /admin/onboarding/steps` برای `match` و
+  رفتار مرحله‌ی اختیاری.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- `python3 scripts/check_api_docs.py` → «همه‌ی مسیرها @ApiOperation ...» (exit 0).
+- تست خودکار E2E (اسکریپت موقت با توکن مدیر/کاربر + درج پرداخت): مرحله‌ی
+  `apiir:license` با قاعده‌ی `nationalCode = userNationalCode` → تیک آبی صادر
+  **نشد**؛ همان مرحله با `compareTo: field` (`trackingCode = 0013529536`) → تیک آبی
+  صادر شد؛ مرحله‌ی `optional` با داده‌ی خالی → مرحله «done» و سبد خالی (بدون
+  هزینه)، و با داده‌ی پرشده → به سبد اضافه شد. تنظیمات مرحله، سبد، داده و
+  پرچم‌های کاربر پس از تست بازگردانی شد.
+- بررسی UI با `playwright-core`/google-chrome: صفحه‌ی
+  `?section=settings-onboarding` بخش «تطبیق نتیجه‌ی استعلام» را بدون خطای صفحه
+  رندر کرد.
 
 ## ۱۴۰۵/۰۹/۰۱ — اعطای خودکار تیک سفید/آبی پس از استعلام مثبت ماژول — نسخه `v4.66.0`
 
