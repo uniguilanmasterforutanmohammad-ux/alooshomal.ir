@@ -130,6 +130,7 @@ export class OtpService {
   private async deliverPhoneCode(
     phone: string,
     preferred: 'bale' | 'sms' = 'bale',
+    purpose?: string,
   ): Promise<{ code: string; channel: 'bale' | 'sms' } | null> {
     if (preferred === 'bale' && this.bale.isEnabled) {
       const code = String(randomInt(100_000, 1_000_000));
@@ -141,7 +142,7 @@ export class OtpService {
       );
     }
     if (this.sms.enabled) {
-      const remote = await this.sms.sendOtp(phone);
+      const remote = await this.sms.sendOtp(phone, { purpose });
       if (remote) return { code: remote, channel: 'sms' };
     }
     return null;
@@ -300,7 +301,11 @@ export class OtpService {
         `[dev] ${purpose} OTP for ${phone} is ${code} (delivery simulated)`,
       );
     } else if (this.phoneChannelEnabled) {
-      const delivered = await this.deliverPhoneCode(phone, options.channel);
+      const delivered = await this.deliverPhoneCode(
+        phone,
+        options.channel,
+        purpose,
+      );
       if (!delivered) {
         // Configured but the gateway returned no code — never fall back to a
         // hard-coded value.
@@ -410,7 +415,11 @@ export class OtpService {
     let sent = false;
     let channel: 'bale' | 'sms' | 'dev' | undefined;
     if (sendToPhone && phone && this.phoneChannelEnabled) {
-      const delivered = await this.deliverPhoneCode(phone);
+      const delivered = await this.deliverPhoneCode(
+        phone,
+        'bale',
+        'password-reset',
+      );
       if (!delivered) {
         throw new ServiceUnavailableException(
           'ارسال کد تأیید در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
@@ -595,7 +604,7 @@ export class OtpService {
         `[dev] admin-login OTP for ${userId} is ${code} (delivery simulated)`,
       );
     } else if (!options.emailOnly && phone && this.phoneChannelEnabled) {
-      const delivered = await this.deliverPhoneCode(phone);
+      const delivered = await this.deliverPhoneCode(phone, 'bale', 'login');
       if (!delivered) {
         throw new ServiceUnavailableException(
           'ارسال کد تأیید در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',
@@ -701,7 +710,7 @@ export class OtpService {
     let emailSent = false;
     if (input.channel === 'sms') {
       if (this.phoneChannelEnabled) {
-        const delivered = await this.deliverPhoneCode(target);
+        const delivered = await this.deliverPhoneCode(target, 'bale', 'claim');
         if (!delivered) {
           throw new ServiceUnavailableException(
             'ارسال کد تأیید در حال حاضر در دسترس نیست؛ لطفاً بعداً تلاش کنید',

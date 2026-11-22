@@ -20,7 +20,47 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.53.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.54.0**.
+
+## ۱۴۰۵/۰۹/۰۱ — بخش «ارسال اطلاع‌رسانی‌ها به کاربران» در پنل مدیر — نسخه `v4.54.0`
+
+**هدف:** ساخت یک بخش واحد در پنل مدیر که همه‌ی ایمیل‌ها و پیامک‌های ارسال‌شده
+به کاربران را با گیرنده، کانال، کاربر مرتبط، نوع، وضعیت و زمان نشان دهد.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن مدل `SentSms` (جدول `sent_sms`) برای
+  ثبت هر تلاش ارسال پیامک؛ کد یکبارمصرف هرگز ذخیره نمی‌شود.
+- `apps/api/src/auth/sms.service.ts`: تزریق `PrismaService` و ثبت نتیجه‌ی
+  ارسال در `sendOtp`، `sendText` و `sendAdminNotification` (موفق/ناموفق،
+  purpose، متن کوتاه/موضوع و خطا).
+- `apps/api/src/auth/otp.service.ts` و `apps/api/src/auth/auth.service.ts`:
+  ارسال `purpose` به سرویس پیامک برای تفکیک ورود، تغییر رمز، تصاحب و آزمایش.
+- `apps/api/src/admin/dto/list-notifications.dto.ts` و
+  `apps/api/src/admin/admin.service.ts`: افزودن `listNotifications` با
+  UNION روی `sent_emails` و `sent_sms`، صفحه‌بندی/جستجو/فیلتر وضعیت و کانال،
+  و اتصال هر ردیف به کاربر از روی ایمیل/شماره.
+- `apps/api/src/admin/admin.controller.ts`: افزودن مسیر
+  `GET /admin/notifications-log` با `@ApiOperation`.
+- `apps/web/components/admin/AdminEmails.tsx`: تبدیل صفحه‌ی ایمیل‌ها به
+  «ارسال اطلاع‌رسانی‌ها به کاربران» با ستون کانال، کاربر، فیلتر کانال و
+  نمایش هر دو نوع ایمیل/پیامک.
+- `apps/web/components/admin/AdminShell.tsx` و
+  `apps/web/app/jga4rm8j/admin-console.ts`: تغییر عنوان و آیکن بخش به
+  «ارسال اطلاع‌رسانی‌ها به کاربران».
+
+**تأیید/تست:**
+- `npx tsc --noEmit` در `alooshomal-api` و `alooshomal-web` بدون خطا؛
+  `npx eslint` روی فایل‌های تغییریافته بدون خطا (فقط هشدار قبلی
+  `set-state-in-effect`).
+- `npx prisma generate` و `npx prisma db push` در محیط توسعه؛ جدول
+  `sent_sms` ساخته شد.
+- `GET /admin/notifications-log` با توکن مدیر: ترکیب ایمیل و پیامک،
+  اتصال کاربر (مثلاً شماره‌ی ۰۹۱۱۷۸۱۸۳۸۹ به کاربر)، فیلتر `channel=SMS` و
+  جستجوی ایمیل با نتیجه‌ی درست.
+- Playwright روی `/jga4rm8j?section=emails` در عرض‌های ۳۹۰/۱۲۸۰: عنوان جدید،
+  فیلتر کانال، نشان ایمیل/پیامک و ردیف‌های هر دو کانال بدون سرریز افقی.
+- `python3 scripts/check_api_docs.py` بدون خطا (۵۳۹ مسیر).
+- `python3 scripts/sync_install.py --check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۱ — حذف سربرگ دایرکتوری و حالت «لیست» از صفحات عمومی — نسخه `v4.53.1`
 

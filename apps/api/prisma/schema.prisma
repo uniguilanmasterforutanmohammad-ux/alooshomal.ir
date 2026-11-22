@@ -855,6 +855,27 @@ model SentEmail {
   @@map("sent_emails")
 }
 
+/// One delivery attempt of an SMS (OTP, admin notification, monitoring or
+/// plain text). The OTP code itself is never stored — only a short subject.
+model SentSms {
+  id        String   @id @default(cuid())
+  to        String
+  subject   String
+  /// Flow that triggered the SMS: login / password-reset / claim /
+  /// admin-notification / monitoring / text.
+  purpose   String?
+  /// SENT or FAILED
+  status    String   @default("SENT")
+  error     String?
+  /// Recipient user, when known.
+  userId    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([to])
+  @@map("sent_sms")
+}
+
 model City {
   id        String   @id @default(cuid())
   name      String   @unique

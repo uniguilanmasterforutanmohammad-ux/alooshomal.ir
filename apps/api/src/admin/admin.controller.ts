@@ -48,6 +48,7 @@ import { BulkKind, BulkService } from './bulk.service';
 import { ListBiolinksDto } from './dto/list-biolinks.dto';
 import { ListBusinessCardsDto } from './dto/list-business-cards.dto';
 import { ListEmailsDto } from './dto/list-emails.dto';
+import { ListNotificationsDto } from './dto/list-notifications.dto';
 import { ListUsersDto } from './dto/list-users.dto';
 import {
   SetUserActiveDto,
@@ -136,6 +137,20 @@ export class AdminController {
   })
   emails(@Query() query: ListEmailsDto) {
     return this.adminService.listEmails(query, query.search, query.status);
+  }
+
+  @Get('notifications-log')
+  @ApiOperation({
+    summary:
+      'گزارش ارسال اطلاع‌رسانی‌ها به کاربران (ایمیل و پیامک) با صفحه‌بندی، جستجو، وضعیت و کانال',
+  })
+  notificationsLog(@Query() query: ListNotificationsDto) {
+    return this.adminService.listNotifications(
+      query,
+      query.search,
+      query.status,
+      query.channel,
+    );
   }
 
   @Patch('users/:id/active')

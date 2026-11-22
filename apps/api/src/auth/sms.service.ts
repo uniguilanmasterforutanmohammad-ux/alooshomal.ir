@@ -1,5 +1,7 @@
 import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 
+import { PrismaService } from '../prisma/prisma.service';
+
 /**
  * Sends SMS through Melipayamak's console endpoints only.
  *
@@ -22,6 +24,8 @@ import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common'
 @Injectable()
 export class SmsService {
   private readonly logger = new Logger(SmsService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
   /**
    * Project-specific Melipayamak console endpoints. They are used as defaults
    * in production so the service works without extra server configuration;
@@ -38,6 +42,29 @@ export class SmsService {
   private static maskPhone(phone: string): string {
     if (phone.length <= 6) return '***';
     return `${phone.slice(0, 4)}***${phone.slice(-3)}`;
+  }
+
+  /**
+   * Persists one delivery attempt for the admin notification log. Never
+   * throws: a logging failure must not break the actual send.
+   */
+  private async logSms(entry: {
+    to: string;
+    subject: string;
+    purpose?: string;
+    status: 'SENT' | 'FAILED';
+    error?: string;
+    userId?: string;
+  }): Promise<void> {
+    try {
+      await this.prisma.sentSms.create({ data: entry });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to record sent SMS: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
   }
 
   /**
@@ -139,7 +166,10 @@ export class SmsService {
    *
    * Returns `null` when SMS is not configured (dev) — caller uses the bypass.
    */
-  async sendOtp(phone: string, options: { force?: boolean } = {}): Promise<string | null> {
+  async sendOtp(
+    phone: string,
+    options: { force?: boolean; purpose?: string; userId?: string } = {},
+  ): Promise<string | null> {
     const path = SmsService.otpPath(options.force === true);
     if (!path) {
       this.logger.warn(
@@ -147,7 +177,7 @@ export class SmsService {
       );
       return null;
     }
-    return this.sendConsoleOtp(path, phone);
+    return this.sendConsoleOtp(path, phone, options);
   }
 
   /**
@@ -156,7 +186,11 @@ export class SmsService {
    *   { "code": "3741437414", "status": "عملیات موفق" }
    * An error response has no `code` and carries the reason in `status`.
    */
-  private async sendConsoleOtp(path: string, phone: string): Promise<string> {
+  private async sendConsoleOtp(
+    path: string,
+    phone: string,
+    options: { purpose?: string; userId?: string } = {},
+  ): Promise<string> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
@@ -181,21 +215,44 @@ export class SmsService {
         this.logger.error(
           `Melipayamak OTP failed for ${SmsService.maskPhone(phone)}: ${reason}`,
         );
+        await this.logSms({
+          to: phone,
+          subject: 'کد یکبارمصرف',
+          purpose: options.purpose ?? 'login',
+          status: 'FAILED',
+          error: reason,
+          userId: options.userId,
+        });
         throw new ServiceUnavailableException(
           response.ok ? reason : 'ارسال پیامک ناموفق بود',
         );
       }
       this.logger.log(`OTP SMS sent to ${SmsService.maskPhone(phone)}`);
+      await this.logSms({
+        to: phone,
+        subject: 'کد یکبارمصرف',
+        purpose: options.purpose ?? 'login',
+        status: 'SENT',
+        userId: options.userId,
+      });
       return code;
     } catch (error) {
       if (error instanceof ServiceUnavailableException) {
         throw error;
       }
+      const message =
+        error instanceof Error ? error.message : 'unknown error';
       this.logger.error(
-        `Melipayamak OTP request failed for ${SmsService.maskPhone(phone)}: ${
-          error instanceof Error ? error.message : 'unknown error'
-        }`,
+        `Melipayamak OTP request failed for ${SmsService.maskPhone(phone)}: ${message}`,
       );
+      await this.logSms({
+        to: phone,
+        subject: 'کد یکبارمصرف',
+        purpose: options.purpose ?? 'login',
+        status: 'FAILED',
+        error: message,
+        userId: options.userId,
+      });
       throw new ServiceUnavailableException('ارسال پیامک ناموفق بود');
     } finally {
       clearTimeout(timeout);
@@ -249,21 +306,40 @@ export class SmsService {
         | null;
 
       if (!response.ok || payload?.recId === undefined) {
+        const reason = payload?.status ?? `HTTP ${response.status}`;
         this.logger.error(
-          `Melipayamak simple-send failed for ${SmsService.maskPhone(phone)}: ${
-            payload?.status ?? `HTTP ${response.status}`
-          }`,
+          `Melipayamak simple-send failed for ${SmsService.maskPhone(phone)}: ${reason}`,
         );
+        await this.logSms({
+          to: phone,
+          subject: safeText.slice(0, 160) || 'پیامک متنی',
+          purpose: 'text',
+          status: 'FAILED',
+          error: String(reason),
+        });
         return false;
       }
       this.logger.log(`Alert SMS sent to ${SmsService.maskPhone(phone)}`);
+      await this.logSms({
+        to: phone,
+        subject: safeText.slice(0, 160) || 'پیامک متنی',
+        purpose: 'text',
+        status: 'SENT',
+      });
       return true;
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'unknown error';
       this.logger.error(
-        `Melipayamak simple-send failed for ${SmsService.maskPhone(phone)}: ${
-          error instanceof Error ? error.message : 'unknown error'
-        }`,
+        `Melipayamak simple-send failed for ${SmsService.maskPhone(phone)}: ${message}`,
       );
+      await this.logSms({
+        to: phone,
+        subject: safeText.slice(0, 160) || 'پیامک متنی',
+        purpose: 'text',
+        status: 'FAILED',
+        error: message,
+      });
       return false;
     } finally {
       clearTimeout(timeout);
@@ -292,7 +368,9 @@ export class SmsService {
    * subject (e.g. «حافظه (RAM) — ۸۵٪»).
    */
   async sendMonitoringAlert(phone: string, subject: string): Promise<boolean> {
-    return this.sendAdminNotification(phone, 'پایش منابع سرور', subject);
+    return this.sendAdminNotification(phone, 'پایش منابع سرور', subject, {
+      purpose: 'monitoring',
+    });
   }
 
   /**
@@ -309,7 +387,7 @@ export class SmsService {
     phone: string,
     section: string,
     subject: string,
-    options: { force?: boolean } = {},
+    options: { force?: boolean; purpose?: string } = {},
   ): Promise<boolean> {
     const path = SmsService.sharedPath(options.force === true);
     if (!path) {
@@ -342,23 +420,42 @@ export class SmsService {
         response.ok &&
         (payload?.recId !== undefined || status === 'عملیات موفق');
       if (!ok) {
+        const reason = status || `HTTP ${response.status}`;
         this.logger.error(
-          `Melipayamak shared-send failed for ${SmsService.maskPhone(phone)}: ${
-            status || `HTTP ${response.status}`
-          }`,
+          `Melipayamak shared-send failed for ${SmsService.maskPhone(phone)}: ${reason}`,
         );
+        await this.logSms({
+          to: phone,
+          subject: `${section} — ${subject}`.slice(0, 160),
+          purpose: options.purpose ?? 'admin-notification',
+          status: 'FAILED',
+          error: reason,
+        });
         return false;
       }
       this.logger.log(
         `Admin notification SMS sent to ${SmsService.maskPhone(phone)} (${section} / ${subject})`,
       );
+      await this.logSms({
+        to: phone,
+        subject: `${section} — ${subject}`.slice(0, 160),
+        purpose: options.purpose ?? 'admin-notification',
+        status: 'SENT',
+      });
       return true;
     } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'unknown error';
       this.logger.error(
-        `Melipayamak shared-send failed for ${SmsService.maskPhone(phone)}: ${
-          error instanceof Error ? error.message : 'unknown error'
-        }`,
+        `Melipayamak shared-send failed for ${SmsService.maskPhone(phone)}: ${message}`,
       );
+      await this.logSms({
+        to: phone,
+        subject: `${section} — ${subject}`.slice(0, 160),
+        purpose: options.purpose ?? 'admin-notification',
+        status: 'FAILED',
+        error: message,
+      });
       return false;
     } finally {
       clearTimeout(timeout);

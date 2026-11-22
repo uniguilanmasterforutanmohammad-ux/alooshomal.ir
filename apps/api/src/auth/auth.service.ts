@@ -145,7 +145,10 @@ export class AuthService {
       throw new NotFoundException('مسیر یافت نشد');
     }
     const phone = OtpService.normalizePhone(rawPhone);
-    const code = await this.sms.sendOtp(phone, { force: true });
+    const code = await this.sms.sendOtp(phone, {
+      force: true,
+      purpose: 'admin-test',
+    });
     if (!code) {
       throw new ServiceUnavailableException('ارسال پیامک ناموفق بود');
     }
@@ -170,6 +173,7 @@ export class AuthService {
     const subject = input.subject?.trim() || 'پشتیبانی آنلاین';
     const sent = await this.sms.sendAdminNotification(phone, section, subject, {
       force: true,
+      purpose: 'admin-test',
     });
     if (!sent) {
       throw new ServiceUnavailableException('ارسال پیامک ناموفق بود');

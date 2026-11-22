@@ -624,6 +624,128 @@ export class AdminService {
     };
   }
 
+  /**
+   * Unified log of every e-mail and SMS delivery attempt, for the admin
+   * «ارسال اطلاع‌رسانی‌ها به کاربران» page. The two tables are combined with a
+   * SQL UNION so pagination, search and filters stay accurate across channels.
+   * OTP codes are never stored; only the redacted subject is returned.
+   */
+  async listNotifications(
+    pagination: PaginationDto,
+    search?: string,
+    status?: string,
+    channel?: 'EMAIL' | 'SMS',
+  ) {
+    const page = pagination.page ?? 1;
+    const limit =
+      pagination.limit ?? (await this.settings.getAdminListPageSize());
+    const offset = (page - 1) * limit;
+    const searchLike = search?.trim() ? `%${search.trim()}%` : null;
+    const searchSql = searchLike
+      ? Prisma.sql`AND ("to" ILIKE ${searchLike} OR "subject" ILIKE ${searchLike})`
+      : Prisma.empty;
+    const statusSql = status
+      ? Prisma.sql`AND "status" = ${status}`
+      : Prisma.empty;
+    const channelSql = channel
+      ? Prisma.sql`AND "channel" = ${channel}`
+      : Prisma.empty;
+
+    const union = Prisma.sql`
+      SELECT id, 'EMAIL' AS channel, "to", subject, purpose, status, error, "createdAt"
+      FROM sent_emails
+      UNION ALL
+      SELECT id, 'SMS' AS channel, "to", subject, purpose, status, error, "createdAt"
+      FROM sent_sms
+    `;
+
+    const [rows, countRows] = await Promise.all([
+      this.prisma.$queryRaw<
+        Array<{
+          id: string;
+          channel: 'EMAIL' | 'SMS';
+          to: string;
+          subject: string;
+          purpose: string | null;
+          status: string;
+          error: string | null;
+          createdAt: Date;
+        }>
+      >(Prisma.sql`
+        SELECT * FROM (${union}) AS logs
+        WHERE 1=1 ${searchSql} ${statusSql} ${channelSql}
+        ORDER BY "createdAt" DESC
+        LIMIT ${limit} OFFSET ${offset}
+      `),
+      this.prisma.$queryRaw<Array<{ count: bigint }>>(Prisma.sql`
+        SELECT COUNT(*)::bigint AS count FROM (${union}) AS logs
+        WHERE 1=1 ${searchSql} ${statusSql} ${channelSql}
+      `),
+    ]);
+
+    const total = Number(countRows[0]?.count ?? 0);
+    const emails = rows
+      .filter((row) => row.channel === 'EMAIL')
+      .map((row) => row.to.toLowerCase());
+    const phones = rows
+      .filter((row) => row.channel === 'SMS')
+      .map((row) => row.to);
+    const userWhere: Prisma.UserWhereInput[] = [];
+    if (emails.length > 0) userWhere.push({ email: { in: emails } });
+    if (phones.length > 0) userWhere.push({ phone: { in: phones } });
+    const users =
+      userWhere.length > 0
+        ? await this.prisma.user.findMany({
+            where: { OR: userWhere },
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              phone: true,
+            },
+          })
+        : [];
+
+    const phoneKey = (value: string) => {
+      const digits = value.replace(/\D/g, '');
+      if (digits.length === 12 && digits.startsWith('98')) {
+        return `0${digits.slice(2)}`;
+      }
+      if (digits.length === 10 && digits.startsWith('9')) {
+        return `0${digits}`;
+      }
+      return digits;
+    };
+    const byEmail = new Map(
+      users
+        .filter((user) => user.email)
+        .map((user) => [user.email!.toLowerCase(), user]),
+    );
+    const byPhone = new Map(
+      users
+        .filter((user) => user.phone)
+        .map((user) => [phoneKey(user.phone!), user]),
+    );
+
+    return {
+      items: rows.map((row) => ({
+        ...row,
+        user:
+          row.channel === 'EMAIL'
+            ? (byEmail.get(row.to.toLowerCase()) ?? null)
+            : (byPhone.get(phoneKey(row.to)) ?? null),
+      })),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page * limit < total,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
   /** Enable / disable a user account, recording the admin's reason. */
 
   async recentTickets(limit = 6) {
