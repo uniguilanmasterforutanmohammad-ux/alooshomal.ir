@@ -21,6 +21,8 @@ interface Props {
   /** name shown in the dialog so the visitor knows what they report */
   title?: string;
   size?: 'sm' | 'md';
+  /** Render the flag with a «گزارش» label (used by the home-page cards). */
+  withLabel?: boolean;
   className?: string;
 }
 
@@ -32,7 +34,13 @@ interface Props {
  * The `featureBusinessReports` switches hide the button («نمایش») and close
  * the endpoint («فعال») at once.
  */
-export function ReportBusinessCardButton({ slug, title, size = 'sm', className }: Props) {
+export function ReportBusinessCardButton({
+  slug,
+  title,
+  size = 'sm',
+  withLabel = false,
+  className,
+}: Props) {
   const { isFeatureVisible } = useFeatures();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('INAPPROPRIATE');
@@ -68,13 +76,18 @@ export function ReportBusinessCardButton({ slug, title, size = 'sm', className }
         aria-label="گزارش این کارت"
         title="گزارش"
         className={cn(
-          'inline-flex items-center justify-center gap-1.5 rounded-full border font-bold transition',
-          size === 'sm' ? 'size-8' : 'size-10',
-          'border-[var(--vintage-border)] text-muted hover:border-brand hover:text-brand',
+          'inline-flex items-center justify-center gap-1.5 font-bold transition',
+          withLabel
+            ? 'h-8 rounded-lg px-2 text-[11px] text-muted hover:bg-[var(--vintage-paper)] hover:text-brand'
+            : cn(
+                'rounded-full border border-[var(--vintage-border)] text-muted hover:border-brand hover:text-brand',
+                size === 'sm' ? 'size-8' : 'size-10',
+              ),
           className,
         )}
       >
         <Flag className={cn(size === 'sm' ? 'size-3.5' : 'size-4')} aria-hidden />
+        {withLabel ? 'گزارش' : null}
       </button>
 
       {open ? (

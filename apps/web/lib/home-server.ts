@@ -17,8 +17,14 @@ export interface HomeBusinessCard {
   avatarUrl: string | null;
   logoUrl: string | null;
   primaryColor: string;
+  bio: string | null;
+  gallery: string[];
+  features: string[];
+  tags: string[];
+  neighborhood: string | null;
   mobile: string | null;
   phone: string | null;
+  otherPhones: string[];
   address: string | null;
   publishedAt: string | null;
   ratingAvg: number;

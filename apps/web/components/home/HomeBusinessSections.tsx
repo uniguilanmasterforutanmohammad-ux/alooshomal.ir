@@ -1,54 +1,67 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import {
-  CalendarDays,
+  ArrowLeft,
   ChevronLeft,
   MapPin,
+  Megaphone,
+  Phone,
   Star,
 } from 'lucide-react';
 
+import { ReportBusinessCardButton } from '@/components/businesscard/ReportBusinessCardButton';
 import { VerificationBadge } from '@/components/ui/VerificationBadge';
 import type { HomeBusinessCard } from '@/lib/home-server';
-
-function accent(item: HomeBusinessCard): string {
-  return item.primaryColor || '#0e187b';
-}
-
-function imageUrl(item: HomeBusinessCard): string | null {
-  return item.logoUrl || item.avatarUrl;
-}
-
-function subline(item: HomeBusinessCard): string {
-  return [item.jobTitle, item.company].filter(Boolean).join(' · ');
-}
-
-function place(item: HomeBusinessCard): string {
-  return [item.city?.name, item.business?.name].filter(Boolean).join(' · ');
-}
-
-function publishedLabel(value: string | null): string | null {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat('fa-IR', {
-    day: 'numeric',
-    month: 'short',
-  }).format(date);
-}
-
-function ratingValue(item: HomeBusinessCard): number {
-  return Math.max(0, Math.min(5, Number(item.ratingAvg) || 0));
-}
+import { cn } from '@/lib/utils';
 
 function ratingText(item: HomeBusinessCard): string {
-  return ratingValue(item).toLocaleString('fa-IR', {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1,
-  });
+  return Math.max(0, Math.min(5, Number(item.ratingAvg) || 0)).toLocaleString(
+    'fa-IR',
+    { minimumFractionDigits: 1, maximumFractionDigits: 1 },
+  );
 }
 
 function reviewCount(item: HomeBusinessCard): string {
   return Math.max(0, Number(item.ratingCount) || 0).toLocaleString('fa-IR');
+}
+
+function phoneNumber(item: HomeBusinessCard): string | null {
+  return (
+    item.phone?.trim() ||
+    item.mobile?.trim() ||
+    item.otherPhones?.find((entry) => entry.trim())?.trim() ||
+    null
+  );
+}
+
+function telHref(number: string): string {
+  return `tel:${number.replace(/[^\d+]/g, '')}`;
+}
+
+function description(item: HomeBusinessCard): string {
+  return (
+    item.bio?.trim() ||
+    [item.jobTitle, item.company].filter(Boolean).join(' · ') ||
+    item.tags?.slice(0, 3).join(' · ') ||
+    'کارت ویزیت دیجیتال شمالی کارت'
+  );
+}
+
+function addressLine(item: HomeBusinessCard): string {
+  return (
+    item.address?.trim() ||
+    [item.city?.name, item.business?.name].filter(Boolean).join(' · ') ||
+    'شمالی کارت'
+  );
+}
+
+function galleryImages(item: HomeBusinessCard): string[] {
+  const list = (item.gallery ?? []).filter(Boolean);
+  if (list.length === 0) {
+    const fallback = item.logoUrl || item.avatarUrl;
+    if (fallback) list.push(fallback);
+  }
+  return list.slice(0, 5);
 }
 
 function SectionHeader({
@@ -65,15 +78,13 @@ function SectionHeader({
   return (
     <div className="mb-3 flex items-end justify-between gap-3">
       <div>
-        <h2 className="text-base font-bold leading-8 text-[var(--footer-ink)]">
-          {title}
-        </h2>
-        <p className="text-xs leading-5 text-[var(--footer-faint)]">{description}</p>
+        <h2 className="text-base font-bold leading-8 text-ink">{title}</h2>
+        <p className="text-xs leading-5 text-muted">{description}</p>
       </div>
       <Link
         href={href}
         prefetch={false}
-        className="flex shrink-0 items-center gap-1 text-xs font-semibold text-[var(--footer-brand-light)] transition hover:text-[var(--footer-brand)]"
+        className="flex shrink-0 items-center gap-1 text-xs font-semibold text-brand transition hover:text-brand-hover"
       >
         {moreLabel}
         <ChevronLeft className="size-3.5" aria-hidden />
@@ -82,174 +93,167 @@ function SectionHeader({
   );
 }
 
-function SuggestionCard({ item }: { item: HomeBusinessCard }) {
-  const image = imageUrl(item);
-  const color = accent(item);
-  const meta = place(item);
+/**
+ * One home-page business card, modelled on the Behtarino card: campaign/rank
+ * marker, verified tick, report action, description, rating, phone, address,
+ * a horizontal photo gallery and the call/details actions. Colours come from
+ * the active site theme (`--vintage-*` tokens), so light/dark and every skin
+ * stay in sync with the rest of the page.
+ */
+function BusinessCardTile({
+  item,
+  variant,
+  rank,
+}: {
+  item: HomeBusinessCard;
+  variant: 'promoted' | 'ranked';
+  rank?: number;
+}) {
+  const gallery = galleryImages(item);
+  const number = phoneNumber(item);
+  const hasRating = item.ratingCount > 0 && item.ratingAvg > 0;
 
   return (
-    <Link
-      href={`/business-cards/${item.slug}`}
-      prefetch={false}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-[var(--footer-border)] bg-[var(--footer-tile)] transition hover:border-[var(--footer-brand-light)] hover:shadow-[0_6px_18px_rgba(16,24,65,0.08)]"
-    >
-      <div className="relative aspect-[16/10] overflow-hidden bg-[var(--footer-bg)]">
-        <span
-          className="absolute inset-x-0 top-0 h-1"
-          style={{ backgroundColor: color }}
-          aria-hidden
-        />
-        {image ? (
-          <Image
-            src={image}
-            alt={item.fullName}
-            fill
-            unoptimized
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className="object-cover transition duration-300 group-hover:scale-105"
+    <article className="mx-auto flex w-full max-w-[28rem] flex-col gap-3 rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-3 text-start shadow-sm">
+      <header className="flex flex-col gap-1">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1">
+            {variant === 'promoted' ? (
+              <Megaphone className="size-5 shrink-0 text-brand" aria-hidden />
+            ) : (
+              <span className="shrink-0 text-[0.938rem] font-semibold leading-8 text-muted">
+                {(rank ?? 1).toLocaleString('fa-IR')}.
+              </span>
+            )}
+            <h3 className="min-w-0 text-[0.938rem] font-semibold leading-8 text-ink [overflow-wrap:anywhere]">
+              <Link
+                href={`/business-cards/${item.slug}`}
+                prefetch={false}
+                className="transition hover:text-brand hover:underline"
+              >
+                {item.fullName}
+              </Link>
+            </h3>
+            <VerificationBadge
+              identity={item.ownerIdentityVerified ?? item.ownerVerified}
+              businessLicense={item.ownerBusinessLicenseVerified}
+              placement="bottom"
+              className="shrink-0"
+            />
+          </div>
+          <ReportBusinessCardButton
+            slug={item.slug}
+            title={item.fullName}
+            withLabel
+            className="shrink-0"
           />
-        ) : (
-          <span
-            className="flex size-full items-center justify-center text-3xl font-black"
-            style={{ color }}
-          >
-            {item.fullName.trim().slice(0, 1)}
-          </span>
-        )}
-        <VerificationBadge
-          identity={item.ownerIdentityVerified ?? item.ownerVerified}
-          businessLicense={item.ownerBusinessLicenseVerified}
-          placement="bottom"
-          className="absolute left-2 top-2 flex size-6 items-center justify-center rounded-full bg-[var(--footer-tile)] shadow-sm"
-        />
-        <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-[var(--footer-tile)] px-2 py-0.5 text-[10px] font-bold text-[var(--footer-ink)] shadow-sm">
-          {item.ratingCount > 0 ? (
+        </div>
+        <p className="line-clamp-2 text-[0.688rem] leading-5 text-muted">
+          {description(item)}
+        </p>
+      </header>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1">
+          {hasRating ? (
             <>
-              <Star className="size-3 fill-amber-400 text-amber-500" aria-hidden />
-              {ratingText(item)}
-              <span className="font-normal text-[var(--footer-faint)]">
-                ({reviewCount(item)})
+              <Star
+                className="size-5 shrink-0 fill-amber-400 text-amber-500"
+                aria-hidden
+              />
+              <span className="text-xs font-semibold leading-7 text-ink">
+                {ratingText(item)}
+              </span>
+              <span className="text-[0.688rem] leading-6 text-muted">
+                ({reviewCount(item)} نفر)
               </span>
             </>
           ) : (
-            <span className="font-normal text-[var(--footer-faint)]">بدون امتیاز</span>
+            <>
+              <Star
+                className="size-5 shrink-0 text-[var(--vintage-border)]"
+                aria-hidden
+              />
+              <span className="text-[0.688rem] leading-6 text-muted">
+                بدون امتیاز
+              </span>
+            </>
           )}
-        </span>
-      </div>
-      <div className="flex flex-1 flex-col gap-1 p-3">
-        <h3 className="line-clamp-1 text-sm font-bold text-[var(--footer-ink)] transition group-hover:text-[var(--footer-brand)]">
-          {item.fullName}
-        </h3>
-        <p className="line-clamp-1 text-[11px] text-[var(--footer-faint)]">
-          {subline(item) || meta || 'کارت ویزیت دیجیتال'}
-        </p>
-        <p className="mt-auto flex items-center gap-1 text-[11px] leading-5 text-[var(--footer-faint)]">
-          <MapPin className="size-3 shrink-0" aria-hidden />
-          <span className="line-clamp-1">{meta || 'شمالی کارت'}</span>
-        </p>
-      </div>
-    </Link>
-  );
-}
-
-function LatestCard({ item }: { item: HomeBusinessCard }) {
-  // The reference uses a photo-like cover; avatars are the closest fit, with
-  // the logo as a fallback.
-  const image = item.avatarUrl || item.logoUrl;
-  const color = accent(item);
-  const meta = place(item);
-  const address = item.address?.trim() || meta;
-  const date = publishedLabel(item.publishedAt);
-
-  return (
-    <Link
-      href={`/business-cards/${item.slug}`}
-      prefetch={false}
-      className="group flex gap-3 rounded-2xl border border-[var(--footer-border)] bg-[var(--footer-tile)] p-3 transition hover:border-[var(--footer-brand-light)] hover:shadow-[0_2px_8px_0_rgba(16,24,65,0.06)]"
-    >
-      <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-[var(--footer-thumb)] sm:h-28 sm:w-32">
-        {image ? (
-          <Image
-            src={image}
-            alt={item.fullName}
-            fill
-            unoptimized
-            sizes="128px"
-            className="size-full object-cover transition duration-300 group-hover:scale-105"
-          />
-        ) : (
-          <span
-            className="flex size-full items-center justify-center text-2xl font-black"
-            style={{ color }}
-          >
-            {item.fullName.trim().slice(0, 1)}
-          </span>
-        )}
-      </div>
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="line-clamp-1 text-sm font-bold text-[var(--footer-ink)] transition group-hover:text-[var(--footer-brand)]">
-            {item.fullName}
-          </h3>
-          <VerificationBadge
-            identity={item.ownerIdentityVerified ?? item.ownerVerified}
-            businessLicense={item.ownerBusinessLicenseVerified}
-            placement="bottom"
-            className="mt-0.5 shrink-0"
-          />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {item.ratingCount > 0 ? (
-            <span
-              className="inline-flex items-center gap-1 text-xs text-[var(--footer-muted)]"
-              aria-label={`امتیاز ${ratingText(item)} از ۵ بر اساس ${reviewCount(item)} دیدگاه`}
-            >
-              <Star className="size-3.5 shrink-0 fill-amber-400 text-amber-500" aria-hidden />
-              <span className="font-bold text-[var(--footer-ink)]">{ratingText(item)}</span>
-              <span>({reviewCount(item)} نفر)</span>
-            </span>
+        <div className="flex items-center gap-1 text-[0.625rem] leading-4 text-muted">
+          <Phone className="size-4 shrink-0" aria-hidden />
+          {number ? (
+            <span dir="ltr">{number}</span>
           ) : (
-            <span className="inline-flex items-center gap-1 text-xs text-[var(--footer-faint)]">
-              <Star className="size-3.5 shrink-0 text-[var(--footer-border)]" aria-hidden />
-              بدون امتیاز
-            </span>
+            <span>بدون شماره تماس</span>
           )}
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#e5f5ee] px-2 py-0.5 text-[11px] font-semibold leading-5 text-[#439878] dark:bg-[#1d3a31] dark:text-[#8fd4b9]">
-            تازه
-          </span>
-        </div>
-        <p className="line-clamp-2 flex items-start gap-1 text-[11px] leading-5 text-[var(--footer-faint)]">
-          <MapPin className="mt-1 size-3 shrink-0" aria-hidden />
-          {address || 'شمالی کارت'}
-        </p>
-        <div className="mt-auto flex items-center gap-2 pt-1 text-[10px] text-[var(--footer-faint)]">
-          {item.business?.name ? (
-            <span className="rounded bg-[var(--footer-chip)] px-1.5 py-0.5">
-              {item.business.name}
-            </span>
-          ) : null}
-          {item.city?.name ? (
-            <span className="rounded bg-[var(--footer-chip)] px-1.5 py-0.5">
-              {item.city.name}
-            </span>
-          ) : null}
-          {date ? (
-            <span className="ms-auto flex items-center gap-1 text-[var(--footer-brand-light)]">
-              <CalendarDays className="size-3" aria-hidden />
-              {date}
-            </span>
-          ) : null}
         </div>
       </div>
-    </Link>
+
+      <address className="flex items-start gap-1 text-[0.688rem] leading-5 text-muted not-italic">
+        <MapPin className="mt-1 size-4 shrink-0" aria-hidden />
+        <span className="line-clamp-2">{addressLine(item)}</span>
+      </address>
+
+      {gallery.length > 0 ? (
+        <div
+          role="group"
+          aria-label={`تصاویر ${item.fullName}`}
+          className="flex gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        >
+          {gallery.map((src, index) => (
+            <a
+              key={`${src}-${index}`}
+              href={src}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`نمایش تصویر ${index + 1} ${item.fullName}`}
+              className="relative block size-[116px] shrink-0 overflow-hidden rounded-lg bg-[var(--vintage-paper)]"
+            >
+              <Image
+                src={src}
+                alt={`تصویر ${index + 1} ${item.fullName}`}
+                width={116}
+                height={116}
+                unoptimized
+                className="size-full object-cover"
+              />
+            </a>
+          ))}
+        </div>
+      ) : null}
+
+      <footer className="flex flex-wrap gap-2 py-2">
+        {number ? (
+          <a
+            href={telHref(number)}
+            className="flex h-9 flex-1 items-center justify-center gap-2 rounded-lg bg-brand px-3 text-xs font-bold text-white transition hover:bg-brand-hover"
+          >
+            <Phone className="size-5" aria-hidden />
+            تماس
+          </a>
+        ) : null}
+        <Link
+          href={`/business-cards/${item.slug}`}
+          prefetch={false}
+          className={cn(
+            'flex h-9 items-center justify-center gap-2 rounded-lg border border-brand px-3 text-xs font-bold text-brand transition hover:bg-brand-light/40',
+            number ? 'flex-1' : 'w-full',
+          )}
+        >
+          <ArrowLeft className="size-5" aria-hidden />
+          جزئیات بیشتر
+        </Link>
+      </footer>
+    </article>
   );
 }
 
 /**
- * Two home-page rails in the same light palette as the site footer:
- * «پیشنهاد شمالی کارت» (verified cards lead) and «کسب‌وکارهای تازه»
- * (newest publications). Both render as real links on the server so the cards
- * are indexable and visible without waiting for a client fetch.
+ * Two home-page rails in the active site palette: «پیشنهاد شمالی کارت»
+ * (verified/high-rated cards lead) and «کسب‌وکارهای تازه» (newest
+ * publications). Both render as real links on the server so the cards are
+ * indexable and visible without waiting for a client fetch.
  */
 export function HomeBusinessSections({
   suggested,
@@ -263,32 +267,37 @@ export function HomeBusinessSections({
   return (
     <div className="mx-auto mt-6 flex w-full max-w-7xl flex-col gap-6 px-4 pb-2 lg:px-6">
       {suggested.length > 0 ? (
-        <section className="footer-palette">
+        <section>
           <SectionHeader
             title="پیشنهاد شمالی کارت"
             description="کسب‌وکارهای منتخب برای شروع"
             href="/business-cards"
             moreLabel="مشاهده همه"
           />
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid items-start gap-3 sm:grid-cols-2">
             {suggested.map((item) => (
-              <SuggestionCard key={item.id} item={item} />
+              <BusinessCardTile key={item.id} item={item} variant="promoted" />
             ))}
           </div>
         </section>
       ) : null}
 
       {latest.length > 0 ? (
-        <section className="footer-palette">
+        <section>
           <SectionHeader
             title="تازه‌ترین کسب‌وکارها"
             description="پروفایل‌های جدید در شمالی کارت"
             href="/business-cards?sort=recent"
             moreLabel="همه کسب‌وکارها"
           />
-          <div className="grid gap-2 lg:grid-cols-2">
-            {latest.map((item) => (
-              <LatestCard key={item.id} item={item} />
+          <div className="grid items-start gap-3 sm:grid-cols-2">
+            {latest.map((item, index) => (
+              <BusinessCardTile
+                key={item.id}
+                item={item}
+                variant="ranked"
+                rank={index + 1}
+              />
             ))}
           </div>
         </section>
