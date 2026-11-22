@@ -1,6 +1,12 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -44,6 +50,7 @@ import {
 } from '@/lib/plan-periods';
 import { toast } from '@/lib/toast';
 import { useFeatures } from '@/lib/features';
+import { useAuth } from '@/lib/auth';
 import {
   OnboardingBusinessForm,
   type OnboardingBusinessDraft,
@@ -246,6 +253,38 @@ function faPrice(amount: number): string {
   return `${amount.toLocaleString('fa-IR')} تومان`;
 }
 
+/**
+ * One invoice row: the service, the exact subject it is charged for (phone,
+ * national code, license tracking code, business) and the amount. On phones
+ * the subject wraps under the service; from `sm` up it becomes its own column.
+ */
+function InvoiceLine({
+  icon,
+  label,
+  context,
+  amount,
+}: {
+  icon: ReactNode;
+  label: ReactNode;
+  context?: ReactNode;
+  amount: number;
+}) {
+  return (
+    <li className="grid grid-cols-[1fr_auto] items-start gap-x-3 gap-y-1 px-4 py-2.5 text-xs sm:grid-cols-[1.1fr_1fr_auto] sm:items-center">
+      <span className="flex min-w-0 items-center gap-2 text-muted">
+        {icon}
+        <span className="min-w-0">{label}</span>
+      </span>
+      <span className="col-span-2 text-[10px] leading-5 text-muted sm:col-span-1">
+        {context ?? '—'}
+      </span>
+      <span className="row-start-1 whitespace-nowrap text-left font-bold text-ink sm:row-start-auto">
+        {faPrice(amount)}
+      </span>
+    </li>
+  );
+}
+
 function formatBytes(bytes: number): string {
   if (!bytes || bytes <= 0) return '—';
   if (bytes < 1024 * 1024) {
@@ -264,6 +303,7 @@ function formatBytes(bytes: number): string {
  */
 export function OnboardingWizard() {
   const { isFeatureVisible } = useFeatures();
+  const { user } = useAuth();
   const walletVisible = isFeatureVisible('featureWallet');
   const [payload, setPayload] = useState<OnboardingPayload | null>(null);
   const [index, setIndex] = useState(0);
@@ -973,6 +1013,21 @@ export function OnboardingWizard() {
       Boolean(identityStep) &&
       (!identityStep?.optional || identityOptedIn));
   const businessState = payload.business;
+  // Invoice context: every service line states the exact subject it is charged
+  // for (the phone(s), national code, license tracking code or business).
+  const invoiceNationalCode =
+    payload.identity?.nationalCode?.trim() || nationalCode.trim();
+  const invoicePhones = Array.from(
+    new Set(
+      [
+        businessState?.mobile,
+        ...(businessState?.additionalMobiles ?? []),
+        user?.phone,
+      ].filter((phone): phone is string => Boolean(phone && phone.trim())),
+    ),
+  );
+  const invoicePhoneText = invoicePhones.join('، ');
+  const invoiceBusinessName = businessState?.name ?? 'کسب‌وکار شما';
   // Every available management package is listed; the quote for the chosen
   // plan carries the prorated price of each one.
   const selectedQuote = selectedPlanId
@@ -2141,65 +2196,96 @@ export function OnboardingWizard() {
                     یک پرداخت برای همه‌ی موارد
                   </span>
                 </div>
+                <div className="hidden grid-cols-[1.1fr_1fr_auto] gap-3 border-b border-[var(--vintage-border)] bg-[var(--vintage-paper)]/30 px-4 py-1.5 text-[10px] font-bold text-muted sm:grid">
+                  <span>خدمت</span>
+                  <span>مورد / شماره</span>
+                  <span className="text-left">مبلغ</span>
+                </div>
                 <ul className="divide-y divide-[var(--vintage-border)]">
                   {identityChargeable && identityTotal > 0 ? (
-                    <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
-                      <span className="flex items-center gap-2 text-muted">
-                        <ShieldCheck className="size-3.5 text-brand" aria-hidden />
-                        استعلام هویت و تطبیق موبایل
-                      </span>
-                      <span className="font-bold text-ink">
-                        {faPrice(identityTotal)}
-                      </span>
-                    </li>
+                    <InvoiceLine
+                      icon={
+                        <ShieldCheck
+                          className="size-3.5 shrink-0 text-brand"
+                          aria-hidden
+                        />
+                      }
+                      label="استعلام هویت و تطبیق موبایل"
+                      context={
+                        [
+                          invoicePhones.length
+                            ? `برای شماره ${invoicePhoneText}`
+                            : '',
+                          invoiceNationalCode
+                            ? `کد ملی ${invoiceNationalCode}`
+                            : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' — ') || 'شماره و کد ملی ثبت نشده'
+                      }
+                      amount={identityTotal}
+                    />
                   ) : null}
                   {licenseChargeable ? (
-                    <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
-                      <span className="flex items-center gap-2 text-muted">
-                        <ShieldCheck className="size-3.5 text-sky-600" aria-hidden />
-                        استعلام جواز کسب (تیک آبی)
-                      </span>
-                      <span className="font-bold text-ink">
-                        {faPrice(licensePrice)}
-                      </span>
-                    </li>
+                    <InvoiceLine
+                      icon={
+                        <ShieldCheck
+                          className="size-3.5 shrink-0 text-sky-600"
+                          aria-hidden
+                        />
+                      }
+                      label="استعلام جواز کسب (تیک آبی)"
+                      context={
+                        licenseTrackingCode.trim()
+                          ? `برای کد پیگیری جواز ${licenseTrackingCode.trim()}`
+                          : 'کد پیگیری جواز ثبت نشده'
+                      }
+                      amount={licensePrice}
+                    />
                   ) : null}
                   {selectedPlan ? (
-                    <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
-                      <span className="flex items-center gap-2 text-muted">
-                        <Crown className="size-3.5 text-brand" aria-hidden />
-                        اشتراک {selectedPlan.name} —{' '}
-                        {PLAN_PERIOD_LABELS[planMonths]}
-                      </span>
-                      <span className="font-bold text-ink">
-                        {faPrice(planAmount)}
-                      </span>
-                    </li>
+                    <InvoiceLine
+                      icon={
+                        <Crown
+                          className="size-3.5 shrink-0 text-brand"
+                          aria-hidden
+                        />
+                      }
+                      label={`اشتراک ${selectedPlan.name} — ${PLAN_PERIOD_LABELS[planMonths]}`}
+                      context={`برای کسب‌وکار «${invoiceBusinessName}»`}
+                      amount={planAmount}
+                    />
                   ) : null}
                   {includeManagement ? (
-                    <li className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs">
-                      <span className="flex items-center gap-2 text-muted">
-                        <Building2 className="size-3.5 text-brand" aria-hidden />
-                        مدیریت {selectedManagementPackage?.label}
-                      </span>
-                      <span className="font-bold text-ink">
-                        {faPrice(managementAmount)}
-                      </span>
-                    </li>
+                    <InvoiceLine
+                      icon={
+                        <Building2
+                          className="size-3.5 shrink-0 text-brand"
+                          aria-hidden
+                        />
+                      }
+                      label={`مدیریت ${selectedManagementPackage?.label}`}
+                      context={`برای کسب‌وکار «${invoiceBusinessName}»${
+                        businessState?.industryLabel
+                          ? ` — ${businessState.industryLabel}`
+                          : ''
+                      }`}
+                      amount={managementAmount}
+                    />
                   ) : null}
                   {cart.map((item) => (
-                    <li
+                    <InvoiceLine
                       key={item.stepId}
-                      className="flex items-center justify-between gap-3 px-4 py-2.5 text-xs"
-                    >
-                      <span className="flex items-center gap-2 text-muted">
-                        <Sparkles className="size-3.5 text-brand" aria-hidden />
-                        {item.label}
-                      </span>
-                      <span className="font-bold text-ink">
-                        {faPrice(item.amount)}
-                      </span>
-                    </li>
+                      icon={
+                        <Sparkles
+                          className="size-3.5 shrink-0 text-brand"
+                          aria-hidden
+                        />
+                      }
+                      label={item.label}
+                      context={`برای کسب‌وکار «${invoiceBusinessName}»`}
+                      amount={item.amount}
+                    />
                   ))}
                 </ul>
                 <div className="flex items-center justify-between border-t border-[var(--vintage-border)] bg-brand-light/40 px-4 py-2.5 text-xs">
