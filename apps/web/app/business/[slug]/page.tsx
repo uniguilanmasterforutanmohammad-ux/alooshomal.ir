@@ -73,6 +73,63 @@ const EMPTY_REVIEWS: BusinessReviewsPage = {
   meta: { page: 1, limit: 10, total: 0, totalPages: 1, hasNext: false, hasPrev: false },
 };
 
+interface BusinessProduct {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  price: number;
+  compareAtPrice: number | null;
+  unit: string;
+  imageUrl: string | null;
+  category: string | null;
+  stock: number;
+}
+
+interface BusinessStay {
+  id: string;
+  slug: string;
+  title: string;
+  propertyType: string;
+  basePrice: number;
+  currency: string;
+  maxGuests: number;
+  bedrooms: number;
+  beds: number;
+  city: { id: string; name: string } | null;
+  photos: Array<{ url: string }>;
+}
+
+interface BusinessExtras {
+  workspace: { publicSlug: string | null; name: string } | null;
+  products: BusinessProduct[];
+  stays: BusinessStay[];
+}
+
+const STAY_TYPE_LABEL: Record<string, string> = {
+  APARTMENT: 'آپارتمان',
+  VILLA: 'ویلا',
+  SUITE: 'سوئیت',
+  HOUSE: 'خانه',
+  COTTAGE: 'کلبه',
+  HOTEL: 'هتل',
+  HOSTEL: 'هاستل',
+};
+
+async function getBusinessExtras(slug: string): Promise<BusinessExtras> {
+  try {
+    const response = await fetch(
+      `${SERVER_API_URL}/public/business/${encodeURIComponent(slug)}/extras`,
+      { next: { revalidate: 60 } },
+    );
+    if (!response.ok) return { workspace: null, products: [], stays: [] };
+    const payload = (await response.json()) as { data: BusinessExtras };
+    return payload.data ?? { workspace: null, products: [], stays: [] };
+  } catch {
+    return { workspace: null, products: [], stays: [] };
+  }
+}
+
 async function getBusinessCard(slug: string): Promise<BusinessCardPayload | null> {
   try {
     const response = await fetch(
@@ -205,9 +262,10 @@ export default async function BusinessProfilePage({
     );
   }
   const decoded = decodeSlugParam(slug);
-  const [payload, reviews] = await Promise.all([
+  const [payload, reviews, extras] = await Promise.all([
     getBusinessCard(decoded),
     fetchBusinessReviews(decoded),
+    getBusinessExtras(decoded),
   ]);
   if (!payload) notFound();
 
@@ -512,6 +570,94 @@ export default async function BusinessProfilePage({
               <h2 className="biz-section-title">ساعات کاری</h2>
               <WorkingHoursTable hours={card.workingHours} />
             </section>
+
+            {extras.products.length > 0 ? (
+              <section id="products" className="biz-section">
+                <div className="flex items-center justify-between">
+                  <h2 className="biz-section-title mb-0">محصولات فروشگاه</h2>
+                  {extras.workspace?.publicSlug ? (
+                    <Link
+                      href={`/shop/${extras.workspace.publicSlug}`}
+                      className="text-xs font-bold text-brand hover:underline"
+                    >
+                      مشاهده فروشگاه
+                    </Link>
+                  ) : null}
+                </div>
+                <ul className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                  {extras.products.map((product) => (
+                    <li
+                      key={product.id}
+                      className="indeed-panel flex flex-col overflow-hidden"
+                    >
+                      {product.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={product.imageUrl}
+                          alt={product.title}
+                          loading="lazy"
+                          className="h-36 w-full object-cover"
+                        />
+                      ) : null}
+                      <div className="flex flex-1 flex-col p-3">
+                        <p className="text-sm font-extrabold text-ink">{product.title}</p>
+                        {product.category ? (
+                          <p className="text-[11px] text-muted">{product.category}</p>
+                        ) : null}
+                        {product.description ? (
+                          <p className="mt-1 line-clamp-3 text-xs leading-6 text-muted">
+                            {product.description}
+                          </p>
+                        ) : null}
+                        <p className="mt-auto pt-2 text-sm font-extrabold text-brand">
+                          {product.price.toLocaleString('fa-IR')} تومان
+                          {product.unit ? ` / ${product.unit}` : ''}
+                        </p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {extras.stays.length > 0 ? (
+              <section id="stays" className="biz-section">
+                <h2 className="biz-section-title">اقامتگاه‌ها و سوییت‌ها</h2>
+                <ul className="mt-3 grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                  {extras.stays.map((stay) => (
+                    <li key={stay.id}>
+                      <Link
+                        href={`/stay/${stay.slug}`}
+                        className="indeed-panel flex flex-col overflow-hidden"
+                      >
+                        {stay.photos[0]?.url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={stay.photos[0].url}
+                            alt={stay.title}
+                            loading="lazy"
+                            className="h-36 w-full object-cover"
+                          />
+                        ) : null}
+                        <div className="flex flex-1 flex-col p-3">
+                          <p className="text-sm font-extrabold text-ink">{stay.title}</p>
+                          <p className="text-[11px] text-muted">
+                            {STAY_TYPE_LABEL[stay.propertyType] ?? stay.propertyType}
+                            {stay.city ? ` — ${stay.city.name}` : ''}
+                          </p>
+                          <p className="mt-1 text-[11px] text-muted">
+                            تا {fa(stay.maxGuests)} مهمان • {fa(stay.bedrooms)} خواب
+                          </p>
+                          <p className="mt-auto pt-2 text-sm font-extrabold text-brand">
+                            {stay.basePrice.toLocaleString('fa-IR')} تومان / شب
+                          </p>
+                        </div>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
 
             <BusinessReviews
               slug={card.slug}

@@ -10,6 +10,7 @@ import { AdminBusinessModulesController } from './admin-business-modules.control
 import { BusinessModuleGuard } from './business-module.guard';
 import { BusinessModulesController } from './business-modules.controller';
 import { BusinessModulesService } from './business-modules.service';
+import { PublicBusinessExtrasController } from './public-business-extras.controller';
 
 @Module({
   imports: [
@@ -20,7 +21,11 @@ import { BusinessModulesService } from './business-modules.service';
     NotificationsModule,
     ActivityModule,
   ],
-  controllers: [BusinessModulesController, AdminBusinessModulesController],
+  controllers: [
+    BusinessModulesController,
+    AdminBusinessModulesController,
+    PublicBusinessExtrasController,
+  ],
   providers: [BusinessModulesService, BusinessModuleGuard],
   exports: [BusinessModulesService, BusinessModuleGuard],
 })
