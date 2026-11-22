@@ -20,7 +20,22 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.58.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.58.1**.
+
+## ۱۴۰۵/۰۹/۰۱ — رفع خطای بیلد تولید در `/dashboard/inquiries` — نسخه `v4.58.1`
+
+**هدف:** بیلد تولید Next.js روی مسیر `/dashboard/inquiries` شکست می‌خورد
+(`Export encountered an error`) چون `useSearchParams()` بدون مرز `Suspense`
+در یک صفحه‌ی استاتیک استفاده شده بود.
+
+**تغییرات:**
+- `apps/web/app/dashboard/inquiries/page.tsx`: جدا کردن محتوا به
+  `InquiriesContent` و افزودن `export default` که آن را داخل `<Suspense>`
+  می‌گذارد (هم‌الگو با `dashboard/boost`).
+
+**تأیید/تست:**
+- `docker exec ... npm run build` با `NODE_ENV=production` بدون خطا و با
+  تولید موفق `/dashboard/inquiries` (exit 0).
 
 ## ۱۴۰۵/۰۹/۰۱ — بازطراحی تب «تمدید و ارتقا» اشتراک — نسخه `v4.58.0`
 

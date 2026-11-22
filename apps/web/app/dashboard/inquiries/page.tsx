@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   BadgeCheck,
@@ -66,7 +66,7 @@ function faPrice(value: number): string {
  * admin-built composite products, collects the inputs each module needs and
  * starts one gateway payment. The callback runs every module after payment.
  */
-export default function InquiriesPage() {
+function InquiriesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { token, hydrated } = useAuth();
@@ -302,5 +302,15 @@ export default function InquiriesPage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+export default function InquiriesPage() {
+  return (
+    <Suspense
+      fallback={<div className="p-8 text-center text-muted">در حال بارگذاری...</div>}
+    >
+      <InquiriesContent />
+    </Suspense>
   );
 }
