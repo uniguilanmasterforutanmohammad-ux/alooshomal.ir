@@ -81,6 +81,7 @@ interface OnboardingStep {
   description: string;
   href?: string;
   moduleKey?: string;
+  requires?: string[];
   enabled: boolean;
   optional?: boolean;
   done: boolean;
@@ -1606,6 +1607,18 @@ export function OnboardingWizard() {
                     این مرحله اختیاری است؛ می‌توانید آن را رد کنید. اگر کادرهای
                     اطلاعات را خالی بگذارید، استعلامی انجام نمی‌شود و هزینه‌ای
                     دریافت نمی‌گردد.
+                  </p>
+                ) : null}
+                {step.requires?.length ? (
+                  <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] font-bold leading-5 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                    این استعلام پس از تکمیل این مراحل اجرا می‌شود:{' '}
+                    {step.requires
+                      .map(
+                        (id) =>
+                          steps.find((entry) => entry.id === id)?.title ?? id,
+                      )
+                      .join('، ')}
+                    .
                   </p>
                 ) : null}
                 {step.module && step.module.price > 0 ? (

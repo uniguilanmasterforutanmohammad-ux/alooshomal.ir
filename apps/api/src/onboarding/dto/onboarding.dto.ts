@@ -250,6 +250,19 @@ export class OnboardingStepDto {
   @Type(() => OnboardingMatchRuleDto)
   match?: OnboardingMatchRuleDto[];
 
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      'برای مرحله‌ی ماژول: شناسه‌ی مراحلی که باید پیش از اجرای استعلام این مرحله محقق شوند. مرحله‌ی پیش‌فرض (مثل `identity`) باید تکمیل شده باشد و مرحله‌ی ماژول باید نتیجه‌ی مثبت داده باشد؛ مثلاً استعلام جواز کسب بعد از استعلام موفق هویت اجرا می‌شود.',
+    example: ['identity'],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(64, { each: true })
+  requires?: string[];
+
   @ApiProperty({ description: 'نمایش این مرحله به کاربران', default: true })
   @IsBoolean()
   enabled!: boolean;

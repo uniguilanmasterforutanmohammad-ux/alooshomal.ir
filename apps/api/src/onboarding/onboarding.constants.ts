@@ -111,6 +111,14 @@ export interface OnboardingStepDef {
    * behaviour.
    */
   match?: OnboardingMatchRule[];
+  /**
+   * For `kind: 'module'` steps: ids of other steps that must be fulfilled
+   * before this module's inquiry is allowed to run. A built-in prerequisite
+   * (e.g. `identity`) must be complete; a module prerequisite must have come
+   * back positive. This is how a business-license lookup is chained after the
+   * identity inquiry that verified the user's national code.
+   */
+  requires?: string[];
   /** disabled steps stay configured but are hidden from users. */
   enabled: boolean;
   /**

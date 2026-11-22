@@ -34,6 +34,7 @@ interface EditableStep {
   fieldOverrides?: Record<string, FieldOverride>;
   onSuccess?: OnSuccess;
   match?: MatchRule[];
+  requires?: string[];
   enabled: boolean;
   optional?: boolean;
 }
@@ -313,6 +314,21 @@ export function AdminOnboardingSteps() {
     setMessage(null);
   }
 
+  /** Add/remove one prerequisite step id for a module step. */
+  function toggleRequire(index: number, id: string, on: boolean) {
+    setSteps((prev) =>
+      prev.map((step, position) => {
+        if (position !== index) return step;
+        const current = step.requires ?? [];
+        const next = on
+          ? Array.from(new Set([...current, id]))
+          : current.filter((value) => value !== id);
+        return { ...step, requires: next.length ? next : undefined };
+      }),
+    );
+    setMessage(null);
+  }
+
   /** Label of a boolean option (`true`/`false`), with the built-in fallback. */
   function booleanLabel(override: FieldOverride | undefined, value: boolean) {
     return (
@@ -363,6 +379,9 @@ export function AdminOnboardingSteps() {
           : {}),
         ...(step.kind === 'module' && step.match?.length
           ? { match: step.match }
+          : {}),
+        ...(step.kind === 'module' && step.requires?.length
+          ? { requires: step.requires }
           : {}),
         enabled: step.enabled,
         optional: step.optional === true,
@@ -641,6 +660,59 @@ export function AdminOnboardingSteps() {
                       />
                       تیک آبی (استعلام جواز کسب)
                     </label>
+                  </div>
+                </div>
+                <div className="mt-3 rounded-xl border border-[var(--vintage-border)] bg-white p-3">
+                  <p className="text-[11px] font-extrabold text-ink">
+                    پیش‌نیازهای اجرای این استعلام
+                  </p>
+                  <p className="mt-1 text-[11px] leading-5 text-muted">
+                    تا وقتی مراحل انتخاب‌شده کامل/مثبت نشوند، استعلام این مرحله
+                    اجرا نمی‌شود؛ مثلاً استعلام جواز کسب بعد از استعلام موفق هویت
+                    (تطبیق کد ملی با شماره‌ی ثبت‌نام) اجرا می‌شود و سپس کد ملی
+                    پاسخ با کد ملی کاربر مقایسه می‌گردد.
+                  </p>
+                  <div className="mt-2 flex flex-col gap-1.5">
+                    {steps.filter((_, position) => position !== index).length ===
+                    0 ? (
+                      <p className="text-[10px] font-bold text-muted">
+                        هنوز مرحله‌ی دیگری برای انتخاب وجود ندارد.
+                      </p>
+                    ) : (
+                      steps.map((other, position) => {
+                        if (position === index) return null;
+                        const otherId = other.id ?? '';
+                        const checked = otherId
+                          ? (step.requires ?? []).includes(otherId)
+                          : false;
+                        return (
+                          <label
+                            key={otherId || `pos-${position}`}
+                            className="flex items-center gap-1.5 text-[11px] font-bold text-muted"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              disabled={!otherId}
+                              onChange={(event) =>
+                                toggleRequire(
+                                  index,
+                                  otherId,
+                                  event.target.checked,
+                                )
+                              }
+                            />
+                            {other.title || KIND_LABEL[other.kind]}
+                            <span
+                              className="rounded bg-[var(--vintage-paper)] px-1.5 py-0.5 text-[9px] font-normal text-muted"
+                              dir="ltr"
+                            >
+                              {otherId || 'ذخیره‌نشده'}
+                            </span>
+                          </label>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
                 {(() => {

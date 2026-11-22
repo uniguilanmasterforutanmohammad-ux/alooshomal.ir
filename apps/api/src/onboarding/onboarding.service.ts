@@ -1279,6 +1279,30 @@ export class OnboardingService implements OnModuleInit {
     const skipped = step.optional === true && resolved.every((entry) =>
       isEmpty(entry.value),
     );
+    // A dependent module (e.g. a license lookup) only runs once its
+    // prerequisites are fulfilled; block the submit early so the user does not
+    // reach the invoice with an inquiry that cannot run.
+    if (!skipped && step.requires?.length) {
+      const [doneMap, allSteps] = await Promise.all([
+        this.completionMap(userId),
+        this.getSteps(),
+      ]);
+      const stepById = new Map(allSteps.map((entry) => [entry.id, entry] as const));
+      const unmet = await this.unmetRequires(
+        userId,
+        step,
+        doneMap,
+        stepById,
+        new Map(),
+        identity,
+      );
+      if (unmet.length > 0) {
+        const titles = unmet.map((id) => stepById.get(id)?.title ?? id);
+        throw new BadRequestException(
+          `برای ثبت این مرحله ابتدا باید مراحل «${titles.join('»، «')}» تکمیل شوند.`,
+        );
+      }
+    }
     const clean: Record<string, unknown> = {};
     for (const { field, value } of resolved) {
       if (!skipped && field.required && isEmpty(value)) {
@@ -1452,6 +1476,104 @@ export class OnboardingService implements OnModuleInit {
     }
   }
 
+  /** Stored inquiry result of a module step, or `undefined` when none ran. */
+  private async readStepResult(
+    userId: string,
+    stepId: string,
+  ): Promise<unknown> {
+    const row = await this.prisma.setting.findUnique({
+      where: { key: `${ONBOARDING_MODULE_RESULT_PREFIX}${userId}:${stepId}` },
+    });
+    if (!row?.value) return undefined;
+    try {
+      return JSON.parse(row.value) as unknown;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Order cart items so a module that requires another module in the same
+   * cart runs after it, letting the dependent module read the prerequisite's
+   * fresh result.
+   */
+  private orderItemsByRequires(
+    items: OnboardingCartItem[],
+    stepById: Map<string, OnboardingStepDef>,
+  ): OnboardingCartItem[] {
+    const byStep = new Map(items.map((item) => [item.stepId, item] as const));
+    const visited = new Set<string>();
+    const ordered: OnboardingCartItem[] = [];
+    const visit = (item: OnboardingCartItem) => {
+      if (visited.has(item.stepId)) return;
+      visited.add(item.stepId);
+      for (const req of stepById.get(item.stepId)?.requires ?? []) {
+        const dependency = byStep.get(req);
+        if (dependency) visit(dependency);
+      }
+      ordered.push(item);
+    };
+    for (const item of items) visit(item);
+    return ordered;
+  }
+
+  /**
+   * Prerequisite step ids of `step` that are not fulfilled yet.
+   *
+   * `mode: 'completion'` is used while the user fills the form (before any
+   * payment): every prerequisite — built-in or module — only needs to be
+   * complete.
+   *
+   * `mode: 'result'` is used after payment, when the inquiries run: a built-in
+   * prerequisite must be complete and a module prerequisite must have come
+   * back positive (in this run or a previous one), so a chained inquiry
+   * actually waits for the prerequisite's result.
+   */
+  private async unmetRequires(
+    userId: string,
+    step: OnboardingStepDef | undefined,
+    doneMap: Map<string, boolean>,
+    stepById: Map<string, OnboardingStepDef>,
+    runPositives: Map<string, boolean>,
+    identity: {
+      nationalCode?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      fullName?: string | null;
+      phone?: string | null;
+    } | null,
+    mode: 'completion' | 'result' = 'completion',
+  ): Promise<string[]> {
+    const requires = step?.requires ?? [];
+    const unmet: string[] = [];
+    for (const reqId of requires) {
+      let satisfied: boolean;
+      if (runPositives.has(reqId)) {
+        satisfied = runPositives.get(reqId) === true;
+      } else {
+        const reqStep = stepById.get(reqId);
+        const isModule = Boolean(
+          reqStep && reqStep.kind === 'module' && reqStep.moduleKey,
+        );
+        if (isModule && mode === 'result') {
+          const stored = await this.readStepResult(userId, reqId);
+          if (stored === undefined) {
+            satisfied = false;
+          } else {
+            const storedData = await this.readStepData(userId, reqId);
+            satisfied =
+              this.isPositiveModuleResult(stored) &&
+              this.matchRulesPass(reqStep, stored, storedData, identity);
+          }
+        } else {
+          satisfied = doneMap.get(reqId) === true;
+        }
+      }
+      if (!satisfied) unmet.push(reqId);
+    }
+    return unmet;
+  }
+
   /**
    * Run the paid module inquiries after the onboarding invoice was settled.
    * Only api.ir/Zohal modules are executable here; other module types are
@@ -1489,8 +1611,12 @@ export class OnboardingService implements OnModuleInit {
         phone: true,
       },
     });
+    const doneMap = await this.completionMap(userId);
+    // Positivity of every module that ran in this delivery, so a dependent
+    // module can wait for its prerequisite's fresh result.
+    const runPositives = new Map<string, boolean>();
     const results: Array<{ stepId: string; ok: boolean }> = [];
-    for (const item of items) {
+    for (const item of this.orderItemsByRequires(items, stepById)) {
       const separator = item.moduleKey.indexOf(':');
       const prefix = separator < 0 ? '' : item.moduleKey.slice(0, separator);
       const rest = separator < 0 ? '' : item.moduleKey.slice(separator + 1);
@@ -1500,6 +1626,22 @@ export class OnboardingService implements OnModuleInit {
       const isComposite = rest.startsWith('composite:');
       const key = isComposite ? rest.slice('composite:'.length) : rest;
       if (!key) continue;
+      const step = stepById.get(item.stepId);
+      const unmet = await this.unmetRequires(
+        userId,
+        step,
+        doneMap,
+        stepById,
+        runPositives,
+        identity,
+        'result',
+      );
+      if (unmet.length > 0) {
+        // Prerequisites are not fulfilled (e.g. identity not verified yet):
+        // the inquiry must not run.
+        results.push({ stepId: item.stepId, ok: false });
+        continue;
+      }
       const payload = await this.readStepData(userId, item.stepId);
       try {
         let ok: boolean;
@@ -1527,10 +1669,10 @@ export class OnboardingService implements OnModuleInit {
           create: { key: resultKey, value: JSON.stringify(result) },
           update: { value: JSON.stringify(result) },
         });
-        const step = stepById.get(item.stepId);
         const positive =
           this.isPositiveModuleResult(result) &&
           this.matchRulesPass(step, result, payload, identity);
+        runPositives.set(item.stepId, positive);
         if (step?.onSuccess && positive) {
           await this.applyModuleSuccessTicks(userId, step, result);
         }
@@ -2036,6 +2178,10 @@ export class OnboardingService implements OnModuleInit {
           : undefined;
       const match =
         step.kind === 'module' ? this.sanitizeMatchRules(step.match) : undefined;
+      const requires =
+        step.kind === 'module'
+          ? this.sanitizeRequires(step.requires, id)
+          : undefined;
       result.push({
         id,
         kind: step.kind,
@@ -2046,6 +2192,7 @@ export class OnboardingService implements OnModuleInit {
         ...(fieldOverrides ? { fieldOverrides } : {}),
         ...(onSuccess ? { onSuccess } : {}),
         ...(match ? { match } : {}),
+        ...(requires ? { requires } : {}),
         enabled: step.enabled !== false,
         ...(typeof step.optional === 'boolean'
           ? { optional: step.optional }
@@ -2116,6 +2263,28 @@ export class OnboardingService implements OnModuleInit {
       rules.push(rule);
     }
     return rules.length > 0 ? rules : undefined;
+  }
+
+  /**
+   * Keep only well-formed, non-self prerequisite step ids. Unknown ids are
+   * kept (they may belong to a step defined later); a step that points at
+   * itself is dropped to avoid an unfulfillable requirement.
+   */
+  private sanitizeRequires(
+    input: unknown,
+    selfId: string,
+  ): string[] | undefined {
+    if (!Array.isArray(input)) return undefined;
+    const seen = new Set<string>();
+    const requires: string[] = [];
+    for (const entry of input) {
+      if (typeof entry !== 'string') continue;
+      const id = entry.trim();
+      if (!id || id === selfId || seen.has(id)) continue;
+      seen.add(id);
+      requires.push(id);
+    }
+    return requires.length > 0 ? requires : undefined;
   }
 
   /**
