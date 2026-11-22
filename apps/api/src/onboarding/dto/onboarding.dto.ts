@@ -100,6 +100,26 @@ export class OnboardingFieldOverrideDto {
   datePicker?: boolean;
 }
 
+export class OnboardingStepOnSuccessDto {
+  @ApiPropertyOptional({
+    description:
+      'در صورت مثبت‌بودن استعلام این ماژول، «تیک سفید» (احراز هویت و تطبیق شماره تماس) صادر شود.',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  grantWhiteTick?: boolean;
+
+  @ApiPropertyOptional({
+    description:
+      'در صورت مثبت‌بودن استعلام این ماژول، «تیک آبی» (استعلام جواز کسب) صادر شود.',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  grantBlueTick?: boolean;
+}
+
 @ApiExtraModels(OnboardingFieldOverrideDto, OnboardingFieldOptionDto)
 export class OnboardingStepDto {
   @ApiPropertyOptional({
@@ -158,6 +178,16 @@ export class OnboardingStepDto {
   @IsOptional()
   @IsObject()
   fieldOverrides?: Record<string, OnboardingFieldOverrideDto>;
+
+  @ApiPropertyOptional({
+    type: OnboardingStepOnSuccessDto,
+    description:
+      'برای مرحله‌ی ماژول: پس از استعلام مثبت این ماژول، کدام تیک‌ها به کاربر داده شود.',
+  })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => OnboardingStepOnSuccessDto)
+  onSuccess?: OnboardingStepOnSuccessDto;
 
   @ApiProperty({ description: 'نمایش این مرحله به کاربران', default: true })
   @IsBoolean()

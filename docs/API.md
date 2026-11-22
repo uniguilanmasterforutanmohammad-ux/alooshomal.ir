@@ -683,6 +683,12 @@ HTTP، پیام، تأخیر، مبلغ و payload/response). این جدول م
 (`userMobile`، `userNationalCode`، `userBirthDate`، `userFullName`)، قفل‌کردن
 مقدار برای کاربر (`readonly`)، برچسب‌های سفارشی برای فیلدهای بولی (مثل
 مرد/زن به‌جای بله/خیر) و دیتاپیکر شمسی برای فیلدهای تاریخ.
+برای هر مرحله‌ی `module` ادمین می‌تواند با `onSuccess` مشخص کند که پس از
+«استعلام مثبت» آن ماژول (نتیجه‌ی موفق و، در صورت وجود، `matched: true`) کدام
+تیک‌ها به‌طور خودکار صادر شوند: `grantWhiteTick` برای «تیک سفید» (احراز هویت و
+تطبیق شماره تماس) و `grantBlueTick` برای «تیک آبی» (استعلام جواز کسب). این
+اعطا هنگام اجرای استعلام‌های پرداخت‌شده در `POST /onboarding/cart/deliver`
+انجام می‌شود و تیک‌های موجود را تنزل نمی‌دهد.
 
 | متد | مسیر | دسترسی | توضیح |
 | --- | --- | --- | --- |
@@ -691,12 +697,12 @@ HTTP، پیام، تأخیر، مبلغ و payload/response). این جدول م
 | `POST` | `/onboarding/steps/:id/complete` | کاربر | تیک‌زدن یک مرحله‌ی سفارشی. |
 | `DELETE` | `/onboarding/steps/:id/complete` | کاربر | برداشتن تیک یک مرحله‌ی سفارشی. |
 | `POST` | `/onboarding/steps/:id/data` | کاربر | ثبت فرم پویای مرحله‌ی ماژول؛ بدنه `{ data: Record<string, unknown> }`. فیلدهای الزامی ماژول اعتبارسنجی می‌شوند، مقدار فیلدهای `readonly` از اطلاعات حساب کاربر بازنویسی می‌شود (حتی اگر کلاینت مقدار دیگری بفرستد)، مقدار فیلدهای بولی/گزینه‌ای باید در گزینه‌های مجاز باشد، داده ذخیره و مرحله کامل می‌شود، و اگر ماژول قیمت داشته باشد به سبد خرید اضافه می‌گردد. |
-| `POST` | `/onboarding/cart/deliver` | کاربر | اجرای استعلام‌های ماژول (api.ir/Zohal) که همراه پرداخت نهایی خریداری شده‌اند؛ برای محصولات ترکیبی، همه‌ی ماژول‌ها به ترتیب تعریف‌شده اجرا می‌شوند. idempotent و بدون کسر مجدد. |
+| `POST` | `/onboarding/cart/deliver` | کاربر | اجرای استعلام‌های ماژول (api.ir/Zohal) که همراه پرداخت نهایی خریداری شده‌اند؛ برای محصولات ترکیبی، همه‌ی ماژول‌ها به ترتیب تعریف‌شده اجرا می‌شوند. در صورت مثبت‌بودن نتیجه‌ی هر ماژول، تیک‌های پیکربندی‌شده‌ی همان مرحله (`onSuccess`: تیک سفید/آبی) صادر می‌شوند. idempotent و بدون کسر مجدد. |
 | `POST` | `/onboarding/documents` | کاربر | ثبت فایل آپلودشده (خروجی `/uploads/document`) در فهرست مدارک حساب؛ بدنه `{ url, name?, size?, contentType? }`. |
 | `DELETE` | `/onboarding/documents/:id` | کاربر | حذف یک مدرک از حساب. |
 | `GET` | `/admin/onboarding/steps` | ADMIN | فهرست مراحل پیکربندی‌شده. |
 | `GET` | `/admin/onboarding/modules` | ADMIN | کتابخانه‌ی ماژول‌ها/محصولات قابل قرار‌گرفتن در مراحل: zohal، محصولات ترکیبی zohal، api.ir، اشتراک‌ها، مدیریت کسب‌وکار، بیولینک و کارت ویزیت (هر آیتم با `key`، `label`، `href`، `enabled`، `price` و برای ترکیبی‌ها `composite: true`). |
-| `PUT` | `/admin/onboarding/steps` | ADMIN | ذخیره‌ی فهرست/ترتیب/فعال‌بودن/اختیاری‌بودن مراحل (`{ steps: [{ ..., optional?, moduleKey?, fieldOverrides? }] }`). برای `kind: "module"` مقدار `moduleKey` باید یکی از کلیدهای کتابخانه باشد و `fieldOverrides` یک شیء با کلید نام فیلد و مقادیر `{ label?, placeholder?, required?, prefill?, readonly?, options?, datePicker? }` است. |
+| `PUT` | `/admin/onboarding/steps` | ADMIN | ذخیره‌ی فهرست/ترتیب/فعال‌بودن/اختیاری‌بودن مراحل (`{ steps: [{ ..., optional?, moduleKey?, fieldOverrides?, onSuccess? }] }`). برای `kind: "module"` مقدار `moduleKey` باید یکی از کلیدهای کتابخانه باشد، `fieldOverrides` یک شیء با کلید نام فیلد و مقادیر `{ label?, placeholder?, required?, prefill?, readonly?, options?, datePicker? }` است و `onSuccess` (اختیاری) با `{ grantWhiteTick?, grantBlueTick? }` تیک‌های صادرشده پس از استعلام مثبت را تعیین می‌کند. |
 
 ترتیب مراحل پیش‌فرض «شروع آسان»: `welcome` → `business` → `identity` → `plan` →
 `approval`. قاعده‌ی تکمیل: `business` = وجود حداقل یک فضای کسب‌وکار (این مرحله

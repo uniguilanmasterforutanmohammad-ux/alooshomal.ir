@@ -32,8 +32,14 @@ interface EditableStep {
   href?: string;
   moduleKey?: string;
   fieldOverrides?: Record<string, FieldOverride>;
+  onSuccess?: OnSuccess;
   enabled: boolean;
   optional?: boolean;
+}
+
+interface OnSuccess {
+  grantWhiteTick?: boolean;
+  grantBlueTick?: boolean;
 }
 
 type PrefillSource =
@@ -260,6 +266,17 @@ export function AdminOnboardingSteps() {
     setMessage(null);
   }
 
+  function updateOnSuccess(index: number, patch: OnSuccess) {
+    setSteps((prev) =>
+      prev.map((step, position) =>
+        position === index
+          ? { ...step, onSuccess: { ...(step.onSuccess ?? {}), ...patch } }
+          : step,
+      ),
+    );
+    setMessage(null);
+  }
+
   /** Label of a boolean option (`true`/`false`), with the built-in fallback. */
   function booleanLabel(override: FieldOverride | undefined, value: boolean) {
     return (
@@ -304,6 +321,9 @@ export function AdminOnboardingSteps() {
           : {}),
         ...(step.kind === 'module' && step.fieldOverrides
           ? { fieldOverrides: step.fieldOverrides }
+          : {}),
+        ...(step.kind === 'module' && step.onSuccess
+          ? { onSuccess: step.onSuccess }
           : {}),
         enabled: step.enabled,
         optional: step.optional === true,
@@ -549,6 +569,41 @@ export function AdminOnboardingSteps() {
                     ))}
                   </select>
                 </label>
+                <div className="mt-3 rounded-xl border border-[var(--vintage-border)] bg-white p-3">
+                  <p className="text-[11px] font-extrabold text-ink">
+                    پس از استعلام مثبت این ماژول
+                  </p>
+                  <p className="mt-1 text-[11px] leading-5 text-muted">
+                    اگر استعلام این ماژول برای کاربر موفق باشد، تیک‌های انتخاب‌شده
+                    به‌صورت خودکار صادر می‌شوند.
+                  </p>
+                  <div className="mt-2 flex flex-col gap-1.5 text-[11px] font-bold text-muted">
+                    <label className="flex items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        checked={step.onSuccess?.grantWhiteTick ?? false}
+                        onChange={(event) =>
+                          updateOnSuccess(index, {
+                            grantWhiteTick: event.target.checked,
+                          })
+                        }
+                      />
+                      تیک سفید (احراز هویت و تطبیق شماره تماس)
+                    </label>
+                    <label className="flex items-center gap-1.5">
+                      <input
+                        type="checkbox"
+                        checked={step.onSuccess?.grantBlueTick ?? false}
+                        onChange={(event) =>
+                          updateOnSuccess(index, {
+                            grantBlueTick: event.target.checked,
+                          })
+                        }
+                      />
+                      تیک آبی (استعلام جواز کسب)
+                    </label>
+                  </div>
+                </div>
                 {(() => {
                   const selected = modules.find(
                     (item) => item.key === step.moduleKey,

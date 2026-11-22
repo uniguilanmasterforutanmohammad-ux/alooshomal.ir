@@ -95,6 +95,13 @@ export interface OnboardingStepDef {
    * field `name` exposed by the module catalog.
    */
   fieldOverrides?: Record<string, OnboardingFieldOverride>;
+  /**
+   * For `kind: 'module'` steps: rewards granted automatically when the
+   * module's inquiry for this user comes back positive. The admin chooses
+   * this from the wizard builder (e.g. run an identity inquiry once and hand
+   * out the white tick, or a license inquiry and hand out the blue tick).
+   */
+  onSuccess?: OnboardingStepOnSuccess;
   /** disabled steps stay configured but are hidden from users. */
   enabled: boolean;
   /**
@@ -144,6 +151,14 @@ export interface OnboardingFieldOverride {
   options?: OnboardingFieldOption[];
   /** Render a `date` field with the site's Jalali date picker. */
   datePicker?: boolean;
+}
+
+/** Ticks a positive module inquiry may grant to the user automatically. */
+export interface OnboardingStepOnSuccess {
+  /** «تیک سفید» — احراز هویت + تطبیق شماره تماس. */
+  grantWhiteTick?: boolean;
+  /** «تیک آبی» — استعلام جواز کسب. */
+  grantBlueTick?: boolean;
 }
 
 /** One input the user must fill for a module step. */

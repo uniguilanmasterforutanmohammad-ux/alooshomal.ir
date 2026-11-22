@@ -7,6 +7,7 @@ import {
 import {
   BiolinkStatus,
   IdentityInquiryKind,
+  IdentityInquiryStatus,
   PaymentStatus,
   Prisma,
 } from '@prisma/client';
@@ -41,6 +42,7 @@ import {
   type OnboardingModuleInfo,
   type OnboardingProgressPayload,
   type OnboardingStepDef,
+  type OnboardingStepOnSuccess,
   type OnboardingStepKind,
   type OnboardingStepState,
 } from './onboarding.constants';
@@ -1421,6 +1423,9 @@ export class OnboardingService implements OnModuleInit {
       return { delivered: 0, results: [] as Array<{ stepId: string; ok: boolean }> };
     }
     const items = this.normaliseCartItems(payment.moduleItems);
+    const stepById = new Map(
+      (await this.getSteps()).map((step) => [step.id, step] as const),
+    );
     const results: Array<{ stepId: string; ok: boolean }> = [];
     for (const item of items) {
       const separator = item.moduleKey.indexOf(':');
@@ -1459,6 +1464,10 @@ export class OnboardingService implements OnModuleInit {
           create: { key: resultKey, value: JSON.stringify(result) },
           update: { value: JSON.stringify(result) },
         });
+        const step = stepById.get(item.stepId);
+        if (step?.onSuccess && this.isPositiveModuleResult(result)) {
+          await this.applyModuleSuccessTicks(userId, step, result);
+        }
         results.push({ stepId: item.stepId, ok });
       } catch {
         results.push({ stepId: item.stepId, ok: false });
@@ -1470,6 +1479,163 @@ export class OnboardingService implements OnModuleInit {
     });
     await this.writeCart(userId, []);
     return { delivered: results.length, results };
+  }
+
+  /**
+   * A module inquiry is "positive" when the call itself succeeded and, for
+   * results that carry an explicit `matched` flag (Shahkar / identity), that
+   * flag is true. Anything else (transport error, mismatch) is not positive.
+   */
+  private isPositiveModuleResult(result: unknown): boolean {
+    if (!result || typeof result !== 'object') return false;
+    const record = result as Record<string, unknown>;
+    if (record.ok !== true) return false;
+    const data = record.data;
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      const matched = (data as Record<string, unknown>).matched;
+      if (typeof matched === 'boolean') return matched;
+    }
+    return true;
+  }
+
+  /** The `data` payload of a stored module result (or null). */
+  private moduleResultData(result: unknown): Record<string, unknown> | null {
+    if (!result || typeof result !== 'object') return null;
+    const data = (result as Record<string, unknown>).data;
+    return data && typeof data === 'object' && !Array.isArray(data)
+      ? (data as Record<string, unknown>)
+      : null;
+  }
+
+  /** Best-effort first/last name extraction from an identity-style payload. */
+  private extractIdentityNames(
+    data: Record<string, unknown> | null,
+  ): { firstName: string | null; lastName: string | null } {
+    const pick = (...keys: string[]): string => {
+      for (const key of keys) {
+        const value = data?.[key];
+        if (typeof value === 'string' && value.trim()) return value.trim();
+      }
+      return '';
+    };
+    let firstName = pick('first_name', 'firstName');
+    let lastName = pick('last_name', 'lastName');
+    if (!firstName || !lastName) {
+      const fullName = pick('fullName', 'full_name', 'name');
+      if (fullName && !firstName && !lastName) {
+        const parts = fullName.split(/\s+/);
+        firstName = parts[0] ?? '';
+        lastName = parts.slice(1).join(' ');
+      }
+    }
+    return {
+      firstName: firstName || null,
+      lastName: lastName || null,
+    };
+  }
+
+  /**
+   * Grant the ticks an admin attached to a module step once its inquiry came
+   * back positive. White tick = identity verified + phone matched; blue tick =
+   * business license verified. Existing ticks are never downgraded.
+   */
+  private async applyModuleSuccessTicks(
+    userId: string,
+    step: OnboardingStepDef,
+    result: unknown,
+  ): Promise<void> {
+    const award: OnboardingStepOnSuccess | undefined = step.onSuccess;
+    if (!award?.grantWhiteTick && !award?.grantBlueTick) return;
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        phone: true,
+        nationalCode: true,
+        birthDate: true,
+        phoneMatchVerifiedAt: true,
+        identityVerifiedAt: true,
+        businessLicenseVerifiedAt: true,
+      },
+    });
+    if (!user) return;
+    const now = new Date();
+    const data = this.moduleResultData(result);
+    const label = step.title || 'ماژول استعلام';
+
+    if (award.grantWhiteTick) {
+      const names = this.extractIdentityNames(data);
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          phoneMatchVerifiedAt: user.phoneMatchVerifiedAt ?? now,
+          identityVerifiedAt: user.identityVerifiedAt ?? now,
+          ...(names.firstName ? { firstName: names.firstName } : {}),
+          ...(names.lastName ? { lastName: names.lastName } : {}),
+          ...(names.firstName && names.lastName
+            ? { fullName: `${names.firstName} ${names.lastName}` }
+            : {}),
+          ...(data
+            ? { identityInquiryData: data as Prisma.InputJsonValue }
+            : {}),
+        },
+      });
+      await this.prisma.identityInquiryLog.create({
+        data: {
+          userId,
+          kind: IdentityInquiryKind.PHONE_MATCH,
+          status: IdentityInquiryStatus.SUCCESS,
+          nationalCode: user.nationalCode,
+          phone: user.phone,
+          matched: true,
+          message: `تطبیق شماره تماس از نتیجه‌ی موفق ماژول «${label}».`,
+        },
+      });
+      await this.prisma.identityInquiryLog.create({
+        data: {
+          userId,
+          kind: IdentityInquiryKind.IDENTITY_INQUIRY,
+          status: IdentityInquiryStatus.SUCCESS,
+          nationalCode: user.nationalCode,
+          birthDate: user.birthDate,
+          matched: true,
+          firstName: names.firstName,
+          lastName: names.lastName,
+          message: `احراز هویت از نتیجه‌ی موفق ماژول «${label}».`,
+        },
+      });
+    }
+
+    if (award.grantBlueTick) {
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          businessLicenseVerifiedAt: user.businessLicenseVerifiedAt ?? now,
+          ...(data
+            ? { businessLicenseData: data as Prisma.InputJsonValue }
+            : {}),
+        },
+      });
+      await this.prisma.identityInquiryLog.create({
+        data: {
+          userId,
+          kind: IdentityInquiryKind.BUSINESS_LICENSE,
+          status: IdentityInquiryStatus.SUCCESS,
+          nationalCode: user.nationalCode,
+          matched: true,
+          message: `استعلام جواز کسب از نتیجه‌ی موفق ماژول «${label}».`,
+        },
+      });
+    }
+
+    await this.activity.log({
+      actor: { id: userId },
+      action: 'ONBOARDING_MODULE_TICKS',
+      summary: `اعطای تیک از نتیجه‌ی موفق ماژول «${label}»${
+        award.grantWhiteTick ? ' (تیک سفید)' : ''
+      }${award.grantBlueTick ? ' (تیک آبی)' : ''}`,
+      entityType: 'USER',
+      entityId: userId,
+    });
   }
 
   /**
@@ -1722,6 +1888,10 @@ export class OnboardingService implements OnModuleInit {
         step.kind === 'module'
           ? this.sanitizeFieldOverrides(step.fieldOverrides)
           : undefined;
+      const onSuccess =
+        step.kind === 'module'
+          ? this.sanitizeOnSuccess(step.onSuccess)
+          : undefined;
       result.push({
         id,
         kind: step.kind,
@@ -1730,6 +1900,7 @@ export class OnboardingService implements OnModuleInit {
         ...(href ? { href } : {}),
         ...(step.kind === 'module' ? { moduleKey } : {}),
         ...(fieldOverrides ? { fieldOverrides } : {}),
+        ...(onSuccess ? { onSuccess } : {}),
         enabled: step.enabled !== false,
         ...(typeof step.optional === 'boolean'
           ? { optional: step.optional }
@@ -1737,6 +1908,29 @@ export class OnboardingService implements OnModuleInit {
       });
     }
     return result;
+  }
+
+  /**
+   * Keep only well-formed `onSuccess` tick grants; returns undefined when no
+   * tick is selected, so the stored step stays lean.
+   */
+  private sanitizeOnSuccess(
+    input: unknown,
+  ): OnboardingStepOnSuccess | undefined {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      return undefined;
+    }
+    const raw = input as Record<string, unknown>;
+    const onSuccess: OnboardingStepOnSuccess = {};
+    if (typeof raw.grantWhiteTick === 'boolean') {
+      onSuccess.grantWhiteTick = raw.grantWhiteTick;
+    }
+    if (typeof raw.grantBlueTick === 'boolean') {
+      onSuccess.grantBlueTick = raw.grantBlueTick;
+    }
+    return onSuccess.grantWhiteTick || onSuccess.grantBlueTick
+      ? onSuccess
+      : undefined;
   }
 
   /**

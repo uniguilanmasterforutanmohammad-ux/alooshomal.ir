@@ -20,7 +20,39 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.65.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.66.0**.
+
+## ۱۴۰۵/۰۹/۰۱ — اعطای خودکار تیک سفید/آبی پس از استعلام مثبت ماژول — نسخه `v4.66.0`
+
+**هدف:** در «ساخت فرم ← شروع سریع» ادمین بتواند برای هر مرحله‌ی ماژول تعیین کند
+که پس از «استعلام مثبت» آن ماژول، کدام تیک‌ها به‌طور خودکار صادر شوند: «تیک
+سفید» (احراز هویت و تطبیق شماره تماس) و «تیک آبی» (استعلام جواز کسب).
+
+**تغییرات:**
+- `apps/api/src/onboarding/onboarding.constants.ts`: افزودن `OnboardingStepOnSuccess`
+  و فیلد `onSuccess` به `OnboardingStepDef`.
+- `apps/api/src/onboarding/dto/onboarding.dto.ts`: افزودن `OnboardingStepOnSuccessDto`
+  و فیلد `onSuccess` به `OnboardingStepDto`.
+- `apps/api/src/onboarding/onboarding.service.ts`: اعطای تیک‌ها در `deliverPaidCart`
+  پس از نتیجه‌ی مثبت (`isPositiveModuleResult` با درنظرگرفتن `ok` و `matched`)؛
+  افزودن `applyModuleSuccessTicks`/`extractIdentityNames`/`moduleResultData` و
+  پاک‌سازی `sanitizeOnSuccess`. تیک‌های موجود تنزل داده نمی‌شوند.
+- `apps/web/components/admin/AdminOnboardingSteps.tsx`: بخش «پس از استعلام مثبت
+  این ماژول» با دو گزینه‌ی تیک سفید/آبی و ذخیره‌ی `onSuccess`.
+- `docs/API.md`: مستندسازی `onSuccess` و رفتار `POST /onboarding/cart/deliver`.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.66.0`.
+
+**تأیید/تست:**
+- `npx tsc --noEmit` در هر دو اپ بدون خطا؛ `check_api_docs.py` با exit 0.
+- تست واقعی روی کانتینر: PUT مراحل با `onSuccess` و بازخوانی موفق؛ سپس کاربر
+  فرم ماژول `zohal:shahkar` را پر کرد، صورتحساب پرداخت‌شده‌ی حاوی همان مرحله
+  ساخته شد و `POST /onboarding/cart/deliver` نتیجه‌ی مثبت داد؛ در ادامه هر سه
+  فلگ `phoneMatchVerifiedAt`/`identityVerifiedAt`/`businessLicenseVerifiedAt`
+  در دیتابیس و در `GET /onboarding/me` ست شدند (سپس همه‌ی داده‌های تست پاک و
+  تنظیمات اولیه بازگردانده شد).
+- بررسی UI با Playwright: بخش «پس از استعلام مثبت این ماژول» و هر دو چک‌باکس
+  در `?section=settings-onboarding` رندر شدند و خطای صفحه‌ای نبود.
+- `python3 scripts/sync_install.py` و `--check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۱ — ورود سریع مدیر در حالت لوکال با OTP فیک — نسخه `v4.65.0`
 
