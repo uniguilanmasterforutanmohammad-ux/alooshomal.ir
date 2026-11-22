@@ -38,6 +38,7 @@ import {
   PLAN_PERIODS,
   PLAN_PERIOD_LABELS,
   isFreePlan,
+  planDiscountPercent,
   planPriceForMonths,
   type PlanPeriodMonths,
 } from '@/lib/plan-periods';
@@ -310,6 +311,10 @@ export function OnboardingWizard() {
     Record<string, SubscriptionAddonQuote>
   >({});
   const [withManagement, setWithManagement] = useState(false);
+  // The management step lets a business whose category has no package ask the
+  // admin to define one; the request is filed as a support ticket.
+  const [managementRequestSent, setManagementRequestSent] = useState(false);
+  const [managementRequestBusy, setManagementRequestBusy] = useState(false);
   // Result of the identity inquiry that runs right after the combined payment.
   const [identityResult, setIdentityResult] = useState<{
     success: boolean;
@@ -783,6 +788,38 @@ export function OnboardingWizard() {
   }
 
   /**
+   * The step-2 category has no management package yet, so the user asks the
+   * admin to define one. Support tickets are always available (never behind a
+   * feature flag) and show up in the admin ticket queue.
+   */
+  async function requestManagementPackage() {
+    const business = payload?.business ?? null;
+    if (!business || managementRequestBusy || managementRequestSent) return;
+    setManagementRequestBusy(true);
+    try {
+      await api.post('/tickets', {
+        subject: 'درخواست بسته مدیریت کسب‌وکار',
+        message: [
+          `درخواست بسته‌ی مدیریت برای کسب‌وکار «${business.name}» ثبت شد.`,
+          `دسته‌بندی مرحله‌ی کسب‌وکار: «${business.industryLabel}» (${business.industryKey}).`,
+          'لطفاً بسته‌ی مدیریت مناسب این کسب‌وکار را تعریف یا فعال کنید.',
+        ].join('\n'),
+        priority: 'NORMAL',
+      });
+      setManagementRequestSent(true);
+      toast.success(
+        'درخواست شما ثبت شد؛ پشتیبانی بسته‌ی مناسب کسب‌وکار را بررسی می‌کند.',
+      );
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : 'ثبت درخواست ناموفق بود',
+      );
+    } finally {
+      setManagementRequestBusy(false);
+    }
+  }
+
+  /**
    * One gateway payment for everything the user picked: the subscription,
    * the optional management package and the identity inquiry. The backend
    * activates the plan/package and then the onboarding page runs the inquiry.
@@ -957,9 +994,36 @@ export function OnboardingWizard() {
     managementPackages.find((entry) => entry.key === selectedManagementKey) ??
     null;
   const managementAmount = selectedManagementPackage?.amount ?? 0;
-  const showManagement = managementPackages.length > 0;
+  // Step 7 is driven by the category picked in step 2: only that category's
+  // package may be bought. When the category has no package, the user can
+  // file a request instead of seeing a grid of disabled options.
+  const businessIndustryKey = businessState?.industryKey ?? null;
+  const categoryManagementPackage =
+    managementPackages.find((entry) => entry.key === businessIndustryKey) ??
+    null;
+  const hasCategoryPackage = Boolean(
+    categoryManagementPackage && categoryManagementPackage.available !== false,
+  );
+  const showManagementRequest = Boolean(businessState) && !hasCategoryPackage;
   // The plan step sells every plan, including the free one.
   const selectablePlans = plans;
+  const paidPlans = selectablePlans.filter((plan) => !isFreePlan(plan));
+  /** Best discount any paid plan offers for a given term. */
+  const maxDiscountForPeriod = (months: PlanPeriodMonths) =>
+    paidPlans.reduce(
+      (best, plan) => Math.max(best, planDiscountPercent(plan, months)),
+      0,
+    );
+  const bestPlanDiscount = paidPlans.reduce(
+    (best, plan) =>
+      Math.max(
+        best,
+        planDiscountPercent(plan, 3),
+        planDiscountPercent(plan, 6),
+        planDiscountPercent(plan, 12),
+      ),
+    0,
+  );
   const selectedPlan =
     plans.find((plan) => plan.id === selectedPlanId) ?? null;
   const myPlan = plans.find((plan) => plan.id === myPlanId) ?? null;
@@ -1732,25 +1796,62 @@ export function OnboardingWizard() {
                 </p>
               ) : (
                 <>
-                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-2">
-                    <span className="text-[11px] font-bold text-muted">
-                      دوره‌ی پرداخت:
-                    </span>
-                    <select
-                      value={planMonths}
-                      onChange={(event) =>
-                        setPlanMonths(
-                          Number(event.target.value) as PlanPeriodMonths,
-                        )
-                      }
-                      className="indeed-input w-auto py-1.5 text-[11px] font-bold"
-                    >
-                      {PLAN_PERIODS.map((period) => (
-                        <option key={period} value={period}>
-                          {PLAN_PERIOD_LABELS[period]}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-2">
+                    <div className="flex flex-wrap items-center justify-between gap-1">
+                      <span className="text-[11px] font-bold text-muted">
+                        دوره‌ی پرداخت:
+                      </span>
+                      {bestPlanDiscount > 0 ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                          <Sparkles className="size-3" aria-hidden />
+                          تا ٪{bestPlanDiscount.toLocaleString('fa-IR')} تخفیف
+                          دوره‌های بلندمدت
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                      {PLAN_PERIODS.map((period) => {
+                        const discount = maxDiscountForPeriod(period);
+                        const active = planMonths === period;
+                        return (
+                          <button
+                            key={period}
+                            type="button"
+                            onClick={() => setPlanMonths(period)}
+                            aria-pressed={active}
+                            className={cn(
+                              'flex flex-col items-center rounded-lg border px-2 py-2 text-[11px] font-bold transition',
+                              active
+                                ? 'border-brand bg-brand text-white shadow-sm'
+                                : 'border-[var(--vintage-border)] bg-[var(--vintage-surface)] text-ink hover:border-brand/50',
+                            )}
+                          >
+                            <span>{PLAN_PERIOD_LABELS[period]}</span>
+                            {discount > 0 ? (
+                              <span
+                                className={cn(
+                                  'mt-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-extrabold',
+                                  active
+                                    ? 'bg-white/20 text-white'
+                                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+                                )}
+                              >
+                                ٪{discount.toLocaleString('fa-IR')} تخفیف
+                              </span>
+                            ) : (
+                              <span
+                                className={cn(
+                                  'mt-0.5 text-[9px] font-normal',
+                                  active ? 'text-white/80' : 'text-muted',
+                                )}
+                              >
+                                بدون تخفیف
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {selectablePlans.map((plan) => {
@@ -1758,6 +1859,14 @@ export function OnboardingWizard() {
                       const isCurrent = plan.id === myPlanId;
                       const downgrade = currentIsPaid && isFreePlan(plan);
                       const amount = planPriceForMonths(plan, planMonths);
+                      const discount = planDiscountPercent(plan, planMonths);
+                      const fullPrice = plan.price * planMonths;
+                      const savings = Math.max(fullPrice - amount, 0);
+                      const bestDiscount = Math.max(
+                        planDiscountPercent(plan, 3),
+                        planDiscountPercent(plan, 6),
+                        planDiscountPercent(plan, 12),
+                      );
                       return (
                         <label
                           key={plan.id}
@@ -1798,13 +1907,29 @@ export function OnboardingWizard() {
                               {plan.description}
                             </p>
                           ) : null}
-                          <p className="mt-2 text-lg font-extrabold text-brand">
-                            {faPrice(amount)}
+                          <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-lg font-extrabold text-brand">
+                            <span>{faPrice(amount)}</span>
                             <span className="text-[10px] font-normal text-muted">
-                              {' '}
                               / {PLAN_PERIOD_LABELS[planMonths]}
                             </span>
+                            {discount > 0 ? (
+                              <span className="text-[11px] font-normal text-muted line-through">
+                                {faPrice(fullPrice)}
+                              </span>
+                            ) : null}
                           </p>
+                          {discount > 0 ? (
+                            <p className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                              <Sparkles className="size-3" aria-hidden />
+                              ٪{discount.toLocaleString('fa-IR')} تخفیف —{' '}
+                              {faPrice(savings)} صرفه‌جویی
+                            </p>
+                          ) : bestDiscount > 0 ? (
+                            <p className="mt-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                              با دوره‌های بلندمدت تا ٪
+                              {bestDiscount.toLocaleString('fa-IR')} تخفیف
+                            </p>
+                          ) : null}
                           {plan.features.length ? (
                             <ul className="mt-2 flex flex-1 flex-col gap-1 text-[11px] text-ink">
                               {plan.features.slice(0, 4).map((feature) => (
@@ -1850,25 +1975,42 @@ export function OnboardingWizard() {
 
           {step.kind === 'management' ? (
             <div className="flex flex-col gap-3">
+              {businessState ? (
+                <div className="rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-3">
+                  <p className="text-xs font-extrabold text-ink">
+                    دسته‌بندی کسب‌وکار شما: {businessState.industryLabel}
+                  </p>
+                  <p className="mt-1 text-[11px] leading-6 text-muted">
+                    بسته‌ی مدیریت بر اساس همین دسته‌بندی (انتخاب‌شده در مرحله‌ی
+                    کسب‌وکار) تعیین می‌شود.
+                  </p>
+                </div>
+              ) : (
+                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-6 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
+                  ابتدا در مرحله‌ی «ساخت کسب‌وکار» دسته‌بندی کسب‌وکار را انتخاب
+                  کنید تا بسته‌ی مدیریت مناسب نمایش داده شود.
+                </p>
+              )}
               {!selectedPlan ? (
                 <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] leading-6 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
-                  ابتدا در مرحله‌ی قبل یک اشتراک انتخاب کنید تا قیمت بسته‌های
-                  مدیریت نمایش داده شود.
+                  برای محاسبه‌ی قیمت و افزودن بسته به صورتحساب، ابتدا در مرحله‌ی
+                  «خرید اشتراک» یک پلن اکو یا بلاس انتخاب کنید.
                 </p>
               ) : null}
-              {showManagement ? (
+              {hasCategoryPackage && categoryManagementPackage ? (
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {managementPackages.map((pkg) => {
+                  {(() => {
+                    const pkg = categoryManagementPackage;
                     const description = catalogIndustries.find(
                       (entry) => entry.key === pkg.key,
                     )?.description;
                     const isSelected =
                       withManagement && selectedManagementKey === pkg.key;
                     const disabled =
-                      !pkg.available || !selectedPlan || isFreePlan(selectedPlan);
+                      pkg.available === false ||
+                      (Boolean(selectedPlan) && isFreePlan(selectedPlan));
                     return (
                       <label
-                        key={pkg.key}
                         className={cn(
                           'flex flex-col rounded-2xl border p-4 text-right transition',
                           isSelected
@@ -1910,7 +2052,9 @@ export function OnboardingWizard() {
                           </span>
                         ) : null}
                         <span className="mt-2 block text-sm font-extrabold text-brand">
-                          {pkg.amount > 0 ? faPrice(pkg.amount) : 'در حال محاسبه…'}
+                          {pkg.amount > 0
+                            ? faPrice(pkg.amount)
+                            : 'در حال محاسبه…'}
                           <span className="text-[10px] font-normal text-muted">
                             {' '}
                             / {PLAN_PERIOD_LABELS[planMonths]}
@@ -1918,22 +2062,47 @@ export function OnboardingWizard() {
                         </span>
                         {disabled ? (
                           <span className="mt-1 block text-[10px] font-bold text-amber-700 dark:text-amber-300">
-                            با اشتراک رایگان قابل خرید نیست؛ اکو یا بلاس انتخاب کنید.
+                            با اشتراک رایگان قابل خرید نیست؛ اکو یا بلاس انتخاب
+                            کنید.
                           </span>
                         ) : null}
                       </label>
                     );
-                  })}
+                  })()}
                 </div>
-              ) : (
-                <p className="rounded-xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-4 text-xs leading-6 text-muted">
-                  فعلاً بسته‌ی مدیریت کسب‌وکاری برای خرید تعریف نشده است؛
-                  می‌توانید بدون آن ادامه دهید.
-                </p>
-              )}
+              ) : showManagementRequest ? (
+                <div className="rounded-2xl border border-dashed border-brand/40 bg-[var(--vintage-surface)] p-4">
+                  <p className="flex items-center gap-2 text-sm font-extrabold text-ink">
+                    <Building2 className="size-4 text-brand" aria-hidden />
+                    درخواست بسته مدیریت این کسب‌وکار
+                  </p>
+                  <p className="mt-1 text-[11px] leading-6 text-muted">
+                    برای دسته‌بندی «{businessState?.industryLabel}» هنوز بسته‌ی
+                    مدیریتی تعریف نشده است. با ثبت درخواست، تیم پشتیبانی بسته‌ی
+                    مناسب کسب‌وکار شما را آماده می‌کند.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void requestManagementPackage()}
+                    disabled={managementRequestBusy || managementRequestSent}
+                    className="indeed-btn indeed-btn-primary mt-3 w-full py-2 text-xs sm:w-auto"
+                  >
+                    {managementRequestBusy ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : managementRequestSent ? (
+                      <Check className="size-4" aria-hidden />
+                    ) : (
+                      <Building2 className="size-4" aria-hidden />
+                    )}
+                    {managementRequestSent
+                      ? 'درخواست ثبت شد'
+                      : 'ثبت درخواست'}
+                  </button>
+                </div>
+              ) : null}
               <p className="text-[11px] leading-6 text-muted">
-                برای افزودن بسته روی آن کلیک کنید؛ اگر بسته‌ای انتخاب نکنید، با
-                دکمه‌ی «مرحله بعد» بدون بسته ادامه می‌دهید.
+                برای افزودن بسته روی آن کلیک کنید؛ اگر بسته‌ای انتخاب نکنید یا
+                درخواست دهید، با دکمه‌ی «مرحله بعد» بدون بسته ادامه می‌دهید.
               </p>
             </div>
           ) : null}
