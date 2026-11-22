@@ -282,6 +282,108 @@ export class ProfileService {
   }
 
   /**
+   * Prefill + locking rules for the «کارت ویزیت» / «بیولینک» builders.
+   *
+   * The builder starts from the data the user already verified (identity
+   * name, account mobile, business category/city from the onboarding draft) so
+   * the admin can lock those fields instead of asking for them again. It also
+   * returns the Shahkar fee and the admin-tunable form rules so the web app can
+   * show the «سبد خرید» total and the «پرداخت و ارسال» label without extra
+   * round-trips.
+   */
+  async assetDefaults(userId: string) {
+    const [user, workspace, shahkarPrice, config, phoneMatchLogs] =
+      await Promise.all([
+        this.prisma.user.findUnique({
+          where: { id: userId },
+          select: {
+            phone: true,
+            phoneVerified: true,
+            fullName: true,
+            firstName: true,
+            lastName: true,
+            nationalCode: true,
+            createdAt: true,
+          },
+        }),
+        this.prisma.businessWorkspace.findFirst({
+          where: { ownerId: userId, isPlaceholder: false },
+          orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+          select: { name: true, onboardingData: true },
+        }),
+        this.zohal.getServicePrice('shahkar'),
+        this.settings.getBusinessAssetForm(),
+        this.prisma.identityInquiryLog.findMany({
+          where: {
+            userId,
+            kind: IdentityInquiryKind.PHONE_MATCH,
+            status: IdentityInquiryStatus.SUCCESS,
+            phone: { not: null },
+          },
+          orderBy: { createdAt: 'desc' },
+          select: { phone: true, nationalCode: true, createdAt: true },
+        }),
+      ]);
+    if (!user) throw new NotFoundException('کاربر یافت نشد');
+
+    const draft =
+      workspace?.onboardingData && typeof workspace.onboardingData === 'object'
+        ? (workspace.onboardingData as Record<string, unknown>)
+        : {};
+    const asString = (value: unknown): string =>
+      typeof value === 'string' ? value.trim() : '';
+
+    const fullName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
+      asString(draft.fullName) ||
+      workspace?.name?.trim() ||
+      user.fullName?.trim() ||
+      '';
+    const mobile =
+      asString(draft.mobile) ||
+      (user.phoneVerified ? (user.phone ?? '') : '') ||
+      '';
+
+    const verifiedPhones: Array<{
+      phone: string;
+      nationalCode: string | null;
+      verifiedAt: Date | null;
+      source: 'ACCOUNT' | 'SHAHKAR';
+    }> = [];
+    const seen = new Set<string>();
+    if (user.phone && user.phoneVerified) {
+      verifiedPhones.push({
+        phone: user.phone,
+        nationalCode: user.nationalCode,
+        verifiedAt: user.createdAt,
+        source: 'ACCOUNT',
+      });
+      seen.add(user.phone);
+    }
+    for (const log of phoneMatchLogs) {
+      if (!log.phone || seen.has(log.phone)) continue;
+      seen.add(log.phone);
+      verifiedPhones.push({
+        phone: log.phone,
+        nationalCode: log.nationalCode,
+        verifiedAt: log.createdAt,
+        source: 'SHAHKAR',
+      });
+    }
+
+    return {
+      fullName,
+      mobile,
+      businessId: asString(draft.businessId),
+      cityId: asString(draft.cityId),
+      nationalCode: user.nationalCode,
+      verifiedPhones,
+      shahkarPrice,
+      config,
+    };
+  }
+
+  /**
    * Step 1: prove the signed-in mobile belongs to the national code (Shahkar)
    * and capture the Jalali birth date. The paid call is charged to the wallet
    * even when Shahkar says «not matched», because the upstream inquiry was

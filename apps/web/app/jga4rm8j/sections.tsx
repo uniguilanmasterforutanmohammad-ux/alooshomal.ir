@@ -8,6 +8,7 @@ import { AdminAds } from '@/components/admin/AdminAds';
 import { AdminAppearanceSettings } from '@/components/admin/AdminAppearanceSettings';
 import { AdminAuthSettings } from '@/components/admin/AdminAuthSettings';
 import { AdminBiolinkTemplates } from '@/components/admin/AdminBiolinkTemplates';
+import { AdminBusinessAssetForm } from '@/components/admin/AdminBusinessAssetForm';
 import { AdminBlogPanel } from '@/components/admin/AdminBlogPanel';
 import { AdminBoosts } from '@/components/admin/AdminBoosts';
 import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
@@ -492,6 +493,7 @@ export function SettingsOnboardingSection() {
   return (
     <div className="grid gap-4">
       <AdminOnboardingSteps />
+      <AdminBusinessAssetForm />
     </div>
   );
 }

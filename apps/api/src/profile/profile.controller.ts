@@ -64,6 +64,15 @@ export class ProfileController {
     return this.profile.updateIdentity(user.id, dto);
   }
 
+  @Get('asset-defaults')
+  @ApiOperation({
+    summary:
+      'پیش‌فرض‌های فرم کارت ویزیت/بیولینک از اطلاعات تأییدشده + قواعد قفل‌کردن فیلدها',
+  })
+  assetDefaults(@CurrentUser() user: AuthUser) {
+    return this.profile.assetDefaults(user.id);
+  }
+
   @Get('identity/status')
   @ApiOperation({
     summary: 'وضعیت دو مرحله‌ی استعلام هویت (شاهکار و استعلام اطلاعات)',

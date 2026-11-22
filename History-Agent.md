@@ -20,7 +20,54 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.74.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.75.0**.
+
+## ۱۴۰۵/۰۹/۰۱ — پیش‌پرکردن و قفل فیلدهای کارت ویزیت/بیولینک + سبد استعلام شاهکار — نسخه `v4.75.0`
+
+**هدف:** در فرم‌های ساخت کارت ویزیت و بیولینک، فیلدهای به‌دست‌آمده از
+استعلام‌ها (نام، کسب‌وکار، تلفن همراه) به‌صورت پیش‌فرض پر شوند و
+«انتخاب کسب‌وکار» و «تلفن همراه» (و در صورت تنظیم ادمین، نام/شهر) غیرقابل
+تغییر باشند. زیر تلفن همراه، دکمه‌های «تغییر تلفن همراه» و «افزودن تلفن همراه»
+هر شماره‌ی تازه را به سبد استعلام شاهکار اضافه کنند و دکمه‌ی ارسال به
+«پرداخت و ارسال برای تأیید» تبدیل شود. همه‌ی این قواعد از پنل ادمین قابل
+ویرایش باشد.
+
+**تغییرات:**
+- `apps/api/src/settings/settings.constants.ts`: افزودن `BUSINESS_ASSET_FORM_KEY`،
+  انواع `BusinessAssetFormRules/Config` و پیش‌فرض‌ها (قفل `businessId` و `mobile`،
+  برچسب «پرداخت و ارسال برای تأیید»).
+- `apps/api/src/settings/settings.service.ts`: `getBusinessAssetForm` /
+  `setBusinessAssetForm` با اعتبارسنجی و ادغام امن.
+- `apps/api/src/settings/settings.controller.ts`: افزودن `businessAssetForm` به
+  خروجی `GET /admin/settings` و ورودی `PATCH /admin/settings`.
+- `apps/api/src/profile/profile.service.ts` و `profile.controller.ts`: مسیر
+  `GET /profile/asset-defaults` برای پیش‌فرض‌های هویتی + تعرفه‌ی شاهکار + قواعد فرم.
+- `apps/api/src/businesscards/dto/create-business-card.dto.ts`: افزودن
+  `otherPhones` (شماره‌های اضافه‌ی تأییدشده‌ی کارت).
+- `apps/web/components/businesscard/BusinessCardForm.tsx` و
+  `apps/web/components/biolink/BiolinkForm.tsx`: پراپ‌های `lockedFields`،
+  `mobileActions`، `mobileOverride`؛ قفل‌کردن فیلدها و برچسب پیش‌فرض پرداخت.
+- `apps/web/components/dashboard/AssetMobileActions.tsx` (جدید): دکمه‌های
+  تغییر/افزودن تلفن همراه و نمایش شماره‌های اضافه با تعرفه‌ی شاهکار.
+- `apps/web/lib/asset-defaults.ts` (جدید): نوع پاسخ و محاسبه‌ی شماره‌های نیازمند استعلام.
+- `apps/web/app/dashboard/business-cards/new/page.tsx` و
+  `apps/web/app/dashboard/biolinks/new/page.tsx`: دریافت پیش‌فرض‌ها، سبد استعلام،
+  کسر هزینه‌ی شاهکار هنگام «پرداخت و ارسال» (پیش‌نویس رایگان).
+- `apps/web/components/admin/AdminBusinessAssetForm.tsx` (جدید) و
+  `apps/web/app/jga4rm8j/sections.tsx`: پنل ادمین برای قفل فیلدها، برچسب دکمه و
+  فعال/غیرفعال‌کردن تغییر/افزودن تلفن.
+- `docs/API.md`: مستندسازی `GET /profile/asset-defaults` و `businessAssetForm`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا؛ `check_api_docs.py` exit 0.
+- تست API: `GET /profile/asset-defaults` برای کاربر آزمایشی، نام/موبایل/کد ملی،
+  `verifiedPhones`، `shahkarPrice` و `config` را برگرداند؛
+  `PATCH /admin/settings` با `businessAssetForm` ذخیره و ادغام شد.
+- تست مرورگری: در هر دو صفحه‌ی ساخت، تلفن همراه `readonly` و از حساب پر شد،
+  دکمه‌های تغییر/افزودن و برچسب «پرداخت و ارسال برای تأیید» دیده شد؛ افزودن
+  شماره‌ی تازه، سبد استعلام و مبلغ شاهکار را نشان داد. پنل ادمین
+  (`?section=settings-onboarding`) پنل «فرم ساخت کارت ویزیت و بیولینک» را رندر کرد.
 
 ## ۱۴۰۵/۰۹/۰۱ — نمایش محصولات و اقامتگاه‌ها در صفحه‌ی کسب‌وکار تا پایان بسته — نسخه `v4.74.0`
 

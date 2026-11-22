@@ -50,6 +50,18 @@ export class CreateBusinessCardDto {
   @MaxLength(32)
   mobile?: string;
 
+  @ApiPropertyOptional({
+    type: [String],
+    description:
+      'شماره‌های تماس اضافه‌ی کسب‌وکار (هر کدام با استعلام شاهکار تأیید می‌شوند)',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10)
+  @IsString({ each: true })
+  @MaxLength(32, { each: true })
+  otherPhones?: string[];
+
   @ApiPropertyOptional({ example: 'user@example.com' })
   @IsOptional()
   @IsEmail()

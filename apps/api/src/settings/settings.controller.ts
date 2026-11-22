@@ -10,6 +10,7 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsObject,
   IsOptional,
   IsString,
   Max,
@@ -79,6 +80,28 @@ class UpdateSettingsDto {
   @IsArray()
   @IsString({ each: true })
   biolinkDirectoryViews?: string[];
+
+  /** Admin-tunable rules for the business-card / biolink builder. */
+  @ApiPropertyOptional({
+    description:
+      'قواعد فرم ساخت کارت ویزیت و بیولینک (فیلدهای قفل‌شده، برچسب دکمه، افزودن/تغییر تلفن)',
+  })
+  @IsOptional()
+  @IsObject()
+  businessAssetForm?: {
+    businessCard?: {
+      lockedFields?: string[];
+      submitLabel?: string;
+      allowMobileChange?: boolean;
+      allowMobileAdd?: boolean;
+    };
+    biolink?: {
+      lockedFields?: string[];
+      submitLabel?: string;
+      allowMobileChange?: boolean;
+      allowMobileAdd?: boolean;
+    };
+  };
 
   /** Site-wide visual theme (`vintage` | `modern` | `bazaar` | `twitter` | `kashi`). */
   @ApiPropertyOptional({
@@ -253,6 +276,7 @@ export class SettingsController {
         await this.settingsService.getBusinessCardDirectoryViews(),
       biolinkDirectoryViews:
         await this.settingsService.getBiolinkDirectoryViews(),
+      businessAssetForm: await this.settingsService.getBusinessAssetForm(),
       siteTheme: await this.settingsService.getSiteTheme(),
       features: await this.settingsService.getFeatureFlags(),
       featureVisibility: await this.settingsService.getFeatureVisibility(),
@@ -337,6 +361,9 @@ export class AdminSettingsController {
       biolinkTemplatesEnabled?: string[];
       businessCardDirectoryViews?: string[];
       biolinkDirectoryViews?: string[];
+      businessAssetForm?: Awaited<
+        ReturnType<SettingsService['getBusinessAssetForm']>
+      >;
       siteTheme?: SiteTheme;
       adminNotifications?: Record<AdminNotifyCategory, boolean>;
       adminSmsNotifications?: Record<AdminNotifyCategory, boolean>;
@@ -402,6 +429,12 @@ export class AdminSettingsController {
       result.biolinkDirectoryViews =
         await this.settingsService.setBiolinkDirectoryViews(
           dto.biolinkDirectoryViews,
+        );
+    }
+    if (dto.businessAssetForm !== undefined) {
+      result.businessAssetForm =
+        await this.settingsService.setBusinessAssetForm(
+          dto.businessAssetForm,
         );
     }
     if (dto.adminNotifications !== undefined) {

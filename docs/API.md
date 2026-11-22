@@ -242,7 +242,7 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 | متد | مسیر | توضیح |
 | --- | --- | --- |
 | `GET` | `/admin/settings` | علاوه بر `adminNotifications` (اعلان زنگوله)، فیلد `adminSmsNotifications` (پیامک هر دسته) و `adminNotifyRegistry` (برچسب، توضیح و `{0}`/`{1}` قالب پیامک هر دسته) را برمی‌گرداند. فقط مدیر. |
-| `PATCH` | `/admin/settings` | بدنه‌ی `{ adminNotifications?: Record<Category, boolean>, adminSmsNotifications?: Record<Category, boolean> }`. کلید ناشناخته نادیده گرفته می‌شود. فقط مدیر. |
+| `PATCH` | `/admin/settings` | بدنه‌ی `{ adminNotifications?, adminSmsNotifications?, businessAssetForm? }`. `businessAssetForm` قواعد فرم کارت ویزیت/بیولینک را ذخیره می‌کند: `{ businessCard: { lockedFields, submitLabel, allowMobileChange, allowMobileAdd }, biolink: {...} }`. کلید ناشناخته نادیده گرفته می‌شود. فقط مدیر. |
 
 پیش‌فرض هر دو سوئیچ روشن است. اگر برای یک دسته ردیف `notifyAdminSms.<CATEGORY>`
 ذخیره نشده باشد، مقدار پیامک از سوئیچ اعلان همان دسته پیروی می‌کند. سوئیچ
@@ -625,6 +625,7 @@ refresh token صادر نمی‌شود و پس از انقضای توکن دست
 | `POST` | `/profile/identity/phone-match` | کاربر | مسیر قدیمی مرحله ۱؛ در حالت «پرداخت فقط آنلاین» با خطا کاربر را به `identity/checkout` هدایت می‌کند. |
 | `POST` | `/profile/identity/inquiry` | کاربر | مسیر قدیمی مرحله ۲؛ در حالت «پرداخت فقط آنلاین» با خطا کاربر را به `identity/checkout` هدایت می‌کند. |
 | `POST` | `/profile/phones/verify` | کاربر | استعلام شاهکار برای یک شماره‌ی موبایل اضافه (مثلاً شماره‌ی کسب‌وکار)؛ بدنه `{ phone, nationalCode? }`. نتیجه در `IdentityInquiryLog` ذخیره می‌شود تا همان شماره بعداً بدون استعلام/هزینه‌ی مجدد قابل استفاده باشد. |
+| `GET` | `/profile/asset-defaults` | کاربر | پیش‌فرض‌های فرم «کارت ویزیت»/«بیولینک» از اطلاعات تأییدشده: `{ fullName, mobile, businessId, cityId, nationalCode, verifiedPhones, shahkarPrice, config }`. `config.businessCard`/`config.biolink` قواعد ادمین را برمی‌گرداند (`lockedFields`، `submitLabel`، `allowMobileChange`، `allowMobileAdd`) تا فیلدهای هویتی قفل و دکمه‌ی «پرداخت و ارسال برای تأیید» نمایش داده شود. |
 | `POST` | `/profile/blue-tick/request` | کاربر | ثبت درخواست تیک آبی پس از استعلام هویت. |
 
 `GET /profile/me` علاوه بر اطلاعات حساب، فهرست `verifiedPhones` (شماره‌ی حساب +

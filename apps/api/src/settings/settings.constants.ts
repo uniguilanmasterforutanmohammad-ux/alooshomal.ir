@@ -591,3 +591,57 @@ export const ADMIN_NOTIFY_KEY_PREFIX = 'notifyAdmin.';
  * receive an SMS for a case (or the other way around).
  */
 export const ADMIN_NOTIFY_SMS_KEY_PREFIX = 'notifyAdminSms.';
+
+// ---------------------------------------------------------------------------
+//  «فرم ساخت کارت ویزیت / بیولینک» — admin-tunable builder rules
+// ---------------------------------------------------------------------------
+
+/**
+ * Admin-editable rules for the two paid identity assets (business card and
+ * biolink). Stored as one JSON `Setting` so the admin can lock fields that are
+ * prefilled from the user's verified identity (business category, mobile, …),
+ * relabel the submit button and enable/disable the «تغییر/افزودن تلفن همراه»
+ * actions without a deploy.
+ */
+export const BUSINESS_ASSET_FORM_KEY = 'businessAssetForm';
+
+/** Fields the admin may lock (make read-only) in the builder. */
+export const BUSINESS_ASSET_LOCKABLE_FIELDS = [
+  'fullName',
+  'businessId',
+  'cityId',
+  'mobile',
+] as const;
+export type BusinessAssetLockableField =
+  (typeof BUSINESS_ASSET_LOCKABLE_FIELDS)[number];
+
+export interface BusinessAssetFormRules {
+  /** Fields prefilled from the verified identity that the user cannot edit. */
+  lockedFields: BusinessAssetLockableField[];
+  /** Label of the primary (paid) submit button. */
+  submitLabel: string;
+  /** Whether «تغییر تلفن همراه» is offered under the mobile field. */
+  allowMobileChange: boolean;
+  /** Whether «افزودن تلفن همراه» is offered under the mobile field. */
+  allowMobileAdd: boolean;
+}
+
+export interface BusinessAssetFormConfig {
+  businessCard: BusinessAssetFormRules;
+  biolink: BusinessAssetFormRules;
+}
+
+export const DEFAULT_BUSINESS_ASSET_FORM: BusinessAssetFormConfig = {
+  businessCard: {
+    lockedFields: ['businessId', 'mobile'],
+    submitLabel: 'پرداخت و ارسال برای تأیید',
+    allowMobileChange: true,
+    allowMobileAdd: true,
+  },
+  biolink: {
+    lockedFields: ['businessId', 'mobile'],
+    submitLabel: 'پرداخت و ارسال برای تأیید',
+    allowMobileChange: true,
+    allowMobileAdd: true,
+  },
+};

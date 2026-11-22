@@ -90,6 +90,15 @@ interface Props {
   /** hide the link picker (used by the admin editor, which must not re-link) */
   hideLink?: boolean;
   /**
+   * Fields prefilled from the verified identity that the user must not edit
+   * (admin-controlled in «شروع آسان» settings).
+   */
+  lockedFields?: string[];
+  /** Extra UI rendered directly under the mobile field (add/change phone). */
+  mobileActions?: React.ReactNode;
+  /** Externally controlled mobile (the «تغییر تلفن همراه» action updates it). */
+  mobileOverride?: string;
+  /**
    * localStorage key for autosaving the in-progress values (only pass this on
    * the "new" builder, so a half-filled form survives a reload/navigation).
    */
@@ -105,6 +114,9 @@ export function BiolinkForm({
   showDraftButton,
   linkCurrentId,
   hideLink,
+  lockedFields,
+  mobileActions,
+  mobileOverride,
   autosaveKey,
 }: Props) {
   const [values, setValues] = useState<BiolinkFormValues>({
@@ -115,6 +127,14 @@ export function BiolinkForm({
   const [businesses, setBusinesses] = useState<TaxonomyItem[]>([]);
   const [enabledTemplates, setEnabledTemplates] = useState<string[]>([]);
   const [showRestore, setShowRestore] = useState(false);
+  const isLocked = (field: string) => Boolean(lockedFields?.includes(field));
+
+  useEffect(() => {
+    if (mobileOverride === undefined) return;
+    setValues((prev) =>
+      prev.mobile === mobileOverride ? prev : { ...prev, mobile: mobileOverride },
+    );
+  }, [mobileOverride]);
 
   const autosave = useFormAutosave(autosaveKey ?? '', values, {
     enabled: Boolean(autosaveKey),
@@ -262,13 +282,24 @@ export function BiolinkForm({
                 label="به مدیریت *"
                 required
                 value={values.fullName}
+                readOnly={isLocked('fullName')}
+                className={
+                  isLocked('fullName')
+                    ? '!bg-[var(--vintage-paper)] !text-ink font-bold cursor-not-allowed focus:!border-[var(--vintage-border)] focus:!shadow-none'
+                    : undefined
+                }
                 onChange={(event) => setField('fullName', event.target.value)}
               />
               <label className="flex flex-col gap-1.5">
                 <span className="text-sm font-bold text-ink">انتخاب شهر *</span>
                 <select
                   required
-                  className="indeed-input"
+                  className={
+                    isLocked('cityId')
+                      ? 'indeed-input cursor-not-allowed opacity-70'
+                      : 'indeed-input'
+                  }
+                  disabled={isLocked('cityId')}
                   value={values.cityId}
                   onChange={(event) => setField('cityId', event.target.value)}
                 >
@@ -284,7 +315,12 @@ export function BiolinkForm({
                 <span className="text-sm font-bold text-ink">انتخاب کسب‌وکار *</span>
                 <select
                   required
-                  className="indeed-input"
+                  className={
+                    isLocked('businessId')
+                      ? 'indeed-input cursor-not-allowed opacity-70'
+                      : 'indeed-input'
+                  }
+                  disabled={isLocked('businessId')}
                   value={values.businessId}
                   onChange={(event) => setBusinessCategory(event.target.value)}
                 >
@@ -309,14 +345,29 @@ export function BiolinkForm({
                 value={values.neighborhood}
                 onChange={(neighborhood) => setField('neighborhood', neighborhood)}
               />
-              <Input
-                label="تلفن همراه *"
-                required
-                dir="ltr"
-                inputMode="tel"
-                value={values.mobile}
-                onChange={(event) => setField('mobile', event.target.value)}
-              />
+              <div>
+                <Input
+                  label="تلفن همراه *"
+                  required
+                  dir="ltr"
+                  inputMode="tel"
+                  value={values.mobile}
+                  readOnly={isLocked('mobile')}
+                  aria-readonly={isLocked('mobile') || undefined}
+                  className={
+                    isLocked('mobile')
+                      ? '!bg-[var(--vintage-paper)] !text-ink font-bold cursor-not-allowed focus:!border-[var(--vintage-border)] focus:!shadow-none'
+                      : undefined
+                  }
+                  hint={
+                    isLocked('mobile')
+                      ? 'این شماره از اطلاعات تأییدشده‌ی حساب شماست؛ برای تغییر یا افزودن از دکمه‌های زیر استفاده کنید.'
+                      : undefined
+                  }
+                  onChange={(event) => setField('mobile', event.target.value)}
+                />
+                {mobileActions ? <div className="mt-2">{mobileActions}</div> : null}
+              </div>
               <Input
                 label="تلفن ثابت"
                 dir="ltr"
@@ -430,7 +481,7 @@ export function BiolinkForm({
             onClick={() => void submit(values)}
             className="indeed-btn indeed-btn-primary w-full"
           >
-            {submitting ? 'در حال ذخیره...' : (submitLabel ?? 'ذخیره و ارسال برای تأیید')}
+            {submitting ? 'در حال ذخیره...' : (submitLabel ?? 'پرداخت و ارسال برای تأیید')}
           </button>
           {showDraftButton ? (
             <button
@@ -647,7 +698,7 @@ export function BiolinkForm({
           disabled={submitting}
           className="indeed-btn indeed-btn-primary w-full"
         >
-          {submitting ? 'در حال ذخیره...' : (submitLabel ?? 'ذخیره و ارسال برای تأیید')}
+          {submitting ? 'در حال ذخیره...' : (submitLabel ?? 'پرداخت و ارسال برای تأیید')}
         </button>
         <p className="text-center text-xs text-muted">
           پس از ذخیره، بیولینک در وضعیت «در انتظار تأیید مدیر» قرار می‌گیرد.

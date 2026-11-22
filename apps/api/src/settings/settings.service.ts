@@ -23,7 +23,11 @@ import {
   BIOLINK_VIEWS_KEY,
   BOOST_DURATION_DAYS_KEY,
   BOOST_PRICE_KEY,
+  BUSINESS_ASSET_FORM_KEY,
+  BUSINESS_ASSET_LOCKABLE_FIELDS,
   BUSINESS_CARD_VIEWS_KEY,
+  BusinessAssetFormConfig,
+  BusinessAssetFormRules,
   CreationLocks,
   DEFAULT_ACTIVITY_RETENTION_MONTHS,
   DEFAULT_ADMIN_LIST_PAGE_SIZE,
@@ -36,6 +40,7 @@ import {
   DEFAULT_BIOLINK_VIEWS,
   DEFAULT_BOOST_DURATION_DAYS,
   DEFAULT_BOOST_PRICE,
+  DEFAULT_BUSINESS_ASSET_FORM,
   DEFAULT_BUSINESS_CARD_VIEWS,
   DEFAULT_DIRECTORY_DISPLAY_MODE,
   DEFAULT_DIRECTORY_PAGE_SIZE,
@@ -362,6 +367,121 @@ export class SettingsService implements OnModuleInit {
       create: { key: BIOLINK_TEMPLATES_ENABLED_KEY, value },
     });
     return this.getBiolinkTemplatesEnabled();
+  }
+
+  // ---- «فرم ساخت کارت ویزیت / بیولینک» ----
+
+  /**
+   * Admin-tunable builder rules for the two identity assets. Always returns a
+   * complete, validated object: unknown locked fields are dropped and missing
+   * keys fall back to the defaults, so the web builder can rely on the shape.
+   */
+  async getBusinessAssetForm(): Promise<BusinessAssetFormConfig> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: BUSINESS_ASSET_FORM_KEY },
+    });
+    let parsed: Partial<BusinessAssetFormConfig> = {};
+    if (setting) {
+      try {
+        parsed = JSON.parse(setting.value) as Partial<BusinessAssetFormConfig>;
+      } catch {
+        parsed = {};
+      }
+    }
+    const normalize = (
+      raw: Partial<BusinessAssetFormRules> | undefined,
+      fallback: BusinessAssetFormRules,
+    ): BusinessAssetFormRules => {
+      const locked = Array.isArray(raw?.lockedFields)
+        ? (BUSINESS_ASSET_LOCKABLE_FIELDS as readonly string[]).filter((field) =>
+            (raw?.lockedFields ?? []).includes(field as never),
+          )
+        : fallback.lockedFields;
+      const submitLabel =
+        typeof raw?.submitLabel === 'string' && raw.submitLabel.trim()
+          ? raw.submitLabel.trim().slice(0, 60)
+          : fallback.submitLabel;
+      return {
+        lockedFields: locked as BusinessAssetFormRules['lockedFields'],
+        submitLabel,
+        allowMobileChange:
+          typeof raw?.allowMobileChange === 'boolean'
+            ? raw.allowMobileChange
+            : fallback.allowMobileChange,
+        allowMobileAdd:
+          typeof raw?.allowMobileAdd === 'boolean'
+            ? raw.allowMobileAdd
+            : fallback.allowMobileAdd,
+      };
+    };
+    return {
+      businessCard: normalize(
+        parsed.businessCard,
+        DEFAULT_BUSINESS_ASSET_FORM.businessCard,
+      ),
+      biolink: normalize(parsed.biolink, DEFAULT_BUSINESS_ASSET_FORM.biolink),
+    };
+  }
+
+  async setBusinessAssetForm(
+    input: {
+      businessCard?: {
+        lockedFields?: string[];
+        submitLabel?: string;
+        allowMobileChange?: boolean;
+        allowMobileAdd?: boolean;
+      };
+      biolink?: {
+        lockedFields?: string[];
+        submitLabel?: string;
+        allowMobileChange?: boolean;
+        allowMobileAdd?: boolean;
+      };
+    },
+  ): Promise<BusinessAssetFormConfig> {
+    const current = await this.getBusinessAssetForm();
+    const merge = (
+      raw:
+        | {
+            lockedFields?: string[];
+            submitLabel?: string;
+            allowMobileChange?: boolean;
+            allowMobileAdd?: boolean;
+          }
+        | undefined,
+      base: BusinessAssetFormRules,
+    ): BusinessAssetFormRules => {
+      const locked = Array.isArray(raw?.lockedFields)
+        ? (BUSINESS_ASSET_LOCKABLE_FIELDS as readonly string[]).filter((field) =>
+            (raw?.lockedFields ?? []).includes(field as never),
+          )
+        : base.lockedFields;
+      return {
+        lockedFields: locked as BusinessAssetFormRules['lockedFields'],
+        submitLabel:
+          typeof raw?.submitLabel === 'string' && raw.submitLabel.trim()
+            ? raw.submitLabel.trim().slice(0, 60)
+            : base.submitLabel,
+        allowMobileChange:
+          typeof raw?.allowMobileChange === 'boolean'
+            ? raw.allowMobileChange
+            : base.allowMobileChange,
+        allowMobileAdd:
+          typeof raw?.allowMobileAdd === 'boolean'
+            ? raw.allowMobileAdd
+            : base.allowMobileAdd,
+      };
+    };
+    const next: BusinessAssetFormConfig = {
+      businessCard: merge(input.businessCard, current.businessCard),
+      biolink: merge(input.biolink, current.biolink),
+    };
+    await this.prisma.setting.upsert({
+      where: { key: BUSINESS_ASSET_FORM_KEY },
+      update: { value: JSON.stringify(next) },
+      create: { key: BUSINESS_ASSET_FORM_KEY, value: JSON.stringify(next) },
+    });
+    return next;
   }
 
   /** The site-wide visual theme the admin picked (see `SITE_THEMES`). */
