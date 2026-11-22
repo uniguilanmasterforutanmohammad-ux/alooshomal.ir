@@ -1706,7 +1706,15 @@ export class OnboardingService implements OnModuleInit {
       orderBy: { paidAt: 'desc' },
     });
     if (!payment) {
-      return { delivered: 0, results: [] as Array<{ stepId: string; ok: boolean }> };
+      return {
+        delivered: 0,
+        results: [] as Array<{
+          stepId: string;
+          ok: boolean;
+          matched: boolean;
+          message: string | null;
+        }>,
+      };
     }
     // Atomically claim this delivery before running any inquiry. Two requests
     // can arrive at the same moment (the checkout redirect and the load-time
@@ -1718,28 +1726,51 @@ export class OnboardingService implements OnModuleInit {
       data: { moduleConsumedAt: new Date() },
     });
     if (claimed.count === 0) {
-      return { delivered: 0, results: [] as Array<{ stepId: string; ok: boolean }> };
+      return {
+        delivered: 0,
+        results: [] as Array<{
+          stepId: string;
+          ok: boolean;
+          matched: boolean;
+          message: string | null;
+        }>,
+      };
     }
     const items = this.normaliseCartItems(payment.moduleItems);
     const stepById = new Map(
       (await this.getSteps()).map((step) => [step.id, step] as const),
     );
-    const identity = await this.prisma.user.findUnique({
+    const identitySelect = {
+      nationalCode: true,
+      firstName: true,
+      lastName: true,
+      fullName: true,
+      phone: true,
+    } as const;
+    let identity = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        nationalCode: true,
-        firstName: true,
-        lastName: true,
-        fullName: true,
-        phone: true,
-      },
+      select: identitySelect,
     });
     const doneMap = await this.completionMap(userId);
     // Positivity of every module that ran in this delivery, so a dependent
     // module can wait for its prerequisite's fresh result.
     const runPositives = new Map<string, boolean>();
-    const results: Array<{ stepId: string; ok: boolean }> = [];
+    const results: Array<{
+      stepId: string;
+      ok: boolean;
+      matched: boolean;
+      message: string | null;
+    }> = [];
     for (const item of this.orderItemsByRequires(items, stepById)) {
+      // A prerequisite module earlier in this same delivery may have just
+      // written the national code / name to the account (e.g. the identity
+      // step before the business-license lookup). Re-read it so match rules
+      // compare against the freshly verified identity, not the pre-run state.
+      identity =
+        (await this.prisma.user.findUnique({
+          where: { id: userId },
+          select: identitySelect,
+        })) ?? identity;
       const separator = item.moduleKey.indexOf(':');
       const prefix = separator < 0 ? '' : item.moduleKey.slice(0, separator);
       const rest = separator < 0 ? '' : item.moduleKey.slice(separator + 1);
@@ -1762,7 +1793,12 @@ export class OnboardingService implements OnModuleInit {
       if (unmet.length > 0) {
         // Prerequisites are not fulfilled (e.g. identity not verified yet):
         // the inquiry must not run.
-        results.push({ stepId: item.stepId, ok: false });
+        results.push({
+          stepId: item.stepId,
+          ok: false,
+          matched: false,
+          message: null,
+        });
         continue;
       }
       const payload = await this.readStepData(userId, item.stepId);
@@ -1786,22 +1822,52 @@ export class OnboardingService implements OnModuleInit {
           ok = call.ok;
           result = call;
         }
+        const evaluation = this.evaluateMatchRules(
+          step,
+          result,
+          payload,
+          identity,
+        );
+        // Keep the admin's match verdict next to the raw response so the user
+        // and the admin panel can show «استعلام انجام شد اما مطابقت نداشت»
+        // instead of silently treating it as a failed call.
+        const storedResult =
+          result && typeof result === 'object' && !Array.isArray(result)
+            ? {
+                ...(result as Record<string, unknown>),
+                matched: evaluation.passed,
+                matchMessage: evaluation.message,
+              }
+            : result;
         const resultKey = `${ONBOARDING_MODULE_RESULT_PREFIX}${userId}:${item.stepId}`;
         await this.prisma.setting.upsert({
           where: { key: resultKey },
-          create: { key: resultKey, value: JSON.stringify(result) },
-          update: { value: JSON.stringify(result) },
+          create: { key: resultKey, value: JSON.stringify(storedResult) },
+          update: { value: JSON.stringify(storedResult) },
         });
         const positive =
-          this.isPositiveModuleResult(result) &&
-          this.matchRulesPass(step, result, payload, identity);
+          this.isPositiveModuleResult(result) && evaluation.passed;
         runPositives.set(item.stepId, positive);
-        if (step?.onSuccess && positive) {
-          await this.applyModuleSuccessTicks(userId, step, result);
+        if (step?.onSuccess) {
+          await this.applyModuleSuccessTicks(userId, step, storedResult, {
+            positive,
+            matchMessage: evaluation.message,
+            payload,
+          });
         }
-        results.push({ stepId: item.stepId, ok });
+        results.push({
+          stepId: item.stepId,
+          ok,
+          matched: evaluation.passed,
+          message: evaluation.passed ? null : evaluation.message,
+        });
       } catch {
-        results.push({ stepId: item.stepId, ok: false });
+        results.push({
+          stepId: item.stepId,
+          ok: false,
+          matched: false,
+          message: null,
+        });
       }
     }
     await this.writeCart(userId, []);
@@ -1844,11 +1910,39 @@ export class OnboardingService implements OnModuleInit {
       phone?: string | null;
     } | null,
   ): boolean {
+    return this.evaluateMatchRules(step, result, payload, identity).passed;
+  }
+
+  /**
+   * Evaluate the admin's `match` rules and describe the outcome in Persian.
+   * The inquiry itself can succeed while a rule fails (e.g. the license
+   * belongs to someone else); in that case the caller still records the
+   * response but reports «عدم تطبیق» to the user instead of granting a tick.
+   */
+  private evaluateMatchRules(
+    step: OnboardingStepDef | undefined,
+    result: unknown,
+    payload: Record<string, unknown>,
+    identity: {
+      nationalCode?: string | null;
+      firstName?: string | null;
+      lastName?: string | null;
+      fullName?: string | null;
+      phone?: string | null;
+    } | null,
+  ): { passed: boolean; message: string | null } {
     const rules = step?.match ?? [];
-    if (rules.length === 0) return true;
+    if (rules.length === 0) return { passed: true, message: null };
     const data = this.moduleResultData(result);
-    if (!data) return false;
-    return rules.every((rule) => {
+    if (!data) {
+      return {
+        passed: false,
+        message:
+          'پاسخ استعلام قابل خواندن نبود؛ تطبیق نتیجه با اطلاعات شما انجام نشد.',
+      };
+    }
+    const failures: string[] = [];
+    for (const rule of rules) {
       const actual = data[rule.resultField];
       let expected: unknown;
       switch (rule.compareTo) {
@@ -1872,6 +1966,7 @@ export class OnboardingService implements OnModuleInit {
         default:
           expected = undefined;
       }
+      const fieldLabel = this.matchFieldLabel(rule.resultField);
       if (
         actual === undefined ||
         actual === null ||
@@ -1879,14 +1974,48 @@ export class OnboardingService implements OnModuleInit {
         expected === null ||
         expected === ''
       ) {
-        return false;
+        failures.push(
+          actual === undefined || actual === null || actual === ''
+            ? `پاسخ استعلام فیلد «${fieldLabel}» را برنگرداند`
+            : `مقدار مقایسه‌ای «${fieldLabel}» برای تطبیق در دسترس نبود`,
+        );
+        continue;
       }
-      return this.compareMatchValues(
+      const ok = this.compareMatchValues(
         String(actual),
         String(expected),
         rule.mode ?? 'normalized',
       );
-    });
+      if (!ok) {
+        failures.push(
+          `«${fieldLabel}» پاسخ استعلام (${String(actual)}) با مقدار مورد انتظار (${String(expected)}) مطابقت ندارد`,
+        );
+      }
+    }
+    if (failures.length === 0) return { passed: true, message: null };
+    return {
+      passed: false,
+      message: `استعلام انجام شد اما نتیجه با اطلاعات شما تطبیق نداشت: ${failures.join('؛ ')}.`,
+    };
+  }
+
+  /** Persian label for a response field used in a match rule. */
+  private matchFieldLabel(field: string): string {
+    const labels: Record<string, string> = {
+      nationalCode: 'کد ملی',
+      national_code: 'کد ملی',
+      mobile: 'شماره موبایل',
+      phone: 'شماره موبایل',
+      fullName: 'نام و نام خانوادگی',
+      full_name: 'نام و نام خانوادگی',
+      firstName: 'نام',
+      first_name: 'نام',
+      lastName: 'نام خانوادگی',
+      last_name: 'نام خانوادگی',
+      trackingCode: 'کد پیگیری جواز',
+      title: 'عنوان مجوز',
+    };
+    return labels[field] ?? field;
   }
 
   private compareMatchValues(
@@ -1958,12 +2087,20 @@ export class OnboardingService implements OnModuleInit {
   /**
    * Grant the ticks an admin attached to a module step once its inquiry came
    * back positive. White tick = identity verified + phone matched; blue tick =
-   * business license verified. Existing ticks are never downgraded.
+   * business license verified. Existing ticks are never downgraded. When the
+   * call succeeded but the admin's match rules failed, the raw response is
+   * still stored and a `FAILED` (mismatch) log is written so the user and the
+   * admin panel can see why no tick was granted.
    */
   private async applyModuleSuccessTicks(
     userId: string,
     step: OnboardingStepDef,
     result: unknown,
+    options: {
+      positive: boolean;
+      matchMessage: string | null;
+      payload: Record<string, unknown>;
+    } = { positive: true, matchMessage: null, payload: {} },
   ): Promise<void> {
     const award: OnboardingStepOnSuccess | undefined = step.onSuccess;
     if (!award?.grantWhiteTick && !award?.grantBlueTick) return;
@@ -1982,14 +2119,26 @@ export class OnboardingService implements OnModuleInit {
     const now = new Date();
     const data = this.moduleResultData(result);
     const label = step.title || 'ماژول استعلام';
+    const payloadNationalCode = this.pickString(options.payload, [
+      'national_code',
+      'nationalCode',
+    ]);
+    const payloadBirthDate = this.pickString(options.payload, [
+      'birth_date',
+      'birthDate',
+    ]);
+    const nationalCode = user.nationalCode ?? payloadNationalCode;
+    const birthDate = user.birthDate ?? payloadBirthDate;
 
-    if (award.grantWhiteTick) {
+    if (award.grantWhiteTick && options.positive) {
       const names = this.extractIdentityNames(data);
       await this.prisma.user.update({
         where: { id: userId },
         data: {
           phoneMatchVerifiedAt: user.phoneMatchVerifiedAt ?? now,
           identityVerifiedAt: user.identityVerifiedAt ?? now,
+          ...(nationalCode ? { nationalCode } : {}),
+          ...(birthDate ? { birthDate } : {}),
           ...(names.firstName ? { firstName: names.firstName } : {}),
           ...(names.lastName ? { lastName: names.lastName } : {}),
           ...(names.firstName && names.lastName
@@ -2005,7 +2154,7 @@ export class OnboardingService implements OnModuleInit {
           userId,
           kind: IdentityInquiryKind.PHONE_MATCH,
           status: IdentityInquiryStatus.SUCCESS,
-          nationalCode: user.nationalCode,
+          nationalCode,
           phone: user.phone,
           matched: true,
           message: `تطبیق شماره تماس از نتیجه‌ی موفق ماژول «${label}».`,
@@ -2016,17 +2165,19 @@ export class OnboardingService implements OnModuleInit {
           userId,
           kind: IdentityInquiryKind.IDENTITY_INQUIRY,
           status: IdentityInquiryStatus.SUCCESS,
-          nationalCode: user.nationalCode,
-          birthDate: user.birthDate,
+          nationalCode,
+          birthDate,
           matched: true,
           firstName: names.firstName,
           lastName: names.lastName,
+          raw: (data ?? undefined) as Prisma.InputJsonValue | undefined,
           message: `احراز هویت از نتیجه‌ی موفق ماژول «${label}».`,
         },
       });
     }
 
-    if (award.grantBlueTick) {
+    if (award.grantBlueTick && options.positive) {
+      const names = this.extractIdentityNames(data);
       await this.prisma.user.update({
         where: { id: userId },
         data: {
@@ -2041,11 +2192,48 @@ export class OnboardingService implements OnModuleInit {
           userId,
           kind: IdentityInquiryKind.BUSINESS_LICENSE,
           status: IdentityInquiryStatus.SUCCESS,
-          nationalCode: user.nationalCode,
+          nationalCode: nationalCode ?? user.nationalCode,
           matched: true,
+          firstName: names.firstName,
+          lastName: names.lastName,
+          raw: (data ?? undefined) as Prisma.InputJsonValue | undefined,
           message: `استعلام جواز کسب از نتیجه‌ی موفق ماژول «${label}».`,
         },
       });
+    }
+
+    if (award.grantBlueTick && !options.positive && data) {
+      // The inquiry ran and returned an owner, but the national code (or
+      // another admin rule) did not match this account: keep the response and
+      // log the mismatch instead of granting a blue tick.
+      const names = this.extractIdentityNames(data);
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { businessLicenseData: data as Prisma.InputJsonValue },
+      });
+      await this.prisma.identityInquiryLog.create({
+        data: {
+          userId,
+          kind: IdentityInquiryKind.BUSINESS_LICENSE,
+          status: IdentityInquiryStatus.FAILED,
+          nationalCode: nationalCode ?? user.nationalCode,
+          matched: false,
+          firstName: names.firstName,
+          lastName: names.lastName,
+          raw: data as Prisma.InputJsonValue,
+          message:
+            options.matchMessage ??
+            `استعلام جواز کسب انجام شد اما با اطلاعات حساب شما تطبیق نداشت (ماژول «${label}»).`,
+        },
+      });
+      await this.activity.log({
+        actor: { id: userId },
+        action: 'ONBOARDING_MODULE_MISMATCH',
+        summary: `عدم تطبیق نتیجه‌ی استعلام ماژول «${label}» با اطلاعات کاربر`,
+        entityType: 'USER',
+        entityId: userId,
+      });
+      return;
     }
 
     await this.activity.log({
@@ -2057,6 +2245,18 @@ export class OnboardingService implements OnModuleInit {
       entityType: 'USER',
       entityId: userId,
     });
+  }
+
+  /** First non-empty string value of the given keys in a payload. */
+  private pickString(
+    payload: Record<string, unknown>,
+    keys: string[],
+  ): string | null {
+    for (const key of keys) {
+      const value = payload[key];
+      if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+    return null;
   }
 
   /**

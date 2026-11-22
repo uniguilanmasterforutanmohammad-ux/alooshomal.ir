@@ -57,6 +57,7 @@ interface DetailUser {
   birthDate: string | null;
   phoneMatchVerifiedAt: string | null;
   identityVerifiedAt: string | null;
+  identityInquiryData: Record<string, unknown> | null;
   businessLicenseVerifiedAt: string | null;
   businessLicenseData: Record<string, unknown> | null;
   verifiedAt: string | null;
@@ -490,6 +491,8 @@ interface UserDetailPayload {
   reviews: BusinessReview[];
   rewardRedemptions: RewardRedemption[];
   onboardingCompletions: Array<{ id: string; stepId: string; completedAt: string }>;
+  onboardingModuleResults: Array<{ stepId: string; result: unknown }>;
+  onboardingStepData: Array<{ stepId: string; data: unknown }>;
   notifications: NotificationRow[];
   sessions: SessionRow[];
   supportConversations: SupportConversation[];
@@ -1236,6 +1239,20 @@ export function AdminUserDetail({
           {user.blueTickNote ? <Field label="یادداشت تیک آبی" value={user.blueTickNote} /> : null}
         </dl>
 
+        {user.identityInquiryData ? (
+          <details className="mt-4 rounded-lg border border-[var(--vintage-border)] bg-soft p-3">
+            <summary className="cursor-pointer text-xs font-bold text-ink">
+              پاسخ کامل استعلام هویت
+            </summary>
+            <pre
+              dir="ltr"
+              className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all text-[11px] leading-5 text-muted"
+            >
+              {JSON.stringify(user.identityInquiryData, null, 2)}
+            </pre>
+          </details>
+        ) : null}
+
         {user.businessLicenseData ? (
           <details className="mt-4 rounded-lg border border-[var(--vintage-border)] bg-soft p-3">
             <summary className="cursor-pointer text-xs font-bold text-ink">
@@ -1895,6 +1912,99 @@ export function AdminUserDetail({
               </td>
             </tr>
           ))}
+        </DataTable>
+      </Section>
+
+      <Section
+        title="استعلام‌های «شروع آسان»"
+        count={data.onboardingModuleResults.length}
+      >
+        <DataTable
+          head={['مرحله', 'وضعیت', 'پیام تطبیق', 'ورودی فرم', 'پاسخ کامل']}
+          empty="استعلام ماژولی برای این کاربر اجرا نشده است."
+        >
+          {data.onboardingModuleResults.map((row) => {
+            const result =
+              row.result && typeof row.result === 'object'
+                ? (row.result as Record<string, unknown>)
+                : null;
+            const ok = result?.ok === true;
+            const matched =
+              typeof result?.matched === 'boolean' ? result.matched : null;
+            const message =
+              typeof result?.matchMessage === 'string'
+                ? result.matchMessage
+                : typeof result?.message === 'string'
+                  ? result.message
+                  : null;
+            const stepData = data.onboardingStepData.find(
+              (entry) => entry.stepId === row.stepId,
+            );
+            return (
+              <tr
+                key={row.stepId}
+                className="border-t border-[var(--vintage-border)]"
+              >
+                <td dir="ltr" className="px-3 py-2 text-right text-xs text-muted">
+                  {row.stepId}
+                </td>
+                <td className="px-3 py-2 text-xs font-semibold">
+                  <span
+                    className={
+                      !ok
+                        ? 'text-red-600'
+                        : matched === false
+                          ? 'text-amber-600'
+                          : 'text-emerald-600'
+                    }
+                  >
+                    {!ok
+                      ? 'ناموفق'
+                      : matched === false
+                        ? 'عدم تطبیق'
+                        : 'موفق'}
+                  </span>
+                </td>
+                <td className="max-w-[320px] px-3 py-2 text-xs text-muted">
+                  {message ?? '—'}
+                </td>
+                <td className="px-3 py-2 text-xs text-muted">
+                  {stepData?.data ? (
+                    <details>
+                      <summary className="cursor-pointer font-bold text-brand">
+                        مشاهده
+                      </summary>
+                      <pre
+                        dir="ltr"
+                        className="mt-1 max-h-56 min-w-[200px] overflow-auto whitespace-pre-wrap break-all text-[10px] leading-5"
+                      >
+                        {JSON.stringify(stepData.data, null, 2)}
+                      </pre>
+                    </details>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td className="px-3 py-2 text-xs text-muted">
+                  {row.result ? (
+                    <details>
+                      <summary className="cursor-pointer font-bold text-brand">
+                        مشاهده
+                      </summary>
+                      <pre
+                        dir="ltr"
+                        className="mt-1 max-h-56 min-w-[240px] overflow-auto whitespace-pre-wrap break-all text-[10px] leading-5"
+                      >
+                        {JSON.stringify(row.result, null, 2)}
+                      </pre>
+                    </details>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </DataTable>
       </Section>
 

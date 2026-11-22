@@ -529,6 +529,9 @@ export class SubscriptionsService implements OnModuleInit {
         months: true,
         businessAmount: true,
         identityAmount: true,
+        moduleAmount: true,
+        moduleItems: true,
+        identityData: true,
         businessPackages: true,
         plan: { select: { name: true } },
       },
@@ -576,6 +579,9 @@ export class SubscriptionsService implements OnModuleInit {
       businessAmount: payment.businessAmount,
       identityAmount: payment.identityAmount,
       businessPackages: payment.businessPackages,
+      moduleAmount: payment.moduleAmount,
+      moduleItems: payment.moduleItems,
+      identityData: payment.identityData,
       planName: payment.plan.name,
     });
     if (lines.length > 1 && invoice.items.length < lines.length) {

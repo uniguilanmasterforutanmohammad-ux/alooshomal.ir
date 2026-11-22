@@ -20,7 +20,71 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.71.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.72.0**.
+
+## ۱۴۰۵/۰۹/۰۱ — ردیف‌های کامل فاکتور، ثبت داده‌ی هویتی و گزارش عدم تطبیق — نسخه `v4.72.0`
+
+**هدف:** رفع سه ایراد گزارش‌شده روی فایل واقعی ادمین: (۱) اقلام استعلام در
+فاکتور با عنوان کامل نیامده بودند، (۲) کد ملی/اطلاعات هویتی پس از استعلام موفق
+در حساب کاربر و پنل ادمین ثبت نمی‌شد، و (۳) وقتی پاسخ جواز کسب با کد ملیِ
+قاعده‌ی تطبیق یکی نبود، کاربر هیچ گزارشی از «عدم تطبیق» نمی‌دید.
+
+**تغییرات:**
+- `apps/api/src/subscriptions/subscription-invoice.ts`: افزودن `moduleItems` و
+  `identityData` به ورودی؛ هر استعلام ماژول یک ردیف مستقل با عنوان خودش می‌گیرد،
+  استعلام هویت/جواز در صورت وجود تفکیک قیمت به دو ردیف جدا می‌شود، و مبلغ دوره‌ی
+  اشتراک از باقی‌مانده محاسبه می‌گردد تا جمع اقلام همیشه برابر مبلغ پرداخت باشد.
+- `apps/api/src/subscriptions/subscriptions.service.ts` و
+  `subscriptions-payment.service.ts`: ارسال `moduleAmount`/`moduleItems`/
+  `identityData` به سازنده‌ی فاکتور و ذخیره‌ی تفکیک `identityAmount`/
+  `licenseAmount` در اسنپ‌شات هویت هنگام پرداخت.
+- `apps/api/src/onboarding/onboarding.service.ts`:
+  - `evaluateMatchRules` جای `matchRulesPass` را می‌گیرد و پیام فارسی دقیق
+    «عدم تطبیق» (با مقدار واقعی و مقدار مورد انتظار) می‌سازد.
+  - نتیجه‌ی ذخیره‌شده‌ی هر ماژول حالا `matched` و `matchMessage` دارد و خروجی
+    `cart/deliver` برای هر مرحله `{ stepId, ok, matched, message }` است.
+  - هویت کاربر پیش از هر مرحله دوباره خوانده می‌شود تا استعلام جواز کسب با
+    کد ملیِ تازه‌تأییدشده در همان اجرا مقایسه شود.
+  - در تیک سفید، `nationalCode`/`birthDate` فرم (اگر روی حساب خالی باشند) ذخیره
+    می‌شوند؛ در عدم تطبیق جواز، پاسخ کامل در `businessLicenseData` ذخیره و یک
+    لاگ `BUSINESS_LICENSE` با `FAILED`/`matched:false` ثبت می‌شود.
+- `apps/api/src/profile/profile.service.ts`: `GET /profile/me` حالا
+  `identityInquiryData`/`businessLicenseData` و وضعیت تیک آبی را هم برمی‌گرداند.
+- `apps/api/src/admin/admin-users.service.ts`: جزئیات کاربر برای پنل ادمین،
+  `onboardingModuleResults` (پاسخ کامل + `matched`/`matchMessage`) و
+  `onboardingStepData` (ورودی فرم) را هم برمی‌گرداند.
+- `apps/web/components/dashboard/OnboardingWizard.tsx`: کارت نتیجه‌ی استعلام در
+  مرحله‌ی ماژول (موفق/ناموفق/عدم تطبیق + پاسخ کامل JSON)، و پیام toast جداگانه
+  برای «عدم تطبیق».
+- `apps/web/components/dashboard/ProfilePanel.tsx`: نمایش پاسخ کامل استعلام
+  هویت و جواز کسب در پروفایل کاربر.
+- `apps/web/components/admin/AdminUserDetail.tsx`: بلوک پاسخ استعلام هویت و
+  بخش «استعلام‌های شروع آسان» با وضعیت، پیام تطبیق، ورودی فرم و پاسخ کامل.
+- `docs/API.md`: به‌روزرسانی مستندات `cart/deliver`، `profile/me`،
+  `admin/users/:id/detail` و فاکتور پرداخت اشتراک.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا؛
+  `python3 scripts/check_api_docs.py` exit 0.
+- بازتولید لوکال با ایمپورت همان فایل و یک پرداخت شامل «شاهکار+هویتی» و
+  «استعلام اعتبار مجوز شغلی»: نتیجه‌ی اجرا `matched:true` برای هویت و
+  `matched:false` با پیام ««کد ملی» پاسخ استعلام (0013529536) با مقدار مورد
+  انتظار (0084575948) مطابقت ندارد» برای جواز؛ `nationalCode`/`birthDate`،
+  `identityInquiryData` و `businessLicenseData` روی کاربر ذخیره شدند و لاگ
+  `BUSINESS_LICENSE/FAILED/matched=false` ثبت شد.
+- حالت تطبیق موفق جواز (پاسخ با کد ملی کاربر) هم تست شد: `matched:true`،
+  `businessLicenseVerifiedAt` پر شد و لاگ `SUCCESS/matched=true` ثبت شد.
+- فاکتور: ردیف‌ها شامل «استعلام «شاهکار+هویتی»»، «استعلام اعتبار مجوز شغلی» و
+  در تست تفکیک‌شده «استعلام هویت و تطبیق شماره موبایل» و «استعلام جواز کسب»؛
+  جمع ردیف‌ها دقیقاً برابر مبلغ پرداخت.
+- بررسی UI با `playwright-core`: کارت «استعلام با موفقیت انجام شد» و «پاسخ کامل
+  استعلام» در مرحله‌ی ماژول، متن «تطبیق نداشت» برای جواز، و بلوک‌های «پاسخ کامل
+  استعلام هویت/جواز کسب» در `/dashboard/profile` رندر شدند؛ خطای صفحه‌ای نبود.
+- `GET /admin/users/:id/detail` با توکن ادمین: `onboardingModuleResults` و
+  `onboardingStepData` و `identityInquiryData`/`businessLicenseData` برگشتند.
+- وضعیت لوکال تست‌شده به حالت اولیه برگشت (تنظیمات مراحل، کامپوزیت، فیلدهای
+  کاربر، حذف پرداخت/فاکتور/لاگ‌های آزمایشی).
 
 ## ۱۴۰۵/۰۹/۰۱ — یک‌بار اجرا و ثبت نتیجه‌ی استعلام‌های ترکیبی «شروع آسان» — نسخه `v4.71.1`
 

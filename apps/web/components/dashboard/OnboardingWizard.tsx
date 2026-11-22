@@ -29,6 +29,7 @@ import {
   Phone,
   ShieldCheck,
   Sparkles,
+  TriangleAlert,
   Upload,
 } from 'lucide-react';
 
@@ -138,6 +139,37 @@ interface OnboardingCartItem {
   type: 'zohal' | 'apiir' | 'plan' | 'management' | 'biolink' | 'businessCard';
   label: string;
   amount: number;
+}
+
+/** Normalised view of a stored module inquiry result for the result card. */
+function readModuleResult(result: unknown): {
+  ok: boolean | null;
+  matched: boolean | null;
+  message: string | null;
+  data: unknown;
+  modules: Array<{ label?: string; ok?: boolean; message?: string; data?: unknown }>;
+} | null {
+  if (!result || typeof result !== 'object') return null;
+  const record = result as Record<string, unknown>;
+  return {
+    ok: typeof record.ok === 'boolean' ? record.ok : null,
+    matched: typeof record.matched === 'boolean' ? record.matched : null,
+    message:
+      typeof record.matchMessage === 'string'
+        ? record.matchMessage
+        : typeof record.message === 'string'
+          ? record.message
+          : null,
+    data: record.data ?? null,
+    modules: Array.isArray(record.modules)
+      ? (record.modules as Array<Record<string, unknown>>).map((entry) => ({
+          label: typeof entry.label === 'string' ? entry.label : undefined,
+          ok: typeof entry.ok === 'boolean' ? entry.ok : undefined,
+          message: typeof entry.message === 'string' ? entry.message : undefined,
+          data: entry.data,
+        }))
+      : [],
+  };
 }
 
 interface OnboardingBusinessState {
@@ -578,14 +610,24 @@ export function OnboardingWizard() {
     if (moduleDeliveryRef.current) {
       return {
         delivered: 0,
-        results: [] as Array<{ stepId: string; ok: boolean }>,
+        results: [] as Array<{
+          stepId: string;
+          ok: boolean;
+          matched?: boolean;
+          message?: string | null;
+        }>,
       };
     }
     moduleDeliveryRef.current = true;
     try {
       return await api.post<{
         delivered: number;
-        results: Array<{ stepId: string; ok: boolean }>;
+        results: Array<{
+          stepId: string;
+          ok: boolean;
+          matched?: boolean;
+          message?: string | null;
+        }>;
       }>('/onboarding/cart/deliver', {});
     } catch (error) {
       // Let the fallback retry on a later load if the request never landed.
@@ -604,11 +646,20 @@ export function OnboardingWizard() {
           const result = await deliverPaidModules();
           if (result.delivered > 0) {
             const failed = result.results.filter((entry) => !entry.ok).length;
-            if (failed === 0) {
+            const mismatched = result.results.filter(
+              (entry) => entry.ok && entry.matched === false,
+            ).length;
+            if (failed === 0 && mismatched === 0) {
               toast.success('استعلام‌های خریداری‌شده با موفقیت انجام شد.');
-            } else {
+            }
+            if (failed > 0) {
               toast.error(
                 `${failed.toLocaleString('fa-IR')} استعلام ناموفق بود؛ بعداً از پروفایل دوباره تلاش کنید.`,
+              );
+            }
+            if (mismatched > 0) {
+              toast.error(
+                `${mismatched.toLocaleString('fa-IR')} استعلام انجام شد اما نتیجه با اطلاعات شما تطبیق نداشت؛ جزئیات در همان مرحله نمایش داده شد.`,
               );
             }
           }
@@ -1773,6 +1824,78 @@ export function OnboardingWizard() {
                   </p>
                 </>
               )}
+              {(() => {
+                const view = readModuleResult(step.result);
+                if (!view) return null;
+                const failed = view.ok === false;
+                const mismatch = !failed && view.matched === false;
+                return (
+                  <div
+                    className={cn(
+                      'rounded-xl border p-4 text-xs leading-6',
+                      failed
+                        ? 'border-red-200 bg-red-50/70 text-red-700 dark:border-red-800/60 dark:bg-red-950/30 dark:text-red-200'
+                        : mismatch
+                          ? 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200'
+                          : 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200',
+                    )}
+                  >
+                    <b className="flex items-center gap-1.5">
+                      {failed || mismatch ? (
+                        <TriangleAlert className="size-4" aria-hidden />
+                      ) : (
+                        <BadgeCheck className="size-4" aria-hidden />
+                      )}
+                      {failed
+                        ? 'استعلام انجام نشد'
+                        : mismatch
+                          ? 'استعلام انجام شد اما نتیجه با اطلاعات شما تطبیق نداشت'
+                          : 'استعلام با موفقیت انجام شد'}
+                    </b>
+                    {view.message ? (
+                      <p className="mt-1">{view.message}</p>
+                    ) : null}
+                    {view.modules.length > 0 ? (
+                      <ul className="mt-2 flex flex-col gap-1">
+                        {view.modules.map((entry, index) => (
+                          <li
+                            key={`${entry.label ?? 'module'}-${index}`}
+                            className="flex flex-wrap items-center gap-1.5"
+                          >
+                            <span
+                              className={
+                                entry.ok
+                                  ? 'text-emerald-600'
+                                  : 'text-red-600'
+                              }
+                            >
+                              •
+                            </span>
+                            <b>{entry.label ?? 'ماژول'}</b>
+                            <span>{entry.ok ? 'موفق' : 'ناموفق'}</span>
+                            {entry.message ? (
+                              <span className="text-muted">
+                                — {entry.message}
+                              </span>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    <details className="mt-2">
+                      <summary className="cursor-pointer font-bold text-brand">
+                        پاسخ کامل استعلام
+                      </summary>
+                      <pre
+                        dir="ltr"
+                        className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-all text-[10px] leading-5"
+                      >
+                        {JSON.stringify(step.result, null, 2)}
+                      </pre>
+                    </details>
+                  </div>
+                );
+              })()}
             </div>
           ) : null}
 

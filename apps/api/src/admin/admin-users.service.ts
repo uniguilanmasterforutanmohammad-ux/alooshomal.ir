@@ -11,6 +11,10 @@ import { ModeratorScope, normalizeScopes } from '../auth/moderator-scopes';
 import { OtpService } from '../auth/otp.service';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import {
+  ONBOARDING_MODULE_RESULT_PREFIX,
+  ONBOARDING_STEP_DATA_PREFIX,
+} from '../onboarding/onboarding.constants';
 import { PrismaService } from '../prisma/prisma.service';
 import { SessionsService } from '../sessions/sessions.service';
 import { SettingsService } from '../settings/settings.service';
@@ -18,6 +22,16 @@ import { StorageService } from '../uploads/storage.service';
 import { notifyUser } from './admin-notify';
 
 const SALT_ROUNDS = 12;
+
+/** Parse a JSON setting value, falling back to the raw string. */
+function parseJsonSetting(value: string | null): unknown {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return value;
+  }
+}
 
 /**
  * Admin user management: the user list, account deactivation/deletion, roles,
@@ -175,6 +189,8 @@ export class AdminUsersService {
       reviews,
       rewardRedemptions,
       onboardingCompletions,
+      onboardingModuleResults,
+      onboardingStepData,
       notifications,
       sessions,
       supportConversations,
@@ -341,6 +357,18 @@ export class AdminUsersService {
         where: { userId },
         orderBy: { completedAt: 'desc' },
       }),
+      this.prisma.setting.findMany({
+        where: {
+          key: { startsWith: `${ONBOARDING_MODULE_RESULT_PREFIX}${userId}:` },
+        },
+        orderBy: { key: 'asc' },
+      }),
+      this.prisma.setting.findMany({
+        where: {
+          key: { startsWith: `${ONBOARDING_STEP_DATA_PREFIX}${userId}:` },
+        },
+        orderBy: { key: 'asc' },
+      }),
       this.prisma.notification.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' },
@@ -433,6 +461,18 @@ export class AdminUsersService {
       reviews,
       rewardRedemptions,
       onboardingCompletions,
+      onboardingModuleResults: onboardingModuleResults.map((row) => ({
+        stepId: row.key.slice(
+          `${ONBOARDING_MODULE_RESULT_PREFIX}${userId}:`.length,
+        ),
+        result: parseJsonSetting(row.value),
+      })),
+      onboardingStepData: onboardingStepData.map((row) => ({
+        stepId: row.key.slice(
+          `${ONBOARDING_STEP_DATA_PREFIX}${userId}:`.length,
+        ),
+        data: parseJsonSetting(row.value),
+      })),
       notifications,
       sessions,
       supportConversations,

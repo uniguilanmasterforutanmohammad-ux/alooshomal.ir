@@ -53,6 +53,9 @@ interface ProfilePayload {
   pendingChange: ProfileChangeRequest | null;
   identityHistory?: IdentityLog[];
   verifiedPhones?: VerifiedPhone[];
+  identityInquiryData?: unknown;
+  businessLicenseData?: unknown;
+  businessLicenseVerifiedAt?: string | null;
 }
 
 interface IdentityLog {
@@ -369,6 +372,41 @@ export function ProfilePanel() {
             هنوز استعلامی ثبت نشده است.
           </p>
         )}
+
+        {profile.identityInquiryData || profile.businessLicenseData ? (
+          <div className="mt-4 flex flex-col gap-2">
+            <p className="text-xs font-bold text-ink">پاسخ کامل استعلام‌ها</p>
+            {profile.identityInquiryData ? (
+              <details className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/50 p-3">
+                <summary className="cursor-pointer text-[11px] font-bold text-brand">
+                  پاسخ کامل استعلام هویت
+                </summary>
+                <pre
+                  dir="ltr"
+                  className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all text-[10px] leading-5 text-muted"
+                >
+                  {JSON.stringify(profile.identityInquiryData, null, 2)}
+                </pre>
+              </details>
+            ) : null}
+            {profile.businessLicenseData ? (
+              <details className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/50 p-3">
+                <summary className="cursor-pointer text-[11px] font-bold text-brand">
+                  پاسخ کامل استعلام جواز کسب
+                  {profile.businessLicenseVerifiedAt
+                    ? ' (تأییدشده)'
+                    : ' (عدم تطبیق با کد ملی حساب)'}
+                </summary>
+                <pre
+                  dir="ltr"
+                  className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-all text-[10px] leading-5 text-muted"
+                >
+                  {JSON.stringify(profile.businessLicenseData, null, 2)}
+                </pre>
+              </details>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="indeed-panel p-5">

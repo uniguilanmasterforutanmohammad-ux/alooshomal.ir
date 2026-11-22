@@ -117,6 +117,10 @@ export interface CheckoutIdentitySnapshot {
   birthDate: string | null;
   withLicense: boolean;
   licenseTrackingCode: string | null;
+  /** Price of the identity/phone-match leg, so the invoice can split lines. */
+  identityAmount?: number;
+  /** Price of the business-license leg, so the invoice can split lines. */
+  licenseAmount?: number;
 }
 
 @Injectable()
@@ -1188,16 +1192,17 @@ export class SubscriptionsPaymentService {
         'استعلام هویت در حال حاضر فعال نیست؛ لطفاً بعداً دوباره تلاش کنید.',
       );
     }
-    const amount = Math.max(
+    const identityPart = Math.max(
       0,
       Math.round(
         (needsIdentity ? identityBundle.total : 0) +
           (needsExtraPhones
             ? identityBundle.shahkar * pendingExtraPhones.length
-            : 0) +
-          (needsLicense ? licensePrice : 0),
+            : 0),
       ),
     );
+    const licensePart = Math.max(0, Math.round(needsLicense ? licensePrice : 0));
+    const amount = identityPart + licensePart;
     return {
       amount,
       data: {
@@ -1205,6 +1210,8 @@ export class SubscriptionsPaymentService {
         birthDate: birthDate || null,
         withLicense,
         licenseTrackingCode: licenseTrackingCode || null,
+        identityAmount: identityPart,
+        licenseAmount: licensePart,
       },
     };
   }
@@ -1938,6 +1945,9 @@ export class SubscriptionsPaymentService {
         businessAmount: payment.businessAmount,
         identityAmount: payment.identityAmount,
         businessPackages: payment.businessPackages,
+        moduleAmount: payment.moduleAmount,
+        moduleItems: payment.moduleItems,
+        identityData: payment.identityData,
         planName: payment.plan.name,
       });
       await this.finance.recordSale({
@@ -2036,6 +2046,9 @@ export class SubscriptionsPaymentService {
         businessAmount: payment.businessAmount,
         identityAmount: 0,
         businessPackages: payment.businessPackages,
+        moduleAmount: payment.moduleAmount,
+        moduleItems: payment.moduleItems,
+        identityData: payment.identityData,
         planName: payment.plan.name,
       });
       await this.finance.recordSale({
