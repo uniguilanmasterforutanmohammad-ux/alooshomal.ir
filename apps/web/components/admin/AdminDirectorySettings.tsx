@@ -13,8 +13,8 @@ const VIEW_LABELS: Record<ViewKey, string> = {
   tiles: 'کاشی',
   notebook: 'دفترچه',
 };
-const CARD_VIEWS: ViewKey[] = ['tiles', 'notebook'];
-const BIOLINK_VIEWS: ViewKey[] = ['tiles'];
+const CARD_VIEWS: ViewKey[] = ['list', 'tiles', 'notebook'];
+const BIOLINK_VIEWS: ViewKey[] = ['list', 'tiles'];
 
 interface SettingsPayload {
   directoryPageSize: number;
@@ -119,8 +119,8 @@ export function AdminDirectorySettings() {
         adminListPageSize: parsedAdmin,
         myListPageSize: parsedMy,
         boostDurationDays: parsedBoost,
-        businessCardDirectoryViews: cardViews.length ? cardViews : ['tiles'],
-        biolinkDirectoryViews: biolinkViews.length ? biolinkViews : ['tiles'],
+        businessCardDirectoryViews: cardViews.length ? cardViews : ['list'],
+        biolinkDirectoryViews: biolinkViews.length ? biolinkViews : ['list'],
       });
       setValue(String(result.directoryPageSize));
       setDisplayMode(
