@@ -1187,7 +1187,12 @@ export function OnboardingWizard() {
     Boolean(selectedPlan) &&
     !isFreePlan(selectedPlan) &&
     managementAmount >= 1000;
-  const cart = payload.cart ?? [];
+  // Ignore cart entries whose module step is no longer part of the wizard
+  // (e.g. an admin removed the step after it was added to the cart).
+  const activeStepIds = new Set(steps.map((entry) => entry.id));
+  const cart = (payload.cart ?? []).filter((item) =>
+    activeStepIds.has(item.stepId),
+  );
   const cartTotal =
     payload.cartTotal ?? cart.reduce((sum, item) => sum + item.amount, 0);
   const invoiceTotalAmount =

@@ -579,7 +579,21 @@ export class OnboardingService implements OnModuleInit {
       };
     });
     const completed = states.filter((step) => step.done).length;
-    const cart = this.parseCart(cartRow?.value);
+    // A module step can be removed/disabled by the admin after the user added
+    // it to the cart. Drop those stale entries so the invoice never charges
+    // for a step that no longer exists in the wizard.
+    const activeModuleStepIds = new Set(
+      states
+        .filter((step) => step.kind === 'module' && step.moduleKey)
+        .map((step) => step.id),
+    );
+    const storedCart = this.parseCart(cartRow?.value);
+    const cart = storedCart.filter((item) =>
+      activeModuleStepIds.has(item.stepId),
+    );
+    if (cart.length !== storedCart.length) {
+      await this.writeCart(userId, cart);
+    }
     return {
       steps: states,
       completed,
