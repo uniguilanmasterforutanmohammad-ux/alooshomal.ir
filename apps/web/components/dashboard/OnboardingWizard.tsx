@@ -33,7 +33,7 @@ import {
   type SubscriptionCheckout,
   type SubscriptionPlan,
 } from '@/lib/api';
-import { isoToJalali, jalaliToIso, parseJalali } from '@/lib/jalali';
+import { isoToJalali } from '@/lib/jalali';
 import {
   PLAN_PERIODS,
   PLAN_PERIOD_LABELS,
@@ -48,6 +48,7 @@ import {
   type OnboardingBusinessDraft,
   type OnboardingBusinessFormHandle,
 } from '@/components/dashboard/OnboardingBusinessForm';
+import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
 import { cn } from '@/lib/utils';
 
 type StepKind =
@@ -272,7 +273,6 @@ export function OnboardingWizard() {
   const [businessBusy, setBusinessBusy] = useState(false);
   const [nationalCode, setNationalCode] = useState('');
   const [birthIso, setBirthIso] = useState('');
-  const [birthText, setBirthText] = useState('');
   const [uploading, setUploading] = useState(false);
   // Values typed into an admin-added `module` step's dynamic form, keyed by
   // step id then field name. Saved values come back as `step.data`.
@@ -1516,26 +1516,11 @@ export function OnboardingWizard() {
                   </label>
                   <label className="text-xs font-bold text-muted">
                     تاریخ تولد
-                    <input
-                      className="indeed-input mt-1"
-                      dir="ltr"
-                      inputMode="numeric"
-                      placeholder="۱۳۷۰/۰۱/۰۱"
-                      value={birthText}
-                      onChange={(event) => {
-                        const value = event.target.value;
-                        setBirthText(value);
-                        const parsed = parseJalali(value);
-                        setBirthIso(
-                          parsed
-                            ? jalaliToIso(parsed.year, parsed.month, parsed.day)
-                            : '',
-                        );
-                      }}
+                    <JalaliDatePicker
+                      value={birthIso}
+                      onChange={setBirthIso}
+                      className="mt-1"
                     />
-                    <span className="mt-1 text-[10px] font-normal text-muted">
-                      به شکل ۱۳۷۰/۰۱/۰۱ وارد کنید.
-                    </span>
                   </label>
                 </div>
               )}

@@ -13,7 +13,9 @@ import {
   Check,
   Loader2,
   Phone,
+  Plus,
   ShieldCheck,
+  Trash2,
   Wallet,
 } from 'lucide-react';
 
@@ -99,6 +101,9 @@ export const OnboardingBusinessForm = forwardRef<
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [verifiedPhones, setVerifiedPhones] = useState<VerifiedPhone[]>([]);
+  const [mobileMode, setMobileMode] = useState<'change' | 'add' | null>(null);
+  const [verifyPhone, setVerifyPhone] = useState('');
+  const [verifyError, setVerifyError] = useState<string | null>(null);
   const initialized = useRef(false);
   const baseline = useRef<string>('');
 
@@ -150,6 +155,41 @@ export const OnboardingBusinessForm = forwardRef<
     value: OnboardingBusinessDraft[K],
   ) {
     setValues((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function openMobileMode(mode: 'change' | 'add') {
+    setMobileMode(mode);
+    setVerifyPhone(mode === 'change' ? values.mobile : '');
+    setVerifyError(null);
+  }
+
+  function applyVerifiedPhone(phone: string, mode: 'change' | 'add') {
+    if (mode === 'change') {
+      setField('mobile', phone);
+    } else {
+      setValues((prev) => ({
+        ...prev,
+        additionalMobiles:
+          prev.additionalMobiles.includes(phone) || phone === prev.mobile
+            ? prev.additionalMobiles
+            : [...prev.additionalMobiles, phone],
+      }));
+    }
+    setMobileMode(null);
+  }
+
+  /**
+   * The business step only collects the number. Shahkar verification happens
+   * in the identity step, where the national code is entered and used to check
+   * every saved business mobile at once.
+   */
+  function applyPhone() {
+    if (!/^09\d{9}$/.test(verifyPhone.trim())) {
+      setVerifyError('شماره موبایل معتبر نیست (مثال: 09123456789).');
+      return;
+    }
+    applyVerifiedPhone(verifyPhone.trim(), mobileMode ?? 'add');
+    setMobileMode(null);
   }
 
   const primaryMobileVerified =
@@ -303,7 +343,7 @@ export const OnboardingBusinessForm = forwardRef<
             readOnly
             aria-readonly="true"
             className="!bg-[var(--vintage-paper)] !text-ink font-bold cursor-not-allowed focus:!border-[var(--vintage-border)] focus:!shadow-none"
-            hint="شماره‌ی ثبت‌شده‌ی حساب شما؛ غیرقابل ویرایش است. شماره‌های کسب‌وکار در مرحله‌ی «استعلام هویت» با کد ملی بررسی می‌شوند."
+            hint="برای تغییر یا افزودن شماره از دکمه‌های زیر استفاده کنید. شماره‌های کسب‌وکار در مرحله‌ی «استعلام هویت» با کد ملی بررسی می‌شوند."
           />
           <div className="md:col-span-2 rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-3">
             <p className="flex items-center gap-2 text-xs font-bold text-ink">
@@ -320,17 +360,35 @@ export const OnboardingBusinessForm = forwardRef<
                 هویت» با کد ملی شما بررسی می‌شود.
               </p>
             ) : null}
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => openMobileMode('change')}
+                className="indeed-btn indeed-btn-secondary py-2 text-xs"
+              >
+                <Phone className="size-4" aria-hidden />
+                تغییر شماره تماس
+              </button>
+              <button
+                type="button"
+                onClick={() => openMobileMode('add')}
+                className="indeed-btn indeed-btn-secondary py-2 text-xs"
+              >
+                <Plus className="size-4" aria-hidden />
+                افزودن شماره تماس
+              </button>
+            </div>
 
             {verifiedPhones.length > 0 ? (
               <div className="mt-3">
                 <p className="text-[11px] font-bold text-muted">
-                  شماره‌های تأییدشده‌ی شما:
+                  شماره‌های تأییدشده‌ی شما (قابل استفاده بدون استعلام مجدد):
                 </p>
                 <ul className="mt-1.5 flex flex-col gap-1.5">
                   {verifiedPhones.map((entry) => (
                     <li
                       key={entry.phone}
-                      className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-[11px]"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-[11px]"
                     >
                       <span className="flex items-center gap-2">
                         <ShieldCheck
@@ -346,14 +404,87 @@ export const OnboardingBusinessForm = forwardRef<
                             : 'تأیید شاهکار'}
                         </span>
                       </span>
-                      {entry.phone === values.mobile ? (
-                        <span className="text-[10px] font-bold text-emerald-700">
-                          شماره اصلی فعلی
-                        </span>
-                      ) : null}
+                      <span className="flex items-center gap-1">
+                        {entry.phone !== values.mobile ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              applyVerifiedPhone(entry.phone, 'change')
+                            }
+                            className="rounded-md border border-[var(--vintage-border)] px-2 py-1 text-[10px] font-bold text-brand hover:border-brand"
+                          >
+                            شماره اصلی
+                          </button>
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-700">
+                            شماره اصلی فعلی
+                          </span>
+                        )}
+                        {entry.phone !== values.mobile &&
+                        !values.additionalMobiles.includes(entry.phone) ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              applyVerifiedPhone(entry.phone, 'add')
+                            }
+                            className="rounded-md border border-[var(--vintage-border)] px-2 py-1 text-[10px] font-bold text-brand hover:border-brand"
+                          >
+                            + افزودن
+                          </button>
+                        ) : null}
+                      </span>
                     </li>
                   ))}
                 </ul>
+              </div>
+            ) : null}
+
+            {mobileMode ? (
+              <div className="mt-3 rounded-xl border border-brand/30 bg-[var(--vintage-surface)] p-3">
+                <p className="text-xs font-extrabold text-ink">
+                  {mobileMode === 'change'
+                    ? 'ثبت شماره‌ی جدید کسب‌وکار'
+                    : 'افزودن شماره‌ی جدید کسب‌وکار'}
+                </p>
+                <p className="mt-1 text-[11px] leading-6 text-muted">
+                  فقط شماره را وارد کنید؛ استعلام شاهکار با کد ملی شما در مرحله‌ی
+                  «استعلام هویت» انجام می‌شود.
+                </p>
+                <div className="mt-2">
+                  <Input
+                    label="شماره موبایل جدید"
+                    dir="ltr"
+                    inputMode="tel"
+                    maxLength={11}
+                    value={verifyPhone}
+                    onChange={(event) =>
+                      setVerifyPhone(event.target.value.replace(/[^\d+]/g, ''))
+                    }
+                    placeholder="09123456789"
+                  />
+                </div>
+                {verifyError ? (
+                  <p className="mt-2 rounded-lg bg-red-50 p-2 text-[11px] text-red-700 dark:bg-red-950/40 dark:text-red-200">
+                    {verifyError}
+                  </p>
+                ) : null}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => applyPhone()}
+                    className="indeed-btn indeed-btn-primary py-2 text-xs"
+                  >
+                    <Check className="size-4" aria-hidden />
+                    ثبت شماره
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMobileMode(null)}
+                    className="indeed-btn indeed-btn-secondary py-2 text-xs"
+                  >
+                    انصراف
+                  </button>
+                </div>
               </div>
             ) : null}
 
@@ -390,6 +521,21 @@ export const OnboardingBusinessForm = forwardRef<
                           : 'در انتظار استعلام در مرحله‌ی هویت'}
                       </span>
                     </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setValues((prev) => ({
+                          ...prev,
+                          additionalMobiles: prev.additionalMobiles.filter(
+                            (entry) => entry !== phone,
+                          ),
+                        }))
+                      }
+                      className="rounded-md p-1 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40"
+                      aria-label="حذف شماره"
+                    >
+                      <Trash2 className="size-3.5" aria-hidden />
+                    </button>
                   </li>
                 ))}
               </ul>
