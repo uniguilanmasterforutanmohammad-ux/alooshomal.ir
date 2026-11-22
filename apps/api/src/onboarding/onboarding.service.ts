@@ -106,6 +106,43 @@ function sameFullName(
   );
 }
 
+/**
+ * True when a value carries masked characters. `x`/`X` only count as a mask
+ * when the value also contains digits, so a name like «Max» is never split.
+ */
+function hasMaskChars(value: string): boolean {
+  if (/[*•●#_]/.test(value)) return true;
+  return /\d/.test(value) && /[xX]/.test(value);
+}
+
+/**
+ * Compare a *masked* provider value (e.g. api.ir returns the license owner's
+ * national code as `536****001`) with the expected value. Every visible chunk
+ * must appear somewhere in the expected value; the masked middle is ignored.
+ * This is deliberately looser than `normalized`/`exact` because the upstream
+ * hides digits, but still rejects a value whose visible digits are absent.
+ */
+function sameMaskedValue(
+  actual: string | null | undefined,
+  expected: string | null | undefined,
+): boolean {
+  const rawActual = (actual ?? '').trim();
+  const target = normalizeMatchValue(expected);
+  if (!rawActual || !target) return false;
+  if (!hasMaskChars(rawActual)) {
+    return normalizeMatchValue(rawActual) === target;
+  }
+  const withX = /\d/.test(rawActual);
+  const chunks = rawActual
+    .split(withX ? /[*•●#_xX]+/ : /[*•●#_]+/)
+    .map((chunk) => normalizeMatchValue(chunk))
+    .filter(Boolean);
+  if (chunks.length === 0) return false;
+  // Require at least one meaningful chunk so a fully-masked value never passes.
+  if (!chunks.some((chunk) => chunk.length >= 2)) return false;
+  return chunks.every((chunk) => target.includes(chunk));
+}
+
 /** One selectable module/product the admin can drop into a wizard step. */
 export interface OnboardingModuleOption {
   /** stable key stored on the step (`plan:<id>`, `management:<key>`, …). */
@@ -1676,6 +1713,8 @@ export class OnboardingService implements OnModuleInit {
       nationalCode?: string | null;
       firstName?: string | null;
       lastName?: string | null;
+      fatherName?: string | null;
+      birthDate?: string | null;
       fullName?: string | null;
       phone?: string | null;
     } | null,
@@ -1776,6 +1815,8 @@ export class OnboardingService implements OnModuleInit {
       nationalCode: true,
       firstName: true,
       lastName: true,
+      fatherName: true,
+      birthDate: true,
       fullName: true,
       phone: true,
     } as const;
@@ -1953,6 +1994,8 @@ export class OnboardingService implements OnModuleInit {
       nationalCode?: string | null;
       firstName?: string | null;
       lastName?: string | null;
+      fatherName?: string | null;
+      birthDate?: string | null;
       fullName?: string | null;
       phone?: string | null;
     } | null,
@@ -1974,6 +2017,8 @@ export class OnboardingService implements OnModuleInit {
       nationalCode?: string | null;
       firstName?: string | null;
       lastName?: string | null;
+      fatherName?: string | null;
+      birthDate?: string | null;
       fullName?: string | null;
       phone?: string | null;
     } | null,
@@ -2006,6 +2051,18 @@ export class OnboardingService implements OnModuleInit {
               .join(' ') ||
             identity?.fullName ||
             null;
+          break;
+        case 'userFirstName':
+          expected = identity?.firstName ?? null;
+          break;
+        case 'userLastName':
+          expected = identity?.lastName ?? null;
+          break;
+        case 'userFatherName':
+          expected = identity?.fatherName ?? null;
+          break;
+        case 'userBirthDate':
+          expected = identity?.birthDate ?? null;
           break;
         case 'field':
           expected = rule.field ? payload[rule.field] : undefined;
@@ -2059,6 +2116,10 @@ export class OnboardingService implements OnModuleInit {
       first_name: 'نام',
       lastName: 'نام خانوادگی',
       last_name: 'نام خانوادگی',
+      fatherName: 'نام پدر',
+      father_name: 'نام پدر',
+      birthDate: 'تاریخ تولد',
+      birth_date: 'تاریخ تولد',
       trackingCode: 'کد پیگیری جواز',
       title: 'عنوان مجوز',
     };
@@ -2072,6 +2133,7 @@ export class OnboardingService implements OnModuleInit {
   ): boolean {
     if (mode === 'exact') return actual.trim() === expected.trim();
     if (mode === 'nameMatch') return sameFullName(actual, expected);
+    if (mode === 'masked') return sameMaskedValue(actual, expected);
     const a = normalizeMatchValue(actual);
     const b = normalizeMatchValue(expected);
     return Boolean(a) && a === b;

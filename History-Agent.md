@@ -20,13 +20,43 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.76.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.77.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۲ — نوع مقایسه‌ی «ماسک‌شده» و منابع تطبیق از استعلام هویت — نسخه `v4.77.0`
+
+**هدف:** استعلام جواز کسب کد ملی را ناقص/ماسک‌شده برمی‌گرداند
+(مثل `536****001`) و هیچ‌کدام از حالت‌های «دقیق»/«عادی‌سازی‌شده» با کد ملی
+کامل کاربر تطبیق نمی‌داد. یک نوع مقایسه‌ی مخصوص پاسخ‌های ماسک‌شده اضافه شد و
+منابع «مقایسه با» از استعلام هویت (نام، نام خانوادگی، نام پدر، تاریخ تولد) هم
+به فهرست اضافه شد.
+
+**تغییرات:**
+- `apps/api/src/onboarding/onboarding.constants.ts`: افزودن `masked` به
+  `ONBOARDING_MATCH_MODES` و منابع `userFirstName`/`userLastName`/
+  `userFatherName`/`userBirthDate` به `ONBOARDING_MATCH_SOURCES`.
+- `apps/api/src/onboarding/onboarding.service.ts`: خواندن `fatherName` و
+  `birthDate` در snapshot هویت، پشتیبانی از منابع جدید در `evaluateMatchRules`،
+  و افزودن `sameMaskedValue` (فقط بخش‌های نمایانِ مقدار ماسک‌شده باید در مقدار
+  کاربر باشند) به‌همراه برچسب‌های فارسی فیلدها.
+- `apps/api/src/onboarding/dto/onboarding.dto.ts`: مستندسازی حالت `masked`.
+- `apps/web/components/admin/AdminOnboardingSteps.tsx`: افزودن گزینه‌ی
+  «تطبیق مقدار ماسک‌شده» و منابع جدید به کشویی «مقایسه با» + راهنمای کوتاه.
+- `docs/API.md`: به‌روزرسانی مستندات `match` در `PUT /admin/onboarding/steps`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- تست الگوریتم: `536****001` با `0013529536` تطبیق شد (true)، `999****888`
+  رد شد، و مقادیر بدون ماسک همچنان دقیق مقایسه شدند.
+- `PUT /admin/onboarding/steps` با قاعده‌ی `{ mode: "masked" }` و
+  `{ compareTo: "userFatherName" }` پذیرفته و ذخیره شد؛ سپس پیکربندی قبلی
+  بازگردانده شد.
 
 ## ۱۴۰۵/۰۹/۰۲ — فاکتور و سابقه‌ی کامل برای هر پرداخت (قانون ۱۱) — نسخه `v4.76.0`
 

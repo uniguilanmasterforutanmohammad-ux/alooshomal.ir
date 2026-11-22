@@ -46,8 +46,16 @@ interface OnSuccess {
   grantBlueTick?: boolean;
 }
 
-type MatchSource = 'userNationalCode' | 'userFullName' | 'userMobile' | 'field';
-type MatchMode = 'normalized' | 'exact' | 'nameMatch';
+type MatchSource =
+  | 'userNationalCode'
+  | 'userFullName'
+  | 'userFirstName'
+  | 'userLastName'
+  | 'userFatherName'
+  | 'userBirthDate'
+  | 'userMobile'
+  | 'field';
+type MatchMode = 'normalized' | 'exact' | 'nameMatch' | 'masked';
 
 interface MatchRule {
   resultField: string;
@@ -67,6 +75,10 @@ interface ResponseField {
 const MATCH_SOURCE_LABELS: Record<MatchSource, string> = {
   userNationalCode: 'کد ملی کاربر',
   userFullName: 'نام و نام خانوادگی کاربر',
+  userFirstName: 'نام کاربر (از استعلام هویت)',
+  userLastName: 'نام خانوادگی کاربر (از استعلام هویت)',
+  userFatherName: 'نام پدر کاربر (از استعلام هویت)',
+  userBirthDate: 'تاریخ تولد کاربر (از استعلام هویت)',
   userMobile: 'موبایل ثبت‌نام کاربر',
   field: 'مقدار یک فیلد این فرم',
 };
@@ -75,6 +87,7 @@ const MATCH_MODE_LABELS: Record<MatchMode, string> = {
   normalized: 'عادی‌سازی‌شده (ارقام/حروف نرمال، فاصله نادیده)',
   exact: 'دقیق (کاراکتر‌به‌کاراکتر)',
   nameMatch: 'تطبیق نام (بی‌حساسیت به ترتیب کلمات)',
+  masked: 'تطبیق مقدار ماسک‌شده (مثل 536****001)',
 };
 
 type PrefillSource =
@@ -1067,6 +1080,14 @@ export function AdminOnboardingSteps() {
                                     ))}
                                   </select>
                                 </label>
+                                {rule.mode === 'masked' ? (
+                                  <p className="mt-1 text-[9px] font-normal leading-5 text-muted">
+                                    برای پاسخ‌های ناقص/ماسک‌شده (مثل کد ملی
+                                    <code dir="ltr" className="mx-1">536****001</code>
+                                    )؛ فقط بخش‌های نمایان با مقدار کاربر مقایسه
+                                    می‌شود.
+                                  </p>
+                                ) : null}
                               </div>
                               <button
                                 type="button"

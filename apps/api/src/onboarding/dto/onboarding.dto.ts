@@ -155,7 +155,7 @@ export class OnboardingMatchRuleDto {
     enum: ONBOARDING_MATCH_MODES,
     default: 'normalized',
     description:
-      'نوع مقایسه: `normalized` (پیش‌فرض، با نرمال‌سازی ارقام/حروف)، `exact` (دقیق) یا `nameMatch` (تطبیق نام بدون حساسیت به ترتیب کلمات).',
+      'نوع مقایسه: `normalized` (پیش‌فرض، با نرمال‌سازی ارقام/حروف)، `exact` (دقیق)، `nameMatch` (تطبیق نام بدون حساسیت به ترتیب کلمات) یا `masked` (تطبیق مقدار ماسک‌شده‌ی استعلام، مثل `536****001`، که فقط بخش‌های نمایان را با مقدار کاربر می‌سنجد).',
   })
   @IsOptional()
   @IsIn(ONBOARDING_MATCH_MODES)

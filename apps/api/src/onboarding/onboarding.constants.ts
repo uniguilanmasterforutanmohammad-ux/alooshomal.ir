@@ -206,6 +206,10 @@ export interface OnboardingStepOnSuccess {
 export const ONBOARDING_MATCH_SOURCES = [
   'userNationalCode',
   'userFullName',
+  'userFirstName',
+  'userLastName',
+  'userFatherName',
+  'userBirthDate',
   'userMobile',
   'field',
 ] as const;
@@ -218,6 +222,7 @@ export const ONBOARDING_MATCH_MODES = [
   'normalized',
   'exact',
   'nameMatch',
+  'masked',
 ] as const;
 
 export type OnboardingMatchMode = (typeof ONBOARDING_MATCH_MODES)[number];
