@@ -58,3 +58,41 @@ export interface ApiIrLicense {
   postalCode: string | null;
   isActive: boolean | null;
 }
+
+/**
+ * One admin-defined composite product: several api.ir services sold (and paid
+ * for) as a single item. Paying for it runs every service in `serviceKeys` in
+ * the same order.
+ */
+export interface ApiIrComposite {
+  /** stable id used in `apiir.composites` and the PayPing product key. */
+  key: string;
+  label: string;
+  description: string | null;
+  serviceKeys: string[];
+  /**
+   * Price in Toman. `0` means «جمع تعرفه‌ی سرویس‌ها» and is resolved from the
+   * current per-service prices at quote time.
+   */
+  amount: number;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Admin-facing composite with its resolved price and saleability. */
+export interface ApiIrCompositeView extends ApiIrComposite {
+  serviceLabels: string[];
+  /** Union of the input fields of every service (rendered as one form). */
+  fields: ApiIrField[];
+  services: Array<{
+    key: string;
+    label: string;
+    group: string;
+    price: number;
+    enabled: boolean;
+  }>;
+  purchasable: boolean;
+  issues: string[];
+  paypingCode: string | null;
+}

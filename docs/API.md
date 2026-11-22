@@ -643,6 +643,11 @@ api.ir فقط سمت سرور (`API_KEY_API.IR`؛ جایگزین `APIIR_TOKEN`) 
 | `PATCH` | `/admin/apiir/services/:key` | ADMIN | فعال/غیرفعال‌کردن (`{ enabled }`) و/یا تعیین قیمت آینده (`{ price }`). |
 | `POST` | `/admin/apiir/services/:key/test` | ADMIN | فراخوانی آزمایشی واقعی (هزینه‌زاست و از اعتبار حساب api.ir کم می‌شود) با `{ payload }`. |
 | `POST` | `/admin/apiir/services/:key/payping-product` | ADMIN | ساخت/همگام‌سازی محصول پی‌پینگ برای همان سرویس با مبلغ ثبت‌شده (`apiir.price.<key>`)؛ کد محصول در `apiir.payping.<key>` ذخیره می‌شود. |
+| `GET` | `/admin/apiir/composites` | ADMIN | فهرست محصولات ترکیبی ساخته‌شده از چند سرویس api.ir + قیمت محاسبه‌شده، وضعیت فروش، فیلدهای مشترک و کد محصول پی‌پینگ. |
+| `POST` | `/admin/apiir/composites` | ADMIN | ساخت محصول ترکیبی با `{ label, serviceKeys[], amount?, enabled?, description? }`؛ `amount=0` یعنی جمع تعرفه‌ی سرویس‌ها. |
+| `PATCH` | `/admin/apiir/composites/:key` | ADMIN | ویرایش محصول ترکیبی api.ir. |
+| `DELETE` | `/admin/apiir/composites/:key` | ADMIN | حذف محصول ترکیبی api.ir. |
+| `POST` | `/admin/apiir/composites/:key/payping-product` | ADMIN | ساخت/همگام‌سازی محصول پی‌پینگ یک محصول ترکیبی api.ir. |
 
 ## استعلام‌های یکپارچه (`/api/admin/inquiries`)
 

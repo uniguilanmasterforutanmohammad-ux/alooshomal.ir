@@ -358,6 +358,22 @@ export class OnboardingService implements OnModuleInit {
         fields: service.fields ?? [],
       });
     }
+    for (const composite of apiir.composites ?? []) {
+      items.push({
+        key: `apiir:composite:${composite.key}`,
+        type: 'apiir',
+        group: 'api.ir (محصولات ترکیبی)',
+        label: composite.label,
+        description:
+          composite.description?.trim() ||
+          `ترکیب: ${composite.serviceLabels.join(' + ')}`,
+        href: '/dashboard/profile',
+        enabled: composite.purchasable,
+        price: composite.amount,
+        fields: composite.fields ?? [],
+        composite: true,
+      });
+    }
     for (const plan of plans) {
       items.push({
         key: `plan:${plan.id}`,
@@ -1299,11 +1315,11 @@ export class OnboardingService implements OnModuleInit {
         let result: unknown;
         if (isComposite) {
           // Composite items run every underlying module in the admin-defined
-          // order; the api.ir variant is wired in the api.ir panel.
-          if (prefix !== 'zohal') continue;
-          const composite = await this.zohal.runComposite(key, payload, {
-            userId,
-          });
+          // order.
+          const composite =
+            prefix === 'apiir'
+              ? await this.apiir.runComposite(key, payload, { userId })
+              : await this.zohal.runComposite(key, payload, { userId });
           ok = composite.ok;
           result = composite;
         } else {

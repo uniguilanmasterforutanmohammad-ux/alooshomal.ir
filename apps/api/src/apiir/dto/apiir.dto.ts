@@ -1,6 +1,17 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsInt, IsObject, IsOptional, Max, Min } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsBoolean,
+  IsInt,
+  IsObject,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 /** Turn one api.ir service on/off and/or set its future per-call user price. */
 export class UpdateApiIrServiceDto {
@@ -32,4 +43,80 @@ export class TestApiIrServiceDto {
   @IsOptional()
   @IsObject()
   payload?: Record<string, unknown>;
+}
+
+/** Create an admin-defined composite product from several api.ir services. */
+export class CreateApiIrCompositeDto {
+  @ApiProperty({ example: 'استعلام هویت و ثنا' })
+  @IsString()
+  @MaxLength(120)
+  label!: string;
+
+  @ApiPropertyOptional({ example: 'چند استعلام در یک پرداخت.' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @ApiProperty({
+    type: [String],
+    example: ['persondata', 'sana'],
+    description: 'کلید سرویس‌هایی که با هم فروخته و به ترتیب اجرا می‌شوند.',
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  serviceKeys!: string[];
+
+  @ApiPropertyOptional({
+    example: 0,
+    minimum: 0,
+    description: '۰ یعنی جمع تعرفه‌ی سرویس‌ها؛ در غیر این صورت مبلغ ثابت.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000_000)
+  amount?: number;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
+}
+
+/** Update an existing api.ir composite (all fields optional). */
+export class UpdateApiIrCompositeDto {
+  @ApiPropertyOptional({ example: 'استعلام هویت و ثنا' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  label?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  serviceKeys?: string[];
+
+  @ApiPropertyOptional({ example: 0, minimum: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000_000)
+  amount?: number;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  enabled?: boolean;
 }

@@ -9,6 +9,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma } from '@prisma/client';
+import { randomBytes } from 'node:crypto';
 
 import { ActivityService } from '../activity/activity.service';
 import { PaypingService } from '../payping/payping.service';
@@ -18,7 +19,13 @@ import {
   APIIR_SERVICES,
   APIIR_SERVICE_SETTING_PREFIX,
 } from './apiir.constants';
-import type { ApiIrCallResult, ApiIrServiceDef } from './apiir.types';
+import type {
+  ApiIrCallResult,
+  ApiIrComposite,
+  ApiIrCompositeView,
+  ApiIrField,
+  ApiIrServiceDef,
+} from './apiir.types';
 
 /** How long one api.ir call may take before it is abandoned. */
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -29,6 +36,11 @@ const REQUEST_TIMEOUT_MS = 30_000;
  * `sync_apiir_catalog.py` never overwrites it.
  */
 const APIIR_PAYPING_PRODUCT_PREFIX = 'apiir.payping.';
+
+/** Setting that stores the admin-defined composite products as a JSON array. */
+const APIIR_COMPOSITE_SETTING_KEY = 'apiir.composites';
+/** PayPing product key prefix for composites (kept apart from service keys). */
+const APIIR_COMPOSITE_PRODUCT_PREFIX = 'apiir.composite:';
 
 /** Admin-facing description of the api.ir connection. */
 export interface ApiIrStatus {
@@ -376,6 +388,416 @@ export class ApiIrService {
     return { key, code, amount: price, title: payload.title, updated };
   }
 
+  // -------------------------------------------------------------------------
+  //  Composite products (ادمین چند سرویس را یک محصول می‌کند)
+  // -------------------------------------------------------------------------
+
+  private async readComposites(): Promise<ApiIrComposite[]> {
+    const row = await this.prisma.setting.findUnique({
+      where: { key: APIIR_COMPOSITE_SETTING_KEY },
+    });
+    if (!row?.value) return [];
+    try {
+      const parsed = JSON.parse(row.value) as unknown;
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(
+        (item): item is ApiIrComposite =>
+          Boolean(item) &&
+          typeof (item as ApiIrComposite).key === 'string' &&
+          Array.isArray((item as ApiIrComposite).serviceKeys),
+      );
+    } catch {
+      return [];
+    }
+  }
+
+  private async writeComposites(items: ApiIrComposite[]): Promise<void> {
+    await this.prisma.setting.upsert({
+      where: { key: APIIR_COMPOSITE_SETTING_KEY },
+      create: {
+        key: APIIR_COMPOSITE_SETTING_KEY,
+        value: JSON.stringify(items),
+      },
+      update: { value: JSON.stringify(items) },
+    });
+  }
+
+  private assertServiceKeys(serviceKeys: string[]): void {
+    if (!Array.isArray(serviceKeys) || serviceKeys.length === 0) {
+      throw new BadRequestException('حداقل یک سرویس را انتخاب کنید.');
+    }
+    for (const key of serviceKeys) {
+      this.findService(key);
+    }
+  }
+
+  /** Effective price of a composite (fixed amount or sum of its services). */
+  private async resolveCompositeAmount(
+    composite: Pick<ApiIrComposite, 'amount' | 'serviceKeys'>,
+  ): Promise<number> {
+    if (composite.amount > 0) return Math.floor(composite.amount);
+    const prices = await this.getPriceMap();
+    return composite.serviceKeys.reduce(
+      (sum, key) => sum + (prices[key] ?? 0),
+      0,
+    );
+  }
+
+  /** Fields a buyer must fill for a composite (union of its services). */
+  private compositeFields(serviceKeys: string[]): ApiIrField[] {
+    const fields = new Map<
+      string,
+      {
+        name: string;
+        label: string;
+        required: boolean;
+        type: ApiIrField['type'];
+        placeholder?: string;
+      }
+    >();
+    for (const key of serviceKeys) {
+      const service = APIIR_SERVICES.find((item) => item.key === key);
+      if (!service) continue;
+      for (const field of service.fields) {
+        const existing = fields.get(field.name);
+        if (!existing) {
+          fields.set(field.name, {
+            name: field.name,
+            label: field.label,
+            required: Boolean(field.required),
+            type: field.type ?? 'text',
+            placeholder: field.placeholder,
+          });
+        } else if (field.required) {
+          existing.required = true;
+        }
+      }
+    }
+    return [...fields.values()];
+  }
+
+  private async compositeView(
+    composite: ApiIrComposite,
+  ): Promise<ApiIrCompositeView> {
+    const [enabled, prices, amount] = await Promise.all([
+      this.getEnabledMap(),
+      this.getPriceMap(),
+      this.resolveCompositeAmount(composite),
+    ]);
+    const services = composite.serviceKeys
+      .map((key) => APIIR_SERVICES.find((service) => service.key === key))
+      .filter((service): service is ApiIrServiceDef => Boolean(service));
+    const missing: string[] = [];
+    for (const service of services) {
+      if (!enabled[service.key]) missing.push(`«${service.label}» غیرفعال است`);
+      else if ((prices[service.key] ?? 0) <= 0)
+        missing.push(`«${service.label}» تعرفه ندارد`);
+      if (service.fields.some((field) => field.type === 'file'))
+        missing.push(`«${service.label}» به فایل نیاز دارد`);
+    }
+    const paypingRow = await this.prisma.setting.findUnique({
+      where: {
+        key: this.paypingProductKey(
+          `${APIIR_COMPOSITE_PRODUCT_PREFIX}${composite.key}`,
+        ),
+      },
+    });
+    return {
+      ...composite,
+      amount,
+      serviceLabels: services.map((service) => service.label),
+      fields: this.compositeFields(composite.serviceKeys),
+      services: services.map((service) => ({
+        key: service.key,
+        label: service.label,
+        group: service.group,
+        price: prices[service.key] ?? 0,
+        enabled: enabled[service.key],
+      })),
+      purchasable: composite.enabled && amount >= 1000 && missing.length === 0,
+      issues: missing,
+      paypingCode:
+        this.parsePaypingProduct(paypingRow?.value)?.code ?? null,
+    };
+  }
+
+  async listComposites(): Promise<ApiIrCompositeView[]> {
+    const composites = await this.readComposites();
+    return Promise.all(composites.map((item) => this.compositeView(item)));
+  }
+
+  async getComposite(key: string): Promise<ApiIrCompositeView> {
+    const composites = await this.readComposites();
+    const composite = composites.find((item) => item.key === key);
+    if (!composite) throw new NotFoundException('محصول ترکیبی api.ir یافت نشد');
+    return this.compositeView(composite);
+  }
+
+  async createComposite(
+    dto: {
+      label: string;
+      description?: string;
+      serviceKeys: string[];
+      amount?: number;
+      enabled?: boolean;
+    },
+    actorId?: string,
+  ) {
+    const label = dto.label.trim();
+    if (!label) throw new BadRequestException('نام محصول را وارد کنید.');
+    this.assertServiceKeys(dto.serviceKeys);
+    const composites = await this.readComposites();
+    const now = new Date().toISOString();
+    const composite: ApiIrComposite = {
+      key: `comp_${randomBytes(6).toString('hex')}`,
+      label,
+      description: dto.description?.trim() || null,
+      serviceKeys: [...new Set(dto.serviceKeys)],
+      amount: Math.max(0, Math.floor(dto.amount ?? 0)),
+      enabled: dto.enabled ?? true,
+      createdAt: now,
+      updatedAt: now,
+    };
+    composites.push(composite);
+    await this.writeComposites(composites);
+    await this.activity.log({
+      actor: actorId ? { id: actorId } : null,
+      action: 'APIIR_COMPOSITE_CREATED',
+      summary: `ساخت محصول ترکیبی api.ir «${composite.label}»`,
+      entityType: 'SETTING',
+      entityId: APIIR_COMPOSITE_SETTING_KEY,
+    });
+    return this.compositeView(composite);
+  }
+
+  async updateComposite(
+    key: string,
+    dto: {
+      label?: string;
+      description?: string;
+      serviceKeys?: string[];
+      amount?: number;
+      enabled?: boolean;
+    },
+    actorId?: string,
+  ) {
+    const composites = await this.readComposites();
+    const index = composites.findIndex((item) => item.key === key);
+    if (index < 0) throw new NotFoundException('محصول ترکیبی api.ir یافت نشد');
+    if (dto.serviceKeys) this.assertServiceKeys(dto.serviceKeys);
+    const current = composites[index];
+    const updated: ApiIrComposite = {
+      ...current,
+      label: dto.label !== undefined ? dto.label.trim() : current.label,
+      description:
+        dto.description !== undefined
+          ? dto.description.trim() || null
+          : current.description,
+      serviceKeys: dto.serviceKeys
+        ? [...new Set(dto.serviceKeys)]
+        : current.serviceKeys,
+      amount:
+        dto.amount !== undefined
+          ? Math.max(0, Math.floor(dto.amount))
+          : current.amount,
+      enabled: dto.enabled !== undefined ? dto.enabled : current.enabled,
+      updatedAt: new Date().toISOString(),
+    };
+    if (!updated.label) {
+      throw new BadRequestException('نام محصول را وارد کنید.');
+    }
+    composites[index] = updated;
+    await this.writeComposites(composites);
+    await this.activity.log({
+      actor: actorId ? { id: actorId } : null,
+      action: 'APIIR_COMPOSITE_UPDATED',
+      summary: `ویرایش محصول ترکیبی api.ir «${updated.label}»`,
+      entityType: 'SETTING',
+      entityId: APIIR_COMPOSITE_SETTING_KEY,
+    });
+    return this.compositeView(updated);
+  }
+
+  async deleteComposite(key: string, actorId?: string) {
+    const composites = await this.readComposites();
+    const target = composites.find((item) => item.key === key);
+    if (!target) throw new NotFoundException('محصول ترکیبی api.ir یافت نشد');
+    await this.writeComposites(composites.filter((item) => item.key !== key));
+    await this.prisma.setting
+      .delete({
+        where: {
+          key: this.paypingProductKey(
+            `${APIIR_COMPOSITE_PRODUCT_PREFIX}${key}`,
+          ),
+        },
+      })
+      .catch(() => undefined);
+    await this.activity.log({
+      actor: actorId ? { id: actorId } : null,
+      action: 'APIIR_COMPOSITE_DELETED',
+      summary: `حذف محصول ترکیبی api.ir «${target.label}»`,
+      entityType: 'SETTING',
+      entityId: APIIR_COMPOSITE_SETTING_KEY,
+    });
+    return { key, deleted: true };
+  }
+
+  /** Create or refresh the PayPing product of one composite. */
+  async syncCompositeProduct(key: string, actorId?: string): Promise<string> {
+    const composites = await this.readComposites();
+    const composite = composites.find((item) => item.key === key);
+    if (!composite) throw new NotFoundException('محصول ترکیبی api.ir یافت نشد');
+    if (!composite.enabled) {
+      throw new BadRequestException('این محصول ترکیبی غیرفعال است.');
+    }
+    const view = await this.compositeView(composite);
+    if (view.issues.length > 0) {
+      throw new BadRequestException(view.issues[0]);
+    }
+    if (view.amount < 1000) {
+      throw new BadRequestException(
+        'مبلغ این محصول ترکیبی باید حداقل ۱٬۰۰۰ تومان باشد.',
+      );
+    }
+    const title = `${composite.label} — api.ir — شمالی‌کارت`.slice(0, 120);
+    const payload = {
+      title,
+      description: (
+        composite.description?.trim() ||
+        `ترکیب: ${view.serviceLabels.join(' + ')}`
+      ).slice(0, 300),
+      amount: view.amount,
+      defineAmountByUser: false,
+      haveTax: false,
+      unlimited: true,
+    };
+    const productKey = this.paypingProductKey(
+      `${APIIR_COMPOSITE_PRODUCT_PREFIX}${composite.key}`,
+    );
+    const stored = this.parsePaypingProduct(
+      (await this.prisma.setting.findUnique({ where: { key: productKey } }))
+        ?.value,
+    );
+    let code: string | null = null;
+    let updated = false;
+    if (stored?.code) {
+      try {
+        await this.payping.updateProduct({ ...payload, code: stored.code });
+        code = stored.code;
+        updated = true;
+      } catch (error) {
+        const status = (error as { paypingStatus?: number } | null)
+          ?.paypingStatus;
+        if (!(typeof status === 'number' && status >= 400 && status < 500)) {
+          throw error;
+        }
+      }
+    }
+    if (!code) {
+      const existing = await this.payping
+        .findProductCodeByTitle(title)
+        .catch(() => null);
+      if (existing) {
+        await this.payping.updateProduct({ ...payload, code: existing });
+        code = existing;
+        updated = true;
+      }
+    }
+    if (!code) {
+      const created = (await this.payping.createProduct(payload)) as {
+        code?: string;
+      } | null;
+      if (!created?.code) {
+        throw new BadGatewayException(
+          'ساخت محصول در پی‌پینگ ناموفق بود؛ لطفاً دوباره تلاش کنید.',
+        );
+      }
+      code = created.code;
+    }
+    await this.prisma.setting.upsert({
+      where: { key: productKey },
+      create: {
+        key: productKey,
+        value: JSON.stringify({ code, amount: view.amount }),
+      },
+      update: { value: JSON.stringify({ code, amount: view.amount }) },
+    });
+    await this.activity.log({
+      actor: actorId ? { id: actorId } : null,
+      action: 'APIIR_COMPOSITE_PAYPING_PRODUCT_SYNCED',
+      summary: `${updated ? 'به‌روزرسانی' : 'ساخت'} محصول پی‌پینگ ترکیبی api.ir «${composite.label}»`,
+      entityType: 'SETTING',
+      entityId: productKey,
+    });
+    return code;
+  }
+
+  /**
+   * Run every service of a composite **in the admin-defined order**. Used after
+   * a payment settles. A failing service does not abort the rest.
+   */
+  async runComposite(
+    key: string,
+    payload: Record<string, unknown> = {},
+    options: { userId?: string | null } = {},
+  ): Promise<{
+    key: string;
+    label: string;
+    amount: number;
+    ok: boolean;
+    modules: Array<{
+      serviceKey: string;
+      label: string;
+      ok: boolean;
+      message: string;
+      data: unknown;
+      latencyMs: number | null;
+    }>;
+  }> {
+    const view = await this.getComposite(key);
+    const modules: Array<{
+      serviceKey: string;
+      label: string;
+      ok: boolean;
+      message: string;
+      data: unknown;
+      latencyMs: number | null;
+    }> = [];
+    for (const service of view.services) {
+      try {
+        const result = await this.call(service.key, payload, {
+          force: true,
+          userId: options.userId ?? null,
+        });
+        modules.push({
+          serviceKey: service.key,
+          label: service.label,
+          ok: result.ok,
+          message: result.message,
+          data: result.data,
+          latencyMs: result.latencyMs,
+        });
+      } catch (error) {
+        modules.push({
+          serviceKey: service.key,
+          label: service.label,
+          ok: false,
+          message:
+            error instanceof Error ? error.message : 'اجرای سرویس ناموفق بود',
+          data: null,
+          latencyMs: null,
+        });
+      }
+    }
+    return {
+      key: view.key,
+      label: view.label,
+      amount: view.amount,
+      ok: modules.length > 0 && modules.every((module) => module.ok),
+      modules,
+    };
+  }
+
   /** Connection status + every service with its current switch/price. */
   async listServices(): Promise<{
     status: ApiIrStatus;
@@ -386,11 +808,13 @@ export class ApiIrService {
         payping: { code: string; amount: number | null } | null;
       }
     >;
+    composites: ApiIrCompositeView[];
   }> {
-    const [enabled, prices, paypingProducts] = await Promise.all([
+    const [enabled, prices, paypingProducts, composites] = await Promise.all([
       this.getEnabledMap(),
       this.getPriceMap(),
       this.getPaypingProductMap(),
+      this.listComposites(),
     ]);
     const services = APIIR_SERVICES.map((service) => ({
       ...service,
@@ -407,6 +831,7 @@ export class ApiIrService {
         total: services.length,
       },
       services,
+      composites,
     };
   }
 

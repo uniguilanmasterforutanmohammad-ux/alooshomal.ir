@@ -20,7 +20,44 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.61.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.62.0**.
+
+## ۱۴۰۵/۰۹/۰۱ — ساخت محصولات ترکیبی در پنل api.ir — نسخه `v4.62.0`
+
+**هدف:** در `?section=apiir` هم مانند زحل بتوان چند سرویس api.ir را در یک
+محصول ترکیبی فروخت و پس از پرداخت، همه‌ی سرویس‌ها به ترتیب اجرا شوند.
+
+**تغییرات:**
+- `apps/api/src/apiir/apiir.types.ts`: افزودن `ApiIrComposite` و
+  `ApiIrCompositeView` (قیمت محاسبه‌شده، فیلدهای مشترک، وضعیت فروش و کد پی‌پینگ).
+- `apps/api/src/apiir/apiir.service.ts`: ذخیره‌ی محصولات ترکیبی در
+  `apiir.composites`، CRUD کامل، اعتبارسنجی سرویس‌ها، محاسبه‌ی مبلغ از جمع
+  تعرفه‌ها، همگام‌سازی محصول پی‌پینگ (با بازاستفاده از عنوان موجود) و
+  `runComposite` برای اجرای ترتیبی سرویس‌ها. `listServices` حالا `composites`
+  را هم برمی‌گرداند.
+- `apps/api/src/apiir/dto/apiir.dto.ts`: DTOهای ساخت/ویرایش محصول ترکیبی.
+- `apps/api/src/apiir/apiir.controller.ts`: مسیرهای
+  `GET/POST /admin/apiir/composites`، `PATCH/DELETE /composites/:key` و
+  `POST /composites/:key/payping-product` با مستندات Swagger.
+- `apps/api/src/onboarding/onboarding.service.ts`: محصولات ترکیبی api.ir در
+  کتابخانه‌ی «شروع آسان» با کلید `apiir:composite:<key>` و اجرای ترتیبی در
+  `deliverPaidCart`.
+- `apps/web/components/admin/AdminApiIr.tsx`: بخش «محصولات ترکیبی api.ir» با
+  فرم ساخت/ویرایش، انتخاب سرویس‌ها، نمایش مبلغ/وضعیت/کد پی‌پینگ و دکمه‌های
+  همگام‌سازی و حذف.
+- `docs/API.md` و `docs/APIIR.md`: مستندسازی مسیرها و رفتار محصولات ترکیبی.
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.62.0`.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- `python3 scripts/check_api_docs.py` → exit 0.
+- ساخت محصول ترکیبی api.ir از `persondata` + `sana` با مبلغ خودکار ۲۰٬۰۰۰؛
+  مشاهده‌ی آن در `GET /admin/apiir/services` و `GET /admin/onboarding/modules`
+  با کلید `apiir:composite:<key>` و فیلدهای `nationalCode, birthDate, isCompany`.
+- شبیه‌سازی پرداخت سبد و `POST /onboarding/cart/deliver`: نتیجه با ترتیب
+  `persondata` سپس `sana` و `ok: true` برای هر دو.
+- `python3 scripts/sync_install.py` و `--check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۱ — نمایش محصولات ترکیبی زحل در کتابخانه‌ی «شروع آسان» — نسخه `v4.61.0`
 
