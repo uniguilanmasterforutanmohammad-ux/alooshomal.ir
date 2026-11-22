@@ -1,17 +1,19 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 import {
   AlertCircle,
   Building2,
   Check,
-  CreditCard,
   Loader2,
   Phone,
-  Plus,
-  Save,
   ShieldCheck,
-  Trash2,
   Wallet,
 } from 'lucide-react';
 
@@ -65,10 +67,13 @@ interface Props {
   initial?: OnboardingBusinessDraft | null;
   /** outstanding wallet debt (positive toman amount) */
   debt: number;
-  paying: boolean;
-  onPay: () => void;
-  /** called after a successful save so the wizard can refresh its progress */
-  onSaved: () => void;
+}
+
+/** Imperative API used by the wizard's single «مرحله بعد» button. */
+export interface OnboardingBusinessFormHandle {
+  submit: () => Promise<boolean>;
+  /** Whether the form differs from the values it was loaded with. */
+  isDirty: () => boolean;
 }
 
 /**
@@ -80,26 +85,22 @@ interface Props {
  * card and no biolink are created here; those are completed from the panel
  * after onboarding.
  */
-export function OnboardingBusinessForm({
-  defaultFullName,
-  initial,
-  debt,
-  paying,
-  onPay,
-  onSaved,
-}: Props) {
+export const OnboardingBusinessForm = forwardRef<
+  OnboardingBusinessFormHandle,
+  Props
+>(function OnboardingBusinessForm(
+  { defaultFullName, initial, debt },
+  ref,
+) {
   const [values, setValues] = useState<OnboardingBusinessDraft>(EMPTY);
   const [cities, setCities] = useState<TaxonomyItem[]>([]);
   const [businesses, setBusinesses] = useState<TaxonomyItem[]>([]);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [verifiedPhones, setVerifiedPhones] = useState<VerifiedPhone[]>([]);
-  const [mobileMode, setMobileMode] = useState<'change' | 'add' | null>(null);
-  const [verifyPhone, setVerifyPhone] = useState('');
-  const [verifyError, setVerifyError] = useState<string | null>(null);
   const initialized = useRef(false);
+  const baseline = useRef<string>('');
 
   useEffect(() => {
     if (initialized.current) return;
@@ -115,7 +116,7 @@ export function OnboardingBusinessForm({
         setBusinesses(businessList);
         setVerifiedPhones(profile?.verifiedPhones ?? []);
         if (initial) {
-          setValues({
+          const nextValues: OnboardingBusinessDraft = {
             name: initial.name ?? '',
             fullName: initial.fullName ?? '',
             cityId: initial.cityId ?? '',
@@ -123,14 +124,20 @@ export function OnboardingBusinessForm({
             mobile: initial.mobile || profile?.phone || '',
             additionalMobiles: initial.additionalMobiles ?? [],
             address: initial.address ?? '',
-          });
+          };
+          baseline.current = JSON.stringify(nextValues);
+          setValues(nextValues);
           setSaved(Boolean(initial.name));
         } else {
-          setValues((prev) => ({
-            ...prev,
-            fullName: prev.fullName || defaultFullName || '',
-            mobile: prev.mobile || profile?.phone || '',
-          }));
+          setValues((prev) => {
+            const nextValues = {
+              ...prev,
+              fullName: prev.fullName || defaultFullName || '',
+              mobile: prev.mobile || profile?.phone || '',
+            };
+            baseline.current = JSON.stringify(nextValues);
+            return nextValues;
+          });
         }
       } finally {
         setLoading(false);
@@ -145,83 +152,58 @@ export function OnboardingBusinessForm({
     setValues((prev) => ({ ...prev, [key]: value }));
   }
 
-  function openMobileMode(mode: 'change' | 'add') {
-    setMobileMode(mode);
-    setVerifyPhone(mode === 'change' ? values.mobile : '');
-    setVerifyError(null);
-  }
-
-  function applyVerifiedPhone(phone: string, mode: 'change' | 'add') {
-    if (mode === 'change') {
-      setField('mobile', phone);
-    } else {
-      setValues((prev) => ({
-        ...prev,
-        additionalMobiles:
-          prev.additionalMobiles.includes(phone) || phone === prev.mobile
-            ? prev.additionalMobiles
-            : [...prev.additionalMobiles, phone],
-      }));
-    }
-    setMobileMode(null);
-  }
-
   const primaryMobileVerified =
     Boolean(values.mobile) &&
     verifiedPhones.some((entry) => entry.phone === values.mobile);
   const verifiedPhoneSet = new Set(verifiedPhones.map((entry) => entry.phone));
 
-  /**
-   * The business step only collects the number. Shahkar verification happens
-   * in the identity step, where the national code is entered and used to check
-   * every saved business mobile at once.
-   */
-  function applyPhone() {
-    if (!/^09\d{9}$/.test(verifyPhone.trim())) {
-      setVerifyError('شماره موبایل معتبر نیست (مثال: 09123456789).');
-      return;
-    }
-    applyVerifiedPhone(verifyPhone.trim(), mobileMode ?? 'add');
-    setMobileMode(null);
-    setVerifyPhone('');
-    setVerifyError(null);
-    toast.success(
-      'شماره ثبت شد؛ در مرحله‌ی «استعلام هویت» با کد ملی شما بررسی می‌شود.',
-    );
-  }
-
-  async function submit() {
+  async function submit(): Promise<boolean> {
     if (!values.name.trim()) {
       toast.error('عنوان کسب‌وکار الزامی است.');
-      return;
+      return false;
     }
     if (!values.businessId.trim()) {
       toast.error('دسته‌بندی کسب‌وکار را انتخاب کنید.');
-      return;
+      return false;
     }
-    setSubmitting(true);
+    if (debt > 0) {
+      toast.error('برای ثبت کسب‌وکار ابتدا بدهی کیف پول را تسویه کنید.');
+      return false;
+    }
     setError(null);
     try {
+      // Older drafts may hold a malformed mobile; skip it instead of blocking
+      // the whole save (the number is read-only in this step).
+      const validMobile = /^09\d{9}$/.test(values.mobile.trim())
+        ? values.mobile.trim()
+        : undefined;
       await api.post('/onboarding/business', {
         name: values.name.trim(),
         fullName: values.fullName.trim() || undefined,
         cityId: values.cityId.trim() || undefined,
         businessId: values.businessId.trim() || undefined,
-        mobile: values.mobile.trim() || undefined,
-        additionalMobiles: values.additionalMobiles,
+        mobile: validMobile,
+        additionalMobiles: values.additionalMobiles.filter((entry) =>
+          /^09\d{9}$/.test(entry.trim()),
+        ),
         address: values.address.trim() || undefined,
       });
       setSaved(true);
+      baseline.current = JSON.stringify(values);
       toast.success('کسب‌وکار شما ساخته شد. مرحله‌ی بعد: استعلام هویت.');
-      onSaved();
+      return true;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'ساخت کسب‌وکار ناموفق بود',
       );
-    } finally {
-      setSubmitting(false);
+      return false;
     }
   }
+
+  useImperativeHandle(ref, () => ({
+    submit,
+    isDirty: () => JSON.stringify(values) !== baseline.current,
+  }));
 
   if (loading) {
     return (
@@ -238,18 +220,9 @@ export function OnboardingBusinessForm({
         <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800/60 dark:bg-amber-950/40">
           <Wallet className="size-5 text-amber-600 dark:text-amber-300" aria-hidden />
           <p className="min-w-0 flex-1 text-xs leading-6 text-amber-800 dark:text-amber-200">
-            برای ثبت کسب‌وکار ابتدا بدهی کیف پول را تسویه کنید.
+            برای ثبت کسب‌وکار ابتدا بدهی کیف پول را از بخش «کیف پول» تسویه کنید.
             <b className="ms-1">بدهی فعلی: {faPrice(debt)}</b>
           </p>
-          <button
-            type="button"
-            onClick={onPay}
-            disabled={paying}
-            className="indeed-btn indeed-btn-primary py-2 text-xs"
-          >
-            <CreditCard className="size-4" aria-hidden />
-            {paying ? 'در حال انتقال...' : 'پرداخت آنلاین'}
-          </button>
         </div>
       ) : null}
 
@@ -330,7 +303,7 @@ export function OnboardingBusinessForm({
             readOnly
             aria-readonly="true"
             className="!bg-[var(--vintage-paper)] !text-ink font-bold cursor-not-allowed focus:!border-[var(--vintage-border)] focus:!shadow-none"
-            hint="شماره‌ی ثبت‌شده‌ی حساب شما؛ غیرقابل ویرایش است. برای تغییر یا افزودن شماره، از دکمه‌های زیر استفاده کنید."
+            hint="شماره‌ی ثبت‌شده‌ی حساب شما؛ غیرقابل ویرایش است. شماره‌های کسب‌وکار در مرحله‌ی «استعلام هویت» با کد ملی بررسی می‌شوند."
           />
           <div className="md:col-span-2 rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-3">
             <p className="flex items-center gap-2 text-xs font-bold text-ink">
@@ -338,9 +311,8 @@ export function OnboardingBusinessForm({
               شماره‌های موبایل کسب‌وکار
             </p>
             <p className="mt-1 text-[11px] leading-6 text-muted">
-              شماره‌ی موبایل جدید را همین‌جا وارد کنید؛ کد ملی را در مرحله‌ی
-              «استعلام هویت» می‌گیریم و با همان کد ملی، همه‌ی شماره‌های کسب‌وکار
-              با شاهکار استعلام می‌شوند. شماره‌ی اصلی حساب از قبل تأیید شده است.
+              شماره‌ی اصلی حساب از قبل تأیید شده است. شماره‌های کسب‌وکار در
+              مرحله‌ی «استعلام هویت» با کد ملی شما با شاهکار بررسی می‌شوند.
             </p>
             {values.mobile && !primaryMobileVerified ? (
               <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[11px] leading-6 text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-200">
@@ -348,35 +320,17 @@ export function OnboardingBusinessForm({
                 هویت» با کد ملی شما بررسی می‌شود.
               </p>
             ) : null}
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => openMobileMode('change')}
-                className="indeed-btn indeed-btn-secondary py-2 text-xs"
-              >
-                <Phone className="size-4" aria-hidden />
-                تغییر شماره موبایل
-              </button>
-              <button
-                type="button"
-                onClick={() => openMobileMode('add')}
-                className="indeed-btn indeed-btn-secondary py-2 text-xs"
-              >
-                <Plus className="size-4" aria-hidden />
-                افزودن شماره موبایل
-              </button>
-            </div>
 
             {verifiedPhones.length > 0 ? (
               <div className="mt-3">
                 <p className="text-[11px] font-bold text-muted">
-                  شماره‌های تأییدشده‌ی شما (قابل استفاده بدون استعلام مجدد):
+                  شماره‌های تأییدشده‌ی شما:
                 </p>
                 <ul className="mt-1.5 flex flex-col gap-1.5">
                   {verifiedPhones.map((entry) => (
                     <li
                       key={entry.phone}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-[11px]"
+                      className="flex flex-wrap items-center gap-2 rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-[11px]"
                     >
                       <span className="flex items-center gap-2">
                         <ShieldCheck
@@ -392,85 +346,14 @@ export function OnboardingBusinessForm({
                             : 'تأیید شاهکار'}
                         </span>
                       </span>
-                      <span className="flex items-center gap-1">
-                        {entry.phone !== values.mobile ? (
-                          <button
-                            type="button"
-                            onClick={() => applyVerifiedPhone(entry.phone, 'change')}
-                            className="rounded-md border border-[var(--vintage-border)] px-2 py-1 text-[10px] font-bold text-brand hover:border-brand"
-                          >
-                            شماره اصلی
-                          </button>
-                        ) : (
-                          <span className="text-[10px] font-bold text-emerald-700">
-                            شماره اصلی فعلی
-                          </span>
-                        )}
-                        {entry.phone !== values.mobile &&
-                        !values.additionalMobiles.includes(entry.phone) ? (
-                          <button
-                            type="button"
-                            onClick={() => applyVerifiedPhone(entry.phone, 'add')}
-                            className="rounded-md border border-[var(--vintage-border)] px-2 py-1 text-[10px] font-bold text-brand hover:border-brand"
-                          >
-                            + افزودن
-                          </button>
-                        ) : null}
-                      </span>
+                      {entry.phone === values.mobile ? (
+                        <span className="text-[10px] font-bold text-emerald-700">
+                          شماره اصلی فعلی
+                        </span>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
-              </div>
-            ) : null}
-
-            {mobileMode ? (
-              <div className="mt-3 rounded-xl border border-brand/30 bg-[var(--vintage-surface)] p-3">
-                <p className="text-xs font-extrabold text-ink">
-                  {mobileMode === 'change'
-                    ? 'ثبت شماره‌ی جدید کسب‌وکار'
-                    : 'افزودن شماره‌ی جدید کسب‌وکار'}
-                </p>
-                <p className="mt-1 text-[11px] leading-6 text-muted">
-                  فقط شماره را وارد کنید؛ استعلام شاهکار با کد ملی شما در مرحله‌ی
-                  «استعلام هویت» انجام می‌شود.
-                </p>
-                <div className="mt-2">
-                  <Input
-                    label="شماره موبایل جدید"
-                    dir="ltr"
-                    inputMode="tel"
-                    maxLength={11}
-                    value={verifyPhone}
-                    onChange={(event) =>
-                      setVerifyPhone(
-                        event.target.value.replace(/[^\d+]/g, ''),
-                      )
-                    }
-                    placeholder="09123456789"
-                  />
-                </div>
-                {verifyError ? (
-                  <p className="mt-2 rounded-lg bg-red-50 p-2 text-[11px] text-red-700">
-                    {verifyError}
-                  </p>
-                ) : null}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    onClick={() => applyPhone()}
-                    className="indeed-btn indeed-btn-primary py-2 text-xs"
-                  >
-                    <Check className="size-4" aria-hidden />
-                    ثبت شماره
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMobileMode(null)}
-                    className="indeed-btn indeed-btn-secondary py-2 text-xs"
-                  >
-                    انصراف
-                  </button>
-                </div>
               </div>
             ) : null}
 
@@ -507,21 +390,6 @@ export function OnboardingBusinessForm({
                           : 'در انتظار استعلام در مرحله‌ی هویت'}
                       </span>
                     </span>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setValues((prev) => ({
-                          ...prev,
-                          additionalMobiles: prev.additionalMobiles.filter(
-                            (entry) => entry !== phone,
-                          ),
-                        }))
-                      }
-                      className="rounded-md p-1 text-red-600 hover:bg-red-50"
-                      aria-label="حذف شماره"
-                    >
-                      <Trash2 className="size-3.5" aria-hidden />
-                    </button>
                   </li>
                 ))}
               </ul>
@@ -538,28 +406,10 @@ export function OnboardingBusinessForm({
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => void submit()}
-        disabled={submitting || debt > 0}
-        className="indeed-btn indeed-btn-primary self-start"
-      >
-        {submitting ? (
-          <Loader2 className="size-4 animate-spin" aria-hidden />
-        ) : (
-          <Save className="size-4" aria-hidden />
-        )}
-        {submitting
-          ? 'در حال ذخیره...'
-          : saved
-            ? 'ذخیره‌ی تغییرات کسب‌وکار'
-            : 'ساخت کسب‌وکار'}
-      </button>
-      {debt > 0 ? (
-        <p className="text-[11px] text-amber-700 dark:text-amber-300">
-          پس از تسویه‌ی بدهی، همین دکمه فعال می‌شود.
-        </p>
-      ) : null}
+      <p className="text-[11px] leading-6 text-muted">
+        برای ثبت اطلاعات و رفتن به مرحله‌ی بعد، از دکمه‌ی «مرحله بعد» استفاده
+        کنید.
+      </p>
     </div>
   );
-}
+});

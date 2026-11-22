@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Check, Sparkles } from 'lucide-react';
+import { Check, Sparkles } from 'lucide-react';
 
 import { OnboardingWizard } from '@/components/dashboard/OnboardingWizard';
 import { useAuth } from '@/lib/auth';
@@ -35,14 +35,6 @@ export default function OnboardingPage() {
               <small>پنل کسب‌وکار</small>
             </span>
           </div>
-          <Link
-            href="/dashboard"
-            prefetch={false}
-            className="onboarding-hero-link"
-          >
-            <ArrowRight className="size-4" aria-hidden />
-            داشبورد
-          </Link>
         </div>
         <p className="onboarding-hero-sub">
           مرحله‌به‌مرحله از استعلام هویت تا ساخت کسب‌وکار و دریافت تأیید مدیر
@@ -68,7 +60,7 @@ export default function OnboardingPage() {
           بخش «شروع آسان» موقتاً توسط مدیر غیرفعال شده است.
           <Link
             href="/dashboard"
-            className="indeed-btn indeed-btn-secondary mt-4 w-fit text-xs"
+            className="mt-4 inline-flex w-fit items-center gap-1 text-xs font-bold text-brand underline underline-offset-4"
           >
             بازگشت به داشبورد
           </Link>

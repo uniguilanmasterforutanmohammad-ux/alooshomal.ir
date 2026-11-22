@@ -22,9 +22,7 @@ import {
   PartyPopper,
   ShieldCheck,
   Sparkles,
-  Trash2,
   Upload,
-  Wallet,
 } from 'lucide-react';
 
 import {
@@ -35,7 +33,7 @@ import {
   type SubscriptionCheckout,
   type SubscriptionPlan,
 } from '@/lib/api';
-import { isoToJalali } from '@/lib/jalali';
+import { isoToJalali, jalaliToIso, parseJalali } from '@/lib/jalali';
 import {
   PLAN_PERIODS,
   PLAN_PERIOD_LABELS,
@@ -45,10 +43,10 @@ import {
 } from '@/lib/plan-periods';
 import { toast } from '@/lib/toast';
 import { useFeatures } from '@/lib/features';
-import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
 import {
   OnboardingBusinessForm,
   type OnboardingBusinessDraft,
+  type OnboardingBusinessFormHandle,
 } from '@/components/dashboard/OnboardingBusinessForm';
 import { cn } from '@/lib/utils';
 
@@ -271,9 +269,10 @@ export function OnboardingWizard() {
   const [pricing, setPricing] = useState<ZohalPrice[]>([]);
   const [busyStepId, setBusyStepId] = useState<string | null>(null);
   const [identityBusy, setIdentityBusy] = useState(false);
+  const [businessBusy, setBusinessBusy] = useState(false);
   const [nationalCode, setNationalCode] = useState('');
   const [birthIso, setBirthIso] = useState('');
-  const [paying, setPaying] = useState(false);
+  const [birthText, setBirthText] = useState('');
   const [uploading, setUploading] = useState(false);
   // Values typed into an admin-added `module` step's dynamic form, keyed by
   // step id then field name. Saved values come back as `step.data`.
@@ -283,7 +282,7 @@ export function OnboardingWizard() {
   const [moduleUploading, setModuleUploading] = useState<string | null>(null);
   // Guards the fallback delivery so a paid module checkout is delivered once.
   const moduleDeliveryRef = useRef(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const businessFormRef = useRef<OnboardingBusinessFormHandle | null>(null);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [myPlanId, setMyPlanId] = useState<string | null>(null);
   const [planMonths, setPlanMonths] = useState<PlanPeriodMonths>(1);
@@ -659,24 +658,6 @@ export function OnboardingWizard() {
     }
   }
 
-  async function payInvoice() {
-    setPaying(true);
-    try {
-      const result = await api.post<{ url?: string }>('/wallet/checkout', {
-        returnTo: '/dashboard/onboarding',
-      });
-      if (result?.url) {
-        window.location.href = result.url;
-        return;
-      }
-      toast.error('ساخت پرداخت در درگاه ناموفق بود.');
-    } catch {
-      /* api layer surfaces the error */
-    } finally {
-      setPaying(false);
-    }
-  }
-
   async function finishOnboarding() {
     try {
       await api.post('/onboarding/finish', {});
@@ -756,14 +737,14 @@ export function OnboardingWizard() {
   }
 
   /** Submit the dynamic form of one admin-added module step. */
-  async function saveModuleStep(step: OnboardingStep) {
+  async function saveModuleStep(step: OnboardingStep): Promise<boolean> {
     const fields = step.module?.fields ?? [];
     const data: Record<string, unknown> = {};
     for (const field of fields) {
       const raw = moduleValue(step, field).trim();
       if (field.required && !raw) {
         toast.error(`مقدار «${field.label}» الزامی است.`);
-        return;
+        return false;
       }
       if (raw) data[field.name] = field.type === 'boolean' ? raw === 'true' : raw;
     }
@@ -780,21 +761,12 @@ export function OnboardingWizard() {
         return copy;
       });
       toast.success('اطلاعات این مرحله ثبت شد.');
+      return true;
     } catch {
       /* api layer surfaces the error */
+      return false;
     } finally {
       setBusyStepId(null);
-    }
-  }
-
-  async function removeDocument(id: string) {
-    try {
-      const next = await api.delete<OnboardingPayload>(
-        `/onboarding/documents/${id}`,
-      );
-      setPayload(next);
-    } catch {
-      /* api layer surfaces the error */
     }
   }
 
@@ -808,7 +780,6 @@ export function OnboardingWizard() {
       .then((next) => setPayload(next))
       .catch(() => undefined);
     toast.success(`اشتراک «${plan.name}» به صورتحساب اضافه شد.`);
-    goTo(safeIndex + 1);
   }
 
   /**
@@ -901,7 +872,10 @@ export function OnboardingWizard() {
     }
   }
 
-  async function toggleManualStep(step: OnboardingStep, thenNext = false) {
+  async function toggleManualStep(
+    step: OnboardingStep,
+    thenNext = false,
+  ): Promise<boolean> {
     setBusyStepId(step.id);
     try {
       const next = step.done
@@ -909,8 +883,10 @@ export function OnboardingWizard() {
         : await api.post<OnboardingPayload>(`/onboarding/steps/${step.id}/complete`, {});
       setPayload(next);
       if (thenNext && !step.done) goTo(safeIndex + 1);
+      return true;
     } catch {
       /* api layer surfaces the error */
+      return false;
     } finally {
       setBusyStepId(null);
     }
@@ -1012,8 +988,6 @@ export function OnboardingWizard() {
   /** The invoice can be paid when it carries a plan or a pending inquiry. */
   const invoicePayable = planSelected || identityPayable || cartTotal > 0;
   const invoiceNeedsPayment = invoicePayable && invoiceTotalAmount >= 1000;
-  const managementDecided =
-    !showManagement || withManagement || managementSkipped;
   const identityInputsReady =
     !identityAvailable ||
     identityVerified ||
@@ -1037,18 +1011,12 @@ export function OnboardingWizard() {
   const isFirst = safeIndex === 0;
   const isLast = safeIndex === steps.length - 1;
   const isOptional = step.optional === true;
-  const isInvoiceStep = step.kind === 'invoice';
-  const localReady =
-    step.kind === 'identity'
-      ? identityInputsReady
-      : step.kind === 'plan'
-        ? planSelected
-        : step.kind === 'management'
-          ? managementDecided
-          : step.kind === 'invoice'
-            ? !invoiceNeedsPayment
-            : false;
-  const stepUnlocked = step.done || isOptional || localReady;
+  const navBusy =
+    businessBusy ||
+    busyStepId !== null ||
+    identityBusy ||
+    invoiceBusy ||
+    uploading;
 
   /** A step can be opened once every earlier required step is complete. */
   function canEnter(position: number): boolean {
@@ -1082,31 +1050,122 @@ export function OnboardingWizard() {
     setIndex(Math.max(0, Math.min(next, steps.length - 1)));
   }
   function nextStep() {
-    if (!stepUnlocked) return;
     goTo(safeIndex + 1);
   }
-  /**
-   * The footer's primary button: on the identity step it validates and marks
-   * the inquiry as opted in, while an optional step with no inputs is simply
-   * skipped (and never charged on the invoice).
-   */
-  function advanceStep() {
-    if (step.kind === 'identity' && !identityVerified) {
-      if (!identityAvailable) {
-        nextStep();
-        return;
-      }
-      const hasInput =
-        Boolean(nationalCode.trim()) || Boolean(birthIso) || withLicense;
-      if (isOptional && !identityInputsReady && !hasInput) {
-        markIdentityOptIn(false);
-        nextStep();
-        return;
-      }
-      saveIdentityAndNext();
+
+  async function submitBusinessAndNext() {
+    if (!businessFormRef.current) {
+      nextStep();
       return;
     }
-    nextStep();
+    // A completed business step only needs a save when the user edited it;
+    // otherwise «مرحله بعد» simply moves on (legacy drafts may not revalidate).
+    if (step.done && !businessFormRef.current.isDirty()) {
+      nextStep();
+      return;
+    }
+    setBusinessBusy(true);
+    try {
+      const saved = await businessFormRef.current.submit();
+      if (!saved) return;
+      await load();
+      nextStep();
+    } finally {
+      setBusinessBusy(false);
+    }
+  }
+
+  /**
+   * The footer's only forward action. It performs whatever the current step
+   * needs (save, select, pay, finish) and then moves to the next step.
+   */
+  async function advanceStep() {
+    switch (step.kind) {
+      case 'welcome':
+      case 'details':
+      case 'custom':
+        if (!step.done) {
+          const ok = await toggleManualStep(step);
+          if (!ok) return;
+        }
+        nextStep();
+        return;
+      case 'business':
+        await submitBusinessAndNext();
+        return;
+      case 'identity':
+        if (identityVerified) {
+          nextStep();
+          return;
+        }
+        if (!identityAvailable) {
+          nextStep();
+          return;
+        }
+        if (isOptional && !identityInputsReady) {
+          markIdentityOptIn(false);
+          nextStep();
+          return;
+        }
+        saveIdentityAndNext();
+        return;
+      case 'documents':
+        if (!step.done && !isOptional && (payload?.documents?.length ?? 0) === 0) {
+          toast.error('برای ادامه، حداقل یک مدرک آپلود کنید.');
+          return;
+        }
+        nextStep();
+        return;
+      case 'module':
+        if ((step.module?.fields?.length ?? 0) > 0) {
+          const ok = await saveModuleStep(step);
+          if (ok) nextStep();
+          return;
+        }
+        if (!step.done) {
+          const ok = await toggleManualStep(step);
+          if (!ok) return;
+        }
+        nextStep();
+        return;
+      case 'plan':
+        if (!step.done && !planSelected) {
+          toast.error('برای ادامه، یک طرح اشتراک انتخاب کنید.');
+          return;
+        }
+        nextStep();
+        return;
+      case 'management':
+        if (step.done) {
+          nextStep();
+          return;
+        }
+        if (
+          withManagement &&
+          selectedManagementPackage &&
+          managementAmount >= 1000
+        ) {
+          nextStep();
+          return;
+        }
+        setManagementSkipped(true);
+        setWithManagement(false);
+        setSelectedManagementKey(null);
+        nextStep();
+        return;
+      case 'invoice':
+        if (invoiceNeedsPayment) {
+          await payOnboardingInvoice();
+          return;
+        }
+        nextStep();
+        return;
+      case 'approval':
+        await finishOnboarding();
+        return;
+      default:
+        nextStep();
+    }
   }
   function prevStep() {
     goTo(safeIndex - 1);
@@ -1147,13 +1206,9 @@ export function OnboardingWizard() {
             const active = position === safeIndex;
             const unlocked = canEnter(position);
             return (
-              <button
+              <div
                 key={entry.id}
-                type="button"
-                onClick={() => unlocked && goTo(position)}
-                disabled={!unlocked}
                 title={entry.title}
-                aria-label={entry.title}
                 aria-current={active ? 'step' : undefined}
                 data-state={
                   active ? 'active' : entry.done ? 'done' : unlocked ? 'open' : 'locked'
@@ -1188,7 +1243,7 @@ export function OnboardingWizard() {
                   )}
                 </span>
                 <span className="truncate">{entry.title}</span>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -1268,19 +1323,6 @@ export function OnboardingWizard() {
                   </li>
                 </ul>
               </div>
-              <button
-                type="button"
-                onClick={() => void toggleManualStep(step, true)}
-                disabled={busyStepId === step.id}
-                className="indeed-btn indeed-btn-primary self-start"
-              >
-                {busyStepId === step.id ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                ) : (
-                  <ArrowLeft className="size-4" aria-hidden />
-                )}
-                {step.done ? 'ادامه' : 'شروع کنیم'}
-              </button>
             </div>
           ) : null}
 
@@ -1377,33 +1419,20 @@ export function OnboardingWizard() {
                       );
                     })}
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => void saveModuleStep(step)}
-                    disabled={busyStepId === step.id}
-                    className="indeed-btn indeed-btn-primary mt-3 w-fit py-2 text-xs disabled:opacity-60"
-                  >
-                    {busyStepId === step.id ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                    ) : (
-                      <Check className="size-4" aria-hidden />
-                    )}
-                    {step.done ? 'به‌روزرسانی اطلاعات' : 'ثبت اطلاعات و تکمیل مرحله'}
-                  </button>
                 </div>
               ) : (
                 <>
                   {step.href ? (
                     <Link
                       href={step.href}
-                      className="indeed-btn indeed-btn-primary w-fit py-2 text-xs"
+                      className="inline-flex w-fit items-center gap-1 text-xs font-bold text-brand underline underline-offset-4"
                     >
                       رفتن به این بخش
                       <ArrowLeft className="size-4" aria-hidden />
                     </Link>
                   ) : null}
                   <p className="text-[11px] leading-6 text-muted">
-                    پس از انجام این مورد، دکمه‌ی «این مرحله را انجام دادم» را
+                    پس از انجام این مورد، برای ادامه دکمه‌ی «مرحله بعد» را
                     بزنید.
                   </p>
                 </>
@@ -1487,7 +1516,26 @@ export function OnboardingWizard() {
                   </label>
                   <label className="text-xs font-bold text-muted">
                     تاریخ تولد
-                    <JalaliDatePicker value={birthIso} onChange={setBirthIso} className="mt-1" />
+                    <input
+                      className="indeed-input mt-1"
+                      dir="ltr"
+                      inputMode="numeric"
+                      placeholder="۱۳۷۰/۰۱/۰۱"
+                      value={birthText}
+                      onChange={(event) => {
+                        const value = event.target.value;
+                        setBirthText(value);
+                        const parsed = parseJalali(value);
+                        setBirthIso(
+                          parsed
+                            ? jalaliToIso(parsed.year, parsed.month, parsed.day)
+                            : '',
+                        );
+                      }}
+                    />
+                    <span className="mt-1 text-[10px] font-normal text-muted">
+                      به شکل ۱۳۷۰/۰۱/۰۱ وارد کنید.
+                    </span>
                   </label>
                 </div>
               )}
@@ -1584,37 +1632,18 @@ export function OnboardingWizard() {
               ) : null}
 
               {!identityVerified ? (
-                <button
-                  type="button"
-                  onClick={saveIdentityAndNext}
-                  className="indeed-btn indeed-btn-primary self-start"
-                >
-                  <BadgeCheck className="size-4" aria-hidden />
-                  ثبت اطلاعات و ادامه
-                </button>
+                <p className="rounded-xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-3 text-[11px] leading-6 text-muted">
+                  اطلاعات را وارد کنید و برای ثبت و ادامه، دکمه‌ی «مرحله بعد» را
+                  بزنید.
+                </p>
               ) : null}
 
               {walletVisible && payload.identity?.verified && debt > 0 ? (
                 <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800/60 dark:bg-amber-950/40">
                   <span className="text-xs font-bold text-amber-800 dark:text-amber-200">
-                    بدهی کیف پول: {faPrice(debt)}
+                    بدهی کیف پول: {faPrice(debt)} — برای تسویه به بخش «کیف پول»
+                    بروید.
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => void payInvoice()}
-                    disabled={paying}
-                    className="indeed-btn indeed-btn-primary py-2 text-xs"
-                  >
-                    <CreditCard className="size-4" aria-hidden />
-                    {paying ? 'در حال انتقال...' : 'پرداخت آنلاین'}
-                  </button>
-                  <Link
-                    href="/dashboard/wallet"
-                    className="indeed-btn indeed-btn-secondary py-2 text-xs"
-                  >
-                    <Wallet className="size-4" aria-hidden />
-                    بعداً پرداخت می‌کنم
-                  </Link>
                 </div>
               ) : null}
                 </>
@@ -1625,6 +1654,7 @@ export function OnboardingWizard() {
           {step.kind === 'business' ? (
             <div className="flex flex-col gap-3">
               <OnboardingBusinessForm
+                ref={businessFormRef}
                 defaultFullName={
                   businessState?.fullName ??
                   ([payload.identity?.firstName, payload.identity?.lastName]
@@ -1633,13 +1663,6 @@ export function OnboardingWizard() {
                 }
                 initial={businessInitial}
                 debt={walletVisible ? debt : 0}
-                paying={paying}
-                onPay={() => {
-                  if (walletVisible) void payInvoice();
-                }}
-                onSaved={() => {
-                  void load().then(() => goTo(safeIndex + 1));
-                }}
               />
             </div>
           ) : null}
@@ -1660,7 +1683,7 @@ export function OnboardingWizard() {
                   </div>
                   <label
                     className={cn(
-                      'indeed-btn indeed-btn-primary cursor-pointer py-2 text-xs',
+                      'flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 px-3 py-2 text-[11px] font-bold text-brand transition hover:border-brand',
                       uploading && 'pointer-events-none opacity-70',
                     )}
                   >
@@ -1703,14 +1726,6 @@ export function OnboardingWizard() {
                         <span className="shrink-0 text-[10px] text-muted">
                           {formatBytes(doc.size)}
                         </span>
-                        <button
-                          type="button"
-                          onClick={() => void removeDocument(doc.id)}
-                          aria-label={`حذف ${doc.name}`}
-                          className="shrink-0 rounded-md p-1 text-neutral-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-300"
-                        >
-                          <Trash2 className="size-3.5" aria-hidden />
-                        </button>
                       </li>
                     ))}
                   </ul>
@@ -1721,17 +1736,6 @@ export function OnboardingWizard() {
                 )}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                {isOptional && !step.done ? (
-                  <button
-                    type="button"
-                    onClick={nextStep}
-                    className="text-xs font-bold text-muted underline-offset-4 hover:text-brand hover:underline"
-                  >
-                    فعلاً رد کن
-                  </button>
-                ) : null}
-              </div>
             </div>
           ) : null}
 
@@ -1747,22 +1751,21 @@ export function OnboardingWizard() {
                     <span className="text-[11px] font-bold text-muted">
                       دوره‌ی پرداخت:
                     </span>
-                    {PLAN_PERIODS.map((period) => (
-                      <button
-                        key={period}
-                        type="button"
-                        onClick={() => setPlanMonths(period)}
-                        aria-pressed={planMonths === period}
-                        className={cn(
-                          'rounded-full border px-2.5 py-1 text-[11px] font-bold transition',
-                          planMonths === period
-                            ? 'border-brand bg-brand text-white'
-                            : 'border-[var(--vintage-border)] text-muted hover:border-brand hover:text-brand',
-                        )}
-                      >
-                        {PLAN_PERIOD_LABELS[period]}
-                      </button>
-                    ))}
+                    <select
+                      value={planMonths}
+                      onChange={(event) =>
+                        setPlanMonths(
+                          Number(event.target.value) as PlanPeriodMonths,
+                        )
+                      }
+                      className="indeed-input w-auto py-1.5 text-[11px] font-bold"
+                    >
+                      {PLAN_PERIODS.map((period) => (
+                        <option key={period} value={period}>
+                          {PLAN_PERIOD_LABELS[period]}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     {selectablePlans.map((plan) => {
@@ -1771,15 +1774,24 @@ export function OnboardingWizard() {
                       const downgrade = currentIsPaid && isFreePlan(plan);
                       const amount = planPriceForMonths(plan, planMonths);
                       return (
-                        <div
+                        <label
                           key={plan.id}
                           className={cn(
-                            'flex flex-col rounded-2xl border bg-[var(--vintage-surface)] p-4 transition',
+                            'flex cursor-pointer flex-col rounded-2xl border bg-[var(--vintage-surface)] p-4 transition',
                             isSelected
                               ? 'border-brand shadow-[0_10px_30px_-20px_rgba(139,58,26,0.6)] ring-1 ring-brand/30 dark:shadow-none'
                               : 'border-[var(--vintage-border)] hover:border-brand/40',
+                            downgrade && 'cursor-not-allowed opacity-60',
                           )}
                         >
+                          <input
+                            type="radio"
+                            name="onboarding-plan"
+                            className="sr-only"
+                            checked={isSelected}
+                            disabled={downgrade}
+                            onChange={() => selectPlan(plan)}
+                          />
                           <div className="flex items-center justify-between gap-2">
                             <h3 className="text-sm font-extrabold text-ink">
                               {plan.name}
@@ -1824,25 +1836,21 @@ export function OnboardingWizard() {
                               ))}
                             </ul>
                           ) : null}
-                          <button
-                            type="button"
-                            disabled={downgrade}
-                            onClick={() => selectPlan(plan)}
+                          <span
                             className={cn(
-                              'indeed-btn mt-3 w-full py-2 text-xs disabled:cursor-not-allowed disabled:opacity-50',
+                              'mt-3 inline-flex items-center justify-center gap-1 rounded-xl border px-3 py-2 text-[11px] font-bold',
                               isSelected
-                                ? 'indeed-btn-secondary'
-                                : 'indeed-btn-primary',
+                                ? 'border-brand bg-brand-light text-brand'
+                                : 'border-[var(--vintage-border)] text-muted',
                             )}
                           >
-                            <CreditCard className="size-4" aria-hidden />
                             {downgrade
                               ? 'امکان تنزل به رایگان نیست'
                               : isSelected
-                              ? 'انتخاب شده — ادامه'
-                              : 'افزودن به صورتحساب'}
-                          </button>
-                        </div>
+                                ? 'انتخاب شد'
+                                : 'برای انتخاب کلیک کنید'}
+                          </span>
+                        </label>
                       );
                     })}
                   </div>
@@ -1874,28 +1882,32 @@ export function OnboardingWizard() {
                     const disabled =
                       !pkg.available || !selectedPlan || isFreePlan(selectedPlan);
                     return (
-                      <button
+                      <label
                         key={pkg.key}
-                        type="button"
-                        disabled={disabled}
-                        aria-pressed={isSelected}
-                        onClick={() => {
-                          if (isSelected) {
-                            setWithManagement(false);
-                            setSelectedManagementKey(null);
-                          } else {
-                            setSelectedManagementKey(pkg.key);
-                            setWithManagement(true);
-                            setManagementSkipped(false);
-                          }
-                        }}
                         className={cn(
-                          'flex flex-col rounded-2xl border p-4 text-right transition disabled:cursor-not-allowed disabled:opacity-60',
+                          'flex flex-col rounded-2xl border p-4 text-right transition',
                           isSelected
                             ? 'border-brand bg-brand-light/40 ring-1 ring-brand/30'
                             : 'border-[var(--vintage-border)] bg-[var(--vintage-surface)] hover:border-brand/40',
+                          disabled && 'cursor-not-allowed opacity-60',
                         )}
                       >
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={isSelected}
+                          disabled={disabled}
+                          onChange={() => {
+                            if (isSelected) {
+                              setWithManagement(false);
+                              setSelectedManagementKey(null);
+                            } else {
+                              setSelectedManagementKey(pkg.key);
+                              setWithManagement(true);
+                              setManagementSkipped(false);
+                            }
+                          }}
+                        />
                         <span className="flex items-center justify-between gap-2">
                           <span className="text-sm font-extrabold text-ink">
                             {pkg.label}
@@ -1924,7 +1936,7 @@ export function OnboardingWizard() {
                             با اشتراک رایگان قابل خرید نیست؛ اکو یا بلاس انتخاب کنید.
                           </span>
                         ) : null}
-                      </button>
+                      </label>
                     );
                   })}
                 </div>
@@ -1934,35 +1946,10 @@ export function OnboardingWizard() {
                   می‌توانید بدون آن ادامه دهید.
                 </p>
               )}
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setManagementSkipped(true);
-                    setWithManagement(false);
-                    setSelectedManagementKey(null);
-                    goTo(safeIndex + 1);
-                  }}
-                  className="indeed-btn indeed-btn-secondary py-2 text-xs"
-                >
-                  بدون بسته مدیریت، ادامه
-                </button>
-                {showManagement ? (
-                  <button
-                    type="button"
-                    disabled={
-                      !withManagement ||
-                      !selectedManagementPackage ||
-                      managementAmount < 1000
-                    }
-                    onClick={() => goTo(safeIndex + 1)}
-                    className="indeed-btn indeed-btn-primary py-2 text-xs disabled:opacity-50"
-                  >
-                    افزودن و ادامه
-                    <ArrowLeft className="size-4" aria-hidden />
-                  </button>
-                ) : null}
-              </div>
+              <p className="text-[11px] leading-6 text-muted">
+                برای افزودن بسته روی آن کلیک کنید؛ اگر بسته‌ای انتخاب نکنید، با
+                دکمه‌ی «مرحله بعد» بدون بسته ادامه می‌دهید.
+              </p>
             </div>
           ) : null}
 
@@ -2058,19 +2045,9 @@ export function OnboardingWizard() {
                 </p>
               ) : null}
               {invoiceNeedsPayment ? (
-                <button
-                  type="button"
-                  disabled={invoiceBusy || !invoicePayable || invoiceTotalAmount < 1000}
-                  onClick={() => void payOnboardingInvoice()}
-                  className="indeed-btn indeed-btn-primary self-start py-2 text-xs disabled:opacity-50"
-                >
-                  {invoiceBusy ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <CreditCard className="size-4" aria-hidden />
-                  )}
-                  {invoiceBusy ? 'در حال انتقال به درگاه...' : 'پرداخت نهایی'}
-                </button>
+                <p className="rounded-xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-3 text-[11px] leading-6 text-muted">
+                  برای پرداخت نهایی، دکمه‌ی «مرحله بعد» را بزنید.
+                </p>
               ) : null}
               <p className="text-[10px] leading-5 text-muted">
                 با پرداخت، اشتراک و بسته‌ی مدیریت فعال می‌شوند و استعلام هویت
@@ -2091,76 +2068,9 @@ export function OnboardingWizard() {
                     <p className="text-xs leading-6 text-red-700 dark:text-red-200">
                       {identityResult.message ??
                         'اطلاعات وارد‌شده با استعلام مطابقت نداشت.'}{' '}
-                      هزینه‌ی استعلام قابل برگشت نیست؛ برای تلاش دوباره اطلاعات
-                      را اصلاح کنید و مجدداً پرداخت کنید.
+                      هزینه‌ی استعلام قابل برگشت نیست؛ برای تلاش دوباره از بخش
+                      «پروفایل» اقدام کنید.
                     </p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <label className="text-xs font-bold text-muted">
-                        کد ملی
-                        <input
-                          className="indeed-input mt-1"
-                          inputMode="numeric"
-                          maxLength={10}
-                          value={nationalCode}
-                          onChange={(event) =>
-                            setNationalCode(
-                              event.target.value.replace(/\D/g, ''),
-                            )
-                          }
-                          placeholder="۱۰ رقم"
-                          dir="ltr"
-                        />
-                      </label>
-                      <label className="text-xs font-bold text-muted">
-                        تاریخ تولد
-                        <JalaliDatePicker
-                          value={birthIso}
-                          onChange={setBirthIso}
-                          className="mt-1"
-                        />
-                      </label>
-                    </div>
-                    {showLicense ? (
-                      <label className="flex items-center gap-2 text-xs text-muted">
-                        <input
-                          type="checkbox"
-                          checked={withLicense}
-                          onChange={(event) =>
-                            setWithLicense(event.target.checked)
-                          }
-                        />
-                        استعلام جواز کسب (تیک آبی)
-                      </label>
-                    ) : null}
-                    {withLicense && showLicense ? (
-                      <input
-                        className="indeed-input"
-                        dir="ltr"
-                        value={licenseTrackingCode}
-                        onChange={(event) =>
-                          setLicenseTrackingCode(event.target.value)
-                        }
-                        placeholder="کد پیگیری جواز کسب"
-                      />
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={() => void payIdentityOnly()}
-                      disabled={identityBusy}
-                      className="indeed-btn indeed-btn-primary self-start py-2 text-xs"
-                    >
-                      {identityBusy ? (
-                        <Loader2
-                          className="size-4 animate-spin"
-                          aria-hidden
-                        />
-                      ) : (
-                        <CreditCard className="size-4" aria-hidden />
-                      )}
-                      {identityBusy
-                        ? 'در حال انتقال به درگاه...'
-                        : 'پرداخت و استعلام مجدد'}
-                    </button>
                   </div>
                 ) : identityVerified ? (
                   <div className="relative overflow-hidden rounded-2xl border border-emerald-200 bg-gradient-to-l from-emerald-50 via-emerald-50/70 to-[var(--vintage-surface)] p-5 text-center dark:border-emerald-800/60 dark:from-emerald-950/40 dark:via-emerald-950/30 dark:to-[var(--vintage-surface)]">
@@ -2203,41 +2113,15 @@ export function OnboardingWizard() {
                   </div>
                 )}
 
-                <button
-                  type="button"
-                  onClick={() => void finishOnboarding()}
-                  className="indeed-btn indeed-btn-primary w-fit py-2 text-xs"
-                >
-                  اتمام مراحل
-                  <ArrowLeft className="size-4" aria-hidden />
-                </button>
+                <p className="rounded-xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-3 text-[11px] leading-6 text-muted">
+                  برای پایان و بازگشت به داشبورد، دکمه‌ی «مرحله بعد» را بزنید.
+                </p>
               </div>
             ) : (
               <p className="rounded-2xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-5 text-center text-xs leading-6 text-muted">
                 این پیام پس از تکمیل همه‌ی مراحل قبلی نمایش داده می‌شود.
               </p>
             )
-          ) : null}
-
-          {isManual(step) &&
-          step.kind !== 'welcome' &&
-          !(step.kind === 'module' && (step.module?.fields?.length ?? 0) > 0) ? (
-            <button
-              type="button"
-              onClick={() => void toggleManualStep(step)}
-              disabled={busyStepId === step.id}
-              className={cn(
-                'indeed-btn py-2 text-xs self-start',
-                step.done ? 'indeed-btn-secondary' : 'indeed-btn-primary',
-              )}
-            >
-              {busyStepId === step.id ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-              ) : (
-                <Check className="size-4" aria-hidden />
-              )}
-              {step.done ? 'برداشتن تیک این مرحله' : 'این مرحله را انجام دادم'}
-            </button>
           ) : null}
 
           {/* ---------------------------------------------------------------- */}
@@ -2247,119 +2131,88 @@ export function OnboardingWizard() {
             <button
               type="button"
               onClick={prevStep}
-              disabled={isFirst}
+              disabled={isFirst || navBusy}
               className="indeed-btn indeed-btn-secondary py-2 text-xs"
             >
               <ArrowRight className="size-4" aria-hidden />
               مرحله قبل
             </button>
-            {isLast ? (
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                {payload.completed === payload.total
-                  ? 'همه‌ی مراحل تکمیل شد 🎉'
-                  : 'آخرین مرحله'}
-              </span>
-            ) : isInvoiceStep && invoiceNeedsPayment ? (
-              <span className="text-xs font-bold text-brand">
-                برای ادامه، پرداخت نهایی را انجام دهید
-              </span>
-            ) : (
-              <div className="flex items-center gap-3">
-                {!stepUnlocked ? (
-                  <span className="hidden text-[10px] font-bold text-amber-700 sm:inline dark:text-amber-300">
-                    ابتدا این مرحله را کامل کنید
-                  </span>
+            <div className="flex items-center gap-3">
+              {isLast ? (
+                <span className="hidden text-[10px] font-bold text-muted sm:inline">
+                  آخرین مرحله
+                </span>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void advanceStep()}
+                disabled={navBusy}
+                className="indeed-btn indeed-btn-primary py-2 text-xs disabled:opacity-50"
+              >
+                {navBusy ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
                 ) : null}
-                {isOptional && !step.done ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (step.kind === 'identity') markIdentityOptIn(false);
-                      nextStep();
-                    }}
-                    className="indeed-btn indeed-btn-secondary py-2 text-xs"
-                    title="این مرحله اختیاری است؛ می‌توانید بعداً آن را انجام دهید"
-                  >
-                    بعداً
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={advanceStep}
-                  disabled={!stepUnlocked}
-                  className={cn(
-                    'indeed-btn indeed-btn-primary py-2 text-xs',
-                    !stepUnlocked && 'cursor-not-allowed opacity-50',
-                  )}
-                >
-                  مرحله بعد
-                  <ArrowLeft className="size-4" aria-hidden />
-                </button>
-              </div>
-            )}
+                مرحله بعد
+                <ArrowLeft className="size-4" aria-hidden />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
       {payload.history?.length ? (
-        <div className="border-t border-[var(--vintage-border)] bg-[var(--vintage-paper)]/60">
-          <button
-            type="button"
-            onClick={() => setHistoryOpen((open) => !open)}
-            className="flex w-full items-center gap-2 p-3.5 text-xs font-bold text-ink"
-          >
+        <details className="group border-t border-[var(--vintage-border)] bg-[var(--vintage-paper)]/60">
+          <summary className="flex cursor-pointer list-none items-center gap-2 p-3.5 text-xs font-bold text-ink [&::-webkit-details-marker]:hidden">
             <History className="size-4 text-brand" aria-hidden />
             سابقه‌ی استعلام‌ها و نتایج
             <span className="text-muted">
               ({payload.history.length.toLocaleString('fa-IR')} مورد)
             </span>
             <ChevronDown
-              className={cn('ms-auto size-4 text-muted transition', historyOpen && 'rotate-180')}
+              className="ms-auto size-4 text-muted transition group-open:rotate-180"
               aria-hidden
             />
-          </button>
-          {historyOpen ? (
-            <ul className="flex flex-col gap-2 px-4 pb-4">
-              {payload.history.map((log) => (
-                <li
-                  key={log.id}
-                  className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-3 text-[11px] leading-6"
-                >
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={cn(
-                        'rounded-full px-2 py-0.5 text-[10px] font-bold',
-                        LOG_STATUS_CLASS[log.status],
-                      )}
-                    >
-                      {LOG_STATUS_LABEL[log.status]}
-                    </span>
-                    <b className="text-ink">{LOG_KIND_LABEL[log.kind]}</b>
-                    <span className="text-muted">
-                      {new Date(log.createdAt).toLocaleString('fa-IR')}
-                    </span>
-                    <span className="ms-auto text-muted">
-                      {log.amount > 0 ? `مبلغ: ${faPrice(log.amount)}` : 'بدون هزینه'}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-muted">
-                    {[
-                      log.nationalCode ? `کد ملی: ${log.nationalCode}` : null,
-                      log.birthDate ? `تاریخ تولد: ${log.birthDate}` : null,
-                      [log.firstName, log.lastName].filter(Boolean).join(' ') || null,
-                      log.fatherName ? `نام پدر: ${log.fatherName}` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' — ') || '—'}
-                  </p>
-                  {log.message ? (
-                    <p className="mt-0.5 text-[10px] text-muted">{log.message}</p>
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
+          </summary>
+          <ul className="flex flex-col gap-2 px-4 pb-4">
+            {payload.history.map((log) => (
+              <li
+                key={log.id}
+                className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-3 text-[11px] leading-6"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={cn(
+                      'rounded-full px-2 py-0.5 text-[10px] font-bold',
+                      LOG_STATUS_CLASS[log.status],
+                    )}
+                  >
+                    {LOG_STATUS_LABEL[log.status]}
+                  </span>
+                  <b className="text-ink">{LOG_KIND_LABEL[log.kind]}</b>
+                  <span className="text-muted">
+                    {new Date(log.createdAt).toLocaleString('fa-IR')}
+                  </span>
+                  <span className="ms-auto text-muted">
+                    {log.amount > 0 ? `مبلغ: ${faPrice(log.amount)}` : 'بدون هزینه'}
+                  </span>
+                </div>
+                <p className="mt-1 text-muted">
+                  {[
+                    log.nationalCode ? `کد ملی: ${log.nationalCode}` : null,
+                    log.birthDate ? `تاریخ تولد: ${log.birthDate}` : null,
+                    [log.firstName, log.lastName].filter(Boolean).join(' ') || null,
+                    log.fatherName ? `نام پدر: ${log.fatherName}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' — ') || '—'}
+                </p>
+                {log.message ? (
+                  <p className="mt-0.5 text-[10px] text-muted">{log.message}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </details>
       ) : null}
     </section>
   );
