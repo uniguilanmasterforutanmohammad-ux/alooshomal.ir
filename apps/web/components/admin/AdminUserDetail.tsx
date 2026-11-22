@@ -5,9 +5,11 @@ import {
   ArrowRight,
   Calendar,
   Coins,
+  Download,
   ExternalLink,
   FileText,
   Image as ImageIcon,
+  Loader2,
   Mail,
   MapPin,
   Phone,
@@ -18,6 +20,8 @@ import {
 } from 'lucide-react';
 
 import { api } from '@/lib/api';
+import type { FinanceInvoice } from '@/lib/api/types/finance';
+import { printInvoiceDocument } from '@/lib/invoice-print';
 import { cn } from '@/lib/utils';
 
 interface Counts {
@@ -199,6 +203,27 @@ interface FeedSubscription {
 
 interface SubscriptionPayment extends PaymentBase {
   months: number;
+  refId?: string | null;
+  paymentCode?: string | null;
+  clientRefId?: string;
+  businessAmount?: number;
+  identityAmount?: number;
+  moduleAmount?: number;
+  withBusinessPackage?: boolean;
+  businessPackages?: Array<{
+    workspaceId?: string;
+    packageKey?: string;
+    label?: string;
+    amount?: number;
+    months?: number;
+  }> | null;
+  moduleItems?: Array<{
+    stepId?: string;
+    moduleKey?: string;
+    type?: string;
+    label?: string;
+    amount?: number;
+  }> | null;
   plan: { id: string; name: string; price: number };
 }
 
@@ -224,16 +249,33 @@ interface UserWallet {
 interface GatewayPayment extends PaymentBase {
   clientRefId?: string;
   refId?: string | null;
+  paymentCode?: string | null;
   serviceKey?: string;
   title?: string | null;
   nationalCode?: string | null;
   withLicense?: boolean;
   consumedAt?: string | null;
+  items?:
+    | Array<{
+        serviceKey?: string;
+        label?: string;
+        amount?: number;
+      }>
+    | {
+        modules?: Array<{
+          serviceKey?: string;
+          label?: string;
+          amount?: number;
+        }>;
+      }
+    | null;
 }
 
 interface RequestPayment extends PaymentBase {
   target: string;
   refId?: string | null;
+  paymentCode?: string | null;
+  clientRefId?: string;
   boostRequest: {
     id: string;
     kind: string;
@@ -324,6 +366,8 @@ interface Invoice {
   total: number;
   issuedAt: string;
   paidAt: string | null;
+  sourceType?: string;
+  sourceId?: string | null;
   items: Array<{ id: string; description: string; total: number }>;
 }
 
@@ -561,68 +605,157 @@ interface UnifiedPaymentRow {
   id: string;
   kind: string;
   title: string;
+  /** Purchased cart items / modules shown under the title. */
+  items: string[];
+  /** Extra audit details (national code, license, plan term, …). */
+  details: string[];
   amount: number;
   status: string;
   createdAt: string;
   paidAt: string | null;
   refId: string | null;
+  paymentCode: string | null;
+  clientRefId: string | null;
   failureReason: string | null;
+  invoiceId: string | null;
 }
 
 /** Merge every gateway transaction of a user into one chronological feed. */
 function buildUnifiedPayments(data: UserDetailPayload): UnifiedPaymentRow[] {
   const rows: UnifiedPaymentRow[] = [];
+  const invoiceBySource = new Map<string, string>();
+  for (const invoice of data.invoices) {
+    if (invoice.sourceType && invoice.sourceId) {
+      invoiceBySource.set(
+        `${invoice.sourceType}:${invoice.sourceId}`,
+        invoice.id,
+      );
+    }
+  }
+  const invoiceFor = (sourceType: string, sourceId: string) =>
+    invoiceBySource.get(`${sourceType}:${sourceId}`) ?? null;
+
   for (const row of data.subscriptionPayments) {
+    const items: string[] = [];
+    const details: string[] = [`${row.months} ماه`];
+    if (row.businessAmount && row.businessAmount > 0) {
+      const labels = (row.businessPackages ?? [])
+        .map((item) => item.label)
+        .filter((label): label is string => Boolean(label));
+      items.push(
+        labels.length > 0
+          ? `بسته مدیریت: ${labels.join('، ')}`
+          : 'بسته مدیریت کسب‌وکار',
+      );
+    }
+    if (row.identityAmount && row.identityAmount > 0) {
+      items.push('استعلام هویت');
+    }
+    const moduleLabels = (row.moduleItems ?? [])
+      .map((item) => item.label)
+      .filter((label): label is string => Boolean(label));
+    if (moduleLabels.length > 0) {
+      items.push(...moduleLabels);
+    }
     rows.push({
       id: row.id,
       kind: 'اشتراک',
       title: `${row.plan.name} — ${row.months} ماه`,
+      items,
+      details,
       amount: row.amount,
       status: row.status,
       createdAt: row.createdAt,
       paidAt: row.paidAt,
-      refId: null,
+      refId: row.refId ?? null,
+      paymentCode: row.paymentCode ?? null,
+      clientRefId: row.clientRefId ?? null,
       failureReason: row.failureReason,
+      invoiceId: invoiceFor('SUBSCRIPTION_PAYMENT', row.id),
     });
   }
   for (const row of data.servicePayments) {
     const title = row.title?.trim() || row.serviceKey || 'استعلام خدمت';
+    const rawItems = row.items;
+    const modules = Array.isArray(rawItems)
+      ? rawItems
+      : Array.isArray(rawItems?.modules)
+        ? rawItems.modules
+        : [];
+    const items = modules
+      .map((item) => item.label)
+      .filter((label): label is string => Boolean(label));
+    const details: string[] = [];
+    if (row.nationalCode) details.push(`کد ملی: ${row.nationalCode}`);
+    if (row.withLicense) details.push('شامل جواز کسب');
     rows.push({
       id: row.id,
       kind: 'استعلام/خدمت',
-      title: row.nationalCode ? `${title} — ${row.nationalCode}` : title,
+      title,
+      items,
+      details,
       amount: row.amount,
       status: row.status,
       createdAt: row.createdAt,
       paidAt: row.paidAt,
       refId: row.refId ?? null,
+      paymentCode: row.paymentCode ?? null,
+      clientRefId: row.clientRefId ?? null,
       failureReason: row.failureReason,
+      invoiceId: invoiceFor('SERVICE_PAYMENT', row.id),
     });
   }
   for (const row of data.walletPayments) {
+    const details: string[] = [];
+    if (row.nationalCode) details.push(`کد ملی: ${row.nationalCode}`);
     rows.push({
       id: row.id,
       kind: 'کیف پول',
       title: 'تسویه بدهی کیف پول',
+      items: [],
+      details,
       amount: row.amount,
       status: row.status,
       createdAt: row.createdAt,
       paidAt: row.paidAt,
       refId: row.refId ?? null,
+      paymentCode: row.paymentCode ?? null,
+      clientRefId: row.clientRefId ?? null,
       failureReason: row.failureReason,
+      invoiceId: invoiceFor('WALLET_PAYMENT', row.id),
     });
   }
   for (const row of data.requestPayments) {
+    const details: string[] = [];
+    if (row.boostRequest) {
+      details.push(`پله: ${row.boostRequest.feature}`);
+      details.push(`وضعیت: ${row.boostRequest.status}`);
+    }
+    if (row.adRequest) {
+      details.push(`جایگاه: ${row.adRequest.placement}`);
+      details.push(`وضعیت: ${row.adRequest.status}`);
+    }
+    const sourceType =
+      row.target === 'BOOST'
+        ? 'BOOST_PAYMENT'
+        : row.target === 'AD_HOME'
+          ? 'AD_HOME_PAYMENT'
+          : 'AD_DIRECTORY_PAYMENT';
     rows.push({
       id: row.id,
       kind: 'پله/تبلیغ',
       title: kindLabel(row.target),
+      items: [],
+      details,
       amount: row.amount,
       status: row.status,
       createdAt: row.createdAt,
       paidAt: row.paidAt,
       refId: row.refId ?? null,
+      paymentCode: row.paymentCode ?? null,
+      clientRefId: row.clientRefId ?? null,
       failureReason: row.failureReason,
+      invoiceId: invoiceFor(sourceType, row.id),
     });
   }
   return rows.sort(
@@ -862,6 +995,7 @@ export function AdminUserDetail({
   const [data, setData] = useState<UserDetailPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [invoiceBusy, setInvoiceBusy] = useState<string | null>(null);
 
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -891,6 +1025,26 @@ export function AdminUserDetail({
   function refresh() {
     setLoading(true);
     setRefreshKey((value) => value + 1);
+  }
+
+  /** Fetch the archived invoice and open its print/PDF view. */
+  async function downloadInvoice(invoiceId: string) {
+    setInvoiceBusy(invoiceId);
+    setError(null);
+    try {
+      const invoice = await api.get<FinanceInvoice>(
+        `/admin/finance/invoices/${invoiceId}`,
+      );
+      if (!printInvoiceDocument(invoice)) {
+        setError(
+          'مرورگر پنجره‌ی چاپ را مسدود کرد؛ اجازه‌ی بازشدن پنجره را بدهید.',
+        );
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'دریافت فاکتور ناموفق بود');
+    } finally {
+      setInvoiceBusy(null);
+    }
   }
 
   if (loading && !data) {
@@ -1438,28 +1592,93 @@ export function AdminUserDetail({
 
         <div className="mt-5">
           <h4 className="mb-2 text-xs font-extrabold text-ink">
-            پرداخت‌های کاربر (همه‌ی تراکنش‌ها)
+            واریزی‌ها و پرداخت‌های کاربر (همه‌ی تراکنش‌ها)
           </h4>
           <DataTable
-            head={['نوع', 'عنوان سفارش', 'مبلغ', 'وضعیت', 'تاریخ', 'کد پیگیری']}
+            head={[
+              'نوع',
+              'شرح و اقلام خریداری‌شده',
+              'مبلغ',
+              'وضعیت',
+              'تاریخ پرداخت',
+              'کد رهگیری',
+              'فاکتور',
+            ]}
             empty="تراکنشی ثبت نشده است."
           >
             {buildUnifiedPayments(data).map((row) => (
               <tr key={`${row.kind}-${row.id}`} className="border-t border-[var(--vintage-border)]">
-                <td className="px-3 py-2 text-xs text-muted">{row.kind}</td>
-                <td className="px-3 py-2 text-xs font-semibold text-ink">
-                  {row.title}
+                <td className="whitespace-nowrap px-3 py-2 align-top text-xs text-muted">
+                  {row.kind}
+                </td>
+                <td className="px-3 py-2 align-top text-xs">
+                  <span className="block font-semibold text-ink">{row.title}</span>
+                  {row.items.length > 0 ? (
+                    <span className="mt-1 flex flex-wrap gap-1">
+                      {row.items.map((item, index) => (
+                        <span
+                          key={`${row.id}-item-${index}`}
+                          className="rounded-full bg-brand-light px-2 py-0.5 text-[10px] font-bold text-brand"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </span>
+                  ) : null}
+                  {row.details.length > 0 ? (
+                    <span className="mt-1 block text-[10px] leading-5 text-muted">
+                      {row.details.join(' · ')}
+                    </span>
+                  ) : null}
                   {row.failureReason ? (
                     <span className="mt-0.5 block text-[10px] font-normal text-red-600">
                       {row.failureReason}
                     </span>
                   ) : null}
                 </td>
-                <td className="px-3 py-2 text-xs font-bold text-ink">{toman(row.amount)}</td>
-                <td className="px-3 py-2"><StatusPill value={row.status} /></td>
-                <td className="px-3 py-2 text-xs text-muted">{faDateTime(row.createdAt)}</td>
-                <td dir="ltr" className="px-3 py-2 text-right text-[11px] text-muted">
-                  {row.refId ?? '—'}
+                <td className="whitespace-nowrap px-3 py-2 align-top text-xs font-bold text-ink">
+                  {toman(row.amount)}
+                </td>
+                <td className="px-3 py-2 align-top">
+                  <StatusPill value={row.status} />
+                </td>
+                <td className="whitespace-nowrap px-3 py-2 align-top text-xs text-muted">
+                  {faDateTime(row.paidAt ?? row.createdAt)}
+                </td>
+                <td
+                  dir="ltr"
+                  className="px-3 py-2 align-top text-right text-[11px] text-muted"
+                >
+                  <span className="block">{row.refId ?? '—'}</span>
+                  {row.paymentCode ? (
+                    <span className="block text-[10px]">
+                      کد پرداخت: {row.paymentCode}
+                    </span>
+                  ) : null}
+                  {row.clientRefId ? (
+                    <span className="block max-w-[12rem] truncate text-[10px]" title={row.clientRefId}>
+                      {row.clientRefId}
+                    </span>
+                  ) : null}
+                </td>
+                <td className="px-3 py-2 align-top">
+                  {row.invoiceId ? (
+                    <button
+                      type="button"
+                      onClick={() => void downloadInvoice(row.invoiceId!)}
+                      disabled={invoiceBusy === row.invoiceId}
+                      className="indeed-btn indeed-btn-secondary flex items-center gap-1 py-1 text-[10px] disabled:opacity-60"
+                    >
+                      {invoiceBusy === row.invoiceId ? (
+                        <Loader2 className="size-3 animate-spin" aria-hidden />
+                      ) : (
+                        <Download className="size-3" aria-hidden />
+                      )}
+                      دانلود
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-muted">—</span>
+                  )}
                 </td>
               </tr>
             ))}
@@ -1490,70 +1709,20 @@ export function AdminUserDetail({
           </DataTable>
         </div>
 
-        <div className="mt-5 grid gap-5 xl:grid-cols-2">
-          <div>
-            <h4 className="mb-2 text-xs font-extrabold text-ink">واریزهای کیف پول</h4>
-            <DataTable head={['مبلغ', 'وضعیت', 'پرداخت', 'کد پیگیری']} empty="واریزی ثبت نشده است.">
-              {data.walletPayments.map((row) => (
-                <tr key={row.id} className="border-t border-[var(--vintage-border)]">
-                  <td className="px-3 py-2 text-xs font-bold text-ink">{toman(row.amount)}</td>
-                  <td className="px-3 py-2"><StatusPill value={row.status} /></td>
-                  <td className="px-3 py-2 text-xs text-muted">{faDateTime(row.paidAt)}</td>
-                  <td dir="ltr" className="px-3 py-2 text-right text-[11px] text-muted">
-                    {row.refId ?? '—'}
-                  </td>
-                </tr>
-              ))}
-            </DataTable>
-          </div>
-          <div>
-            <h4 className="mb-2 text-xs font-extrabold text-ink">پرداخت‌های اشتراک</h4>
-            <DataTable head={['پلن', 'مبلغ', 'وضعیت', 'پرداخت']} empty="پرداختی ثبت نشده است.">
-              {data.subscriptionPayments.map((row) => (
-                <tr key={row.id} className="border-t border-[var(--vintage-border)]">
-                  <td className="px-3 py-2 text-xs font-semibold text-ink">{row.plan.name}</td>
-                  <td className="px-3 py-2 text-xs text-muted">{toman(row.amount)}</td>
-                  <td className="px-3 py-2"><StatusPill value={row.status} /></td>
-                  <td className="px-3 py-2 text-xs text-muted">{faDateTime(row.paidAt)}</td>
-                </tr>
-              ))}
-            </DataTable>
-          </div>
-          <div>
-            <h4 className="mb-2 text-xs font-extrabold text-ink">پرداخت‌های خدمات</h4>
-            <DataTable head={['خدمت', 'مبلغ', 'وضعیت', 'پرداخت']} empty="پرداختی ثبت نشده است.">
-              {data.servicePayments.map((row) => (
-                <tr key={row.id} className="border-t border-[var(--vintage-border)]">
-                  <td className="px-3 py-2 text-xs font-semibold text-ink">
-                    {row.title?.trim() || row.serviceKey || '—'}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-muted">{toman(row.amount)}</td>
-                  <td className="px-3 py-2"><StatusPill value={row.status} /></td>
-                  <td className="px-3 py-2 text-xs text-muted">{faDateTime(row.paidAt)}</td>
-                </tr>
-              ))}
-            </DataTable>
-          </div>
-          <div>
-            <h4 className="mb-2 text-xs font-extrabold text-ink">پرداخت‌های پله و تبلیغ</h4>
-            <DataTable head={['نوع', 'مبلغ', 'وضعیت', 'تاریخ']} empty="پرداختی ثبت نشده است.">
-              {data.requestPayments.map((row) => (
-                <tr key={row.id} className="border-t border-[var(--vintage-border)]">
-                  <td className="px-3 py-2 text-xs font-semibold text-ink">
-                    {kindLabel(row.target)}
-                  </td>
-                  <td className="px-3 py-2 text-xs text-muted">{toman(row.amount)}</td>
-                  <td className="px-3 py-2"><StatusPill value={row.status} /></td>
-                  <td className="px-3 py-2 text-xs text-muted">{faDateTime(row.createdAt)}</td>
-                </tr>
-              ))}
-            </DataTable>
-          </div>
-        </div>
-
         <div className="mt-5">
           <h4 className="mb-2 text-xs font-extrabold text-ink">فاکتورها</h4>
-          <DataTable head={['شماره', 'عنوان', 'مبلغ', 'وضعیت', 'تاریخ صدور', 'پرداخت']} empty="فاکتوری صادر نشده است.">
+          <DataTable
+            head={[
+              'شماره',
+              'عنوان',
+              'مبلغ',
+              'وضعیت',
+              'تاریخ صدور',
+              'پرداخت',
+              'دانلود',
+            ]}
+            empty="فاکتوری صادر نشده است."
+          >
             {data.invoices.map((row) => (
               <tr key={row.id} className="border-t border-[var(--vintage-border)]">
                 <td dir="ltr" className="px-3 py-2 text-right text-xs text-muted">
@@ -1564,6 +1733,21 @@ export function AdminUserDetail({
                 <td className="px-3 py-2"><StatusPill value={row.status} /></td>
                 <td className="px-3 py-2 text-xs text-muted">{faDate(row.issuedAt)}</td>
                 <td className="px-3 py-2 text-xs text-muted">{faDate(row.paidAt)}</td>
+                <td className="px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => void downloadInvoice(row.id)}
+                    disabled={invoiceBusy === row.id}
+                    className="indeed-btn indeed-btn-secondary flex items-center gap-1 py-1 text-[10px] disabled:opacity-60"
+                  >
+                    {invoiceBusy === row.id ? (
+                      <Loader2 className="size-3 animate-spin" aria-hidden />
+                    ) : (
+                      <Download className="size-3" aria-hidden />
+                    )}
+                    فاکتور
+                  </button>
+                </td>
               </tr>
             ))}
           </DataTable>
