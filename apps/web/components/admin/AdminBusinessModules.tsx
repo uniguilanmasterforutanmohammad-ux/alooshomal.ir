@@ -51,6 +51,8 @@ interface AdminManagement {
   description: string;
   available: boolean;
   isBase: boolean;
+  categories: Array<{ id: string; name: string }>;
+  needsCategory: boolean;
   modules: AdminManagementModule[];
   totalPrice: number;
   discounts: { 3: number; 6: number; 12: number };
@@ -59,6 +61,12 @@ interface AdminManagement {
   productCodes: Record<string, string | null>;
   lastSyncedAt: string | null;
   simulated: boolean;
+}
+
+interface AdminCategory {
+  id: string;
+  name: string;
+  isActive: boolean;
 }
 
 interface AdminWorkspaceRow {
@@ -87,6 +95,7 @@ function formatDate(value: string | null): string {
 export function AdminBusinessModules() {
   const [catalog, setCatalog] = useState<AdminCatalog | null>(null);
   const [managements, setManagements] = useState<AdminManagement[]>([]);
+  const [categories, setCategories] = useState<AdminCategory[]>([]);
   const [workspaces, setWorkspaces] = useState<AdminWorkspaceRow[]>([]);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -98,6 +107,15 @@ export function AdminBusinessModules() {
     Record<string, { 3: string; 6: string; 12: string }>
   >({});
   const [moduleDraft, setModuleDraft] = useState<Record<string, string>>({});
+  const [categoryDraft, setCategoryDraft] = useState<Record<string, string[]>>(
+    {},
+  );
+  const [createForm, setCreateForm] = useState({
+    key: '',
+    label: '',
+    categoryIds: [] as string[],
+  });
+  const [showCreate, setShowCreate] = useState(false);
 
   const loadCatalog = useCallback(async () => {
     const data = await api.get<AdminCatalog>('/admin/business-modules/catalog');
@@ -127,6 +145,14 @@ export function AdminBusinessModules() {
       '/admin/business-modules/managements',
     );
     setManagements(data);
+    setCategoryDraft(
+      Object.fromEntries(
+        data.map((management) => [
+          management.key,
+          management.categories.map((category) => category.id),
+        ]),
+      ),
+    );
     setDiscountDraft(
       Object.fromEntries(
         data.map((management) => [
@@ -141,18 +167,27 @@ export function AdminBusinessModules() {
     );
   }, []);
 
+  const loadCategories = useCallback(async () => {
+    setCategories(await api.get<AdminCategory[]>('/admin/businesses'));
+  }, []);
+
   useEffect(() => {
     void (async () => {
       setLoading(true);
       try {
-        await Promise.all([loadCatalog(), loadManagements(), loadWorkspaces('')]);
+        await Promise.all([
+          loadCatalog(),
+          loadManagements(),
+          loadCategories(),
+          loadWorkspaces(''),
+        ]);
       } catch {
         // toast already shown by the API client
       } finally {
         setLoading(false);
       }
     })();
-  }, [loadCatalog, loadManagements, loadWorkspaces]);
+  }, [loadCatalog, loadManagements, loadCategories, loadWorkspaces]);
 
   const modulesByGroup = useMemo(() => {
     const groups = new Map<string, AdminModuleRow[]>();
@@ -286,22 +321,52 @@ export function AdminBusinessModules() {
   }
 
   async function createManagement() {
-    const label = window.prompt('نام مدیریت کسب‌وکار جدید:');
-    if (!label?.trim()) return;
-    const key = window.prompt(
-      'کلید انگلیسی یکتا (مثل dailyRental):',
-      label.trim().replace(/\s+/g, ''),
-    );
-    if (!key?.trim()) return;
+    if (!createForm.label.trim()) {
+      toast.error('نام مدیریت کسب‌وکار را وارد کنید.');
+      return;
+    }
+    if (!createForm.key.trim()) {
+      toast.error('کلید انگلیسی یکتا را وارد کنید.');
+      return;
+    }
+    if (createForm.categoryIds.length === 0) {
+      toast.error('حداقل یک دسته‌بندی کسب‌وکار را انتخاب کنید.');
+      return;
+    }
     setBusy('create');
     try {
       await api.post('/admin/business-modules/managements', {
-        key: key.trim(),
-        label: label.trim(),
+        key: createForm.key.trim(),
+        label: createForm.label.trim(),
         available: false,
+        categoryIds: createForm.categoryIds,
       });
       toast.success('مدیریت کسب‌وکار ساخته شد');
+      setCreateForm({ key: '', label: '', categoryIds: [] });
+      setShowCreate(false);
       await loadManagements();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ساخت مدیریت ناموفق بود');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function saveCategories(key: string) {
+    const categoryIds = categoryDraft[key] ?? [];
+    if (categoryIds.length === 0) {
+      toast.error('حداقل یک دسته‌بندی کسب‌وکار را انتخاب کنید.');
+      return;
+    }
+    setBusy(`categories:${key}`);
+    try {
+      await api.patch(`/admin/business-modules/managements/${key}`, {
+        categoryIds,
+      });
+      toast.success('دسته‌بندی‌های مدیریت کسب‌وکار ذخیره شد');
+      await loadManagements();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'ذخیره دسته‌بندی ناموفق بود');
     } finally {
       setBusy(null);
     }
@@ -360,15 +425,93 @@ export function AdminBusinessModules() {
             </span>
             <button
               type="button"
-              onClick={() => void createManagement()}
-              disabled={busy === 'create'}
+              onClick={() => setShowCreate((value) => !value)}
               className="indeed-btn indeed-btn-primary py-1.5 text-[11px] disabled:opacity-50"
             >
               <Plus className="size-3.5" aria-hidden />
-              مدیریت جدید
+              {showCreate ? 'بستن فرم' : 'مدیریت جدید'}
             </button>
           </div>
         </div>
+
+        {showCreate ? (
+          <div className="mb-4 rounded-xl border border-dashed border-[var(--vintage-border)] bg-[var(--vintage-paper)]/40 p-4">
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="text-[11px] font-bold text-muted">
+                نام مدیریت *
+                <input
+                  className="indeed-input mt-1 py-1.5 text-sm"
+                  value={createForm.label}
+                  onChange={(event) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      label: event.target.value,
+                    }))
+                  }
+                />
+              </label>
+              <label className="text-[11px] font-bold text-muted">
+                کلید انگلیسی یکتا *
+                <input
+                  className="indeed-input mt-1 py-1.5 text-sm"
+                  dir="ltr"
+                  value={createForm.key}
+                  onChange={(event) =>
+                    setCreateForm((current) => ({
+                      ...current,
+                      key: event.target.value.replace(/[^a-zA-Z0-9_-]/g, ''),
+                    }))
+                  }
+                  placeholder="dailyRental"
+                />
+              </label>
+            </div>
+            <div className="mt-3">
+              <p className="text-[11px] font-bold text-muted">
+                دسته‌بندی‌های کسب‌وکار *
+              </p>
+              <div className="mt-2 grid max-h-52 gap-1.5 overflow-y-auto rounded-lg border border-[var(--vintage-border)] p-2 sm:grid-cols-2 lg:grid-cols-3">
+                {categories.map((category) => {
+                  const checked = createForm.categoryIds.includes(category.id);
+                  return (
+                    <label
+                      key={category.id}
+                      className={cn(
+                        'flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-[11px]',
+                        checked ? 'bg-brand-light text-brand' : 'text-muted',
+                      )}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(event) =>
+                          setCreateForm((current) => ({
+                            ...current,
+                            categoryIds: event.target.checked
+                              ? [...current.categoryIds, category.id]
+                              : current.categoryIds.filter(
+                                  (id) => id !== category.id,
+                                ),
+                          }))
+                        }
+                      />
+                      {category.name}
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => void createManagement()}
+              disabled={busy === 'create'}
+              className="indeed-btn indeed-btn-primary mt-3 py-1.5 text-[11px] disabled:opacity-50"
+            >
+              <Plus className="size-3.5" aria-hidden />
+              ساخت مدیریت کسب‌وکار
+            </button>
+          </div>
+        ) : null}
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {managements.map((management) => {
@@ -431,6 +574,66 @@ export function AdminBusinessModules() {
                 <p className="text-[11px] leading-6 text-muted">
                   {management.description}
                 </p>
+
+                <div
+                  className={cn(
+                    'rounded-lg border p-2.5',
+                    management.needsCategory
+                      ? 'border-amber-300 bg-amber-50'
+                      : 'border-dashed border-[var(--vintage-border)]',
+                  )}
+                >
+                  <p className="text-[10px] font-bold text-muted">
+                    دسته‌بندی‌های کسب‌وکار
+                    {management.needsCategory ? (
+                      <span className="ms-1 text-amber-700">
+                        — تکمیل نشده؛ حتماً انتخاب کنید
+                      </span>
+                    ) : null}
+                  </p>
+                  <div className="mt-1.5 grid max-h-40 gap-1 overflow-y-auto">
+                    {categories.map((category) => {
+                      const checked = (categoryDraft[management.key] ?? []).includes(
+                        category.id,
+                      );
+                      return (
+                        <label
+                          key={category.id}
+                          className={cn(
+                            'flex cursor-pointer items-center gap-2 rounded px-1.5 py-0.5 text-[11px]',
+                            checked ? 'bg-brand-light text-brand' : 'text-muted',
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(event) =>
+                              setCategoryDraft((current) => {
+                                const list = current[management.key] ?? [];
+                                return {
+                                  ...current,
+                                  [management.key]: event.target.checked
+                                    ? [...list, category.id]
+                                    : list.filter((id) => id !== category.id),
+                                };
+                              })
+                            }
+                          />
+                          {category.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void saveCategories(management.key)}
+                    disabled={busy === `categories:${management.key}`}
+                    className="indeed-btn indeed-btn-secondary mt-2 py-1 text-[10px] disabled:opacity-50"
+                  >
+                    <Save className="size-3" aria-hidden />
+                    ذخیره دسته‌بندی‌ها
+                  </button>
+                </div>
 
                 <ul className="flex flex-col gap-1.5">
                   {management.modules.map((module) => (

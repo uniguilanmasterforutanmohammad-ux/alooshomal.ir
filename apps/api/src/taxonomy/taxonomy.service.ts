@@ -162,6 +162,131 @@ export class TaxonomyService {
     }));
   }
 
+  // -------------------------------------------------------------------------
+  //  Admin tree (main category → زیردسته → زیرشاخه)
+  // -------------------------------------------------------------------------
+
+  /** Full taxonomy tree for the admin panel (searchable client-side). */
+  async adminTree() {
+    const categories = await this.prisma.businessCategory.findMany({
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        isActive: true,
+        taxonomyNodes: {
+          orderBy: { name: 'asc' },
+          select: {
+            id: true,
+            name: true,
+            level: true,
+            parentId: true,
+            isActive: true,
+          },
+        },
+      },
+    });
+    return categories.map((category) => {
+      const subs = category.taxonomyNodes.filter((node) => node.level === 'SUB');
+      const tags = category.taxonomyNodes.filter((node) => node.level === 'TAG');
+      return {
+        id: category.id,
+        name: category.name,
+        isActive: category.isActive,
+        subCount: subs.length,
+        tagCount: tags.length,
+        subs: subs.map((sub) => ({
+          id: sub.id,
+          name: sub.name,
+          isActive: sub.isActive,
+          tags: tags
+            .filter((tag) => tag.parentId === sub.id)
+            .map((tag) => ({
+              id: tag.id,
+              name: tag.name,
+              isActive: tag.isActive,
+            })),
+        })),
+        orphanTags: tags
+          .filter((tag) => !tag.parentId)
+          .map((tag) => ({
+            id: tag.id,
+            name: tag.name,
+            isActive: tag.isActive,
+          })),
+      };
+    });
+  }
+
+  async createNode(
+    categoryId: string,
+    dto: { name: string; level: 'SUB' | 'TAG'; parentId?: string },
+  ) {
+    const category = await this.prisma.businessCategory.findUnique({
+      where: { id: categoryId },
+      select: { id: true },
+    });
+    if (!category) throw new NotFoundException('دسته‌بندی کسب‌وکار یافت نشد');
+    let parentId: string | null = null;
+    if (dto.level === 'TAG') {
+      if (!dto.parentId) {
+        throw new ConflictException('برای زیرشاخه، زیردسته‌ی والد الزامی است.');
+      }
+      const parent = await this.prisma.businessTaxonomyNode.findFirst({
+        where: { id: dto.parentId, categoryId, level: 'SUB' },
+        select: { id: true },
+      });
+      if (!parent) {
+        throw new NotFoundException('زیردسته‌ی والد در این دسته پیدا نشد.');
+      }
+      parentId = parent.id;
+    }
+    const name = dto.name.trim();
+    const duplicate = await this.prisma.businessTaxonomyNode.findFirst({
+      where: { categoryId, level: dto.level, parentId, name },
+      select: { id: true },
+    });
+    if (duplicate) {
+      throw new ConflictException('این مورد قبلاً ثبت شده است.');
+    }
+    const node = await this.prisma.businessTaxonomyNode.create({
+      data: { categoryId, level: dto.level, parentId, name },
+    });
+    this.invalidateFacets();
+    return node;
+  }
+
+  async updateNode(
+    nodeId: string,
+    dto: { name?: string; isActive?: boolean },
+  ) {
+    const node = await this.prisma.businessTaxonomyNode.findUnique({
+      where: { id: nodeId },
+      select: { id: true },
+    });
+    if (!node) throw new NotFoundException('زیردسته/زیرشاخه یافت نشد');
+    const updated = await this.prisma.businessTaxonomyNode.update({
+      where: { id: nodeId },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.isActive !== undefined ? { isActive: dto.isActive } : {}),
+      },
+    });
+    this.invalidateFacets();
+    return updated;
+  }
+
+  async removeNode(nodeId: string) {
+    const node = await this.prisma.businessTaxonomyNode.findUnique({
+      where: { id: nodeId },
+      select: { id: true, level: true },
+    });
+    if (!node) throw new NotFoundException('زیردسته/زیرشاخه یافت نشد');
+    await this.prisma.businessTaxonomyNode.delete({ where: { id: nodeId } });
+    this.invalidateFacets();
+    return { id: nodeId, deleted: true };
+  }
+
   /**
    * Suggestions for the «محله» field of the builders. The value is free-form —
    * the user may always type a brand-new neighbourhood — so this only offers

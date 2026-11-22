@@ -50,6 +50,17 @@ const PAYMENT_LABELS: Record<string, string> = {
 
 type PageTab = 'current' | 'plans' | 'history';
 
+interface SuggestedManagement {
+  key: string;
+  label: string;
+  description: string;
+  totalPrice: number;
+  terms: Array<{ months: PlanPeriodMonths; price: number; discount: number }>;
+  purchased: boolean;
+  paidUntil: string | null;
+  canPurchase: boolean;
+}
+
 const PAGE_TABS: Array<{ key: PageTab; label: string }> = [
   { key: 'current', label: 'اشتراک فعلی' },
   { key: 'plans', label: 'تمدید و ارتقا' },
@@ -95,6 +106,13 @@ export default function SubscriptionsPage() {
   const [addonBusy, setAddonBusy] = useState(false);
   const [tab, setTab] = useState<PageTab>('current');
   const [invoiceBusy, setInvoiceBusy] = useState<string | null>(null);
+  // «بسته مدیریت کسب‌وکار» متناسب با دسته‌بندی شغلی کاربر؛ برای نمایش پیشنهاد
+  // بسته‌ای که هنوز خریده نشده است.
+  const [suggestedManagement, setSuggestedManagement] =
+    useState<SuggestedManagement | null>(null);
+  const [managementTerm, setManagementTerm] = useState<
+    Record<string, PlanPeriodMonths>
+  >({});
 
   const load = useCallback(async () => {
     try {
@@ -104,6 +122,17 @@ export default function SubscriptionsPage() {
       ]);
       setPlans(planList);
       setMine(subscriptions);
+      // Best-effort: the suggestion may be unavailable (feature disabled), so
+      // a failure here must not block the page.
+      try {
+        setSuggestedManagement(
+          await api.get<SuggestedManagement | null>(
+            '/business-modules/suggested-management',
+          ),
+        );
+      } catch {
+        setSuggestedManagement(null);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطا در بارگذاری');
     } finally {
@@ -377,6 +406,62 @@ export default function SubscriptionsPage() {
         request.status === 'PENDING' && request.payment?.status === 'PAID',
     ) ?? [];
 
+  // Onboarding-style term encouragement: the best discount any paid plan gives
+  // for each term, so the buyer can see the long-term savings at a glance.
+  const paidPlans = plans.filter((plan) => !isFreePlan(plan));
+  const maxDiscountForPeriod = (term: PlanPeriodMonths) =>
+    paidPlans.reduce(
+      (best, plan) => Math.max(best, planDiscountPercent(plan, term)),
+      0,
+    );
+  const bestPlanDiscount = paidPlans.reduce(
+    (best, plan) =>
+      Math.max(
+        best,
+        planDiscountPercent(plan, 3),
+        planDiscountPercent(plan, 6),
+        planDiscountPercent(plan, 12),
+      ),
+    0,
+  );
+  // A management package matching this workspace's business category that the
+  // user has not bought yet — shown as a nudge to complete the purchase.
+  const suggestedPackage =
+    suggestedManagement && !suggestedManagement.purchased
+      ? suggestedManagement
+      : null;
+
+  async function buyManagementPackage(
+    pkg: SuggestedManagement,
+    term: PlanPeriodMonths,
+  ) {
+    setBusyPlanId(`mgmt:${pkg.key}`);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await api.post<
+        { url?: string; free?: boolean; wallet?: boolean; extended?: boolean }
+      >(`/business-modules/managements/${pkg.key}/purchase`, {
+        months: term,
+        returnTo: '/dashboard/subscriptions',
+      });
+      if (result?.url) {
+        window.location.href = result.url;
+        return;
+      }
+      setMessage(
+        result?.extended
+          ? 'دوره‌ی بسته مدیریت کسب‌وکار تمدید شد.'
+          : 'بسته مدیریت کسب‌وکار فعال شد.',
+      );
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'خرید بسته ناموفق بود');
+    } finally {
+      setBusyPlanId(null);
+    }
+  }
+
   if (loading) {
     return <p className="text-muted">در حال بارگذاری...</p>;
   }
@@ -531,31 +616,149 @@ export default function SubscriptionsPage() {
 
       {tab === 'plans' ? (
         <div className="flex flex-col gap-5">
-      <div className="indeed-panel flex flex-wrap items-center gap-2 p-4">
-        <span className="text-sm font-bold text-ink">دوره‌ی پرداخت:</span>
-        {PLAN_PERIODS.map((period) => (
-          <button
-            key={period}
-            type="button"
-            onClick={() => setMonths(period)}
-            aria-pressed={months === period}
-            className={cn(
-              'rounded-full border px-3 py-1.5 text-xs font-bold transition',
-              months === period
-                ? 'border-brand bg-brand text-white'
-                : 'border-[var(--vintage-border)] text-muted hover:border-brand hover:text-brand',
-            )}
-          >
-            {PLAN_PERIOD_LABELS[period]}
-            {period > 1 ? <span className="ms-1 font-normal">({period} ماه)</span> : null}
-          </button>
-        ))}
-        <span className="w-full text-xs text-muted sm:w-auto">
+      <div className="indeed-panel p-4">
+        <div className="flex flex-wrap items-center justify-between gap-1">
+          <span className="text-sm font-bold text-ink">دوره‌ی پرداخت:</span>
+          {bestPlanDiscount > 0 ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+              <Sparkles className="size-3" aria-hidden />
+              تا ٪{bestPlanDiscount.toLocaleString('fa-IR')} تخفیف دوره‌های
+              بلندمدت
+            </span>
+          ) : null}
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+          {PLAN_PERIODS.map((period) => {
+            const discount = maxDiscountForPeriod(period);
+            const active = months === period;
+            return (
+              <button
+                key={period}
+                type="button"
+                onClick={() => setMonths(period)}
+                aria-pressed={active}
+                className={cn(
+                  'flex flex-col items-center rounded-lg border px-2 py-2 text-[11px] font-bold transition',
+                  active
+                    ? 'border-brand bg-brand text-white shadow-sm'
+                    : 'border-[var(--vintage-border)] bg-[var(--vintage-surface)] text-ink hover:border-brand/50',
+                )}
+              >
+                <span>{PLAN_PERIOD_LABELS[period]}</span>
+                {discount > 0 ? (
+                  <span
+                    className={cn(
+                      'mt-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-extrabold',
+                      active
+                        ? 'bg-white/20 text-white'
+                        : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300',
+                    )}
+                  >
+                    ٪{discount.toLocaleString('fa-IR')} تخفیف
+                  </span>
+                ) : (
+                  <span
+                    className={cn(
+                      'mt-0.5 text-[9px] font-normal',
+                      active ? 'text-white/80' : 'text-muted',
+                    )}
+                  >
+                    بدون تخفیف
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <p className="mt-2 text-[11px] leading-5 text-muted">
           دوره‌های سه‌ماهه، شش‌ماهه و یک‌ساله بر پایه‌ی قیمت ماهانه و با تخفیف
-          محاسبه می‌شوند. پلن رایگان همیشه ماهانه است و در پایان هر ماه
-          به‌صورت خودکار تمدید می‌شود.
-        </span>
+          محاسبه می‌شوند؛ هرچه دوره بلندمدت‌تر، صرفه‌جویی بیشتر. پلن رایگان
+          همیشه ماهانه است و در پایان هر ماه به‌صورت خودکار تمدید می‌شود.
+        </p>
       </div>
+
+      {suggestedPackage ? (
+        <div className="indeed-panel border-brand/40 bg-brand-light/30 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div className="flex items-start gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-brand-light text-brand">
+                <Store className="size-5" aria-hidden />
+              </span>
+              <div>
+                <h3 className="text-sm font-extrabold text-ink">
+                  بسته مدیریت کسب‌وکار مناسب شما: {suggestedPackage.label}
+                </h3>
+                <p className="mt-1 text-[11px] leading-6 text-muted">
+                  {suggestedPackage.description}
+                </p>
+                <p className="mt-1 text-[11px] font-bold text-brand">
+                  مبلغ کامل بسته:{' '}
+                  {faPrice(suggestedPackage.totalPrice)}
+                </p>
+              </div>
+            </div>
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">
+              هنوز خریداری نشده
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {suggestedPackage.terms.map((term) => {
+              const active =
+                (managementTerm[suggestedPackage.key] ?? 1) === term.months;
+              return (
+                <button
+                  key={term.months}
+                  type="button"
+                  onClick={() =>
+                    setManagementTerm((prev) => ({
+                      ...prev,
+                      [suggestedPackage.key]: term.months,
+                    }))
+                  }
+                  className={cn(
+                    'rounded-full border px-3 py-1 text-[11px] font-bold transition',
+                    active
+                      ? 'border-brand bg-brand text-white'
+                      : 'border-[var(--vintage-border)] text-muted hover:border-brand/50',
+                  )}
+                >
+                  {PLAN_PERIOD_LABELS[term.months]}
+                  {term.discount > 0 ? (
+                    <span className="ms-1 font-normal">
+                      ٪{term.discount.toLocaleString('fa-IR')} تخفیف
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+            {suggestedPackage.canPurchase ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const term = managementTerm[suggestedPackage.key] ?? 1;
+                  void buyManagementPackage(suggestedPackage, term);
+                }}
+                disabled={busyPlanId === `mgmt:${suggestedPackage.key}`}
+                className="indeed-btn indeed-btn-primary ms-auto py-2 text-xs disabled:opacity-60"
+              >
+                {busyPlanId === `mgmt:${suggestedPackage.key}`
+                  ? 'در حال انتقال به درگاه...'
+                  : `خرید بسته — ${faPrice(
+                      suggestedPackage.terms.find(
+                        (term) =>
+                          term.months ===
+                          (managementTerm[suggestedPackage.key] ?? 1),
+                      )?.price ?? suggestedPackage.totalPrice,
+                    )}`}
+              </button>
+            ) : (
+              <span className="ms-auto rounded-lg border border-dashed border-amber-300 bg-amber-50 px-3 py-2 text-[11px] font-bold text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-300">
+                برای خرید این بسته ابتدا به اکو یا پلاس ارتقا دهید.
+              </span>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {midtermQuote?.allowed && midtermQuote.workspaces.length > 0 ? (
         <div className="indeed-panel p-4">
@@ -642,6 +845,13 @@ export default function SubscriptionsPage() {
           const isDowngrade = !isCurrent && plan.sortOrder < currentSortOrder;
           const amount = planPriceForMonths(plan, free ? 1 : months);
           const discount = free ? 0 : planDiscountPercent(plan, months);
+          const fullPrice = plan.price * (free ? 1 : months);
+          const savings = Math.max(fullPrice - amount, 0);
+          const bestDiscount = Math.max(
+            planDiscountPercent(plan, 3),
+            planDiscountPercent(plan, 6),
+            planDiscountPercent(plan, 12),
+          );
           const busy = busyPlanId === plan.id;
           const quote = free ? undefined : quotes[plan.id];
           const selectedWorkspaces = free
@@ -678,19 +888,27 @@ export default function SubscriptionsPage() {
                 <p className="mt-2 text-sm text-muted">{plan.description}</p>
               ) : null}
 
-              <p className="mt-3 text-2xl font-extrabold text-brand">
-                {faPrice(totalAmount)}
-              </p>
-              {!free && months > 1 && plan.price > 0 ? (
-                <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
-                  <span>
-                    {plan.price.toLocaleString('fa-IR')} تومان × {months} ماه
+              <p className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-2xl font-extrabold text-brand">
+                <span>{faPrice(totalAmount)}</span>
+                <span className="text-[11px] font-normal text-muted">
+                  / {PLAN_PERIOD_LABELS[free ? 1 : months]}
+                </span>
+                {!free && discount > 0 ? (
+                  <span className="text-sm font-normal text-muted line-through">
+                    {faPrice(fullPrice)}
                   </span>
-                  {discount > 0 ? (
-                    <span className="rounded-full bg-green-50 px-2 py-0.5 font-bold text-green-700">
-                      {discount.toLocaleString('fa-IR')}٪ تخفیف
-                    </span>
-                  ) : null}
+                ) : null}
+              </p>
+              {!free && discount > 0 ? (
+                <p className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-extrabold text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                  <Sparkles className="size-3" aria-hidden />
+                  ٪{discount.toLocaleString('fa-IR')} تخفیف —{' '}
+                  {faPrice(savings)} صرفه‌جویی
+                </p>
+              ) : !free && bestDiscount > 0 ? (
+                <p className="mt-1 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">
+                  با دوره‌های بلندمدت تا ٪
+                  {bestDiscount.toLocaleString('fa-IR')} تخفیف
                 </p>
               ) : null}
               {free ? (

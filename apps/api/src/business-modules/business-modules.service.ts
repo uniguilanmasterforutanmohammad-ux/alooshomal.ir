@@ -27,6 +27,7 @@ import {
   BUSINESS_MODULES,
   BusinessModuleDefinition,
   getBusinessModule,
+  industryKeyForCategoryName,
   INDUSTRY_PACKAGES,
   IndustryPackageDefinition,
   withDependencies,
@@ -157,6 +158,10 @@ export interface AdminManagementView {
   label: string;
   description: string;
   available: boolean;
+  isBase: boolean;
+  categories: Array<{ id: string; name: string }>;
+  /** True when the admin has not linked this package to any category yet. */
+  needsCategory: boolean;
   modules: AdminManagementModuleView[];
   totalPrice: number;
   discounts: { 3: number; 6: number; 12: number };
@@ -173,6 +178,8 @@ const MANAGEMENT_PAYPING_SETTING_PREFIX = 'businessManagementPayping:';
 export class BusinessModulesService implements OnModuleInit {
   private readonly logger = new Logger(BusinessModulesService.name);
   private managementCache: ManagementDefinition[] = [];
+  /** DB id of each management key, used to join its category links. */
+  private managementIdByKey = new Map<string, string>();
   /** Serialises lazy workspace creation per owner to avoid duplicate rows. */
   private readonly workspaceLocks = new Map<string, Promise<unknown>>();
 
@@ -449,6 +456,7 @@ export class BusinessModulesService implements OnModuleInit {
         ),
       };
     });
+    this.managementIdByKey = new Map(rows.map((row) => [row.key, row.id]));
   }
 
   private management(key: string): ManagementDefinition | undefined {
@@ -1265,6 +1273,21 @@ export class BusinessModulesService implements OnModuleInit {
         orderBy: { createdAt: 'asc' },
       });
 
+    // Packages the admin has linked to this workspace's business category.
+    // When no link exists we keep the legacy behaviour (show every available
+    // package) so an un-migrated installation never loses its catalogue.
+    const categoryIds = await this.workspaceCategoryIds(workspace);
+    let linkedKeys: Set<string> | null = null;
+    if (categoryIds.length > 0) {
+      const links = await this.prisma.businessManagementCategory.findMany({
+        where: { categoryId: { in: categoryIds } },
+        include: { management: { select: { key: true } } },
+      });
+      if (links.length > 0) {
+        linkedKeys = new Set(links.map((link) => link.management.key));
+      }
+    }
+
     // Once a management is bought, the trade is fixed: only that package is
     // offered (to renew/upgrade), so the user is never nudged into a second
     // unrelated package inside the same workspace.
@@ -1272,7 +1295,10 @@ export class BusinessModulesService implements OnModuleInit {
       .filter(
         (industry) =>
           industry.available &&
-          (!paid.locked || industry.key === workspace.industryKey),
+          (!paid.locked || industry.key === workspace.industryKey) &&
+          (!linkedKeys ||
+            linkedKeys.has(industry.key) ||
+            industry.key === workspace.industryKey),
       )
       .map((industry) => {
       const modules: ResolvedBusinessModule[] = BUSINESS_MODULES.filter(
@@ -1359,6 +1385,103 @@ export class BusinessModulesService implements OnModuleInit {
   async managementLabel(industryKey: string): Promise<string> {
     await this.ensureManagementsLoaded();
     return this.management(industryKey)?.label ?? industryKey;
+  }
+
+  /**
+   * The «مدیریت کسب‌وکار» package that matches this user's business category,
+   * regardless of plan. The subscriptions page uses it to nudge a buyer who
+   * has not purchased the matching package yet; a free plan still sees it but
+   * `canPurchase` is false so the UI can ask them to upgrade first.
+   */
+  async suggestedManagement(userId: string): Promise<{
+    key: string;
+    label: string;
+    description: string;
+    totalPrice: number;
+    terms: ManagementTerm[];
+    purchased: boolean;
+    paidUntil: string | null;
+    canPurchase: boolean;
+  } | null> {
+    await this.ensureManagementsLoaded();
+    const workspace = await this.ensureWorkspace(userId);
+    const categoryIds = await this.workspaceCategoryIds(workspace);
+    let key = workspace.industryKey;
+    if (categoryIds.length > 0) {
+      const link = await this.prisma.businessManagementCategory.findFirst({
+        where: {
+          categoryId: { in: categoryIds },
+          management: { available: true },
+        },
+        include: { management: { select: { key: true } } },
+      });
+      if (link?.management?.key) key = link.management.key;
+    }
+    const industry = this.management(key) ?? this.management('generalBusiness');
+    if (!industry) return null;
+
+    const prices = await this.prisma.businessModulePrice.findMany();
+    const priceByKey = new Map(prices.map((row) => [row.moduleKey, row]));
+    const totalPrice = BUSINESS_MODULES.filter(
+      (definition) =>
+        industry.modules.includes(definition.key) && definition.billable,
+    ).reduce((sum, definition) => {
+      const row = priceByKey.get(definition.key);
+      return sum + (row?.isActive ? row.price : 0);
+    }, 0);
+    const paid = await this.paidState(workspace.id);
+    const paidUntilDate = paid.paidUntil;
+    const purchased = !!paidUntilDate && paidUntilDate.getTime() > Date.now();
+    const limits = await this.subscriptions.limitsForUser(userId);
+    return {
+      key: industry.key,
+      label: industry.label,
+      description: industry.description,
+      totalPrice,
+      terms: this.managementTerms(totalPrice, industry.discounts),
+      purchased,
+      paidUntil: paidUntilDate ? paidUntilDate.toISOString() : null,
+      canPurchase: !isFreePlan(limits),
+    };
+  }
+
+  /**
+   * Resolve the management package a business category belongs to. The admin
+   * links categories to packages in «ماژول‌های کسب‌وکار»; when no link exists
+   * yet we keep the legacy keyword mapping so older data still works.
+   */
+  async managementKeyForCategory(
+    categoryId?: string | null,
+    categoryName?: string | null,
+  ): Promise<string> {
+    await this.ensureManagementsLoaded();
+    if (categoryId) {
+      const link = await this.prisma.businessManagementCategory.findFirst({
+        where: { categoryId, management: { available: true } },
+        include: { management: { select: { key: true } } },
+      });
+      if (link?.management?.key) return link.management.key;
+    }
+    if (categoryName?.trim()) {
+      return industryKeyForCategoryName(categoryName);
+    }
+    return 'generalBusiness';
+  }
+
+  /** Category ids linked to the workspace's saved business category. */
+  private async workspaceCategoryIds(workspace: {
+    onboardingData: Prisma.JsonValue | null;
+  }): Promise<string[]> {
+    const data = (workspace.onboardingData ?? {}) as {
+      businessId?: unknown;
+    };
+    const id = typeof data.businessId === 'string' ? data.businessId : null;
+    if (!id) return [];
+    const category = await this.prisma.businessCategory.findUnique({
+      where: { id },
+      select: { id: true },
+    });
+    return category ? [category.id] : [];
   }
 
   /** Buy a whole «مدیریت کسب‌وکار» package (all its modules at once). */
@@ -1977,10 +2100,13 @@ export class BusinessModulesService implements OnModuleInit {
   /** Every «مدیریت کسب‌وکار» as a card, with its modules and PayPing state. */
   async adminManagements(): Promise<AdminManagementView[]> {
     await this.ensureManagementsLoaded();
-    const [prices, synced] = await Promise.all([
+    const [prices, synced, links] = await Promise.all([
       this.prisma.businessModulePrice.findMany(),
       this.prisma.setting.findMany({
         where: { key: { startsWith: MANAGEMENT_PAYPING_SETTING_PREFIX } },
+      }),
+      this.prisma.businessManagementCategory.findMany({
+        include: { category: { select: { id: true, name: true } } },
       }),
     ]);
     const priceByKey = new Map(prices.map((row) => [row.moduleKey, row]));
@@ -1990,6 +2116,15 @@ export class BusinessModulesService implements OnModuleInit {
         this.parseManagementSync(row.value),
       ]),
     );
+    const categoriesByManagement = new Map<
+      string,
+      Array<{ id: string; name: string }>
+    >();
+    for (const link of links) {
+      const list = categoriesByManagement.get(link.managementId) ?? [];
+      list.push(link.category);
+      categoriesByManagement.set(link.managementId, list);
+    }
 
     return this.managementCache.map((industry) => {
       const modules: AdminManagementModuleView[] = BUSINESS_MODULES.filter(
@@ -2008,6 +2143,10 @@ export class BusinessModulesService implements OnModuleInit {
         };
       });
       const sync = syncByKey.get(industry.key);
+      const managementId = this.managementIdByKey.get(industry.key);
+      const categories = managementId
+        ? categoriesByManagement.get(managementId) ?? []
+        : [];
       const totalPrice = modules
         .filter((module) => module.billable)
         .reduce((sum, module) => sum + module.price, 0);
@@ -2017,6 +2156,8 @@ export class BusinessModulesService implements OnModuleInit {
         description: industry.description,
         available: Boolean(industry.available),
         isBase: industry.isBase,
+        categories,
+        needsCategory: categories.length === 0,
         modules,
         totalPrice,
         discounts: industry.discounts,
@@ -2331,6 +2472,7 @@ export class BusinessModulesService implements OnModuleInit {
     available?: boolean;
     discounts?: { 3?: number; 6?: number; 12?: number };
     modules?: string[];
+    categoryIds: string[];
   }) {
     const key = (dto.key ?? '').trim();
     if (!/^[a-zA-Z][a-zA-Z0-9_-]{1,40}$/.test(key)) {
@@ -2347,6 +2489,19 @@ export class BusinessModulesService implements OnModuleInit {
     const modules = Array.from(
       new Set((dto.modules ?? []).filter((item) => getBusinessModule(item))),
     );
+    const categoryIds = Array.from(new Set(dto.categoryIds ?? []));
+    if (categoryIds.length === 0) {
+      throw new BadRequestException(
+        'حداقل یک دسته‌بندی کسب‌وکار را برای این بسته انتخاب کنید.',
+      );
+    }
+    const categories = await this.prisma.businessCategory.findMany({
+      where: { id: { in: categoryIds } },
+      select: { id: true },
+    });
+    if (categories.length !== categoryIds.length) {
+      throw new BadRequestException('یکی از دسته‌بندی‌های انتخاب‌شده معتبر نیست.');
+    }
     const max = await this.prisma.businessManagement.aggregate({
       _max: { sortOrder: true },
     });
@@ -2362,6 +2517,9 @@ export class BusinessModulesService implements OnModuleInit {
         discount6: this.clampDiscount(dto.discounts?.[6]),
         discount12: this.clampDiscount(dto.discounts?.[12]),
         modules: { create: modules.map((moduleKey) => ({ moduleKey })) },
+        categories: {
+          create: categoryIds.map((categoryId) => ({ categoryId })),
+        },
       },
     });
     await this.reloadManagements();
@@ -2382,6 +2540,7 @@ export class BusinessModulesService implements OnModuleInit {
       available?: boolean;
       discounts?: { 3?: number; 6?: number; 12?: number };
       modules?: string[];
+      categoryIds?: string[];
     },
   ) {
     const row = await this.prisma.businessManagement.findUnique({
@@ -2402,6 +2561,25 @@ export class BusinessModulesService implements OnModuleInit {
         for (const moduleKey of defaults) {
           if (!modules.includes(moduleKey)) modules.push(moduleKey);
         }
+      }
+    }
+
+    let categoryIds: string[] | undefined;
+    if (dto.categoryIds) {
+      categoryIds = Array.from(new Set(dto.categoryIds));
+      if (categoryIds.length === 0) {
+        throw new BadRequestException(
+          'حداقل یک دسته‌بندی کسب‌وکار را برای این بسته انتخاب کنید.',
+        );
+      }
+      const found = await this.prisma.businessCategory.findMany({
+        where: { id: { in: categoryIds } },
+        select: { id: true },
+      });
+      if (found.length !== categoryIds.length) {
+        throw new BadRequestException(
+          'یکی از دسته‌بندی‌های انتخاب‌شده معتبر نیست.',
+        );
       }
     }
 
@@ -2435,6 +2613,17 @@ export class BusinessModulesService implements OnModuleInit {
             })),
           });
         }
+      }
+      if (categoryIds) {
+        await tx.businessManagementCategory.deleteMany({
+          where: { managementId: row.id },
+        });
+        await tx.businessManagementCategory.createMany({
+          data: categoryIds.map((categoryId) => ({
+            managementId: row.id,
+            categoryId,
+          })),
+        });
       }
     });
     await this.reloadManagements();

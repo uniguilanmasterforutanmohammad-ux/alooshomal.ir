@@ -1330,6 +1330,54 @@ export class ZohalService {
   async call<T = Record<string, unknown>>(
     key: string,
     payload: Record<string, unknown> = {},
+    options: { force?: boolean; userId?: string | null } = {},
+  ): Promise<ZohalCallResult<T>> {
+    const result = await this.performCall<T>(key, payload, options);
+    await this.logInquiry(key, payload, result, options.userId ?? null);
+    return result;
+  }
+
+  private async logInquiry(
+    key: string,
+    payload: Record<string, unknown>,
+    result: ZohalCallResult<unknown>,
+    userId: string | null,
+  ): Promise<void> {
+    try {
+      await this.prisma.inquiryLog.create({
+        data: {
+          provider: 'ZOHAL',
+          serviceKey: key,
+          userId,
+          nationalCode:
+            typeof payload.national_code === 'string'
+              ? payload.national_code
+              : null,
+          phone: typeof payload.mobile === 'string' ? payload.mobile : null,
+          ok: result.ok,
+          resultCode: result.result,
+          httpStatus: result.httpStatus,
+          message: result.message?.slice(0, 500) ?? null,
+          errorCode: result.errorCode,
+          latencyMs: result.latencyMs,
+          request: payload as Prisma.InputJsonValue,
+          response: (result.data ?? undefined) as
+            | Prisma.InputJsonValue
+            | undefined,
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Inquiry log write failed (${key}): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private async performCall<T = Record<string, unknown>>(
+    key: string,
+    payload: Record<string, unknown> = {},
     options: { force?: boolean } = {},
   ): Promise<ZohalCallResult<T>> {
     const service = this.findService(key);
@@ -1523,22 +1571,32 @@ export class ZohalService {
   async inquiryIdentity(
     nationalCode: string,
     birthDate: string,
+    options: { userId?: string | null } = {},
   ): Promise<ZohalCallResult<ZohalIdentity>> {
-    return this.call<ZohalIdentity>('national_identity_inquiry', {
-      national_code: nationalCode,
-      birth_date: birthDate,
-    });
+    return this.call<ZohalIdentity>(
+      'national_identity_inquiry',
+      {
+        national_code: nationalCode,
+        birth_date: birthDate,
+      },
+      { userId: options.userId ?? null },
+    );
   }
 
   /** Shahkar: does this mobile number belong to this national code? */
   async verifyPhoneOwnership(
     mobile: string,
     nationalCode: string,
+    options: { userId?: string | null } = {},
   ): Promise<ZohalCallResult<{ matched: boolean }>> {
-    return this.call<{ matched: boolean }>('shahkar', {
-      mobile,
-      national_code: nationalCode,
-    });
+    return this.call<{ matched: boolean }>(
+      'shahkar',
+      {
+        mobile,
+        national_code: nationalCode,
+      },
+      { userId: options.userId ?? null },
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -1598,6 +1656,7 @@ export class ZohalService {
     const inquiry = await this.verifyPhoneOwnership(
       user.phone,
       user.nationalCode,
+      { userId },
     );
     if (!inquiry.ok) {
       throw new BadRequestException(

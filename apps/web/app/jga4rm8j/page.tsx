@@ -16,6 +16,7 @@ import { AdminEmails } from '@/components/admin/AdminEmails';
 import { AdminFeeds } from '@/components/admin/AdminFeeds';
 import { AdminFinance } from '@/components/admin/AdminFinance';
 import { AdminImportBatches } from '@/components/admin/AdminImportBatches';
+import { AdminInquiries } from '@/components/admin/AdminInquiries';
 import { AdminModerators } from '@/components/admin/AdminModerators';
 import { AdminMonitoringPanel } from '@/components/admin/AdminMonitoringPanel';
 import { AdminNewsPanel } from '@/components/admin/AdminNewsPanel';
@@ -99,6 +100,7 @@ function AdminContent() {
       {section === 'finance' ? <AdminFinance /> : null}
       {section === 'zohal' ? <AdminZohal /> : null}
       {section === 'apiir' ? <AdminApiIr /> : null}
+      {section === 'inquiries' ? <AdminInquiries /> : null}
       {section === 'wallets' ? <AdminWallets /> : null}
       {section === 'payments' ? <AdminPaypingPanel /> : null}
       {section === 'payping-oauth' ? <AdminPaypingOAuthPanel /> : null}

@@ -15,7 +15,6 @@ import { ActivityService } from '../activity/activity.service';
 import { ApiIrService } from '../apiir/apiir.service';
 import { OtpService } from '../auth/otp.service';
 import { BusinessModulesService } from '../business-modules/business-modules.service';
-import { industryKeyForCategoryName } from '../business-modules/business-modules.registry';
 import { isFreePlan } from '../common/plans';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfileService } from '../profile/profile.service';
@@ -717,9 +716,12 @@ export class OnboardingService implements OnModuleInit {
           select: { name: true },
         })
       : null;
-    const industryKey = category
-      ? industryKeyForCategoryName(category.name)
-      : 'generalBusiness';
+    // Prefer the admin-defined category → management link; fall back to the
+    // legacy keyword mapping only when no link exists yet.
+    const industryKey = await this.modules.managementKeyForCategory(
+      dto.businessId ?? null,
+      category?.name ?? null,
+    );
     const primaryMobile = dto.mobile
       ? OtpService.normalizePhone(dto.mobile)
       : null;
@@ -1272,8 +1274,8 @@ export class OnboardingService implements OnModuleInit {
       try {
         const result =
           prefix === 'apiir'
-            ? await this.apiir.call(key, payload)
-            : await this.zohal.call(key, payload);
+            ? await this.apiir.call(key, payload, { userId })
+            : await this.zohal.call(key, payload, { userId });
         const resultKey = `${ONBOARDING_MODULE_RESULT_PREFIX}${userId}:${item.stepId}`;
         await this.prisma.setting.upsert({
           where: { key: resultKey },

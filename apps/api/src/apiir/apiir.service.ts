@@ -8,6 +8,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Prisma } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
 import { PaypingService } from '../payping/payping.service';
@@ -420,6 +421,56 @@ export class ApiIrService {
   async call<T = Record<string, unknown>>(
     key: string,
     payload: Record<string, unknown> = {},
+    options: { force?: boolean; userId?: string | null } = {},
+  ): Promise<ApiIrCallResult<T>> {
+    const result = await this.performCall<T>(key, payload, options);
+    await this.logInquiry(key, payload, result, options.userId ?? null);
+    return result;
+  }
+
+  private async logInquiry(
+    key: string,
+    payload: Record<string, unknown>,
+    result: ApiIrCallResult<unknown>,
+    userId: string | null,
+  ): Promise<void> {
+    try {
+      await this.prisma.inquiryLog.create({
+        data: {
+          provider: 'APIIR',
+          serviceKey: key,
+          userId,
+          nationalCode:
+            typeof payload.national_code === 'string'
+              ? payload.national_code
+              : typeof payload.nationalCode === 'string'
+                ? payload.nationalCode
+                : null,
+          phone: typeof payload.mobile === 'string' ? payload.mobile : null,
+          ok: result.ok,
+          resultCode:
+            typeof result.code === 'number' ? result.code : null,
+          httpStatus: result.httpStatus,
+          message: result.message?.slice(0, 500) ?? null,
+          latencyMs: result.latencyMs,
+          request: payload as Prisma.InputJsonValue,
+          response: (result.data ?? undefined) as
+            | Prisma.InputJsonValue
+            | undefined,
+        },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Inquiry log write failed (${key}): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+
+  private async performCall<T = Record<string, unknown>>(
+    key: string,
+    payload: Record<string, unknown> = {},
     options: { force?: boolean } = {},
   ): Promise<ApiIrCallResult<T>> {
     const service = this.findService(key);
@@ -625,12 +676,19 @@ export class ApiIrService {
   // -------------------------------------------------------------------------
 
   /** «استعلام اعتبار مجوز شغلی (پروانه کسب)» from a license tracking code. */
-  async inquiryLicense(trackingCode: string): Promise<ApiIrCallResult> {
+  async inquiryLicense(
+    trackingCode: string,
+    options: { userId?: string | null } = {},
+  ): Promise<ApiIrCallResult> {
     const code = trackingCode.trim();
     if (!code) {
       throw new BadRequestException('کد پیگیری مجوز الزامی است');
     }
-    return this.call('license', { trackingCode: code });
+    return this.call(
+      'license',
+      { trackingCode: code },
+      { userId: options.userId ?? null },
+    );
   }
 }
 

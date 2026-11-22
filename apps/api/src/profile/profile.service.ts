@@ -359,6 +359,7 @@ export class ProfileService {
     const inquiry = await this.zohal.verifyPhoneOwnership(
       me.phone,
       nationalCode,
+      { userId },
     );
     const price = await this.zohal.getServicePrice('shahkar');
     // Charge only when Zohal actually answered; a network/timeout failure never
@@ -547,7 +548,9 @@ export class ProfileService {
       };
     }
 
-    const inquiry = await this.zohal.verifyPhoneOwnership(phone, nationalCode);
+    const inquiry = await this.zohal.verifyPhoneOwnership(phone, nationalCode, {
+      userId,
+    });
     const price = await this.zohal.getServicePrice('shahkar');
     let charged = 0;
     if (inquiry.httpStatus !== null) {
@@ -689,7 +692,9 @@ export class ProfileService {
         results.push({ phone, matched: true });
         continue;
       }
-      const inquiry = await this.zohal.verifyPhoneOwnership(phone, code);
+      const inquiry = await this.zohal.verifyPhoneOwnership(phone, code, {
+        userId,
+      });
       const matched = Boolean(inquiry.ok && inquiry.data?.matched);
       const message = matched
         ? 'شماره موبایل کسب‌وکار با کد ملی تطبیق داده شد'
@@ -807,6 +812,7 @@ export class ProfileService {
     const inquiry = await this.zohal.inquiryIdentity(
       user.nationalCode,
       user.birthDate,
+      { userId },
     );
     const price = await this.zohal.getServicePrice('national_identity_inquiry');
     // Same rule as step 1: bill only a call that Zohal actually answered.
@@ -1178,7 +1184,7 @@ export class ProfileService {
    * consumed and the exact reason is logged and shown to the user.
    */
   private async performBusinessLicense(userId: string, trackingCode: string) {
-    const inquiry = await this.apiir.inquiryLicense(trackingCode);
+    const inquiry = await this.apiir.inquiryLicense(trackingCode, { userId });
     if (!inquiry.ok) {
       throw new BadRequestException(
         inquiry.message || 'استعلام جواز کسب انجام نشد؛ لطفاً دوباره تلاش کنید.',
@@ -1590,7 +1596,9 @@ export class ProfileService {
           'استعلام خودکار هویت در دسترس نیست؛ نام و نام خانوادگی را دستی وارد کنید',
         );
       }
-      const inquiry = await this.zohal.inquiryIdentity(nationalCode, birthDate);
+      const inquiry = await this.zohal.inquiryIdentity(nationalCode, birthDate, {
+        userId,
+      });
       if (!inquiry.ok) {
         throw new BadRequestException(
           inquiry.message || 'استعلام هویت انجام نشد؛ لطفاً دوباره تلاش کنید',

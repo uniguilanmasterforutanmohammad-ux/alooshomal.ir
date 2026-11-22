@@ -65,6 +65,7 @@ export type AdminSection =
   | 'finance'
   | 'zohal'
   | 'apiir'
+  | 'inquiries'
   | 'wallets'
   | 'payments'
   | 'payping-oauth'
@@ -142,6 +143,7 @@ const NAV_GROUPS: Array<{
       { key: 'finance', label: 'مالیاتی', icon: Receipt },
       { key: 'zohal', label: 'زحل (استعلام)', icon: ShieldCheck },
       { key: 'apiir', label: 'api.ir (استعلام)', icon: FileCheck2 },
+      { key: 'inquiries', label: 'استعلام‌ها (زحل و api.ir)', icon: ShieldCheck },
       { key: 'wallets', label: 'کیف پول‌ها', icon: Wallet },
       { key: 'payments', label: 'درگاه پرداخت', icon: CreditCard },
       { key: 'payping-oauth', label: 'درگاه پرداخت (OAuth)', icon: ShieldCheck },

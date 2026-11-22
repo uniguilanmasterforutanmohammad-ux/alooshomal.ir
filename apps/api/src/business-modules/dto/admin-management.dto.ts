@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  ArrayMinSize,
   IsArray,
   IsBoolean,
   IsInt,
@@ -73,6 +74,17 @@ export class CreateManagementDto {
   @IsArray()
   @IsString({ each: true })
   modules?: string[];
+
+  @ApiProperty({
+    type: [String],
+    description:
+      'شناسه‌ی دسته‌بندی‌های کسب‌وکار (از تنظیمات ← شهرها و کسب‌وکارها) که این بسته به آن‌ها متصل می‌شود',
+    example: ['clx0000000000000000000001'],
+  })
+  @IsArray()
+  @ArrayMinSize(1)
+  @IsString({ each: true })
+  categoryIds!: string[];
 }
 
 export class UpdateManagementDto {
@@ -102,6 +114,15 @@ export class UpdateManagementDto {
   @IsArray()
   @IsString({ each: true })
   modules?: string[];
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'شناسه‌ی دسته‌بندی‌های کسب‌وکار متصل به این بسته',
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categoryIds?: string[];
 }
 
 export class AddManagementModuleDto {

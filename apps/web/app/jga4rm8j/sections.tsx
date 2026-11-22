@@ -47,6 +47,7 @@ import {
 } from '@/components/admin/AdminTables';
 import { BiolinkLiveEditor } from '@/components/admin/BiolinkLiveEditor';
 import { BusinessCardLiveEditor } from '@/components/admin/BusinessCardLiveEditor';
+import { BusinessTaxonomyTree } from '@/components/admin/BusinessTaxonomyTree';
 import { TaxonomyManager } from '@/components/admin/TaxonomyManager';
 import { NotificationsInbox } from '@/components/ui/NotificationsInbox';
 import { Pagination } from '@/components/ui/Pagination';
@@ -523,12 +524,9 @@ export function SettingsTaxonomySection() {
         endpoint="/admin/cities"
         placeholder="نام شهر"
       />
-      <TaxonomyManager
-        title="مدیریت کسب‌وکارها"
-        description="دسته‌بندی‌های کسب‌وکار قابل انتخاب"
-        endpoint="/admin/businesses"
-        placeholder="نام کسب‌وکار"
-      />
+      <div className="lg:col-span-2">
+        <BusinessTaxonomyTree />
+      </div>
     </div>
   );
 }

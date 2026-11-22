@@ -68,6 +68,11 @@ export function AdminPricingPanel() {
   const groups = useMemo(() => {
     const map = new Map<string, PricingItem[]>();
     for (const item of data?.items ?? []) {
+      // «اشتراک‌ها» و «استعلام‌های هویتی» در تب‌های خودشان مدیریت می‌شوند و
+      // نمایش دوباره‌ی آن‌ها در این جدول فقط تکرار و اشتباه ایجاد می‌کند.
+      if (item.group === 'اشتراک‌ها' || item.group === 'استعلام‌های هویتی') {
+        continue;
+      }
       const list = map.get(item.group) ?? [];
       list.push(item);
       map.set(item.group, list);

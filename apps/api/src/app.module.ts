@@ -37,6 +37,7 @@ import { PaypingOAuthModule } from './payping-oauth/payping-oauth.module';
 import { PointsModule } from './points/points.module';
 import { PricingModule } from './pricing/pricing.module';
 import { PaymentsModule } from './payments/payments.module';
+import { InquiriesModule } from './inquiries/inquiries.module';
 import { ProfileModule } from './profile/profile.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
@@ -89,6 +90,7 @@ import { ZohalModule } from './zohal/zohal.module';
     PointsModule,
     PricingModule,
     PaymentsModule,
+    InquiriesModule,
     ProfileModule,
     ModeratorModule,
     MonitoringModule,

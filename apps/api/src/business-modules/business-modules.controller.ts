@@ -137,6 +137,16 @@ export class BusinessModulesController {
     return this.modules.listManagements(user.id);
   }
 
+  @Get('suggested-management')
+  @ApiOperation({
+    summary:
+      'بسته مدیریت کسب‌وکار متناسب با دسته‌بندی شغلی کاربر (برای پیشنهاد در صفحه اشتراک)',
+  })
+  async suggestedManagement(@CurrentUser() user: AuthUser) {
+    await this.ensureEnabled();
+    return this.modules.suggestedManagement(user.id);
+  }
+
   @Post('managements/:key/purchase')
   @ApiOperation({
     summary:

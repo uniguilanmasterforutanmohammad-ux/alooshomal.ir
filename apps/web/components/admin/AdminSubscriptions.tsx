@@ -2,24 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 
 import {
   api,
   type SubscriptionPlan,
-  type UserSubscription,
 } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { AdminDataTable, type AdminColumn } from './AdminDataTable';
 import { AdminPricingPanel } from './AdminPricingPanel';
 
-type Tab = 'requests' | 'plans' | 'pricing';
-
-const STATUS_FILTERS: Array<{ value: string; label: string }> = [
-  { value: 'PENDING', label: 'در انتظار' },
-  { value: 'ACTIVE', label: 'فعال' },
-  { value: 'REJECTED', label: 'ردشده' },
-];
+type Tab = 'plans' | 'pricing';
 
 interface PlanField {
   key: string;
@@ -63,12 +56,9 @@ const EMPTY_FORM: PlanFormState = {
  * that plan, instead of the single legacy «نمایش لینک‌ها» checkbox.
  */
 export function AdminSubscriptions() {
-  const [tab, setTab] = useState<Tab>('requests');
+  const [tab, setTab] = useState<Tab>('plans');
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [fields, setFields] = useState<PlanField[]>([]);
-  const [status, setStatus] = useState('PENDING');
-  const [requests, setRequests] = useState<UserSubscription[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -93,40 +83,10 @@ export function AdminSubscriptions() {
     }
   }, []);
 
-  const loadRequests = useCallback(async () => {
-    setLoading(true);
-    try {
-      setRequests(
-        await api.get<UserSubscription[]>(`/admin/subscriptions?status=${status}`),
-      );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'خطا در بارگذاری درخواست‌ها');
-    } finally {
-      setLoading(false);
-    }
-  }, [status]);
-
   useEffect(() => {
     void loadPlans();
     void loadFields();
   }, [loadPlans, loadFields]);
-
-  useEffect(() => {
-    void loadRequests();
-  }, [loadRequests]);
-
-  async function decide(id: string, decision: 'ACTIVE' | 'REJECTED') {
-    setBusyId(id);
-    setError(null);
-    try {
-      await api.patch(`/admin/subscriptions/${id}`, { status: decision });
-      await loadRequests();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'خطا در ثبت تصمیم');
-    } finally {
-      setBusyId(null);
-    }
-  }
 
   function resetForm() {
     setForm(EMPTY_FORM);
@@ -178,8 +138,9 @@ export function AdminSubscriptions() {
         name: form.name,
         description: form.description || undefined,
         price: Number(form.price),
-        maxBiolinks: Number(form.maxBiolinks),
-        maxBusinessCards: Number(form.maxBusinessCards),
+        // هر کسب‌وکار فقط یک کارت ویزیت و یک بیولینک دارد؛ این دو سقف ثابت‌اند.
+        maxBiolinks: 1,
+        maxBusinessCards: 1,
         maxBusinesses: Number(form.maxBusinesses),
         isActive: form.isActive,
         discount3Months: Number(form.discount3Months),
@@ -320,8 +281,7 @@ export function AdminSubscriptions() {
       label: 'محدودیت‌ها',
       render: (plan) => (
         <span className="text-xs text-muted">
-          {plan.maxBusinesses ?? 1} کسب‌وکار · {plan.maxBiolinks} بیولینک ·{' '}
-          {plan.maxBusinessCards} کارت ویزیت
+          حداکثر {plan.maxBusinesses ?? 1} کسب‌وکار
         </span>
       ),
     },
@@ -427,75 +387,6 @@ export function AdminSubscriptions() {
     },
   ];
 
-  const requestColumns: Array<AdminColumn<UserSubscription>> = [
-    {
-      key: 'plan',
-      label: 'بسته',
-      render: (request) => (
-        <span className="font-extrabold text-ink">{request.plan?.name ?? '—'}</span>
-      ),
-    },
-    {
-      key: 'user',
-      label: 'کاربر',
-      render: (request) => (
-        <div>
-          <p className="text-sm font-semibold text-ink">
-            {request.user?.fullName ?? '—'}
-          </p>
-          <span dir="ltr" className="text-xs text-muted">
-            {request.user?.email}
-          </span>
-        </div>
-      ),
-    },
-    {
-      key: 'requestedAt',
-      label: 'تاریخ درخواست',
-      render: (request) => (
-        <span className="text-xs text-muted">
-          {new Date(request.requestedAt).toLocaleDateString('fa-IR')}
-        </span>
-      ),
-    },
-    {
-      key: 'note',
-      label: 'یادداشت',
-      render: (request) => (
-        <span className="text-xs text-muted">{request.note ?? '—'}</span>
-      ),
-    },
-    {
-      key: 'actions',
-      label: 'عملیات',
-      render: (request) =>
-        request.status === 'PENDING' ? (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={busyId === request.id}
-              onClick={() => decide(request.id, 'ACTIVE')}
-              className="indeed-btn indeed-btn-primary py-1.5 text-xs disabled:opacity-60"
-            >
-              <Check className="size-3.5" aria-hidden />
-              تأیید و اعمال
-            </button>
-            <button
-              type="button"
-              disabled={busyId === request.id}
-              onClick={() => decide(request.id, 'REJECTED')}
-              className="indeed-btn indeed-btn-secondary py-1.5 text-xs disabled:opacity-60"
-            >
-              <X className="size-3.5" aria-hidden />
-              رد
-            </button>
-          </div>
-        ) : (
-          <span className="text-xs text-muted">بررسی‌شده</span>
-        ),
-    },
-  ];
-
   return (
     <div className="flex flex-col gap-5">
       {error ? (
@@ -508,7 +399,6 @@ export function AdminSubscriptions() {
       <div className="flex flex-wrap gap-2">
         {(
           [
-            ['requests', 'درخواست‌ها'],
             ['plans', 'مدیریت بسته‌ها'],
             ['pricing', 'قیمت خدمات'],
           ] as const
@@ -637,31 +527,7 @@ export function AdminSubscriptions() {
                     ))}
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <label className="flex flex-col gap-1 text-sm">
-                    <span className="font-bold text-ink">حداکثر بیولینک</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={form.maxBiolinks}
-                      onChange={(e) =>
-                        setForm({ ...form, maxBiolinks: Number(e.target.value) })
-                      }
-                      className="indeed-input"
-                    />
-                  </label>
-                  <label className="flex flex-col gap-1 text-sm">
-                    <span className="font-bold text-ink">حداکثر کارت ویزیت</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={form.maxBusinessCards}
-                      onChange={(e) =>
-                        setForm({ ...form, maxBusinessCards: Number(e.target.value) })
-                      }
-                      className="indeed-input"
-                    />
-                  </label>
+                <div className="max-w-xs">
                   <label className="flex flex-col gap-1 text-sm">
                     <span className="font-bold text-ink">حداکثر کسب‌وکار</span>
                     <input
@@ -673,6 +539,9 @@ export function AdminSubscriptions() {
                       }
                       className="indeed-input"
                     />
+                    <span className="text-[11px] text-muted">
+                      هر کسب‌وکار یک کارت ویزیت و یک بیولینک دارد.
+                    </span>
                   </label>
                 </div>
               </div>
@@ -757,37 +626,7 @@ export function AdminSubscriptions() {
             minWidthClass="min-w-[52rem]"
           />
         </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap gap-2">
-            {STATUS_FILTERS.map((filter) => (
-              <button
-                key={filter.value}
-                type="button"
-                onClick={() => setStatus(filter.value)}
-                className={
-                  status === filter.value
-                    ? 'indeed-btn indeed-btn-primary py-2 text-sm'
-                    : 'indeed-btn indeed-btn-secondary py-2 text-sm'
-                }
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
-
-          {loading ? (
-            <p className="text-muted">در حال بارگذاری...</p>
-          ) : (
-            <AdminDataTable
-              columns={requestColumns}
-              rows={requests}
-              rowKey={(request) => request.id}
-              empty="درخواستی در این وضعیت وجود ندارد."
-            />
-          )}
-        </div>
-      )}
+      ) : null}
     </div>
   );
 }

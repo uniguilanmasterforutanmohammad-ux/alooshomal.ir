@@ -20,7 +20,122 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.57.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.58.0**.
+
+## ۱۴۰۵/۰۹/۰۱ — بازطراحی تب «تمدید و ارتقا» اشتراک — نسخه `v4.58.0`
+
+**هدف:** تب «تمدید و ارتقا» در `/dashboard/subscriptions` مثل مرحله‌ی «خرید
+اشتراک اکو یا بلاس» ویزارد شروع آسان شود تا تخفیف دوره‌های بلندمدت دیده و
+خرید تشویق شود؛ همچنین اگر کاربر بسته‌ی مدیریت کسب‌وکار متناسب با دسته‌بندی
+شغلی‌اش را نخریده باشد، همان‌جا نمایش داده شود.
+
+**تغییرات:**
+- `apps/api/src/business-modules/business-modules.service.ts`: متد
+  `suggestedManagement(userId)` که بسته‌ی متناسب با دسته‌بندی کسب‌وکار را
+  مستقل از پلن برمی‌گرداند (`purchased`، `paidUntil`، `canPurchase`).
+- `apps/api/src/business-modules/business-modules.controller.ts`: مسیر
+  `GET /business-modules/suggested-management`.
+- `apps/web/app/dashboard/subscriptions/page.tsx`: انتخابگر دوره‌ی
+  ویزاردی با نشان تخفیف هر دوره و بنر بهترین تخفیف، کارت‌های پلن با
+  «صرفه‌جویی» و قیمت خط‌خورده، و کارت پیشنهاد بسته‌ی مدیریت کسب‌وکار با
+  انتخاب دوره و خرید (یا پیام ارتقا برای پلن رایگان).
+- `docs/API.md`: مستند مسیر پیشنهاد بسته.
+
+**تأیید/تست:**
+- `docker exec alooshomal-api npx tsc --noEmit -p tsconfig.json` و
+  `docker exec alooshomal-web npx tsc --noEmit` بدون خطا.
+- `curl /api/business-modules/suggested-management` با کاربر تست، بسته‌ی
+  `retail` و `canPurchase:false` (پلن رایگان) را برگرداند.
+- Playwright (۳۹۰px): وجود بنر تخفیف، «صرفه‌جویی» و کارت «بسته مدیریت
+  کسب‌وکار مناسب شما» تأیید شد.
+
+## ۱۴۰۵/۰۹/۰۱ — ثبت مستقل استعلام‌های زحل و api.ir + فهرست ادمین — نسخه `v4.58.0`
+
+**هدف:** همه‌ی استعلام‌های زحل و api.ir مستقل در دیتابیس ذخیره شوند و پنل
+ادمین فهرست کامل و قابل جست‌وجو داشته باشد.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: `enum InquiryProvider` و مدل `InquiryLog`
+  (provider، سرویس، کاربر، کد ملی، موبایل، وضعیت، کد نتیجه، HTTP، پیام،
+  تأخیر، مبلغ، request/response) + رابطه‌ی `User.inquiryLogs`.
+- `apps/api/src/zohal/zohal.service.ts` و `apps/api/src/apiir/apiir.service.ts`:
+  شکستن `call` به `performCall` + `logInquiry` و ثبت هر فراخوانی؛ افزودن
+  `userId` اختیاری به `inquiryIdentity`/`verifyPhoneOwnership`/`inquiryLicense`
+  و ارسال آن از `profile.service` و `onboarding.deliverPaidCart`.
+- `apps/api/src/inquiries/*` و `apps/api/src/app.module.ts`: ماژول/کنترلر/سرویس
+  `GET /admin/inquiries` با فیلتر `provider` و جست‌وجوی `q`.
+- `apps/web/components/admin/AdminInquiries.tsx`، `AdminShell.tsx`،
+  `app/jga4rm8j/page.tsx`، `admin-console.ts`: بخش «استعلام‌ها (زحل و api.ir)»
+  با فیلتر ارائه‌دهنده، جست‌وجو و جدول وضعیت/تأخیر.
+- `docs/API.md`: مستند `/admin/inquiries`.
+
+**تأیید/تست:**
+- `prisma db push` و `prisma generate` موفق؛ type-check هر دو اپ بدون خطا.
+- فراخوانی آزمایشی `POST /admin/zohal/services/shahkar/test` یک ردیف در
+  `inquiry_logs` ساخت و `GET /admin/inquiries?q=0911` آن را برگرداند.
+- Playwright: عنوان و ردیف جدول در بخش inquiries دیده شد.
+
+## ۱۴۰۵/۰۹/۰۱ — درخت جست‌وجوپذیر دسته‌بندی کسب‌وکار در تنظیمات — نسخه `v4.58.0`
+
+**هدف:** در «تنظیمات ← شهرها و کسب‌وکارها» همه‌ی دسته‌ها + زیردسته + زیرشاخه
+به‌صورت درخت کشویی و قابل جست‌وجو با امکان افزودن زیردسته/زیرشاخه نمایش داده
+شود.
+
+**تغییرات:**
+- `apps/api/src/taxonomy/dto/taxonomy-node.dto.ts`: DTOهای ساخت/ویرایش نود.
+- `apps/api/src/taxonomy/taxonomy.service.ts`: `adminTree`، `createNode`،
+  `updateNode`، `removeNode` با اعتبارسنجی والد و جلوگیری از تکرار.
+- `apps/api/src/taxonomy/taxonomy.controller.ts`: مسیرهای
+  `GET /admin/businesses/tree` و CRUD نودها.
+- `apps/web/components/admin/BusinessTaxonomyTree.tsx` و
+  `apps/web/app/jga4rm8j/sections.tsx`: درخت کشویی جست‌وجوپذیر با افزودن/
+  فعال‌سازی/حذف.
+- `docs/API.md`: مستند مسیرهای درخت.
+
+**تأیید/تست:**
+- type-check بدون خطا؛ `GET /admin/businesses/tree` درخت کامل را برگرداند.
+- Playwright: کادر جست‌وجو و دکمه‌های افزودن در بخش تاکسونومی دیده شد.
+
+## ۱۴۰۵/۰۹/۰۱ — اتصال بسته‌های مدیریت کسب‌وکار به دسته‌بندی‌ها — نسخه `v4.58.0`
+
+**هدف:** هنگام ساخت بسته‌ی مدیریت کسب‌وکار، ادمین حتماً دسته‌بندی انتخاب کند؛
+امکان افزودن/تغییر چند دسته باشد و بسته‌های بدون دسته هشدار تکمیل بگیرند.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل `BusinessManagementCategory` و روابط
+  `BusinessManagement.categories` / `BusinessCategory.managementLinks`.
+- `apps/api/src/business-modules/dto/admin-management.dto.ts`: `categoryIds`
+  الزامی در ساخت و اختیاری در ویرایش.
+- `apps/api/src/business-modules/business-modules.service.ts`: اعتبارسنجی و
+  اتصال دسته‌ها در ساخت/ویرایش، `categories`/`needsCategory` در نمای ادمین،
+  فیلتر بسته‌ها بر اساس دسته‌ی کسب‌وکار و `managementKeyForCategory`.
+- `apps/api/src/onboarding/onboarding.service.ts`: انتخاب بسته بر اساس اتصال
+  دسته‌بندی (با فالبک نگاشت قدیمی).
+- `apps/web/components/admin/AdminBusinessModules.tsx`: فرم ساخت درون‌صفحه‌ای
+  با انتخاب دسته‌ی الزامی، ویرایش چند دسته و هشدار «تکمیل نشده».
+
+**تأیید/تست:**
+- type-check بدون خطا؛ ساخت بدون `categoryIds` پاسخ ۴۰۰ داد و ساخت/ویرایش با
+  دسته موفق بود (بسته‌ی تست سپس از DB پاک شد).
+- Playwright: بلوک «دسته‌بندی‌های کسب‌وکار» و هشدار «تکمیل نشده» دیده شد.
+
+## ۱۴۰۵/۰۹/۰۱ — پاک‌سازی تب‌های پنل اشتراک ادمین — نسخه `v4.58.0`
+
+**هدف:** حذف تب «درخواست‌ها» (فعال‌سازی خودکار اشتراک)، محدودکردن «مدیریت
+بسته‌ها» به «حداکثر کسب‌وکار» و حذف بخش‌های تکراری «اشتراک‌ها» و «استعلام‌های
+هویتی» از «قیمت خدمات».
+
+**تغییرات:**
+- `apps/web/components/admin/AdminSubscriptions.tsx`: حذف تب/جدول/فیلتر
+  درخواست‌ها و اکشن تأیید، حذف فیلدهای «حداکثر بیولینک/کارت ویزیت» (ثابت ۱)
+  و نمایش فقط «حداکثر N کسب‌وکار».
+- `apps/web/components/admin/AdminPricingPanel.tsx`: حذف گروه‌های تکراری
+  «اشتراک‌ها» و «استعلام‌های هویتی».
+- `apps/web/app/jga4rm8j/admin-console.ts`: به‌روزرسانی زیرعنوان صفحه.
+
+**تأیید/تست:**
+- type-check بدون خطا؛ Playwright: تب‌های «مدیریت بسته‌ها» و «قیمت خدمات»
+  موجود و «حداکثر بیولینک» حذف شده است.
 
 ## ۱۴۰۵/۰۹/۰۱ — محصولات ترکیبی زحل + «پرداخت‌های من» — نسخه `v4.57.0`
 

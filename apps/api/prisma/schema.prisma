@@ -505,6 +505,7 @@ model User {
   expensesCreated   Expense[]    @relation("ExpenseCreatedBy")
   onboardingCompletions OnboardingStepCompletion[]
   identityInquiryLogs   IdentityInquiryLog[]
+  inquiryLogs           InquiryLog[]
   businessWorkspaces    BusinessWorkspace[]
 
   @@index([email])
@@ -580,6 +581,43 @@ model IdentityInquiryLog {
   @@index([userId, createdAt])
   @@index([kind, status])
   @@map("identity_inquiry_logs")
+}
+
+/// Every raw call to an external inquiry provider (Zohal or api.ir), stored
+/// independently of the business flow that triggered it. The admin panel lists
+/// and searches this table, so an inquiry can always be audited even when the
+/// originating feature later changes.
+enum InquiryProvider {
+  ZOHAL
+  APIIR
+}
+
+model InquiryLog {
+  id           String          @id @default(cuid())
+  provider     InquiryProvider
+  serviceKey   String
+  userId       String?
+  nationalCode String?
+  phone        String?
+  ok           Boolean         @default(false)
+  resultCode   Int?
+  httpStatus   Int?
+  message      String?
+  errorCode    String?
+  latencyMs    Int?
+  /// Toman charged to the user's wallet for this call (0 = free/simulated).
+  amount       Int             @default(0)
+  request      Json?
+  response     Json?
+  createdAt    DateTime        @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([provider, createdAt])
+  @@index([serviceKey, createdAt])
+  @@index([userId, createdAt])
+  @@index([nationalCode])
+  @@map("inquiry_logs")
 }
 
 // A signed-in device/session. Login (password or OTP) creates one row; the JWT
@@ -920,6 +958,7 @@ model BusinessCategory {
   biolinks      Biolink[]
   businessCards BusinessCard[]
   taxonomyNodes BusinessTaxonomyNode[]
+  managementLinks BusinessManagementCategory[]
 
   @@index([name])
   @@map("business_categories")
@@ -2130,8 +2169,27 @@ model BusinessManagement {
   updatedAt   DateTime @updatedAt
 
   modules BusinessManagementModule[]
+  categories BusinessManagementCategory[]
 
   @@map("business_managements")
+}
+
+/// Links a «مدیریت کسب‌وکار» package to one or more business categories from
+/// the taxonomy. A category with no link falls back to the legacy keyword
+/// mapping, so existing installations keep working until the admin completes
+/// the mapping.
+model BusinessManagementCategory {
+  id           String   @id @default(cuid())
+  managementId String
+  categoryId   String
+  createdAt    DateTime @default(now())
+
+  management BusinessManagement @relation(fields: [managementId], references: [id], onDelete: Cascade)
+  category   BusinessCategory   @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([managementId, categoryId])
+  @@index([categoryId])
+  @@map("business_management_categories")
 }
 
 /// Module membership of one management. Module definitions still live in code;

@@ -20,6 +20,10 @@ import { CreateTaxonomyDto } from './dto/create-taxonomy.dto';
 import { SearchNeighborhoodDto } from './dto/search-neighborhood.dto';
 import { SearchTaxonomyNodeDto } from './dto/search-taxonomy-node.dto';
 import { UpdateTaxonomyDto } from './dto/update-taxonomy.dto';
+import {
+  CreateTaxonomyNodeDto,
+  UpdateTaxonomyNodeDto,
+} from './dto/taxonomy-node.dto';
 import { TaxonomyService } from './taxonomy.service';
 
 // ---- public read endpoints (used by the biolink form) ----
@@ -136,6 +140,38 @@ export class AdminBusinessesController {
   @ApiOperation({ summary: 'مدیریت کسب‌وکارها — فهرست کامل' })
   list() {
     return this.taxonomy.list('business');
+  }
+
+  @Get('tree')
+  @ApiOperation({
+    summary: 'درخت کامل دسته‌بندی کسب‌وکار: دسته، زیردسته و زیرشاخه',
+  })
+  tree() {
+    return this.taxonomy.adminTree();
+  }
+
+  @Post(':id/nodes')
+  @ApiOperation({ summary: 'افزودن زیردسته یا زیرشاخه به یک دسته‌بندی' })
+  createNode(
+    @Param('id') id: string,
+    @Body() dto: CreateTaxonomyNodeDto,
+  ) {
+    return this.taxonomy.createNode(id, dto);
+  }
+
+  @Patch('nodes/:nodeId')
+  @ApiOperation({ summary: 'ویرایش نام یا فعال/غیرفعال‌کردن زیردسته/زیرشاخه' })
+  updateNode(
+    @Param('nodeId') nodeId: string,
+    @Body() dto: UpdateTaxonomyNodeDto,
+  ) {
+    return this.taxonomy.updateNode(nodeId, dto);
+  }
+
+  @Delete('nodes/:nodeId')
+  @ApiOperation({ summary: 'حذف زیردسته/زیرشاخه' })
+  removeNode(@Param('nodeId') nodeId: string) {
+    return this.taxonomy.removeNode(nodeId);
   }
 
   @Post()

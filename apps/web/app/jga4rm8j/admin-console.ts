@@ -64,6 +64,7 @@ const ADMIN_SECTIONS: AdminSection[] = [
   'finance',
   'zohal',
   'apiir',
+  'inquiries',
   'wallets',
   'payments',
   'payping-oauth',
@@ -114,7 +115,10 @@ export function isAdminSection(value: string): value is AdminSection {
       title: 'درخواست‌های تصاحب',
       sub: 'بررسی درخواست تصاحب کارت‌های ایمپورت‌شده‌ی بدون راه ارتباطی',
     },
-    subscriptions: { title: 'اشتراک‌ها', sub: 'مدیریت بسته‌ها و تأیید درخواست کاربران' },
+    subscriptions: {
+      title: 'اشتراک‌ها',
+      sub: 'مدیریت بسته‌ها، سقف کسب‌وکار و قیمت خدمات',
+    },
     'business-modules': {
       title: 'ماژول‌های کسب‌وکار',
       sub: 'قیمت‌گذاری هر مدیریت کسب‌وکار و فعال/غیرفعال‌کردن ماژول‌ها برای هر کسب‌وکار',
@@ -137,6 +141,10 @@ export function isAdminSection(value: string): value is AdminSection {
     apiir: {
       title: 'api.ir (استعلام)',
       sub: 'استعلام‌های api.ir از جمله اعتبار مجوز شغلی (پروانه کسب)؛ فعال‌سازی و آزمایش هر سرویس',
+    },
+    inquiries: {
+      title: 'استعلام‌ها (زحل و api.ir)',
+      sub: 'فهرست کامل و قابل جست‌وجوی همه‌ی استعلام‌های ثبت‌شده در دیتابیس',
     },
     wallets: {
       title: 'کیف پول کاربران',

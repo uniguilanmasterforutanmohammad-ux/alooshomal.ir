@@ -204,6 +204,19 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 `rubika`، `igap` و `soroush` (همه به‌صورت URL کامل). فایل ۲۷ ستونی ایمپورت
 کسب‌وکارها و نگاشت این فیلدها در `docs/import/README.md` توضیح داده شده است.
 
+#### درخت دسته‌بندی کسب‌وکار در پنل ادمین (`/api/admin/businesses`)
+
+دسته‌بندی‌های کسب‌وکار (سطح اصلی) + زیردسته (`SUB`) + زیرشاخه (`TAG`) به‌صورت
+درخت قابل جست‌وجو در «تنظیمات ← شهرها و کسب‌وکارها» نمایش داده می‌شوند و
+ادمین می‌تواند زیردسته/زیرشاخه بسازد، تغییر نام دهد، فعال/غیرفعال یا حذف کند.
+
+| متد | مسیر | دسترسی | توضیح |
+| --- | --- | --- | --- |
+| `GET` | `/admin/businesses/tree` | ADMIN | درخت کامل: هر دسته با `subs[]` (زیردسته‌ها) و `tags[]` (زیرشاخه‌های هر زیردسته) + `orphanTags` + شمارش‌ها. |
+| `POST` | `/admin/businesses/:id/nodes` | ADMIN | افزودن زیردسته یا زیرشاخه: `{ name, level: 'SUB' \| 'TAG', parentId? }` (برای `TAG`، `parentId` زیردسته‌ی والد الزامی است). |
+| `PATCH` | `/admin/businesses/nodes/:nodeId` | ADMIN | ویرایش `{ name?, isActive? }`. |
+| `DELETE` | `/admin/businesses/nodes/:nodeId` | ADMIN | حذف زیردسته/زیرشاخه. |
+
 ### تم سراسری سایت (`siteTheme`)
 
 | متد | مسیر | توضیح |
@@ -632,6 +645,17 @@ api.ir فقط سمت سرور (`API_KEY_API.IR`؛ جایگزین `APIIR_TOKEN`) 
 | `POST` | `/admin/apiir/services/:key/test` | ADMIN | فراخوانی آزمایشی واقعی (هزینه‌زاست و از اعتبار حساب api.ir کم می‌شود) با `{ payload }`. |
 | `POST` | `/admin/apiir/services/:key/payping-product` | ADMIN | ساخت/همگام‌سازی محصول پی‌پینگ برای همان سرویس با مبلغ ثبت‌شده (`apiir.price.<key>`)؛ کد محصول در `apiir.payping.<key>` ذخیره می‌شود. |
 
+## استعلام‌های یکپارچه (`/api/admin/inquiries`)
+
+هر فراخوانی زحل و api.ir مستقل از جریان کسب‌وکار در جدول `inquiry_logs`
+ذخیره می‌شود (provider، سرویس، کاربر، کد ملی، موبایل، موفق/ناموفق، کد نتیجه،
+HTTP، پیام، تأخیر، مبلغ و payload/response). این جدول مبنای فهرست کامل و
+قابل جست‌وجوی پنل ادمین است.
+
+| متد | مسیر | دسترسی | توضیح |
+| --- | --- | --- | --- |
+| `GET` | `/admin/inquiries` | ADMIN | فهرست استعلام‌ها با مرتب‌سازی نزولی زمان. پارامترهای اختیاری: `provider` (`ZOHAL` \| `APIIR`)، `q` (جست‌وجو در نام سرویس، نام/موبایل کاربر، کد ملی و پیام) و `take` (۱ تا ۳۰۰، پیش‌فرض ۱۰۰). خروجی `{ total, items }`. |
+
 ## ویزارد «شروع آسان» (`/api/onboarding`)
 
 بخش مرحله‌به‌مرحله‌ی راه‌اندازی کسب‌وکار که در صدر داشبورد کاربر نمایش داده
@@ -767,6 +791,7 @@ PY
 | `POST` | `/business-modules/my/:key/purchase` | خرید ماژول (کیف پول/پی‌پینگ) و فعال‌سازی پس از پرداخت. |
 | `GET` | `/business-modules/purchases` | سابقه‌ی خرید ماژول‌ها. |
 | `GET` | `/business-modules/managements` | فهرست «مدیریت کسب‌وکار»ها با ماژول‌های فعال، قیمت کل و `paidUntil` (پایان دوره‌ی خریداری‌شده) و `extension` (پیشنهاد تمدید یک‌باره: `allowed`، `alreadyExtended`، `currentMonths`، `remainingDays`، `terms`). پس از خرید، فقط بسته‌ی همان کسب‌وکار برمی‌گردد تا کاربر به صنف دیگری هدایت نشود. برای کاربر بسته‌ی «رایگان» فهرست خالی برمی‌گردد (امکان خرید ندارد)؛ خرید مدیریت در حالت کلی از مسیر «اشتراک + بسته» انجام می‌شود. |
+| `GET` | `/business-modules/suggested-management` | «مدیریت کسب‌وکار» متناسب با دسته‌بندی شغلی کسب‌وکار کاربر (بر اساس اتصال دسته‌بندی‌ها در پنل ادمین)؛ مستقل از پلن برمی‌گردد: `{ key, label, description, totalPrice, terms, purchased, paidUntil, canPurchase }`. `canPurchase` برای پلن رایگان `false` است تا رابط، کاربر را به ارتقا هدایت کند. |
 | `POST` | `/business-modules/managements/:key/purchase` | خرید/فعال‌سازی کل یک «مدیریت کسب‌وکار» (کیف پول/پی‌پینگ)؛ بدنه‌ی اختیاری `{ months: 1|3|6|12, returnTo }`. مبلغ = مجموع قیمت ماهانه‌ی ماژول‌های خریداری‌نشده × تعداد ماه × (۱ − درصد تخفیف دوره). اگر بسته قبلاً خریداری شده باشد، همین مسیر «تمدید یک‌باره» است: فقط دوره‌ای طولانی‌تر از دوره‌ی فعلی قابل انتخاب است، مبلغ از قیمت پایه‌ی کامل محاسبه می‌شود و `paidUntil` جدید = انتهای دوره‌ی فعلی + ماه‌های انتخابی (مانده‌ی دوره‌ی قبل حفظ می‌شود). تمدید دوم با ۴۰۰ رد می‌شود. |
 | `GET/POST` | `/business-modules/payments/callback` | بازگشت درگاه پس از خرید ماژول. |
 
@@ -776,8 +801,8 @@ PY
 | --- | --- | --- |
 | `GET` | `/admin/business-modules/catalog` | همه‌ی ماژول‌ها + قیمت + تعداد کسب‌وکار فعال. |
 | `GET` | `/admin/business-modules/managements` | کارت‌های «مدیریت کسب‌وکار» با ماژول‌ها، قیمت کل و وضعیت محصول پی‌پینگ. |
-| `POST` | `/admin/business-modules/managements` | ساخت مدیریت کسب‌وکار جدید (`key`، `label`، `description`، `available`، `discounts`، `modules`). |
-| `PATCH` | `/admin/business-modules/managements/:key` | ویرایش نام/توضیح/نمایش/درصد تخفیف دوره‌ها و فهرست ماژول‌ها. |
+| `POST` | `/admin/business-modules/managements` | ساخت مدیریت کسب‌وکار جدید (`key`، `label`، `description`، `available`، `discounts`، `modules`، `categoryIds`). `categoryIds` **الزامی** است (حداقل یک دسته‌بندی از «شهرها و کسب‌وکارها ← مدیریت کسب‌وکارها») و بسته را به آن دسته‌ها متصل می‌کند. |
+| `PATCH` | `/admin/business-modules/managements/:key` | ویرایش نام/توضیح/نمایش/درصد تخفیف دوره‌ها، فهرست ماژول‌ها و `categoryIds` (جایگزینی کامل اتصال دسته‌بندی‌ها). |
 | `DELETE` | `/admin/business-modules/managements/:key` | حذف کامل مدیریت (مدیریت پایه حذف نمی‌شود؛ کسب‌وکارهای وابسته به مدیریت پایه منتقل می‌شوند). |
 | `POST` | `/admin/business-modules/managements/:key/modules` | افزودن ماژول به مدیریت (`{ moduleKey }`). |
 | `DELETE` | `/admin/business-modules/managements/:key/modules/:moduleKey` | حذف ماژول از مدیریت (ماژول‌های پیش‌فرض مدیریت پایه حذف نمی‌شوند). |
