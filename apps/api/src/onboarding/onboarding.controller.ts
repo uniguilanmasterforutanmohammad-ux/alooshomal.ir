@@ -1,5 +1,10 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import {
   AuthUser,
@@ -143,6 +148,28 @@ export class AdminOnboardingController {
   })
   exportSteps() {
     return this.onboarding.exportSteps();
+  }
+
+  @Post('steps/import')
+  @ApiOperation({
+    summary:
+      'ورود/بازیابی مراحل «شروع آسان» از فایل خروجی JSON (جایگزینی کل پیکربندی)',
+  })
+  @ApiBody({
+    description:
+      'سند خروجی «شروع آسان» (`{ schema, exportedAt, count, steps }`) یا فقط `{ steps: [...] }` (یا آرایه‌ی خام مراحل).',
+    schema: {
+      type: 'object',
+      properties: {
+        steps: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/OnboardingStepDto' },
+        },
+      },
+    },
+  })
+  async importSteps(@CurrentUser() admin: AuthUser, @Body() body: unknown) {
+    return { steps: await this.onboarding.importSteps(body, admin.id) };
   }
 
   @Get('modules')

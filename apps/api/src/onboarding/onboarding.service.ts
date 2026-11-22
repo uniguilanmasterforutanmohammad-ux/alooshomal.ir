@@ -243,6 +243,30 @@ export class OnboardingService implements OnModuleInit {
   }
 
   /**
+   * Replace the whole «شروع آسان» configuration from a previously exported
+   * document (`{ steps: [...] }`) or a bare step array. The payload is run
+   * through the same {@link setSteps} sanitizer/validator as the panel save, so
+   * an imported file can never store an unknown kind or an invalid module key;
+   * a bad file is rejected with a clear message.
+   */
+  async importSteps(
+    payload: unknown,
+    actorId?: string,
+  ): Promise<OnboardingStepDef[]> {
+    const rawSteps = Array.isArray(payload)
+      ? payload
+      : payload && typeof payload === 'object' && !Array.isArray(payload)
+        ? (payload as { steps?: unknown }).steps
+        : null;
+    if (!Array.isArray(rawSteps)) {
+      throw new BadRequestException(
+        'فایل ورودی معتبر نیست؛ آرایه‌ی «steps» پیدا نشد.',
+      );
+    }
+    return this.setSteps(rawSteps as OnboardingStepDto[], actorId);
+  }
+
+  /**
    * The built-in step set evolves with the product (the «تکمیل مشخصات» step was
    * merged into «عنوان کسب‌وکار» and «مدارک» became optional). A stored admin
    * config would otherwise keep the old list, so this one-time upgrade drops

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
@@ -10,6 +10,7 @@ import {
   Save,
   Sparkles,
   Trash2,
+  Upload,
 } from 'lucide-react';
 
 import { api } from '@/lib/api';
@@ -159,8 +160,10 @@ export function AdminOnboardingSteps() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -452,6 +455,43 @@ export function AdminOnboardingSteps() {
     }
   }
 
+  /**
+   * Replace the whole configuration from an exported «شروع آسان» JSON file.
+   * The server validates and sanitizes the payload before storing it.
+   */
+  async function importSteps(file: File) {
+    const confirmed = window.confirm(
+      'با ورود این فایل، همه‌ی مراحل «شروع آسان» جایگزین می‌شوند. ادامه می‌دهید؟',
+    );
+    if (!confirmed) {
+      if (importInputRef.current) importInputRef.current.value = '';
+      return;
+    }
+    setImporting(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const text = await file.text();
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        throw new Error('فایل انتخاب‌شده JSON معتبر نیست.');
+      }
+      const result = await api.post<{ steps: EditableStep[] }>(
+        '/admin/onboarding/steps/import',
+        parsed,
+      );
+      setSteps(result.steps ?? []);
+      setMessage('مراحل «شروع آسان» از فایل وارد شد.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ورود فایل ناموفق بود');
+    } finally {
+      setImporting(false);
+      if (importInputRef.current) importInputRef.current.value = '';
+    }
+  }
+
   if (loading) {
     return (
       <div className="indeed-panel flex items-center gap-2 p-5 text-sm text-muted">
@@ -489,6 +529,29 @@ export function AdminOnboardingSteps() {
               <Download className="size-4" aria-hidden />
             )}
             خروجی JSON
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void importSteps(file);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => importInputRef.current?.click()}
+            disabled={importing}
+            className="indeed-btn indeed-btn-secondary py-2 text-xs"
+          >
+            {importing ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Upload className="size-4" aria-hidden />
+            )}
+            ورود از فایل
           </button>
           <button
             type="button"
