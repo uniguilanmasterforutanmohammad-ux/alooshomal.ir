@@ -779,11 +779,13 @@ export default async function BusinessProfilePage({
             {payload.qr ? (
               <div className="indeed-panel p-4 text-center">
                 <p className="text-sm font-extrabold text-ink">اشتراک‌گذاری سریع</p>
+                {/* Keep the QR plate white in dark mode too (the global
+                    `.bg-white` override would otherwise darken it). */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={payload.qr}
                   alt="کد QR صفحه کسب‌وکار"
-                  className="mx-auto mt-3 size-32 rounded-lg bg-white p-1"
+                  className="mx-auto mt-3 size-32 rounded-lg bg-[#fff] p-1"
                 />
                 <p className="mt-2 text-[11px] leading-5 text-muted">
                   با اسکن این کد، صفحه کسب‌وکار را با دیگران به اشتراک بگذارید.

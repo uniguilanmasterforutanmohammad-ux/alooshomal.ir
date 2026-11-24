@@ -278,13 +278,15 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
           </CardFit>
 
           <div className="card-public-share record-panel mt-4 flex shrink-0 items-center gap-4 p-4">
+            {/* Arbitrary white (not `bg-white`) so the global dark-mode
+                `.bg-white` override cannot darken the QR quiet zone. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={qr}
               alt="QR کد کارت ویزیت"
               width={96}
               height={96}
-              className="size-24 shrink-0 rounded-lg bg-white p-1.5"
+              className="size-24 shrink-0 rounded-lg bg-[#fff] p-1.5"
             />
             <div className="min-w-0 flex-1 text-right">
               <p className="text-xs font-bold text-ink">
