@@ -5,9 +5,10 @@ import { Header } from '@/components/layout/Header';
 import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { PublicBiolinkView } from '@/components/biolink/PublicBiolinkView';
 import { RecordView } from '@/components/ui/RecordView';
+import { JsonLd } from '@/components/seo/JsonLd';
 import { absoluteUrl, metaDescription, SERVER_API_URL, decodeSlugParam } from '@/lib/site';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
-import { jsonLdHtml } from '@/lib/json-ld';
+import { breadcrumbJsonLd } from '@/lib/seo';
 import { type Biolink } from '@/lib/api';
 
 interface BiolinkPayload {
@@ -88,13 +89,15 @@ function buildJsonLd(data: BiolinkPayload): Record<string, unknown> {
     : undefined;
 
   if (biolink.company) {
-    return {
-      '@context': 'https://schema.org',
+    const entity = {
       '@type': 'LocalBusiness',
+      '@id': url,
       name: biolink.company,
       description: biolink.bio ?? undefined,
       image: biolink.avatarUrl ?? undefined,
       url,
+      mainEntityOfPage: url,
+      inLanguage: 'fa-IR',
       ...(biolink.phone ? { telephone: biolink.phone } : {}),
       ...(address ? { address } : {}),
       employee: {
@@ -103,20 +106,43 @@ function buildJsonLd(data: BiolinkPayload): Record<string, unknown> {
         ...(biolink.jobTitle ? { jobTitle: biolink.jobTitle } : {}),
       },
     };
+    return {
+      '@context': 'https://schema.org',
+      '@graph': [
+        entity,
+        breadcrumbJsonLd([
+          { name: 'خانه', path: '/' },
+          { name: 'بیولینک‌ها', path: '/biolinks' },
+          { name: biolink.fullName },
+        ]),
+      ],
+    };
   }
 
   return {
     '@context': 'https://schema.org',
-    '@type': 'ProfilePage',
-    mainEntity: {
-      '@type': 'Person',
-      name: biolink.fullName,
-      ...(biolink.jobTitle ? { jobTitle: biolink.jobTitle } : {}),
-      description: biolink.bio ?? undefined,
-      image: biolink.avatarUrl ?? undefined,
-      url,
-      ...(address ? { address } : {}),
-    },
+    '@graph': [
+      {
+        '@type': 'ProfilePage',
+        '@id': url,
+        url,
+        inLanguage: 'fa-IR',
+        mainEntity: {
+          '@type': 'Person',
+          name: biolink.fullName,
+          ...(biolink.jobTitle ? { jobTitle: biolink.jobTitle } : {}),
+          description: biolink.bio ?? undefined,
+          image: biolink.avatarUrl ?? undefined,
+          url,
+          ...(address ? { address } : {}),
+        },
+      },
+      breadcrumbJsonLd([
+        { name: 'خانه', path: '/' },
+        { name: 'بیولینک‌ها', path: '/biolinks' },
+        { name: biolink.fullName },
+      ]),
+    ],
   };
 }
 
@@ -141,10 +167,7 @@ export default async function PublicBiolinkPage({
   }
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLdHtml(buildJsonLd(data)) }}
-      />
+      <JsonLd data={buildJsonLd(data)} />
       <RecordView kind="biolinks" slug={slug} />
       <PublicBiolinkView
         biolink={data.biolink}

@@ -36,7 +36,16 @@ export class SeoService {
   constructor(private readonly prisma: PrismaService) {}
 
   async sitemapEntries(): Promise<SitemapEntry[]> {
-    const [biolinks, businessCards, feeds, categories, stays, shops] = await Promise.all([
+    const [
+      biolinks,
+      businessCards,
+      feeds,
+      categories,
+      stays,
+      shops,
+      blogPosts,
+      newsItems,
+    ] = await Promise.all([
       this.prisma.biolink.findMany({
         where: { status: 'APPROVED', isPublished: true },
         select: { slug: true, updatedAt: true },
@@ -84,6 +93,20 @@ export class SeoService {
         orderBy: { updatedAt: 'desc' },
         take: MAX_ROWS,
       }),
+      // Published blog articles (the public `/blog/<slug>` pages).
+      this.prisma.blogPost.findMany({
+        where: { isPublished: true, status: 'APPROVED' },
+        select: { slug: true, updatedAt: true },
+        orderBy: { publishedAt: 'desc' },
+        take: MAX_ROWS,
+      }),
+      // Approved city-news items (the public `/pulse/<id>` pages).
+      this.prisma.newsItem.findMany({
+        where: { status: 'APPROVED', isPublished: true },
+        select: { id: true, updatedAt: true },
+        orderBy: { publishedAt: 'desc' },
+        take: MAX_ROWS,
+      }),
     ]);
 
     const staticPages: SitemapEntry[] = [
@@ -95,11 +118,13 @@ export class SeoService {
       // (`?view=notebook`), so it no longer needs its own sitemap entry.
       { path: '/feeds', lastModified: '', changeFrequency: 'daily', priority: 0.8 },
       { path: '/pulse', lastModified: '', changeFrequency: 'daily', priority: 0.7 },
+      { path: '/blog', lastModified: '', changeFrequency: 'weekly', priority: 0.8 },
       { path: '/stay', lastModified: '', changeFrequency: 'daily', priority: 0.9 },
       { path: '/shop', lastModified: '', changeFrequency: 'daily', priority: 0.9 },
       { path: '/pricing', lastModified: '', changeFrequency: 'weekly', priority: 0.7 },
       { path: '/guide', lastModified: '', changeFrequency: 'monthly', priority: 0.5 },
       { path: '/rules', lastModified: '', changeFrequency: 'monthly', priority: 0.4 },
+      { path: '/contact', lastModified: '', changeFrequency: 'yearly', priority: 0.3 },
     ];
 
     return [
@@ -127,6 +152,18 @@ export class SeoService {
         lastModified: post.updatedAt.toISOString(),
         changeFrequency: 'weekly' as const,
         priority: 0.5,
+      })),
+      ...blogPosts.map((post) => ({
+        path: `/blog/${post.slug}`,
+        lastModified: post.updatedAt.toISOString(),
+        changeFrequency: 'monthly' as const,
+        priority: 0.7,
+      })),
+      ...newsItems.map((item) => ({
+        path: `/pulse/${item.id}`,
+        lastModified: item.updatedAt.toISOString(),
+        changeFrequency: 'monthly' as const,
+        priority: 0.6,
       })),
       ...categories.map((category) => ({
         path: `/categories/${encodeURIComponent(category.name)}`,

@@ -6,8 +6,10 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { PopularCategories } from '@/components/category/PopularCategories';
 import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
+import { JsonLd } from '@/components/seo/JsonLd';
 import { fetchBusinessCategories } from '@/lib/catalog-server';
 import { fa } from '@/lib/jalali';
+import { collectionJsonLd } from '@/lib/seo';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
 
 export const metadata: Metadata = {
@@ -33,6 +35,25 @@ export default async function CategoriesPage() {
 
   return (
     <div className="min-h-screen bg-soft">
+      {withBusinesses.length > 0 ? (
+        <JsonLd
+          data={collectionJsonLd({
+            name: 'دسته‌بندی مشاغل شمال',
+            description:
+              'فهرست دسته‌بندی‌های شغلی کسب‌وکارهای تنکابن، شیرود و رامسر.',
+            path: '/categories',
+            total: withBusinesses.length,
+            items: withBusinesses.map((category) => ({
+              name: category.name,
+              path: `/categories/${encodeURIComponent(category.name)}`,
+            })),
+            breadcrumbs: [
+              { name: 'خانه', path: '/' },
+              { name: 'دسته‌بندی مشاغل' },
+            ],
+          })}
+        />
+      ) : null}
       <Header />
       <main className="container-page py-6 sm:py-10">
         <nav aria-label="مسیر صفحه" className="mb-4 flex items-center gap-1 text-xs text-muted">

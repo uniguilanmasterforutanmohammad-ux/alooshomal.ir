@@ -3,8 +3,15 @@ import { notFound } from 'next/navigation';
 
 import { Header } from '@/components/layout/Header';
 import { ShopOrderForm } from '@/components/shop/ShopOrderForm';
+import { JsonLd } from '@/components/seo/JsonLd';
 import type { PublicShop } from '@/lib/api';
-import { SERVER_API_URL, decodeSlugParam, metaDescription } from '@/lib/site';
+import {
+  absoluteUrl,
+  SERVER_API_URL,
+  decodeSlugParam,
+  metaDescription,
+} from '@/lib/site';
+import { breadcrumbJsonLd } from '@/lib/seo';
 
 async function fetchShop(slug: string): Promise<PublicShop | null> {
   try {
@@ -49,8 +56,56 @@ export default async function ShopPage({
   const shop = await fetchShop(slug);
   if (!shop) notFound();
 
+  const url = absoluteUrl(`/shop/${shop.workspace.publicSlug}`);
+  // Retail prices are stored in Toman (`IRT`); schema.org expects ISO 4217, so
+  // convert to Rial (1 Toman = 10 Rial) rather than mislabelling the unit.
+  const toRial = (toman: number) => toman * 10;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Store',
+        '@id': url,
+        name: shop.workspace.name,
+        url,
+        inLanguage: 'fa-IR',
+        ...(shop.products.length > 0
+          ? {
+              hasOfferCatalog: {
+                '@type': 'OfferCatalog',
+                name: `محصولات ${shop.workspace.name}`,
+                itemListElement: shop.products.map((product) => ({
+                  '@type': 'Offer',
+                  itemOffered: {
+                    '@type': 'Product',
+                    name: product.title,
+                    ...(product.description ? { description: product.description } : {}),
+                    ...(product.imageUrl ? { image: product.imageUrl } : {}),
+                    ...(product.category ? { category: product.category } : {}),
+                    ...(product.sku ? { sku: product.sku } : {}),
+                  },
+                  price: toRial(product.price),
+                  priceCurrency: 'IRR',
+                  availability:
+                    product.stock > 0
+                      ? 'https://schema.org/InStock'
+                      : 'https://schema.org/OutOfStock',
+                })),
+              },
+            }
+          : {}),
+      },
+      breadcrumbJsonLd([
+        { name: 'خانه', path: '/' },
+        { name: 'فروشگاه‌ها', path: '/shop' },
+        { name: shop.workspace.name },
+      ]),
+    ],
+  };
+
   return (
     <>
+      <JsonLd data={jsonLd} />
       <Header />
       <main className="container-page grid gap-6 py-8 lg:grid-cols-[1.6fr_1fr]">
         <div className="flex flex-col gap-4">

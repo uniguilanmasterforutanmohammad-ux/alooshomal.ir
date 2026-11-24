@@ -3,8 +3,15 @@ import { notFound } from 'next/navigation';
 
 import { Header } from '@/components/layout/Header';
 import { StayBookingForm } from '@/components/stay/StayBookingForm';
+import { JsonLd } from '@/components/seo/JsonLd';
 import type { AccommodationProperty } from '@/lib/api';
-import { SERVER_API_URL, decodeSlugParam, metaDescription } from '@/lib/site';
+import {
+  absoluteUrl,
+  SERVER_API_URL,
+  decodeSlugParam,
+  metaDescription,
+} from '@/lib/site';
+import { breadcrumbJsonLd } from '@/lib/seo';
 
 async function fetchStay(slug: string): Promise<AccommodationProperty | null> {
   try {
@@ -49,8 +56,68 @@ export default async function StayDetailPage({
   const stay = await fetchStay(slug);
   if (!stay) notFound();
 
+  const url = absoluteUrl(`/stay/${stay.slug}`);
+  // Prices are stored in Toman (`IRT`); schema.org expects the ISO 4217 Rial
+  // code, so convert (1 Toman = 10 Rial) instead of mislabelling the unit.
+  const priceInRial = stay.currency === 'IRT' ? stay.basePrice * 10 : stay.basePrice;
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'LodgingBusiness',
+        '@id': url,
+        name: stay.title,
+        description: stay.description ?? undefined,
+        url,
+        inLanguage: 'fa-IR',
+        image: stay.photos.map((photo) => photo.url),
+        ...(stay.city?.name || stay.address
+          ? {
+              address: {
+                '@type': 'PostalAddress',
+                ...(stay.address ? { streetAddress: stay.address } : {}),
+                ...(stay.city?.name ? { addressLocality: stay.city.name } : {}),
+                addressCountry: 'IR',
+              },
+            }
+          : {}),
+        ...(stay.latitude != null && stay.longitude != null
+          ? {
+              geo: {
+                '@type': 'GeoCoordinates',
+                latitude: stay.latitude,
+                longitude: stay.longitude,
+              },
+            }
+          : {}),
+        amenityFeature: stay.amenities.map((name) => ({
+          '@type': 'LocationFeatureSpecification',
+          name,
+          value: true,
+        })),
+        ...(stay.basePrice > 0
+          ? {
+              makesOffer: {
+                '@type': 'Offer',
+                price: priceInRial,
+                priceCurrency: 'IRR',
+                availability: 'https://schema.org/InStock',
+                url,
+              },
+            }
+          : {}),
+      },
+      breadcrumbJsonLd([
+        { name: 'خانه', path: '/' },
+        { name: 'اقامتگاه‌ها', path: '/stay' },
+        { name: stay.title },
+      ]),
+    ],
+  };
+
   return (
     <>
+      <JsonLd data={jsonLd} />
       <Header />
       <main className="container-page grid gap-6 py-8 lg:grid-cols-[1.6fr_1fr]">
         <div className="flex flex-col gap-6">

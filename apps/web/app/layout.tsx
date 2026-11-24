@@ -7,6 +7,7 @@ import { SessionWatcher } from '@/components/ui/SessionWatcher';
 import { ChunkErrorReloader } from '@/components/ui/ChunkErrorReloader';
 import { PaypingOAuthCatcher } from '@/components/admin/PaypingOAuthCatcher';
 import { MobileNav } from '@/components/layout/MobileNav';
+import { JsonLd } from '@/components/seo/JsonLd';
 import { SITE_URL } from '@/lib/site';
 import {
   SITE_DESCRIPTION,
@@ -15,7 +16,6 @@ import {
   SITE_TAGLINE,
   siteJsonLd,
 } from '@/lib/seo';
-import { jsonLdHtml } from '@/lib/json-ld';
 import {
   getSiteTheme,
   siteThemeDocumentAttrs,
@@ -112,10 +112,7 @@ export default async function RootLayout({
       <body>
         {/* Site-wide entity graph (Organization + WebSite + SearchAction) so
             every page links to the same brand entity for search/AI engines. */}
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: jsonLdHtml(siteJsonLd()) }}
-        />
+        <JsonLd data={siteJsonLd()} />
         <FeaturesProvider initial={features}>
           <ThemeScript />
           <ThemeSync />

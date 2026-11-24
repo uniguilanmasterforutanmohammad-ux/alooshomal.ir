@@ -31,6 +31,7 @@ import { LikeButton } from '@/components/ui/LikeButton';
 import { SaveButton } from '@/components/ui/SaveButton';
 import { ShareButton } from '@/components/ui/ShareButton';
 import { VerificationBadge } from '@/components/ui/VerificationBadge';
+import { JsonLd } from '@/components/seo/JsonLd';
 import {
   InstagramIcon,
   LinkedinIcon,
@@ -46,7 +47,7 @@ import {
   fetchCategoryDirectory,
 } from '@/lib/catalog-server';
 import { fa, formatJalali } from '@/lib/jalali';
-import { jsonLdHtml } from '@/lib/json-ld';
+import { breadcrumbJsonLd } from '@/lib/seo';
 import {
   absoluteUrl,
   decodeSlugParam,
@@ -184,7 +185,11 @@ export async function generateMetadata({
   };
 }
 
-function buildJsonLd(card: BusinessCard, reviews: BusinessReviewsPage | null) {
+function buildJsonLd(
+  card: BusinessCard,
+  reviews: BusinessReviewsPage | null,
+  categoryName: string | null,
+) {
   const url = absoluteUrl(`/business/${card.slug}`);
   const address = card.address
     ? {
@@ -202,13 +207,15 @@ function buildJsonLd(card: BusinessCard, reviews: BusinessReviewsPage | null) {
     card.twitter,
   ].filter((value): value is string => Boolean(value));
   const summary = reviews?.summary;
-  return {
-    '@context': 'https://schema.org',
+  const entity = {
     '@type': 'LocalBusiness',
+    '@id': url,
     name: card.company || card.fullName,
     description: card.bio ?? undefined,
     image: card.gallery?.[0] || card.logoUrl || card.avatarUrl || undefined,
     url,
+    mainEntityOfPage: url,
+    inLanguage: 'fa-IR',
     ...(card.phone ? { telephone: card.phone } : {}),
     ...(address ? { address } : {}),
     ...(sameAs.length > 0 ? { sameAs } : {}),
@@ -228,6 +235,26 @@ function buildJsonLd(card: BusinessCard, reviews: BusinessReviewsPage | null) {
           },
         }
       : {}),
+  };
+
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      entity,
+      breadcrumbJsonLd([
+        { name: 'خانه', path: '/' },
+        { name: 'دسته‌بندی مشاغل', path: '/categories' },
+        ...(categoryName
+          ? [
+              {
+                name: categoryName,
+                path: `/categories/${encodeURIComponent(categoryName)}`,
+              },
+            ]
+          : []),
+        { name: card.fullName },
+      ]),
+    ],
   };
 }
 
@@ -314,10 +341,7 @@ export default async function BusinessProfilePage({
 
   return (
     <div className="min-h-screen bg-soft">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLdHtml(buildJsonLd(card, reviews)) }}
-      />
+      <JsonLd data={buildJsonLd(card, reviews, card.business?.name ?? null)} />
       <Header />
       <main className="container-page py-5 sm:py-8">
         <nav

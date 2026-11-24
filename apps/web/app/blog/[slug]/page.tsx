@@ -5,8 +5,9 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { BlogPostView } from '@/components/blog/BlogPostView';
+import { JsonLd } from '@/components/seo/JsonLd';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
-import { jsonLdHtml } from '@/lib/json-ld';
+import { breadcrumbJsonLd, ORGANIZATION_ID } from '@/lib/seo';
 import {
   absoluteUrl,
   decodeSlugParam,
@@ -76,27 +77,37 @@ export default async function BlogPostPage({
   const post = await getPost(slug);
   if (!post) notFound();
 
+  const url = absoluteUrl(`/blog/${post.slug}`);
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
-    headline: post.title,
-    description: metaDescription(post.excerpt ?? post.content, post.title),
-    image: post.coverImageUrl ?? undefined,
-    datePublished: post.publishedAt ?? post.createdAt,
-    dateModified: post.updatedAt,
-    author: {
-      '@type': 'Organization',
-      name: 'شمالی کارت',
-    },
-    url: absoluteUrl(`/blog/${post.slug}`),
+    '@graph': [
+      {
+        '@type': 'BlogPosting',
+        '@id': url,
+        headline: post.title,
+        description: metaDescription(post.excerpt ?? post.content, post.title),
+        image: post.coverImageUrl ?? undefined,
+        datePublished: post.publishedAt ?? post.createdAt,
+        dateModified: post.updatedAt,
+        inLanguage: 'fa-IR',
+        mainEntityOfPage: url,
+        author: { '@id': ORGANIZATION_ID },
+        publisher: { '@id': ORGANIZATION_ID },
+        ...(post.category?.name ? { articleSection: post.category.name } : {}),
+        ...(post.tags?.length ? { keywords: post.tags.join(', ') } : {}),
+        url,
+      },
+      breadcrumbJsonLd([
+        { name: 'خانه', path: '/' },
+        { name: 'بلاگ', path: '/blog' },
+        { name: post.title },
+      ]),
+    ],
   };
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLdHtml(jsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
       <Header />
       <BlogPostView post={post} />
       <Footer />

@@ -20,13 +20,50 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.79.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.80.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — داده‌های ساختاریافته‌ی صفحه‌به‌صفحه و پوشش کامل نقشه‌ی سایت — نسخه `v4.80.0`
+
+**هدف:** تکمیل JSON-LD در سطح صفحه (مسیر صفحه، فهرست‌ها، اقامتگاه، فروشگاه و
+خبر) و رفع شکاف نقشه‌ی سایت که مطالب بلاگ و اخبار را نداشت.
+
+**تغییرات:**
+- `apps/web/components/seo/JsonLd.tsx`: کامپوننت مشترک تزریق JSON-LD (حذف
+  تکرار `dangerouslySetInnerHTML` و تضمین استفاده از سریالایزر امن).
+- `apps/web/app/business/[slug]/page.tsx`، `business-cards/[slug]`،
+  `biolinks/[slug]`، `blog/[slug]`، `categories/[slug]`: افزودن `BreadcrumbList`
+  به گراف صفحه و `@id`/`mainEntityOfPage`/`inLanguage`؛ مقاله‌ی بلاگ حالا
+  `publisher`، `articleSection` و `keywords` هم دارد.
+- `apps/web/app/stay/[slug]/page.tsx`: JSON-LD `LodgingBusiness` با آدرس،
+  مختصات، امکانات و `Offer` (تبدیل تومان به ریال برای `priceCurrency` صحیح).
+- `apps/web/app/shop/[slug]/page.tsx`: JSON-LD `Store` + `OfferCatalog` با
+  محصولات، قیمت و موجودی.
+- `apps/web/app/pulse/[id]/page.tsx`: `generateMetadata` و JSON-LD
+  `NewsArticle` + مسیر صفحه.
+- `apps/web/app/business-cards/page.tsx` و `biolinks/page.tsx`: متادیتای
+  عنوان/توضیح/canonical و `CollectionPage`+`ItemList` از صفحه‌ی اول سروری.
+- `apps/web/app/categories/page.tsx`: `CollectionPage`+`ItemList` دسته‌ها.
+- `apps/web/app/feeds/layout.tsx` و `pulse/layout.tsx`: متادیتای مسیر برای
+  صفحه‌های کلاینتی (که خودشان نمی‌توانند `metadata` صادر کنند).
+- `apps/api/src/seo/seo.service.ts`: افزودن `/blog`، `/contact`، همه‌ی مطالب
+  منتشرشده‌ی بلاگ و خبرهای تأییدشده به نقشه‌ی سایت.
+
+**تأیید/تست:**
+- `docker compose exec web ./node_modules/.bin/tsc --noEmit` → بدون خطا؛
+  `eslint app components/seo` → ۰ خطا (فقط هشدارهای از قبل موجود).
+- `docker compose exec api ./node_modules/.bin/tsc --noEmit` و `eslint src/seo`
+  → بدون خطا؛ `python3 scripts/check_api_docs.py` → ۵۶ کنترلر / ۵۶۹ مسیر OK.
+- `curl` روی `/business/…`، `/business-cards/…`، `/categories`، `/stay/…` →
+  همه `200` و JSON-LD معتبر (`LocalBusiness`/`ProfilePage`/`CollectionPage`/
+  `LodgingBusiness` + `BreadcrumbList`).
+- `GET /api/seo/sitemap` → ۲۵۳۲ ورودی شامل `/blog`، `/blog/<slug>`، `/pulse/<id>`
+  و `/contact`.
 
 ## ۱۴۰۵/۰۹/۰۳ — ایندکس ماشین‌خوان برای موتورهای هوش مصنوعی و قواعد خزش — نسخه `v4.79.0`
 

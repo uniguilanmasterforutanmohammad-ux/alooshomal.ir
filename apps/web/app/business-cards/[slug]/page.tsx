@@ -5,9 +5,10 @@ import { Header } from '@/components/layout/Header';
 import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { PublicBusinessCardView } from '@/components/businesscard/PublicBusinessCardView';
 import { RecordView } from '@/components/ui/RecordView';
+import { JsonLd } from '@/components/seo/JsonLd';
 import { absoluteUrl, metaDescription, SERVER_API_URL, decodeSlugParam } from '@/lib/site';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
-import { jsonLdHtml } from '@/lib/json-ld';
+import { breadcrumbJsonLd } from '@/lib/seo';
 import { type BusinessCard } from '@/lib/api';
 
 interface BusinessCardPayload {
@@ -92,13 +93,15 @@ function buildJsonLd(data: BusinessCardPayload): Record<string, unknown> {
     : undefined;
 
   if (businessCard.company) {
-    return {
-      '@context': 'https://schema.org',
+    const entity = {
       '@type': 'LocalBusiness',
+      '@id': url,
       name: businessCard.company,
       description: businessCard.bio ?? undefined,
       image: businessCard.avatarUrl ?? undefined,
       url,
+      mainEntityOfPage: url,
+      inLanguage: 'fa-IR',
       ...(businessCard.phone ? { telephone: businessCard.phone } : {}),
       ...(address ? { address } : {}),
       employee: {
@@ -107,21 +110,44 @@ function buildJsonLd(data: BusinessCardPayload): Record<string, unknown> {
         ...(businessCard.jobTitle ? { jobTitle: businessCard.jobTitle } : {}),
       },
     };
+    return {
+      '@context': 'https://schema.org',
+      '@graph': [
+        entity,
+        breadcrumbJsonLd([
+          { name: 'خانه', path: '/' },
+          { name: 'کارت‌های ویزیت', path: '/business-cards' },
+          { name: businessCard.fullName },
+        ]),
+      ],
+    };
   }
 
   return {
     '@context': 'https://schema.org',
-    '@type': 'ProfilePage',
-    dateModified: businessCard.publishedAt ?? undefined,
-    mainEntity: {
-      '@type': 'Person',
-      name: businessCard.fullName,
-      ...(businessCard.jobTitle ? { jobTitle: businessCard.jobTitle } : {}),
-      description: businessCard.bio ?? undefined,
-      image: businessCard.avatarUrl ?? undefined,
-      url,
-      ...(address ? { address } : {}),
-    },
+    '@graph': [
+      {
+        '@type': 'ProfilePage',
+        '@id': url,
+        url,
+        dateModified: businessCard.publishedAt ?? undefined,
+        inLanguage: 'fa-IR',
+        mainEntity: {
+          '@type': 'Person',
+          name: businessCard.fullName,
+          ...(businessCard.jobTitle ? { jobTitle: businessCard.jobTitle } : {}),
+          description: businessCard.bio ?? undefined,
+          image: businessCard.avatarUrl ?? undefined,
+          url,
+          ...(address ? { address } : {}),
+        },
+      },
+      breadcrumbJsonLd([
+        { name: 'خانه', path: '/' },
+        { name: 'کارت‌های ویزیت', path: '/business-cards' },
+        { name: businessCard.fullName },
+      ]),
+    ],
   };
 }
 
@@ -146,11 +172,8 @@ export default async function PublicBusinessCardPage({
   }
   return (
     <>
-      <script
-        type="application/ld+json"
-        // JSON-LD for rich results; must live in the server HTML (see SEO guide).
-        dangerouslySetInnerHTML={{ __html: jsonLdHtml(buildJsonLd(data)) }}
-      />
+      {/* JSON-LD for rich results; must live in the server HTML. */}
+      <JsonLd data={buildJsonLd(data)} />
       <RecordView kind="business-cards" slug={slug} />
       <PublicBusinessCardView
         businessCard={data.businessCard}

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowRight, CalendarDays, UserRound } from 'lucide-react';
@@ -5,7 +6,10 @@ import { ArrowRight, CalendarDays, UserRound } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
+import { JsonLd } from '@/components/seo/JsonLd';
 import { getStoppedSections, isRouteStopped } from '@/lib/sections-server';
+import { absoluteUrl, metaDescription } from '@/lib/site';
+import { breadcrumbJsonLd, ORGANIZATION_ID } from '@/lib/seo';
 import { type NewsItem } from '@/lib/api';
 
 async function getNews(id: string): Promise<NewsItem | null> {
@@ -21,6 +25,35 @@ async function getNews(id: string): Promise<NewsItem | null> {
   } catch {
     return null;
   }
+}
+
+/** Server-rendered SEO metadata for a city-news item. */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const news = await getNews(id);
+  if (!news) {
+    return { title: 'خبر پیدا نشد', robots: { index: false, follow: false } };
+  }
+  const description = metaDescription(
+    news.summary ?? news.body,
+    `خبر «${news.title}» در نبض شهر شمالی کارت.`,
+  );
+  return {
+    title: news.title,
+    description,
+    alternates: { canonical: `/pulse/${news.id}` },
+    openGraph: {
+      type: 'article',
+      title: news.title,
+      description,
+      url: `/pulse/${news.id}`,
+      publishedTime: news.publishedAt ?? news.createdAt,
+    },
+  };
 }
 
 export default async function NewsDetailPage({
@@ -44,9 +77,38 @@ export default async function NewsDetailPage({
   }
 
   const published = news.publishedAt ?? news.createdAt;
+  const url = absoluteUrl(`/pulse/${news.id}`);
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'NewsArticle',
+        '@id': url,
+        headline: news.title,
+        description: metaDescription(news.summary ?? news.body, news.title),
+        datePublished: published,
+        dateModified: published,
+        inLanguage: 'fa-IR',
+        mainEntityOfPage: url,
+        url,
+        author: {
+          '@type': 'Person',
+          name: news.publisherName ?? news.author?.fullName ?? 'شهروند خبرنگار',
+        },
+        publisher: { '@id': ORGANIZATION_ID },
+        ...(news.category?.name ? { articleSection: news.category.name } : {}),
+      },
+      breadcrumbJsonLd([
+        { name: 'خانه', path: '/' },
+        { name: 'اخبار شهر', path: '/pulse' },
+        { name: news.title },
+      ]),
+    ],
+  };
 
   return (
     <>
+      <JsonLd data={jsonLd} />
       <Header />
       <main className="container-page py-8">
         <Link href="/pulse" className="inline-flex items-center gap-1 text-sm font-bold text-brand">

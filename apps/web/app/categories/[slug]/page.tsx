@@ -17,9 +17,10 @@ import { Header } from '@/components/layout/Header';
 import { StoppedSectionScreen } from '@/components/layout/StoppedSectionScreen';
 import { RatingStars } from '@/components/business/RatingStars';
 import { VerificationBadge } from '@/components/ui/VerificationBadge';
+import { JsonLd } from '@/components/seo/JsonLd';
 import { fetchBusinessCategories, fetchCategoryDirectory } from '@/lib/catalog-server';
 import { fa } from '@/lib/jalali';
-import { jsonLdHtml } from '@/lib/json-ld';
+import { breadcrumbJsonLd } from '@/lib/seo';
 import {
   absoluteUrl,
   decodeSlugParam,
@@ -102,19 +103,29 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
   const currentQuery = { q: sp.q, cityId: sp.cityId, sort: sp.sort };
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'CollectionPage',
-    name: `کسب‌وکارهای ${category.name}`,
-    url: absoluteUrl(categoryPath(category.name)),
-    mainEntity: {
-      '@type': 'ItemList',
-      numberOfItems: meta.total,
-      itemListElement: items.map((item, index) => ({
-        '@type': 'ListItem',
-        position: (meta.page - 1) * meta.limit + index + 1,
-        url: absoluteUrl(`/business/${item.slug}`),
-        name: item.fullName,
-      })),
-    },
+    '@graph': [
+      {
+        '@type': 'CollectionPage',
+        name: `کسب‌وکارهای ${category.name}`,
+        url: absoluteUrl(categoryPath(category.name)),
+        inLanguage: 'fa-IR',
+        mainEntity: {
+          '@type': 'ItemList',
+          numberOfItems: meta.total,
+          itemListElement: items.map((item, index) => ({
+            '@type': 'ListItem',
+            position: (meta.page - 1) * meta.limit + index + 1,
+            url: absoluteUrl(`/business/${item.slug}`),
+            name: item.fullName,
+          })),
+        },
+      },
+      breadcrumbJsonLd([
+        { name: 'خانه', path: '/' },
+        { name: 'دسته‌بندی مشاغل', path: '/categories' },
+        { name: category.name },
+      ]),
+    ],
   };
   const related = (allCategories ?? [])
     .filter((entry) => entry.name !== category.name && entry.count > 0)
@@ -122,10 +133,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
 
   return (
     <div className="min-h-screen bg-soft">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: jsonLdHtml(jsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
       <Header />
       <main className="container-page py-6 sm:py-8">
         <nav aria-label="مسیر صفحه" className="mb-3 flex flex-wrap items-center gap-1 text-xs text-muted">
