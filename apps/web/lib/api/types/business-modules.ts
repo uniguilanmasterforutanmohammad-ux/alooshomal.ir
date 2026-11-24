@@ -503,3 +503,105 @@ export interface PublicCardInfo {
     instructions: string | null;
   } | null;
 }
+
+export interface Building {
+  id: string;
+  workspaceId: string;
+  name: string;
+  address: string | null;
+  city: string | null;
+  managerName: string | null;
+  managerPhone: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { units: number; tickets: number };
+  units?: BuildingUnit[];
+}
+
+export interface BuildingUnit {
+  id: string;
+  buildingId: string;
+  floor: string | null;
+  unitNumber: string;
+  area: number | null;
+  ownerName: string | null;
+  ownerPhone: string | null;
+  residentName: string | null;
+  residentPhone: string | null;
+  occupancyStart: string | null;
+  occupancyEnd: string | null;
+  status: 'OCCUPIED' | 'VACANT' | string;
+}
+
+export interface BuildingCharge {
+  id: string;
+  buildingId: string;
+  unitId: string;
+  title: string;
+  period: string | null;
+  amount: number;
+  paidAmount: number;
+  dueDate: string | null;
+  status: 'UNPAID' | 'PARTIAL' | 'PAID' | 'CANCELLED' | string;
+  note: string | null;
+  createdAt: string;
+  unit?: { id: string; unitNumber: string; floor: string | null; residentName: string | null };
+  building?: { id: string; name: string };
+}
+
+export interface BuildingPayment {
+  id: string;
+  buildingId: string;
+  unitId: string;
+  chargeId: string | null;
+  amount: number;
+  method: string;
+  trackingNumber: string | null;
+  receiptUrl: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | string;
+  paidAt: string | null;
+  reviewNote: string | null;
+  createdAt: string;
+  unit?: { id: string; unitNumber: string };
+  charge?: { id: string; title: string; amount: number } | null;
+}
+
+export interface BuildingExpense {
+  id: string;
+  buildingId: string;
+  title: string;
+  category: string | null;
+  amount: number;
+  paidAt: string | null;
+  vendor: string | null;
+  receiptUrl: string | null;
+  note: string | null;
+  building?: { id: string; name: string };
+}
+
+export interface BuildingTicket {
+  id: string;
+  buildingId: string;
+  unitId: string | null;
+  title: string;
+  description: string | null;
+  priority: 'LOW' | 'NORMAL' | 'HIGH' | 'URGENT' | string;
+  status: 'OPEN' | 'IN_PROGRESS' | 'DONE' | 'CANCELLED' | string;
+  assignee: string | null;
+  cost: number;
+  photoUrl: string | null;
+  reportedAt: string;
+  resolvedAt: string | null;
+  unit?: { id: string; unitNumber: string } | null;
+  building?: { id: string; name: string };
+}
+
+export interface BuildingFinanceOverview {
+  charged: number;
+  collected: number;
+  outstanding: number;
+  spent: number;
+  balance: number;
+  expensesByCategory: Array<{ category: string; amount: number }>;
+}

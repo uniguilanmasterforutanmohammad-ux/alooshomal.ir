@@ -2094,6 +2094,7 @@ model BusinessWorkspace {
   orders          RetailOrder[]
   stockMovements  RetailStockMovement[]
   shopSettings    RetailShopSettings?
+  buildings       Building[]
   cardAccount     CardToCardAccount?
   cardPayments    CardToCardPayment[]
   businessCards   BusinessCard[]
@@ -2644,4 +2645,160 @@ model CardToCardPayment {
   @@index([workspaceId, status])
   @@index([referenceType, referenceId])
   @@map("card_to_card_payments")
+}
+
+// ---------------------------------------------------------------------------
+// «مدیریت ساختمان» — building management package
+// ---------------------------------------------------------------------------
+/// One residential building managed by the workspace. Units, charges, payments,
+/// expenses and maintenance tickets all hang off it, so several buildings stay
+/// fully separated.
+model Building {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  name         String
+  address      String?
+  city         String?
+  managerName  String?
+  managerPhone String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace BusinessWorkspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  units     BuildingUnit[]
+  charges   BuildingCharge[]
+  payments  BuildingPayment[]
+  expenses  BuildingExpense[]
+  tickets   BuildingMaintenanceTicket[]
+
+  @@index([workspaceId])
+  @@map("buildings")
+}
+
+model BuildingUnit {
+  id             String    @id @default(cuid())
+  buildingId     String
+  floor          String?
+  unitNumber     String
+  /// Area in square meters (used for area-based charge splits).
+  area           Int?
+  ownerName      String?
+  ownerPhone     String?
+  residentName   String?
+  residentPhone  String?
+  occupancyStart DateTime?
+  occupancyEnd   DateTime?
+  /// OCCUPIED | VACANT
+  status         String    @default("OCCUPIED")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  building Building                 @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  charges  BuildingCharge[]
+  payments BuildingPayment[]
+  tickets  BuildingMaintenanceTicket[]
+
+  @@unique([buildingId, unitNumber])
+  @@index([buildingId])
+  @@map("building_units")
+}
+
+/// A charge line issued to one unit (monthly charge, one-off repair share…).
+/// Issuing a charge only records a receivable; money is recorded separately as
+/// a `BuildingPayment`.
+model BuildingCharge {
+  id         String    @id @default(cuid())
+  buildingId String
+  unitId     String
+  title      String
+  /// Billing period, e.g. `1405-09`.
+  period     String?
+  amount     Int       @default(0)
+  paidAmount Int       @default(0)
+  dueDate    DateTime?
+  /// UNPAID | PARTIAL | PAID | CANCELLED
+  status     String    @default("UNPAID")
+  note       String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  building Building          @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  unit     BuildingUnit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  payments BuildingPayment[]
+
+  @@index([buildingId, status])
+  @@index([unitId])
+  @@map("building_charges")
+}
+
+/// A card-to-card (or cash/transfer) payment recorded for a unit. A receipt is
+/// not a settlement: only an APPROVED payment counts toward the charge.
+model BuildingPayment {
+  id             String    @id @default(cuid())
+  buildingId     String
+  unitId         String
+  chargeId       String?
+  amount         Int
+  /// CARD_TO_CARD | CASH | TRANSFER
+  method         String    @default("CARD_TO_CARD")
+  trackingNumber String?
+  receiptUrl     String?
+  /// PENDING | APPROVED | REJECTED
+  status         String    @default("PENDING")
+  paidAt         DateTime?
+  reviewNote     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  building Building        @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  unit     BuildingUnit    @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  charge   BuildingCharge? @relation(fields: [chargeId], references: [id], onDelete: SetNull)
+
+  @@index([buildingId, status])
+  @@map("building_payments")
+}
+
+model BuildingExpense {
+  id         String    @id @default(cuid())
+  buildingId String
+  title      String
+  category   String?
+  amount     Int
+  paidAt     DateTime?
+  vendor     String?
+  receiptUrl String?
+  note       String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  building Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+
+  @@index([buildingId, paidAt])
+  @@map("building_expenses")
+}
+
+model BuildingMaintenanceTicket {
+  id          String    @id @default(cuid())
+  buildingId  String
+  unitId      String?
+  title       String
+  description String?
+  /// LOW | NORMAL | HIGH | URGENT
+  priority    String    @default("NORMAL")
+  /// OPEN | IN_PROGRESS | DONE | CANCELLED
+  status      String    @default("OPEN")
+  assignee    String?
+  cost        Int       @default(0)
+  photoUrl    String?
+  reportedAt  DateTime  @default(now())
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  building Building      @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  unit     BuildingUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
+
+  @@index([buildingId, status])
+  @@map("building_maintenance_tickets")
 }

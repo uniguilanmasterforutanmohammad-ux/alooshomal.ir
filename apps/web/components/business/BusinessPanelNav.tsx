@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   BarChart3,
   Boxes,
+  Building2,
   CalendarCheck,
   CreditCard,
   Globe,
@@ -14,9 +15,12 @@ import {
   ImagePlus,
   LayoutDashboard,
   PackageCheck,
+  ReceiptText,
   Settings,
   ShoppingBag,
   Users,
+  Wallet,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -37,6 +41,10 @@ const ICONS: Record<string, LucideIcon> = {
   Boxes,
   CreditCard,
   BarChart3,
+  Building2,
+  ReceiptText,
+  Wallet,
+  Wrench,
 };
 
 export function moduleIcon(name: string): LucideIcon {

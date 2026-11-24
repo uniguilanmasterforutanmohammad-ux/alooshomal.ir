@@ -849,7 +849,8 @@ PY
 
 ماژول‌های فعلی: `businessCards`، `biolinks`، `feeds`، `accommodationRental`،
 `accommodationReservations`، `accommodationChannels`، `crm`، `retailCatalog`،
-`retailOrders`، `retailInventory`، `retailReports` و `cardToCard`. ماژول‌های
+`retailOrders`، `retailInventory`، `retailReports`، `buildingUnits`،
+`buildingCharges`، `buildingFinance`، `buildingMaintenance` و `cardToCard`. ماژول‌های
 `businessCards`/`biolinks` هم در همین رجیستری ثبت شده‌اند و اکنون فعال/غیرفعال
 شدنشان روی مسیرهای مالک اعمال می‌شود؛ سوئیچ‌های سراسری ادمین
 (`allowBusinessCardCreation` و `allowBiolinkCreation`) همچنان بالاتر از آن
@@ -921,6 +922,33 @@ PY
 می‌شود. هر سفارش `paymentStatus` و `deliveryStatus` جدا دارد و در تأیید واریز
 کارت‌به‌کارت، فاکتور فروش (`RETAIL_ORDER_PAYMENT`) و آمار مشتری به‌طور خودکار
 ثبت می‌شود.
+
+### مدیریت ساختمان (`/api/buildings`, `/api/building-charges`, `/api/building-finance`, `/api/building-maintenance`)
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET/POST` | `/buildings` | فهرست/ثبت ساختمان‌های تحت مدیریت. |
+| `GET/PATCH/DELETE` | `/buildings/:id` | جزئیات (همراه واحدها)/ویرایش/حذف ساختمان. |
+| `POST` | `/buildings/:id/units` | افزودن واحد (شماره، طبقه، متراژ، مالک/مستأجر، تاریخ سکونت). |
+| `PATCH/DELETE` | `/buildings/:id/units/:unitId` | ویرایش/حذف واحد. |
+| `GET/POST` | `/building-charges` | فهرست (فیلتر `buildingId`/`status`)/صدور شارژ برای یک واحد. |
+| `POST` | `/building-charges/bulk` | صدور گروهی شارژ برای همه‌ی واحدهای فعال؛ سهم ثابت (`amountPerUnit`) یا بر اساس متراژ (`amountPerSqm`). |
+| `GET` | `/building-charges/summary/:buildingId` | خلاصه‌ی مطالبات (کل، وصولی، مانده، تعداد پرداخت‌نشده/جزئی). |
+| `PATCH/DELETE` | `/building-charges/:id` | ویرایش/حذف شارژ. |
+| `GET/POST` | `/building-charges/payments` | فهرست رسیدها/ثبت پرداخت (تکرار `trackingNumber` با ۴۰۹ رد می‌شود). |
+| `PATCH` | `/building-charges/payments/:id` | تأیید/رد رسید؛ با تأیید، `paidAmount` و وضعیت شارژ مرتبط بازمحاسبه می‌شود. |
+| `GET` | `/building-finance/overview/:buildingId` | گردش مالی: مطالبات، وصولی، هزینه، مانده صندوق و هزینه به تفکیک دسته. |
+| `GET/POST` | `/building-finance/expenses` | فهرست/ثبت هزینه‌ی ساختمان. |
+| `DELETE` | `/building-finance/expenses/:id` | حذف هزینه. |
+| `GET/POST` | `/building-maintenance` | فهرست/ثبت خرابی و درخواست نگهداری (اولویت `LOW`/`NORMAL`/`HIGH`/`URGENT`). |
+| `PATCH/DELETE` | `/building-maintenance/:id` | تغییر وضعیت/مسئول/هزینه (با `DONE` زمان رفع ثبت می‌شود)/حذف. |
+
+هر ساختمان حساب مستقل دارد و همه‌ی کوئری‌ها با `workspaceId` مالک محدود می‌شوند.
+رسید به‌تنهایی تسویه نیست؛ تا زمانی که ادمین رسید را تأیید نکند، شارژ
+`UNPAID`/`PARTIAL` می‌ماند. ماژول‌ها با سوئیچ‌های `featureBuildingUnits`،
+`featureBuildingCharges`، `featureBuildingFinance` و `featureBuildingMaintenance`
+کنترل می‌شوند و بسته‌ی «مدیریت ساختمان» (`buildingManagement`) در کاتالوگ
+مدیریت‌ها ثبت شده است.
 
 ### پرداخت کارت به کارت (`/api/card-to-card`)
 

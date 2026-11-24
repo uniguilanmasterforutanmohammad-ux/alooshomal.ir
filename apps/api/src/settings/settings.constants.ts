@@ -514,6 +514,38 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     default: true,
   },
   {
+    key: 'featureBuildingUnits',
+    label: 'ماژول ساختمان و واحدها',
+    description:
+      'ثبت ساختمان‌ها، واحدها، مالک/مستأجر و تاریخ سکونت برای مدیران ساختمان.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureBuildingCharges',
+    label: 'ماژول شارژ و صورتحساب ساختمان',
+    description:
+      'صدور شارژ تکی/گروهی، مطالبات هر واحد و ثبت و تأیید پرداخت‌های ساختمان.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureBuildingFinance',
+    label: 'ماژول حسابداری ساختمان',
+    description:
+      'وصولی‌ها، هزینه‌ها و مانده صندوق هر ساختمان به‌صورت جداگانه.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureBuildingMaintenance',
+    label: 'ماژول خرابی و نگهداری ساختمان',
+    description:
+      'ثبت خرابی با اولویت و مسئول، پیگیری تا رفع و ثبت هزینه‌ی تعمیر.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
     key: 'featureCardToCard',
     label: 'ماژول پرداخت کارت به کارت',
     description:

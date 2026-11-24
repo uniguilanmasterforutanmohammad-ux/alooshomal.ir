@@ -20,13 +20,56 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.82.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.83.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — تکمیل بسته‌ی مدیریت «مدیریت ساختمان» — نسخه `v4.83.0`
+
+**هدف:** تکمیل بسته‌ی مدیریت ساختمان بر اساس سند ماژولار مرجع: ثبت ساختمان و
+واحدها/ساکنان، صدور شارژ (ثابت یا بر اساس متراژ)، تطبیق پرداخت/رسید
+کارت‌به‌کارت، حسابداری و مانده صندوق هر ساختمان، و پیگیری خرابی/نگهداری؛ با
+حساب مستقل هر ساختمان و پنل مدیریت.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل‌های `Building`، `BuildingUnit` (یکتای
+  `[buildingId, unitNumber]`)، `BuildingCharge` (با `paidAmount`/وضعیت)،
+  `BuildingPayment` (تأیید/رد رسید)، `BuildingExpense` و
+  `BuildingMaintenanceTicket`؛ رابطه‌ی `BusinessWorkspace.buildings`.
+- `apps/api/src/buildings/`: سرویس و چهار کنترلر (`/buildings`،
+  `/building-charges`، `/building-finance`، `/building-maintenance`) با DTO،
+  گارد ماژول و `@ApiTags`/`@ApiOperation`؛ تأیید رسید، `paidAmount` و وضعیت
+  شارژ را بازمحاسبه می‌کند و تکرار شماره‌ی پیگیری را با ۴۰۹ رد می‌کند.
+- `apps/api/src/app.module.ts`: ثبت `BuildingsModule`.
+- `apps/api/src/business-modules/business-modules.registry.ts`: چهار ماژول
+  `buildingUnits`/`buildingCharges`/`buildingFinance`/`buildingMaintenance` و
+  بسته‌ی `buildingManagement`.
+- `apps/api/src/settings/settings.constants.ts`: چهار سوئیچ
+  `featureBuilding*`.
+- `apps/api/src/business-modules/business-modules.service.ts`: ارتقای نشانگر
+  همگام‌سازی رجیستری به `businessManagementsSeedV5` تا بسته‌ی جدید در نصب‌های
+  موجود هم seed شود.
+- `apps/web/lib/api/types/business-modules.ts` و
+  `apps/web/components/business/BusinessPanelNav.tsx`: تایپ‌ها و آیکون‌های
+  ساختمان.
+- `apps/web/app/dashboard/business/{buildings,charges,building-finance,maintenance}/page.tsx`:
+  چهار صفحه‌ی پنل (ساختمان/واحد، شارژ و رسید، حسابداری، نگهداری).
+- `docs/API.md`: بخش مدیریت ساختمان و به‌روزرسانی فهرست ماژول‌ها.
+
+**تأیید/تست:**
+- `docker compose exec -T api ./node_modules/.bin/tsc --noEmit -p tsconfig.json` → بدون خطا.
+- `docker compose exec -T web ./node_modules/.bin/tsc --noEmit` → بدون خطا؛
+  eslint صفحات جدید فقط یک هشدارِ الگوی موجود (`set-state-in-effect`) داد.
+- `python3 scripts/check_api_docs.py` → همه‌ی مسیرها `@ApiOperation` دارند؛
+  `python3 scripts/check_modules.py` → ساختار ماژولار درست.
+- تست دودی کامل API با dev quick-login: ساخت ساختمان/دو واحد، رد تکراری واحد
+  (۴۰۹)، شارژ تکی و گروهی (بر اساس متراژ)، خلاصه‌ی مطالبات، ثبت پرداخت و رد
+  تکرار پیگیری (۴۰۹)، تأیید رسید و `PAID` شدن شارژ، هزینه، گردش مالی و
+  چرخه‌ی کامل تیکت نگهداری — همه موفق؛ سپس داده‌ی تست حذف شد.
 
 ## ۱۴۰۵/۰۹/۰۳ — تکمیل بسته‌ی مدیریت «فروشگاه و خرده‌فروشی» — نسخه `v4.82.0`
 
