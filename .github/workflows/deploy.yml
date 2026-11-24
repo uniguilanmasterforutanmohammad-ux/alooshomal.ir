@@ -214,24 +214,54 @@ jobs:
               trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
             fi
 
-            # Registry pulls occasionally fail with a transient TLS handshake
-            # timeout to GitHub's blob CDN (pkg-containers.githubusercontent.com).
-            # Retry with backoff and serialise the pulls so we do not open many
-            # concurrent TLS connections to the same CDN on a flaky link.
-            pull_ok=0
-            for attempt in 1 2 3 4 5; do
-              if COMPOSE_PARALLEL_LIMIT=1 docker compose -f docker-compose.prod.yml pull; then
-                pull_ok=1
-                break
-              fi
-              delay=$((attempt * 10))
-              echo "docker compose pull failed (attempt ${attempt}/5); retrying in ${delay}s..." >&2
-              sleep "$delay"
+            # GitHub's blob CDN (pkg-containers.githubusercontent.com) is
+            # occasionally unreachable from some servers: a TLS handshake
+            # times out and `docker compose pull` aborts every image, even the
+            # ones whose layers already downloaded. Pull one image at a time
+            # with more attempts so a single flaky blob cannot restart the
+            # whole stack, and so completed layers stay cached between tries.
+            #
+            # A PMTU blackhole shows up exactly as "TLS handshake timeout";
+            # enabling TCP MTU probing works around it (best-effort, needs
+            # root, runtime-only and harmless if it fails).
+            sysctl -w net.ipv4.tcp_mtu_probing=1 >/dev/null 2>&1 || true
+
+            images=$(docker compose -f docker-compose.prod.yml config --images 2>/dev/null | sort -u) || images=""
+            if [ -z "$images" ]; then
+              # Fallback: read the image: lines and resolve ${VAR:-default}.
+              images=$(sed -n 's/^ *image: //p' docker-compose.prod.yml \
+                | sed 's/.*:-\([^}]*\)}/\1/' | sort -u)
+            fi
+            echo "Images to pull:"
+            echo "$images" | sed 's/^/  - /'
+
+            pull_image() {
+              img="$1"
+              attempt=1
+              while [ "$attempt" -le 10 ]; do
+                if docker pull "$img"; then
+                  return 0
+                fi
+                delay=$((attempt * 5))
+                [ "$delay" -gt 30 ] && delay=30
+                echo "pull failed for ${img} (attempt ${attempt}/10); retrying in ${delay}s..." >&2
+                sleep "$delay"
+                attempt=$((attempt + 1))
+              done
+              return 1
+            }
+
+            failed_images=""
+            for img in $images; do
+              pull_image "$img" || failed_images="${failed_images} ${img}"
             done
-            if [ "$pull_ok" -ne 1 ]; then
-              echo "GHCR pull failed after 5 attempts. If this is a TLS handshake timeout, check the server's outbound network/DNS to ghcr.io and pkg-containers.githubusercontent.com. If it is 'denied', make the api/web/minio packages public or set GHCR_PAT with read:packages." >&2
+            if [ -n "$failed_images" ]; then
+              echo "GHCR pull failed for:${failed_images}" >&2
+              echo "If this is a TLS handshake timeout, the server cannot reach pkg-containers.githubusercontent.com; check its DNS/IPv6/MTU. If it is 'denied', make the api/web/minio packages public or set GHCR_PAT with read:packages." >&2
               exit 1
             fi
+            # Everything is already pulled above; this only verifies compose is satisfied.
+            COMPOSE_PARALLEL_LIMIT=1 docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
             # Wait for the API and web healthchecks to pass before finishing.

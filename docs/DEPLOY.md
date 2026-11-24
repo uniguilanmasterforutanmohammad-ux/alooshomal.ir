@@ -260,6 +260,28 @@ ghcr.io/uniguilanmasterforutanmohammad-ux/alooshomal.ir-minio:RELEASE.2026-09-16
 3. یا پکیج‌های `…-api`، `…-web` و `…-minio` را از تنظیمات GitHub Packages
    عمومی کنید.
 
+### خطای `net/http: TLS handshake timeout` هنگام pull
+
+بلاب‌های GHCR از `pkg-containers.githubusercontent.com` سرو می‌شوند و روی
+بعضی شبکه‌ها دست‌دهی TLS با این هاست timeout می‌شود (اغلب به‌خاطر MTU/PMTUD
+یا مسیر IPv6 ناسالم). ورک‌فلوی deploy حالا:
+
+- هر ایمیج را جداگانه با ۱۰ تلاش و backoff می‌کشد تا یک بلاب خراب بقیه‌ی
+  لایه‌های دانلودشده را از نو شروع نکند،
+- پیش از pull به‌صورت best-effort `net.ipv4.tcp_mtu_probing=1` را فعال می‌کند.
+
+اگر باز هم تکرار شد، سمت سرور این‌ها را بررسی کنید:
+
+```bash
+getent ahosts pkg-containers.githubusercontent.com   # IPv4/IPv6
+sysctl net.ipv4.tcp_mtu_probing                      # باید 1 باشد
+curl -4 -sSI https://ghcr.io/v2/ | head -1
+```
+
+در صورت مشکل IPv6 می‌توانید در `/etc/docker/daemon.json` مقدار
+`"ipv6": false` را تنظیم و `systemctl restart docker` کنید (کانتینرها را
+دوباره بالا بیاورید).
+
 ```bash
 # وضعیت کانتینر nginx
 docker compose -f docker-compose.prod.yml ps nginx

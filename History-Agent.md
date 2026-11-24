@@ -20,13 +20,35 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.89.3**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.89.4**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۴ — pull تک‌تک ایمیج‌ها و MTU probing برای timeout موقت TLS — نسخه `v4.89.4`
+
+**هدف:** دیپلوی همچنان با `net/http: TLS handshake timeout` روی یک بلاب مشخص
+از `pkg-containers.githubusercontent.com` شکست می‌خورد؛ حلقه‌ی قبلی کل استک را
+یک‌جا pull می‌کرد و یک بلاب خراب همه‌ی ایمیج‌ها را از نو شروع می‌کرد.
+
+**تغییرات:**
+- `.github/workflows/deploy.yml`: pull هر ایمیج به‌صورت جداگانه با ۱۰ تلاش و
+  backoff (۵ تا ۳۰ ثانیه)، گزارش ایمیج‌های ناموفق، و فعال‌سازی best-effort
+  `net.ipv4.tcp_mtu_probing=1` پیش از pull؛ سپس یک `docker compose pull` نهایی
+  فقط برای تأیید سازگاری.
+- `docs/DEPLOY.md`: بخش عیب‌یابی «TLS handshake timeout» با دستورهای بررسی
+  DNS/IPv6/MTU.
+
+**تأیید/تست:**
+- اعتبارسنجی YAML با `python3 -c "import yaml; yaml.safe_load(...)"` → ok.
+- تست منطق حلقه با استاب `docker` (دو شکست پیاپی سپس موفقیت) → ایمیج اول در
+  تلاش سوم و ایمیج دوم در تلاش اول pull شد و `failed_images` خالی ماند.
+- بررسی fallback استخراج ایمیج‌ها با `sed` روی `docker-compose.prod.yml` → هر ۶
+  ایمیج درست استخراج شد.
+- `python3 scripts/sync_install.py --check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۳ — ارتقای اکشن‌های GitHub Actions به رانتایم Node 24 — نسخه `v4.89.3`
 
