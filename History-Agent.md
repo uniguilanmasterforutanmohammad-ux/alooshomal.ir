@@ -20,13 +20,36 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.77.3**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.77.4**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — حذف کامپوننت‌ها و DTOهای بی‌ارجاع — نسخه `v4.77.4`
+
+**هدف:** پاک‌سازی کد مرده‌ای که پس از تک‌صفحه‌ای‌شدن خانه و تغییر جریان بازیابی
+رمز بی‌استفاده مانده بود (مورد ثبت‌شده در `BACKLOG.md`).
+
+**تغییرات:**
+- حذف `apps/web/components/home/HomeAdBox.tsx`،
+  `apps/web/components/home/HomeItemSlider.tsx`،
+  `apps/web/components/blog/BlogSection.tsx`،
+  `apps/web/components/news/PulseSection.tsx`،
+  `apps/web/components/dashboard/CardStatsBar.tsx`،
+  `apps/web/components/ui/InlineEdit.tsx` و
+  `apps/web/components/ui/ThemePicker.tsx` (بدون هیچ وارد‌کننده‌ای).
+- حذف `apps/api/src/auth/dto/request-password-reset.dto.ts` (جریان بازیابی رمز
+  از DTO دیگری استفاده می‌کند).
+- `BACKLOG.md`: تغییر وضعیت همان مورد به «انجام‌شده» و ثبت این‌که تصمیم محصولی
+  درباره‌ی نمایش تبلیغ صفحه‌ی اصلی هنوز باز است.
+
+**تأیید/تست:**
+- `rg` روی کل `apps/` هیچ ارجاعی به این فایل‌ها نشان نداد.
+- `tsc --noEmit` در هر دو اپ: بدون خطا.
+- `GET /` و `GET /blog` روی وب → 200؛ `GET /api/health` → 200.
 
 ## ۱۴۰۵/۰۹/۰۳ — یکسان‌سازی کمک‌تابع‌های API (صفحه‌بندی، اسلاگ، مالکیت) — نسخه `v4.77.3`
 
