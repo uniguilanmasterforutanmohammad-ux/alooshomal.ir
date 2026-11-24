@@ -25,3 +25,9 @@
   pointer-events: none;
   background-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.18) 100%);
 }
+
+/* Dark hero: the black mortar would disappear on the dark brown surface. */
+html.dark .home-hero-brick::before {
+  opacity: 0.1;
+  filter: invert(1);
+}

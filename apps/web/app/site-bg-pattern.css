@@ -16,7 +16,9 @@ body::before {
   background-repeat: repeat;
 }
 
-
-
-
-
+/* The pattern is drawn with black strokes; on the dark paper it would vanish,
+   so invert it and lower the opacity to keep the same subtle texture. */
+html.dark body::before {
+  opacity: 0.06;
+  filter: invert(1);
+}

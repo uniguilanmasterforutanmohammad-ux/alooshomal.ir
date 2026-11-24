@@ -20,13 +20,49 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.81.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.81.2**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — پاک‌سازی CSS مرده و بهبود دسترس‌پذیری/تایپوگرافی — نسخه `v4.81.2`
+
+**هدف:** حذف استایل‌های مرده‌ی قابلیت‌های حذف‌شده، کاهش حجم CSS و بهبود
+دسترس‌پذیری (فوکوس، کنتراست، حرکت کمتر) و کیفیت تایپوگرافی فارسی.
+
+**تغییرات:**
+- `apps/web/app/globals.css`: حذف ۵۸۶ خط CSS مرده (حدود ۱۴KB) شامل
+  `.ad-banner*` (بنر تبلیغ خانه‌ی حذف‌شده)، `.spectrum-*`/`.home-slider`/
+  `.home-section-frame` (ریل‌های قدیمی خانه)، `.blt-page*`/`.blt-switch*`
+  (سوییچ قالب بیولینک)، `.directory-head*`، `.category-card*`/`.categories-grid`،
+  `.inline-edit`، `.vintage-frame`/`.vintage-divider` و `.tw-rail-cta` به‌همراه
+  اوررایدهای تم/دارک آن‌ها و بلوک‌های `@media` خالی.
+- `apps/web/app/globals.css`: `color-scheme: light` برای کنترل‌های بومی،
+  `scroll-padding-top` برای لنگرها زیر هدر چسبان، `text-wrap: balance/pretty`
+  برای تیترها/پاراگراف‌ها، حلقه‌ی فوکوس کیبورد برای لینک‌ها/`summary`،
+  `:focus-within` برای ویرایشگر متن غنی، تیره‌ترکردن placeholder
+  (`#9c8264` → `#7a6146` برای کنتراست ۴.۵:۱) و انتقال `white-space: nowrap`
+  دکمه‌ها به قاعده‌ی اصلی.
+- `apps/web/app/globals.css`: بلوک جامع `prefers-reduced-motion` (توقف
+  انیمیشن/ترنزیشن/اسکرول نرم برای همه‌ی عناصر).
+- `apps/web/app/hero-brick.css` و `apps/web/app/site-bg-pattern.css`: معکوس‌کردن
+  بافت آجر/الگوی پس‌زمینه در دارک‌مود تا دیده شود.
+- حذف `apps/web/public/vazirmatn-font-face.css` (بدون ارجاع) و فونت تکراری
+  `apps/web/public/fonts/Vazirmatn[wght].woff2` (۱۱۱KB)؛ نسخه‌ی
+  `Vazirmatn-Variable.woff2` که در `globals.css` استفاده می‌شود باقی ماند.
+
+**تأیید/تست:**
+- `postcss.parse` روی `globals.css` → بدون خطای نحوی؛ `tsc --noEmit` بدون خطا؛
+  ESLint وب ۰ خطا (۱۸۲ هشدار از قبل موجود).
+- Playwright (Chrome) روی ۱۱ صفحه‌ی عمومی در موبایل ۳۹۰px و دسکتاپ ۱۴۴۰px →
+  سرریز افقی صفر، بدون خطای کنسول؛ `text-wrap: balance` روی تیترها اعمال شد.
+- تغییر کلاس `dark` در مرورگر → `color-scheme: dark`، پس‌زمینه‌ی تیره و
+  `filter: invert(1)` روی بافت آجر/الگو فعال شد.
+- Tab در صفحه‌ی خانه → لینک اول با outline واضح فوکوس گرفت.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۳ — مسدودکردن پنل ناظر در robots و ثبت موارد معوق SEO — نسخه `v4.81.1`
 
