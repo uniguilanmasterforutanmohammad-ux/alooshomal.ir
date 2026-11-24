@@ -71,6 +71,31 @@
 - `helmet` برای هدرهای امنیتی و CORS فقط برای `CORS_ORIGIN`های مجاز با `credentials: true`.
 - توکن دسترسی در `localStorage` است (کوتاه‌عمر)؛ توکن بلندعمر در کوکی `HttpOnly`.
 
+## اعتبارسنجی متغیرهای محیطی (fail-fast)
+
+پیش از بالا آمدن هر ماژول، `apps/api/src/config/env.validation.ts` کل محیط را
+بررسی می‌کند و در صورت نقض یکی از این قواعد، فرایند را با پیام صریح متوقف می‌کند
+(به‌جای بالا آمدن با مقدار پیش‌فرض ناامن):
+
+- `DATABASE_URL` الزامی و از نوع `postgres://` است.
+- در پروداکشن `JWT_SECRET` حداقل ۳۲ کاراکتر و نه از مقادیر نمونه/تکراری است
+  (`isInsecureSecret` در `auth/jwt.config.ts` مقدار نمونه‌ی `.env.example` را هم
+  می‌شناسد).
+- در پروداکشن `CORS_ORIGIN` الزامی است، `*` ممنوع است و هر ورودی باید URL معتبر
+  `http(s)` باشد.
+- `API_PORT`، `DATABASE_POOL_MAX`، `BACKUP_KEEP` عدد صحیح در بازه‌ی مجاز و
+  `TRUST_PROXY` یکی از `0`/تعداد hop/نام بازه/IP است.
+- `SOCIAL_CREDENTIALS_KEY` (اگر ست شود) باید دقیقاً ۳۲ بایت باشد.
+- اگر `MINIO_ENABLED` خاموش نشده باشد، `MINIO_ENDPOINT/ACCESS_KEY/SECRET_KEY/BUCKET`
+  لازم‌اند (در پروداکشن خطا، در توسعه فقط هشدار).
+- فعال‌بودن `ENABLE_SWAGGER=true` در پروداکشن هشدار می‌دهد؛ پیش‌فرض پروداکشن
+  خاموش است.
+
+`DATABASE_POOL_MAX` اندازه‌ی pool هر replica را تعیین می‌کند؛ برای مقیاس افقی
+باید `replicas × DATABASE_POOL_MAX` کمتر از `max_connections` پستگرس بماند.
+در خاموشی SIGTERM/SIGINT، Nest با `enableShutdownHooks()` اتصال Prisma را
+می‌بندد تا دیپلوی rolling اتصال معلق باقی نگذارد.
+
 ## جریان زنده (SSE)
 
 - `EventSource` نمی‌تواند هدر بفرستد، پس **هیچ‌وقت توکن دسترسی در URL قرار نمی‌گیرد**.

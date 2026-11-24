@@ -6,6 +6,7 @@ import { ActivityContextInterceptor } from './activity/activity-context.intercep
 import { PermissionsGuard } from './auth/permissions.guard';
 import { CommonModule } from './common/common.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { validateEnv } from './config/env.validation';
 
 import { AdminModule } from './admin/admin.module';
 import { ActivityModule } from './activity/activity.module';
@@ -58,7 +59,11 @@ import { ZohalModule } from './zohal/zohal.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env'] }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: ['.env'],
+      validate: validateEnv,
+    }),
     PrismaModule,
     RedisModule,
     SessionsModule,

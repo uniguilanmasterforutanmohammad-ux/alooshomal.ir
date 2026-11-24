@@ -32,9 +32,20 @@ const DEV_FALLBACK_SECRET = 'dev_secret_only_for_local_development';
 const INSECURE_SECRET_PATTERN =
   /^(please[_-]?change[_-]?me|change[_-]?me|changeme|secret|password|jwt[_-]?secret|replace[_-]?with[_-]?a[_-]?long[_-]?random[_-]?string|dev[_-]?secret.*)$/i;
 
-function isInsecureSecret(secret: string): boolean {
+/**
+ * Secrets that have shipped in this repo's `.env.example` or compose files.
+ * They look random enough to pass a length check, so they must be rejected by
+ * value — a production deploy that copied the example would otherwise sign
+ * tokens with a publicly known key.
+ */
+const KNOWN_EXAMPLE_SECRETS = new Set([
+  '8b019be06b02b5bc3b614b9489e49de276efebe020ebd2d8',
+]);
+
+export function isInsecureSecret(secret: string): boolean {
   return (
     INSECURE_SECRET_PATTERN.test(secret) ||
+    KNOWN_EXAMPLE_SECRETS.has(secret) ||
     // A single repeated character (e.g. "aaaaaaaaaaaaaaaa") has no entropy.
     /^(.)\1+$/.test(secret)
   );

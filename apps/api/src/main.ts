@@ -20,10 +20,17 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const config = app.get(ConfigService);
 
+  // Let Nest run `onModuleDestroy` hooks (Prisma disconnect, timers) on
+  // SIGTERM/SIGINT so a rolling deploy does not leave connections open.
+  app.enableShutdownHooks();
+
   const port = config.get<number>('API_PORT', 4000);
   const corsOrigin = config.get<string>('CORS_ORIGIN', 'http://localhost:3000');
-  const enableSwagger = config.get<string>('ENABLE_SWAGGER', 'true') === 'true';
   const isProd = config.get<string>('NODE_ENV') === 'production';
+  // The OpenAPI document describes every route and payload, so it is opt-in in
+  // production and on by default in development.
+  const enableSwagger =
+    config.get<string>('ENABLE_SWAGGER', isProd ? 'false' : 'true') === 'true';
 
   app.setGlobalPrefix('api');
 

@@ -20,13 +20,46 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.77.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.77.1**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — اعتبارسنجی fail-fast محیط و سخت‌سازی Swagger پروداکشن — نسخه `v4.77.1`
+
+**هدف:** جلوگیری از بالا آمدن API با تنظیمات ناامن (توکن امضای نمونه، CORS
+ستاره‌ای، پورت نامعتبر) و بستن ریسک افشای کل schema در پروداکشن؛ همچنین بستن
+اتصال‌های Prisma در خاموشی و قابل‌تنظیم‌کردن اندازه‌ی pool برای مقیاس افقی.
+
+**تغییرات:**
+- `apps/api/src/config/env.validation.ts`: افزودن اعتبارسنج مستقل از وابستگی که
+  پیش از بالا آمدن ماژول‌ها اجرا می‌شود (DATABASE_URL، JWT_SECRET قوی در
+  پروداکشن، CORS_ORIGIN بدون `*` و معتبر، پورت‌ها، TRUST_PROXY، کلید
+  SOCIAL_CREDENTIALS_KEY، متغیرهای MinIO، هشدار Swagger در پروداکشن).
+- `apps/api/src/auth/jwt.config.ts`: عمومی‌کردن `isInsecureSecret` و افزودن
+  مقدار نمونه‌ی `.env.example` به فهرست Secretهای شناخته‌شده‌ی ناامن.
+- `apps/api/src/app.module.ts`: اتصال `validate: validateEnv` به
+  `ConfigModule.forRoot`.
+- `apps/api/src/main.ts`: پیش‌فرض `ENABLE_SWAGGER` در پروداکشن خاموش و فعال‌سازی
+  `enableShutdownHooks()`.
+- `apps/api/src/prisma/prisma.service.ts`: اندازه‌ی pool از `DATABASE_POOL_MAX`،
+  پیاده‌سازی `onModuleDestroy` برای `$disconnect` و حذف متد مرده‌ی
+  `enableShutdownHooks`.
+- `docker-compose.yml` و `docker-compose.prod.yml`: عبور `DATABASE_POOL_MAX`.
+- `.env.example`: مستندسازی `DATABASE_POOL_MAX`، الزام JWT_SECRET و پیش‌فرض
+  Swagger.
+- `docs/SECURITY.md`: بخش «اعتبارسنجی متغیرهای محیطی (fail-fast)».
+
+**تأیید/تست:**
+- `docker compose exec api ./node_modules/.bin/tsc --noEmit -p tsconfig.json` و
+  `eslint` روی فایل‌های تغییریافته: بدون خطا.
+- اجرای مستقیم اعتبارسنج در کانتینر: محیط پروداکشن با `JWT_SECRET` نمونه و
+  `CORS_ORIGIN=*` با پیام صریح رد شد؛ محیط توسعه پذیرفته شد.
+- `curl /api/health` → `200` و لاگ راه‌اندازی API بدون خطا.
+- `python3 scripts/check_api_docs.py` → همه‌ی ۵۶ کنترلر/۵۶۹ مسیر مستند.
 
 ## ۱۴۰۵/۰۹/۰۲ — نوع مقایسه‌ی «ماسک‌شده» و منابع تطبیق از استعلام هویت — نسخه `v4.77.0`
 

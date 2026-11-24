@@ -82,6 +82,8 @@ services:
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       DATABASE_URL: ${DATABASE_URL:-postgresql://alooshomal:change_me_in_production@db:5432/alooshomal?schema=public}
+      # Max connections in the API's Prisma/pg pool (per replica).
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
       API_PORT: "4000"
       JWT_SECRET: ${JWT_SECRET:-please_change_me}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
