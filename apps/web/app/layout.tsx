@@ -48,7 +48,10 @@ export const metadata: Metadata = {
     canonical: '/',
     languages: { 'fa-IR': '/' },
     // Advertise the machine-readable LLM index to AI crawlers.
-    types: { 'text/plain': '/llms.txt' },
+    types: {
+      'text/plain': '/llms.txt',
+      'application/rss+xml': '/blog/rss.xml',
+    },
   },
   // Let the browser render phone numbers/addresses as plain text instead of
   // auto-linking them (auto-links add noise for crawlers and break layout).

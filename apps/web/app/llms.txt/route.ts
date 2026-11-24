@@ -98,6 +98,7 @@ export function GET() {
     '## منابع',
     `- [نقشه‌ی سایت](${absoluteUrl('/sitemap.xml')}): فهرست کامل URLهای عمومی.`,
     `- [نسخه‌ی کامل برای مدل‌ها](${absoluteUrl('/llms-full.txt')}): خلاصه‌ی محتوای تازه‌ی بلاگ و اخبار.`,
+    `- [خوراک RSS بلاگ](${absoluteUrl('/blog/rss.xml')}) و [خوراک RSS اخبار](${absoluteUrl('/pulse/rss.xml')}).`,
     `- [robots.txt](${absoluteUrl('/robots.txt')}): قواعد خزش.`,
     '',
     '## تماس',
