@@ -20,13 +20,53 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.84.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.85.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — تکمیل بسته‌ی مدیریت «مربیان و آموزشگاه» — نسخه `v4.85.0`
+
+**هدف:** تکمیل بسته‌ی مربیان ورزشی/هنری/موسیقی و آموزشگاه‌ها بر اساس سند
+ماژولار مرجع: کلاس و ظرفیت، پرونده‌ی هنرجو و ثبت‌نام، تقویم/حضور/جبرانی،
+شهریه و اقساط، برنامه و پیشرفت، هزینه/سود کلاس، تسویه‌ی مربی و داشبورد.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل‌های `EduClass`، `EduStudent`،
+  `EduEnrollment`، `EduSession`، `EduAttendance`، `EduProgressNote`،
+  `EduPayment`، `EduExpense` و `EduCoachSettlement`؛ مبالغ با `BigInt`.
+- `apps/api/src/education/`: سرویس + هشت کنترلر (`/edu-classes`،
+  `/edu-students`، `/edu-enrollments`، `/edu-sessions`، `/edu-progress`،
+  `/edu-tuition`، `/edu-finance`، `/edu-reports`) با DTO، گارد ماژول و
+  مستندات Swagger؛ کنترل ظرفیت، بازمحاسبه‌ی اعتبار جلسات و `paidAmount`،
+  و جلوگیری از تکرار شماره پیگیری.
+- `apps/api/src/app.module.ts`: ثبت `EducationModule`.
+- `apps/api/src/business-modules/business-modules.registry.ts`: شش ماژول
+  `eduClasses`/`eduStudents`/`eduAttendance`/`eduTuition`/`eduFinance`/
+  `eduReports` و بسته‌ی `education`.
+- `apps/api/src/business-modules/business-modules.service.ts`: ارتقای نشانگر
+  همگام‌سازی رجیستری به `businessManagementsSeedV8`.
+- `apps/api/src/settings/settings.constants.ts`: شش سوئیچ `featureEdu*`.
+- `apps/web/lib/api/types/business-modules.ts` و
+  `apps/web/components/business/BusinessPanelNav.tsx`: تایپ‌ها و آیکون.
+- `apps/web/app/dashboard/business/{edu-classes,edu-students,edu-attendance,edu-tuition,edu-finance,edu-reports}/page.tsx`:
+  شش صفحه‌ی پنل آموزش.
+- `docs/API.md`: بخش مربیان و آموزشگاه و به‌روزرسانی فهرست ماژول‌ها.
+
+**تأیید/تست:**
+- `docker compose exec -T api ./node_modules/.bin/tsc --noEmit -p tsconfig.json` و
+  `docker compose exec -T web ./node_modules/.bin/tsc --noEmit` → بدون خطا؛
+  eslint صفحات جدید فقط هشدارِ الگوی موجود (`set-state-in-effect`) داد.
+- `python3 scripts/check_api_docs.py` (۷۵ کنترلر/۶۵۷ مسیر) و
+  `python3 scripts/check_modules.py` (۵۱ پوشه/۴۱ فلگ) → بدون خطا.
+- تست دودی کامل API: تعریف کلاس با ظرفیت ۲، ثبت دو هنرجو و پر شدن ظرفیت
+  (۴۰۹ برای نفر سوم)، جلسه و حضور (کسر اعتبار) و غیبت موجه (بدون کسر)، ثبت و
+  تأیید رسید شهریه (بازمحاسبه‌ی مانده)، یادداشت پیشرفت، هزینه و تسویه‌ی مربی
+  و داشبورد — همه موفق؛ سپس داده‌ی تست حذف شد.
+- کاتالوگ پس از ری‌استارت بسته‌ی `education` را نشان داد.
 
 ## ۱۴۰۵/۰۹/۰۳ — تکمیل بسته‌ی مدیریت «مشاورین املاک» — نسخه `v4.84.0`
 

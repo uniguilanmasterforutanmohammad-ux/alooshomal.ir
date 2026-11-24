@@ -593,6 +593,54 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     group: 'پنل کسب‌وکار',
     default: true,
   },
+  {
+    key: 'featureEduClasses',
+    label: 'ماژول کلاس‌های آموزشی',
+    description:
+      'تعریف کلاس/خدمت، سطح، ظرفیت، مدت جلسه و بسته‌ی جلسات برای مربیان و آموزشگاه‌ها.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureEduStudents',
+    label: 'ماژول هنرجویان و ثبت‌نام',
+    description:
+      'پرونده‌ی هنرجو/ولی، ثبت‌نام در کلاس و یادداشت برنامه و پیشرفت.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureEduAttendance',
+    label: 'ماژول حضور و غیاب آموزشی',
+    description:
+      'زمان‌بندی جلسات، ثبت حضور/غیبت، مصرف اعتبار بسته و جلسه‌ی جبرانی.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureEduTuition',
+    label: 'ماژول شهریه و اقساط',
+    description:
+      'صورتحساب شهریه، تخفیف، مانده بدهی و تطبیق رسید/کارت‌به‌کارت.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureEduFinance',
+    label: 'ماژول هزینه و تسویه مربی',
+    description:
+      'ثبت هزینه‌ی کلاس و تسویه‌ی مربی بر مبنای جلسه/درصد/ثابت.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureEduReports',
+    label: 'ماژول داشبورد آموزش',
+    description:
+      'ظرفیت پرشده، نرخ حضور، مطالبات شهریه، وصولی و سود هر کلاس.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
 ];
 
 export const FEATURE_FLAG_KEYS = FEATURE_FLAGS.map((flag) => flag.key);

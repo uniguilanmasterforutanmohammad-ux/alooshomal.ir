@@ -851,8 +851,9 @@ PY
 `accommodationReservations`، `accommodationChannels`، `crm`، `retailCatalog`،
 `retailOrders`، `retailInventory`، `retailReports`، `buildingUnits`،
 `buildingCharges`، `buildingFinance`، `buildingMaintenance`، `propertyFiles`،
-`propertyCrm`، `propertyVisits`، `propertyFinance`، `propertyReports` و
-`cardToCard`. ماژول‌های
+`propertyCrm`، `propertyVisits`، `propertyFinance`، `propertyReports`،
+`eduClasses`، `eduStudents`، `eduAttendance`، `eduTuition`، `eduFinance`،
+`eduReports` و `cardToCard`. ماژول‌های
 `businessCards`/`biolinks` هم در همین رجیستری ثبت شده‌اند و اکنون فعال/غیرفعال
 شدنشان روی مسیرهای مالک اعمال می‌شود؛ سوئیچ‌های سراسری ادمین
 (`allowBusinessCardCreation` و `allowBiolinkCreation`) همچنان بالاتر از آن
@@ -977,6 +978,37 @@ PY
 `featurePropertyCrm`، `featurePropertyVisits`، `featurePropertyFinance` و
 `featurePropertyReports` کنترل می‌شوند و بسته‌ی «مشاورین املاک» (`realEstate`)
 در کاتالوگ مدیریت‌ها ثبت شده است.
+
+### مربیان و آموزشگاه (`/api/edu-classes`, `/api/edu-students`, `/api/edu-enrollments`, `/api/edu-sessions`, `/api/edu-progress`, `/api/edu-tuition`, `/api/edu-finance`, `/api/edu-reports`)
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET/POST` | `/edu-classes` | فهرست/تعریف کلاس (رشته، حالت، ظرفیت، مدت، شهریه‌ی بسته). |
+| `GET/PATCH/DELETE` | `/edu-classes/:id` | جزئیات (ثبت‌نام‌ها و جلسات)/ویرایش/حذف کلاس. |
+| `GET/POST` | `/edu-students` | فهرست/ثبت پرونده‌ی هنرجو (شامل ولی برای کم‌سن). |
+| `GET/PATCH/DELETE` | `/edu-students/:id` | جزئیات (ثبت‌نام/پرداخت/پیشرفت)/ویرایش/حذف. |
+| `GET/POST` | `/edu-enrollments` | فهرست/ثبت‌نام در کلاس با کنترل ظرفیت (۴۰۹ در صورت پر بودن). |
+| `PATCH/DELETE` | `/edu-enrollments/:id` | ویرایش تخفیف/انقضا/وضعیت یا حذف. |
+| `GET/POST` | `/edu-sessions` | فهرست/زمان‌بندی جلسه. |
+| `PATCH/DELETE` | `/edu-sessions/:id` | جابه‌جایی/لغو/تغییر وضعیت یا حذف جلسه. |
+| `GET/POST` | `/edu-sessions/:id/attendance` | فهرست ثبت‌نام‌ها و حضور جلسه/ثبت حضور یک هنرجو (بازمحاسبه‌ی اعتبار). |
+| `GET/POST` | `/edu-progress` | یادداشت برنامه/پیشرفت یک ثبت‌نام. |
+| `PATCH/DELETE` | `/edu-progress/:id` | ویرایش/حذف یادداشت پیشرفت. |
+| `GET` | `/edu-tuition/balances` | مانده‌ی شهریه‌ی هر ثبت‌نام (شهریه، تخفیف، پرداخت‌شده، بدهی). |
+| `GET/POST` | `/edu-tuition/payments` | فهرست/ثبت رسید شهریه (تکرار شماره پیگیری ۴۰۹). |
+| `PATCH` | `/edu-tuition/payments/:id` | تأیید/رد رسید؛ با تأیید، `paidAmount` بازمحاسبه می‌شود. |
+| `GET/POST` | `/edu-finance/expenses` | فهرست/ثبت هزینه‌ی کلاس. |
+| `DELETE` | `/edu-finance/expenses/:id` | حذف هزینه. |
+| `GET/POST` | `/edu-finance/settlements` | فهرست/ثبت تسویه‌ی مربی (ثابت/جلسه‌ای/درصدی). |
+| `PATCH/DELETE` | `/edu-finance/settlements/:id` | تغییر وضعیت/مبلغ یا حذف تسویه. |
+| `GET` | `/edu-reports/overview` | داشبورد: ظرفیت، نرخ حضور، مطالبات/وصولی، بسته‌ی رو به اتمام و سود هر کلاس. |
+
+پرداخت شهریه و مصرف اعتبار جلسات جدا ثبت می‌شوند: تأیید رسید فقط
+`paidAmount` را تغییر می‌دهد و حضور/غیبت با `consumesCredit` اعتبار بسته را
+کم می‌کند. مبالغ با `BigInt` ذخیره می‌شوند. ماژول‌ها با سوئیچ‌های
+`featureEduClasses`، `featureEduStudents`، `featureEduAttendance`،
+`featureEduTuition`، `featureEduFinance` و `featureEduReports` کنترل می‌شوند
+و بسته‌ی «مربیان و آموزشگاه» (`education`) در کاتالوگ مدیریت‌ها ثبت شده است.
 
 ### پرداخت کارت به کارت (`/api/card-to-card`)
 

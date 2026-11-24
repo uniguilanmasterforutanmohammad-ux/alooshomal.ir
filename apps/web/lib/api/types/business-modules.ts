@@ -724,3 +724,186 @@ export interface PropertyReportOverview {
   bySource: Array<{ label: string; count: number }>;
   byAgent: Array<{ agentId: string; expected: number; collected: number; contracts: number }>;
 }
+
+export interface EduClass {
+  id: string;
+  workspaceId: string;
+  title: string;
+  discipline: 'SPORT' | 'ART' | 'MUSIC' | 'OTHER' | string;
+  mode: 'PRIVATE' | 'SEMI_PRIVATE' | 'GROUP' | string;
+  delivery: 'IN_PERSON' | 'ONLINE' | 'HYBRID' | string;
+  level: string | null;
+  capacity: number;
+  durationMin: number;
+  price: number;
+  sessionsPerPackage: number;
+  location: string | null;
+  coachName: string | null;
+  prerequisites: string | null;
+  status: 'ACTIVE' | 'ARCHIVED' | string;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { enrollments: number; sessions: number };
+  enrollments?: EduEnrollment[];
+  sessions?: EduSession[];
+}
+
+export interface EduStudent {
+  id: string;
+  workspaceId: string;
+  fullName: string;
+  phone: string | null;
+  guardianName: string | null;
+  guardianPhone: string | null;
+  birthDate: string | null;
+  goal: string | null;
+  level: string | null;
+  source: string | null;
+  status: 'ACTIVE' | 'INACTIVE' | string;
+  notes: string | null;
+  nextActionAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  enrollments?: EduEnrollment[];
+}
+
+export interface EduEnrollment {
+  id: string;
+  workspaceId: string;
+  studentId: string;
+  classId: string;
+  packageSessions: number;
+  usedSessions: number;
+  price: number;
+  discount: number;
+  paidAmount: number;
+  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | string;
+  startedAt: string;
+  expiresAt: string | null;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+  student?: { id: string; fullName: string; guardianName?: string | null };
+  class?: { id: string; title: string; capacity?: number; sessionsPerPackage?: number };
+  payments?: EduPayment[];
+  progress?: EduProgressNote[];
+}
+
+export interface EduSession {
+  id: string;
+  workspaceId: string;
+  classId: string;
+  scheduledAt: string;
+  durationMin: number;
+  status: 'SCHEDULED' | 'DONE' | 'CANCELLED_BY_COACH' | 'CANCELLED_BY_STUDENT' | string;
+  topic: string | null;
+  coachName: string | null;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+  class?: { id: string; title: string };
+  _count?: { attendances: number };
+}
+
+export interface EduAttendance {
+  id: string;
+  workspaceId: string;
+  sessionId: string;
+  enrollmentId: string;
+  status: 'PRESENT' | 'ABSENT_EXCUSED' | 'ABSENT' | 'MAKEUP' | string;
+  consumesCredit: boolean;
+  note: string | null;
+}
+
+export interface EduProgressNote {
+  id: string;
+  workspaceId: string;
+  enrollmentId: string;
+  sessionId: string | null;
+  date: string;
+  topic: string | null;
+  homework: string | null;
+  feedback: string | null;
+  privateNote: string | null;
+  mediaUrl: string | null;
+  nextGoal: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface EduPayment {
+  id: string;
+  workspaceId: string;
+  enrollmentId: string;
+  amount: number;
+  method: string;
+  trackingNumber: string | null;
+  receiptUrl: string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED' | string;
+  paidAt: string | null;
+  reviewNote: string | null;
+  createdAt: string;
+  enrollment?: {
+    id: string;
+    student?: { id: string; fullName: string };
+    class?: { id: string; title: string };
+  };
+}
+
+export interface EduExpense {
+  id: string;
+  workspaceId: string;
+  classId: string | null;
+  title: string;
+  category: string | null;
+  amount: number;
+  paidAt: string | null;
+  vendor: string | null;
+  note: string | null;
+  class?: { id: string; title: string } | null;
+}
+
+export interface EduCoachSettlement {
+  id: string;
+  workspaceId: string;
+  coachName: string;
+  classId: string | null;
+  period: string | null;
+  basis: 'FIXED' | 'PER_SESSION' | 'PERCENT' | string;
+  amount: number;
+  status: 'PENDING' | 'SETTLED' | string;
+  note: string | null;
+  class?: { id: string; title: string } | null;
+}
+
+export interface EduBalance extends EduEnrollment {
+  total: number;
+  paid: number;
+  balance: number;
+}
+
+export interface EduReportOverview {
+  activeClasses: number;
+  activeStudents: number;
+  activeEnrollments: number;
+  sessionsDone: number;
+  attendanceRate: number;
+  totalRevenue: number;
+  collected: number;
+  receivables: number;
+  expiringPackages: number;
+  pendingSettlements: number;
+  byDiscipline: Array<{ label: string; count: number }>;
+  classProfit: Array<{
+    classId: string;
+    title: string;
+    enrolled: number;
+    capacity: number;
+    utilization: number;
+    revenue: number;
+    collected: number;
+    expenses: number;
+    profit: number;
+  }>;
+}

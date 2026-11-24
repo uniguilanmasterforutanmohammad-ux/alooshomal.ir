@@ -2099,6 +2099,15 @@ model BusinessWorkspace {
   propertyLeads   PropertyLead[]
   propertyVisits  PropertyVisit[]
   propertyContracts PropertyContract[]
+  eduClasses      EduClass[]
+  eduStudents     EduStudent[]
+  eduEnrollments  EduEnrollment[]
+  eduSessions     EduSession[]
+  eduAttendances  EduAttendance[]
+  eduProgress     EduProgressNote[]
+  eduPayments     EduPayment[]
+  eduExpenses     EduExpense[]
+  eduSettlements  EduCoachSettlement[]
   cardAccount     CardToCardAccount?
   cardPayments    CardToCardPayment[]
   businessCards   BusinessCard[]
@@ -2962,4 +2971,246 @@ model PropertyContract {
   @@index([workspaceId, status])
   @@index([propertyId])
   @@map("property_contracts")
+}
+
+// ---------------------------------------------------------------------------
+//  Coaches & training studios (مربیان آموزشی — ورزشی/هنری/موسیقی)
+// ---------------------------------------------------------------------------
+
+/// A class or service offered by a coach/studio (private, semi-private, group).
+model EduClass {
+  id                String   @id @default(cuid())
+  workspaceId       String
+  title             String
+  /// SPORT | ART | MUSIC | OTHER
+  discipline        String   @default("SPORT")
+  /// PRIVATE | SEMI_PRIVATE | GROUP
+  mode              String   @default("GROUP")
+  /// IN_PERSON | ONLINE | HYBRID
+  delivery          String   @default("IN_PERSON")
+  level             String?
+  capacity          Int      @default(10)
+  durationMin       Int      @default(60)
+  price             BigInt   @default(0)
+  sessionsPerPackage Int     @default(8)
+  location          String?
+  coachName         String?
+  prerequisites     String?
+  /// ACTIVE | ARCHIVED
+  status            String   @default("ACTIVE")
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  workspace   BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  enrollments EduEnrollment[]
+  sessions    EduSession[]
+  expenses    EduExpense[]
+  settlements EduCoachSettlement[]
+
+  @@index([workspaceId, status])
+  @@map("edu_classes")
+}
+
+/// A student profile. Minors store a guardian who receives notices/bills.
+model EduStudent {
+  id            String    @id @default(cuid())
+  workspaceId   String
+  fullName      String
+  phone         String?
+  guardianName  String?
+  guardianPhone String?
+  birthDate     DateTime?
+  goal          String?
+  level         String?
+  source        String?
+  /// ACTIVE | INACTIVE
+  status        String    @default("ACTIVE")
+  notes         String?
+  nextActionAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  workspace   BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  enrollments EduEnrollment[]
+
+  @@index([workspaceId, status])
+  @@map("edu_students")
+}
+
+/// A student's enrollment in one class with a session package.
+model EduEnrollment {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  studentId      String
+  classId        String
+  packageSessions Int      @default(8)
+  usedSessions   Int       @default(0)
+  price          BigInt    @default(0)
+  discount       BigInt    @default(0)
+  paidAmount     BigInt    @default(0)
+  /// ACTIVE | COMPLETED | CANCELLED
+  status         String    @default("ACTIVE")
+  startedAt      DateTime  @default(now())
+  expiresAt      DateTime?
+  note           String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  workspace   BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  student     EduStudent        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class       EduClass          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  attendances EduAttendance[]
+  payments    EduPayment[]
+  progress    EduProgressNote[]
+
+  @@index([workspaceId, status])
+  @@index([studentId])
+  @@index([classId])
+  @@map("edu_enrollments")
+}
+
+/// A scheduled class occurrence. Attendance is recorded per enrolled student.
+model EduSession {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  classId      String
+  scheduledAt  DateTime
+  durationMin  Int       @default(60)
+  /// SCHEDULED | DONE | CANCELLED_BY_COACH | CANCELLED_BY_STUDENT
+  status       String    @default("SCHEDULED")
+  topic        String?
+  coachName    String?
+  note         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  workspace   BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  class       EduClass          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  attendances EduAttendance[]
+  progress    EduProgressNote[]
+
+  @@index([workspaceId, scheduledAt])
+  @@index([classId])
+  @@map("edu_sessions")
+}
+
+/// Per-student attendance for one session. `consumesCredit` decides whether the
+/// session is deducted from the enrollment package.
+model EduAttendance {
+  id            String  @id @default(cuid())
+  workspaceId   String
+  sessionId     String
+  enrollmentId  String
+  /// PRESENT | ABSENT_EXCUSED | ABSENT | MAKEUP
+  status        String  @default("PRESENT")
+  consumesCredit Boolean @default(true)
+  note          String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace  BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  session    EduSession        @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  enrollment EduEnrollment     @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, enrollmentId])
+  @@index([workspaceId])
+  @@index([enrollmentId])
+  @@map("edu_attendances")
+}
+
+/// Lesson plan / progress note for an enrollment (optionally tied to a session).
+model EduProgressNote {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  enrollmentId String
+  sessionId    String?
+  date         DateTime  @default(now())
+  topic        String?
+  homework     String?
+  /// Feedback visible to the student/guardian.
+  feedback     String?
+  /// Coach-only note, never shown to the student.
+  privateNote  String?
+  mediaUrl     String?
+  nextGoal     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  workspace  BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  enrollment EduEnrollment     @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  session    EduSession?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, date])
+  @@index([enrollmentId])
+  @@map("edu_progress_notes")
+}
+
+/// A tuition payment/receipt. A receipt alone is not a settlement.
+model EduPayment {
+  id             String   @id @default(cuid())
+  workspaceId    String
+  enrollmentId   String
+  amount         BigInt
+  /// CARD_TO_CARD | CASH | TRANSFER
+  method         String   @default("CARD_TO_CARD")
+  trackingNumber String?
+  receiptUrl     String?
+  /// PENDING | APPROVED | REJECTED
+  status         String   @default("PENDING")
+  paidAt         DateTime?
+  reviewNote     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  workspace  BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  enrollment EduEnrollment     @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([enrollmentId])
+  @@map("edu_payments")
+}
+
+/// Direct class cost (hall rent, materials, coach wage …) for profit reports.
+model EduExpense {
+  id          String    @id @default(cuid())
+  workspaceId String
+  classId     String?
+  title       String
+  category    String?
+  amount      BigInt
+  paidAt      DateTime?
+  vendor      String?
+  note        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  class     EduClass?         @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, paidAt])
+  @@map("edu_expenses")
+}
+
+/// Coach settlement for a period (fixed, per-session or percentage basis).
+model EduCoachSettlement {
+  id          String    @id @default(cuid())
+  workspaceId String
+  coachName   String
+  classId     String?
+  period      String?
+  /// FIXED | PER_SESSION | PERCENT
+  basis       String    @default("PER_SESSION")
+  amount      BigInt    @default(0)
+  /// PENDING | SETTLED
+  status      String    @default("PENDING")
+  note        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  class     EduClass?         @relation(fields: [classId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@map("edu_coach_settlements")
 }

@@ -280,9 +280,9 @@ export class BusinessModulesService implements OnModuleInit {
    * other managements.
    */
   private async syncRegistryManagements(): Promise<void> {
-    // V7 creates the building-management and real-estate packages (which did
-    // not exist in older installs) and adds their modules.
-    const marker = 'businessManagementsSeedV7';
+    // V8 adds the education/coaching package (classes, students, attendance,
+    // tuition, finance, reports) to existing installations.
+    const marker = 'businessManagementsSeedV8';
     const done = await this.prisma.setting.findUnique({ where: { key: marker } });
     if (done) return;
     for (const [index, industry] of INDUSTRY_PACKAGES.entries()) {

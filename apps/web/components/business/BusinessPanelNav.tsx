@@ -11,6 +11,7 @@ import {
   CreditCard,
   FileSignature,
   Globe,
+  GraduationCap,
   House,
   IdCard,
   ImagePlus,
@@ -47,6 +48,7 @@ const ICONS: Record<string, LucideIcon> = {
   Wallet,
   Wrench,
   FileSignature,
+  GraduationCap,
 };
 
 export function moduleIcon(name: string): LucideIcon {
