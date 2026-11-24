@@ -271,6 +271,10 @@ snapshots and how to restore them.
 Schema/index conventions, the read-only health audit (`npm run db:audit`) and
 the periodic session/activity cleanup jobs are documented in `docs/DATABASE.md`.
 
+Coding conventions and the add-a-feature checklist live in
+`docs/CONVENTIONS.md`; prioritized platform gaps are tracked in
+`docs/ROADMAP.md`.
+
 ## Media storage
 
 Uploaded images (logos, avatars) are stored in an S3-compatible object store
