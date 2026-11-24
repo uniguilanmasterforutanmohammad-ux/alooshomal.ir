@@ -438,3 +438,214 @@ export class UpdateTicketDto {
   @MaxLength(2000)
   description?: string;
 }
+
+export const BUILDING_MEMBER_ROLES = ['MANAGER', 'ACCOUNTANT', 'RESIDENT'] as const;
+export const BUILDING_MEETING_STATUSES = ['SCHEDULED', 'DONE', 'CANCELLED'] as const;
+
+export class CreateBuildingMemberDto {
+  @ApiProperty({ description: 'ایمیل کاربری که به این ساختمان دسترسی می‌گیرد' })
+  @IsString()
+  @MaxLength(160)
+  email!: string;
+
+  @ApiPropertyOptional({ enum: BUILDING_MEMBER_ROLES, default: 'MANAGER' })
+  @IsOptional()
+  @IsIn(BUILDING_MEMBER_ROLES)
+  role?: (typeof BUILDING_MEMBER_ROLES)[number];
+}
+
+export class CreateBudgetDto {
+  @ApiProperty({ example: 1405 })
+  @Type(() => Number)
+  @IsInt()
+  year!: number;
+
+  @ApiProperty({ maxLength: 160 })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(160)
+  title!: string;
+
+  @ApiPropertyOptional({ maxLength: 80 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  category?: string;
+
+  @ApiPropertyOptional({ minimum: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  amount?: number;
+
+  @ApiPropertyOptional({ maxLength: 1000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class UpdateBudgetDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  category?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  amount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class CreateMeetingDto {
+  @ApiProperty({ maxLength: 160 })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(160)
+  title!: string;
+
+  @ApiProperty()
+  @IsDateString()
+  scheduledAt!: string;
+
+  @ApiPropertyOptional({ maxLength: 160 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  location?: string;
+
+  @ApiPropertyOptional({ maxLength: 2000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  agenda?: string;
+}
+
+export class UpdateMeetingDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  title?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  scheduledAt?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  location?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  agenda?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(4000)
+  minutes?: string;
+
+  @ApiPropertyOptional({ enum: BUILDING_MEETING_STATUSES })
+  @IsOptional()
+  @IsIn(BUILDING_MEETING_STATUSES)
+  status?: (typeof BUILDING_MEETING_STATUSES)[number];
+}
+
+export class CreateContractorDto {
+  @ApiProperty({ maxLength: 120 })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  name!: string;
+
+  @ApiPropertyOptional({ maxLength: 80 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  specialty?: string;
+
+  @ApiPropertyOptional({ maxLength: 30 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  phone?: string;
+
+  @ApiPropertyOptional({ maxLength: 1000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class UpdateContractorDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  name?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  specialty?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  phone?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class ResidentPaymentDto {
+  @ApiProperty({ minimum: 0 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  amount!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  chargeId?: string;
+
+  @ApiPropertyOptional({ maxLength: 80 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  trackingNumber?: string;
+
+  @ApiPropertyOptional({ maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  receiptUrl?: string;
+}

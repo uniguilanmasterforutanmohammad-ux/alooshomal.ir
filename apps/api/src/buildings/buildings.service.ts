@@ -4,20 +4,29 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 
 import { BusinessModulesService } from '../business-modules/business-modules.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   BulkChargeDto,
+  CreateBudgetDto,
   CreateBuildingDto,
+  CreateBuildingMemberDto,
   CreateChargeDto,
+  CreateContractorDto,
   CreateExpenseDto,
+  CreateMeetingDto,
   CreatePaymentDto,
   CreateTicketDto,
   CreateUnitDto,
+  ResidentPaymentDto,
   ReviewPaymentDto,
+  UpdateBudgetDto,
   UpdateBuildingDto,
   UpdateChargeDto,
+  UpdateContractorDto,
+  UpdateMeetingDto,
   UpdateTicketDto,
   UpdateUnitDto,
 } from './dto/buildings.dto';
@@ -33,7 +42,31 @@ export class BuildingsService {
     return this.modules.getWorkspaceId(userId);
   }
 
-  private async building(workspaceId: string, buildingId: string) {
+  /** Buildings the user owns (via the workspace) or was granted access to. */
+  private async accessibleBuildingIds(userId: string): Promise<string[]> {
+    const workspaceId = await this.workspaceId(userId);
+    const rows = await this.prisma.building.findMany({
+      where: { OR: [{ workspaceId }, { members: { some: { userId } } }] },
+      select: { id: true },
+    });
+    return rows.map((row) => row.id);
+  }
+
+  private async buildingForUser(userId: string, buildingId: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const building = await this.prisma.building.findFirst({
+      where: {
+        id: buildingId,
+        OR: [{ workspaceId }, { members: { some: { userId } } }],
+      },
+    });
+    if (!building) throw new NotFoundException('ساختمان پیدا نشد');
+    return building;
+  }
+
+  /** Owner-only guard for destructive/sharing actions. */
+  private async ownedBuilding(userId: string, buildingId: string) {
+    const workspaceId = await this.workspaceId(userId);
     const building = await this.prisma.building.findFirst({
       where: { id: buildingId, workspaceId },
     });
@@ -41,9 +74,10 @@ export class BuildingsService {
     return building;
   }
 
-  private async unit(workspaceId: string, unitId: string) {
+  private async unit(userId: string, unitId: string) {
+    const ids = await this.accessibleBuildingIds(userId);
     const unit = await this.prisma.buildingUnit.findFirst({
-      where: { id: unitId, building: { workspaceId } },
+      where: { id: unitId, buildingId: { in: ids } },
       include: { building: { select: { id: true, workspaceId: true } } },
     });
     if (!unit) throw new NotFoundException('واحد پیدا نشد');
@@ -55,9 +89,9 @@ export class BuildingsService {
   // -------------------------------------------------------------------------
 
   async listBuildings(userId: string) {
-    const workspaceId = await this.workspaceId(userId);
+    const ids = await this.accessibleBuildingIds(userId);
     const rows = await this.prisma.building.findMany({
-      where: { workspaceId },
+      where: { id: { in: ids } },
       orderBy: { createdAt: 'asc' },
       include: { _count: { select: { units: true, tickets: true } } },
     });
@@ -65,15 +99,13 @@ export class BuildingsService {
   }
 
   async getBuilding(userId: string, id: string) {
-    const workspaceId = await this.workspaceId(userId);
-    const building = await this.prisma.building.findFirst({
-      where: { id, workspaceId },
+    await this.buildingForUser(userId, id);
+    return this.prisma.building.findUnique({
+      where: { id },
       include: {
         units: { orderBy: [{ floor: 'asc' }, { unitNumber: 'asc' }] },
       },
     });
-    if (!building) throw new NotFoundException('ساختمان پیدا نشد');
-    return building;
   }
 
   async createBuilding(userId: string, dto: CreateBuildingDto) {
@@ -92,8 +124,7 @@ export class BuildingsService {
   }
 
   async updateBuilding(userId: string, id: string, dto: UpdateBuildingDto) {
-    const workspaceId = await this.workspaceId(userId);
-    await this.building(workspaceId, id);
+    await this.buildingForUser(userId, id);
     return this.prisma.building.update({
       where: { id },
       data: {
@@ -112,15 +143,13 @@ export class BuildingsService {
   }
 
   async removeBuilding(userId: string, id: string) {
-    const workspaceId = await this.workspaceId(userId);
-    await this.building(workspaceId, id);
+    await this.ownedBuilding(userId, id);
     await this.prisma.building.delete({ where: { id } });
     return { id };
   }
 
   async createUnit(userId: string, buildingId: string, dto: CreateUnitDto) {
-    const workspaceId = await this.workspaceId(userId);
-    await this.building(workspaceId, buildingId);
+    await this.buildingForUser(userId, buildingId);
     const exists = await this.prisma.buildingUnit.findUnique({
       where: { buildingId_unitNumber: { buildingId, unitNumber: dto.unitNumber.trim() } },
       select: { id: true },
@@ -181,10 +210,10 @@ export class BuildingsService {
   // -------------------------------------------------------------------------
 
   async listCharges(userId: string, buildingId?: string, status?: string) {
-    const workspaceId = await this.workspaceId(userId);
+    const ids = await this.accessibleBuildingIds(userId);
     return this.prisma.buildingCharge.findMany({
       where: {
-        building: { workspaceId },
+        buildingId: { in: ids },
         ...(buildingId ? { buildingId } : {}),
         ...(status ? { status } : {}),
       },
@@ -198,9 +227,8 @@ export class BuildingsService {
   }
 
   async createCharge(userId: string, dto: CreateChargeDto) {
-    const workspaceId = await this.workspaceId(userId);
-    await this.building(workspaceId, dto.buildingId);
-    const unit = await this.unit(workspaceId, dto.unitId);
+    await this.buildingForUser(userId, dto.buildingId);
+    const unit = await this.unit(userId, dto.unitId);
     if (unit.buildingId !== dto.buildingId) {
       throw new BadRequestException('واحد به این ساختمان تعلق ندارد');
     }
@@ -219,8 +247,7 @@ export class BuildingsService {
 
   /** Issue the same charge for every unit of a building (fixed or per-sqm). */
   async issueBulkCharge(userId: string, dto: BulkChargeDto) {
-    const workspaceId = await this.workspaceId(userId);
-    await this.building(workspaceId, dto.buildingId);
+    await this.buildingForUser(userId, dto.buildingId);
     if (dto.amountPerUnit === undefined && dto.amountPerSqm === undefined) {
       throw new BadRequestException('یکی از مبلغ ثابت یا مبلغ به ازای متر مربع لازم است');
     }
@@ -262,9 +289,9 @@ export class BuildingsService {
   }
 
   async updateCharge(userId: string, id: string, dto: UpdateChargeDto) {
-    const workspaceId = await this.workspaceId(userId);
+    const ids = await this.accessibleBuildingIds(userId);
     const charge = await this.prisma.buildingCharge.findFirst({
-      where: { id, building: { workspaceId } },
+      where: { id, buildingId: { in: ids } },
     });
     if (!charge) throw new NotFoundException('شارژ پیدا نشد');
     return this.prisma.buildingCharge.update({
@@ -282,9 +309,9 @@ export class BuildingsService {
   }
 
   async removeCharge(userId: string, id: string) {
-    const workspaceId = await this.workspaceId(userId);
+    const ids = await this.accessibleBuildingIds(userId);
     const charge = await this.prisma.buildingCharge.findFirst({
-      where: { id, building: { workspaceId } },
+      where: { id, buildingId: { in: ids } },
       select: { id: true },
     });
     if (!charge) throw new NotFoundException('شارژ پیدا نشد');
@@ -293,8 +320,7 @@ export class BuildingsService {
   }
 
   async chargesSummary(userId: string, buildingId: string) {
-    const workspaceId = await this.workspaceId(userId);
-    await this.building(workspaceId, buildingId);
+    await this.buildingForUser(userId, buildingId);
     const charges = await this.prisma.buildingCharge.findMany({
       where: { buildingId, status: { not: 'CANCELLED' } },
       select: { amount: true, paidAmount: true, status: true },
@@ -315,10 +341,10 @@ export class BuildingsService {
   // -------------------------------------------------------------------------
 
   async listPayments(userId: string, buildingId?: string, status?: string) {
-    const workspaceId = await this.workspaceId(userId);
+    const ids = await this.accessibleBuildingIds(userId);
     return this.prisma.buildingPayment.findMany({
       where: {
-        building: { workspaceId },
+        buildingId: { in: ids },
         ...(buildingId ? { buildingId } : {}),
         ...(status ? { status } : {}),
       },
@@ -333,9 +359,8 @@ export class BuildingsService {
   }
 
   async createPayment(userId: string, dto: CreatePaymentDto) {
-    const workspaceId = await this.workspaceId(userId);
-    await this.building(workspaceId, dto.buildingId);
-    const unit = await this.unit(workspaceId, dto.unitId);
+    await this.buildingForUser(userId, dto.buildingId);
+    const unit = await this.unit(userId, dto.unitId);
     if (unit.buildingId !== dto.buildingId) {
       throw new BadRequestException('واحد به این ساختمان تعلق ندارد');
     }
@@ -375,9 +400,9 @@ export class BuildingsService {
   }
 
   async reviewPayment(userId: string, id: string, dto: ReviewPaymentDto) {
-    const workspaceId = await this.workspaceId(userId);
+    const ids = await this.accessibleBuildingIds(userId);
     const payment = await this.prisma.buildingPayment.findFirst({
-      where: { id, building: { workspaceId } },
+      where: { id, buildingId: { in: ids } },
     });
     if (!payment) throw new NotFoundException('پرداخت پیدا نشد');
     if (payment.status !== 'PENDING') {
@@ -416,9 +441,9 @@ export class BuildingsService {
   // -------------------------------------------------------------------------
 
   async listExpenses(userId: string, buildingId?: string) {
-    const workspaceId = await this.workspaceId(userId);
+    const ids = await this.accessibleBuildingIds(userId);
     return this.prisma.buildingExpense.findMany({
-      where: { building: { workspaceId }, ...(buildingId ? { buildingId } : {}) },
+      where: { buildingId: { in: ids }, ...(buildingId ? { buildingId } : {}) },
       include: { building: { select: { id: true, name: true } } },
       orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
       take: 300,
@@ -426,8 +451,7 @@ export class BuildingsService {
   }
 
   async createExpense(userId: string, dto: CreateExpenseDto) {
-    const workspaceId = await this.workspaceId(userId);
-    await this.building(workspaceId, dto.buildingId);
+    await this.buildingForUser(userId, dto.buildingId);
     return this.prisma.buildingExpense.create({
       data: {
         buildingId: dto.buildingId,
@@ -443,9 +467,9 @@ export class BuildingsService {
   }
 
   async removeExpense(userId: string, id: string) {
-    const workspaceId = await this.workspaceId(userId);
+    const ids = await this.accessibleBuildingIds(userId);
     const expense = await this.prisma.buildingExpense.findFirst({
-      where: { id, building: { workspaceId } },
+      where: { id, buildingId: { in: ids } },
       select: { id: true },
     });
     if (!expense) throw new NotFoundException('هزینه پیدا نشد');
@@ -454,8 +478,7 @@ export class BuildingsService {
   }
 
   async financeOverview(userId: string, buildingId: string) {
-    const workspaceId = await this.workspaceId(userId);
-    await this.building(workspaceId, buildingId);
+    await this.buildingForUser(userId, buildingId);
     const [charges, expenses] = await Promise.all([
       this.prisma.buildingCharge.findMany({
         where: { buildingId, status: { not: 'CANCELLED' } },
@@ -492,10 +515,10 @@ export class BuildingsService {
   // -------------------------------------------------------------------------
 
   async listTickets(userId: string, buildingId?: string, status?: string) {
-    const workspaceId = await this.workspaceId(userId);
+    const ids = await this.accessibleBuildingIds(userId);
     return this.prisma.buildingMaintenanceTicket.findMany({
       where: {
-        building: { workspaceId },
+        buildingId: { in: ids },
         ...(buildingId ? { buildingId } : {}),
         ...(status ? { status } : {}),
       },
@@ -509,10 +532,9 @@ export class BuildingsService {
   }
 
   async createTicket(userId: string, dto: CreateTicketDto) {
-    const workspaceId = await this.workspaceId(userId);
-    await this.building(workspaceId, dto.buildingId);
+    await this.buildingForUser(userId, dto.buildingId);
     if (dto.unitId) {
-      const unit = await this.unit(workspaceId, dto.unitId);
+      const unit = await this.unit(userId, dto.unitId);
       if (unit.buildingId !== dto.buildingId) {
         throw new BadRequestException('واحد به این ساختمان تعلق ندارد');
       }
@@ -531,9 +553,9 @@ export class BuildingsService {
   }
 
   async updateTicket(userId: string, id: string, dto: UpdateTicketDto) {
-    const workspaceId = await this.workspaceId(userId);
+    const ids = await this.accessibleBuildingIds(userId);
     const ticket = await this.prisma.buildingMaintenanceTicket.findFirst({
-      where: { id, building: { workspaceId } },
+      where: { id, buildingId: { in: ids } },
     });
     if (!ticket) throw new NotFoundException('درخواست پیدا نشد');
     return this.prisma.buildingMaintenanceTicket.update({
@@ -552,13 +574,396 @@ export class BuildingsService {
   }
 
   async removeTicket(userId: string, id: string) {
-    const workspaceId = await this.workspaceId(userId);
+    const ids = await this.accessibleBuildingIds(userId);
     const ticket = await this.prisma.buildingMaintenanceTicket.findFirst({
-      where: { id, building: { workspaceId } },
+      where: { id, buildingId: { in: ids } },
       select: { id: true },
     });
     if (!ticket) throw new NotFoundException('درخواست پیدا نشد');
     await this.prisma.buildingMaintenanceTicket.delete({ where: { id } });
     return { id };
+  }
+
+  // -------------------------------------------------------------------------
+  //  Members / roles
+  // -------------------------------------------------------------------------
+
+  async listMembers(userId: string, buildingId: string) {
+    await this.buildingForUser(userId, buildingId);
+    return this.prisma.buildingMember.findMany({
+      where: { buildingId },
+      include: {
+        user: { select: { id: true, email: true, fullName: true, phone: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async addMember(userId: string, buildingId: string, dto: CreateBuildingMemberDto) {
+    await this.ownedBuilding(userId, buildingId);
+    const email = dto.email.trim().toLowerCase();
+    const target = await this.prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (!target) {
+      throw new BadRequestException('کاربری با این ایمیل پیدا نشد');
+    }
+    return this.prisma.buildingMember.upsert({
+      where: { buildingId_userId: { buildingId, userId: target.id } },
+      update: { role: dto.role ?? 'MANAGER' },
+      create: { buildingId, userId: target.id, role: dto.role ?? 'MANAGER' },
+      include: {
+        user: { select: { id: true, email: true, fullName: true, phone: true } },
+      },
+    });
+  }
+
+  async removeMember(userId: string, buildingId: string, memberId: string) {
+    await this.ownedBuilding(userId, buildingId);
+    const member = await this.prisma.buildingMember.findFirst({
+      where: { id: memberId, buildingId },
+      select: { id: true },
+    });
+    if (!member) throw new NotFoundException('عضو پیدا نشد');
+    await this.prisma.buildingMember.delete({ where: { id: memberId } });
+    return { id: memberId };
+  }
+
+  // -------------------------------------------------------------------------
+  //  Budgets
+  // -------------------------------------------------------------------------
+
+  async listBudgets(userId: string, buildingId: string, year?: number) {
+    await this.buildingForUser(userId, buildingId);
+    return this.prisma.buildingBudget.findMany({
+      where: { buildingId, ...(year ? { year } : {}) },
+      orderBy: [{ year: 'desc' }, { createdAt: 'asc' }],
+    });
+  }
+
+  async createBudget(userId: string, buildingId: string, dto: CreateBudgetDto) {
+    await this.buildingForUser(userId, buildingId);
+    return this.prisma.buildingBudget.create({
+      data: {
+        buildingId,
+        year: dto.year,
+        title: dto.title.trim(),
+        category: dto.category?.trim() || null,
+        amount: BigInt(dto.amount ?? 0),
+        note: dto.note?.trim() || null,
+      },
+    });
+  }
+
+  async updateBudget(userId: string, id: string, dto: UpdateBudgetDto) {
+    const ids = await this.accessibleBuildingIds(userId);
+    const row = await this.prisma.buildingBudget.findFirst({
+      where: { id, buildingId: { in: ids } },
+    });
+    if (!row) throw new NotFoundException('ردیف بودجه پیدا نشد');
+    return this.prisma.buildingBudget.update({
+      where: { id },
+      data: {
+        ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
+        ...(dto.category !== undefined ? { category: dto.category.trim() || null } : {}),
+        ...(dto.amount !== undefined ? { amount: BigInt(dto.amount) } : {}),
+        ...(dto.note !== undefined ? { note: dto.note.trim() || null } : {}),
+      },
+    });
+  }
+
+  async removeBudget(userId: string, id: string) {
+    const ids = await this.accessibleBuildingIds(userId);
+    const row = await this.prisma.buildingBudget.findFirst({
+      where: { id, buildingId: { in: ids } },
+      select: { id: true },
+    });
+    if (!row) throw new NotFoundException('ردیف بودجه پیدا نشد');
+    await this.prisma.buildingBudget.delete({ where: { id } });
+    return { id };
+  }
+
+  // -------------------------------------------------------------------------
+  //  Meetings
+  // -------------------------------------------------------------------------
+
+  async listMeetings(userId: string, buildingId: string) {
+    await this.buildingForUser(userId, buildingId);
+    return this.prisma.buildingMeeting.findMany({
+      where: { buildingId },
+      orderBy: { scheduledAt: 'desc' },
+    });
+  }
+
+  async createMeeting(userId: string, buildingId: string, dto: CreateMeetingDto) {
+    await this.buildingForUser(userId, buildingId);
+    return this.prisma.buildingMeeting.create({
+      data: {
+        buildingId,
+        title: dto.title.trim(),
+        scheduledAt: new Date(dto.scheduledAt),
+        location: dto.location?.trim() || null,
+        agenda: dto.agenda?.trim() || null,
+      },
+    });
+  }
+
+  async updateMeeting(userId: string, id: string, dto: UpdateMeetingDto) {
+    const ids = await this.accessibleBuildingIds(userId);
+    const row = await this.prisma.buildingMeeting.findFirst({
+      where: { id, buildingId: { in: ids } },
+    });
+    if (!row) throw new NotFoundException('جلسه پیدا نشد');
+    return this.prisma.buildingMeeting.update({
+      where: { id },
+      data: {
+        ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
+        ...(dto.scheduledAt !== undefined
+          ? { scheduledAt: new Date(dto.scheduledAt) }
+          : {}),
+        ...(dto.location !== undefined ? { location: dto.location.trim() || null } : {}),
+        ...(dto.agenda !== undefined ? { agenda: dto.agenda.trim() || null } : {}),
+        ...(dto.minutes !== undefined ? { minutes: dto.minutes.trim() || null } : {}),
+        ...(dto.status !== undefined ? { status: dto.status } : {}),
+      },
+    });
+  }
+
+  async removeMeeting(userId: string, id: string) {
+    const ids = await this.accessibleBuildingIds(userId);
+    const row = await this.prisma.buildingMeeting.findFirst({
+      where: { id, buildingId: { in: ids } },
+      select: { id: true },
+    });
+    if (!row) throw new NotFoundException('جلسه پیدا نشد');
+    await this.prisma.buildingMeeting.delete({ where: { id } });
+    return { id };
+  }
+
+  // -------------------------------------------------------------------------
+  //  Contractors
+  // -------------------------------------------------------------------------
+
+  async listContractors(userId: string, buildingId: string) {
+    await this.buildingForUser(userId, buildingId);
+    return this.prisma.buildingContractor.findMany({
+      where: { buildingId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async createContractor(userId: string, buildingId: string, dto: CreateContractorDto) {
+    await this.buildingForUser(userId, buildingId);
+    return this.prisma.buildingContractor.create({
+      data: {
+        buildingId,
+        name: dto.name.trim(),
+        specialty: dto.specialty?.trim() || null,
+        phone: dto.phone?.trim() || null,
+        note: dto.note?.trim() || null,
+      },
+    });
+  }
+
+  async updateContractor(userId: string, id: string, dto: UpdateContractorDto) {
+    const ids = await this.accessibleBuildingIds(userId);
+    const row = await this.prisma.buildingContractor.findFirst({
+      where: { id, buildingId: { in: ids } },
+    });
+    if (!row) throw new NotFoundException('پیمانکار پیدا نشد');
+    return this.prisma.buildingContractor.update({
+      where: { id },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(dto.specialty !== undefined ? { specialty: dto.specialty.trim() || null } : {}),
+        ...(dto.phone !== undefined ? { phone: dto.phone.trim() || null } : {}),
+        ...(dto.note !== undefined ? { note: dto.note.trim() || null } : {}),
+      },
+    });
+  }
+
+  async removeContractor(userId: string, id: string) {
+    const ids = await this.accessibleBuildingIds(userId);
+    const row = await this.prisma.buildingContractor.findFirst({
+      where: { id, buildingId: { in: ids } },
+      select: { id: true },
+    });
+    if (!row) throw new NotFoundException('پیمانکار پیدا نشد');
+    await this.prisma.buildingContractor.delete({ where: { id } });
+    return { id };
+  }
+
+  // -------------------------------------------------------------------------
+  //  Reminders + exports
+  // -------------------------------------------------------------------------
+
+  /** Charges due within the next 7 days or already overdue. */
+  async reminders(userId: string, buildingId?: string) {
+    const ids = await this.accessibleBuildingIds(userId);
+    const now = new Date();
+    const soon = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    return this.prisma.buildingCharge.findMany({
+      where: {
+        buildingId: buildingId ? buildingId : { in: ids },
+        status: { in: ['UNPAID', 'PARTIAL'] },
+        dueDate: { not: null, lte: soon },
+      },
+      include: {
+        unit: { select: { id: true, unitNumber: true, residentName: true, residentPhone: true } },
+        building: { select: { id: true, name: true } },
+      },
+      orderBy: { dueDate: 'asc' },
+      take: 300,
+    });
+  }
+
+  async exportChargesCsv(userId: string, buildingId?: string) {
+    const ids = await this.accessibleBuildingIds(userId);
+    const rows = await this.prisma.buildingCharge.findMany({
+      where: { buildingId: buildingId ? buildingId : { in: ids } },
+      include: {
+        unit: { select: { unitNumber: true } },
+        building: { select: { name: true } },
+      },
+      orderBy: [{ createdAt: 'desc' }],
+    });
+    return this.toCsv(
+      ['ساختمان', 'واحد', 'عنوان', 'دوره', 'مبلغ', 'پرداخت‌شده', 'وضعیت', 'سررسید'],
+      rows.map((row) => [
+        row.building?.name ?? '',
+        row.unit?.unitNumber ?? '',
+        row.title,
+        row.period ?? '',
+        String(row.amount),
+        String(row.paidAmount),
+        row.status,
+        row.dueDate ? row.dueDate.toISOString().slice(0, 10) : '',
+      ]),
+    );
+  }
+
+  async exportPaymentsCsv(userId: string, buildingId?: string) {
+    const ids = await this.accessibleBuildingIds(userId);
+    const rows = await this.prisma.buildingPayment.findMany({
+      where: { buildingId: buildingId ? buildingId : { in: ids } },
+      include: {
+        unit: { select: { unitNumber: true } },
+        building: { select: { name: true } },
+      },
+      orderBy: [{ createdAt: 'desc' }],
+    });
+    return this.toCsv(
+      ['ساختمان', 'واحد', 'مبلغ', 'روش', 'شماره پیگیری', 'وضعیت', 'تاریخ'],
+      rows.map((row) => [
+        row.building?.name ?? '',
+        row.unit?.unitNumber ?? '',
+        String(row.amount),
+        row.method,
+        row.trackingNumber ?? '',
+        row.status,
+        row.createdAt.toISOString().slice(0, 10),
+      ]),
+    );
+  }
+
+  private toCsv(headers: string[], rows: string[][]): string {
+    const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    return '\uFEFF' + [headers, ...rows].map((row) => row.map(escape).join(',')).join('\r\n');
+  }
+
+  // -------------------------------------------------------------------------
+  //  Resident self-service panel (token based)
+  // -------------------------------------------------------------------------
+
+  async ensureResidentToken(userId: string, unitId: string) {
+    const unit = await this.unit(userId, unitId);
+    if (unit.residentToken) return { token: unit.residentToken };
+    const token = randomUUID();
+    await this.prisma.buildingUnit.update({
+      where: { id: unitId },
+      data: { residentToken: token },
+    });
+    return { token };
+  }
+
+  async residentPanel(token: string) {
+    const unit = await this.prisma.buildingUnit.findUnique({
+      where: { residentToken: token },
+      include: {
+        building: { select: { id: true, name: true, city: true } },
+        charges: {
+          where: { status: { not: 'CANCELLED' } },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        },
+        payments: { orderBy: { createdAt: 'desc' }, take: 30 },
+      },
+    });
+    if (!unit) throw new NotFoundException('واحد پیدا نشد');
+    return {
+      building: unit.building,
+      unit: {
+        id: unit.id,
+        unitNumber: unit.unitNumber,
+        floor: unit.floor,
+        residentName: unit.residentName,
+        status: unit.status,
+      },
+      charges: unit.charges.map((row) => ({
+        id: row.id,
+        title: row.title,
+        period: row.period,
+        amount: row.amount,
+        paidAmount: row.paidAmount,
+        status: row.status,
+        dueDate: row.dueDate,
+      })),
+      payments: unit.payments.map((row) => ({
+        id: row.id,
+        amount: row.amount,
+        status: row.status,
+        trackingNumber: row.trackingNumber,
+        createdAt: row.createdAt,
+      })),
+    };
+  }
+
+  async createResidentPayment(token: string, dto: ResidentPaymentDto) {
+    const unit = await this.prisma.buildingUnit.findUnique({
+      where: { residentToken: token },
+      select: { id: true, buildingId: true },
+    });
+    if (!unit) throw new NotFoundException('واحد پیدا نشد');
+    if (dto.chargeId) {
+      const charge = await this.prisma.buildingCharge.findFirst({
+        where: { id: dto.chargeId, unitId: unit.id },
+        select: { id: true },
+      });
+      if (!charge) throw new BadRequestException('شارژ مرتبط پیدا نشد');
+    }
+    const trackingNumber = dto.trackingNumber?.trim() || null;
+    if (trackingNumber) {
+      const dup = await this.prisma.buildingPayment.findFirst({
+        where: {
+          buildingId: unit.buildingId,
+          trackingNumber,
+          status: { not: 'REJECTED' },
+        },
+        select: { id: true },
+      });
+      if (dup) throw new ConflictException('این شماره پیگیری قبلاً ثبت شده است');
+    }
+    return this.prisma.buildingPayment.create({
+      data: {
+        buildingId: unit.buildingId,
+        unitId: unit.id,
+        chargeId: dto.chargeId ?? null,
+        amount: dto.amount,
+        method: 'CARD_TO_CARD',
+        trackingNumber,
+        receiptUrl: dto.receiptUrl?.trim() || null,
+      },
+    });
   }
 }

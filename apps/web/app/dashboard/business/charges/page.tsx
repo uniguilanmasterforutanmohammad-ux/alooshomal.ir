@@ -37,6 +37,7 @@ export default function ChargesPage() {
   const [charges, setCharges] = useState<BuildingCharge[]>([]);
   const [payments, setPayments] = useState<BuildingPayment[]>([]);
   const [summary, setSummary] = useState<{ total: number; paid: number; outstanding: number } | null>(null);
+  const [reminders, setReminders] = useState<BuildingCharge[]>([]);
   const [bulk, setBulk] = useState({ title: 'شارژ ماهانه', period: '', amountPerUnit: '', amountPerSqm: '' });
   const [single, setSingle] = useState({ unitId: '', title: 'هزینه‌ی موردی', amount: '' });
   const [payForm, setPayForm] = useState({ unitId: '', chargeId: '', amount: '', trackingNumber: '' });
@@ -53,6 +54,7 @@ export default function ChargesPage() {
     setCharges(c);
     setPayments(p);
     setSummary(s);
+    setReminders(await api.get<BuildingCharge[]>(`/building-charges/reminders?buildingId=${id}`));
   }, []);
 
   useEffect(() => {
@@ -152,6 +154,35 @@ export default function ChargesPage() {
           <div className="indeed-panel p-4"><p className="text-xs text-muted">وصول‌شده</p><p className="text-lg font-extrabold text-emerald-700">{summary.paid.toLocaleString('fa-IR')}</p></div>
           <div className="indeed-panel p-4"><p className="text-xs text-muted">مانده مطالبات</p><p className="text-lg font-extrabold text-amber-700">{summary.outstanding.toLocaleString('fa-IR')}</p></div>
         </div>
+      ) : null}
+
+      {buildingId ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="indeed-btn indeed-btn-ghost text-xs"
+            onClick={() => void api.download(`/building-charges/export?buildingId=${buildingId}`, 'building-charges.csv')}
+          >
+            خروجی CSV شارژها
+          </button>
+          <span className="text-xs text-muted">{reminders.length} شارژ نزدیک/گذشته از سررسید</span>
+        </div>
+      ) : null}
+
+      {reminders.length > 0 ? (
+        <section className="indeed-panel p-4">
+          <h2 className="mb-2 text-sm font-extrabold text-ink">یادآوری سررسید</h2>
+          <ul className="flex flex-col gap-1 text-xs">
+            {reminders.map((charge) => (
+              <li key={charge.id} className="flex items-center justify-between gap-2">
+                <span>واحد {charge.unit?.unitNumber ?? '—'} • {charge.title}</span>
+                <span className="text-muted">
+                  {charge.amount.toLocaleString('fa-IR')} • سررسید {charge.dueDate ? new Date(charge.dueDate).toLocaleDateString('fa-IR') : '—'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">

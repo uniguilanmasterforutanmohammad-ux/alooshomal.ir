@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Building2, Plus } from 'lucide-react';
 
 import { BusinessPanelNav } from '@/components/business/BusinessPanelNav';
-import { api, type Building, type BuildingUnit } from '@/lib/api';
+import { api, type Building, type BuildingMember, type BuildingUnit } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
 import { toast } from '@/lib/toast';
@@ -23,6 +23,9 @@ export default function BuildingsPage() {
   const [loading, setLoading] = useState(true);
   const [buildingForm, setBuildingForm] = useState({ name: '', city: '', address: '', managerName: '', managerPhone: '' });
   const [unitForm, setUnitForm] = useState({ unitNumber: '', floor: '', area: '', ownerName: '', residentName: '', residentPhone: '' });
+  const [members, setMembers] = useState<BuildingMember[]>([]);
+  const [memberForm, setMemberForm] = useState({ email: '', role: 'MANAGER' });
+  const [residentLinks, setResidentLinks] = useState<Record<string, string>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -43,6 +46,35 @@ export default function BuildingsPage() {
 
   async function open(id: string) {
     setSelected(await api.get<Building>(`/buildings/${id}`));
+    setMembers(await api.get<BuildingMember[]>(`/buildings/${id}/members`));
+  }
+
+  async function addMember(event: React.FormEvent) {
+    event.preventDefault();
+    if (!selected || !memberForm.email.trim()) return;
+    await api.post(`/buildings/${selected.id}/members`, {
+      email: memberForm.email.trim(),
+      role: memberForm.role,
+    });
+    setMemberForm({ email: '', role: 'MANAGER' });
+    setMembers(await api.get<BuildingMember[]>(`/buildings/${selected.id}/members`));
+    toast.success('دسترسی ثبت شد');
+  }
+
+  async function removeMember(member: BuildingMember) {
+    if (!selected) return;
+    await api.delete(`/buildings/${selected.id}/members/${member.id}`);
+    setMembers(await api.get<BuildingMember[]>(`/buildings/${selected.id}/members`));
+  }
+
+  async function makeResidentLink(unit: BuildingUnit) {
+    const result = await api.post<{ token: string }>(
+      `/buildings/${unit.buildingId}/units/${unit.id}/resident-token`,
+    );
+    const url = `${window.location.origin}/resident/${result.token}`;
+    setResidentLinks((prev) => ({ ...prev, [unit.id]: url }));
+    await navigator.clipboard?.writeText(url).catch(() => undefined);
+    toast.success('لینک پنل ساکن ساخته و کپی شد');
   }
 
   async function createBuilding(event: React.FormEvent) {
@@ -151,6 +183,7 @@ export default function BuildingsPage() {
                         <th className="p-2 text-start">مالک</th>
                         <th className="p-2 text-start">ساکن</th>
                         <th className="p-2 text-start">وضعیت</th>
+                        <th className="p-2 text-start">پنل ساکن</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -166,10 +199,40 @@ export default function BuildingsPage() {
                               {unit.status === 'OCCUPIED' ? 'ساکن' : 'خالی'}
                             </button>
                           </td>
+                          <td className="p-2">
+                            <button type="button" onClick={() => void makeResidentLink(unit)} className="indeed-btn py-0.5 text-[10px]">
+                              {residentLinks[unit.id] ? 'کپی لینک' : 'ساخت لینک'}
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
+                </div>
+
+                <div className="mt-2 border-t border-[var(--vintage-border)] pt-3">
+                  <h3 className="text-sm font-extrabold text-ink">دسترسی کاربران</h3>
+                  <form onSubmit={addMember} className="mt-2 grid gap-2 sm:grid-cols-3">
+                    <input className={field} type="email" placeholder="ایمیل کاربر" value={memberForm.email} onChange={(e) => setMemberForm((p) => ({ ...p, email: e.target.value }))} required />
+                    <select className={field} value={memberForm.role} onChange={(e) => setMemberForm((p) => ({ ...p, role: e.target.value }))}>
+                      <option value="MANAGER">مدیر ساختمان</option>
+                      <option value="ACCOUNTANT">مالی</option>
+                      <option value="RESIDENT">ساکن</option>
+                    </select>
+                    <button type="submit" className="indeed-btn indeed-btn-primary">افزودن دسترسی</button>
+                  </form>
+                  {members.length > 0 ? (
+                    <ul className="mt-2 flex flex-col gap-1 text-xs">
+                      {members.map((member) => (
+                        <li key={member.id} className="flex items-center justify-between gap-2">
+                          <span>{member.user.fullName ?? member.user.email ?? member.userId} • {member.role}</span>
+                          <button type="button" className="text-red-600" onClick={() => void removeMember(member)}>حذف</button>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-2 text-[11px] text-muted">هنوز کاربری دسترسی ندارد.</p>
+                  )}
                 </div>
               </div>
             )}

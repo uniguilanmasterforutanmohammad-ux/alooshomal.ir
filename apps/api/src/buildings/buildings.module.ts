@@ -5,6 +5,7 @@ import { BuildingChargesController } from './building-charges.controller';
 import { BuildingFinanceController } from './building-finance.controller';
 import { BuildingMaintenanceController } from './building-maintenance.controller';
 import { BuildingsController } from './buildings.controller';
+import { PublicBuildingsController } from './public-buildings.controller';
 import { BuildingsService } from './buildings.service';
 
 @Module({
@@ -14,6 +15,7 @@ import { BuildingsService } from './buildings.service';
     BuildingChargesController,
     BuildingFinanceController,
     BuildingMaintenanceController,
+    PublicBuildingsController,
   ],
   providers: [BuildingsService],
   exports: [BuildingsService],

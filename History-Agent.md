@@ -20,13 +20,58 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.85.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.86.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — فاز دوم بسته‌ی مدیریت «ساختمان» — نسخه `v4.86.0`
+
+**هدف:** تکمیل قابلیت‌های ارزش‌افزای فاز دوم بسته‌ی ساختمان: نقش‌ها و دسترسی
+چندکاربره، پنل عمومی ساکن، یادآوری سررسید شارژ، بودجه‌ی سالانه، جلسات/صورت‌جلسه،
+پیمانکاران و خروجی CSV شارژ/پرداخت.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل‌های `BuildingMember` (نقش
+  `MANAGER`/`ACCOUNTANT`/`RESIDENT` با یکتایی `[buildingId,userId]`)،
+  `BuildingBudget`، `BuildingMeeting`، `BuildingContractor` و ستون
+  `BuildingUnit.residentToken` (یکتا).
+- `apps/api/src/buildings/buildings.service.ts`: کنترل دسترسی بر اساس
+  `accessibleBuildingIds`/`buildingForUser`/`ownedBuilding`؛ متدهای اعضا،
+  بودجه، جلسات، پیمانکاران، `reminders`، خروجی CSV و پنل ساکن.
+- `apps/api/src/buildings/dto/buildings.dto.ts`: DTOهای عضو/بودجه/جلسه/پیمانکار
+  و پرداخت ساکن.
+- `apps/api/src/buildings/buildings.controller.ts`،
+  `building-charges.controller.ts`، `building-finance.controller.ts`: مسیرهای
+  جدید با `@ApiOperation`؛ خروجی CSV با `@Res()` خام (بدون wrap اینترسپتور).
+- `apps/api/src/buildings/public-buildings.controller.ts` (جدید): مسیرهای عمومی
+  `GET/POST /public/buildings/resident/:token` با `@Public()`.
+- `apps/api/src/business-modules/business-module.guard.ts`: عبور اعضای ساختمان
+  (`BuildingMember`) از بررسی ماژول فضای‌کار خودشان.
+- `apps/web/app/dashboard/business/buildings/page.tsx`: مدیریت اعضا و ساخت لینک
+  پنل ساکن.
+- `apps/web/app/dashboard/business/building-finance/page.tsx`: بخش بودجه، جلسات،
+  پیمانکاران و دکمه‌ی خروجی CSV پرداخت‌ها.
+- `apps/web/app/dashboard/business/charges/page.tsx`: یادآوری سررسید و خروجی CSV.
+- `apps/web/app/resident/[token]/page.tsx` (جدید): پنل عمومی ساکن (شارژها، ثبت
+  رسید، فهرست پرداخت‌ها).
+- `apps/web/lib/api/types/business-modules.ts`: تایپ‌های اعضا/بودجه/جلسه/پیمانکار.
+- `docs/API.md`: مستندسازی مسیرهای فاز دوم ساختمان.
+- `BACKLOG.md`: ثبت «انجام‌شده» برای فاز دوم ساختمان.
+
+**تأیید/تست:**
+- `docker compose exec -T api ./node_modules/.bin/tsc --noEmit -p tsconfig.json` → موفق.
+- `docker compose exec -T web ./node_modules/.bin/tsc --noEmit` → موفق.
+- `eslint` روی صفحات تغییریافته → فقط هشدارهای موردانتظار `react-hooks/set-state-in-effect`.
+- `python3 scripts/check_api_docs.py` → ۶۷۸ مسیر، همه با `@ApiOperation`.
+- `python3 scripts/check_modules.py` → ساختار ماژولار و `FEATURE_FLAGS` درست.
+- تست دستی API: ساخت ساختمان/واحد، CRUD بودجه/جلسه/پیمانکار، `reminders`،
+  توکن ساکن → `GET` پنل عمومی → `POST` پرداخت (`PENDING`) و تکرار شماره پیگیری
+  → `409`، خروجی CSV شارژ/پرداخت با `Content-Type: text/csv` و BOM. داده‌های
+  تست پاک شدند.
 
 ## ۱۴۰۵/۰۹/۰۳ — تکمیل بسته‌ی مدیریت «مربیان و آموزشگاه» — نسخه `v4.85.0`
 

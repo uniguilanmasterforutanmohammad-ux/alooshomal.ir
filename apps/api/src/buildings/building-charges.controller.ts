@@ -7,8 +7,10 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { BusinessModuleGuard } from '../business-modules/business-module.guard';
@@ -60,6 +62,28 @@ export class BuildingChargesController {
   @ApiOperation({ summary: 'خلاصه‌ی مطالبات یک ساختمان' })
   summary(@CurrentUser() user: AuthUser, @Param('buildingId') buildingId: string) {
     return this.buildings.chargesSummary(user.id, buildingId);
+  }
+
+  @Get('reminders')
+  @ApiOperation({ summary: 'شارژهای سررسیدشده یا نزدیک سررسید (۷ روز)' })
+  reminders(
+    @CurrentUser() user: AuthUser,
+    @Query('buildingId') buildingId?: string,
+  ) {
+    return this.buildings.reminders(user.id, buildingId);
+  }
+
+  @Get('export')
+  @ApiOperation({ summary: 'خروجی CSV شارژها (سازگار با اکسل)' })
+  async export(
+    @CurrentUser() user: AuthUser,
+    @Res() res: Response,
+    @Query('buildingId') buildingId?: string,
+  ) {
+    const csv = await this.buildings.exportChargesCsv(user.id, buildingId);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="building-charges.csv"');
+    res.send(csv);
   }
 
   @Patch(':id')

@@ -907,3 +907,42 @@ export interface EduReportOverview {
     profit: number;
   }>;
 }
+
+export interface BuildingMember {
+  id: string;
+  buildingId: string;
+  userId: string;
+  role: 'MANAGER' | 'ACCOUNTANT' | 'RESIDENT' | string;
+  createdAt: string;
+  user: { id: string; email: string | null; fullName: string | null; phone: string | null };
+}
+
+export interface BuildingBudget {
+  id: string;
+  buildingId: string;
+  year: number;
+  title: string;
+  category: string | null;
+  amount: number;
+  note: string | null;
+}
+
+export interface BuildingMeeting {
+  id: string;
+  buildingId: string;
+  title: string;
+  scheduledAt: string;
+  location: string | null;
+  agenda: string | null;
+  minutes: string | null;
+  status: 'SCHEDULED' | 'DONE' | 'CANCELLED' | string;
+}
+
+export interface BuildingContractor {
+  id: string;
+  buildingId: string;
+  name: string;
+  specialty: string | null;
+  phone: string | null;
+  note: string | null;
+}

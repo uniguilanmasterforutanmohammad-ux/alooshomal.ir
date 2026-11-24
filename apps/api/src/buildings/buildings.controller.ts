@@ -19,6 +19,7 @@ import {
 import { BuildingsService } from './buildings.service';
 import {
   CreateBuildingDto,
+  CreateBuildingMemberDto,
   CreateUnitDto,
   UpdateBuildingDto,
   UpdateUnitDto,
@@ -90,5 +91,40 @@ export class BuildingsController {
   @ApiOperation({ summary: 'حذف واحد' })
   removeUnit(@CurrentUser() user: AuthUser, @Param('unitId') unitId: string) {
     return this.buildings.removeUnit(user.id, unitId);
+  }
+
+  @Get(':id/members')
+  @ApiOperation({ summary: 'فهرست کاربران دارای دسترسی به این ساختمان' })
+  members(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.buildings.listMembers(user.id, id);
+  }
+
+  @Post(':id/members')
+  @ApiOperation({ summary: 'دادن دسترسی به یک کاربر با نقش (فقط مالک)' })
+  addMember(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: CreateBuildingMemberDto,
+  ) {
+    return this.buildings.addMember(user.id, id, dto);
+  }
+
+  @Delete(':id/members/:memberId')
+  @ApiOperation({ summary: 'حذف دسترسی کاربر (فقط مالک)' })
+  removeMember(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('memberId') memberId: string,
+  ) {
+    return this.buildings.removeMember(user.id, id, memberId);
+  }
+
+  @Post(':id/units/:unitId/resident-token')
+  @ApiOperation({ summary: 'ساخت/دریافت لینک پنل ساکن برای یک واحد' })
+  residentToken(
+    @CurrentUser() user: AuthUser,
+    @Param('unitId') unitId: string,
+  ) {
+    return this.buildings.ensureResidentToken(user.id, unitId);
   }
 }

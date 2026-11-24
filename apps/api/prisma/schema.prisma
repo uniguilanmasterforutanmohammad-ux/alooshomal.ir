@@ -506,6 +506,7 @@ model User {
   identityInquiryLogs   IdentityInquiryLog[]
   inquiryLogs           InquiryLog[]
   businessWorkspaces    BusinessWorkspace[]
+  buildingMembers       BuildingMember[]
 
   // `email` and `phone` are already @unique; Postgres backs each with a unique
   // index, so a separate @@index would only double the write cost.
@@ -2684,6 +2685,10 @@ model Building {
   payments  BuildingPayment[]
   expenses  BuildingExpense[]
   tickets   BuildingMaintenanceTicket[]
+  members   BuildingMember[]
+  budgets   BuildingBudget[]
+  meetings  BuildingMeeting[]
+  contractors BuildingContractor[]
 
   @@index([workspaceId])
   @@map("buildings")
@@ -2704,6 +2709,8 @@ model BuildingUnit {
   occupancyEnd   DateTime?
   /// OCCUPIED | VACANT
   status         String    @default("OCCUPIED")
+  /// Opaque token for the resident self-service panel (charges + receipts).
+  residentToken  String?   @unique
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -3213,4 +3220,81 @@ model EduCoachSettlement {
 
   @@index([workspaceId, status])
   @@map("edu_coach_settlements")
+}
+
+// ---------------------------------------------------------------------------
+//  Building management — phase 2 (roles, budget, meetings, contractors)
+// ---------------------------------------------------------------------------
+
+/// Grants a platform user access to one building with a role. The owner can
+/// share a building (and its charges/finance) without exposing other buildings.
+model BuildingMember {
+  id         String   @id @default(cuid())
+  buildingId String
+  userId     String
+  /// MANAGER | ACCOUNTANT | RESIDENT
+  role       String   @default("MANAGER")
+  createdAt  DateTime @default(now())
+
+  building Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([buildingId, userId])
+  @@index([userId])
+  @@map("building_members")
+}
+
+/// An annual budget line for a building (planned amount per category).
+model BuildingBudget {
+  id         String   @id @default(cuid())
+  buildingId String
+  year       Int
+  title      String
+  category   String?
+  amount     BigInt   @default(0)
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  building Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+
+  @@index([buildingId, year])
+  @@map("building_budgets")
+}
+
+/// A building meeting (annual assembly, board meeting …) with agenda/minutes.
+model BuildingMeeting {
+  id          String    @id @default(cuid())
+  buildingId  String
+  title       String
+  scheduledAt DateTime
+  location    String?
+  agenda      String?
+  minutes     String?
+  /// SCHEDULED | DONE | CANCELLED
+  status      String    @default("SCHEDULED")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  building Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+
+  @@index([buildingId, scheduledAt])
+  @@map("building_meetings")
+}
+
+/// A contractor/vendor the building manager can assign maintenance work to.
+model BuildingContractor {
+  id         String   @id @default(cuid())
+  buildingId String
+  name       String
+  specialty  String?
+  phone      String?
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  building Building @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+
+  @@index([buildingId])
+  @@map("building_contractors")
 }

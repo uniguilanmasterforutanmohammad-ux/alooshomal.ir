@@ -943,10 +943,25 @@ PY
 | `GET` | `/building-finance/overview/:buildingId` | گردش مالی: مطالبات، وصولی، هزینه، مانده صندوق و هزینه به تفکیک دسته. |
 | `GET/POST` | `/building-finance/expenses` | فهرست/ثبت هزینه‌ی ساختمان. |
 | `DELETE` | `/building-finance/expenses/:id` | حذف هزینه. |
+| `GET` | `/building-charges/reminders` | شارژهای سررسیدشده یا نزدیک سررسید (۷ روز) برای یادآوری. |
+| `GET` | `/building-charges/export` | خروجی CSV شارژها (UTF-8 BOM، سازگار با اکسل). |
+| `GET` | `/building-finance/export/payments` | خروجی CSV پرداخت‌ها (UTF-8 BOM، سازگار با اکسل). |
+| `GET/POST` | `/buildings/:id/members` | فهرست/افزودن عضو با نقش (`MANAGER`/`ACCOUNTANT`/`RESIDENT`) بر اساس ایمیل کاربر. |
+| `DELETE` | `/buildings/:id/members/:memberId` | حذف دسترسی عضو. |
+| `POST` | `/buildings/:id/units/:unitId/resident-token` | ساخت/بازگرداندن توکن پنل ساکن برای واحد. |
+| `GET/POST` | `/building-finance/:buildingId/budgets` | فهرست (فیلتر `year`)/افزودن ردیف بودجه‌ی سالانه. |
+| `PATCH/DELETE` | `/building-finance/budgets/:id` | ویرایش/حذف ردیف بودجه. |
+| `GET/POST` | `/building-finance/:buildingId/meetings` | فهرست/ثبت جلسه (زمان، محل، دستور جلسه). |
+| `PATCH/DELETE` | `/building-finance/meetings/:id` | ویرایش صورت‌جلسه/وضعیت (`SCHEDULED`/`DONE`/`CANCELLED`)/حذف. |
+| `GET/POST` | `/building-finance/:buildingId/contractors` | فهرست/افزودن پیمانکار (تخصص، تماس، یادداشت). |
+| `PATCH/DELETE` | `/building-finance/contractors/:id` | ویرایش/حذف پیمانکار. |
 | `GET/POST` | `/building-maintenance` | فهرست/ثبت خرابی و درخواست نگهداری (اولویت `LOW`/`NORMAL`/`HIGH`/`URGENT`). |
 | `PATCH/DELETE` | `/building-maintenance/:id` | تغییر وضعیت/مسئول/هزینه (با `DONE` زمان رفع ثبت می‌شود)/حذف. |
+| `GET` | `/public/buildings/resident/:token` | پنل عمومی ساکن (بدون احراز هویت): ساختمان، واحد، شارژها و پرداخت‌ها. |
+| `POST` | `/public/buildings/resident/:token/payments` | ثبت رسید پرداخت توسط ساکن؛ تکرار `trackingNumber` با ۴۰۹ رد می‌شود. |
 
-هر ساختمان حساب مستقل دارد و همه‌ی کوئری‌ها با `workspaceId` مالک محدود می‌شوند.
+هر ساختمان حساب مستقل دارد و همه‌ی کوئری‌ها با دسترسی مالک/اعضای ساختمان
+(`BuildingMember`) محدود می‌شوند.
 رسید به‌تنهایی تسویه نیست؛ تا زمانی که ادمین رسید را تأیید نکند، شارژ
 `UNPAID`/`PARTIAL` می‌ماند. ماژول‌ها با سوئیچ‌های `featureBuildingUnits`،
 `featureBuildingCharges`، `featureBuildingFinance` و `featureBuildingMaintenance`

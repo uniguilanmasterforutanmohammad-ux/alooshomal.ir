@@ -9,6 +9,7 @@ import { Reflector } from '@nestjs/core';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { OPTIONAL_AUTH_KEY } from '../common/decorators/optional-auth.decorator';
 import { IS_PUBLIC_KEY } from '../common/decorators/public.decorator';
+import { PrismaService } from '../prisma/prisma.service';
 import { BusinessModulesService } from './business-modules.service';
 import { BUSINESS_MODULE_KEY } from './require-module.decorator';
 
@@ -17,6 +18,7 @@ export class BusinessModuleGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly modules: BusinessModulesService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -44,7 +46,21 @@ export class BusinessModuleGuard implements CanActivate {
     if (!request.user?.id) {
       throw new UnauthorizedException('برای استفاده از این ماژول باید وارد شوید');
     }
-    await this.modules.assertModuleEnabled(request.user.id, moduleKey);
+    try {
+      await this.modules.assertModuleEnabled(request.user.id, moduleKey);
+    } catch (error) {
+      // A user who was granted access to someone else's building may use the
+      // building modules even if their own workspace has not enabled them; the
+      // service still scopes every query to the buildings they can access.
+      if (moduleKey.startsWith('building')) {
+        const member = await this.prisma.buildingMember.findFirst({
+          where: { userId: request.user.id },
+          select: { id: true },
+        });
+        if (member) return true;
+      }
+      throw error;
+    }
     return true;
   }
 }
