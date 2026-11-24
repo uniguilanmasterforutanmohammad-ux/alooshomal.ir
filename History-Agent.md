@@ -20,13 +20,38 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.78.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.79.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — ایندکس ماشین‌خوان برای موتورهای هوش مصنوعی و قواعد خزش — نسخه `v4.79.0`
+
+**هدف:** قابل‌کشف‌شدن سایت برای موتورهای پاسخ هوش مصنوعی (ChatGPT، Perplexity،
+Claude، Gemini، Copilot) با استاندارد `llms.txt` و اعلام صریح ربات‌های مجاز.
+
+**تغییرات:**
+- `apps/web/app/llms.txt/route.ts`: ایندکس کوتاه Markdown (خلاصه‌ی سایت، بخش‌های
+  عمومی با لینک canonical، منابع و تماس) طبق llmstxt.org.
+- `apps/web/app/llms-full.txt/route.ts`: نسخه‌ی کامل با ۲۰ مطلب تازه‌ی بلاگ و
+  ۲۰ خبر تأییدشده (عنوان، تاریخ، خلاصه، لینک)؛ فقط ردیف‌های منتشرشده و با
+  `revalidate = 3600`.
+- `apps/web/app/robots.ts`: گروه صریح برای ربات‌های هوش مصنوعی
+  (`GPTBot`، `OAI-SearchBot`، `ChatGPT-User`، `ClaudeBot`، `PerplexityBot`،
+  `Google-Extended`، `CCBot`، `Amazonbot`، `meta-externalagent` و…) با همان
+  مسیرهای خصوصی مسدود.
+- `apps/web/app/layout.tsx`: اعلام `/llms.txt` با
+  `<link rel="alternate" type="text/plain">`.
+
+**تأیید/تست:**
+- `docker compose exec web ./node_modules/.bin/tsc --noEmit` و `eslint` روی
+  فایل‌های تغییریافته → بدون خطا.
+- `curl /robots.txt` → گروه‌های ربات‌های AI و نقشه‌ی سایت حاضرند.
+- `curl /llms.txt` و `/llms-full.txt` → `200` با `text/plain; charset=utf-8` و
+  محتوای فارسی/لینک‌های canonical.
 
 ## ۱۴۰۵/۰۹/۰۳ — هویت سایت، داده‌های ساختاریافته‌ی سراسری، مانیفست و تصویر اشتراک‌گذاری — نسخه `v4.78.0`
 
