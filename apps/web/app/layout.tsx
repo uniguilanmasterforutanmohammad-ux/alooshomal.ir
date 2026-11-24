@@ -9,6 +9,14 @@ import { PaypingOAuthCatcher } from '@/components/admin/PaypingOAuthCatcher';
 import { MobileNav } from '@/components/layout/MobileNav';
 import { SITE_URL } from '@/lib/site';
 import {
+  SITE_DESCRIPTION,
+  SITE_KEYWORDS,
+  SITE_NAME,
+  SITE_TAGLINE,
+  siteJsonLd,
+} from '@/lib/seo';
+import { jsonLdHtml } from '@/lib/json-ld';
+import {
   getSiteTheme,
   siteThemeDocumentAttrs,
   siteThemeThemeColor,
@@ -26,27 +34,46 @@ import { ThemeSync } from '@/components/ui/ThemeSync';
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: 'شمالی کارت | بیولینک دیجیتال',
-    template: '%s | شمالی کارت',
+    default: `${SITE_NAME} | ${SITE_TAGLINE}`,
+    template: `%s | ${SITE_NAME}`,
   },
-  description:
-    'پلتفرم ساخت، شخصی‌سازی و اشتراک‌گذاری بیولینک دیجیتال؛ مشاهده بدون نصب برنامه.',
-  applicationName: 'شمالی کارت',
-  alternates: { canonical: '/' },
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  keywords: SITE_KEYWORDS,
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: 'کسب‌وکار و خدمات محلی',
+  alternates: {
+    canonical: '/',
+    languages: { 'fa-IR': '/' },
+  },
+  // Let the browser render phone numbers/addresses as plain text instead of
+  // auto-linking them (auto-links add noise for crawlers and break layout).
+  formatDetection: { telephone: false, address: false, email: false },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+      'max-video-preview': -1,
+    },
+  },
   openGraph: {
     type: 'website',
     locale: 'fa_IR',
-    siteName: 'شمالی کارت',
-    title: 'شمالی کارت | بیولینک دیجیتال',
-    description:
-      'پلتفرم ساخت، شخصی‌سازی و اشتراک‌گذاری بیولینک و کارت ویزیت دیجیتال؛ مشاهده بدون نصب برنامه.',
+    siteName: SITE_NAME,
+    title: `${SITE_NAME} | ${SITE_TAGLINE}`,
+    description: SITE_DESCRIPTION,
     url: '/',
   },
   twitter: {
-    card: 'summary',
-    title: 'شمالی کارت | بیولینک دیجیتال',
-    description:
-      'پلتفرم ساخت، شخصی‌سازی و اشتراک‌گذاری بیولینک و کارت ویزیت دیجیتال.',
+    card: 'summary_large_image',
+    title: `${SITE_NAME} | ${SITE_TAGLINE}`,
+    description: SITE_DESCRIPTION,
   },
 };
 
@@ -81,6 +108,12 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body>
+        {/* Site-wide entity graph (Organization + WebSite + SearchAction) so
+            every page links to the same brand entity for search/AI engines. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: jsonLdHtml(siteJsonLd()) }}
+        />
         <FeaturesProvider initial={features}>
           <ThemeScript />
           <ThemeSync />

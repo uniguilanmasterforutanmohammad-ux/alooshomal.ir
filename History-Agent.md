@@ -20,13 +20,39 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.77.7**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.78.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — هویت سایت، داده‌های ساختاریافته‌ی سراسری، مانیفست و تصویر اشتراک‌گذاری — نسخه `v4.78.0`
+
+**هدف:** تقویت شناخت برند و موجودیت سایت برای موتورهای جست‌وجو و موتورهای
+پاسخ هوش مصنوعی: یک گراف JSON-LD سراسری (`Organization` + `WebSite` +
+`SearchAction`)، متادیتای کامل‌تر، مانیفست PWA و تصویر Open Graph برندشده.
+
+**تغییرات:**
+- `apps/web/lib/seo.ts`: منبع یکتای هویت سایت (نام، توضیح، کلمات کلیدی، تماس،
+  محدوده‌ی جغرافیایی) و سازنده‌های JSON-LD برای `Organization`، `WebSite`،
+  `BreadcrumbList` و `CollectionPage`/`ItemList` با `@id` پایدار.
+- `apps/web/app/layout.tsx`: تزریق گراف سراسری سایت در HTML، و افزودن
+  `keywords`، `authors`/`creator`/`publisher`، `category`، `alternates.languages`،
+  `formatDetection`، `robots` (max-image-preview: large) و کارت توییتر
+  `summary_large_image`.
+- `apps/web/app/manifest.ts`: مانیفست PWA با `lang=fa`، `dir=rtl`، رنگ تم و آیکون.
+- `apps/web/app/opengraph-image.tsx` و `apps/web/app/apple-icon.tsx`: تصاویر
+  برندشده‌ی ۱۲۰۰×۶۳۰ و ۱۸۰×۱۸۰ با فونت شبنم (بدون وابستگی به سرویس بیرونی).
+
+**تأیید/تست:**
+- `docker compose exec web ./node_modules/.bin/tsc --noEmit` → بدون خطا.
+- `docker compose exec web ./node_modules/.bin/eslint app/layout.tsx app/manifest.ts app/opengraph-image.tsx app/apple-icon.tsx lib/seo.ts` → بدون خطا.
+- `curl` روی `/`، `/opengraph-image`، `/apple-icon` و `/manifest.webmanifest` →
+  همه `200` (تصاویر `image/png`)؛ در HTML خروجی، `application/ld+json` سراسری،
+  `og:image`، `twitter:card=summary_large_image`، `manifest` و
+  `apple-touch-icon` حاضرند.
 
 ## ۱۴۰۵/۰۹/۰۳ — حذف ایمپورت‌های بی‌استفاده‌ی API — نسخه `v4.77.7`
 
