@@ -214,8 +214,22 @@ jobs:
               trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
             fi
 
-            if ! docker compose -f docker-compose.prod.yml pull; then
-              echo "GHCR pull failed. Make the api/web/minio packages public or set GHCR_PAT with read:packages." >&2
+            # Registry pulls occasionally fail with a transient TLS handshake
+            # timeout to GitHub's blob CDN (pkg-containers.githubusercontent.com).
+            # Retry with backoff and serialise the pulls so we do not open many
+            # concurrent TLS connections to the same CDN on a flaky link.
+            pull_ok=0
+            for attempt in 1 2 3 4 5; do
+              if COMPOSE_PARALLEL_LIMIT=1 docker compose -f docker-compose.prod.yml pull; then
+                pull_ok=1
+                break
+              fi
+              delay=$((attempt * 10))
+              echo "docker compose pull failed (attempt ${attempt}/5); retrying in ${delay}s..." >&2
+              sleep "$delay"
+            done
+            if [ "$pull_ok" -ne 1 ]; then
+              echo "GHCR pull failed after 5 attempts. If this is a TLS handshake timeout, check the server's outbound network/DNS to ghcr.io and pkg-containers.githubusercontent.com. If it is 'denied', make the api/web/minio packages public or set GHCR_PAT with read:packages." >&2
               exit 1
             fi
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
