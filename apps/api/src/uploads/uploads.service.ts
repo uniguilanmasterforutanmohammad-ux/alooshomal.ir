@@ -7,6 +7,7 @@ import {
 import { ImageService } from './image.service';
 import { StorageService } from './storage.service';
 import { RATE_LIMITS, RateLimitService } from '../common/rate-limit.service';
+import { sniffDocumentType } from './file-signature';
 import {
   ALLOWED_DOCUMENT_MIME,
   UPLOAD_CATEGORIES,
@@ -131,18 +132,24 @@ export class UploadsService {
         'فرمت فایل مجاز نیست؛ فقط PDF یا تصویر (PNG/JPG/WebP) بپذیرید.',
       );
     }
+    const sniffed = sniffDocumentType(file.buffer);
+    if (!sniffed || sniffed !== file.mimetype) {
+      throw new BadRequestException(
+        'محتوای فایل با نوع اعلام‌شده نمی‌خواند؛ فایل معتبر (PDF/PNG/JPG/WebP) بفرستید.',
+      );
+    }
     if (!this.storage.isReady) {
       throw new ServiceUnavailableException(
         'سرویس ذخیره‌سازی فایل در دسترس نیست',
       );
     }
-    const ext = DOCUMENT_EXTENSIONS[file.mimetype] ?? 'bin';
+    const ext = DOCUMENT_EXTENSIONS[sniffed] ?? 'bin';
     const stored = await this.storage.put(
       UPLOAD_CATEGORIES[category].folder,
       ownerKey,
       file.buffer,
       ext,
-      file.mimetype,
+      sniffed,
     );
     return {
       url: stored.url,
@@ -150,7 +157,7 @@ export class UploadsService {
       width: 0,
       height: 0,
       size: file.size,
-      contentType: file.mimetype,
+      contentType: sniffed,
     };
   }
 }

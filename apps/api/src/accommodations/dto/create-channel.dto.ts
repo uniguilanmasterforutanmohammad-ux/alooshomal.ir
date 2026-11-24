@@ -6,6 +6,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  IsUrl,
   MaxLength,
   Min,
   MinLength,
@@ -38,6 +39,7 @@ export class CreateChannelDto {
   })
   @IsOptional()
   @IsString()
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true })
   @MaxLength(1000)
   icalUrl?: string;
 

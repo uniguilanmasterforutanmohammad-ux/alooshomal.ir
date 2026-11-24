@@ -20,13 +20,42 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.77.4**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.77.5**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — بستن SSRF فید iCal و اعتبارسنجی محتوای آپلود — نسخه `v4.77.5`
+
+**هدف:** بستن یک مسیر واقعی SSRF (آدرس iCal کانال اقامتگاه توسط کاربر) و
+جلوگیری از جعل MIME در آپلود مدارک/رسید.
+
+**تغییرات:**
+- `apps/api/src/common/outbound-url.ts`: افزودن `assertPublicHttpUrl` و
+  `safeFetch` (فقط http/https، پورت ۸۰/۴۴۳، رد میزبان‌های داخلی و آدرس‌های
+  خصوصی/loopback/link-local، اعتبارسنجی مجدد هر redirect).
+- `apps/api/src/accommodations/accommodations.service.ts`: استفاده از
+  `safeFetch` در `syncChannel`.
+- `apps/api/src/accommodations/accommodation-channels.service.ts` و
+  `dto/create-channel.dto.ts`: اعتبارسنجی `icalUrl` هنگام ساخت/ویرایش کانال
+  (هم `@IsUrl` و هم بررسی DNS/private-range).
+- `apps/api/src/uploads/file-signature.ts`: تشخیص PDF/PNG/JPEG/WebP از magic
+  bytes.
+- `apps/api/src/uploads/uploads.service.ts`: رد فایل‌هایی که محتوایشان با MIME
+  اعلام‌شده نمی‌خواند و ذخیره/برگرداندن نوع sniff‌شده.
+- `docs/SECURITY.md`: بخش‌های SSRF و اعتبارسنجی محتوای آپلود.
+
+**تأیید/تست:**
+- `tsc --noEmit` و `eslint` روی فایل‌های تغییریافته: بدون خطا.
+- اجرای مستقیم `assertPublicHttpUrl` در کانتینر: `127.0.0.1`،
+  `169.254.169.254`، `10.0.0.5`، `http://db`، `http://minio`، `http://redis`،
+  `http://localhost`، `file:///etc/passwd` و پورت `8443` رد شدند؛
+  `https://example.com/feed.ics` پذیرفته شد.
+- `sniffDocumentType`: PNG/PDF شناسایی شد و HTML جعلی `null` برگرداند.
+- `python3 scripts/check_api_docs.py` → ۵۶ کنترلر/۵۶۹ مسیر مستند.
 
 ## ۱۴۰۵/۰۹/۰۳ — حذف کامپوننت‌ها و DTOهای بی‌ارجاع — نسخه `v4.77.4`
 

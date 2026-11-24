@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { BusinessModulesService } from '../business-modules/business-modules.service';
+import { assertPublicHttpUrl } from '../common/outbound-url';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccommodationsService } from './accommodations.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
@@ -29,6 +30,7 @@ export class AccommodationChannelsService {
 
   async create(userId: string, dto: CreateChannelDto) {
     const workspaceId = await this.workspaceId(userId);
+    if (dto.icalUrl) await assertPublicHttpUrl(dto.icalUrl);
     return this.prisma.accommodationChannel.create({
       data: {
         workspaceId,
@@ -46,6 +48,7 @@ export class AccommodationChannelsService {
 
   async update(userId: string, id: string, dto: UpdateChannelDto) {
     await this.assertOwned(userId, id);
+    if (dto.icalUrl) await assertPublicHttpUrl(dto.icalUrl);
     return this.prisma.accommodationChannel.update({
       where: { id },
       data: {

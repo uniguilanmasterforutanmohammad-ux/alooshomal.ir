@@ -9,6 +9,7 @@ import { randomBytes } from 'node:crypto';
 
 import { BusinessModulesService } from '../business-modules/business-modules.service';
 import { paypingReturnBaseUrl } from '../common/app-url';
+import { safeFetch } from '../common/outbound-url';
 import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -561,7 +562,7 @@ export class AccommodationsService {
     }
     let text: string;
     try {
-      const response = await fetch(channel.icalUrl, {
+      const response = await safeFetch(channel.icalUrl, {
         headers: { accept: 'text/calendar, text/plain, */*' },
         signal: AbortSignal.timeout(15_000),
       });
