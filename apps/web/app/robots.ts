@@ -5,6 +5,7 @@ import { absoluteUrl } from '@/lib/site';
 /** Paths that are private, machine-only or cost money to crawl. */
 const DISALLOW = [
   '/dashboard',
+  '/moderator',
   '/jga4rm8j',
   '/api/',
   '/login',
