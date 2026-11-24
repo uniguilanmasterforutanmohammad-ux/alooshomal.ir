@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InquiryProvider, Prisma } from '@prisma/client';
 
+import { clampLimit } from '../common/pagination-meta';
 import { PrismaService } from '../prisma/prisma.service';
 
 export interface InquiryLogRow {
@@ -33,7 +34,7 @@ export class InquiriesService {
         ? (params.provider as InquiryProvider)
         : undefined;
     const q = params.q?.trim();
-    const take = Math.min(Math.max(params.take ?? 100, 1), 300);
+    const take = clampLimit(params.take, 100, 300);
     const where: Prisma.InquiryLogWhereInput = {
       ...(provider ? { provider } : {}),
       ...(q

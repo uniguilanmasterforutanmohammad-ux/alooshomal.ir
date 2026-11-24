@@ -17,6 +17,8 @@ import {
 
 import { ActivityService } from '../activity/activity.service';
 import { FacetsCacheService } from '../common/facets-cache.service';
+import { assertOwned } from '../common/ownership';
+import { clamp } from '../common/pagination-meta';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -395,7 +397,7 @@ export class AdsService {
 
     if (ads.length === 0) return null;
 
-    const chosen = ads.slice(0, Math.min(Math.max(1, slots), ads.length));
+    const chosen = ads.slice(0, clamp(slots, 1, ads.length));
 
     const labels = await resolveAdTargetLabels(this.prisma, chosen);
     const items = await Promise.all(
@@ -495,9 +497,7 @@ export class AdsService {
         },
       });
       if (!biolink) throw new NotFoundException('بیولینک یافت نشد');
-      if (biolink.userId !== userId) {
-        throw new ForbiddenException('دسترسی به این بیولینک مجاز نیست');
-      }
+      assertOwned(biolink.userId, userId, 'دسترسی به این بیولینک مجاز نیست');
       return biolink;
     }
     if (kind === AdTargetKind.FEED) {
@@ -511,9 +511,7 @@ export class AdsService {
         },
       });
       if (!post) throw new NotFoundException('پست یافت نشد');
-      if (post.userId !== userId) {
-        throw new ForbiddenException('دسترسی به این پست مجاز نیست');
-      }
+      assertOwned(post.userId, userId, 'دسترسی به این پست مجاز نیست');
       return {
         id: post.id,
         slug: post.id,

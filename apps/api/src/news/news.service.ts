@@ -11,6 +11,7 @@ import {
 } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
+import { clamp } from '../common/pagination-meta';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PointsService } from '../points/points.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -43,7 +44,7 @@ export class NewsService {
     return this.prisma.newsItem.findMany({
       where: { status: NewsStatus.APPROVED },
       orderBy: { publishedAt: 'desc' },
-      take: Math.min(Math.max(take, 1), 50),
+      take: clamp(take, 1, 50),
       select: {
         id: true,
         title: true,

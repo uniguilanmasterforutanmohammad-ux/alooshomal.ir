@@ -14,6 +14,7 @@ import { FacetsCacheService } from '../common/facets-cache.service';
 import { applyPlanMask, planLimitsFrom } from '../common/plans';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
+import { assertOwned } from '../common/ownership';
 import { appUrl } from '../common/app-url';
 import { paginationMeta } from '../common/pagination-meta';
 import { BusinessModulesService } from '../business-modules/business-modules.service';
@@ -318,9 +319,7 @@ export class BusinessCardsService {
     if (!businessCard) {
       throw new NotFoundException('کارت ویزیت یافت نشد');
     }
-    if (businessCard.userId !== userId) {
-      throw new ForbiddenException('دسترسی به این کارت ویزیت مجاز نیست');
-    }
+    assertOwned(businessCard.userId, userId, 'دسترسی به این کارت ویزیت مجاز نیست');
     return businessCard;
   }
 

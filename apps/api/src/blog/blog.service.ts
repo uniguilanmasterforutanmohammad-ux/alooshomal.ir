@@ -6,6 +6,7 @@ import {
 import { NewsStatus, NotificationType, Prisma } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
+import { clamp } from '../common/pagination-meta';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -109,7 +110,7 @@ export class BlogService {
     return this.prisma.blogPost.findMany({
       where: { isPublished: true, status: NewsStatus.APPROVED },
       orderBy: [{ isFeatured: 'desc' }, { publishedAt: 'desc' }],
-      take: Math.min(Math.max(limit, 1), 12),
+      take: clamp(limit, 1, 12),
       include: blogInclude,
     });
   }

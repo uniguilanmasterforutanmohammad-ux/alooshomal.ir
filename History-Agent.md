@@ -20,13 +20,38 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.77.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.77.3**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — یکسان‌سازی کمک‌تابع‌های API (صفحه‌بندی، اسلاگ، مالکیت) — نسخه `v4.77.3`
+
+**هدف:** حذف تکرار در سه الگوی پرتکرار API و یکسان‌کردن رفتار امنیتی/اعتبارسنجی:
+محدودکردن اندازه‌ی صفحه، ساخت اسلاگ فارسی و بررسی مالکیت ردیف.
+
+**تغییرات:**
+- `apps/api/src/common/pagination-meta.ts`: افزودن `clamp` و `clampLimit` و
+  جایگزینی ۱۴ نسخه‌ی دستی `Math.min(Math.max(...))` در inquiries، news، blog،
+  feed-comments، taxonomy، business-modules، notifications، ads، plans و
+  business-package.
+- `apps/api/src/common/slug.ts`: تابع مشترک `slugify` (نگه‌داشتن حروف فارسی،
+  جمع‌کردن ZWNJ/فاصله/علامت‌ها، سقف طول اختیاری).
+- `apps/api/src/blog/dto/blog.dto.ts` و `apps/api/src/admin/bulk.service.ts`:
+  استفاده از `slugify` به‌جای دو پیاده‌سازی جدا.
+- `apps/api/src/common/ownership.ts`: افزودن `assertOwned` و استفاده در
+  boosts، ads، feeds و business-cards به‌جای مقایسه‌ی تکراری
+  `ownerId !== userId` + `ForbiddenException`.
+
+**تأیید/تست:**
+- `tsc --noEmit` و `eslint` روی همه‌ی فایل‌های تغییریافته: بدون خطا.
+- `GET /api/blog/public/latest` و `GET /api/news/public/headlines` → 200.
+- `GET /api/business-taxonomy/search?q=کافه&limit=5` → 200 و همان نتیجه‌ی قبلی؛
+  `limit=9999` → 400 با پیام اعتبارسنجی (سقف ۵۰ حفظ شد).
+- `python3 scripts/check_api_docs.py` → ۵۶ کنترلر/۵۶۹ مسیر مستند.
 
 ## ۱۴۰۵/۰۹/۰۳ — پاک‌سازی ایندکس‌های دیتابیس، هرس نشست و اسکریپت سلامت — نسخه `v4.77.2`
 

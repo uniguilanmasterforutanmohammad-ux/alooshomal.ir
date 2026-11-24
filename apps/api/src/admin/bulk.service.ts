@@ -11,6 +11,7 @@ import { ActivityService } from '../activity/activity.service';
 import { appUrl } from '../common/app-url';
 import { MAIN_CITY_ORDER } from '../common/cities';
 import { FacetsCacheService } from '../common/facets-cache.service';
+import { slugify } from '../common/slug';
 import { PrismaService } from '../prisma/prisma.service';
 
 export type BulkKind = 'BIOLINK' | 'BUSINESS_CARD';
@@ -173,16 +174,6 @@ const TAXONOMY_BUSINESS_ALIASES: Record<string, string> = {
 
 const MAX_ROWS = 5000;
 const MAX_BUSINESS_ROWS = 20000;
-
-/** A public URL segment: keeps Unicode letters/digits, collapses the rest. */
-function slugifyValue(value: string): string {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}]+/gu, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
-}
 
 function normalizeHeader(value: string): string {
   return value.trim().toLowerCase();
@@ -832,7 +823,7 @@ export class BulkService {
       return created.id;
     };
     const uniqueSlug = (raw?: string): string => {
-      const base = slugifyValue(raw ?? '') || `bc-${randomSuffix()}`;
+      const base = slugify(raw ?? '', 80) || `bc-${randomSuffix()}`;
       let candidate = base;
       let suffix = 2;
       while (usedSlugs.has(candidate)) {

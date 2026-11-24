@@ -7,6 +7,7 @@ import {
 import { NewsStatus, NotificationType, Prisma } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
+import { clamp } from '../common/pagination-meta';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
@@ -41,7 +42,7 @@ export class FeedCommentsService {
       select: { id: true },
     });
     if (!post) throw new NotFoundException('پست یافت نشد');
-    const safeLimit = Math.min(Math.max(limit, 1), 50);
+    const safeLimit = clamp(limit, 1, 50);
     const safePage = Math.max(page, 1);
     const where = { feedPostId: postId, status: NewsStatus.APPROVED };
     const [items, total] = await Promise.all([
@@ -166,7 +167,7 @@ export class FeedCommentsService {
 
   /** Admin: list comments for moderation, optionally filtered by status. */
   async adminListComments(status?: NewsStatus, page = 1, limit = 30) {
-    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const safeLimit = clamp(limit, 1, 100);
     const safePage = Math.max(page, 1);
     const where = status ? { status } : {};
     const [items, total] = await Promise.all([

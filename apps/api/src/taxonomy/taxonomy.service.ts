@@ -7,6 +7,7 @@ import { BiolinkStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { sortCities } from '../common/cities';
 import { FacetsCacheService } from '../common/facets-cache.service';
+import { clampLimit } from '../common/pagination-meta';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
@@ -75,7 +76,7 @@ export class TaxonomyService {
       });
       parentId = parent?.id ?? '__missing__';
     }
-    const take = Math.min(Math.max(query.limit ?? 20, 1), 50);
+    const take = clampLimit(query.limit, 20, 50);
 
     if (!query.level || query.level === 'ANY') {
       const tags = await this.findNodes('TAG', {
@@ -296,7 +297,7 @@ export class TaxonomyService {
   async searchNeighborhoods(query: SearchNeighborhoodDto): Promise<string[]> {
     const cityId = query.cityId?.trim() || undefined;
     const q = query.q?.trim();
-    const take = Math.min(Math.max(query.limit ?? 20, 1), 50);
+    const take = clampLimit(query.limit, 20, 50);
     const [fromCards, fromTable] = await Promise.all([
       this.prisma.businessCard.findMany({
         where: {

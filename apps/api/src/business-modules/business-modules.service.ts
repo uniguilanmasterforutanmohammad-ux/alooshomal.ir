@@ -16,6 +16,7 @@ import { randomBytes } from 'node:crypto';
 import { ActivityService } from '../activity/activity.service';
 import { paypingReturnBaseUrl } from '../common/app-url';
 import { addMonths, isFreePlan } from '../common/plans';
+import { clampLimit } from '../common/pagination-meta';
 import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
 import { FinanceService } from '../finance/finance.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -2405,7 +2406,7 @@ export class BusinessModulesService implements OnModuleInit {
   }
 
   async adminListWorkspaces(query: { q?: string; take?: number }) {
-    const take = Math.min(Math.max(query.take ?? 50, 1), 200);
+    const take = clampLimit(query.take, 50, 200);
     const rows = await this.prisma.businessWorkspace.findMany({
       where: query.q
         ? {

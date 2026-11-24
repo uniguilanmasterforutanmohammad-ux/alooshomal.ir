@@ -12,6 +12,7 @@ import {
 import { NewsStatus } from '@prisma/client';
 
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { slugify } from '../../common/slug';
 
 /** Extracts the Aparat hash from a full URL or accepts a bare hash. */
 export const APARAT_ID_PATTERN = /^[A-Za-z0-9_-]{6,32}$/;
@@ -158,12 +159,5 @@ export function normalizeAparatId(input: {
 
 /** Slugifies a Persian/English title for use in a URL. */
 export function slugifyTitle(title: string): string {
-  const base = title
-    .trim()
-    .toLowerCase()
-    .replace(/[\s\u200c]+/g, '-')
-    .replace(/[^\p{L}\p{N}-]+/gu, '')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-  return base || `post-${Date.now()}`;
+  return slugify(title) || `post-${Date.now()}`;
 }

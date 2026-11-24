@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -16,6 +15,7 @@ import {
 
 import { NotificationsService } from '../notifications/notifications.service';
 import { ActivityService } from '../activity/activity.service';
+import { assertOwned } from '../common/ownership';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { BiolinksService } from '../biolinks/biolinks.service';
@@ -442,9 +442,7 @@ export class BoostsService {
         where: { id: targetId },
       });
       if (!biolink) throw new NotFoundException('بیولینک یافت نشد');
-      if (biolink.userId !== userId) {
-        throw new ForbiddenException('دسترسی به این بیولینک مجاز نیست');
-      }
+      assertOwned(biolink.userId, userId, 'دسترسی به این بیولینک مجاز نیست');
       return biolink;
     }
     if (kind === BoostTargetKind.FEED) {
@@ -452,18 +450,14 @@ export class BoostsService {
         where: { id: targetId },
       });
       if (!post) throw new NotFoundException('پست یافت نشد');
-      if (post.userId !== userId) {
-        throw new ForbiddenException('دسترسی به این پست مجاز نیست');
-      }
+      assertOwned(post.userId, userId, 'دسترسی به این پست مجاز نیست');
       return post;
     }
     const card = await this.prisma.businessCard.findUnique({
       where: { id: targetId },
     });
     if (!card) throw new NotFoundException('کارت ویزیت یافت نشد');
-    if (card.userId !== userId) {
-      throw new ForbiddenException('دسترسی به این کارت ویزیت مجاز نیست');
-    }
+    assertOwned(card.userId, userId, 'دسترسی به این کارت ویزیت مجاز نیست');
     return card;
   }
 }

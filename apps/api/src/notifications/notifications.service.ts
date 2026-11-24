@@ -4,6 +4,7 @@ import { NotificationScope, NotificationType, Prisma } from '@prisma/client';
 import { SmsService } from '../auth/sms.service';
 import { SCOPE_TO_NOTIFICATION } from '../auth/moderator-scope-map';
 import { MODERATOR_SCOPES } from '../auth/moderator-scopes';
+import { clamp } from '../common/pagination-meta';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   AdminNotifyCategory,
@@ -197,7 +198,7 @@ export class NotificationsService {
 
   /** Full history for the notifications page — read and unread, newest first. */
   async pageForUser(userId: string, page = 1, limit = 20) {
-    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const safeLimit = clamp(limit, 1, 100);
     const safePage = Math.max(page, 1);
     const where = { userId };
     const [items, total, unread] = await Promise.all([
@@ -244,7 +245,7 @@ export class NotificationsService {
 
   /** Full admin history — read and unread, newest first. */
   async pageForAdmin(page = 1, limit = 20) {
-    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const safeLimit = clamp(limit, 1, 100);
     const safePage = Math.max(page, 1);
     const where = { audience: 'ADMIN' as const };
     const [items, total, unread] = await Promise.all([
@@ -353,7 +354,7 @@ export class NotificationsService {
 
   /** Full, scope-filtered admin history for one reviewer. */
   async pageForReviewer(userId: string, page = 1, limit = 20) {
-    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const safeLimit = clamp(limit, 1, 100);
     const safePage = Math.max(page, 1);
     const scopeFilter = await this.adminScopeFilter(userId);
     const where: Prisma.NotificationWhereInput = {

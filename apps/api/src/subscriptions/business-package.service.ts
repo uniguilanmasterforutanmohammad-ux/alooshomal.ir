@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
+import { clamp } from '../common/pagination-meta';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   getBusinessModule,
@@ -93,7 +94,7 @@ export class BusinessPackageService {
             : months === 6
               ? data.management.discount6
               : data.management.discount12;
-      const percent = Math.min(Math.max(Math.round(discount), 0), 100);
+      const percent = clamp(Math.round(discount), 0, 100);
       return {
         months,
         discount: percent,

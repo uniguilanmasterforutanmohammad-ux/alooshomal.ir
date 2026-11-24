@@ -23,3 +23,24 @@ export function paginationMeta(
     hasPrev: page > 1,
   };
 }
+
+/**
+ * Clamps a numeric value into `[min, max]`.
+ *
+ * Used for every user-supplied page size so a client can never ask for an
+ * unbounded result set (memory/DB-load guard). Kept here next to the pagination
+ * envelope so the two conventions evolve together.
+ */
+export function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+/** Clamps an optional page size, falling back to `fallback` when absent. */
+export function clampLimit(
+  value: number | undefined | null,
+  fallback: number,
+  max: number,
+): number {
+  const numeric = Number(value);
+  return clamp(Number.isFinite(numeric) ? numeric : fallback, 1, max);
+}

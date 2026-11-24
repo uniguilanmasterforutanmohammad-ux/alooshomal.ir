@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
   OnModuleInit,
@@ -15,6 +14,7 @@ import {
 } from '@prisma/client';
 
 import { ActivityService } from '../activity/activity.service';
+import { assertOwned } from '../common/ownership';
 import { FacetsCacheService } from '../common/facets-cache.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -453,9 +453,7 @@ export class FeedsService implements OnModuleInit {
   async updatePost(userId: string, id: string, dto: CreateFeedPostDto) {
     const post = await this.prisma.feedPost.findUnique({ where: { id } });
     if (!post) throw new NotFoundException('پست یافت نشد');
-    if (post.userId !== userId) {
-      throw new ForbiddenException('دسترسی به این پست مجاز نیست');
-    }
+    assertOwned(post.userId, userId, 'دسترسی به این پست مجاز نیست');
     const maxImages = await this.settings.getFeedMaxImages();
     if (dto.images.length > maxImages) {
       throw new BadRequestException(`حداکثر ${maxImages} تصویر مجاز است`);
@@ -511,9 +509,7 @@ export class FeedsService implements OnModuleInit {
   async removePost(userId: string, id: string) {
     const post = await this.prisma.feedPost.findUnique({ where: { id } });
     if (!post) throw new NotFoundException('پست یافت نشد');
-    if (post.userId !== userId) {
-      throw new ForbiddenException('دسترسی به این پست مجاز نیست');
-    }
+    assertOwned(post.userId, userId, 'دسترسی به این پست مجاز نیست');
     await this.prisma.feedPost.delete({ where: { id } });
     this.facetsCache.invalidate('dir:feeds');
     return { deleted: true };

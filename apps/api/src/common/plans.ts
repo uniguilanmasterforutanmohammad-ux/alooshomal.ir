@@ -8,6 +8,8 @@
  *  - eco   → 1 biolink + 1 business card, every field visible
  *  - plus  → 3 biolinks + 3 business cards, every Eco feature
  */
+import { clamp } from './pagination-meta';
+
 export const PLAN_KEYS = ['free', 'eco', 'plus'] as const;
 export type PlanKey = (typeof PLAN_KEYS)[number];
 
@@ -163,7 +165,7 @@ export function planDiscountPercent(
           : 0;
   const value = Number(raw ?? 0);
   if (!Number.isFinite(value)) return 0;
-  return Math.min(Math.max(Math.round(value), 0), 100);
+  return clamp(Math.round(value), 0, 100);
 }
 
 /** Price of a plan for `months`, after the term discount (rounded to Toman). */
