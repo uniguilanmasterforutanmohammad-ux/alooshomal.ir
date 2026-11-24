@@ -968,7 +968,7 @@ PY
 کنترل می‌شوند و بسته‌ی «مدیریت ساختمان» (`buildingManagement`) در کاتالوگ
 مدیریت‌ها ثبت شده است.
 
-### مشاورین املاک (`/api/property-files`, `/api/property-leads`, `/api/property-visits`, `/api/property-contracts`, `/api/property-reports`)
+### مشاورین املاک (`/api/property-files`, `/api/property-leads`, `/api/property-visits`, `/api/property-contracts`, `/api/property-cooperations`, `/api/property-audits`, `/api/property-reports`)
 
 | متد | مسیر | توضیح |
 | --- | --- | --- |
@@ -985,9 +985,21 @@ PY
 | `GET/POST` | `/property-contracts` | فهرست/ثبت قرارداد و کمیسیون. |
 | `PATCH/DELETE` | `/property-contracts/:id` | ویرایش وصولی/سهم دفتر-مشاور-معرف/وضعیت یا حذف. |
 | `GET` | `/property-reports/overview` | داشبورد: فایل فعال/کهنه، تقاضای بی‌پیگیری، بازدید، نسبت تبدیل و کمیسیون به تفکیک مشاور/محله/منبع. |
+| `GET` | `/property-files/:id/public-link` | وضعیت انتشار و توکن لینک عمومی آگهی. |
+| `POST` | `/property-files/:id/publish` | انتشار عمومی آگهی و ساخت لینک اختصاصی (`/p/<token>`). |
+| `POST` | `/property-files/:id/unpublish` | لغو انتشار عمومی آگهی. |
+| `GET` | `/property-leads/waitlist` | فهرست انتظار تقاضاها (در انتظار فایل متناسب). |
+| `PATCH` | `/property-leads/:id/waitlist` | افزودن/برداشتن تقاضا از فهرست انتظار (`onWaitlist`، `waitlistNote`). |
+| `GET/POST` | `/property-cooperations` | فهرست (فیلتر `propertyId`)/ثبت همکاری بین مشاوران یا شعب با سهم (`PERCENT`/`FIXED`). |
+| `PATCH/DELETE` | `/property-cooperations/:id` | ویرایش سهم/وضعیت یا حذف همکاری. |
+| `GET` | `/property-audits` | سابقه‌ی دسترسی به اطلاعات حساس (مشاهده‌ی تماس مالک، انتشار، درخواست عمومی، همکاری). |
+| `GET` | `/public/properties/:token` | (عمومی) آگهی منتشرشده بدون اطلاعات تماس/نشانی مالک؛ شمارنده‌ی بازدید را زیاد می‌کند. |
+| `POST` | `/public/properties/:token/inquiry` | (عمومی) ثبت درخواست بازدید/تماس که به تقاضای مشتری با منبع `PUBLIC` تبدیل می‌شود. |
 
 اطلاعات خصوصی مالک (`ownerPhone`، `address`، `internalNote`) جدا از خلاصه‌ی
-قابل اشتراک نگهداری می‌شود. مبالغ ملکی (قیمت/رهن/اجاره/کمیسیون) به‌صورت
+قابل اشتراک نگهداری می‌شود و هر مشاهده‌ی آن در `property_audit_logs` ثبت
+می‌گردد. انتشار عمومی با توکن تصادفی (`publicToken`) انجام می‌شود و اطلاعات
+تماس مالک هرگز در آگهی عمومی نمایش داده نمی‌شود. مبالغ ملکی (قیمت/رهن/اجاره/کمیسیون) به‌صورت
 `BigInt` ذخیره می‌شوند تا ارقام میلیاردی تومان جا شوند و در JSON به عدد
 برگردانده می‌شوند. ماژول‌ها با سوئیچ‌های `featurePropertyFiles`،
 `featurePropertyCrm`، `featurePropertyVisits`، `featurePropertyFinance` و

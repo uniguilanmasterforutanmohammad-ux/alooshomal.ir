@@ -2100,6 +2100,8 @@ model BusinessWorkspace {
   propertyLeads   PropertyLead[]
   propertyVisits  PropertyVisit[]
   propertyContracts PropertyContract[]
+  propertyCooperations PropertyCooperation[]
+  propertyAuditLogs PropertyAuditLog[]
   eduClasses      EduClass[]
   eduStudents     EduStudent[]
   eduEnrollments  EduEnrollment[]
@@ -2862,6 +2864,11 @@ model PropertyFile {
   status         String    @default("PENDING")
   /// Whether the file is published to the public directory.
   published      Boolean   @default(false)
+  /// Opaque token for the public ad page (`/p/<token>`). Never the file id.
+  publicToken    String?   @unique
+  publishedAt    DateTime?
+  viewCount      Int       @default(0)
+  inquiryCount   Int       @default(0)
   /// AGENT | VISITOR | REFERRAL
   source         String    @default("AGENT")
   /// Optional link to a suspected duplicate file.
@@ -2875,6 +2882,7 @@ model PropertyFile {
   workspace BusinessWorkspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   visits    PropertyVisit[]
   contracts PropertyContract[]
+  cooperations PropertyCooperation[]
 
   @@index([workspaceId, status])
   @@index([workspaceId, dealType])
@@ -2904,6 +2912,9 @@ model PropertyLead {
   source           String?
   assignedToId     String?
   nextActionAt     DateTime?
+  /// Waiting for a matching property; surfaced in the waitlist view.
+  onWaitlist       Boolean   @default(false)
+  waitlistNote     String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -2978,6 +2989,48 @@ model PropertyContract {
   @@index([workspaceId, status])
   @@index([propertyId])
   @@map("property_contracts")
+}
+
+/// Inter-broker cooperation on a shared file (همکاری بین مشاوران/شعب).
+model PropertyCooperation {
+  id           String   @id @default(cuid())
+  workspaceId  String
+  propertyId   String
+  partnerName  String
+  partnerPhone String?
+  /// PERCENT (0–100) | FIXED (Toman)
+  shareType    String   @default("PERCENT")
+  shareValue   BigInt   @default(0)
+  /// PROPOSED | ACTIVE | DONE | CANCELLED
+  status       String   @default("PROPOSED")
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  property  PropertyFile      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, status])
+  @@index([propertyId])
+  @@map("property_cooperations")
+}
+
+/// Audit trail for sensitive access (owner contact, address, publishing).
+model PropertyAuditLog {
+  id         String   @id @default(cuid())
+  workspaceId String
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, action])
+  @@map("property_audit_logs")
 }
 
 // ---------------------------------------------------------------------------

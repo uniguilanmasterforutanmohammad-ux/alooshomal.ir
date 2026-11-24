@@ -40,6 +40,9 @@ export const CONTRACT_KINDS = ['SALE', 'RENT'] as const;
 export const CONTRACT_STATUSES = ['DRAFT', 'SIGNED', 'SETTLED', 'CANCELLED'] as const;
 export const CONTRACT_BASES = ['AGREED', 'COLLECTED'] as const;
 
+export const COOPERATION_SHARE_TYPES = ['PERCENT', 'FIXED'] as const;
+export const COOPERATION_STATUSES = ['PROPOSED', 'ACTIVE', 'DONE', 'CANCELLED'] as const;
+
 export class CreatePropertyFileDto {
   @ApiProperty({ example: 'آپارتمان ۱۲۰ متری در سعادت‌آباد', maxLength: 160 })
   @IsString()
@@ -791,4 +794,114 @@ export class UpdateContractDto {
   @IsOptional()
   @IsDateString()
   expiresAt?: string;
+}
+
+export class PublicInquiryDto {
+  @ApiProperty({ maxLength: 120 })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  name!: string;
+
+  @ApiProperty({ maxLength: 30 })
+  @IsString()
+  @MinLength(7)
+  @MaxLength(30)
+  phone!: string;
+
+  @ApiPropertyOptional({ maxLength: 1000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  message?: string;
+}
+
+export class CreateCooperationDto {
+  @ApiProperty()
+  @IsString()
+  propertyId!: string;
+
+  @ApiProperty({ maxLength: 120 })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  partnerName!: string;
+
+  @ApiPropertyOptional({ maxLength: 30 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  partnerPhone?: string;
+
+  @ApiPropertyOptional({ enum: COOPERATION_SHARE_TYPES, default: 'PERCENT' })
+  @IsOptional()
+  @IsIn(COOPERATION_SHARE_TYPES)
+  shareType?: (typeof COOPERATION_SHARE_TYPES)[number];
+
+  @ApiPropertyOptional({ minimum: 0, description: 'درصد (۰–۱۰۰) یا مبلغ ثابت تومان' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  shareValue?: number;
+
+  @ApiPropertyOptional({ enum: COOPERATION_STATUSES })
+  @IsOptional()
+  @IsIn(COOPERATION_STATUSES)
+  status?: (typeof COOPERATION_STATUSES)[number];
+
+  @ApiPropertyOptional({ maxLength: 1000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class UpdateCooperationDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  partnerName?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  partnerPhone?: string;
+
+  @ApiPropertyOptional({ enum: COOPERATION_SHARE_TYPES })
+  @IsOptional()
+  @IsIn(COOPERATION_SHARE_TYPES)
+  shareType?: (typeof COOPERATION_SHARE_TYPES)[number];
+
+  @ApiPropertyOptional({ minimum: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  shareValue?: number;
+
+  @ApiPropertyOptional({ enum: COOPERATION_STATUSES })
+  @IsOptional()
+  @IsIn(COOPERATION_STATUSES)
+  status?: (typeof COOPERATION_STATUSES)[number];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  note?: string;
+}
+
+export class UpdateWaitlistDto {
+  @ApiProperty()
+  @IsBoolean()
+  onWaitlist!: boolean;
+
+  @ApiPropertyOptional({ maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  waitlistNote?: string;
 }

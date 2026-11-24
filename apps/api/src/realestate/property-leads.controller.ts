@@ -17,7 +17,11 @@ import {
   AuthUser,
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
-import { CreateLeadDto, UpdateLeadDto } from './dto/realestate.dto';
+import {
+  CreateLeadDto,
+  UpdateLeadDto,
+  UpdateWaitlistDto,
+} from './dto/realestate.dto';
 import { RealEstateService } from './realestate.service';
 
 @ApiTags('real-estate')
@@ -43,6 +47,12 @@ export class PropertyLeadsController {
   @ApiOperation({ summary: 'ثبت تقاضای مشتری جدید' })
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateLeadDto) {
     return this.realEstate.createLead(user.id, dto);
+  }
+
+  @Get('waitlist')
+  @ApiOperation({ summary: 'فهرست انتظار تقاضاها (در انتظار فایل متناسب)' })
+  waitlist(@CurrentUser() user: AuthUser) {
+    return this.realEstate.listWaitlist(user.id);
   }
 
   @Get(':id')
@@ -71,5 +81,15 @@ export class PropertyLeadsController {
   @ApiOperation({ summary: 'فایل‌های فعال متناسب با این تقاضا' })
   matches(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.realEstate.matchPropertiesForLead(user.id, id);
+  }
+
+  @Patch(':id/waitlist')
+  @ApiOperation({ summary: 'افزودن/برداشتن تقاضا از فهرست انتظار' })
+  setWaitlist(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateWaitlistDto,
+  ) {
+    return this.realEstate.setWaitlist(user.id, id, dto);
   }
 }

@@ -5,7 +5,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 
 import { BusinessPanelNav } from '@/components/business/BusinessPanelNav';
-import { api, type PropertyFile, type PropertyLead } from '@/lib/api';
+import {
+  api,
+  type PropertyCooperation,
+  type PropertyFile,
+  type PropertyLead,
+} from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
 import { toast } from '@/lib/toast';
@@ -53,6 +58,8 @@ export default function PropertyFilesPage() {
   const [status, setStatus] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [matches, setMatches] = useState<{ file: PropertyFile; leads: PropertyLead[] } | null>(null);
+  const [coops, setCoops] = useState<{ file: PropertyFile; rows: PropertyCooperation[] } | null>(null);
+  const [coopForm, setCoopForm] = useState({ partnerName: '', partnerPhone: '', shareType: 'PERCENT', shareValue: '' });
 
   const load = useCallback(async () => {
     const query = status ? `?status=${status}` : '';
@@ -119,6 +126,57 @@ export default function PropertyFilesPage() {
     toast.info(`${rows.length} فایل مشابه پیدا شد`);
   }
 
+  async function publish(file: PropertyFile) {
+    const result = await api.post<{ publicToken: string | null }>(`/property-files/${file.id}/publish`);
+    await load();
+    if (result.publicToken) {
+      await copyLink(result.publicToken);
+    }
+    toast.success('آگهی منتشر شد');
+  }
+
+  async function unpublish(file: PropertyFile) {
+    await api.post(`/property-files/${file.id}/unpublish`);
+    await load();
+    toast.success('انتشار آگهی لغو شد');
+  }
+
+  async function copyLink(token: string) {
+    const url = `${window.location.origin}/p/${token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('لینک عمومی کپی شد');
+    } catch {
+      toast.info(url);
+    }
+  }
+
+  async function openCoops(file: PropertyFile) {
+    const rows = await api.get<PropertyCooperation[]>(`/property-cooperations?propertyId=${file.id}`);
+    setCoops({ file, rows });
+  }
+
+  async function addCoop(event: React.FormEvent) {
+    event.preventDefault();
+    if (!coops) return;
+    await api.post('/property-cooperations', {
+      propertyId: coops.file.id,
+      partnerName: coopForm.partnerName.trim(),
+      partnerPhone: coopForm.partnerPhone.trim() || undefined,
+      shareType: coopForm.shareType,
+      shareValue: coopForm.shareValue ? Number(coopForm.shareValue) : 0,
+    });
+    setCoopForm({ partnerName: '', partnerPhone: '', shareType: 'PERCENT', shareValue: '' });
+    await openCoops(coops.file);
+    toast.success('همکاری ثبت شد');
+  }
+
+  async function removeCoop(id: string) {
+    if (!coops) return;
+    await api.delete(`/property-cooperations/${id}`);
+    await openCoops(coops.file);
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -172,6 +230,37 @@ export default function PropertyFilesPage() {
         </section>
       ) : null}
 
+      {coops ? (
+        <section className="indeed-panel p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-extrabold text-ink">همکاری روی «{coops.file.title}»</h2>
+            <button type="button" className="text-xs text-muted" onClick={() => setCoops(null)}>بستن</button>
+          </div>
+          <form onSubmit={addCoop} className="mt-2 grid gap-2 md:grid-cols-5">
+            <input className={field} placeholder="نام شریک/شعبه" value={coopForm.partnerName} onChange={(e) => setCoopForm((p) => ({ ...p, partnerName: e.target.value }))} required />
+            <input className={field} placeholder="تماس" value={coopForm.partnerPhone} onChange={(e) => setCoopForm((p) => ({ ...p, partnerPhone: e.target.value }))} />
+            <select className={field} value={coopForm.shareType} onChange={(e) => setCoopForm((p) => ({ ...p, shareType: e.target.value }))}>
+              <option value="PERCENT">درصد</option>
+              <option value="FIXED">مبلغ ثابت</option>
+            </select>
+            <input className={field} type="number" placeholder={coopForm.shareType === 'PERCENT' ? 'درصد سهم' : 'مبلغ (تومان)'} value={coopForm.shareValue} onChange={(e) => setCoopForm((p) => ({ ...p, shareValue: e.target.value }))} />
+            <button type="submit" className="indeed-btn indeed-btn-primary">ثبت همکاری</button>
+          </form>
+          <ul className="mt-3 divide-y divide-[var(--vintage-border)] text-xs">
+            {coops.rows.map((row) => (
+              <li key={row.id} className="flex items-center justify-between gap-2 py-2">
+                <span className="text-ink">{row.partnerName}{row.partnerPhone ? ` • ${row.partnerPhone}` : ''}</span>
+                <span className="flex items-center gap-2 text-muted">
+                  {row.shareType === 'PERCENT' ? `${row.shareValue}٪` : `${row.shareValue.toLocaleString('fa-IR')} تومان`}
+                  <button type="button" onClick={() => void removeCoop(row.id)} className="text-red-600">حذف</button>
+                </span>
+              </li>
+            ))}
+            {coops.rows.length === 0 ? <li className="py-2 text-muted">همکاری‌ای ثبت نشده است.</li> : null}
+          </ul>
+        </section>
+      ) : null}
+
       <div className="grid gap-3 md:grid-cols-2">
         {files.map((file) => (
           <article key={file.id} className="indeed-panel flex flex-col gap-2 p-4">
@@ -201,7 +290,21 @@ export default function PropertyFilesPage() {
               <button type="button" className="indeed-btn indeed-btn-ghost text-xs" onClick={() => void verify(file)}>استعلام</button>
               <button type="button" className="indeed-btn indeed-btn-ghost text-xs" onClick={() => void showMatches(file)}>تطبیق</button>
               <button type="button" className="indeed-btn indeed-btn-ghost text-xs" onClick={() => void checkDuplicates(file)}>تکراری؟</button>
+              <button type="button" className="indeed-btn indeed-btn-ghost text-xs" onClick={() => void openCoops(file)}>همکاری</button>
+              {file.published && file.publicToken ? (
+                <>
+                  <button type="button" className="indeed-btn indeed-btn-ghost text-xs" onClick={() => void copyLink(file.publicToken!)}>کپی لینک آگهی</button>
+                  <button type="button" className="indeed-btn text-xs text-red-600" onClick={() => void unpublish(file)}>لغو انتشار</button>
+                </>
+              ) : (
+                <button type="button" className="indeed-btn indeed-btn-ghost text-xs" onClick={() => void publish(file)}>انتشار آگهی</button>
+              )}
             </div>
+            {file.published ? (
+              <p className="text-[11px] text-emerald-700">
+                منتشرشده • {file.viewCount.toLocaleString('fa-IR')} بازدید • {file.inquiryCount.toLocaleString('fa-IR')} درخواست
+              </p>
+            ) : null}
           </article>
         ))}
         {files.length === 0 ? <div className="indeed-panel p-8 text-center text-sm text-muted md:col-span-2">فایلی ثبت نشده است.</div> : null}

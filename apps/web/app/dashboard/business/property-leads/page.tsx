@@ -94,6 +94,12 @@ export default function PropertyLeadsPage() {
     setMatches({ lead, files });
   }
 
+  async function toggleWaitlist(lead: PropertyLead) {
+    await api.patch(`/property-leads/${lead.id}/waitlist`, { onWaitlist: !lead.onWaitlist });
+    await load();
+    toast.success(lead.onWaitlist ? 'از فهرست انتظار برداشته شد' : 'به فهرست انتظار اضافه شد');
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -158,6 +164,9 @@ export default function PropertyLeadsPage() {
                 {STATUS_LABELS[lead.status] ?? lead.status}
               </span>
             </div>
+            {lead.onWaitlist ? (
+              <p className="text-[11px] text-brand">در فهرست انتظار{lead.waitlistNote ? ` • ${lead.waitlistNote}` : ''}</p>
+            ) : null}
             <p className="text-xs text-ink">
               {lead.kind === 'BUY'
                 ? `بودجه: ${money(lead.budgetMin)} تا ${money(lead.budgetMax)}`
@@ -169,6 +178,9 @@ export default function PropertyLeadsPage() {
                 {Object.entries(STATUS_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
               <button type="button" className="indeed-btn indeed-btn-ghost text-xs" onClick={() => void showMatches(lead)}>تطبیق فایل</button>
+              <button type="button" className="indeed-btn indeed-btn-ghost text-xs" onClick={() => void toggleWaitlist(lead)}>
+                {lead.onWaitlist ? 'حذف از انتظار' : 'افزودن به انتظار'}
+              </button>
             </div>
           </article>
         ))}

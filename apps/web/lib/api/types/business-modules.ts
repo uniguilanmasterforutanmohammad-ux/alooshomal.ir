@@ -628,6 +628,10 @@ export interface PropertyFile {
   internalNote: string | null;
   status: 'PENDING' | 'ACTIVE' | 'NEEDS_CHECK' | 'DEALT' | 'ARCHIVED' | string;
   published: boolean;
+  publicToken: string | null;
+  publishedAt: string | null;
+  viewCount: number;
+  inquiryCount: number;
   source: string;
   duplicateOfId: string | null;
   lastVerifiedAt: string | null;
@@ -657,6 +661,8 @@ export interface PropertyLead {
   source: string | null;
   assignedToId: string | null;
   nextActionAt: string | null;
+  onWaitlist: boolean;
+  waitlistNote: string | null;
   createdAt: string;
   updatedAt: string;
   visits?: PropertyVisit[];
@@ -945,4 +951,48 @@ export interface BuildingContractor {
   specialty: string | null;
   phone: string | null;
   note: string | null;
+}
+
+export interface PropertyCooperation {
+  id: string;
+  workspaceId: string;
+  propertyId: string;
+  partnerName: string;
+  partnerPhone: string | null;
+  shareType: 'PERCENT' | 'FIXED' | string;
+  shareValue: number;
+  status: 'PROPOSED' | 'ACTIVE' | 'DONE' | 'CANCELLED' | string;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+  property?: { id: string; title: string; code: string | null };
+}
+
+export interface PropertyAuditLog {
+  id: string;
+  workspaceId: string;
+  userId: string | null;
+  action: string;
+  entityType: string;
+  entityId: string | null;
+  detail: string | null;
+  createdAt: string;
+}
+
+export interface PublicProperty {
+  token: string | null;
+  title: string;
+  dealType: string;
+  propertyKind: string;
+  city: string | null;
+  neighborhood: string | null;
+  area: number | null;
+  rooms: number | null;
+  floor: string | null;
+  price: number | null;
+  deposit: number | null;
+  rent: number | null;
+  features: string[];
+  agency: string;
+  publishedAt: string | null;
 }

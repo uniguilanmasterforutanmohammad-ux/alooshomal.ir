@@ -94,4 +94,22 @@ export class PropertyFilesController {
   ) {
     return this.realEstate.mergePropertyFiles(user.id, id, duplicateId);
   }
+
+  @Get(':id/public-link')
+  @ApiOperation({ summary: 'وضعیت انتشار و توکن لینک عمومی آگهی' })
+  publicLink(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.realEstate.publicLink(user.id, id);
+  }
+
+  @Post(':id/publish')
+  @ApiOperation({ summary: 'انتشار عمومی آگهی و ساخت لینک اختصاصی' })
+  publish(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.realEstate.publishProperty(user.id, id);
+  }
+
+  @Post(':id/unpublish')
+  @ApiOperation({ summary: 'لغو انتشار عمومی آگهی' })
+  unpublish(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.realEstate.unpublishProperty(user.id, id);
+  }
 }

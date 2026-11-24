@@ -20,13 +20,57 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.86.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.87.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — فاز دوم بسته‌ی «مشاورین املاک» — نسخه `v4.87.0`
+
+**هدف:** تکمیل قابلیت‌های فاز دوم دفتر املاک: انتشار عمومی آگهی با لینک
+اختصاصی، ثبت درخواست عمومی به‌عنوان تقاضا، همکاری بین مشاوران/شعب با سهم،
+لاگ دسترسی به اطلاعات حساس و فهرست انتظار تقاضاها.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `publicToken`/`publishedAt`/`viewCount`/
+  `inquiryCount` به `PropertyFile`، `onWaitlist`/`waitlistNote` به `PropertyLead`،
+  و مدل‌های `PropertyCooperation` و `PropertyAuditLog` (+ روابط `BusinessWorkspace`).
+- `apps/api/src/realestate/dto/realestate.dto.ts`: DTOهای `PublicInquiryDto`،
+  `CreateCooperationDto`، `UpdateCooperationDto`، `UpdateWaitlistDto` و ثابت‌های
+  نوع/وضعیت همکاری.
+- `apps/api/src/realestate/realestate.service.ts`: متدهای انتشار/لغو انتشار،
+  آگهی عمومی sanitized، ثبت درخواست عمومی، CRUD همکاری، فهرست انتظار و لاگ
+  دسترسی (`logAudit`).
+- `apps/api/src/realestate/property-files.controller.ts` و
+  `property-leads.controller.ts`: مسیرهای انتشار/لینک عمومی و فهرست انتظار.
+- `apps/api/src/realestate/property-cooperations.controller.ts`،
+  `property-audits.controller.ts`، `public-properties.controller.ts` (جدید).
+- `apps/api/src/realestate/realestate.module.ts`: ثبت کنترلرهای جدید.
+- `apps/web/lib/api/types/business-modules.ts`: تایپ‌های `PropertyCooperation`،
+  `PropertyAuditLog`، `PublicProperty` و فیلدهای جدید.
+- `apps/web/app/dashboard/business/property-files/page.tsx`: انتشار/کپی لینک
+  آگهی و مدیریت همکاری.
+- `apps/web/app/dashboard/business/property-leads/page.tsx`: افزودن/حذف از
+  فهرست انتظار.
+- `apps/web/app/dashboard/business/property-reports/page.tsx`: نمایش سابقه‌ی
+  دسترسی به اطلاعات حساس.
+- `apps/web/app/p/[token]/page.tsx` و `apps/web/components/property/PropertyInquiryForm.tsx`
+  (جدید): صفحه‌ی عمومی آگهی با متادیتا/JSON-LD و فرم درخواست.
+- `docs/API.md`: مستندسازی مسیرهای فاز دوم املاک.
+- `BACKLOG.md`: ثبت «انجام‌شده» برای فاز دوم املاک.
+
+**تأیید/تست:**
+- `docker compose exec -T api ./node_modules/.bin/tsc --noEmit -p tsconfig.json` → موفق.
+- `docker compose exec -T web ./node_modules/.bin/tsc --noEmit` → موفق.
+- `eslint` روی صفحات تغییریافته → فقط هشدارهای موردانتظار `react-hooks/set-state-in-effect`.
+- `python3 scripts/check_api_docs.py` → ۶۹۰ مسیر، همه با `@ApiOperation`.
+- `python3 scripts/check_modules.py` → ساختار ماژولار درست.
+- تست دستی API: ثبت فایل، انتشار و دریافت `publicToken`، `GET` آگهی عمومی
+  (بدون `ownerPhone`)، ثبت درخواست عمومی (ساخت تقاضای `PUBLIC`)، CRUD همکاری،
+  فهرست انتظار و مشاهده‌ی لاگ دسترسی. داده‌های تست پاک شدند.
 
 ## ۱۴۰۵/۰۹/۰۳ — فاز دوم بسته‌ی مدیریت «ساختمان» — نسخه `v4.86.0`
 

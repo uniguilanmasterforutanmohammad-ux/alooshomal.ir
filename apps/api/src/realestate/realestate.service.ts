@@ -4,18 +4,23 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 
 import { BusinessModulesService } from '../business-modules/business-modules.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
+  CreateCooperationDto,
   CreateContractDto,
   CreateLeadDto,
   CreatePropertyFileDto,
   CreateVisitDto,
+  PublicInquiryDto,
+  UpdateCooperationDto,
   UpdateContractDto,
   UpdateLeadDto,
   UpdatePropertyFileDto,
   UpdateVisitDto,
+  UpdateWaitlistDto,
 } from './dto/realestate.dto';
 
 const STALE_DAYS = 30;
@@ -101,6 +106,7 @@ export class RealEstateService {
       },
     });
     if (!row) throw new NotFoundException('فایل ملکی پیدا نشد');
+    await this.logAudit(workspaceId, userId, 'VIEW_PRIVATE', 'PropertyFile', id);
     return row;
   }
 
@@ -684,6 +690,238 @@ export class RealEstateService {
         ...value,
       })),
     };
+  }
+
+  // -------------------------------------------------------------------------
+  //  Public ads (publish + inquiry)
+  // -------------------------------------------------------------------------
+
+  /** Publish a file and return a stable, opaque public link token. */
+  async publishProperty(userId: string, id: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const file = await this.property(workspaceId, id);
+    const token = file.publicToken ?? randomUUID();
+    const updated = await this.prisma.propertyFile.update({
+      where: { id },
+      data: { published: true, publicToken: token, publishedAt: new Date() },
+      select: { id: true, publicToken: true, published: true, publishedAt: true },
+    });
+    await this.logAudit(workspaceId, userId, 'PUBLISH', 'PropertyFile', id);
+    return updated;
+  }
+
+  async unpublishProperty(userId: string, id: string) {
+    const workspaceId = await this.workspaceId(userId);
+    await this.property(workspaceId, id);
+    const updated = await this.prisma.propertyFile.update({
+      where: { id },
+      data: { published: false, publishedAt: null },
+      select: { id: true, publicToken: true, published: true, publishedAt: true },
+    });
+    await this.logAudit(workspaceId, userId, 'UNPUBLISH', 'PropertyFile', id);
+    return updated;
+  }
+
+  async publicLink(userId: string, id: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const file = await this.property(workspaceId, id);
+    return { published: file.published, token: file.publicToken };
+  }
+
+  /** Sanitized public ad: never exposes owner contact, exact address or notes. */
+  async publicProperty(token: string) {
+    const file = await this.prisma.propertyFile.findFirst({
+      where: { publicToken: token, published: true, status: { not: 'ARCHIVED' } },
+      include: { workspace: { select: { name: true, publicSlug: true } } },
+    });
+    if (!file) throw new NotFoundException('آگهی پیدا نشد یا منتشر نشده است');
+    await this.prisma.propertyFile.update({
+      where: { id: file.id },
+      data: { viewCount: { increment: 1 } },
+    });
+    return {
+      token: file.publicToken,
+      title: file.title,
+      dealType: file.dealType,
+      propertyKind: file.propertyKind,
+      city: file.city,
+      neighborhood: file.neighborhood,
+      area: file.area,
+      rooms: file.rooms,
+      floor: file.floor,
+      price: num(file.price) || null,
+      deposit: num(file.deposit) || null,
+      rent: num(file.rent) || null,
+      features: file.features,
+      agency: file.workspace.name,
+      publishedAt: file.publishedAt,
+    };
+  }
+
+  /** Public inquiry → creates a lead in the owning workspace with source PUBLIC. */
+  async publicInquiry(token: string, dto: PublicInquiryDto) {
+    const file = await this.prisma.propertyFile.findFirst({
+      where: { publicToken: token, published: true, status: { not: 'ARCHIVED' } },
+      select: { id: true, workspaceId: true, dealType: true, title: true },
+    });
+    if (!file) throw new NotFoundException('آگهی پیدا نشد یا منتشر نشده است');
+    const lead = await this.prisma.propertyLead.create({
+      data: {
+        workspaceId: file.workspaceId,
+        name: dto.name.trim(),
+        phone: dto.phone.trim(),
+        kind: file.dealType === 'SALE' ? 'BUY' : 'RENT',
+        notes: `درخواست از آگهی عمومی «${file.title}»${dto.message?.trim() ? `: ${dto.message.trim()}` : ''}`,
+        status: 'NEW',
+        source: 'PUBLIC',
+      },
+      select: { id: true },
+    });
+    await this.prisma.propertyFile.update({
+      where: { id: file.id },
+      data: { inquiryCount: { increment: 1 } },
+    });
+    await this.logAudit(
+      file.workspaceId,
+      null,
+      'PUBLIC_INQUIRY',
+      'PropertyFile',
+      file.id,
+      `lead:${lead.id}`,
+    );
+    return { id: lead.id };
+  }
+
+  // -------------------------------------------------------------------------
+  //  Inter-broker cooperation
+  // -------------------------------------------------------------------------
+
+  async listCooperations(userId: string, propertyId?: string) {
+    const workspaceId = await this.workspaceId(userId);
+    return this.prisma.propertyCooperation.findMany({
+      where: { workspaceId, ...(propertyId ? { propertyId } : {}) },
+      include: { property: { select: { id: true, title: true, code: true } } },
+      orderBy: { createdAt: 'desc' },
+      take: 300,
+    });
+  }
+
+  async createCooperation(userId: string, dto: CreateCooperationDto) {
+    const workspaceId = await this.workspaceId(userId);
+    await this.property(workspaceId, dto.propertyId);
+    if (dto.shareType !== 'FIXED' && (dto.shareValue ?? 0) > 100) {
+      throw new BadRequestException('درصد سهم نمی‌تواند از ۱۰۰ بیشتر باشد');
+    }
+    const row = await this.prisma.propertyCooperation.create({
+      data: {
+        workspaceId,
+        propertyId: dto.propertyId,
+        partnerName: dto.partnerName.trim(),
+        partnerPhone: dto.partnerPhone?.trim() || null,
+        shareType: dto.shareType ?? 'PERCENT',
+        shareValue: BigInt(dto.shareValue ?? 0),
+        status: dto.status ?? 'PROPOSED',
+        note: dto.note?.trim() || null,
+      },
+    });
+    await this.logAudit(workspaceId, userId, 'COOPERATION_CREATE', 'PropertyCooperation', row.id);
+    return row;
+  }
+
+  async updateCooperation(userId: string, id: string, dto: UpdateCooperationDto) {
+    const workspaceId = await this.workspaceId(userId);
+    const row = await this.prisma.propertyCooperation.findFirst({
+      where: { id, workspaceId },
+    });
+    if (!row) throw new NotFoundException('همکاری پیدا نشد');
+    if (dto.shareType !== 'FIXED' && (dto.shareValue ?? 0) > 100) {
+      throw new BadRequestException('درصد سهم نمی‌تواند از ۱۰۰ بیشتر باشد');
+    }
+    return this.prisma.propertyCooperation.update({
+      where: { id },
+      data: {
+        ...(dto.partnerName !== undefined ? { partnerName: dto.partnerName.trim() } : {}),
+        ...(dto.partnerPhone !== undefined
+          ? { partnerPhone: dto.partnerPhone.trim() || null }
+          : {}),
+        ...(dto.shareType !== undefined ? { shareType: dto.shareType } : {}),
+        ...(dto.shareValue !== undefined ? { shareValue: BigInt(dto.shareValue) } : {}),
+        ...(dto.status !== undefined ? { status: dto.status } : {}),
+        ...(dto.note !== undefined ? { note: dto.note.trim() || null } : {}),
+      },
+    });
+  }
+
+  async removeCooperation(userId: string, id: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const row = await this.prisma.propertyCooperation.findFirst({
+      where: { id, workspaceId },
+      select: { id: true },
+    });
+    if (!row) throw new NotFoundException('همکاری پیدا نشد');
+    await this.prisma.propertyCooperation.delete({ where: { id } });
+    await this.logAudit(workspaceId, userId, 'COOPERATION_DELETE', 'PropertyCooperation', id);
+    return { id };
+  }
+
+  // -------------------------------------------------------------------------
+  //  Waitlist
+  // -------------------------------------------------------------------------
+
+  async listWaitlist(userId: string) {
+    const workspaceId = await this.workspaceId(userId);
+    return this.prisma.propertyLead.findMany({
+      where: { workspaceId, onWaitlist: true },
+      orderBy: { updatedAt: 'desc' },
+      take: 300,
+    });
+  }
+
+  async setWaitlist(userId: string, id: string, dto: UpdateWaitlistDto) {
+    const workspaceId = await this.workspaceId(userId);
+    await this.lead(workspaceId, id);
+    return this.prisma.propertyLead.update({
+      where: { id },
+      data: {
+        onWaitlist: dto.onWaitlist,
+        ...(dto.waitlistNote !== undefined
+          ? { waitlistNote: dto.waitlistNote.trim() || null }
+          : {}),
+      },
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  //  Audit log (sensitive access)
+  // -------------------------------------------------------------------------
+
+  async listAudits(userId: string, filters: { action?: string; limit?: number }) {
+    const workspaceId = await this.workspaceId(userId);
+    return this.prisma.propertyAuditLog.findMany({
+      where: { workspaceId, ...(filters.action ? { action: filters.action } : {}) },
+      orderBy: { createdAt: 'desc' },
+      take: Math.min(filters.limit ?? 200, 500),
+    });
+  }
+
+  private async logAudit(
+    workspaceId: string,
+    userId: string | null,
+    action: string,
+    entityType: string,
+    entityId?: string | null,
+    detail?: string,
+  ) {
+    await this.prisma.propertyAuditLog.create({
+      data: {
+        workspaceId,
+        userId,
+        action,
+        entityType,
+        entityId: entityId ?? null,
+        detail: detail ?? null,
+      },
+    });
   }
 
   private groupCount(values: string[]) {
