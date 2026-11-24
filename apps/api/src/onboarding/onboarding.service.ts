@@ -5,7 +5,6 @@ import {
   OnModuleInit,
 } from '@nestjs/common';
 import {
-  BiolinkStatus,
   IdentityInquiryKind,
   IdentityInquiryStatus,
   PaymentStatus,
