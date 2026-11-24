@@ -205,6 +205,28 @@ export class SessionsService {
     });
   }
 
+  /**
+   * Deletes rows that can no longer authenticate anything: hard-expired,
+   * idle-expired, or revoked longer than `retentionDays` ago. The JWT strategy
+   * already rejects all three, so removing them only reclaims space (and keeps
+   * the per-user session list fast).
+   */
+  async pruneDead(retentionDays = 7): Promise<number> {
+    const now = new Date();
+    const idleCutoff = new Date(now.getTime() - SESSION_IDLE_DAYS * 86400_000);
+    const revokedCutoff = new Date(now.getTime() - retentionDays * 86400_000);
+    const result = await this.prisma.session.deleteMany({
+      where: {
+        OR: [
+          { expiresAt: { lt: now } },
+          { lastUsedAt: { lt: idleCutoff } },
+          { revokedAt: { lt: revokedCutoff } },
+        ],
+      },
+    });
+    return result.count;
+  }
+
   /** Sessions of one user, newest activity first, paginated. */
   async listForUser(userId: string, page = 1, limitOverride?: number) {
     const limit = limitOverride ?? 10;

@@ -17,6 +17,7 @@
     "db:backup": "./scripts/backup.sh",
     "db:backups": "./scripts/backup.sh --list",
     "db:restore": "./scripts/restore.sh",
+    "db:audit": "python3 scripts/db_audit.py",
     "seed": "docker compose exec api npm run prisma:seed",
     "api:logs": "docker compose logs -f api",
     "web:logs": "docker compose logs -f web"

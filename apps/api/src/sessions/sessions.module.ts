@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 
 import { SessionsController } from './sessions.controller';
+import { SessionsCleanupJob } from './sessions-cleanup.job';
 import { SessionsService } from './sessions.service';
 
 /**
@@ -10,7 +11,7 @@ import { SessionsService } from './sessions.service';
 @Global()
 @Module({
   controllers: [SessionsController],
-  providers: [SessionsService],
+  providers: [SessionsService, SessionsCleanupJob],
   exports: [SessionsService],
 })
 export class SessionsModule {}

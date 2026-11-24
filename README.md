@@ -268,6 +268,9 @@ only one page at a time. The page size is configurable in admin *تنظیمات*
 See `docs/BACKUP-RESTORE.md` for the full guide to automatic and manual database
 snapshots and how to restore them.
 
+Schema/index conventions, the read-only health audit (`npm run db:audit`) and
+the periodic session/activity cleanup jobs are documented in `docs/DATABASE.md`.
+
 ## Media storage
 
 Uploaded images (logos, avatars) are stored in an S3-compatible object store
