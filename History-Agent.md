@@ -20,13 +20,33 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.89.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.89.3**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — ارتقای اکشن‌های GitHub Actions به رانتایم Node 24 — نسخه `v4.89.3`
+
+**هدف:** رفع هشدار منسوخ‌شدن Node.js 20 در اجرای CI/استقرار
+(`actions/checkout@v4` و هم‌ردیف‌های Docker) با ارتقا به نسخه‌های اصلی‌ای که
+روی `node24` اجرا می‌شوند.
+
+**تغییرات:**
+- `.github/workflows/ci.yml`: `actions/checkout@v4 → v5`،
+  `actions/setup-python@v5 → v6`، `actions/setup-node@v4 → v5`.
+- `.github/workflows/deploy.yml`: `actions/checkout@v4 → v5`،
+  `docker/setup-buildx-action@v3 → v4`، `docker/login-action@v3 → v4`،
+  `docker/metadata-action@v5 → v6`، `docker/build-push-action@v6 → v7`.
+
+**تأیید/تست:**
+- اعتبارسنجی هر دو فایل با `python3 -c "import yaml; yaml.safe_load(...)"` → ok.
+- بررسی `runs.using` نسخه‌های جدید از روی `action.yml` هر اکشن → همه `node24`.
+- ورودی‌های مورد استفاده (`tags`، `labels`، `build-args`، `cache-from/to`،
+  `python-version`، `node-version`) در نسخه‌های جدید بدون تغییر شکستنی‌اند.
+- `python3 scripts/sync_install.py --check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۳ — مقاوم‌سازی pull استقرار در برابر timeout موقت TLS — نسخه `v4.89.2`
 
