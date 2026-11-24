@@ -25,6 +25,7 @@ import { WorkspaceContextInterceptor } from './business-modules/workspace-contex
 import { CrmModule } from './crm/crm.module';
 import { CardToCardModule } from './card-to-card/card-to-card.module';
 import { BuildingsModule } from './buildings/buildings.module';
+import { RealEstateModule } from './realestate/realestate.module';
 import { RetailModule } from './retail/retail.module';
 import { FeedsModule } from './feeds/feeds.module';
 import { FinanceModule } from './finance/finance.module';
@@ -81,6 +82,7 @@ import { ZohalModule } from './zohal/zohal.module';
     AccommodationsModule,
     RetailModule,
     BuildingsModule,
+    RealEstateModule,
     CardToCardModule,
     CrmModule,
     FeedsModule,

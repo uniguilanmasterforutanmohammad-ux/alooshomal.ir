@@ -553,6 +553,46 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     group: 'پنل کسب‌وکار',
     default: true,
   },
+  {
+    key: 'featurePropertyFiles',
+    label: 'ماژول بانک فایل‌های ملکی',
+    description:
+      'ثبت فایل فروش/رهن/اجاره، وضعیت فایل و کنترل فایل تکراری برای دفاتر املاک.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featurePropertyCrm',
+    label: 'ماژول مشتریان و تقاضای املاک',
+    description:
+      'پرونده‌ی خریدار/مستأجر، بودجه، محله‌های مدنظر، مشاور مسئول و تطبیق با فایل‌ها.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featurePropertyVisits',
+    label: 'ماژول بازدید و مذاکره املاک',
+    description:
+      'هماهنگی بازدید، ثبت نتیجه و پیشنهاد قیمت با اتصال به فایل و تقاضا.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featurePropertyFinance',
+    label: 'ماژول قرارداد و کمیسیون املاک',
+    description:
+      'ثبت قرارداد، کمیسیون مورد انتظار/وصول‌شده، سهم دفتر و مشاور و وضعیت تسویه.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featurePropertyReports',
+    label: 'ماژول داشبورد عملکرد املاک',
+    description:
+      'گزارش فایل فعال/کهنه، تقاضای بی‌پیگیری، تبدیل و وصولی به تفکیک مشاور و محله.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
 ];
 
 export const FEATURE_FLAG_KEYS = FEATURE_FLAGS.map((flag) => flag.key);

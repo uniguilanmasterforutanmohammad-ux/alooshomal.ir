@@ -9,6 +9,7 @@ import {
   Building2,
   CalendarCheck,
   CreditCard,
+  FileSignature,
   Globe,
   House,
   IdCard,
@@ -45,6 +46,7 @@ const ICONS: Record<string, LucideIcon> = {
   ReceiptText,
   Wallet,
   Wrench,
+  FileSignature,
 };
 
 export function moduleIcon(name: string): LucideIcon {

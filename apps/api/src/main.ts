@@ -16,6 +16,17 @@ import { requestOriginMiddleware } from './common/request-origin';
  */
 const APP_VERSION = process.env.APP_VERSION ?? '1.0.0';
 
+// Prisma returns `BigInt` for large money columns (e.g. real-estate prices).
+// JSON.stringify cannot serialize BigInt, so expose it as a number; every money
+// value in this app stays well within `Number.MAX_SAFE_INTEGER`.
+Object.defineProperty(BigInt.prototype, 'toJSON', {
+  value() {
+    return Number(this);
+  },
+  writable: true,
+  configurable: true,
+});
+
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const config = app.get(ConfigService);

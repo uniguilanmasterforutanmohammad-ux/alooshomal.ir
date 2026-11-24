@@ -20,13 +20,56 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.83.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.84.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — تکمیل بسته‌ی مدیریت «مشاورین املاک» — نسخه `v4.84.0`
+
+**هدف:** تکمیل بسته‌ی دفتر املاک بر اساس سند ماژولار مرجع: بانک فایل ملکی،
+کنترل فایل تکراری، تقاضای مشتری (CRM)، تطبیق فایل با تقاضا، بازدید و مذاکره،
+قرارداد و کمیسیون/تسویه، و داشبورد عملکرد؛ با تفکیک اطلاعات خصوصی مالک.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل‌های `PropertyFile`، `PropertyLead`،
+  `PropertyVisit` و `PropertyContract`؛ مبالغ ملکی (قیمت/رهن/اجاره/کمیسیون)
+  به‌صورت `BigInt` برای پشتیبانی از ارقام میلیاردی؛ رابطه‌های workspace.
+- `apps/api/src/main.ts`: سریالایزر `BigInt`→number برای پاسخ JSON.
+- `apps/api/src/realestate/`: سرویس + پنج کنترلر (`/property-files`،
+  `/property-leads`، `/property-visits`، `/property-contracts`،
+  `/property-reports`) با DTO، گارد ماژول و مستندات Swagger؛ شامل بررسی
+  تکراری، ادغام با حفظ سابقه، تطبیق دوطرفه‌ی فایل/تقاضا و داشبورد تبدیل و
+  کمیسیون.
+- `apps/api/src/app.module.ts`: ثبت `RealEstateModule`.
+- `apps/api/src/business-modules/business-modules.registry.ts`: پنج ماژول
+  `propertyFiles`/`propertyCrm`/`propertyVisits`/`propertyFinance`/
+  `propertyReports` و بسته‌ی `realEstate`.
+- `apps/api/src/business-modules/business-modules.service.ts`: اصلاح
+  `syncRegistryManagements` برای **ساخت** بسته‌های تازه‌ای که در دیتابیس
+  موجود نیستند (قبلاً فقط بسته‌های موجود را به‌روز می‌کرد) و ارتقای نشانگر به
+  `businessManagementsSeedV7`.
+- `apps/api/src/settings/settings.constants.ts`: پنج سوئیچ `featureProperty*`.
+- `apps/web/lib/api/types/business-modules.ts` و
+  `apps/web/components/business/BusinessPanelNav.tsx`: تایپ‌ها و آیکون‌ها.
+- `apps/web/app/dashboard/business/{property-files,property-leads,property-visits,property-contracts,property-reports}/page.tsx`:
+  پنج صفحه‌ی پنل املاک.
+- `docs/API.md`: بخش مشاورین املاک و به‌روزرسانی فهرست ماژول‌ها.
+
+**تأیید/تست:**
+- `docker compose exec -T api ./node_modules/.bin/tsc --noEmit -p tsconfig.json` و
+  `docker compose exec -T web ./node_modules/.bin/tsc --noEmit` → بدون خطا؛
+  eslint صفحات جدید فقط هشدارِ الگوی موجود (`set-state-in-effect`) داد.
+- `python3 scripts/check_api_docs.py` (۶۷ کنترلر/۶۲۱ مسیر) و
+  `python3 scripts/check_modules.py` (۵۰ پوشه/۳۵ فلگ) → بدون خطا.
+- تست دودی کامل API: ثبت فایل ۹ میلیارد تومانی (BigInt)، یافتن فایل تکراری،
+  ثبت تقاضا، تطبیق دوطرفه، ثبت و تکمیل بازدید، ثبت و تسویه‌ی قرارداد، گزارش
+  عملکرد و ادغام فایل تکراری با حفظ سابقه — همه موفق؛ سپس داده‌ی تست حذف شد.
+- پس از ری‌استارت، کاتالوگ هر دو بسته‌ی `buildingManagement` و `realEstate`
+  را نشان داد (اصلاح seed بسته‌های تازه).
 
 ## ۱۴۰۵/۰۹/۰۳ — تکمیل بسته‌ی مدیریت «مدیریت ساختمان» — نسخه `v4.83.0`
 

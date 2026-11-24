@@ -280,16 +280,31 @@ export class BusinessModulesService implements OnModuleInit {
    * other managements.
    */
   private async syncRegistryManagements(): Promise<void> {
-    // V5 adds the building-management package (units, charges, finance,
-    // maintenance) to existing installations.
-    const marker = 'businessManagementsSeedV5';
+    // V7 creates the building-management and real-estate packages (which did
+    // not exist in older installs) and adds their modules.
+    const marker = 'businessManagementsSeedV7';
     const done = await this.prisma.setting.findUnique({ where: { key: marker } });
     if (done) return;
-    for (const industry of INDUSTRY_PACKAGES) {
+    for (const [index, industry] of INDUSTRY_PACKAGES.entries()) {
       const row = await this.prisma.businessManagement.findUnique({
         where: { key: industry.key },
       });
-      if (!row) continue;
+      if (!row) {
+        await this.prisma.businessManagement.create({
+          data: {
+            key: industry.key,
+            label: industry.label,
+            description: industry.description,
+            available: Boolean(industry.available),
+            isBase: industry.key === 'generalBusiness',
+            sortOrder: index,
+            modules: {
+              create: industry.modules.map((moduleKey) => ({ moduleKey })),
+            },
+          },
+        });
+        continue;
+      }
       if (industry.available && !row.available) {
         await this.prisma.businessManagement.update({
           where: { id: row.id },

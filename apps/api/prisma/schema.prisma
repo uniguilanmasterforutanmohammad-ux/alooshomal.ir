@@ -2095,6 +2095,10 @@ model BusinessWorkspace {
   stockMovements  RetailStockMovement[]
   shopSettings    RetailShopSettings?
   buildings       Building[]
+  propertyFiles   PropertyFile[]
+  propertyLeads   PropertyLead[]
+  propertyVisits  PropertyVisit[]
+  propertyContracts PropertyContract[]
   cardAccount     CardToCardAccount?
   cardPayments    CardToCardPayment[]
   businessCards   BusinessCard[]
@@ -2801,4 +2805,161 @@ model BuildingMaintenanceTicket {
 
   @@index([buildingId, status])
   @@map("building_maintenance_tickets")
+}
+
+// ---------------------------------------------------------------------------
+//  Real-estate office (مشاورین املاک)
+// ---------------------------------------------------------------------------
+
+/// A property file (پرونده‌ی ملکی) owned by a real-estate office. Private
+/// contact/address fields are kept apart from the shareable summary so a lead
+/// sheet can be sent to a client without leaking the owner's phone number.
+model PropertyFile {
+  id             String    @id @default(cuid())
+  workspaceId    String
+  /// Human readable file code, unique per workspace (e.g. `F-1042`).
+  code           String?
+  /// SALE | RENT | MORTGAGE
+  dealType       String    @default("SALE")
+  /// APARTMENT | HOUSE | VILLA | LAND | OFFICE | SHOP
+  propertyKind   String    @default("APARTMENT")
+  title          String
+  city           String?
+  neighborhood   String?
+  /// Exact address — private, only shown to permitted roles.
+  address        String?
+  area           Int?
+  rooms          Int?
+  floor          String?
+  /// Sale price (Toman). Null for pure rentals.
+  price          BigInt?
+  /// Deposit / mortgage amount (رهن).
+  deposit        BigInt?
+  /// Monthly rent (اجاره).
+  rent           BigInt?
+  features       String[]  @default([])
+  ownerName      String?
+  /// Private: owner contact must never appear on a shared lead sheet.
+  ownerPhone     String?
+  internalNote   String?
+  /// PENDING | ACTIVE | NEEDS_CHECK | DEALT | ARCHIVED
+  status         String    @default("PENDING")
+  /// Whether the file is published to the public directory.
+  published      Boolean   @default(false)
+  /// AGENT | VISITOR | REFERRAL
+  source         String    @default("AGENT")
+  /// Optional link to a suspected duplicate file.
+  duplicateOfId  String?
+  lastVerifiedAt DateTime?
+  createdById    String?
+  assignedToId   String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  workspace BusinessWorkspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  visits    PropertyVisit[]
+  contracts PropertyContract[]
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, dealType])
+  @@index([workspaceId, ownerPhone])
+  @@map("property_files")
+}
+
+/// A buyer/tenant demand (تقاضای مشتری). One client may have several demands.
+model PropertyLead {
+  id               String    @id @default(cuid())
+  workspaceId      String
+  name             String
+  phone            String?
+  /// BUY | RENT
+  kind             String    @default("BUY")
+  budgetMin        BigInt?
+  budgetMax        BigInt?
+  depositMax       BigInt?
+  rentMax          BigInt?
+  neighborhoods    String[]  @default([])
+  minArea          Int?
+  rooms            Int?
+  requiredFeatures String[]  @default([])
+  notes            String?
+  /// NEW | ACTIVE | VISIT | DEAL | LOST
+  status           String    @default("NEW")
+  source           String?
+  assignedToId     String?
+  nextActionAt     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  workspace BusinessWorkspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  visits    PropertyVisit[]
+  contracts PropertyContract[]
+
+  @@index([workspaceId, status])
+  @@map("property_leads")
+}
+
+/// A scheduled visit / negotiation between a property file and a lead.
+model PropertyVisit {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  propertyId   String
+  leadId       String
+  scheduledAt  DateTime
+  /// SCHEDULED | DONE | CANCELLED | NO_SHOW
+  status       String    @default("SCHEDULED")
+  outcome      String?
+  feedback     String?
+  offeredPrice BigInt?
+  agentId      String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  property  PropertyFile      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  lead      PropertyLead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, scheduledAt])
+  @@index([propertyId])
+  @@index([leadId])
+  @@map("property_visits")
+}
+
+/// A closed deal + commission settlement (قرارداد و تسویه‌ی کمیسیون).
+model PropertyContract {
+  id                  String    @id @default(cuid())
+  workspaceId         String
+  propertyId          String
+  leadId              String?
+  agentId             String?
+  /// SALE | RENT
+  kind                String    @default("SALE")
+  contractDate        DateTime  @default(now())
+  price               BigInt?
+  deposit             BigInt?
+  rent                BigInt?
+  commissionExpected  BigInt    @default(0)
+  commissionCollected BigInt    @default(0)
+  /// AGREED | COLLECTED — the basis used to split shares.
+  basis               String    @default("AGREED")
+  officeShare         BigInt    @default(0)
+  agentShare          BigInt    @default(0)
+  referrerShare       BigInt    @default(0)
+  referrerName        String?
+  /// DRAFT | SIGNED | SETTLED | CANCELLED
+  status              String    @default("DRAFT")
+  documentUrl         String?
+  note                String?
+  /// For rentals: end date reminder.
+  expiresAt           DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  property  PropertyFile      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  lead      PropertyLead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@index([propertyId])
+  @@map("property_contracts")
 }

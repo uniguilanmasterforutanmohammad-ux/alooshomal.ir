@@ -605,3 +605,122 @@ export interface BuildingFinanceOverview {
   balance: number;
   expensesByCategory: Array<{ category: string; amount: number }>;
 }
+
+export interface PropertyFile {
+  id: string;
+  workspaceId: string;
+  code: string | null;
+  dealType: 'SALE' | 'RENT' | 'MORTGAGE' | string;
+  propertyKind: string;
+  title: string;
+  city: string | null;
+  neighborhood: string | null;
+  address: string | null;
+  area: number | null;
+  rooms: number | null;
+  floor: string | null;
+  price: number | null;
+  deposit: number | null;
+  rent: number | null;
+  features: string[];
+  ownerName: string | null;
+  ownerPhone: string | null;
+  internalNote: string | null;
+  status: 'PENDING' | 'ACTIVE' | 'NEEDS_CHECK' | 'DEALT' | 'ARCHIVED' | string;
+  published: boolean;
+  source: string;
+  duplicateOfId: string | null;
+  lastVerifiedAt: string | null;
+  assignedToId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  visits?: PropertyVisit[];
+  contracts?: PropertyContract[];
+}
+
+export interface PropertyLead {
+  id: string;
+  workspaceId: string;
+  name: string;
+  phone: string | null;
+  kind: 'BUY' | 'RENT' | string;
+  budgetMin: number | null;
+  budgetMax: number | null;
+  depositMax: number | null;
+  rentMax: number | null;
+  neighborhoods: string[];
+  minArea: number | null;
+  rooms: number | null;
+  requiredFeatures: string[];
+  notes: string | null;
+  status: 'NEW' | 'ACTIVE' | 'VISIT' | 'DEAL' | 'LOST' | string;
+  source: string | null;
+  assignedToId: string | null;
+  nextActionAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  visits?: PropertyVisit[];
+  contracts?: PropertyContract[];
+}
+
+export interface PropertyVisit {
+  id: string;
+  workspaceId: string;
+  propertyId: string;
+  leadId: string;
+  scheduledAt: string;
+  status: 'SCHEDULED' | 'DONE' | 'CANCELLED' | 'NO_SHOW' | string;
+  outcome: string | null;
+  feedback: string | null;
+  offeredPrice: number | null;
+  agentId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  property?: { id: string; title: string; neighborhood: string | null };
+  lead?: { id: string; name: string; phone: string | null };
+}
+
+export interface PropertyContract {
+  id: string;
+  workspaceId: string;
+  propertyId: string;
+  leadId: string | null;
+  agentId: string | null;
+  kind: 'SALE' | 'RENT' | string;
+  contractDate: string;
+  price: number | null;
+  deposit: number | null;
+  rent: number | null;
+  commissionExpected: number;
+  commissionCollected: number;
+  basis: 'AGREED' | 'COLLECTED' | string;
+  officeShare: number;
+  agentShare: number;
+  referrerShare: number;
+  referrerName: string | null;
+  status: 'DRAFT' | 'SIGNED' | 'SETTLED' | 'CANCELLED' | string;
+  documentUrl: string | null;
+  note: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  property?: { id: string; title: string; neighborhood: string | null };
+  lead?: { id: string; name: string; phone: string | null } | null;
+}
+
+export interface PropertyReportOverview {
+  activeFiles: number;
+  pendingFiles: number;
+  staleFiles: number;
+  leadsWithoutFollowUp: number;
+  visitsScheduled: number;
+  visitsDone: number;
+  signedContracts: number;
+  conversion: number;
+  commissionExpected: number;
+  commissionCollected: number;
+  commissionOutstanding: number;
+  byNeighborhood: Array<{ label: string; count: number }>;
+  bySource: Array<{ label: string; count: number }>;
+  byAgent: Array<{ agentId: string; expected: number; collected: number; contracts: number }>;
+}

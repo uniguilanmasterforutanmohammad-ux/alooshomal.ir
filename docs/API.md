@@ -850,7 +850,9 @@ PY
 ماژول‌های فعلی: `businessCards`، `biolinks`، `feeds`، `accommodationRental`،
 `accommodationReservations`، `accommodationChannels`، `crm`، `retailCatalog`،
 `retailOrders`، `retailInventory`، `retailReports`، `buildingUnits`،
-`buildingCharges`، `buildingFinance`، `buildingMaintenance` و `cardToCard`. ماژول‌های
+`buildingCharges`، `buildingFinance`، `buildingMaintenance`، `propertyFiles`،
+`propertyCrm`، `propertyVisits`، `propertyFinance`، `propertyReports` و
+`cardToCard`. ماژول‌های
 `businessCards`/`biolinks` هم در همین رجیستری ثبت شده‌اند و اکنون فعال/غیرفعال
 شدنشان روی مسیرهای مالک اعمال می‌شود؛ سوئیچ‌های سراسری ادمین
 (`allowBusinessCardCreation` و `allowBiolinkCreation`) همچنان بالاتر از آن
@@ -949,6 +951,32 @@ PY
 `featureBuildingCharges`، `featureBuildingFinance` و `featureBuildingMaintenance`
 کنترل می‌شوند و بسته‌ی «مدیریت ساختمان» (`buildingManagement`) در کاتالوگ
 مدیریت‌ها ثبت شده است.
+
+### مشاورین املاک (`/api/property-files`, `/api/property-leads`, `/api/property-visits`, `/api/property-contracts`, `/api/property-reports`)
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET/POST` | `/property-files` | فهرست (فیلتر `status`/`dealType`/`neighborhood`/`q`)/ثبت فایل ملکی (فروش/رهن/اجاره). |
+| `GET/PATCH/DELETE` | `/property-files/:id` | جزئیات (بازدیدها و قراردادها)/ویرایش (شامل `verify` برای ثبت استعلام)/حذف. |
+| `GET` | `/property-files/duplicates` | بررسی فایل تکراری با `ownerPhone`/`address` (و `excludeId`). |
+| `POST` | `/property-files/:id/merge/:duplicateId` | ادغام فایل تکراری در فایل اصلی؛ بازدیدها و قراردادها منتقل و فایل تکراری بایگانی می‌شود. |
+| `GET` | `/property-files/:id/matches` | تقاضاهای فعال متناسب با فایل. |
+| `GET/POST` | `/property-leads` | فهرست/ثبت تقاضای خریدار یا مستأجر. |
+| `GET/PATCH/DELETE` | `/property-leads/:id` | جزئیات/ویرایش (اقدام بعدی)/حذف تقاضا. |
+| `GET` | `/property-leads/:id/matches` | فایل‌های فعال متناسب با تقاضا. |
+| `GET/POST` | `/property-visits` | فهرست/هماهنگی بازدید. |
+| `PATCH/DELETE` | `/property-visits/:id` | ثبت نتیجه/وضعیت/پیشنهاد قیمت یا حذف بازدید. |
+| `GET/POST` | `/property-contracts` | فهرست/ثبت قرارداد و کمیسیون. |
+| `PATCH/DELETE` | `/property-contracts/:id` | ویرایش وصولی/سهم دفتر-مشاور-معرف/وضعیت یا حذف. |
+| `GET` | `/property-reports/overview` | داشبورد: فایل فعال/کهنه، تقاضای بی‌پیگیری، بازدید، نسبت تبدیل و کمیسیون به تفکیک مشاور/محله/منبع. |
+
+اطلاعات خصوصی مالک (`ownerPhone`، `address`، `internalNote`) جدا از خلاصه‌ی
+قابل اشتراک نگهداری می‌شود. مبالغ ملکی (قیمت/رهن/اجاره/کمیسیون) به‌صورت
+`BigInt` ذخیره می‌شوند تا ارقام میلیاردی تومان جا شوند و در JSON به عدد
+برگردانده می‌شوند. ماژول‌ها با سوئیچ‌های `featurePropertyFiles`،
+`featurePropertyCrm`، `featurePropertyVisits`، `featurePropertyFinance` و
+`featurePropertyReports` کنترل می‌شوند و بسته‌ی «مشاورین املاک» (`realEstate`)
+در کاتالوگ مدیریت‌ها ثبت شده است.
 
 ### پرداخت کارت به کارت (`/api/card-to-card`)
 
