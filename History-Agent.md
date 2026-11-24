@@ -20,13 +20,62 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.87.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.88.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — فاز دوم بسته‌ی «مربیان و آموزشگاه» — نسخه `v4.88.0`
+
+**هدف:** تکمیل قابلیت‌های فاز دوم آموزشگاه: پنل هنرجو/ولی، یادآوری جلسات و
+اقساط، زمان‌بندی تکرارشونده با کنترل تداخل سالن، اقساط زمان‌بندی‌شده، رسانه در
+یادداشت پیشرفت، فهرست انتظار کلاس پر و خروجی CSV حسابدار.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: `EduStudent.accessToken`، مدل‌های
+  `EduInstallment` و `EduWaitlist` (+ روابط `EduClass`/`EduEnrollment`/
+  `BusinessWorkspace`).
+- `apps/api/src/education/dto/education.dto.ts`: DTOهای قسط، جلسه‌ی تکرارشونده،
+  فهرست انتظار و پرداخت عمومی هنرجو.
+- `apps/api/src/education/education.service.ts`: کنترل تداخل سالن،
+  `createRecurringSessions`، `sessionReminders`، CRUD اقساط و
+  `installmentReminders`، CRUD فهرست انتظار، توکن و پنل عمومی هنرجو، ثبت رسید
+  عمومی و خروجی CSV پرداخت/هزینه.
+- `apps/api/src/education/edu-sessions.controller.ts`، `edu-tuition.controller.ts`،
+  `edu-enrollments.controller.ts`، `edu-students.controller.ts`،
+  `edu-finance.controller.ts`: مسیرهای جدید با `@ApiOperation` (خروجی CSV با
+  `@Res()` خام).
+- `apps/api/src/education/public-education.controller.ts` (جدید): مسیرهای عمومی
+  `GET/POST /public/edu/student/:token`.
+- `apps/api/src/education/education.module.ts`: ثبت کنترلر عمومی.
+- `apps/web/lib/api/types/business-modules.ts`: تایپ‌های `EduInstallment`،
+  `EduWaitlist`، `PublicStudentPanel` و فیلد `accessToken`.
+- `apps/web/app/dashboard/business/edu-classes/page.tsx`: فیلد سالن و مدیریت
+  فهرست انتظار.
+- `apps/web/app/dashboard/business/edu-students/page.tsx`: لینک پنل هنرجو/ولی و
+  فیلد رسانه در پیشرفت.
+- `apps/web/app/dashboard/business/edu-tuition/page.tsx`: اقساط، یادآوری و
+  خروجی CSV.
+- `apps/web/app/dashboard/business/edu-attendance/page.tsx`: یادآوری جلسات و
+  زمان‌بندی تکرارشونده.
+- `apps/web/app/dashboard/business/edu-finance/page.tsx`: خروجی CSV هزینه/پرداخت.
+- `apps/web/app/student/[token]/page.tsx` (جدید): پنل عمومی هنرجو/ولی.
+- `docs/API.md`: مستندسازی مسیرهای فاز دوم آموزش.
+- `BACKLOG.md`: ثبت «انجام‌شده» برای فاز دوم آموزش و ثبت موارد مشترک باقی‌مانده.
+
+**تأیید/تست:**
+- `docker compose exec -T api ./node_modules/.bin/tsc --noEmit -p tsconfig.json` → موفق.
+- `docker compose exec -T web ./node_modules/.bin/tsc --noEmit` → موفق.
+- `eslint` روی صفحات تغییریافته → فقط هشدارهای موردانتظار `react-hooks/set-state-in-effect`.
+- `python3 scripts/check_api_docs.py` → ۷۰۶ مسیر، همه با `@ApiOperation`.
+- `python3 scripts/check_modules.py` → ساختار ماژولار درست.
+- تست دستی API: ساخت کلاس/هنرجو/ثبت‌نام، جلسه‌ی عادی (۲۰۱) و جلسه‌ی هم‌زمان در
+  همان سالن (۴۰۹)، زمان‌بندی تکرارشونده (۳ جلسه)، قسط و یادآوری، فهرست انتظار،
+  توکن هنرجو → پنل عمومی → ثبت رسید (`PENDING`) و تکرار شماره پیگیری (۴۰۹)،
+  خروجی CSV پرداخت/هزینه با `text/csv` و BOM. داده‌های تست پاک شدند.
 
 ## ۱۴۰۵/۰۹/۰۳ — فاز دوم بسته‌ی «مشاورین املاک» — نسخه `v4.87.0`
 

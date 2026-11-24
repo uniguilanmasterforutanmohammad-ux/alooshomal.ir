@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 
 import { BusinessModulesService } from '../business-modules/business-modules.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -12,18 +13,24 @@ import {
   CreateEduExpenseDto,
   CreateEduPaymentDto,
   CreateEnrollmentDto,
+  CreateInstallmentDto,
   CreateProgressDto,
   CreateSessionDto,
   CreateSettlementDto,
   CreateStudentDto,
+  CreateWaitlistDto,
   RecordAttendanceDto,
+  RecurringSessionDto,
   ReviewEduPaymentDto,
+  StudentPaymentDto,
   UpdateClassDto,
   UpdateEnrollmentDto,
+  UpdateInstallmentDto,
   UpdateProgressDto,
   UpdateSessionDto,
   UpdateSettlementDto,
   UpdateStudentDto,
+  UpdateWaitlistDto,
 } from './dto/education.dto';
 
 const big = (value: number | null | undefined): bigint | null =>
@@ -390,16 +397,94 @@ export class EducationService {
   async createSession(userId: string, dto: CreateSessionDto) {
     const workspaceId = await this.workspaceId(userId);
     const klass = await this.klass(workspaceId, dto.classId);
+    const scheduledAt = new Date(dto.scheduledAt);
+    const durationMin = dto.durationMin ?? klass.durationMin;
+    await this.assertNoHallConflict(workspaceId, klass.location, scheduledAt, durationMin);
     return this.prisma.eduSession.create({
       data: {
         workspaceId,
         classId: dto.classId,
-        scheduledAt: new Date(dto.scheduledAt),
-        durationMin: dto.durationMin ?? klass.durationMin,
+        scheduledAt,
+        durationMin,
         topic: dto.topic?.trim() || null,
         coachName: dto.coachName?.trim() || klass.coachName,
         note: dto.note?.trim() || null,
       },
+    });
+  }
+
+  /** Create N recurring sessions for a class, rejecting any hall conflicts. */
+  async createRecurringSessions(userId: string, dto: RecurringSessionDto) {
+    const workspaceId = await this.workspaceId(userId);
+    const klass = await this.klass(workspaceId, dto.classId);
+    const intervalDays = dto.intervalDays ?? 7;
+    const durationMin = dto.durationMin ?? klass.durationMin;
+    const start = new Date(dto.startAt);
+    const planned: Date[] = [];
+    for (let index = 0; index < dto.count; index += 1) {
+      const at = new Date(start.getTime() + index * intervalDays * 24 * 60 * 60 * 1000);
+      await this.assertNoHallConflict(workspaceId, klass.location, at, durationMin);
+      planned.push(at);
+    }
+    await this.prisma.eduSession.createMany({
+      data: planned.map((scheduledAt) => ({
+        workspaceId,
+        classId: dto.classId,
+        scheduledAt,
+        durationMin,
+        topic: dto.topic?.trim() || null,
+        coachName: klass.coachName,
+      })),
+    });
+    return { created: planned.length };
+  }
+
+  /** Reject overlapping sessions that share the same hall/location. */
+  private async assertNoHallConflict(
+    workspaceId: string,
+    location: string | null,
+    scheduledAt: Date,
+    durationMin: number,
+  ) {
+    if (!location?.trim()) return;
+    const start = scheduledAt.getTime();
+    const end = start + durationMin * 60 * 1000;
+    const windowStart = new Date(start - 6 * 60 * 60 * 1000);
+    const windowEnd = new Date(end + 6 * 60 * 60 * 1000);
+    const candidates = await this.prisma.eduSession.findMany({
+      where: {
+        workspaceId,
+        status: { not: 'CANCELLED_BY_COACH' },
+        scheduledAt: { gte: windowStart, lte: windowEnd },
+        class: { location },
+      },
+      select: { id: true, scheduledAt: true, durationMin: true, class: { select: { title: true } } },
+    });
+    const clash = candidates.find((row) => {
+      const rowStart = row.scheduledAt.getTime();
+      const rowEnd = rowStart + row.durationMin * 60 * 1000;
+      return start < rowEnd && rowStart < end;
+    });
+    if (clash) {
+      throw new ConflictException(
+        `تداخل سالن: «${clash.class.title}» در این بازه از «${location}» استفاده می‌کند`,
+      );
+    }
+  }
+
+  /** Upcoming sessions in the next 48 hours for reminders. */
+  async sessionReminders(userId: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const now = new Date();
+    const soon = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    return this.prisma.eduSession.findMany({
+      where: { workspaceId, status: 'SCHEDULED', scheduledAt: { gte: now, lte: soon } },
+      include: {
+        class: { select: { id: true, title: true, location: true, coachName: true } },
+        _count: { select: { attendances: true } },
+      },
+      orderBy: { scheduledAt: 'asc' },
+      take: 200,
     });
   }
 
@@ -736,6 +821,342 @@ export class EducationService {
     if (!row) throw new NotFoundException('تسویه پیدا نشد');
     await this.prisma.eduCoachSettlement.delete({ where: { id } });
     return { id };
+  }
+
+  // -------------------------------------------------------------------------
+  //  Installments
+  // -------------------------------------------------------------------------
+
+  async listInstallments(userId: string, enrollmentId?: string) {
+    const workspaceId = await this.workspaceId(userId);
+    return this.prisma.eduInstallment.findMany({
+      where: { workspaceId, ...(enrollmentId ? { enrollmentId } : {}) },
+      include: {
+        enrollment: {
+          select: {
+            id: true,
+            student: { select: { id: true, fullName: true } },
+            class: { select: { id: true, title: true } },
+          },
+        },
+      },
+      orderBy: [{ dueDate: 'asc' }],
+      take: 400,
+    });
+  }
+
+  async createInstallment(userId: string, dto: CreateInstallmentDto) {
+    const workspaceId = await this.workspaceId(userId);
+    await this.enrollment(workspaceId, dto.enrollmentId);
+    return this.prisma.eduInstallment.create({
+      data: {
+        workspaceId,
+        enrollmentId: dto.enrollmentId,
+        title: dto.title.trim(),
+        amount: big(dto.amount) ?? 0n,
+        dueDate: new Date(dto.dueDate),
+        note: dto.note?.trim() || null,
+      },
+    });
+  }
+
+  async updateInstallment(userId: string, id: string, dto: UpdateInstallmentDto) {
+    const workspaceId = await this.workspaceId(userId);
+    const row = await this.prisma.eduInstallment.findFirst({
+      where: { id, workspaceId },
+    });
+    if (!row) throw new NotFoundException('قسط پیدا نشد');
+    return this.prisma.eduInstallment.update({
+      where: { id },
+      data: {
+        ...(dto.title !== undefined ? { title: dto.title.trim() } : {}),
+        ...(dto.amount !== undefined ? { amount: big(dto.amount) ?? 0n } : {}),
+        ...(dto.dueDate !== undefined ? { dueDate: new Date(dto.dueDate) } : {}),
+        ...(dto.status !== undefined ? { status: dto.status } : {}),
+        ...(dto.status === 'PAID' ? { paidAt: new Date() } : {}),
+        ...(dto.status !== undefined && dto.status !== 'PAID' ? { paidAt: null } : {}),
+        ...(dto.note !== undefined ? { note: dto.note.trim() || null } : {}),
+      },
+    });
+  }
+
+  async removeInstallment(userId: string, id: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const row = await this.prisma.eduInstallment.findFirst({
+      where: { id, workspaceId },
+      select: { id: true },
+    });
+    if (!row) throw new NotFoundException('قسط پیدا نشد');
+    await this.prisma.eduInstallment.delete({ where: { id } });
+    return { id };
+  }
+
+  /** Installments due within 7 days or already overdue. */
+  async installmentReminders(userId: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const soon = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    return this.prisma.eduInstallment.findMany({
+      where: { workspaceId, status: 'PENDING', dueDate: { lte: soon } },
+      include: {
+        enrollment: {
+          select: {
+            student: { select: { id: true, fullName: true, guardianPhone: true } },
+            class: { select: { id: true, title: true } },
+          },
+        },
+      },
+      orderBy: { dueDate: 'asc' },
+      take: 300,
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  //  Class waitlist
+  // -------------------------------------------------------------------------
+
+  async listWaitlist(userId: string, classId?: string) {
+    const workspaceId = await this.workspaceId(userId);
+    return this.prisma.eduWaitlist.findMany({
+      where: { workspaceId, ...(classId ? { classId } : {}) },
+      include: { class: { select: { id: true, title: true, capacity: true } } },
+      orderBy: { createdAt: 'asc' },
+      take: 300,
+    });
+  }
+
+  async createWaitlist(userId: string, dto: CreateWaitlistDto) {
+    const workspaceId = await this.workspaceId(userId);
+    await this.klass(workspaceId, dto.classId);
+    if (dto.studentId) await this.student(workspaceId, dto.studentId);
+    return this.prisma.eduWaitlist.create({
+      data: {
+        workspaceId,
+        classId: dto.classId,
+        studentId: dto.studentId ?? null,
+        name: dto.name.trim(),
+        phone: dto.phone?.trim() || null,
+        note: dto.note?.trim() || null,
+      },
+    });
+  }
+
+  async updateWaitlist(userId: string, id: string, dto: UpdateWaitlistDto) {
+    const workspaceId = await this.workspaceId(userId);
+    const row = await this.prisma.eduWaitlist.findFirst({ where: { id, workspaceId } });
+    if (!row) throw new NotFoundException('عضو فهرست انتظار پیدا نشد');
+    return this.prisma.eduWaitlist.update({
+      where: { id },
+      data: {
+        ...(dto.status !== undefined ? { status: dto.status } : {}),
+        ...(dto.note !== undefined ? { note: dto.note.trim() || null } : {}),
+      },
+    });
+  }
+
+  async removeWaitlist(userId: string, id: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const row = await this.prisma.eduWaitlist.findFirst({
+      where: { id, workspaceId },
+      select: { id: true },
+    });
+    if (!row) throw new NotFoundException('عضو فهرست انتظار پیدا نشد');
+    await this.prisma.eduWaitlist.delete({ where: { id } });
+    return { id };
+  }
+
+  // -------------------------------------------------------------------------
+  //  Student / guardian self-service panel (token based)
+  // -------------------------------------------------------------------------
+
+  async ensureStudentToken(userId: string, studentId: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const student = await this.student(workspaceId, studentId);
+    if (student.accessToken) return { token: student.accessToken };
+    const token = randomUUID();
+    await this.prisma.eduStudent.update({
+      where: { id: studentId },
+      data: { accessToken: token },
+    });
+    return { token };
+  }
+
+  async studentPanel(token: string) {
+    const student = await this.prisma.eduStudent.findUnique({
+      where: { accessToken: token },
+      include: {
+        workspace: { select: { name: true } },
+        enrollments: {
+          orderBy: { createdAt: 'desc' },
+          include: {
+            class: { select: { id: true, title: true, coachName: true, location: true } },
+            installments: { orderBy: { dueDate: 'asc' } },
+            progress: {
+              orderBy: { date: 'desc' },
+              take: 20,
+              select: {
+                id: true,
+                date: true,
+                topic: true,
+                homework: true,
+                feedback: true,
+                mediaUrl: true,
+                nextGoal: true,
+              },
+            },
+            payments: {
+              orderBy: { createdAt: 'desc' },
+              take: 20,
+              select: {
+                id: true,
+                amount: true,
+                status: true,
+                trackingNumber: true,
+                createdAt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!student) throw new NotFoundException('هنرجو پیدا نشد');
+    const classIds = student.enrollments.map((row) => row.classId);
+    const upcoming = classIds.length
+      ? await this.prisma.eduSession.findMany({
+          where: {
+            classId: { in: classIds },
+            status: 'SCHEDULED',
+            scheduledAt: { gte: new Date() },
+          },
+          orderBy: { scheduledAt: 'asc' },
+          take: 20,
+          select: { id: true, classId: true, scheduledAt: true, topic: true },
+        })
+      : [];
+    return {
+      studio: student.workspace.name,
+      student: {
+        id: student.id,
+        fullName: student.fullName,
+        guardianName: student.guardianName,
+        level: student.level,
+      },
+      enrollments: student.enrollments.map((row) => ({
+        id: row.id,
+        class: row.class,
+        packageSessions: row.packageSessions,
+        usedSessions: row.usedSessions,
+        price: num(row.price),
+        discount: num(row.discount),
+        paidAmount: num(row.paidAmount),
+        status: row.status,
+        expiresAt: row.expiresAt,
+        installments: row.installments.map((item) => ({
+          id: item.id,
+          title: item.title,
+          amount: num(item.amount),
+          dueDate: item.dueDate,
+          status: item.status,
+        })),
+        progress: row.progress,
+        payments: row.payments.map((payment) => ({
+          ...payment,
+          amount: num(payment.amount),
+        })),
+      })),
+      upcoming,
+    };
+  }
+
+  async createStudentPayment(token: string, dto: StudentPaymentDto) {
+    const student = await this.prisma.eduStudent.findUnique({
+      where: { accessToken: token },
+      select: { id: true, workspaceId: true },
+    });
+    if (!student) throw new NotFoundException('هنرجو پیدا نشد');
+    const enrollment = await this.prisma.eduEnrollment.findFirst({
+      where: { id: dto.enrollmentId, studentId: student.id },
+      select: { id: true },
+    });
+    if (!enrollment) throw new BadRequestException('ثبت‌نام مرتبط پیدا نشد');
+    const trackingNumber = dto.trackingNumber?.trim() || null;
+    if (trackingNumber) {
+      const dup = await this.prisma.eduPayment.findFirst({
+        where: {
+          workspaceId: student.workspaceId,
+          trackingNumber,
+          status: { not: 'REJECTED' },
+        },
+        select: { id: true },
+      });
+      if (dup) throw new ConflictException('این شماره پیگیری قبلاً ثبت شده است');
+    }
+    return this.prisma.eduPayment.create({
+      data: {
+        workspaceId: student.workspaceId,
+        enrollmentId: enrollment.id,
+        amount: big(dto.amount) ?? 0n,
+        method: 'CARD_TO_CARD',
+        trackingNumber,
+        receiptUrl: dto.receiptUrl?.trim() || null,
+      },
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  //  Accountant CSV exports
+  // -------------------------------------------------------------------------
+
+  async exportPaymentsCsv(userId: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const rows = await this.prisma.eduPayment.findMany({
+      where: { workspaceId },
+      include: {
+        enrollment: {
+          select: {
+            student: { select: { fullName: true } },
+            class: { select: { title: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return this.toCsv(
+      ['هنرجو', 'کلاس', 'مبلغ', 'روش', 'شماره پیگیری', 'وضعیت', 'تاریخ'],
+      rows.map((row) => [
+        row.enrollment.student.fullName,
+        row.enrollment.class.title,
+        String(row.amount),
+        row.method,
+        row.trackingNumber ?? '',
+        row.status,
+        row.createdAt.toISOString().slice(0, 10),
+      ]),
+    );
+  }
+
+  async exportExpensesCsv(userId: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const rows = await this.prisma.eduExpense.findMany({
+      where: { workspaceId },
+      include: { class: { select: { title: true } } },
+      orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
+    });
+    return this.toCsv(
+      ['کلاس', 'عنوان', 'دسته', 'مبلغ', 'فروشنده', 'تاریخ'],
+      rows.map((row) => [
+        row.class?.title ?? 'عمومی',
+        row.title,
+        row.category ?? '',
+        String(row.amount),
+        row.vendor ?? '',
+        row.paidAt ? row.paidAt.toISOString().slice(0, 10) : '',
+      ]),
+    );
+  }
+
+  private toCsv(headers: string[], rows: string[][]): string {
+    const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    return '\uFEFF' + [headers, ...rows].map((row) => row.map(escape).join(',')).join('\r\n');
   }
 
   // -------------------------------------------------------------------------

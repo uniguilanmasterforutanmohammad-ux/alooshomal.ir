@@ -34,6 +34,8 @@ export const EDU_PAYMENT_METHODS = ['CARD_TO_CARD', 'CASH', 'TRANSFER'] as const
 export const EDU_PAYMENT_STATUSES = ['PENDING', 'APPROVED', 'REJECTED'] as const;
 export const EDU_SETTLEMENT_BASES = ['FIXED', 'PER_SESSION', 'PERCENT'] as const;
 export const EDU_SETTLEMENT_STATUSES = ['PENDING', 'SETTLED'] as const;
+export const EDU_INSTALLMENT_STATUSES = ['PENDING', 'PAID', 'CANCELLED'] as const;
+export const EDU_WAITLIST_STATUSES = ['WAITING', 'OFFERED', 'ENROLLED', 'CANCELLED'] as const;
 
 export class CreateClassDto {
   @ApiProperty({ example: 'گیتار مقدماتی', maxLength: 120 })
@@ -726,4 +728,165 @@ export class UpdateSettlementDto {
   @IsString()
   @MaxLength(1000)
   note?: string;
+}
+
+export class CreateInstallmentDto {
+  @ApiProperty()
+  @IsString()
+  enrollmentId!: string;
+
+  @ApiProperty({ maxLength: 120 })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  title!: string;
+
+  @ApiProperty({ minimum: 0 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  amount!: number;
+
+  @ApiProperty()
+  @IsDateString()
+  dueDate!: string;
+
+  @ApiPropertyOptional({ maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+}
+
+export class UpdateInstallmentDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  title?: string;
+
+  @ApiPropertyOptional({ minimum: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  amount?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsDateString()
+  dueDate?: string;
+
+  @ApiPropertyOptional({ enum: EDU_INSTALLMENT_STATUSES })
+  @IsOptional()
+  @IsIn(EDU_INSTALLMENT_STATUSES)
+  status?: (typeof EDU_INSTALLMENT_STATUSES)[number];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+}
+
+export class RecurringSessionDto {
+  @ApiProperty()
+  @IsString()
+  classId!: string;
+
+  @ApiProperty({ description: 'زمان اولین جلسه (ISO)' })
+  @IsDateString()
+  startAt!: string;
+
+  @ApiProperty({ minimum: 1, maximum: 52 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  count!: number;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 30, default: 7, description: 'فاصله‌ی روزها' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  intervalDays?: number;
+
+  @ApiPropertyOptional({ minimum: 15 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(15)
+  durationMin?: number;
+
+  @ApiPropertyOptional({ maxLength: 300 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(300)
+  topic?: string;
+}
+
+export class CreateWaitlistDto {
+  @ApiProperty()
+  @IsString()
+  classId!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  studentId?: string;
+
+  @ApiProperty({ maxLength: 120 })
+  @IsString()
+  @MinLength(2)
+  @MaxLength(120)
+  name!: string;
+
+  @ApiPropertyOptional({ maxLength: 30 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
+  phone?: string;
+
+  @ApiPropertyOptional({ maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+}
+
+export class UpdateWaitlistDto {
+  @ApiPropertyOptional({ enum: EDU_WAITLIST_STATUSES })
+  @IsOptional()
+  @IsIn(EDU_WAITLIST_STATUSES)
+  status?: (typeof EDU_WAITLIST_STATUSES)[number];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string;
+}
+
+export class StudentPaymentDto {
+  @ApiProperty()
+  @IsString()
+  enrollmentId!: string;
+
+  @ApiProperty({ minimum: 0 })
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  amount!: number;
+
+  @ApiPropertyOptional({ maxLength: 80 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  trackingNumber?: string;
+
+  @ApiPropertyOptional({ maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  receiptUrl?: string;
 }

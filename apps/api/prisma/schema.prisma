@@ -2111,6 +2111,8 @@ model BusinessWorkspace {
   eduPayments     EduPayment[]
   eduExpenses     EduExpense[]
   eduSettlements  EduCoachSettlement[]
+  eduInstallments EduInstallment[]
+  eduWaitlist     EduWaitlist[]
   cardAccount     CardToCardAccount?
   cardPayments    CardToCardPayment[]
   businessCards   BusinessCard[]
@@ -3067,6 +3069,7 @@ model EduClass {
   sessions    EduSession[]
   expenses    EduExpense[]
   settlements EduCoachSettlement[]
+  waitlist    EduWaitlist[]
 
   @@index([workspaceId, status])
   @@map("edu_classes")
@@ -3088,11 +3091,14 @@ model EduStudent {
   status        String    @default("ACTIVE")
   notes         String?
   nextActionAt  DateTime?
+  /// Opaque token for the public student/guardian panel (`/student/<token>`).
+  accessToken   String?   @unique
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   workspace   BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   enrollments EduEnrollment[]
+  waitlist    EduWaitlist[]
 
   @@index([workspaceId, status])
   @@map("edu_students")
@@ -3123,6 +3129,7 @@ model EduEnrollment {
   attendances EduAttendance[]
   payments    EduPayment[]
   progress    EduProgressNote[]
+  installments EduInstallment[]
 
   @@index([workspaceId, status])
   @@index([studentId])
@@ -3273,6 +3280,52 @@ model EduCoachSettlement {
 
   @@index([workspaceId, status])
   @@map("edu_coach_settlements")
+}
+
+/// A scheduled tuition installment for an enrollment (اقساط زمان‌بندی‌شده).
+model EduInstallment {
+  id           String    @id @default(cuid())
+  workspaceId  String
+  enrollmentId String
+  title        String
+  amount       BigInt
+  dueDate      DateTime
+  /// PENDING | PAID | CANCELLED
+  status       String    @default("PENDING")
+  paidAt       DateTime?
+  note         String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  workspace  BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  enrollment EduEnrollment     @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, dueDate])
+  @@index([enrollmentId])
+  @@map("edu_installments")
+}
+
+/// Waitlist entry for a full class (فهرست انتظار کلاس پر).
+model EduWaitlist {
+  id          String   @id @default(cuid())
+  workspaceId String
+  classId     String
+  studentId   String?
+  name        String
+  phone       String?
+  note        String?
+  /// WAITING | OFFERED | ENROLLED | CANCELLED
+  status      String   @default("WAITING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  class     EduClass          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student   EduStudent?       @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status])
+  @@index([classId])
+  @@map("edu_waitlist")
 }
 
 // ---------------------------------------------------------------------------

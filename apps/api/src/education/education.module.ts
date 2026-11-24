@@ -9,6 +9,7 @@ import { EduReportsController } from './edu-reports.controller';
 import { EduSessionsController } from './edu-sessions.controller';
 import { EduStudentsController } from './edu-students.controller';
 import { EduTuitionController } from './edu-tuition.controller';
+import { PublicEducationController } from './public-education.controller';
 import { EducationService } from './education.service';
 
 @Module({
@@ -22,6 +23,7 @@ import { EducationService } from './education.service';
     EduTuitionController,
     EduFinanceController,
     EduReportsController,
+    PublicEducationController,
   ],
   providers: [EducationService],
   exports: [EducationService],

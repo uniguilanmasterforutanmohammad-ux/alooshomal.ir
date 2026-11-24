@@ -41,6 +41,12 @@ export class EduStudentsController {
     return this.education.createStudent(user.id, dto);
   }
 
+  @Post(':id/access-token')
+  @ApiOperation({ summary: 'ساخت/بازگرداندن توکن پنل هنرجو/ولی' })
+  accessToken(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.education.ensureStudentToken(user.id, id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'جزئیات هنرجو همراه ثبت‌نام‌ها، پرداخت‌ها و پیشرفت' })
   find(@CurrentUser() user: AuthUser, @Param('id') id: string) {

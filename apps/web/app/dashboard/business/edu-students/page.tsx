@@ -26,7 +26,7 @@ export default function EduStudentsPage() {
   const [enrollments, setEnrollments] = useState<EduEnrollment[]>([]);
   const [form, setForm] = useState(emptyStudent);
   const [enrollForm, setEnrollForm] = useState({ studentId: '', classId: '', packageSessions: '' });
-  const [progressForm, setProgressForm] = useState({ enrollmentId: '', topic: '', homework: '', feedback: '' });
+  const [progressForm, setProgressForm] = useState({ enrollmentId: '', topic: '', homework: '', feedback: '', mediaUrl: '' });
 
   const load = useCallback(async () => {
     const [s, c, e] = await Promise.all([
@@ -62,6 +62,17 @@ export default function EduStudentsPage() {
     toast.success('هنرجو ثبت شد');
   }
 
+  async function makeStudentLink(student: EduStudent) {
+    const result = await api.post<{ token: string }>(`/edu-students/${student.id}/access-token`);
+    const url = `${window.location.origin}/student/${result.token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('لینک پنل هنرجو/ولی کپی شد');
+    } catch {
+      toast.info(url);
+    }
+  }
+
   async function enroll(event: React.FormEvent) {
     event.preventDefault();
     if (!enrollForm.studentId || !enrollForm.classId) return;
@@ -83,8 +94,9 @@ export default function EduStudentsPage() {
       topic: progressForm.topic.trim(),
       homework: progressForm.homework.trim() || undefined,
       feedback: progressForm.feedback.trim() || undefined,
+      mediaUrl: progressForm.mediaUrl.trim() || undefined,
     });
-    setProgressForm({ enrollmentId: '', topic: '', homework: '', feedback: '' });
+    setProgressForm({ enrollmentId: '', topic: '', homework: '', feedback: '', mediaUrl: '' });
     toast.success('یادداشت پیشرفت ثبت شد');
   }
 
@@ -132,6 +144,7 @@ export default function EduStudentsPage() {
           <input className={field} placeholder="موضوع جلسه" value={progressForm.topic} onChange={(e) => setProgressForm((p) => ({ ...p, topic: e.target.value }))} required />
           <input className={field} placeholder="تمرین تا جلسه‌ی بعد" value={progressForm.homework} onChange={(e) => setProgressForm((p) => ({ ...p, homework: e.target.value }))} />
           <input className={field} placeholder="بازخورد برای هنرجو/ولی" value={progressForm.feedback} onChange={(e) => setProgressForm((p) => ({ ...p, feedback: e.target.value }))} />
+          <input className={field} placeholder="لینک عکس/ویدئو (اختیاری)" value={progressForm.mediaUrl} onChange={(e) => setProgressForm((p) => ({ ...p, mediaUrl: e.target.value }))} />
           <button type="submit" className="indeed-btn indeed-btn-primary">ثبت یادداشت</button>
         </form>
       </div>
@@ -152,6 +165,11 @@ export default function EduStudentsPage() {
               </span>
             </div>
             {student.goal ? <p className="mt-1 text-xs text-muted">هدف: {student.goal}</p> : null}
+            <div className="mt-1">
+              <button type="button" className="indeed-btn indeed-btn-ghost text-xs" onClick={() => void makeStudentLink(student)}>
+                لینک پنل هنرجو/ولی
+              </button>
+            </div>
             {student.enrollments && student.enrollments.length > 0 ? (
               <ul className="mt-2 flex flex-col gap-1 text-[11px] text-muted">
                 {student.enrollments.map((row) => (

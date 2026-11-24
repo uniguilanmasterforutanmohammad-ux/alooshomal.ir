@@ -17,6 +17,7 @@ import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorat
 import {
   CreateSessionDto,
   RecordAttendanceDto,
+  RecurringSessionDto,
   UpdateSessionDto,
 } from './dto/education.dto';
 import { EducationService } from './education.service';
@@ -45,6 +46,18 @@ export class EduSessionsController {
   @ApiOperation({ summary: 'زمان‌بندی جلسه‌ی جدید' })
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateSessionDto) {
     return this.education.createSession(user.id, dto);
+  }
+
+  @Post('recurring')
+  @ApiOperation({ summary: 'زمان‌بندی تکرارشونده‌ی جلسات با بررسی تداخل سالن' })
+  recurring(@CurrentUser() user: AuthUser, @Body() dto: RecurringSessionDto) {
+    return this.education.createRecurringSessions(user.id, dto);
+  }
+
+  @Get('reminders')
+  @ApiOperation({ summary: 'جلسات ۴۸ ساعت آینده برای یادآوری' })
+  reminders(@CurrentUser() user: AuthUser) {
+    return this.education.sessionReminders(user.id);
   }
 
   @Patch(':id')

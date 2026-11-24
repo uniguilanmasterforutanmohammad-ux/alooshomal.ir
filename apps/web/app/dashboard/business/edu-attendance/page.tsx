@@ -50,6 +50,8 @@ export default function EduAttendancePage() {
   const [selected, setSelected] = useState<EduSession | null>(null);
   const [rows, setRows] = useState<AttendanceRow[]>([]);
   const [form, setForm] = useState({ scheduledAt: '', topic: '' });
+  const [reminders, setReminders] = useState<EduSession[]>([]);
+  const [recurring, setRecurring] = useState({ startAt: '', count: '8', intervalDays: '7' });
 
   const loadSessions = useCallback(async (id: string) => {
     if (!id) return;
@@ -77,6 +79,7 @@ export default function EduAttendancePage() {
         void loadSessions(list[0].id);
       }
     });
+    api.get<EduSession[]>('/edu-sessions/reminders').then(setReminders).catch(() => undefined);
   }, [hydrated, token, router, enabled, loadSessions]);
 
   async function createSession(event: React.FormEvent) {
@@ -98,6 +101,20 @@ export default function EduAttendancePage() {
     if (selected?.id === session.id) void loadAttendance(session.id);
   }
 
+  async function createRecurring(event: React.FormEvent) {
+    event.preventDefault();
+    if (!classId || !recurring.startAt) return;
+    const result = await api.post<{ created: number }>('/edu-sessions/recurring', {
+      classId,
+      startAt: new Date(recurring.startAt).toISOString(),
+      count: Number(recurring.count) || 1,
+      intervalDays: Number(recurring.intervalDays) || 7,
+    });
+    setRecurring((p) => ({ ...p, startAt: '' }));
+    await loadSessions(classId);
+    toast.success(`${result.created} جلسه زمان‌بندی شد`);
+  }
+
   async function record(enrollmentId: string, status: string) {
     if (!selected) return;
     await api.post(`/edu-sessions/${selected.id}/attendance`, { enrollmentId, status });
@@ -115,6 +132,20 @@ export default function EduAttendancePage() {
       </div>
 
       {workspace ? <BusinessPanelNav modules={workspace.modules} /> : null}
+
+      {reminders.length > 0 ? (
+        <section className="indeed-panel p-4">
+          <h2 className="mb-2 text-sm font-extrabold text-ink">یادآوری جلسات ۴۸ ساعت آینده</h2>
+          <ul className="flex flex-col gap-1 text-xs">
+            {reminders.map((session) => (
+              <li key={session.id} className="flex items-center justify-between gap-2">
+                <span>{session.class?.title ?? '—'} • {session.topic ?? 'جلسه'}</span>
+                <span className="text-muted">{dateLabel(session.scheduledAt)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <select
         className={field}
@@ -134,6 +165,13 @@ export default function EduAttendancePage() {
         <input className={field} type="datetime-local" value={form.scheduledAt} onChange={(e) => setForm((p) => ({ ...p, scheduledAt: e.target.value }))} required />
         <input className={field} placeholder="موضوع جلسه" value={form.topic} onChange={(e) => setForm((p) => ({ ...p, topic: e.target.value }))} />
         <button type="submit" className="indeed-btn indeed-btn-primary"><Plus className="size-4" aria-hidden /> افزودن جلسه</button>
+      </form>
+
+      <form onSubmit={createRecurring} className="indeed-panel grid gap-2 p-4 md:grid-cols-4">
+        <input className={field} type="datetime-local" value={recurring.startAt} onChange={(e) => setRecurring((p) => ({ ...p, startAt: e.target.value }))} required />
+        <input className={field} type="number" min={1} max={52} placeholder="تعداد جلسات" value={recurring.count} onChange={(e) => setRecurring((p) => ({ ...p, count: e.target.value }))} />
+        <input className={field} type="number" min={1} max={30} placeholder="هر چند روز" value={recurring.intervalDays} onChange={(e) => setRecurring((p) => ({ ...p, intervalDays: e.target.value }))} />
+        <button type="submit" className="indeed-btn indeed-btn-ghost">زمان‌بندی تکرارشونده</button>
       </form>
 
       <div className="grid gap-3 md:grid-cols-2">

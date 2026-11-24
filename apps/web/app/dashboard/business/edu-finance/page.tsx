@@ -98,6 +98,23 @@ export default function EduFinancePage() {
 
       {workspace ? <BusinessPanelNav modules={workspace.modules} /> : null}
 
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className="indeed-btn indeed-btn-ghost text-xs"
+          onClick={() => void api.download('/edu-finance/export/expenses', 'edu-expenses.csv')}
+        >
+          خروجی CSV هزینه‌ها
+        </button>
+        <button
+          type="button"
+          className="indeed-btn indeed-btn-ghost text-xs"
+          onClick={() => void api.download('/edu-tuition/export/payments', 'edu-payments.csv')}
+        >
+          خروجی CSV پرداخت‌ها
+        </button>
+      </div>
+
       <div className="grid gap-3 md:grid-cols-2">
         <form onSubmit={addExpense} className="indeed-panel grid gap-2 p-4">
           <h2 className="text-sm font-extrabold text-ink">هزینه‌ی کلاس</h2>

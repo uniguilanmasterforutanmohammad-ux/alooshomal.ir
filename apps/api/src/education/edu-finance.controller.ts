@@ -7,8 +7,10 @@ import {
   Patch,
   Post,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { BusinessModuleGuard } from '../business-modules/business-module.guard';
@@ -73,5 +75,14 @@ export class EduFinanceController {
   @ApiOperation({ summary: 'حذف تسویه' })
   removeSettlement(@CurrentUser() user: AuthUser, @Param('id') id: string) {
     return this.education.removeSettlement(user.id, id);
+  }
+
+  @Get('export/expenses')
+  @ApiOperation({ summary: 'خروجی CSV هزینه‌های آموزشگاه (حسابداری/اکسل)' })
+  async exportExpenses(@CurrentUser() user: AuthUser, @Res() res: Response) {
+    const csv = await this.education.exportExpensesCsv(user.id);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="edu-expenses.csv"');
+    res.send(csv);
   }
 }

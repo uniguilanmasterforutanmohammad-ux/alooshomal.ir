@@ -1029,10 +1029,24 @@ PY
 | `GET/POST` | `/edu-finance/settlements` | فهرست/ثبت تسویه‌ی مربی (ثابت/جلسه‌ای/درصدی). |
 | `PATCH/DELETE` | `/edu-finance/settlements/:id` | تغییر وضعیت/مبلغ یا حذف تسویه. |
 | `GET` | `/edu-reports/overview` | داشبورد: ظرفیت، نرخ حضور، مطالبات/وصولی، بسته‌ی رو به اتمام و سود هر کلاس. |
+| `POST` | `/edu-students/:id/access-token` | ساخت/بازگرداندن توکن پنل هنرجو/ولی (`/student/<token>`). |
+| `GET` | `/edu-sessions/reminders` | جلسات ۴۸ ساعت آینده برای یادآوری. |
+| `POST` | `/edu-sessions/recurring` | زمان‌بندی تکرارشونده (تعداد/فاصله‌ی روز) با بررسی تداخل سالن (۴۰۹). |
+| `GET/POST` | `/edu-enrollments/waitlist` | فهرست/افزودن به فهرست انتظار کلاس پر. |
+| `PATCH/DELETE` | `/edu-enrollments/waitlist/:id` | تغییر وضعیت (`WAITING`/`OFFERED`/`ENROLLED`/`CANCELLED`) یا حذف. |
+| `GET/POST` | `/edu-tuition/installments` | فهرست (فیلتر ثبت‌نام)/زمان‌بندی قسط شهریه. |
+| `PATCH/DELETE` | `/edu-tuition/installments/:id` | ویرایش/علامت‌گذاری پرداخت (`PAID`) یا حذف قسط. |
+| `GET` | `/edu-tuition/reminders` | اقساط سررسیدشده یا نزدیک سررسید (۷ روز). |
+| `GET` | `/edu-tuition/export/payments` | خروجی CSV پرداخت‌های شهریه (UTF-8 BOM، سازگار با اکسل). |
+| `GET` | `/edu-finance/export/expenses` | خروجی CSV هزینه‌های آموزشگاه (UTF-8 BOM، سازگار با اکسل). |
+| `GET` | `/public/edu/student/:token` | (عمومی) پنل هنرجو/ولی: ثبت‌نام‌ها، جلسات پیش‌رو، اقساط، پرداخت‌ها و پیشرفت (بدون یادداشت خصوصی). |
+| `POST` | `/public/edu/student/:token/payments` | (عمومی) ثبت رسید شهریه توسط هنرجو/ولی؛ تکرار `trackingNumber` با ۴۰۹ رد می‌شود. |
 
 پرداخت شهریه و مصرف اعتبار جلسات جدا ثبت می‌شوند: تأیید رسید فقط
 `paidAmount` را تغییر می‌دهد و حضور/غیبت با `consumesCredit` اعتبار بسته را
-کم می‌کند. مبالغ با `BigInt` ذخیره می‌شوند. ماژول‌ها با سوئیچ‌های
+کم می‌کند. زمان‌بندی جلسه در صورت تداخل سالن (`location` کلاس) با ۴۰۹ رد
+می‌شود. پنل عمومی هنرجو با توکن تصادفی (`accessToken`) کار می‌کند و یادداشت
+خصوصی مربی (`privateNote`) هرگز نمایش داده نمی‌شود. مبالغ با `BigInt` ذخیره می‌شوند. ماژول‌ها با سوئیچ‌های
 `featureEduClasses`، `featureEduStudents`، `featureEduAttendance`،
 `featureEduTuition`، `featureEduFinance` و `featureEduReports` کنترل می‌شوند
 و بسته‌ی «مربیان و آموزشگاه» (`education`) در کاتالوگ مدیریت‌ها ثبت شده است.

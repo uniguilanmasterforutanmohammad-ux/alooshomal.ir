@@ -769,6 +769,7 @@ export interface EduStudent {
   status: 'ACTIVE' | 'INACTIVE' | string;
   notes: string | null;
   nextActionAt: string | null;
+  accessToken: string | null;
   createdAt: string;
   updatedAt: string;
   enrollments?: EduEnrollment[];
@@ -794,6 +795,7 @@ export interface EduEnrollment {
   class?: { id: string; title: string; capacity?: number; sessionsPerPackage?: number };
   payments?: EduPayment[];
   progress?: EduProgressNote[];
+  installments?: EduInstallment[];
 }
 
 export interface EduSession {
@@ -995,4 +997,69 @@ export interface PublicProperty {
   features: string[];
   agency: string;
   publishedAt: string | null;
+}
+
+export interface EduInstallment {
+  id: string;
+  workspaceId: string;
+  enrollmentId: string;
+  title: string;
+  amount: number;
+  dueDate: string;
+  status: 'PENDING' | 'PAID' | 'CANCELLED' | string;
+  paidAt: string | null;
+  note: string | null;
+  enrollment?: {
+    id: string;
+    student?: { id: string; fullName: string };
+    class?: { id: string; title: string };
+  };
+}
+
+export interface EduWaitlist {
+  id: string;
+  workspaceId: string;
+  classId: string;
+  studentId: string | null;
+  name: string;
+  phone: string | null;
+  note: string | null;
+  status: 'WAITING' | 'OFFERED' | 'ENROLLED' | 'CANCELLED' | string;
+  createdAt: string;
+  updatedAt: string;
+  class?: { id: string; title: string; capacity: number };
+}
+
+export interface PublicStudentPanel {
+  studio: string;
+  student: { id: string; fullName: string; guardianName: string | null; level: string | null };
+  enrollments: Array<{
+    id: string;
+    class: { id: string; title: string; coachName: string | null; location: string | null };
+    packageSessions: number;
+    usedSessions: number;
+    price: number;
+    discount: number;
+    paidAmount: number;
+    status: string;
+    expiresAt: string | null;
+    installments: Array<{ id: string; title: string; amount: number; dueDate: string; status: string }>;
+    progress: Array<{
+      id: string;
+      date: string;
+      topic: string | null;
+      homework: string | null;
+      feedback: string | null;
+      mediaUrl: string | null;
+      nextGoal: string | null;
+    }>;
+    payments: Array<{
+      id: string;
+      amount: number;
+      status: string;
+      trackingNumber: string | null;
+      createdAt: string;
+    }>;
+  }>;
+  upcoming: Array<{ id: string; classId: string; scheduledAt: string; topic: string | null }>;
 }
