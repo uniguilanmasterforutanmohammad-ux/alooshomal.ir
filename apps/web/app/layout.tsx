@@ -113,11 +113,14 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <body>
+        {/* Runs before paint so the page never flashes light before switching
+            to dark. Kept outside the client `FeaturesProvider` boundary so
+            React does not try to render a <script> on the client. */}
+        <ThemeScript />
         {/* Site-wide entity graph (Organization + WebSite + SearchAction) so
             every page links to the same brand entity for search/AI engines. */}
         <JsonLd data={siteJsonLd()} />
         <FeaturesProvider initial={features}>
-          <ThemeScript />
           <ThemeSync />
           {/* The hero text (the LCP element) is painted in Shabnam, which is
               otherwise only discovered after the render-blocking CSS arrives —
