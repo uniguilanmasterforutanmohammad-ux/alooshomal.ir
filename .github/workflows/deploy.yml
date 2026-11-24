@@ -165,7 +165,11 @@ jobs:
           target: ${{ vars.DEPLOY_PATH || '/var/www/alooshomal.ir' }}
           overwrite: true
 
-      - name: Pull new images and restart services
+      # Pulls happen on the server; if GitHub's blob CDN is unreachable from
+      # there (TLS handshake timeouts), the next step transfers the missing
+      # images from this runner over SSH instead, so a flaky server->CDN path
+      # cannot block a deploy.
+      - name: Pull images on server (best effort)
         uses: appleboy/ssh-action@v1.2.0
         env:
           # Prefer a repo PAT when the admin configured one; otherwise the
@@ -179,9 +183,11 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: ${{ secrets.SERVER_PORT }}
           envs: GHCR_USER,GHCR_TOKEN
+          command_timeout: 30m
           script: |
             set -e
             cd ${{ vars.DEPLOY_PATH || '/var/www/alooshomal.ir' }}
+            : > /tmp/alooshomal-pull-failed.txt
 
             # The production compose file fails closed when a critical secret is
             # missing (no insecure defaults). Older servers predate some of
@@ -238,13 +244,13 @@ jobs:
             pull_image() {
               img="$1"
               attempt=1
-              while [ "$attempt" -le 10 ]; do
+              while [ "$attempt" -le 5 ]; do
                 if docker pull "$img"; then
                   return 0
                 fi
                 delay=$((attempt * 5))
-                [ "$delay" -gt 30 ] && delay=30
-                echo "pull failed for ${img} (attempt ${attempt}/10); retrying in ${delay}s..." >&2
+                [ "$delay" -gt 20 ] && delay=20
+                echo "pull failed for ${img} (attempt ${attempt}/5); retrying in ${delay}s..." >&2
                 sleep "$delay"
                 attempt=$((attempt + 1))
               done
@@ -255,13 +261,67 @@ jobs:
             for img in $images; do
               pull_image "$img" || failed_images="${failed_images} ${img}"
             done
-            if [ -n "$failed_images" ]; then
-              echo "GHCR pull failed for:${failed_images}" >&2
-              echo "If this is a TLS handshake timeout, the server cannot reach pkg-containers.githubusercontent.com; check its DNS/IPv6/MTU. If it is 'denied', make the api/web/minio packages public or set GHCR_PAT with read:packages." >&2
+            for img in $failed_images; do
+              echo "$img" >> /tmp/alooshomal-pull-failed.txt
+            done
+            if [ -s /tmp/alooshomal-pull-failed.txt ]; then
+              echo "GHCR pull failed for:" >&2
+              cat /tmp/alooshomal-pull-failed.txt >&2
+              echo "The next step will transfer these images from the CI runner over SSH." >&2
+            else
+              echo "All images pulled from GHCR."
+            fi
+
+      - name: Transfer failed images from the runner over SSH
+        env:
+          HOST: ${{ secrets.SERVER_HOST }}
+          PORT: ${{ secrets.SERVER_PORT }}
+          SSH_USER: ${{ secrets.SERVER_USER }}
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "${{ secrets.SERVER_SSH_KEY }}" > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
+          ssh_opts=(-i "$HOME/.ssh/deploy_key" -p "${PORT:-22}"
+                    -o StrictHostKeyChecking=accept-new
+                    -o ServerAliveInterval=30 -o ServerAliveCountMax=20)
+          remote() { ssh "${ssh_opts[@]}" "${SSH_USER}@${HOST}" "$@"; }
+
+          failed=$(remote 'cat /tmp/alooshomal-pull-failed.txt 2>/dev/null' || true)
+          if [ -z "${failed//[[:space:]]/}" ]; then
+            echo "Nothing to transfer: every image came from GHCR."
+            exit 0
+          fi
+
+          echo "Transferring over SSH:"; echo "$failed"
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+          trap 'docker logout ghcr.io >/dev/null 2>&1 || true' EXIT
+
+          for img in $failed; do
+            echo "::group::Transfer $img"
+            docker pull "$img"
+            docker save "$img" | gzip -1 | remote 'gunzip | docker load'
+            echo "::endgroup::"
+          done
+          remote ': > /tmp/alooshomal-pull-failed.txt'
+
+      - name: Restart services and verify health
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            set -e
+            cd ${{ vars.DEPLOY_PATH || '/var/www/alooshomal.ir' }}
+            if [ -s /tmp/alooshomal-pull-failed.txt ]; then
+              echo "Images still missing after transfer:" >&2
+              cat /tmp/alooshomal-pull-failed.txt >&2
               exit 1
             fi
-            # Everything is already pulled above; this only verifies compose is satisfied.
-            COMPOSE_PARALLEL_LIMIT=1 docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
             # Wait for the API and web healthchecks to pass before finishing.
