@@ -108,6 +108,9 @@ export function DirectoryBiolinkContent({
 
   return (
     <main className="container-page py-6 directory-shell">
+      {/* The visual design starts with the filters, but every page needs one
+          h1 for screen readers and search engines. */}
+      <h1 className="sr-only">بیولینک‌های کسب‌وکارها و افراد شمال</h1>
       {allowedViews.length > 1 ? (
         <div className="mb-5 flex shrink-0 justify-end">
           <DirectoryViewSwitch

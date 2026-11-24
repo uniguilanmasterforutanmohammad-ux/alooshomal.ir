@@ -68,7 +68,7 @@ function AuthPageContent() {
   }, [methodsLoaded, phoneLoginEnabled, emailLoginEnabled, mode]);
 
   return (
-    <div className="container-page flex min-h-screen items-center justify-center py-12">
+    <main className="container-page flex min-h-screen items-center justify-center py-12">
       <div className="indeed-panel w-full max-w-md p-8">
         <Link
           href="/"
@@ -136,7 +136,7 @@ function AuthPageContent() {
         {isDev ? <DevAdminLogin next={next} identity={devAdmin} /> : null}
 
       </div>
-    </div>
+    </main>
   );
 }
 

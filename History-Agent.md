@@ -20,13 +20,37 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.81.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.81.3**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — افزودن `h1` و لندمارک `<main>` به صفحات بی‌سرصفحه — نسخه `v4.81.3`
+
+**هدف:** رفع ایرادهای ساختاری دسترس‌پذیری که در بازبینی Playwright پیدا شد:
+صفحه‌های دایرکتوری `h1` نداشتند و صفحه‌های عمومی کارت/بیولینک و ورود، لندمارک
+`<main>` نداشتند.
+
+**تغییرات:**
+- `apps/web/components/businesscard/DirectoryBusinessCardContent.tsx` و
+  `apps/web/components/biolink/DirectoryBiolinkContent.tsx`: افزودن `h1`
+  با کلاس `sr-only` (طراحی بصری دست‌نخورده، اما یک تیتر برای screen reader و
+  موتور جست‌وجو).
+- `apps/web/components/businesscard/PublicBusinessCardView.tsx` و
+  `apps/web/components/biolink/PublicBiolinkView.tsx`: تبدیل ریشه‌ی صفحه از
+  `div` به `<main>`.
+- `apps/web/app/(auth)/login/page.tsx`: تبدیل پوسته‌ی صفحه‌ی ورود/ثبت‌نام به
+  `<main>`.
+
+**تأیید/تست:**
+- `tsc --noEmit` بدون خطا؛ ESLint روی فایل‌های تغییریافته ۰ خطا (فقط یک هشدار
+  از قبل موجود در `login/page.tsx`).
+- Playwright: `/business-cards` و `/biolinks` حالا یک `h1` دارند؛
+  `/business-cards/<slug>`، `/biolinks/<slug>` و `/login` هرکدام یک `<main>`
+  دارند؛ سرریز افقی صفر.
 
 ## ۱۴۰۵/۰۹/۰۳ — پاک‌سازی CSS مرده و بهبود دسترس‌پذیری/تایپوگرافی — نسخه `v4.81.2`
 

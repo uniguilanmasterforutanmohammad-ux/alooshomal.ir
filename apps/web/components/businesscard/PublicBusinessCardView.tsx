@@ -202,7 +202,7 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
   ].filter((entry): entry is BizCardSocial => Boolean(entry));
 
   return (
-    <div className="card-public-page record-page">
+    <main className="card-public-page record-page">
       <div className="record-page-inner">
         <div className="card-public-inner w-full max-w-[520px]">
           <PlanUpgradeNotice
@@ -363,6 +363,6 @@ export function PublicBusinessCardView({ businessCard, qr, link, like }: Props) 
           </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

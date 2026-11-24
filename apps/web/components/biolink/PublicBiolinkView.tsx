@@ -29,7 +29,7 @@ interface Props {
 export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
   const headline = biolink.jobTitle || biolink.company || biolink.fullName || 'بیولینک';
   return (
-    <div className="card-public-page record-page">
+    <main className="card-public-page record-page">
       <div className="record-page-inner">
         <div className="card-public-inner w-full max-w-[520px]">
           <PlanUpgradeNotice
@@ -136,6 +136,6 @@ export function PublicBiolinkView({ biolink, qr, link, like }: Props) {
           </p>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
