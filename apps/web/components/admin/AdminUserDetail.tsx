@@ -24,6 +24,8 @@ import type { FinanceInvoice } from '@/lib/api/types/finance';
 import { printInvoiceDocument } from '@/lib/invoice-print';
 import { cn } from '@/lib/utils';
 
+import { AdminUserBusinessModules } from './AdminUserBusinessModules';
+
 interface Counts {
   biolinks: number;
   businessCards: number;
@@ -1304,6 +1306,8 @@ export function AdminUserDetail({
           </div>
         ))}
       </div>
+
+      <AdminUserBusinessModules userId={user.id} />
 
       <Section title="اشتراک و پلن" count={data.subscriptions.length}>
         <DataTable

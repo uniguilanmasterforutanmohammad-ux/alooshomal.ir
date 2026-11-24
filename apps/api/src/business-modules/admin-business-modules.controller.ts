@@ -101,14 +101,19 @@ export class AdminBusinessModulesController {
   }
 
   @Get('workspaces')
-  @ApiOperation({ summary: 'فهرست کسب‌وکارها و ماژول‌های فعال هرکدام' })
+  @ApiOperation({
+    summary:
+      'فهرست کسب‌وکارها و ماژول‌های فعال هرکدام (جست‌وجو با q و فیلتر مالک با ownerId)',
+  })
   workspaces(
     @Query('q') q?: string,
     @Query('take') take?: string,
+    @Query('ownerId') ownerId?: string,
   ) {
     return this.modules.adminListWorkspaces({
       q,
       take: take ? Number.parseInt(take, 10) : undefined,
+      ownerId,
     });
   }
 

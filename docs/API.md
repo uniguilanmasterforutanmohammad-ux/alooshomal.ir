@@ -835,7 +835,7 @@ PY
 | `POST` | `/admin/business-modules/managements/:key/modules` | افزودن ماژول به مدیریت (`{ moduleKey }`). |
 | `DELETE` | `/admin/business-modules/managements/:key/modules/:moduleKey` | حذف ماژول از مدیریت (ماژول‌های پیش‌فرض مدیریت پایه حذف نمی‌شوند). |
 | `POST` | `/admin/business-modules/managements/:key/sync-payping` | ساخت/به‌روزرسانی محصول پی‌پینگ برای هر دوره (۱/۳/۶/۱۲ ماهه) با مبلغ همان دوره (در dev با شبیه‌ساز). |
-| `GET` | `/admin/business-modules/workspaces` | کسب‌وکارها و ماژول‌های هرکدام (جست‌وجو با `q`). |
+| `GET` | `/admin/business-modules/workspaces` | کسب‌وکارها و ماژول‌های هرکدام (جست‌وجو با `q` و فیلتر مالک با `ownerId`؛ صفحه‌ی کاربر در پنل ادمین از همین فیلتر استفاده می‌کند). |
 | `PATCH` | `/admin/business-modules/workspaces/:id/modules/:key` | فعال/غیرفعال‌کردن ماژول برای یک کسب‌وکار. |
 | `GET` | `/admin/business-modules/prices` | فهرست قیمت‌ها. |
 | `PATCH` | `/admin/business-modules/prices/:key` | تعیین قیمت ماهانه و فعال‌بودن یک ماژول. |

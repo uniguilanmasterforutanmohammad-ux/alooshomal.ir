@@ -2425,25 +2425,47 @@ export class BusinessModulesService implements OnModuleInit {
     }
   }
 
-  async adminListWorkspaces(query: { q?: string; take?: number }) {
+  async adminListWorkspaces(query: {
+    q?: string;
+    take?: number;
+    ownerId?: string;
+  }) {
     const take = clampLimit(query.take, 50, 200);
     const rows = await this.prisma.businessWorkspace.findMany({
-      where: query.q
-        ? {
-            OR: [
-              { name: { contains: query.q, mode: 'insensitive' } },
-              {
-                owner: {
-                  OR: [
-                    { fullName: { contains: query.q, mode: 'insensitive' } },
-                    { email: { contains: query.q, mode: 'insensitive' } },
-                    { phone: { contains: query.q, mode: 'insensitive' } },
-                  ],
+      where: {
+        ...(query.ownerId ? { ownerId: query.ownerId } : {}),
+        ...(query.q
+          ? {
+              OR: [
+                { name: { contains: query.q, mode: 'insensitive' as const } },
+                {
+                  owner: {
+                    OR: [
+                      {
+                        fullName: {
+                          contains: query.q,
+                          mode: 'insensitive' as const,
+                        },
+                      },
+                      {
+                        email: {
+                          contains: query.q,
+                          mode: 'insensitive' as const,
+                        },
+                      },
+                      {
+                        phone: {
+                          contains: query.q,
+                          mode: 'insensitive' as const,
+                        },
+                      },
+                    ],
+                  },
                 },
-              },
-            ],
-          }
-        : undefined,
+              ],
+            }
+          : {}),
+      },
       include: {
         owner: {
           select: { id: true, fullName: true, email: true, phone: true },

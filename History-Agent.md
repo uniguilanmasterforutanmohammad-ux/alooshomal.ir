@@ -20,13 +20,50 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.88.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.89.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — صفحه‌ی مدیریت هر ماژول کسب‌وکار و انتقال ماژول‌های هر کسب‌وکار به کاربران — نسخه `v4.89.0`
+
+**هدف:** در پنل ادمین «ماژول‌های کسب‌وکار»، با کلیک روی هر ماژول یک صفحه‌ی
+مدیریت اختصاصی (تنظیمات، قیمت، توضیح و مدیریت‌های شامل آن) باز شود و بخش
+«ماژول‌های هر کسب‌وکار» از این صفحه به صفحه‌ی جزئیات هر کاربر منتقل شود تا با
+کلیک روی نام کاربر، ماژول‌های کسب‌وکار او همان‌جا مدیریت شود.
+
+**تغییرات:**
+- `apps/web/components/admin/AdminBusinessModules.tsx`: کارت‌های ماژول کلیک‌پذیر
+  شدند و با کلیک، نمای جزئیات ماژول باز می‌شود؛ بخش «ماژول‌های هر کسب‌وکار» از
+  این پنل حذف شد.
+- `apps/web/components/admin/AdminBusinessModuleDetail.tsx`: صفحه‌ی مدیریت یک
+  ماژول شامل مشخصات و قابلیت‌ها، تنظیم قیمت/فعال‌بودن/توضیح و افزودن یا حذف
+  ماژول از هر «مدیریت کسب‌وکار».
+- `apps/web/components/admin/admin-business-modules.types.ts`: تایپ‌های مشترک
+  پنل ماژول‌های کسب‌وکار.
+- `apps/web/components/admin/AdminUserBusinessModules.tsx`: پنل «ماژول‌های
+  کسب‌وکار» در جزئیات کاربر با سوییچ فعال/غیرفعال هر ماژول برای هر کسب‌وکار.
+- `apps/web/components/admin/AdminUserDetail.tsx`: نمایش پنل ماژول‌های کسب‌وکار
+  در صفحه‌ی هر کاربر.
+- `apps/web/app/jga4rm8j/admin-console.ts`: به‌روزرسانی زیرعنوان بخش ماژول‌ها.
+- `apps/api/src/business-modules/business-modules.service.ts` و
+  `apps/api/src/business-modules/admin-business-modules.controller.ts`: افزودن
+  فیلتر اختیاری `ownerId` به `GET /admin/business-modules/workspaces`.
+- `docs/API.md`: مستندسازی پارامتر `ownerId`.
+
+**تأیید/تست:**
+- `./node_modules/.bin/tsc --noEmit` در `apps/web` و `docker compose exec api npx tsc --noEmit -p tsconfig.json` بدون خطا.
+- `./node_modules/.bin/eslint` روی فایل‌های تغییریافته بدون خطا/هشدار.
+- `python3 scripts/check_api_docs.py` → exit 0.
+- تست UI با `playwright-core` و `/usr/bin/google-chrome`: در `?section=business-modules`
+  بخش «ماژول‌های هر کسب‌وکار» حذف شده، ۲۷ کارت ماژول کلیک‌پذیر است و با کلیک
+  «تنظیمات ماژول» و «مدیریت‌های کسب‌وکار شامل این ماژول» نمایش داده می‌شود؛ در
+  `?section=users` با باز کردن کاربر دارای کسب‌وکار، پنل «ماژول‌های کسب‌وکار»
+  با ۲۷ سوییچ ماژول ظاهر شد و با کلیک، وضعیت تغییر و سپس بازگردانده شد.
+- `python3 scripts/sync_install.py --check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۳ — فاز دوم بسته‌ی «مربیان و آموزشگاه» — نسخه `v4.88.0`
 

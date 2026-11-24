@@ -6,7 +6,6 @@ import {
   Plus,
   RefreshCw,
   Save,
-  Search,
   Trash2,
   X,
 } from 'lucide-react';
@@ -15,69 +14,13 @@ import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 
-interface AdminModuleRow {
-  key: string;
-  label: string;
-  description: string;
-  group: string;
-  billable: boolean;
-  defaultEnabled: boolean;
-  price: number;
-  months: number;
-  priceActive: boolean;
-  priceDescription: string | null;
-  enabledWorkspaces: number;
-}
-
-interface AdminCatalog {
-  modules: AdminModuleRow[];
-  totals: { workspaces: number };
-}
-
-interface AdminManagementModule {
-  key: string;
-  label: string;
-  group: string;
-  billable: boolean;
-  defaultEnabled: boolean;
-  price: number;
-  months: number;
-  priceActive: boolean;
-}
-
-interface AdminManagement {
-  key: string;
-  label: string;
-  description: string;
-  available: boolean;
-  isBase: boolean;
-  categories: Array<{ id: string; name: string }>;
-  needsCategory: boolean;
-  modules: AdminManagementModule[];
-  totalPrice: number;
-  discounts: { 3: number; 6: number; 12: number };
-  terms: Array<{ months: 1 | 3 | 6 | 12; price: number; discount: number }>;
-  productCode: string | null;
-  productCodes: Record<string, string | null>;
-  lastSyncedAt: string | null;
-  simulated: boolean;
-}
-
-interface AdminCategory {
-  id: string;
-  name: string;
-  isActive: boolean;
-}
-
-interface AdminWorkspaceRow {
-  id: string;
-  name: string;
-  industryKey: string;
-  isDefault: boolean;
-  createdAt: string;
-  owner: { id: string; fullName: string | null; email: string | null; phone: string | null };
-  modules: Array<{ moduleKey: string; enabled: boolean; paidUntil: string | null }>;
-}
+import { AdminBusinessModuleDetail } from './AdminBusinessModuleDetail';
+import type {
+  AdminCatalog,
+  AdminCategory,
+  AdminManagement,
+  AdminModuleRow,
+} from './admin-business-modules.types';
 
 function formatToman(amount: number): string {
   return amount.toLocaleString('fa-IR');
@@ -96,10 +39,9 @@ export function AdminBusinessModules() {
   const [catalog, setCatalog] = useState<AdminCatalog | null>(null);
   const [managements, setManagements] = useState<AdminManagement[]>([]);
   const [categories, setCategories] = useState<AdminCategory[]>([]);
-  const [workspaces, setWorkspaces] = useState<AdminWorkspaceRow[]>([]);
-  const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [openModuleKey, setOpenModuleKey] = useState<string | null>(null);
   const [draft, setDraft] = useState<
     Record<string, { price: string; isActive: boolean }>
   >({});
@@ -131,13 +73,6 @@ export function AdminBusinessModules() {
         ]),
       ),
     );
-  }, []);
-
-  const loadWorkspaces = useCallback(async (q: string) => {
-    const data = await api.get<AdminWorkspaceRow[]>(
-      `/admin/business-modules/workspaces?take=80${q ? `&q=${encodeURIComponent(q)}` : ''}`,
-    );
-    setWorkspaces(data);
   }, []);
 
   const loadManagements = useCallback(async () => {
@@ -179,7 +114,6 @@ export function AdminBusinessModules() {
           loadCatalog(),
           loadManagements(),
           loadCategories(),
-          loadWorkspaces(''),
         ]);
       } catch {
         // toast already shown by the API client
@@ -187,7 +121,7 @@ export function AdminBusinessModules() {
         setLoading(false);
       }
     })();
-  }, [loadCatalog, loadManagements, loadCategories, loadWorkspaces]);
+  }, [loadCatalog, loadManagements, loadCategories]);
 
   const modulesByGroup = useMemo(() => {
     const groups = new Map<string, AdminModuleRow[]>();
@@ -372,37 +306,25 @@ export function AdminBusinessModules() {
     }
   }
 
-  async function toggleWorkspaceModule(
-    workspace: AdminWorkspaceRow,
-    moduleKey: string,
-    enabled: boolean,
-  ) {
-    setBusy(`${workspace.id}:${moduleKey}`);
-    try {
-      await api.patch(
-        `/admin/business-modules/workspaces/${workspace.id}/modules/${moduleKey}`,
-        { enabled },
-      );
-      setWorkspaces((rows) =>
-        rows.map((row) =>
-          row.id === workspace.id
-            ? {
-                ...row,
-                modules: [
-                  ...row.modules.filter((item) => item.moduleKey !== moduleKey),
-                  { moduleKey, enabled, paidUntil: null },
-                ],
-              }
-            : row,
-        ),
-      );
-    } finally {
-      setBusy(null);
-    }
-  }
-
   if (loading && !catalog) {
     return <p className="text-muted">در حال بارگذاری ماژول‌ها…</p>;
+  }
+
+  const openModule = openModuleKey
+    ? catalog?.modules.find((module) => module.key === openModuleKey)
+    : undefined;
+  if (openModule) {
+    return (
+      <AdminBusinessModuleDetail
+        key={openModule.key}
+        module={openModule}
+        managements={managements}
+        onBack={() => setOpenModuleKey(null)}
+        onChanged={async () => {
+          await Promise.all([loadCatalog(), loadManagements()]);
+        }}
+      />
+    );
   }
 
   return (
@@ -837,8 +759,8 @@ export function AdminBusinessModules() {
             ماژول‌ها و قیمت‌گذاری
           </h3>
           <p className="text-xs leading-6 text-muted">
-            قیمت ماهانه‌ی هر ماژول را تعیین کنید؛ قیمت ۰ یعنی فعال‌سازی رایگان.
-            دوره‌ها و تخفیف‌ها روی خود «مدیریت کسب‌وکار» تنظیم می‌شوند.
+            روی هر ماژول کلیک کنید تا صفحه‌ی مدیریت آن (تنظیمات، قیمت و
+            مدیریت‌هایی که شاملش هستند) باز شود. قیمت ۰ یعنی فعال‌سازی رایگان.
           </p>
         </div>
 
@@ -852,7 +774,16 @@ export function AdminBusinessModules() {
                   return (
                     <article
                       key={module.key}
-                      className="flex flex-col gap-2 rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-3"
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setOpenModuleKey(module.key)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          setOpenModuleKey(module.key);
+                        }
+                      }}
+                      className="flex cursor-pointer flex-col gap-2 rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-3 transition hover:border-brand hover:shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -877,7 +808,10 @@ export function AdminBusinessModules() {
                       </div>
 
                       <div>
-                        <label className="text-[10px] font-bold text-muted">
+                        <label
+                          onClick={(event) => event.stopPropagation()}
+                          className="text-[10px] font-bold text-muted"
+                        >
                           قیمت ماهانه (تومان)
                           <input
                             type="number"
@@ -898,7 +832,10 @@ export function AdminBusinessModules() {
                       </div>
 
                       <div className="mt-auto flex items-center justify-between gap-2">
-                        <label className="flex items-center gap-1.5 text-[10px] font-bold text-muted">
+                        <label
+                          onClick={(event) => event.stopPropagation()}
+                          className="flex items-center gap-1.5 text-[10px] font-bold text-muted"
+                        >
                           <input
                             type="checkbox"
                             checked={value?.isActive ?? false}
@@ -916,7 +853,10 @@ export function AdminBusinessModules() {
                         </label>
                         <button
                           type="button"
-                          onClick={() => void savePrice(module.key)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void savePrice(module.key);
+                          }}
                           disabled={busy === `price:${module.key}`}
                           className="indeed-btn indeed-btn-primary py-1.5 text-[11px] disabled:opacity-50"
                         >
@@ -930,92 +870,6 @@ export function AdminBusinessModules() {
               </div>
             </div>
           ))}
-        </div>
-      </section>
-
-      <section className="indeed-panel p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-sm font-extrabold text-ink">
-            ماژول‌های هر کسب‌وکار
-          </h3>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void loadWorkspaces(query.trim());
-            }}
-            className="flex items-center gap-2"
-          >
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="جست‌وجوی نام کسب‌وکار یا مالک"
-              className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-1.5 text-xs"
-            />
-            <button type="submit" className="indeed-btn text-xs">
-              <Search className="size-3.5" aria-hidden />
-              جست‌وجو
-            </button>
-          </form>
-        </div>
-        <div className="flex flex-col gap-3">
-          {workspaces.map((workspace) => {
-            const enabledKeys = new Set(
-              workspace.modules
-                .filter((item) => item.enabled)
-                .map((item) => item.moduleKey),
-            );
-            return (
-              <article
-                key={workspace.id}
-                className="rounded-xl border border-[var(--vintage-border)] p-3"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-bold text-ink">
-                      {workspace.name}
-                      {workspace.isDefault ? (
-                        <span className="mr-2 rounded-full bg-brand-light px-2 py-0.5 text-[10px] text-brand">
-                          پیش‌فرض
-                        </span>
-                      ) : null}
-                    </p>
-                    <p className="text-[11px] text-muted">
-                      {workspace.owner.fullName ?? '—'} ·{' '}
-                      {workspace.owner.email ?? workspace.owner.phone ?? '—'} ·{' '}
-                      {workspace.industryKey}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  {(catalog?.modules ?? []).map((module) => {
-                    const isOn = enabledKeys.has(module.key);
-                    const key = `${workspace.id}:${module.key}`;
-                    return (
-                      <button
-                        key={module.key}
-                        type="button"
-                        onClick={() =>
-                          void toggleWorkspaceModule(workspace, module.key, !isOn)
-                        }
-                        disabled={busy === key}
-                        className={cn(
-                          'rounded-full border px-2.5 py-1 text-[11px] font-bold transition disabled:opacity-50',
-                          isOn
-                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                            : 'border-[var(--vintage-border)] text-muted hover:text-ink',
-                        )}
-                      >
-                        {module.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </article>
-            );
-          })}
-          {workspaces.length === 0 ? (
-            <p className="text-sm text-muted">کسب‌وکاری پیدا نشد.</p>
-          ) : null}
         </div>
       </section>
     </div>
