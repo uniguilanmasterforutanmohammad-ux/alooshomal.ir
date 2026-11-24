@@ -24,4 +24,12 @@ export class PublicRetailController {
   order(@Param('slug') slug: string, @Body() dto: CreateOrderDto) {
     return this.retail.publicOrder(slug, dto);
   }
+
+  @Get(':slug/orders/:token')
+  @ApiOperation({
+    summary: 'پیگیری عمومی سفارش با لینک اختصاصی (توکن) و خط زمانی وضعیت',
+  })
+  track(@Param('slug') slug: string, @Param('token') token: string) {
+    return this.retail.publicOrderTracking(slug, token);
+  }
 }

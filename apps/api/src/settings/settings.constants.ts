@@ -506,6 +506,14 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     default: true,
   },
   {
+    key: 'featureRetailReports',
+    label: 'ماژول گزارش فروش و سود',
+    description:
+      'داشبورد فروش خالص، سود هر سفارش، واریزی‌های تطبیق‌نیافته و گزارش روزانه‌ی فروشگاه.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
     key: 'featureCardToCard',
     label: 'ماژول پرداخت کارت به کارت',
     description:

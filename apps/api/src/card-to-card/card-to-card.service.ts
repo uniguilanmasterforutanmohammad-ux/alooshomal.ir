@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -7,6 +8,7 @@ import {
 
 import { BusinessModulesService } from '../business-modules/business-modules.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { RetailService } from '../retail/retail.service';
 import { SettingsService } from '../settings/settings.service';
 import { ReviewCardPaymentDto } from './dto/review-payment.dto';
 import { SubmitCardPaymentDto } from './dto/submit-payment.dto';
@@ -26,6 +28,7 @@ export class CardToCardService {
     private readonly prisma: PrismaService,
     private readonly modules: BusinessModulesService,
     private readonly settings: SettingsService,
+    private readonly retail: RetailService,
   ) {}
 
   private async workspaceId(userId: string): Promise<string> {
@@ -87,47 +90,57 @@ export class CardToCardService {
     if (payment.status !== 'PENDING') {
       throw new BadRequestException('این رسید قبلاً بررسی شده است');
     }
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.cardToCardPayment.update({
-        where: { id },
-        data: {
-          status: dto.status,
-          reviewNote: dto.reviewNote?.trim() || null,
-          reviewedAt: new Date(),
-          reviewedBy: userId,
-        },
-      });
-      if (dto.status === 'APPROVED' && payment.referenceType === 'ORDER' && payment.referenceId) {
-        const order = await tx.retailOrder.findFirst({
-          where: { id: payment.referenceId, workspaceId },
-        });
-        if (order) {
-          await tx.retailOrder.update({
-            where: { id: order.id },
-            data: {
-              paymentStatus: 'PAID',
-              ...(order.status === 'PENDING' ? { status: 'CONFIRMED' } : {}),
-            },
-          });
-        }
-      }
-      if (
-        dto.status === 'APPROVED' &&
-        payment.referenceType === 'BOOKING' &&
-        payment.referenceId
-      ) {
-        const booking = await tx.accommodationBookingRequest.findFirst({
-          where: { id: payment.referenceId, workspaceId },
-        });
-        if (booking) {
-          await tx.accommodationBookingRequest.update({
-            where: { id: booking.id },
-            data: { depositStatus: 'PAID', depositPaidAt: new Date() },
-          });
-        }
-      }
-      return updated;
+    const updated = await this.prisma.cardToCardPayment.update({
+      where: { id },
+      data: {
+        status: dto.status,
+        reviewNote: dto.reviewNote?.trim() || null,
+        reviewedAt: new Date(),
+        reviewedBy: userId,
+      },
     });
+    if (payment.referenceType === 'ORDER' && payment.referenceId) {
+      if (dto.status === 'APPROVED') {
+        // Settles the order (payment status, timeline, invoice, CRM totals).
+        await this.retail.settleOrderPaid(
+          payment.referenceId,
+          workspaceId,
+          userId,
+        );
+      } else {
+        await this.prisma.retailOrder.updateMany({
+          where: { id: payment.referenceId, workspaceId },
+          data: { paymentStatus: 'UNPAID' },
+        });
+        await this.prisma.retailOrderEvent.create({
+          data: {
+            orderId: payment.referenceId,
+            workspaceId,
+            kind: 'PAYMENT_REJECTED',
+            fromStatus: 'PENDING_REVIEW',
+            toStatus: 'UNPAID',
+            note: dto.reviewNote?.trim() || null,
+            actorId: userId,
+          },
+        });
+      }
+    }
+    if (
+      dto.status === 'APPROVED' &&
+      payment.referenceType === 'BOOKING' &&
+      payment.referenceId
+    ) {
+      const booking = await this.prisma.accommodationBookingRequest.findFirst({
+        where: { id: payment.referenceId, workspaceId },
+      });
+      if (booking) {
+        await this.prisma.accommodationBookingRequest.update({
+          where: { id: booking.id },
+          data: { depositStatus: 'PAID', depositPaidAt: new Date() },
+        });
+      }
+    }
+    return updated;
   }
 
   // -------------------------------------------------------------------------
@@ -177,12 +190,14 @@ export class CardToCardService {
       throw new ForbiddenException('این کسب‌وکار هنوز شماره کارت ثبت نکرده است');
     }
 
+    let expectedAmount: number | null = null;
     if (dto.referenceType === 'ORDER' && dto.referenceId) {
       const order = await this.prisma.retailOrder.findFirst({
         where: { id: dto.referenceId, workspaceId: workspace.id },
-        select: { id: true },
+        select: { id: true, totalAmount: true },
       });
       if (!order) throw new BadRequestException('سفارش مرتبط پیدا نشد');
+      expectedAmount = order.totalAmount;
     }
     if (dto.referenceType === 'BOOKING' && dto.referenceId) {
       const booking = await this.prisma.accommodationBookingRequest.findFirst({
@@ -190,6 +205,23 @@ export class CardToCardService {
         select: { id: true },
       });
       if (!booking) throw new BadRequestException('رزرو مرتبط پیدا نشد');
+    }
+
+    const trackingNumber = dto.trackingNumber?.trim() || null;
+    if (trackingNumber) {
+      const duplicate = await this.prisma.cardToCardPayment.findFirst({
+        where: {
+          workspaceId: workspace.id,
+          trackingNumber,
+          status: { not: 'REJECTED' },
+        },
+        select: { id: true },
+      });
+      if (duplicate) {
+        throw new ConflictException(
+          'این شماره پیگیری قبلاً برای یک رسید دیگر ثبت شده است',
+        );
+      }
     }
 
     const payment = await this.prisma.cardToCardPayment.create({
@@ -200,8 +232,9 @@ export class CardToCardService {
         customerName: dto.customerName.trim(),
         customerPhone: dto.customerPhone.trim(),
         amount: dto.amount,
+        expectedAmount,
         paidAt: dto.paidAt ? new Date(dto.paidAt) : null,
-        trackingNumber: dto.trackingNumber?.trim() || null,
+        trackingNumber,
         receiptUrl: dto.receiptUrl,
         note: dto.note?.trim() || null,
       },
@@ -210,6 +243,16 @@ export class CardToCardService {
       await this.prisma.retailOrder.updateMany({
         where: { id: dto.referenceId, workspaceId: workspace.id },
         data: { paymentStatus: 'PENDING_REVIEW' },
+      });
+      await this.prisma.retailOrderEvent.create({
+        data: {
+          orderId: dto.referenceId,
+          workspaceId: workspace.id,
+          kind: 'PAYMENT_SUBMITTED',
+          fromStatus: 'UNPAID',
+          toStatus: 'PENDING_REVIEW',
+          note: trackingNumber ? `شماره پیگیری ${trackingNumber}` : null,
+        },
       });
     }
     return payment;

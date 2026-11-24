@@ -7,6 +7,8 @@ import {
 import { randomBytes } from 'node:crypto';
 
 import { BusinessModulesService } from '../business-modules/business-modules.service';
+import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
+import { FinanceService } from '../finance/finance.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -15,9 +17,27 @@ import {
   RetailProductStatus,
 } from './dto/create-product.dto';
 import type { PublicProductListDto } from './dto/public-product-list.dto';
+import type { UpsertShopSettingsDto } from './dto/shop-settings.dto';
 import { StockMovementDto } from './dto/stock-movement.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+
+const DELIVERY_METHODS = ['SNAP', 'PICKUP'] as const;
+
+/** Defaults used until the owner opens «تنظیمات فروشگاه» for the first time. */
+const DEFAULT_SHOP_SETTINGS = {
+  city: null as string | null,
+  neighborhoods: [] as string[],
+  deliveryFee: 0,
+  deliveryEnabled: true,
+  snapEnabled: true,
+  pickupEnabled: true,
+  pickupAddress: null as string | null,
+  pickupHours: null as string | null,
+  supportPhone: null as string | null,
+  returnPolicy: null as string | null,
+  reservationMinutes: 30,
+};
 
 @Injectable()
 export class RetailService {
@@ -25,6 +45,7 @@ export class RetailService {
     private readonly prisma: PrismaService,
     private readonly modules: BusinessModulesService,
     private readonly settings: SettingsService,
+    private readonly finance: FinanceService,
   ) {}
 
   private async workspaceId(userId: string): Promise<string> {
@@ -54,6 +75,61 @@ export class RetailService {
   private publishedAt(status: string, current: Date | null): Date | null {
     if (status !== 'PUBLISHED') return current;
     return current ?? new Date();
+  }
+
+  // -------------------------------------------------------------------------
+  //  Shop settings (sales area, pickup, support policy)
+  // -------------------------------------------------------------------------
+
+  private async shopSettingsOrDefault(workspaceId: string) {
+    const settings = await this.prisma.retailShopSettings.findUnique({
+      where: { workspaceId },
+    });
+    return settings ?? { workspaceId, ...DEFAULT_SHOP_SETTINGS };
+  }
+
+  async getShopSettings(userId: string) {
+    const workspaceId = await this.workspaceId(userId);
+    return this.shopSettingsOrDefault(workspaceId);
+  }
+
+  async updateShopSettings(userId: string, dto: UpsertShopSettingsDto) {
+    const workspaceId = await this.workspaceId(userId);
+    const neighborhoods = (dto.neighborhoods ?? [])
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const data = {
+      ...(dto.city !== undefined ? { city: dto.city.trim() || null } : {}),
+      ...(dto.neighborhoods !== undefined ? { neighborhoods } : {}),
+      ...(dto.deliveryFee !== undefined ? { deliveryFee: dto.deliveryFee } : {}),
+      ...(dto.deliveryEnabled !== undefined
+        ? { deliveryEnabled: dto.deliveryEnabled }
+        : {}),
+      ...(dto.snapEnabled !== undefined ? { snapEnabled: dto.snapEnabled } : {}),
+      ...(dto.pickupEnabled !== undefined
+        ? { pickupEnabled: dto.pickupEnabled }
+        : {}),
+      ...(dto.pickupAddress !== undefined
+        ? { pickupAddress: dto.pickupAddress.trim() || null }
+        : {}),
+      ...(dto.pickupHours !== undefined
+        ? { pickupHours: dto.pickupHours.trim() || null }
+        : {}),
+      ...(dto.supportPhone !== undefined
+        ? { supportPhone: dto.supportPhone.trim() || null }
+        : {}),
+      ...(dto.returnPolicy !== undefined
+        ? { returnPolicy: dto.returnPolicy.trim() || null }
+        : {}),
+      ...(dto.reservationMinutes !== undefined
+        ? { reservationMinutes: dto.reservationMinutes }
+        : {}),
+    };
+    return this.prisma.retailShopSettings.upsert({
+      where: { workspaceId },
+      update: data,
+      create: { workspaceId, ...DEFAULT_SHOP_SETTINGS, ...data },
+    });
   }
 
   // -------------------------------------------------------------------------
@@ -95,6 +171,7 @@ export class RetailService {
           sku: dto.sku,
           price: dto.price ?? 0,
           compareAtPrice: dto.compareAtPrice,
+          costPrice: dto.costPrice ?? 0,
           stock: dto.stock ?? 0,
           lowStockThreshold: dto.lowStockThreshold ?? 0,
           unit: dto.unit ?? 'عدد',
@@ -137,6 +214,7 @@ export class RetailService {
         ...(dto.compareAtPrice !== undefined
           ? { compareAtPrice: dto.compareAtPrice }
           : {}),
+        ...(dto.costPrice !== undefined ? { costPrice: dto.costPrice } : {}),
         ...(dto.lowStockThreshold !== undefined
           ? { lowStockThreshold: dto.lowStockThreshold }
           : {}),
@@ -182,7 +260,7 @@ export class RetailService {
     const workspaceId = await this.workspaceId(userId);
     const order = await this.prisma.retailOrder.findFirst({
       where: { id, workspaceId },
-      include: { items: true },
+      include: { items: true, events: { orderBy: { createdAt: 'asc' } } },
     });
     if (!order) throw new NotFoundException('سفارش پیدا نشد');
     return order;
@@ -196,12 +274,25 @@ export class RetailService {
     });
     if (!order) throw new NotFoundException('سفارش پیدا نشد');
 
-    const cancelling =
-      dto.status === 'CANCELLED' && order.status !== 'CANCELLED';
-    const restoring =
-      order.status === 'CANCELLED' && dto.status !== 'CANCELLED';
+    const nextStatus = dto.status ?? order.status;
+    const cancelling = nextStatus === 'CANCELLED' && order.status !== 'CANCELLED';
+    const restoring = order.status === 'CANCELLED' && nextStatus !== 'CANCELLED';
+    const now = new Date();
 
-    return this.prisma.$transaction(async (tx) => {
+    const deliveryPatch: Record<string, unknown> = {};
+    if (dto.deliveryStatus && dto.deliveryStatus !== order.deliveryStatus) {
+      if (dto.deliveryStatus === 'READY') deliveryPatch.readyAt = now;
+      if (dto.deliveryStatus === 'DISPATCHED') {
+        deliveryPatch.dispatchedAt = now;
+        deliveryPatch.status = 'SHIPPED';
+      }
+      if (dto.deliveryStatus === 'DELIVERED') {
+        deliveryPatch.deliveredAt = now;
+        deliveryPatch.status = 'DELIVERED';
+      }
+    }
+
+    const updated = await this.prisma.$transaction(async (tx) => {
       if (cancelling) {
         for (const item of order.items) {
           if (!item.productId) continue;
@@ -247,15 +338,186 @@ export class RetailService {
           });
         }
       }
-      return tx.retailOrder.update({
+
+      const patch = {
+        ...(dto.status ? { status: dto.status } : {}),
+        ...(dto.paymentStatus ? { paymentStatus: dto.paymentStatus } : {}),
+        ...(dto.note !== undefined ? { note: dto.note } : {}),
+        ...(dto.deliveryStatus ? { deliveryStatus: dto.deliveryStatus } : {}),
+        ...(dto.costAmount !== undefined ? { costAmount: dto.costAmount } : {}),
+        ...(dto.packagingFee !== undefined
+          ? { packagingFee: dto.packagingFee }
+          : {}),
+        ...(dto.courierActualFee !== undefined
+          ? { courierActualFee: dto.courierActualFee }
+          : {}),
+        ...(dto.refundAmount !== undefined
+          ? { refundAmount: dto.refundAmount }
+          : {}),
+        ...(dto.cancelReason !== undefined
+          ? { cancelReason: dto.cancelReason }
+          : {}),
+        ...deliveryPatch,
+      };
+
+      const row = await tx.retailOrder.update({
         where: { id },
+        data: patch,
+        include: { items: true, events: { orderBy: { createdAt: 'asc' } } },
+      });
+
+      if (nextStatus !== order.status) {
+        await tx.retailOrderEvent.create({
+          data: {
+            orderId: id,
+            workspaceId,
+            kind: 'STATUS_CHANGED',
+            fromStatus: order.status,
+            toStatus: nextStatus,
+            actorId: userId,
+          },
+        });
+      }
+      if (
+        dto.deliveryStatus &&
+        dto.deliveryStatus !== order.deliveryStatus &&
+        dto.deliveryStatus !== nextStatus
+      ) {
+        await tx.retailOrderEvent.create({
+          data: {
+            orderId: id,
+            workspaceId,
+            kind: 'STATUS_CHANGED',
+            fromStatus: order.deliveryStatus,
+            toStatus: dto.deliveryStatus,
+            note: 'وضعیت تحویل',
+            actorId: userId,
+          },
+        });
+      }
+      if (dto.note !== undefined && dto.note !== order.note) {
+        await tx.retailOrderEvent.create({
+          data: {
+            orderId: id,
+            workspaceId,
+            kind: 'NOTE',
+            note: dto.note,
+            actorId: userId,
+          },
+        });
+      }
+      return row;
+    });
+
+    // A manual «PAID» switch must archive the invoice and update CRM totals too.
+    if (dto.paymentStatus === 'PAID' && order.paymentStatus !== 'PAID') {
+      await this.recordOrderInvoice(updated);
+      await this.bumpCustomerTotals(updated);
+    }
+    return updated;
+  }
+
+  /**
+   * Mark an order as paid (used by the card-to-card approval flow). Idempotent:
+   * a second call for an already-paid order is a no-op.
+   */
+  async settleOrderPaid(orderId: string, workspaceId: string, actorId?: string) {
+    const order = await this.prisma.retailOrder.findFirst({
+      where: { id: orderId, workspaceId },
+      include: { items: true },
+    });
+    if (!order) throw new NotFoundException('سفارش پیدا نشد');
+    if (order.paymentStatus === 'PAID') return order;
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const row = await tx.retailOrder.update({
+        where: { id: order.id },
         data: {
-          ...(dto.status ? { status: dto.status } : {}),
-          ...(dto.paymentStatus ? { paymentStatus: dto.paymentStatus } : {}),
-          ...(dto.note !== undefined ? { note: dto.note } : {}),
+          paymentStatus: 'PAID',
+          ...(order.status === 'PENDING' ? { status: 'CONFIRMED' } : {}),
+          ...(order.deliveryStatus === 'PENDING'
+            ? { deliveryStatus: 'PREPARING' }
+            : {}),
         },
         include: { items: true },
       });
+      await tx.retailOrderEvent.create({
+        data: {
+          orderId: order.id,
+          workspaceId,
+          kind: 'PAYMENT_APPROVED',
+          fromStatus: order.paymentStatus,
+          toStatus: 'PAID',
+          actorId: actorId ?? null,
+        },
+      });
+      return row;
+    });
+
+    await this.recordOrderInvoice(updated);
+    await this.bumpCustomerTotals(updated);
+    return updated;
+  }
+
+  private async recordOrderInvoice(order: {
+    id: string;
+    orderNumber: string;
+    workspaceId: string;
+    customerName: string;
+    customerPhone: string;
+    totalAmount: number;
+    deliveryFee: number;
+    deliveryMethod: string;
+    items: Array<{
+      title: string;
+      unitPrice: number;
+      quantity: number;
+      lineTotal: number;
+    }>;
+  }) {
+    const items = order.items.map((item) => ({
+      description: item.title,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      total: item.lineTotal,
+    }));
+    if (order.deliveryFee > 0) {
+      items.push({
+        description: 'هزینه‌ی ارسال',
+        quantity: 1,
+        unitPrice: order.deliveryFee,
+        total: order.deliveryFee,
+      });
+    }
+    await this.finance.recordSale({
+      sourceType: FINANCE_SOURCE_TYPES.RETAIL_ORDER,
+      sourceId: order.id,
+      title: `فروش فروشگاه — سفارش ${order.orderNumber}`,
+      amount: order.totalAmount,
+      paidAt: new Date(),
+      customerName: order.customerName,
+      customerPhone: order.customerPhone,
+      items,
+      metadata: {
+        orderNumber: order.orderNumber,
+        workspaceId: order.workspaceId,
+        deliveryMethod: order.deliveryMethod,
+      },
+    });
+  }
+
+  private async bumpCustomerTotals(order: {
+    customerId: string | null;
+    totalAmount: number;
+  }) {
+    if (!order.customerId) return;
+    await this.prisma.crmCustomer.update({
+      where: { id: order.customerId },
+      data: {
+        totalOrders: { increment: 1 },
+        totalSpent: { increment: order.totalAmount },
+        lastInteractionAt: new Date(),
+      },
     });
   }
 
@@ -339,10 +601,38 @@ export class RetailService {
     return workspace;
   }
 
+  private publicSettings(settings: {
+    city: string | null;
+    neighborhoods: string[];
+    deliveryFee: number;
+    deliveryEnabled: boolean;
+    snapEnabled: boolean;
+    pickupEnabled: boolean;
+    pickupAddress: string | null;
+    pickupHours: string | null;
+    supportPhone: string | null;
+    returnPolicy: string | null;
+    reservationMinutes: number;
+  }) {
+    return {
+      city: settings.city,
+      neighborhoods: settings.neighborhoods,
+      deliveryFee: settings.deliveryFee,
+      deliveryEnabled: settings.deliveryEnabled,
+      snapEnabled: settings.snapEnabled,
+      pickupEnabled: settings.pickupEnabled,
+      pickupAddress: settings.pickupAddress,
+      pickupHours: settings.pickupHours,
+      supportPhone: settings.supportPhone,
+      returnPolicy: settings.returnPolicy,
+      reservationMinutes: settings.reservationMinutes,
+    };
+  }
+
   async publicShop(slug: string) {
     await this.settings.assertFeatureEnabled('featureRetailCatalog');
     const workspace = await this.resolveShop(slug);
-    const [products, card] = await Promise.all([
+    const [products, card, settings] = await Promise.all([
       this.prisma.retailProduct.findMany({
         where: { workspaceId: workspace.id, status: 'PUBLISHED' },
         orderBy: [{ createdAt: 'desc' }],
@@ -356,6 +646,7 @@ export class RetailService {
               })
             : null,
       ),
+      this.shopSettingsOrDefault(workspace.id),
     ]);
     return {
       workspace: {
@@ -364,6 +655,7 @@ export class RetailService {
         publicSlug: workspace.publicSlug,
       },
       products,
+      settings: this.publicSettings(settings),
       card:
         card && card.isActive
           ? {
@@ -475,6 +767,47 @@ export class RetailService {
     };
   }
 
+  /** Validate the chosen delivery method against the shop's sales area. */
+  private resolveDelivery(
+    settings: ReturnType<RetailService['publicSettings']>,
+    dto: CreateOrderDto,
+  ) {
+    const method = (dto.deliveryMethod ?? 'SNAP') as (typeof DELIVERY_METHODS)[number];
+    if (!DELIVERY_METHODS.includes(method)) {
+      throw new BadRequestException('روش تحویل نامعتبر است');
+    }
+    if (method === 'PICKUP') {
+      if (!settings.pickupEnabled) {
+        throw new BadRequestException('دریافت حضوری برای این فروشگاه فعال نیست');
+      }
+      return { method, deliveryFee: 0, neighborhood: null as string | null };
+    }
+    if (!settings.deliveryEnabled || !settings.snapEnabled) {
+      throw new BadRequestException(
+        'ارسال با پیک برای این فروشگاه فعال نیست؛ دریافت حضوری را انتخاب کنید',
+      );
+    }
+    const address = (dto.customerAddress ?? '').trim();
+    if (address.length < 5) {
+      throw new BadRequestException('برای ارسال با پیک، نشانی کامل لازم است');
+    }
+    let neighborhood = dto.neighborhood?.trim() || null;
+    if (settings.neighborhoods.length > 0) {
+      const match = settings.neighborhoods.find(
+        (item) =>
+          (neighborhood && item.trim() === neighborhood) ||
+          address.includes(item.trim()),
+      );
+      if (!match) {
+        throw new BadRequestException(
+          'این نشانی خارج از محدوده‌ی ارسال فروشگاه است؛ دریافت حضوری را انتخاب کنید',
+        );
+      }
+      neighborhood = match;
+    }
+    return { method, deliveryFee: settings.deliveryFee, neighborhood };
+  }
+
   async publicOrder(slug: string, dto: CreateOrderDto) {
     await this.settings.assertFeatureEnabled('featureRetailCatalog');
     const workspace = await this.resolveShop(slug);
@@ -503,18 +836,31 @@ export class RetailService {
       }
     }
 
+    const shopSettings = await this.shopSettingsOrDefault(workspace.id);
+    const delivery = this.resolveDelivery(
+      this.publicSettings(shopSettings),
+      dto,
+    );
+
     const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}-${randomBytes(2).toString('hex').toUpperCase()}`;
+    const trackingToken = randomBytes(16).toString('hex');
     const items = dto.items.map((item) => {
       const product = byId.get(item.productId)!;
       return {
         productId: product.id,
         title: product.title,
         unitPrice: product.price,
+        costPrice: product.costPrice,
         quantity: item.quantity,
         lineTotal: product.price * item.quantity,
       };
     });
-    const totalAmount = items.reduce((sum, item) => sum + item.lineTotal, 0);
+    const itemsAmount = items.reduce((sum, item) => sum + item.lineTotal, 0);
+    const costAmount = items.reduce(
+      (sum, item) => sum + item.costPrice * item.quantity,
+      0,
+    );
+    const totalAmount = itemsAmount + delivery.deliveryFee;
     const customer = await this.upsertCustomer(
       workspace.id,
       dto.customerName,
@@ -526,13 +872,20 @@ export class RetailService {
         data: {
           workspaceId: workspace.id,
           orderNumber,
+          trackingToken,
           customerId: customer?.id,
           customerName: dto.customerName,
           customerPhone: dto.customerPhone,
           customerAddress: dto.customerAddress,
+          neighborhood: delivery.neighborhood,
           note: dto.note,
           paymentMethod: dto.paymentMethod ?? 'CARD_TO_CARD',
+          deliveryMethod: delivery.method,
+          deliveryStatus: 'PENDING',
+          itemsAmount,
+          deliveryFee: delivery.deliveryFee,
           totalAmount,
+          costAmount,
           items: { create: items },
         },
         include: { items: true },
@@ -552,6 +905,15 @@ export class RetailService {
           },
         });
       }
+      await tx.retailOrderEvent.create({
+        data: {
+          orderId: order.id,
+          workspaceId: workspace.id,
+          kind: 'CREATED',
+          toStatus: 'PENDING',
+          note: 'سفارش ثبت شد',
+        },
+      });
       if (customer) {
         await tx.crmInteraction.create({
           data: {
@@ -564,6 +926,164 @@ export class RetailService {
       }
       return order;
     });
+  }
+
+  /** Public order tracking by its secret token (no login required). */
+  async publicOrderTracking(slug: string, token: string) {
+    await this.settings.assertFeatureEnabled('featureRetailCatalog');
+    const workspace = await this.resolveShop(slug);
+    const order = await this.prisma.retailOrder.findFirst({
+      where: { trackingToken: token, workspaceId: workspace.id },
+      include: {
+        items: { select: { title: true, quantity: true, lineTotal: true } },
+        events: { orderBy: { createdAt: 'asc' } },
+      },
+    });
+    if (!order) throw new NotFoundException('سفارش پیدا نشد');
+    const settings = await this.shopSettingsOrDefault(workspace.id);
+    return {
+      orderNumber: order.orderNumber,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
+      deliveryMethod: order.deliveryMethod,
+      deliveryStatus: order.deliveryStatus,
+      itemsAmount: order.itemsAmount,
+      deliveryFee: order.deliveryFee,
+      totalAmount: order.totalAmount,
+      customerName: order.customerName,
+      customerAddress: order.customerAddress,
+      neighborhood: order.neighborhood,
+      note: order.note,
+      createdAt: order.createdAt,
+      readyAt: order.readyAt,
+      dispatchedAt: order.dispatchedAt,
+      deliveredAt: order.deliveredAt,
+      items: order.items,
+      events: order.events.map((event) => ({
+        kind: event.kind,
+        fromStatus: event.fromStatus,
+        toStatus: event.toStatus,
+        note: event.note,
+        createdAt: event.createdAt,
+      })),
+      shop: {
+        name: workspace.name,
+        publicSlug: workspace.publicSlug,
+        ...this.publicSettings(settings),
+      },
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  //  Reports (owner)
+  // -------------------------------------------------------------------------
+
+  private tehranDay(date: Date): string {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Tehran',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(date);
+  }
+
+  private orderProfit(order: {
+    totalAmount: number;
+    costAmount: number;
+    packagingFee: number;
+    courierActualFee: number;
+  }): number {
+    return (
+      order.totalAmount -
+      order.costAmount -
+      order.packagingFee -
+      order.courierActualFee
+    );
+  }
+
+  /**
+   * Shop dashboard: sales, profit, unmatched deposits, low stock and the
+   * delivery-method split. Reads only what the owner already sees elsewhere.
+   */
+  async reportsOverview(userId: string) {
+    await this.settings.assertFeatureEnabled('featureRetailReports');
+    const workspaceId = await this.workspaceId(userId);
+    const since = new Date();
+    since.setDate(since.getDate() - 29);
+    since.setHours(0, 0, 0, 0);
+
+    const [orders, products, pendingPayments] = await Promise.all([
+      this.prisma.retailOrder.findMany({
+        where: { workspaceId, createdAt: { gte: since } },
+        include: { items: true },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.retailProduct.findMany({
+        where: { workspaceId },
+        select: {
+          id: true,
+          title: true,
+          stock: true,
+          lowStockThreshold: true,
+          unit: true,
+        },
+      }),
+      this.prisma.cardToCardPayment.findMany({
+        where: { workspaceId, status: 'PENDING' },
+        select: { amount: true },
+      }),
+    ]);
+
+    const paid = orders.filter((order) => order.paymentStatus === 'PAID');
+    const grossSales = paid.reduce((sum, order) => sum + order.totalAmount, 0);
+    const refunds = paid.reduce((sum, order) => sum + order.refundAmount, 0);
+    const profit = paid.reduce((sum, order) => sum + this.orderProfit(order), 0);
+    const deliverySplit = {
+      SNAP: paid.filter((order) => order.deliveryMethod === 'SNAP').length,
+      PICKUP: paid.filter((order) => order.deliveryMethod === 'PICKUP').length,
+    };
+    const lowStock = products.filter(
+      (product) => product.stock <= product.lowStockThreshold,
+    );
+
+    const days = new Map<
+      string,
+      { date: string; orders: number; paidOrders: number; gross: number; profit: number }
+    >();
+    for (const order of orders) {
+      const key = this.tehranDay(order.createdAt);
+      const bucket =
+        days.get(key) ??
+        { date: key, orders: 0, paidOrders: 0, gross: 0, profit: 0 };
+      bucket.orders += 1;
+      if (order.paymentStatus === 'PAID') {
+        bucket.paidOrders += 1;
+        bucket.gross += order.totalAmount;
+        bucket.profit += this.orderProfit(order);
+      }
+      days.set(key, bucket);
+    }
+
+    return {
+      rangeDays: 30,
+      totals: {
+        orders: orders.length,
+        paidOrders: paid.length,
+        grossSales,
+        refunds,
+        netSales: grossSales - refunds,
+        profit,
+        deliverySplit,
+      },
+      unmatchedDeposits: {
+        count: pendingPayments.length,
+        amount: pendingPayments.reduce((sum, payment) => sum + payment.amount, 0),
+      },
+      lowStock: lowStock.slice(0, 20),
+      lowStockCount: lowStock.length,
+      daily: [...days.values()].sort((a, b) => b.date.localeCompare(a.date)),
+    };
   }
 
   private async upsertCustomer(

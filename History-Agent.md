@@ -20,13 +20,59 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.81.5**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.82.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۳ — تکمیل بسته‌ی مدیریت «فروشگاه و خرده‌فروشی» — نسخه `v4.82.0`
+
+**هدف:** تکمیل ماژول‌های بسته‌ی فروشگاه بر اساس سند ماژولار مرجع: کاتالوگ،
+سبد/سفارش، محدوده‌ی فروش شهری، کارت‌به‌کارت، ارسال با پیک/دریافت حضوری، پیگیری
+و اطلاع‌رسانی، پنل مدیریت، پشتیبانی/امنیت، و ماژول‌های ارزش‌افزای CRM، مالی،
+سود سفارش، انبار و داشبورد.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل تازه‌ی `RetailShopSettings`؛ فیلدهای
+  `trackingToken`، `neighborhood`، `deliveryMethod`، `deliveryStatus`،
+  `itemsAmount`، `deliveryFee`، `costAmount`، `packagingFee`،
+  `courierActualFee`، `refundAmount`، `cancelReason` و زمان‌های آماده‌سازی/ارسال/
+  تحویل روی `RetailOrder`؛ `costPrice` روی محصول و آیتم سفارش؛ مدل
+  `RetailOrderEvent` (خط زمانی/سابقه)؛ `expectedAmount` روی
+  `CardToCardPayment`؛ `totalOrders` روی `CrmCustomer`.
+- `apps/api/src/retail/`: بازنویسی سرویس (تنظیمات فروشگاه، اعتبارسنجی محله و
+  کرایه، توکن پیگیری، رویدادها، تسویه‌ی سفارش، فاکتور، آمار مشتری، گزارش‌ها)؛
+  کنترلرهای تازه‌ی `retail-shop-settings` و `retail-reports`؛ DTOهای تازه/گسترش‌یافته؛
+  مسیر عمومی `GET /public/shops/:slug/orders/:token`.
+- `apps/api/src/card-to-card/`: ثبت `expectedAmount`، هشدار شماره‌ی پیگیری تکراری
+  (۴۰۹)، رویداد ارسال/رد رسید، و تسویه‌ی خودکار سفارش با تأیید واریز.
+- `apps/api/src/finance/`: منبع تازه‌ی `RETAIL_ORDER_PAYMENT` + افزودن به
+  `backfill` (فاکتور خودکار هر سفارش پرداخت‌شده با اقلام و هزینه‌ی ارسال).
+- `apps/api/src/business-modules/`: ماژول تازه‌ی `retailReports` و به‌روزرسانی
+  قابلیت‌های `retailCatalog`/`retailOrders`/`retailInventory`؛ افزودن ماژول به
+  بسته‌ی `retail`؛ همگام‌سازی `businessManagementsSeedV4`؛ `publicSlug` در
+  خروجی `resolve`.
+- `apps/api/src/settings/settings.constants.ts`: سوئیچ `featureRetailReports`.
+- `apps/web`: صفحه‌های تازه‌ی «تنظیمات فروشگاه» و «گزارش فروش و سود»، صفحه‌ی
+  عمومی پیگیری سفارش، فرم سفارش با روش تحویل/کرایه/محله/لینک پیگیری، پنل
+  سفارش‌ها با وضعیت تحویل/هزینه/سود/خط زمانی، نمایش اختلاف مبلغ رسید، و
+  به‌روزرسانی تایپ‌ها و آیکن ناوبری.
+- `docs/API.md` و `BACKLOG.md`: مستندسازی مسیرهای تازه و ثبت موارد فاز دوم.
+
+**تأیید/تست:**
+- `tsc --noEmit` در `api` و `web` بدون خطا؛ `eslint` بدون خطا.
+- `python3 scripts/check_api_docs.py` (۵۸ کنترلر/۵۷۳ مسیر) و
+  `python3 scripts/check_modules.py` (۲۶ سوئیچ) بدون خطا؛ `db_audit.py` صفر
+  بحرانی/هشدار.
+- تست سرتاسری روی دیتابیس توسعه: ثبت سفارش پیک داخل محدوده (مبلغ ۲۰۰٬۰۰۰ +
+  کرایه ۳۰٬۰۰۰ = ۲۳۰٬۰۰۰)، رد آدرس خارج از محدوده (۴۰۰)، سفارش حضوری، پیگیری
+  با توکن، رسید کارت‌به‌کارت با `expectedAmount`، هشدار پیگیری تکراری (۴۰۹)،
+  تأیید رسید → `PAID/CONFIRMED/PREPARING` + رویدادها + فاکتور ۲۳۰٬۰۰۰ +
+  `totalSpent` مشتری، و گذارهای تحویل `DISPATCHED→SHIPPED` و
+  `DELIVERED→DELIVERED`. داده‌ی تست پس از اجرا پاک شد.
 
 ## ۱۴۰۵/۰۹/۰۳ — ثبت پیشنهادهای معوق استایل/CSS در بک‌لاگ — نسخه `v4.81.5`
 

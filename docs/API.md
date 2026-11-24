@@ -849,7 +849,7 @@ PY
 
 ماژول‌های فعلی: `businessCards`، `biolinks`، `feeds`، `accommodationRental`،
 `accommodationReservations`، `accommodationChannels`، `crm`، `retailCatalog`،
-`retailOrders`، `retailInventory` و `cardToCard`. ماژول‌های
+`retailOrders`، `retailInventory`، `retailReports` و `cardToCard`. ماژول‌های
 `businessCards`/`biolinks` هم در همین رجیستری ثبت شده‌اند و اکنون فعال/غیرفعال
 شدنشان روی مسیرهای مالک اعمال می‌شود؛ سوئیچ‌های سراسری ادمین
 (`allowBusinessCardCreation` و `allowBiolinkCreation`) همچنان بالاتر از آن
@@ -900,20 +900,27 @@ PY
 | `GET/PATCH` | `/retail/orders/:id` | جزئیات/تغییر وضعیت سفارش و پرداخت. |
 | `GET` | `/retail/inventory` | موجودی، هشدار کمبود و کاردکس انبار. |
 | `POST` | `/retail/inventory/movements` | ثبت ورود/خروج/اصلاح موجودی. |
+| `GET/PUT` | `/retail/shop-settings` | تنظیمات فروشگاه: شهر/محله‌های تحت پوشش، کرایه‌ی ثابت ارسال، دریافت حضوری، پشتیبانی و شرایط مرجوعی. |
+| `GET` | `/retail/reports/overview` | داشبورد فروش: فروش خالص، سود سفارش، واریزی‌های تطبیق‌نیافته، کالای کم‌موجود و گزارش روزانه (۳۰ روز). |
 
 مسیرهای عمومی زیر `/api/public/shops` (بدون احراز هویت):
-`GET /public/shops/:slug` ویترین فروشگاه (محصولات منتشرشده + اطلاعات کارت به
-کارت در صورت فعال‌بودن ماژول) و `POST /public/shops/:slug/orders` برای ثبت
-سفارش. دایرکتوری محصولات `/shop` از
+`GET /public/shops/:slug` ویترین فروشگاه (محصولات منتشرشده + تنظیمات محدوده/تحویل
++ اطلاعات کارت به کارت در صورت فعال‌بودن ماژول)، `POST /public/shops/:slug/orders`
+برای ثبت سفارش (روش تحویل `SNAP`/`PICKUP`، اعتبارسنجی محله و کرایه) و
+`GET /public/shops/:slug/orders/:token` برای پیگیری عمومی با لینک اختصاصی
+(`trackingToken`) و خط زمانی وضعیت. دایرکتوری محصولات `/shop` از
 `GET /public/products` (فیلترهای `q`، `shop`، `category`، `minPrice`،
 `maxPrice` و `sort`) و `GET /public/products/facets` (دسته‌ها و فروشگاه‌های
 دارای محصول منتشرشده) تغذیه می‌شود؛ این دایرکتوری فقط محصولات منتشرشده‌ی
 فروشگاه‌هایی را نشان می‌دهد که ماژول `retailCatalog` آن‌ها فعال و پرداخت‌شده
 است. هر فروشگاه با `publicSlug` یکتا (ستون `business_workspaces.publicSlug`)
 شناسایی می‌شود و صفحه‌ی عمومی آن `/shop/<slug>` است. ماژول‌های `retailCatalog`
-و `retailOrders` با سوئیچ‌های `featureRetailCatalog`/`featureRetailOrders`
-کنترل می‌شوند و صفحه‌ی `/shop` با سوئیچ «نمایش» `featureRetailCatalog` پنهان
-می‌شود.
+، `retailOrders` و `retailReports` با سوئیچ‌های
+`featureRetailCatalog`/`featureRetailOrders`/`featureRetailReports` کنترل
+می‌شوند و صفحه‌ی `/shop` با سوئیچ «نمایش» `featureRetailCatalog` پنهان
+می‌شود. هر سفارش `paymentStatus` و `deliveryStatus` جدا دارد و در تأیید واریز
+کارت‌به‌کارت، فاکتور فروش (`RETAIL_ORDER_PAYMENT`) و آمار مشتری به‌طور خودکار
+ثبت می‌شود.
 
 ### پرداخت کارت به کارت (`/api/card-to-card`)
 

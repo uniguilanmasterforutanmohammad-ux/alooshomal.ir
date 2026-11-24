@@ -49,6 +49,7 @@ export interface IndustryPackage {
 export interface BusinessWorkspace {
   id: string;
   name: string;
+  publicSlug: string | null;
   industryKey: string;
   industry: IndustryPackage;
   isDefault: boolean;
@@ -229,6 +230,7 @@ export interface CrmCustomer {
   tags: string[];
   source: string;
   totalBookings: number;
+  totalOrders: number;
   totalSpent: number;
   lastInteractionAt: string | null;
   createdAt: string;
@@ -257,6 +259,7 @@ export interface RetailProduct {
   sku: string | null;
   price: number;
   compareAtPrice: number | null;
+  costPrice: number;
   stock: number;
   lowStockThreshold: number;
   unit: string;
@@ -283,10 +286,12 @@ export interface RetailOrder {
   id: string;
   workspaceId: string;
   orderNumber: string;
+  trackingToken: string | null;
   customerId: string | null;
   customerName: string;
   customerPhone: string;
   customerAddress: string | null;
+  neighborhood: string | null;
   note: string | null;
   status:
     | 'PENDING'
@@ -298,10 +303,42 @@ export interface RetailOrder {
     | string;
   paymentMethod: 'CARD_TO_CARD' | 'CASH_ON_DELIVERY' | string;
   paymentStatus: 'UNPAID' | 'PENDING_REVIEW' | 'PAID' | 'REFUNDED' | string;
+  deliveryMethod: 'SNAP' | 'PICKUP' | string;
+  deliveryStatus:
+    | 'PENDING'
+    | 'PREPARING'
+    | 'READY'
+    | 'DISPATCHED'
+    | 'DELIVERED'
+    | 'FAILED'
+    | string;
+  itemsAmount: number;
+  deliveryFee: number;
   totalAmount: number;
+  costAmount: number;
+  packagingFee: number;
+  courierActualFee: number;
+  refundAmount: number;
+  cancelReason: string | null;
+  readyAt: string | null;
+  dispatchedAt: string | null;
+  deliveredAt: string | null;
   createdAt: string;
   updatedAt: string;
   items: RetailOrderItem[];
+  events?: RetailOrderEvent[];
+}
+
+export interface RetailOrderEvent {
+  id: string;
+  orderId: string;
+  workspaceId: string;
+  kind: string;
+  fromStatus: string | null;
+  toStatus: string | null;
+  note: string | null;
+  actorId: string | null;
+  createdAt: string;
 }
 
 export interface RetailStockMovement {
@@ -324,12 +361,87 @@ export interface RetailInventory {
 export interface PublicShop {
   workspace: { id: string; name: string; publicSlug: string | null };
   products: RetailProduct[];
+  settings: RetailShopSettings;
   card: {
     cardNumber: string;
     holderName: string;
     bankName: string | null;
     instructions: string | null;
   } | null;
+}
+
+export interface RetailShopSettings {
+  city: string | null;
+  neighborhoods: string[];
+  deliveryFee: number;
+  deliveryEnabled: boolean;
+  snapEnabled: boolean;
+  pickupEnabled: boolean;
+  pickupAddress: string | null;
+  pickupHours: string | null;
+  supportPhone: string | null;
+  returnPolicy: string | null;
+  reservationMinutes: number;
+}
+
+export interface RetailReportDay {
+  date: string;
+  orders: number;
+  paidOrders: number;
+  gross: number;
+  profit: number;
+}
+
+export interface RetailReportsOverview {
+  rangeDays: number;
+  totals: {
+    orders: number;
+    paidOrders: number;
+    grossSales: number;
+    refunds: number;
+    netSales: number;
+    profit: number;
+    deliverySplit: { SNAP: number; PICKUP: number };
+  };
+  unmatchedDeposits: { count: number; amount: number };
+  lowStock: Array<{
+    id: string;
+    title: string;
+    stock: number;
+    lowStockThreshold: number;
+    unit: string;
+  }>;
+  lowStockCount: number;
+  daily: RetailReportDay[];
+}
+
+export interface PublicOrderTracking {
+  orderNumber: string;
+  status: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  deliveryMethod: string;
+  deliveryStatus: string;
+  itemsAmount: number;
+  deliveryFee: number;
+  totalAmount: number;
+  customerName: string;
+  customerAddress: string | null;
+  neighborhood: string | null;
+  note: string | null;
+  createdAt: string;
+  readyAt: string | null;
+  dispatchedAt: string | null;
+  deliveredAt: string | null;
+  items: Array<{ title: string; quantity: number; lineTotal: number }>;
+  events: Array<{
+    kind: string;
+    fromStatus: string | null;
+    toStatus: string | null;
+    note: string | null;
+    createdAt: string;
+  }>;
+  shop: RetailShopSettings & { name: string; publicSlug: string | null };
 }
 
 /** A published product in the `/shop` directory, with its owning shop. */
@@ -370,6 +482,7 @@ export interface CardToCardPayment {
   customerName: string;
   customerPhone: string;
   amount: number;
+  expectedAmount: number | null;
   paidAt: string | null;
   trackingNumber: string | null;
   receiptUrl: string;

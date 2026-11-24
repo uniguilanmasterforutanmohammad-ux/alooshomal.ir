@@ -676,6 +676,7 @@ export class FinanceService implements OnModuleInit {
       feedTags,
       servicePayments,
       modulePurchases,
+      retailOrders,
     ] =
       await Promise.all([
       this.prisma.subscriptionPayment.findMany({
@@ -707,6 +708,10 @@ export class FinanceService implements OnModuleInit {
       }),
       this.prisma.businessModulePurchase.findMany({
         where: { status: 'PAID' },
+      }),
+      this.prisma.retailOrder.findMany({
+        where: { paymentStatus: 'PAID' },
+        include: { items: true },
       }),
     ]);
 
@@ -803,6 +808,40 @@ export class FinanceService implements OnModuleInit {
           months: purchase.months,
           workspaceId: purchase.workspaceId,
           expiresAt: purchase.expiresAt?.toISOString() ?? null,
+        },
+      });
+    }
+
+    for (const order of retailOrders) {
+      const paidAt = order.updatedAt ?? order.createdAt;
+      const items = order.items.map((item) => ({
+        description: item.title,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: item.lineTotal,
+      }));
+      if (order.deliveryFee > 0) {
+        items.push({
+          description: 'هزینه‌ی ارسال',
+          quantity: 1,
+          unitPrice: order.deliveryFee,
+          total: order.deliveryFee,
+        });
+      }
+      await ensure({
+        sourceType: FINANCE_SOURCE_TYPES.RETAIL_ORDER,
+        sourceId: order.id,
+        title: `فروش فروشگاه — سفارش ${order.orderNumber}`,
+        amount: order.totalAmount,
+        issuedAt: paidAt,
+        paidAt,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        items,
+        metadata: {
+          orderNumber: order.orderNumber,
+          workspaceId: order.workspaceId,
+          deliveryMethod: order.deliveryMethod,
         },
       });
     }

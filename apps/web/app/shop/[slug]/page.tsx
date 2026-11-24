@@ -114,6 +114,39 @@ export default async function ShopPage({
             <p className="mt-1 text-sm text-muted">
               فروشگاه آنلاین • {shop.products.length.toLocaleString('fa-IR')} محصول
             </p>
+            <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted">
+              {shop.settings.city ? <li>شهر: {shop.settings.city}</li> : null}
+              {shop.settings.snapEnabled ? (
+                <li>
+                  ارسال با پیک
+                  {shop.settings.deliveryFee > 0
+                    ? ` • کرایه ${shop.settings.deliveryFee.toLocaleString('fa-IR')} تومان`
+                    : ' • کرایه رایگان'}
+                </li>
+              ) : null}
+              {shop.settings.pickupEnabled ? (
+                <li>
+                  دریافت حضوری
+                  {shop.settings.pickupHours ? ` • ${shop.settings.pickupHours}` : ''}
+                </li>
+              ) : null}
+              {shop.settings.supportPhone ? (
+                <li>
+                  پشتیبانی:{' '}
+                  <a
+                    href={`tel:${shop.settings.supportPhone}`}
+                    className="font-bold text-brand"
+                  >
+                    {shop.settings.supportPhone}
+                  </a>
+                </li>
+              ) : null}
+            </ul>
+            {shop.settings.returnPolicy ? (
+              <p className="mt-2 rounded-lg bg-[var(--vintage-paper)] p-2 text-[11px] leading-6 text-muted">
+                شرایط لغو و مرجوعی: {shop.settings.returnPolicy}
+              </p>
+            ) : null}
           </div>
           {shop.products.length === 0 ? (
             <div className="indeed-panel p-8 text-center text-sm text-muted">

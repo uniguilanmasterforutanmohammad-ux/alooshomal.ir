@@ -18,6 +18,8 @@ export const RETAIL_PAYMENT_METHODS = [
   'CASH_ON_DELIVERY',
 ] as const;
 
+export const RETAIL_DELIVERY_METHODS = ['SNAP', 'PICKUP'] as const;
+
 export class OrderItemDto {
   @ApiProperty({ description: 'شناسه‌ی محصول' })
   @IsString()
@@ -49,6 +51,12 @@ export class CreateOrderDto {
   @MaxLength(500)
   customerAddress?: string;
 
+  @ApiPropertyOptional({ description: 'محله‌ی مقصد (در محدوده‌ی فروش)', maxLength: 80 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  neighborhood?: string;
+
   @ApiPropertyOptional({ description: 'یادداشت مشتری', maxLength: 2000 })
   @IsOptional()
   @IsString()
@@ -59,6 +67,15 @@ export class CreateOrderDto {
   @IsOptional()
   @IsIn(RETAIL_PAYMENT_METHODS as unknown as string[])
   paymentMethod?: string;
+
+  @ApiPropertyOptional({
+    enum: RETAIL_DELIVERY_METHODS,
+    default: 'SNAP',
+    description: 'روش تحویل: ارسال با پیک یا دریافت حضوری',
+  })
+  @IsOptional()
+  @IsIn(RETAIL_DELIVERY_METHODS as unknown as string[])
+  deliveryMethod?: string;
 
   @ApiProperty({ type: [OrderItemDto] })
   @IsArray()

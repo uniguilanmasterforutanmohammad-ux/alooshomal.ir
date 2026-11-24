@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BadgeCheck,
+  BarChart3,
   Boxes,
   CalendarCheck,
   CreditCard,
@@ -35,6 +36,7 @@ const ICONS: Record<string, LucideIcon> = {
   PackageCheck,
   Boxes,
   CreditCard,
+  BarChart3,
 };
 
 export function moduleIcon(name: string): LucideIcon {

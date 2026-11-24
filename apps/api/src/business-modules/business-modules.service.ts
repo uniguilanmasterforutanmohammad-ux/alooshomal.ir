@@ -64,6 +64,8 @@ export interface WorkspaceSummary {
 export interface ResolvedWorkspace {
   id: string;
   name: string;
+  /** Public storefront slug (`/shop/<slug>`), used to build tracking links. */
+  publicSlug: string | null;
   industryKey: string;
   industry: IndustryPackageDefinition;
   isDefault: boolean;
@@ -278,7 +280,8 @@ export class BusinessModulesService implements OnModuleInit {
    * other managements.
    */
   private async syncRegistryManagements(): Promise<void> {
-    const marker = 'businessManagementsSeedV2';
+    // V4 adds the `retailReports` module to the existing retail management.
+    const marker = 'businessManagementsSeedV4';
     const done = await this.prisma.setting.findUnique({ where: { key: marker } });
     if (done) return;
     for (const industry of INDUSTRY_PACKAGES) {
@@ -1075,6 +1078,7 @@ export class BusinessModulesService implements OnModuleInit {
     return {
       id: workspace.id,
       name: workspace.name,
+      publicSlug: workspace.publicSlug,
       industryKey: industry.key,
       industry,
       isDefault: workspace.isDefault,

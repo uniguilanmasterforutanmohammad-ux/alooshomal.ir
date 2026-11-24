@@ -57,6 +57,16 @@ export class CreateProductDto {
   @Min(0)
   compareAtPrice?: number;
 
+  @ApiPropertyOptional({
+    description: 'بهای خرید هر واحد (تومان) — برای محاسبه‌ی سود سفارش',
+    default: 0,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  costPrice?: number;
+
   @ApiPropertyOptional({ description: 'موجودی اولیه', default: 0 })
   @IsOptional()
   @Type(() => Number)

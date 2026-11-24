@@ -2093,6 +2093,7 @@ model BusinessWorkspace {
   products        RetailProduct[]
   orders          RetailOrder[]
   stockMovements  RetailStockMovement[]
+  shopSettings    RetailShopSettings?
   cardAccount     CardToCardAccount?
   cardPayments    CardToCardPayment[]
   businessCards   BusinessCard[]
@@ -2384,6 +2385,7 @@ model CrmCustomer {
   tags              String[]  @default([])
   source            String    @default("MANUAL")
   totalBookings     Int       @default(0)
+  totalOrders       Int       @default(0)
   totalSpent        Int       @default(0)
   lastInteractionAt DateTime?
   createdAt         DateTime  @default(now())
@@ -2427,6 +2429,8 @@ model RetailProduct {
   sku          String?
   price        Int      @default(0)
   compareAtPrice Int?
+  /// Purchase cost per unit, used to compute order profit at sale time.
+  costPrice    Int      @default(0)
   stock        Int      @default(0)
   lowStockThreshold Int @default(0)
   unit         String   @default("عدد")
@@ -2446,16 +2450,49 @@ model RetailProduct {
   @@map("retail_products")
 }
 
+/// Storefront-wide settings for the retail package: the delivery area (city +
+/// covered neighborhoods), pickup details, support/return policy and the flat
+/// Snap courier fee that is added to the card-to-card amount.
+model RetailShopSettings {
+  id            String   @id @default(cuid())
+  workspaceId   String   @unique
+  city          String?
+  /// Neighborhoods the shop delivers to. Empty = every address in `city`.
+  neighborhoods String[] @default([])
+  deliveryFee   Int      @default(0)
+  deliveryEnabled Boolean @default(true)
+  snapEnabled   Boolean  @default(true)
+  pickupEnabled Boolean  @default(true)
+  pickupAddress String?
+  pickupHours   String?
+  supportPhone  String?
+  returnPolicy  String?
+  /// Minutes a placed order keeps its stock reserved until a receipt arrives.
+  reservationMinutes Int @default(30)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("retail_shop_settings")
+}
+
 /// One customer order placed on the public storefront. Statuses are strings so
 /// the workflow can grow without a migration.
 model RetailOrder {
   id              String   @id @default(cuid())
   workspaceId     String
   orderNumber     String   @unique
+  /// Secret token for the public tracking page (`/shop/<slug>/track/<token>`).
+  /// Nullable so pre-existing orders (before this column) can still be pushed;
+  /// every new order gets one.
+  trackingToken   String?  @unique
   customerId      String?
   customerName    String
   customerPhone   String
   customerAddress String?
+  /// Neighborhood chosen by the customer (validated against the shop area).
+  neighborhood    String?
   note            String?
   /// PENDING | CONFIRMED | PAID | SHIPPED | DELIVERED | CANCELLED
   status          String   @default("PENDING")
@@ -2463,12 +2500,32 @@ model RetailOrder {
   paymentMethod   String   @default("CARD_TO_CARD")
   /// UNPAID | PENDING_REVIEW | PAID | REFUNDED
   paymentStatus   String   @default("UNPAID")
+  /// SNAP | PICKUP — how the customer receives the order.
+  deliveryMethod  String   @default("SNAP")
+  /// PENDING | PREPARING | READY | DISPATCHED | DELIVERED | FAILED
+  deliveryStatus  String   @default("PENDING")
+  /// Sum of the line items (before delivery).
+  itemsAmount     Int      @default(0)
+  /// Courier fee charged to the customer (0 for pickup).
+  deliveryFee     Int      @default(0)
+  /// Total the customer must pay = itemsAmount + deliveryFee.
   totalAmount     Int      @default(0)
+  /// Purchase cost of the goods in this order (frozen at order time).
+  costAmount      Int      @default(0)
+  packagingFee    Int      @default(0)
+  /// What the courier actually charged the shop (may differ from deliveryFee).
+  courierActualFee Int     @default(0)
+  refundAmount    Int      @default(0)
+  cancelReason    String?
+  readyAt         DateTime?
+  dispatchedAt    DateTime?
+  deliveredAt     DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   items     RetailOrderItem[]
+  events    RetailOrderEvent[]
 
   @@index([workspaceId, status])
   @@index([customerId])
@@ -2481,6 +2538,8 @@ model RetailOrderItem {
   productId String?
   title     String
   unitPrice Int    @default(0)
+  /// Purchase cost per unit at order time (for profit reporting).
+  costPrice Int    @default(0)
   quantity  Int    @default(1)
   lineTotal Int    @default(0)
 
@@ -2489,6 +2548,29 @@ model RetailOrderItem {
 
   @@index([orderId])
   @@map("retail_order_items")
+}
+
+/// Append-only timeline/audit trail for one order: status changes, payment
+/// reviews and owner notes. Powers the public tracking page and the «سابقه
+/// تغییرات» requirement.
+model RetailOrderEvent {
+  id          String   @id @default(cuid())
+  orderId     String
+  workspaceId String
+  /// CREATED | PAYMENT_SUBMITTED | PAYMENT_APPROVED | PAYMENT_REJECTED |
+  /// STATUS_CHANGED | NOTE
+  kind        String   @default("STATUS_CHANGED")
+  fromStatus  String?
+  toStatus    String?
+  note        String?
+  /// User id of the owner/staff member, or null for customer/public actions.
+  actorId     String?
+  createdAt   DateTime @default(now())
+
+  order RetailOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("retail_order_events")
 }
 
 /// Stock ledger: every change of a product's stock is recorded so the owner can
@@ -2543,6 +2625,8 @@ model CardToCardPayment {
   customerName   String
   customerPhone  String
   amount         Int
+  /// Amount the order/booking expected, so over/short transfers are visible.
+  expectedAmount Int?
   paidAt         DateTime?
   trackingNumber String?
   receiptUrl     String

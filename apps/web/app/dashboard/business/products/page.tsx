@@ -19,6 +19,7 @@ const emptyForm = {
   sku: '',
   price: '0',
   compareAtPrice: '',
+  costPrice: '0',
   stock: '0',
   lowStockThreshold: '0',
   unit: 'عدد',
@@ -75,6 +76,7 @@ export default function ProductsPage() {
       sku: product.sku ?? '',
       price: String(product.price),
       compareAtPrice: product.compareAtPrice ? String(product.compareAtPrice) : '',
+      costPrice: String(product.costPrice),
       stock: String(product.stock),
       lowStockThreshold: String(product.lowStockThreshold),
       unit: product.unit,
@@ -107,6 +109,7 @@ export default function ProductsPage() {
       sku: form.sku.trim() || undefined,
       price: Number(form.price) || 0,
       compareAtPrice: form.compareAtPrice ? Number(form.compareAtPrice) : undefined,
+      costPrice: Number(form.costPrice) || 0,
       stock: Number(form.stock) || 0,
       lowStockThreshold: Number(form.lowStockThreshold) || 0,
       unit: form.unit.trim() || 'عدد',
@@ -148,6 +151,9 @@ export default function ProductsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Link href="/dashboard/business/shop-settings" className="indeed-btn">
+            تنظیمات فروشگاه
+          </Link>
           <Link href="/shop" className="indeed-btn">
             دایرکتوری عمومی
           </Link>
@@ -168,6 +174,7 @@ export default function ProductsPage() {
           <input className={field} placeholder="واحد (عدد، کیلوگرم…)" value={form.unit} onChange={(event) => setForm((prev) => ({ ...prev, unit: event.target.value }))} />
           <input className={field} type="number" min={0} placeholder="قیمت (تومان)" value={form.price} onChange={(event) => setForm((prev) => ({ ...prev, price: event.target.value }))} />
           <input className={field} type="number" min={0} placeholder="قیمت قبل از تخفیف" value={form.compareAtPrice} onChange={(event) => setForm((prev) => ({ ...prev, compareAtPrice: event.target.value }))} />
+          <input className={field} type="number" min={0} placeholder="بهای خرید (برای محاسبه‌ی سود)" value={form.costPrice} onChange={(event) => setForm((prev) => ({ ...prev, costPrice: event.target.value }))} />
           <input className={field} type="number" min={0} placeholder="موجودی" value={form.stock} onChange={(event) => setForm((prev) => ({ ...prev, stock: event.target.value }))} />
           <input className={field} type="number" min={0} placeholder="آستانه‌ی هشدار موجودی" value={form.lowStockThreshold} onChange={(event) => setForm((prev) => ({ ...prev, lowStockThreshold: event.target.value }))} />
           <textarea className={`${field} md:col-span-2`} rows={3} placeholder="توضیحات" value={form.description} onChange={(event) => setForm((prev) => ({ ...prev, description: event.target.value }))} />

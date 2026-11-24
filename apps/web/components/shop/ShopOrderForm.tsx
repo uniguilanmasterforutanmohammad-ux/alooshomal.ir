@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { Check, Minus, Plus, ShoppingBag } from 'lucide-react';
+import { Check, Minus, Plus, ShoppingBag, Truck } from 'lucide-react';
 
 import { CardToCardForm } from '@/components/payments/CardToCardForm';
 import { api, type PublicShop, type RetailOrder } from '@/lib/api';
@@ -11,13 +12,16 @@ const field =
   'w-full rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-sm text-ink outline-none focus:border-brand';
 
 export function ShopOrderForm({ shop }: { shop: PublicShop }) {
+  const settings = shop.settings;
   const [cart, setCart] = useState<Record<string, number>>({});
   const [customer, setCustomer] = useState({
     customerName: '',
     customerPhone: '',
     customerAddress: '',
+    neighborhood: '',
     note: '',
     paymentMethod: 'CARD_TO_CARD',
+    deliveryMethod: settings.snapEnabled ? 'SNAP' : 'PICKUP',
   });
   const [busy, setBusy] = useState(false);
   const [order, setOrder] = useState<RetailOrder | null>(null);
@@ -33,7 +37,10 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
         })),
     [cart, shop.products],
   );
-  const total = lines.reduce((sum, line) => sum + line.total, 0);
+  const itemsTotal = lines.reduce((sum, line) => sum + line.total, 0);
+  const deliveryFee =
+    customer.deliveryMethod === 'SNAP' ? settings.deliveryFee : 0;
+  const total = itemsTotal + deliveryFee;
 
   function change(productId: string, delta: number, max: number) {
     setCart((prev) => {
@@ -57,8 +64,10 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
           customerName: customer.customerName.trim(),
           customerPhone: customer.customerPhone.trim(),
           customerAddress: customer.customerAddress.trim() || undefined,
+          neighborhood: customer.neighborhood || undefined,
           note: customer.note.trim() || undefined,
           paymentMethod: customer.paymentMethod,
+          deliveryMethod: customer.deliveryMethod,
           items: lines.map((line) => ({
             productId: line.product.id,
             quantity: line.quantity,
@@ -86,6 +95,19 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
         <p className="text-sm font-bold text-brand">
           مبلغ قابل پرداخت: {order.totalAmount.toLocaleString('fa-IR')} تومان
         </p>
+        {order.deliveryMethod === 'SNAP' && order.deliveryFee > 0 ? (
+          <p className="text-[11px] text-muted">
+            شامل {order.deliveryFee.toLocaleString('fa-IR')} تومان کرایه‌ی ارسال
+          </p>
+        ) : null}
+        {order.trackingToken ? (
+          <Link
+            href={`/shop/${shop.workspace.publicSlug}/track/${order.trackingToken}`}
+            className="text-xs font-bold text-brand underline"
+          >
+            مشاهده‌ی صفحه‌ی پیگیری سفارش
+          </Link>
+        ) : null}
         {order.paymentMethod === 'CARD_TO_CARD' && shop.card ? (
           <CardToCardForm
             slug={shop.workspace.publicSlug ?? ''}
@@ -145,10 +167,64 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
         </ul>
       )}
 
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-1 text-xs font-bold text-muted">روش تحویل</legend>
+        <div className="flex flex-wrap gap-2">
+          {settings.snapEnabled ? (
+            <label className="flex items-center gap-1.5 rounded-lg border border-[var(--vintage-border)] px-2.5 py-1.5 text-xs">
+              <input
+                type="radio"
+                name="deliveryMethod"
+                value="SNAP"
+                checked={customer.deliveryMethod === 'SNAP'}
+                onChange={() => setCustomer((prev) => ({ ...prev, deliveryMethod: 'SNAP' }))}
+              />
+              <Truck className="size-3.5" aria-hidden />
+              ارسال با پیک
+              {settings.deliveryFee > 0 ? ` (${settings.deliveryFee.toLocaleString('fa-IR')} تومان)` : ''}
+            </label>
+          ) : null}
+          {settings.pickupEnabled ? (
+            <label className="flex items-center gap-1.5 rounded-lg border border-[var(--vintage-border)] px-2.5 py-1.5 text-xs">
+              <input
+                type="radio"
+                name="deliveryMethod"
+                value="PICKUP"
+                checked={customer.deliveryMethod === 'PICKUP'}
+                onChange={() => setCustomer((prev) => ({ ...prev, deliveryMethod: 'PICKUP' }))}
+              />
+              دریافت حضوری
+            </label>
+          ) : null}
+        </div>
+      </fieldset>
+
+      {customer.deliveryMethod === 'PICKUP' ? (
+        <div className="rounded-lg bg-[var(--vintage-paper)] p-2 text-[11px] leading-6 text-muted">
+          {settings.pickupAddress ? <p>نشانی مراجعه: {settings.pickupAddress}</p> : null}
+          {settings.pickupHours ? <p>ساعات مراجعه: {settings.pickupHours}</p> : null}
+          {!settings.pickupAddress && !settings.pickupHours
+            ? 'برای هماهنگی مراجعه با فروشگاه تماس بگیرید.'
+            : null}
+        </div>
+      ) : null}
+
       <div className="grid gap-2">
         <input className={field} placeholder="نام و نام خانوادگی" value={customer.customerName} onChange={(event) => setCustomer((prev) => ({ ...prev, customerName: event.target.value }))} required />
         <input className={field} placeholder="شماره موبایل" value={customer.customerPhone} onChange={(event) => setCustomer((prev) => ({ ...prev, customerPhone: event.target.value }))} required />
-        <input className={field} placeholder="نشانی ارسال (اختیاری)" value={customer.customerAddress} onChange={(event) => setCustomer((prev) => ({ ...prev, customerAddress: event.target.value }))} />
+        {customer.deliveryMethod === 'SNAP' ? (
+          <>
+            {settings.neighborhoods.length > 0 ? (
+              <select className={field} value={customer.neighborhood} onChange={(event) => setCustomer((prev) => ({ ...prev, neighborhood: event.target.value }))}>
+                <option value="">انتخاب محله…</option>
+                {settings.neighborhoods.map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+            ) : null}
+            <input className={field} placeholder="نشانی ارسال (خیابان، پلاک)" value={customer.customerAddress} onChange={(event) => setCustomer((prev) => ({ ...prev, customerAddress: event.target.value }))} />
+          </>
+        ) : null}
         <select className={field} value={customer.paymentMethod} onChange={(event) => setCustomer((prev) => ({ ...prev, paymentMethod: event.target.value }))}>
           <option value="CARD_TO_CARD">کارت به کارت</option>
           <option value="CASH_ON_DELIVERY">پرداخت در محل</option>
@@ -156,10 +232,26 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
         <textarea className={field} rows={2} placeholder="یادداشت سفارش" value={customer.note} onChange={(event) => setCustomer((prev) => ({ ...prev, note: event.target.value }))} />
       </div>
 
-      <div className="flex items-center justify-between border-t border-[var(--vintage-border)] pt-3 text-sm">
-        <span className="text-muted">جمع کل</span>
-        <span className="font-extrabold text-brand">{total.toLocaleString('fa-IR')} تومان</span>
+      <div className="flex flex-col gap-1 border-t border-[var(--vintage-border)] pt-3 text-sm">
+        <div className="flex items-center justify-between text-xs text-muted">
+          <span>جمع کالاها</span>
+          <span>{itemsTotal.toLocaleString('fa-IR')} تومان</span>
+        </div>
+        <div className="flex items-center justify-between text-xs text-muted">
+          <span>کرایه‌ی ارسال</span>
+          <span>{deliveryFee.toLocaleString('fa-IR')} تومان</span>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-muted">مبلغ نهایی</span>
+          <span className="font-extrabold text-brand">{total.toLocaleString('fa-IR')} تومان</span>
+        </div>
       </div>
+      {settings.reservationMinutes > 0 ? (
+        <p className="text-[11px] text-muted">
+          پس از ثبت سفارش، {settings.reservationMinutes.toLocaleString('fa-IR')} دقیقه برای ارسال رسید
+          فرصت دارید؛ سپس موجودی آزاد می‌شود.
+        </p>
+      ) : null}
       <button type="submit" disabled={busy || lines.length === 0} className="indeed-btn indeed-btn-primary disabled:opacity-50">
         {busy ? 'در حال ثبت…' : 'ثبت سفارش'}
       </button>

@@ -178,6 +178,14 @@ export default function CardToCardPage() {
                       {payment.referenceType === 'ORDER' ? ' • سفارش' : payment.referenceType === 'BOOKING' ? ' • رزرو' : ''}
                     </p>
                     {payment.note ? <p className="mt-1 text-xs text-muted">{payment.note}</p> : null}
+                    {payment.expectedAmount != null &&
+                    payment.expectedAmount !== payment.amount ? (
+                      <p className="mt-1 text-[11px] font-bold text-amber-700">
+                        مبلغ مورد انتظار: {payment.expectedAmount.toLocaleString('fa-IR')} تومان •
+                        اختلاف: {Math.abs(payment.amount - payment.expectedAmount).toLocaleString('fa-IR')} تومان
+                        {payment.amount < payment.expectedAmount ? ' (کسری)' : ' (اضافه‌واریز)'}
+                      </p>
+                    ) : null}
                   </div>
                   <span
                     className={cn(
