@@ -138,4 +138,24 @@ export class AdminBusinessModulesController {
   setPrice(@Param('key') key: string, @Body() dto: AdminSetPriceDto) {
     return this.modules.adminSetPrice(key, dto);
   }
+
+  @Get('name-requests')
+  @ApiOperation({
+    summary: 'درخواست‌های تغییر نام نمایشی کسب‌وکار در انتظار تأیید',
+  })
+  nameRequests() {
+    return this.modules.listNameRequests();
+  }
+
+  @Post('name-requests/:id/approve')
+  @ApiOperation({ summary: 'تأیید تغییر نام نمایشی کسب‌وکار' })
+  approveName(@Param('id') id: string) {
+    return this.modules.approveNameRequest(id);
+  }
+
+  @Post('name-requests/:id/reject')
+  @ApiOperation({ summary: 'رد درخواست تغییر نام نمایشی کسب‌وکار' })
+  rejectName(@Param('id') id: string) {
+    return this.modules.rejectNameRequest(id);
+  }
 }

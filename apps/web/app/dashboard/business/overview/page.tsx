@@ -97,7 +97,7 @@ function BusinessPanelContent() {
         name: name.trim(),
       });
       setWorkspace(next);
-      toast.success('نام کسب‌وکار ذخیره شد');
+      toast.success('درخواست تغییر نام ثبت شد و پس از تأیید مدیر اعمال می‌شود');
     } finally {
       setSavingName(false);
     }
@@ -325,6 +325,12 @@ function BusinessPanelContent() {
               >
                 این کسب‌وکار پیش‌فرض من باشد
               </button>
+            ) : null}
+            {workspace.pendingName ? (
+              <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] leading-6 text-amber-700">
+                درخواست تغییر نام به «{workspace.pendingName}» ثبت شده و در
+                انتظار تأیید مدیر است. نام فعلی تا زمان تأیید تغییر نمی‌کند.
+              </p>
             ) : null}
           </div>
         </div>

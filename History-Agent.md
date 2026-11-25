@@ -20,13 +20,43 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.90.3**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.90.4**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۴ — الزام تأیید مدیر برای تغییر نام نمایشی کسب‌وکار — نسخه `v4.90.4`
+
+**هدف:** تغییر نام نمایشی کسب‌وکار از `/dashboard/business/overview` نباید
+مستقیم اعمال شود؛ ابتدا درخواست ثبت و پس از تأیید مدیر اعمال می‌شود. نام نمایشی
+فقط برچسب است و روابط دیتابیس با `id` برقرارند؛ `publicSlug` (کلید URL) هم
+تغییر نمی‌کند، پس تغییر نام هیچ رابطه/لینکی را نمی‌شکند.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `BusinessWorkspace.pendingName` و
+  `nameRequestedAt`.
+- `apps/api/src/business-modules/business-modules.service.ts`: تغییر نام در
+  `updateWorkspace`/`updateWorkspaceById` فقط `pendingName` را ثبت می‌کند؛
+  افزودن `listNameRequests`/`approveNameRequest`/`rejectNameRequest` و
+  `pendingName` در خروجی `resolve`.
+- `apps/api/src/business-modules/admin-business-modules.controller.ts`: مسیرهای
+  `GET name-requests` و `POST name-requests/:id/approve|reject`.
+- `apps/web/lib/api/types/business-modules.ts`: افزودن `pendingName`.
+- `apps/web/app/dashboard/business/overview/page.tsx`: پیام «در انتظار تأیید
+  مدیر» و نمایش نام درخواستی.
+- `apps/web/components/admin/AdminWorkspaceNameRequests.tsx` و
+  `apps/web/app/jga4rm8j/page.tsx`: صف بررسی درخواست‌های تغییر نام در پنل ادمین.
+- `docs/API.md`: مستندسازی مسیرها و رفتار.
+
+**تأیید/تست:**
+- `tsc --noEmit` در `apps/api` و `apps/web` → بدون خطا؛ `eslint` → ۰ خطا.
+- `prisma db push`/`generate` موفق؛ `check_api_docs.py` → exit 0 (۷۲۰ مسیر).
+- تست API: `PATCH /business-modules/my` ⇒ `name` بدون تغییر و
+  `pendingName` ثبت‌شده؛ صف ادمین آن را نشان داد؛ `approve` ⇒ نام به‌روز و
+  `pendingName=null`. نام آزمایشی به حالت قبل برگردانده شد.
 
 ## ۱۴۰۵/۰۹/۰۴ — هم‌ترازی دوره‌ی بسته‌ی مدیریت با اشتراک و فیلتر دسته‌بندی — نسخه `v4.90.3`
 

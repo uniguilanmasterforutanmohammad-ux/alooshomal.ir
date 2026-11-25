@@ -64,6 +64,8 @@ export interface WorkspaceSummary {
 export interface ResolvedWorkspace {
   id: string;
   name: string;
+  /** A display-name change awaiting admin approval, if any. */
+  pendingName: string | null;
   /** Public storefront slug (`/shop/<slug>`), used to build tracking links. */
   publicSlug: string | null;
   industryKey: string;
@@ -1175,7 +1177,9 @@ export class BusinessModulesService implements OnModuleInit {
       await tx.businessWorkspace.update({
         where: { id: workspaceId },
         data: {
-          ...(dto.name ? { name: dto.name.trim() } : {}),
+          ...(dto.name && dto.name.trim() !== workspace.name
+            ? { pendingName: dto.name.trim(), nameRequestedAt: new Date() }
+            : {}),
           ...(dto.industryKey ? { industryKey: dto.industryKey } : {}),
           ...(dto.isDefault !== undefined ? { isDefault: dto.isDefault } : {}),
         },
@@ -1314,6 +1318,7 @@ export class BusinessModulesService implements OnModuleInit {
     return {
       id: workspace.id,
       name: workspace.name,
+      pendingName: workspace.pendingName ?? null,
       publicSlug: workspace.publicSlug,
       industryKey: industry.key,
       industry,
@@ -1333,13 +1338,61 @@ export class BusinessModulesService implements OnModuleInit {
     dto: { name?: string },
   ): Promise<ResolvedWorkspace> {
     const workspace = await this.ensureWorkspace(userId);
-    if (dto.name) {
+    const nextName = dto.name?.trim();
+    // Renaming is a public-facing change: it waits for admin approval and the
+    // live name (and its stable publicSlug) stay untouched in the meantime.
+    if (nextName && nextName !== workspace.name) {
       await this.prisma.businessWorkspace.update({
         where: { id: workspace.id },
-        data: { name: dto.name.trim() },
+        data: { pendingName: nextName, nameRequestedAt: new Date() },
       });
     }
     return this.resolve(userId);
+  }
+
+  /** Workspaces whose display-name change is waiting for admin approval. */
+  async listNameRequests() {
+    return this.prisma.businessWorkspace.findMany({
+      where: { pendingName: { not: null } },
+      select: {
+        id: true,
+        name: true,
+        pendingName: true,
+        nameRequestedAt: true,
+        owner: { select: { id: true, fullName: true, phone: true } },
+      },
+      orderBy: { nameRequestedAt: 'asc' },
+    });
+  }
+
+  async approveNameRequest(id: string) {
+    const workspace = await this.prisma.businessWorkspace.findUnique({
+      where: { id },
+    });
+    if (!workspace || !workspace.pendingName) {
+      throw new NotFoundException('درخواست تغییر نام پیدا نشد');
+    }
+    return this.prisma.businessWorkspace.update({
+      where: { id },
+      data: {
+        name: workspace.pendingName,
+        pendingName: null,
+        nameRequestedAt: null,
+      },
+    });
+  }
+
+  async rejectNameRequest(id: string) {
+    const workspace = await this.prisma.businessWorkspace.findUnique({
+      where: { id },
+    });
+    if (!workspace || !workspace.pendingName) {
+      throw new NotFoundException('درخواست تغییر نام پیدا نشد');
+    }
+    return this.prisma.businessWorkspace.update({
+      where: { id },
+      data: { pendingName: null, nameRequestedAt: null },
+    });
   }
 
   async setIndustry(userId: string, industryKey: string): Promise<ResolvedWorkspace> {

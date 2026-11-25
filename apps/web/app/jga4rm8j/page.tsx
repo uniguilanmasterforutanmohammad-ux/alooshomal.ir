@@ -11,6 +11,7 @@ import { AdminBackups } from '@/components/admin/AdminBackups';
 import { AdminBoosts } from '@/components/admin/AdminBoosts';
 import { AdminBulkTools } from '@/components/admin/AdminBulkTools';
 import { AdminBusinessModules } from '@/components/admin/AdminBusinessModules';
+import { AdminWorkspaceNameRequests } from '@/components/admin/AdminWorkspaceNameRequests';
 import { AdminClaimRequests } from '@/components/admin/AdminClaimRequests';
 import { AdminEmails } from '@/components/admin/AdminEmails';
 import { AdminFeeds } from '@/components/admin/AdminFeeds';
@@ -92,7 +93,12 @@ function AdminContent() {
       {section === 'users' ? <UsersSection state={state} /> : null}
       {section === 'emails' ? <AdminEmails /> : null}
       {section === 'subscriptions' ? <AdminSubscriptions /> : null}
-      {section === 'business-modules' ? <AdminBusinessModules /> : null}
+      {section === 'business-modules' ? (
+        <>
+          <AdminBusinessModules />
+          <AdminWorkspaceNameRequests />
+        </>
+      ) : null}
       {section === 'boosts' ? <AdminBoosts /> : null}
       {section === 'ads' ? <AdminAds /> : null}
       {section === 'points' ? <AdminPoints /> : null}

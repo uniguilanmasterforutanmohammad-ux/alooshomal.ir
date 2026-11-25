@@ -2068,6 +2068,11 @@ model BusinessWorkspace {
   id          String   @id @default(cuid())
   ownerId     String
   name        String
+  /// A requested display-name change awaiting admin approval. The live `name`
+  /// stays untouched until an admin approves, so renaming never breaks links.
+  pendingName String?
+  /// When the pending name change was requested (for the admin queue ordering).
+  nameRequestedAt DateTime?
   industryKey String   @default("generalBusiness")
   /// Public storefront slug (`/shop/<slug>`). Generated on first use so the
   /// shop page and card-to-card form have a stable, human-readable address.

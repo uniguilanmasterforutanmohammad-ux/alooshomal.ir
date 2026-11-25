@@ -49,6 +49,8 @@ export interface IndustryPackage {
 export interface BusinessWorkspace {
   id: string;
   name: string;
+  /** A display-name change waiting for admin approval, if any. */
+  pendingName: string | null;
   publicSlug: string | null;
   industryKey: string;
   industry: IndustryPackage;
