@@ -214,6 +214,7 @@ export class BusinessModulesService implements OnModuleInit {
       await this.backfillPublicSlugs();
       await this.backfillCardWorkspaceScopes();
       await this.reloadManagements();
+      await this.backfillManagementModuleGrants();
     } catch {
       // The management tables may not exist yet on a very first boot.
     }
@@ -451,6 +452,185 @@ export class BusinessModulesService implements OnModuleInit {
       if (!exists) return candidate;
     }
     return `${base}-${Date.now().toString(36)}`;
+  }
+
+  /**
+   * Resolve the paid term of one management package for each workspace. A
+   * package can be bought either directly (`business_module_purchases` with a
+   * `package:<key>` row) or as a subscription add-on (stored in
+   * `subscription_payments.businessPackages`), so both sources are merged and
+   * the latest expiry wins. A `null` value means a lifetime term.
+   */
+  private async resolvePackageTerms(
+    packageKey: string,
+    workspaces: Array<{ id: string; ownerId: string }>,
+  ): Promise<Map<string, Date | null>> {
+    const terms = new Map<string, Date | null>();
+    if (workspaces.length === 0) return terms;
+    const workspaceIds = workspaces.map((workspace) => workspace.id);
+    const ownerIds = [
+      ...new Set(workspaces.map((workspace) => workspace.ownerId)),
+    ];
+    const [purchases, payments] = await Promise.all([
+      this.prisma.businessModulePurchase.findMany({
+        where: {
+          workspaceId: { in: workspaceIds },
+          moduleKey: `package:${packageKey}`,
+          status: 'PAID',
+        },
+        select: { workspaceId: true, expiresAt: true },
+      }),
+      this.prisma.subscriptionPayment.findMany({
+        where: {
+          userId: { in: ownerIds },
+          status: 'PAID',
+          businessPackages: { not: Prisma.DbNull },
+        },
+        select: { businessPackages: true },
+      }),
+    ]);
+    const merge = (workspaceId: string, term: Date | null) => {
+      if (!terms.has(workspaceId)) {
+        terms.set(workspaceId, term);
+        return;
+      }
+      const current = terms.get(workspaceId) ?? null;
+      if (current === null) return;
+      if (term === null || term.getTime() > current.getTime()) {
+        terms.set(workspaceId, term);
+      }
+    };
+    for (const purchase of purchases) {
+      merge(purchase.workspaceId, purchase.expiresAt);
+    }
+    for (const payment of payments) {
+      if (!Array.isArray(payment.businessPackages)) continue;
+      for (const item of payment.businessPackages) {
+        if (!item || typeof item !== 'object') continue;
+        const row = item as Record<string, unknown>;
+        if (
+          typeof row.workspaceId !== 'string' ||
+          row.packageKey !== packageKey ||
+          !workspaceIds.includes(row.workspaceId) ||
+          typeof row.paidUntil !== 'string'
+        ) {
+          continue;
+        }
+        const paidUntil = new Date(row.paidUntil);
+        if (Number.isNaN(paidUntil.getTime())) continue;
+        merge(row.workspaceId, paidUntil);
+      }
+    }
+    return terms;
+  }
+
+  /**
+   * Grant newly added package modules to workspaces that already own the
+   * management. A paid package keeps every module for the rest of its term;
+   * the free base package only auto-enables free modules. Existing activation
+   * rows are left untouched so a user's manual on/off choice is preserved.
+   */
+  private async grantManagementModulesToWorkspaces(
+    packageKey: string,
+    moduleKeys: string[],
+  ): Promise<void> {
+    if (moduleKeys.length === 0) return;
+    const management = this.management(packageKey);
+    if (!management) return;
+    const definitions = withDependencies(moduleKeys)
+      .map((key) => getBusinessModule(key))
+      .filter((item): item is BusinessModuleDefinition => Boolean(item));
+    if (definitions.length === 0) return;
+    const keys = definitions.map((item) => item.key);
+
+    const [workspaces, prices] = await Promise.all([
+      this.prisma.businessWorkspace.findMany({
+        where: { industryKey: packageKey },
+        select: { id: true, ownerId: true },
+      }),
+      this.prisma.businessModulePrice.findMany({
+        where: { moduleKey: { in: keys }, isActive: true },
+        select: { moduleKey: true, price: true },
+      }),
+    ]);
+    if (workspaces.length === 0) return;
+
+    const paidTermByWorkspace = await this.resolvePackageTerms(
+      packageKey,
+      workspaces,
+    );
+    const pricedKeys = new Set(
+      prices.filter((row) => row.price > 0).map((row) => row.moduleKey),
+    );
+    const now = Date.now();
+    const rows: Array<{
+      workspaceId: string;
+      moduleKey: string;
+      enabled: boolean;
+      enabledAt: Date;
+      paidUntil: Date | null;
+    }> = [];
+    for (const workspace of workspaces) {
+      const hasPaidPurchase = paidTermByWorkspace.has(workspace.id);
+      const paidUntil = paidTermByWorkspace.get(workspace.id) ?? null;
+      const paidActive =
+        hasPaidPurchase && (!paidUntil || paidUntil.getTime() > now);
+      for (const definition of definitions) {
+        const billable = Boolean(
+          definition.billable && pricedKeys.has(definition.key),
+        );
+        if (billable && !paidActive) continue;
+        if (!billable && !paidActive && !management.isBase) continue;
+        rows.push({
+          workspaceId: workspace.id,
+          moduleKey: definition.key,
+          enabled: true,
+          enabledAt: new Date(),
+          paidUntil: billable ? paidUntil : null,
+        });
+      }
+    }
+    if (rows.length === 0) return;
+
+    const existing = await this.prisma.businessModuleActivation.findMany({
+      where: {
+        workspaceId: { in: workspaces.map((workspace) => workspace.id) },
+        moduleKey: { in: keys },
+      },
+      select: { workspaceId: true, moduleKey: true },
+    });
+    const existingKeys = new Set(
+      existing.map((row) => `${row.workspaceId}:${row.moduleKey}`),
+    );
+    const missing = rows.filter(
+      (row) => !existingKeys.has(`${row.workspaceId}:${row.moduleKey}`),
+    );
+    if (missing.length === 0) return;
+    await this.prisma.businessModuleActivation.createMany({
+      data: missing,
+      skipDuplicates: true,
+    });
+  }
+
+  /**
+   * One-time fix for workspaces that bought a management before the admin
+   * added modules to it: ensure every current package module is granted.
+   */
+  private async backfillManagementModuleGrants(): Promise<void> {
+    const marker = 'businessManagementModuleGrantsV1';
+    const done = await this.prisma.setting.findUnique({ where: { key: marker } });
+    if (done) return;
+    for (const management of this.managementCache) {
+      await this.grantManagementModulesToWorkspaces(
+        management.key,
+        management.modules,
+      );
+    }
+    await this.prisma.setting.upsert({
+      where: { key: marker },
+      update: {},
+      create: { key: marker, value: new Date().toISOString() },
+    });
   }
 
   /** Reload the in-memory management cache from the database. */
@@ -2655,6 +2835,7 @@ export class BusinessModulesService implements OnModuleInit {
     if (!row) throw new NotFoundException('مدیریت کسب‌وکار پیدا نشد');
 
     let modules: string[] | undefined;
+    let addedModules: string[] = [];
     if (dto.modules) {
       modules = Array.from(
         new Set(dto.modules.filter((item) => getBusinessModule(item))),
@@ -2667,6 +2848,8 @@ export class BusinessModulesService implements OnModuleInit {
           if (!modules.includes(moduleKey)) modules.push(moduleKey);
         }
       }
+      const existing = new Set(row.modules.map((item) => item.moduleKey));
+      addedModules = modules.filter((moduleKey) => !existing.has(moduleKey));
     }
 
     let categoryIds: string[] | undefined;
@@ -2732,6 +2915,9 @@ export class BusinessModulesService implements OnModuleInit {
       }
     });
     await this.reloadManagements();
+    if (addedModules.length) {
+      await this.grantManagementModulesToWorkspaces(key, addedModules);
+    }
     return this.adminManagements();
   }
 
@@ -2803,6 +2989,7 @@ export class BusinessModulesService implements OnModuleInit {
       create: { managementId: row.id, moduleKey },
     });
     await this.reloadManagements();
+    await this.grantManagementModulesToWorkspaces(key, [moduleKey]);
     return this.adminManagements();
   }
 

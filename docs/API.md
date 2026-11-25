@@ -847,6 +847,16 @@ PY
 `business_managements` و `business_management_modules` نگهداری می‌شود و ادمین
 می‌تواند آن‌ها را بسازد/ویرایش/حذف کند.
 
+**افزودن ماژول به یک مدیریت موجود:** وقتی ادمین ماژولی را به یک «مدیریت
+کسب‌وکار» اضافه می‌کند (`POST .../managements/:key/modules` یا `PATCH
+.../managements/:key`)، همان ماژول بلافاصله برای کسب‌وکارهایی که آن مدیریت را
+خریداری کرده‌اند فعال می‌شود؛ چه خرید مستقیم (`business_module_purchases` با
+`package:<key>`) و چه به‌صورت افزودنی اشتراک
+(`subscription_payments.businessPackages`). دوره‌ی باقی‌مانده‌ی همان بسته روی
+ماژول جدید اعمال می‌شود و انتخاب دستی خاموش/روشن کاربر بازنویسی نمی‌شود. برای
+نصب‌های قدیمی، یک‌بار در بوت (`businessManagementModuleGrantsV1`) همین
+همگام‌سازی اجرا می‌شود.
+
 ماژول‌های فعلی: `businessCards`، `biolinks`، `feeds`، `accommodationRental`،
 `accommodationReservations`، `accommodationChannels`، `crm`، `retailCatalog`،
 `retailOrders`، `retailInventory`، `retailReports`، `buildingUnits`،
