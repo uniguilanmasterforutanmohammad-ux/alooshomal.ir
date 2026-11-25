@@ -14,13 +14,18 @@ import { Public } from '../common/decorators/public.decorator';
 import { parseGatewayCallback } from '../payping/gateway-callback';
 import { AccommodationsService } from './accommodations.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
+import { JabamaCalendarQueryDto } from './dto/jabama-calendar.dto';
 import { PublicAccommodationListDto } from './dto/public-accommodation-list.dto';
+import { JabamaCalendarService } from './jabama-calendar.service';
 
 @ApiTags('accommodations')
 @Public()
 @Controller('public/accommodations')
 export class PublicAccommodationsController {
-  constructor(private readonly accommodations: AccommodationsService) {}
+  constructor(
+    private readonly accommodations: AccommodationsService,
+    private readonly jabamaCalendar: JabamaCalendarService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -37,6 +42,32 @@ export class PublicAccommodationsController {
   })
   filters() {
     return this.accommodations.publicFacets();
+  }
+
+  @Get('jabama/calendar')
+  @ApiOperation({
+    summary:
+      'پیش‌نمایش تقویم اقامتگاه جاباما (روزهای مسدود) از روی لینک صفحه‌ی جاباما',
+  })
+  jabamaCalendarPreview(@Query() query: JabamaCalendarQueryDto) {
+    return this.jabamaCalendar.preview(query.url);
+  }
+
+  @Get('jabama/calendar.ics')
+  @ApiOperation({
+    summary: 'فید iCal ساخته‌شده از تقویم جاباما برای همگام‌سازی OTA',
+  })
+  async jabamaCalendarIcs(
+    @Query() query: JabamaCalendarQueryDto,
+    @Res() res: Response,
+  ) {
+    const ics = await this.jabamaCalendar.toIcal(query.url);
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader(
+      'Content-Disposition',
+      'inline; filename="jabama-calendar.ics"',
+    );
+    res.send(ics);
   }
 
   @Get(':slug')

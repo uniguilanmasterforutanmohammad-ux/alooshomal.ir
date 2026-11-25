@@ -20,7 +20,48 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.96.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.97.0**.
+
+## ۱۴۰۵/۰۹/۰۴ — فید iCal از تقویم جاباما + همگام‌سازی مستقیم کانال جاباما — نسخه `v4.97.0`
+
+**هدف:** جاباما خروجی iCal عمومی برای میزبان ندارد، اما تقویم دسترسی
+(`available`/`disabled`) در همان صفحه‌ی هر اقامتگاه جاسازی شده است. این تغییر
+آن تقویم را به یک فید iCal استاندارد تبدیل می‌کند تا مالک بتواند تاریخ‌های
+مسدود جاباما را در ایربی‌ان‌بی/OTA دیگر وارد کند یا مستقیماً در همگام‌سازی
+کانال‌های همین ماژول استفاده کند.
+
+**تغییرات:**
+- `apps/api/src/accommodations/jabama-calendar.service.ts`: سرویس تازه برای
+  خواندن آرایه‌ی `calendar` از payload صفحه‌ی جاباما، گروه‌بندی روزهای مسدود
+  پشت‌سرهم و ساخت فید iCal (`buildIcalCalendar`). فقط لینک‌های `/stay/` جاباما
+  پذیرفته می‌شود و سوئیچ `featureAccommodationRental` اعمال می‌شود.
+- `apps/api/src/accommodations/dto/jabama-calendar.dto.ts`: DTO کوئری `url` با
+  مستندات Swagger.
+- `apps/api/src/accommodations/public-accommodations.controller.ts`: دو مسیر
+  عمومی `GET /public/accommodations/jabama/calendar` (پیش‌نمایش JSON) و
+  `GET /public/accommodations/jabama/calendar.ics` (فید iCal).
+- `apps/api/src/accommodations/accommodations.module.ts`: ثبت
+  `JabamaCalendarService`.
+- `apps/api/src/accommodations/accommodations.service.ts`: در `syncChannel` اگر
+  `icalUrl` کانال یک لینک صفحه‌ی جاباما باشد، تقویم مستقیماً از سرویس جاباما
+  خوانده می‌شود (بدون واکشی HTTP از فید خارجی).
+- `apps/web/app/dashboard/business/channels/page.tsx`: جعبه‌ی «ساخت تقویم از
+  جاباما» برای خواندن تقویم از لینک جاباما و قراردادن آن در فیلد iCal، به‌همراه
+  نمایش و کپی فید عمومی `.ics` برای ابزارهای خارجی.
+- `docs/API.md`: مستندسازی دو مسیر تازه و رفتار جاباما در `sync`.
+
+**تأیید/تست:**
+- `GET /api/public/accommodations/jabama/calendar?url=…/stay/villa-835999` →
+  ۲۰۰، عنوان درست، ۷۶ روز (۷۰ آزاد / ۶ مسدود) و دو بازه‌ی مسدود
+  `2026-11-25…28` و `2026-11-30…12-03`.
+- `GET /api/public/accommodations/jabama/calendar.ics?url=…` → ۲۰۰ با
+  `Content-Type: text/calendar` و دو `VEVENT` با `DTSTART/DTEND` درست.
+- ساخت کانال با `icalUrl` برابر لینک جاباما و اجرای
+  `POST /accommodation-channels/:id/sync` → `{ synced: 2 }` و ثبت دو بلوک
+  `ICAL` با همان بازه‌ها در دیتابیس؛ سپس داده‌ی تست پاک شد.
+- `python3 scripts/check_api_docs.py` → exit 0 (۷۲۸ مسیر) و مسیرهای تازه در
+  `GET /api/docs-json` دیده می‌شوند.
+- `tsc --noEmit` برای `apps/api` و `apps/web` بدون خطا.
 
 ## ۱۴۰۵/۰۹/۰۴ — رفع خطای ۵۰۰ ایمپورت جاباما در لوکال (کلاینت کهنه‌ی Prisma) — نسخه `v4.96.1`
 

@@ -899,7 +899,7 @@ PY
 | `DELETE` | `/accommodations/:id/blocks/:blockId` | حذف بازه‌ی مسدود. |
 | `GET` | `/accommodations/:id/calendar.ics` | خروجی iCal تقویم (مسدودی‌ها + رزروها). |
 | `GET/POST/PATCH/DELETE` | `/accommodation-channels` | مدیریت کانال‌های رزرو (OTA/شبکه‌ی اجتماعی/سایت مستقیم). |
-| `POST` | `/accommodation-channels/:id/sync` | همگام‌سازی تقویم از فید iCal کانال. |
+| `POST` | `/accommodation-channels/:id/sync` | همگام‌سازی تقویم از فید iCal کانال. اگر `icalUrl` یک لینک صفحه‌ی جاباما (`.../stay/...`) باشد، تقویم مستقیماً از خود جاباما خوانده می‌شود (بدون فید خارجی). |
 | `GET/POST/PATCH/DELETE` | `/crm/customers` | دفترچه‌ی مشتریان و تعامل‌ها. |
 | `GET/PATCH` | `/admin/accommodations/settings` | تعرفه‌ی ایمپورت هوش مصنوعی (هزینه‌ی هر ۱۰۰۰ توکن، حداقل هزینه و حداقل تعداد تصویر). |
 
@@ -910,6 +910,11 @@ PY
 برای گزینه‌های فیلتر (شهرها و نوع‌های دارای اقامتگاه)، صفحه‌ی عمومی یک اقامتگاه
 (همراه کانال‌های فعال)، `GET /public/accommodations/:slug/calendar.ics` (فید iCal
 برای OTA)،
+`GET /public/accommodations/jabama/calendar?url=<jabama-stay-url>` (پیش‌نمایش
+روزهای مسدود یک اقامتگاه جاباما) و
+`GET /public/accommodations/jabama/calendar.ics?url=<jabama-stay-url>` (فید iCal
+ساخته‌شده از تقویم جاباما برای درج در ایربی‌ان‌بی/OTA دیگر؛ جاباما خروجی iCal
+عمومی ندارد و این فید از تقویم قابل‌مشاهده‌ی صفحه‌ی اقامتگاه ساخته می‌شود)،
 `POST /public/accommodations/:slug/bookings` برای ثبت درخواست رزرو و
 `POST /public/accommodations/:slug/bookings/:id/deposit` برای پرداخت آنلاین
 ودیعه (بازگشت درگاه: `/public/accommodations/deposits/callback`). این

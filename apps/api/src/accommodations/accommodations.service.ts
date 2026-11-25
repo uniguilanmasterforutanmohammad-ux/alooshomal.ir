@@ -25,6 +25,10 @@ import { UpdateAccommodationAiSettingsDto } from './dto/accommodation-ai-setting
 import { UpdateAccommodationDto } from './dto/update-accommodation.dto';
 import type { PublicAccommodationListDto } from './dto/public-accommodation-list.dto';
 import { buildIcalCalendar, parseIcalEvents } from './ical';
+import {
+  isJabamaStayUrl,
+  JabamaCalendarService,
+} from './jabama-calendar.service';
 
 const PROPERTY_INCLUDE = {
   photos: { orderBy: { sortOrder: 'asc' as const } },
@@ -40,6 +44,7 @@ export class AccommodationsService {
     private readonly settings: SettingsService,
     private readonly payping: PaypingService,
     private readonly simulator: PaymentSimulatorService,
+    private readonly jabamaCalendar: JabamaCalendarService,
   ) {}
 
   private async workspaceId(userId: string): Promise<string> {
@@ -619,14 +624,18 @@ export class AccommodationsService {
     }
     let text: string;
     try {
-      const response = await safeFetch(channel.icalUrl, {
-        headers: { accept: 'text/calendar, text/plain, */*' },
-        signal: AbortSignal.timeout(15_000),
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      if (isJabamaStayUrl(channel.icalUrl)) {
+        text = await this.jabamaCalendar.toIcal(channel.icalUrl);
+      } else {
+        const response = await safeFetch(channel.icalUrl, {
+          headers: { accept: 'text/calendar, text/plain, */*' },
+          signal: AbortSignal.timeout(15_000),
+        });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        text = await response.text();
       }
-      text = await response.text();
     } catch (error) {
       const message =
         error instanceof Error ? error.message.slice(0, 300) : 'خطای دریافت فید';

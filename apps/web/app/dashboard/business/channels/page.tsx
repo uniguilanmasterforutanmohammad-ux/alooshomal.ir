@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
-import { ExternalLink, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Copy, ExternalLink, Link2, Plus, RefreshCw, Trash2 } from 'lucide-react';
 
 import { BusinessPanelNav } from '@/components/business/BusinessPanelNav';
 import {
@@ -38,6 +38,8 @@ export default function ChannelsPage() {
     accountRef: '',
     notes: '',
   });
+  const [jabamaLink, setJabamaLink] = useState('');
+  const [jabamaLoading, setJabamaLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
@@ -102,6 +104,48 @@ export default function ChannelsPage() {
       await load();
     } catch {
       // API client already surfaced the failure message.
+    }
+  }
+
+  async function fillJabamaCalendar() {
+    const link = jabamaLink.trim();
+    if (!link) return;
+    setJabamaLoading(true);
+    try {
+      const preview = await api.get<{
+        title: string | null;
+        totalDays: number;
+        blockedDays: number;
+      }>(
+        `/public/accommodations/jabama/calendar?url=${encodeURIComponent(link)}`,
+      );
+      setForm((prev) => ({
+        ...prev,
+        name: prev.name.trim() || 'جاباما',
+        icalUrl: link,
+      }));
+      toast.success(
+        `تقویم جاباما خوانده شد: ${preview.blockedDays} روز مسدود از ${preview.totalDays} روز`,
+      );
+    } catch {
+      // API client already surfaced the failure message.
+    } finally {
+      setJabamaLoading(false);
+    }
+  }
+
+  const jabamaFeedUrl =
+    form.icalUrl && /jabama\.com\/stay\//i.test(form.icalUrl)
+      ? `${process.env.NEXT_PUBLIC_API_URL ?? ''}/public/accommodations/jabama/calendar.ics?url=${encodeURIComponent(form.icalUrl)}`
+      : '';
+
+  async function copyFeed() {
+    if (!jabamaFeedUrl) return;
+    try {
+      await navigator.clipboard.writeText(jabamaFeedUrl);
+      toast.success('لینک فید iCal کپی شد');
+    } catch {
+      toast.error('کپی لینک ممکن نشد');
     }
   }
 
@@ -175,6 +219,24 @@ export default function ChannelsPage() {
           onChange={(event) => setForm((prev) => ({ ...prev, icalUrl: event.target.value }))}
           dir="ltr"
         />
+        {jabamaFeedUrl ? (
+          <div className="md:col-span-2 flex flex-col gap-1 rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] p-3">
+            <p className="text-[11px] font-bold text-muted">
+              فید iCal عمومی این اقامتگاه جاباما (برای درج در ایربی‌ان‌بی یا ابزار دیگر):
+            </p>
+            <div className="flex items-center gap-2">
+              <input className={`${field} text-[11px]`} value={jabamaFeedUrl} readOnly dir="ltr" />
+              <button
+                type="button"
+                onClick={() => void copyFeed()}
+                className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-brand"
+              >
+                <Copy className="size-3" aria-hidden />
+                کپی
+              </button>
+            </div>
+          </div>
+        ) : null}
         <input
           className={`${field} md:col-span-2`}
           placeholder="یادداشت داخلی (اختیاری)"
@@ -190,6 +252,32 @@ export default function ChannelsPage() {
           افزودن کانال
         </button>
       </form>
+
+      <div className="indeed-panel flex flex-col gap-2 p-4">
+        <p className="text-xs font-extrabold text-ink">ساخت تقویم از جاباما</p>
+        <p className="text-[11px] text-muted">
+          لینک صفحه‌ی اقامتگاه در جاباما را بگذارید تا تاریخ‌های مسدود آن خوانده و
+          به‌صورت تقویم iCal در فیلد بالا قرار گیرد.
+        </p>
+        <div className="flex flex-col gap-2 md:flex-row">
+          <input
+            className={field}
+            placeholder="https://www.jabama.com/stay/villa-835999"
+            value={jabamaLink}
+            onChange={(event) => setJabamaLink(event.target.value)}
+            dir="ltr"
+          />
+          <button
+            type="button"
+            onClick={() => void fillJabamaCalendar()}
+            disabled={jabamaLoading || !jabamaLink.trim()}
+            className="indeed-btn indeed-btn-primary shrink-0"
+          >
+            <Link2 className="size-4" aria-hidden />
+            {jabamaLoading ? 'در حال خواندن…' : 'خواندن تقویم جاباما'}
+          </button>
+        </div>
+      </div>
 
       {loading ? (
         <p className="text-muted">در حال بارگذاری…</p>

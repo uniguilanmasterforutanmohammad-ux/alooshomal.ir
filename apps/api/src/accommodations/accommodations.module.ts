@@ -12,6 +12,7 @@ import { AccommodationChannelsService } from './accommodation-channels.service';
 import { AdminAccommodationsController } from './admin-accommodations.controller';
 import { AccommodationsController } from './accommodations.controller';
 import { AccommodationsService } from './accommodations.service';
+import { JabamaCalendarService } from './jabama-calendar.service';
 import { PublicAccommodationsController } from './public-accommodations.controller';
 
 @Module({
@@ -33,6 +34,7 @@ import { PublicAccommodationsController } from './public-accommodations.controll
     AccommodationsService,
     AccommodationChannelsService,
     AccommodationAiImportService,
+    JabamaCalendarService,
   ],
   exports: [AccommodationsService, AccommodationChannelsService],
 })
