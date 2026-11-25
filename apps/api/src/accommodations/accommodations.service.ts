@@ -526,7 +526,7 @@ export class AccommodationsService {
     );
     const properties = await this.prisma.accommodationProperty.findMany({
       where: { workspaceId },
-      select: { id: true, title: true },
+      select: { id: true, title: true, viewCount: true },
     });
     const bookings = await this.prisma.accommodationBookingRequest.findMany({
       where: {
@@ -544,7 +544,14 @@ export class AccommodationsService {
 
     const perProperty = new Map<
       string,
-      { propertyId: string; title: string; nights: number; revenue: number; bookings: number }
+      {
+        propertyId: string;
+        title: string;
+        nights: number;
+        revenue: number;
+        bookings: number;
+        views: number;
+      }
     >();
     for (const property of properties) {
       perProperty.set(property.id, {
@@ -553,6 +560,7 @@ export class AccommodationsService {
         nights: 0,
         revenue: 0,
         bookings: 0,
+        views: property.viewCount,
       });
     }
     const perChannel = new Map<
@@ -611,12 +619,15 @@ export class AccommodationsService {
     }
 
     const totalPropertyNights = properties.length * rangeDays;
+    const views = properties.reduce((sum, property) => sum + property.viewCount, 0);
     return {
       from: this.toDateOnly(range.from),
       to: this.toDateOnly(range.to),
       rangeDays,
       properties: properties.length,
       bookings: bookings.length,
+      views,
+      conversion: views ? Math.round((bookings.length / views) * 1000) / 10 : 0,
       bookedNights,
       revenue,
       adr: bookedNights ? Math.round(revenue / bookedNights) : 0,
@@ -630,6 +641,9 @@ export class AccommodationsService {
         ...row,
         occupancy: rangeDays
           ? Math.round((row.nights / rangeDays) * 100)
+          : 0,
+        conversion: row.views
+          ? Math.round((row.bookings / row.views) * 1000) / 10
           : 0,
       })),
       perChannel: [...perChannel.values()].map((row) => ({
@@ -773,6 +787,16 @@ export class AccommodationsService {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
+  }
+
+  /** Count a public page view for the host's conversion metric. */
+  async trackPublicView(slug: string) {
+    await this.settings.assertFeatureEnabled('featureAccommodationRental');
+    const result = await this.prisma.accommodationProperty.updateMany({
+      where: { slug, status: 'PUBLISHED' },
+      data: { viewCount: { increment: 1 } },
+    });
+    return { tracked: result.count > 0 };
   }
 
   async createPublicReview(slug: string, dto: CreateReviewDto) {

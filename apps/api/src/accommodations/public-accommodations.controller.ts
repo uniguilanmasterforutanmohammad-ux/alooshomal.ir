@@ -100,6 +100,12 @@ export class PublicAccommodationsController {
     return this.accommodations.publicReviews(slug);
   }
 
+  @Post(':slug/view')
+  @ApiOperation({ summary: 'ثبت یک بازدید صفحه‌ی عمومی اقامتگاه (برای آمار تبدیل)' })
+  trackView(@Param('slug') slug: string) {
+    return this.accommodations.trackPublicView(slug);
+  }
+
   @Post(':slug/reviews')
   @ApiOperation({ summary: 'ثبت نظر مهمان برای یک اقامتگاه (بدون نیاز به ورود)' })
   createReview(@Param('slug') slug: string, @Body() dto: CreateReviewDto) {

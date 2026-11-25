@@ -20,7 +20,32 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.101.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.102.0**.
+
+## ۱۴۰۵/۰۹/۰۴ — آمار بازدید و نرخ تبدیل صفحه‌ی عمومی اقامتگاه (P3) — نسخه `v4.102.0`
+
+**هدف:** تکمیل آخرین قلم `docs/HOST-OPS.md` (P3): شمارش بازدید صفحه‌ی عمومی
+اقامتگاه و نمایش نرخ تبدیل در گزارش میزبان.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: فیلد `viewCount` روی اقامتگاه.
+- `apps/api/src/accommodations/accommodations.service.ts`: `trackPublicView`
+  (افزایش اتمیک بازدید) و افزودن `views`/`conversion` به گزارش کلی و
+  به‌تفکیک اقامتگاه.
+- `apps/api/src/accommodations/public-accommodations.controller.ts`:
+  `POST /public/accommodations/:slug/view`.
+- `apps/web/components/stay/StayViewTracker.tsx` و `app/stay/[slug]/page.tsx`:
+  ثبت یک‌باره‌ی بازدید در هر نشست.
+- `apps/web/app/dashboard/business/accommodations/reports/page.tsx`: کارت‌های
+  بازدید/تبدیل و ستون‌های جدول اقامتگاه.
+- `docs/API.md` و `docs/HOST-OPS.md`: مستندسازی و به‌روزرسانی وضعیت.
+
+**تأیید/تست:**
+- `tsc` برای `apps/api` و `apps/web` بدون خطا.
+- تست زنده: دو بار `POST .../view` → `tracked: true`؛ گزارش `views=2` و
+  ستون بازدید اقامتگاه درست بود؛ سپس `viewCount` صفر شد.
+- `python3 scripts/check_api_docs.py` → exit 0 (۷۵۰ مسیر).
+- `python3 scripts/sync_install.py` و `--check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۴ — سوئیچ فعال/نمایش برای زیرقابلیت‌های ابزار میزبان (قانون ۹) — نسخه `v4.101.0`
 

@@ -2310,6 +2310,8 @@ model AccommodationProperty {
   /// Display rating imported from the source listing (0–5). Null = no rating.
   rating       Float?
   reviewsCount Int      @default(0)
+  /// Public page views (used for the host's conversion metric).
+  viewCount    Int      @default(0)
   /// Source the listing was imported from (e.g. «JABAMA»), plus its URL and
   /// stable external id so a re-import can be detected.
   externalSource String?

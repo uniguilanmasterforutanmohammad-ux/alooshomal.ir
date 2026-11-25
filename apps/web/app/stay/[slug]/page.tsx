@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { StayBookingForm } from '@/components/stay/StayBookingForm';
 import { StayReviews } from '@/components/stay/StayReviews';
+import { StayViewTracker } from '@/components/stay/StayViewTracker';
 import { JsonLd } from '@/components/seo/JsonLd';
 import type { AccommodationProperty } from '@/lib/api';
 import {
@@ -119,6 +120,7 @@ export default async function StayDetailPage({
   return (
     <>
       <JsonLd data={jsonLd} />
+      <StayViewTracker slug={stay.slug} />
       <Header />
       <main className="container-page grid gap-6 py-8 lg:grid-cols-[1.6fr_1fr]">
         <div className="flex flex-col gap-6">

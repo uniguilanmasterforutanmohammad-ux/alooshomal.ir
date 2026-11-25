@@ -893,7 +893,7 @@ PY
 | `DELETE` | `/accommodations/:id/photos/:photoId` | حذف عکس. |
 | `GET` | `/accommodations/bookings` | همه‌ی رزروها (فیلتر `status`). |
 | `GET` | `/accommodations/calendar` | نمای یکپارچه‌ی تقویم کسب‌وکار در بازه‌ی `from`/`to` (`YYYY-MM-DD`): فهرست اقامتگاه‌ها + رزروهای فعال + مسدودی‌ها (دستی و کانال) با شناسه‌ی اقامتگاه. |
-| `GET` | `/accommodations/reports` | گزارش بازه‌ی `from`/`to`: درآمد، شب رزروشده، اشغال، ADR، RevPAR، تفکیک اقامتگاه/کانال (ناخالص/کمیسیون/خالص) و روند ماهانه. |
+| `GET` | `/accommodations/reports` | گزارش بازه‌ی `from`/`to`: درآمد، شب رزروشده، اشغال، ADR، RevPAR، بازدید صفحه و نرخ تبدیل، تفکیک اقامتگاه/کانال (ناخالص/کمیسیون/خالص) و روند ماهانه. |
 | `PATCH` | `/accommodations/bookings/:id/status` | تغییر وضعیت رزرو. |
 | `PATCH` | `/accommodations/bookings/:id/cancel` | لغو رزرو و محاسبه‌ی `refundAmount` بر اساس `cancellationPolicy`/`cancellationDays` اقامتگاه؛ بازگشت پول با وضعیت `PENDING` ثبت می‌شود. |
 | `GET/POST` | `/accommodations/bookings/:id/messages` | صندوق پیام مهمان: فهرست و ثبت پیام/یادداشت برای یک رزرو. |
@@ -932,6 +932,7 @@ PY
 `GET /public/accommodations/:slug/reviews` (نظرات منتشرشده) و
 `POST /public/accommodations/:slug/reviews` (ثبت نظر مهمان؛ میانگین امتیاز
 اقامتگاه بازمحاسبه می‌شود)،
+`POST /public/accommodations/:slug/view` (ثبت بازدید صفحه برای آمار تبدیل)،
 `POST /public/accommodations/:slug/bookings` برای ثبت درخواست رزرو و
 `POST /public/accommodations/:slug/bookings/:id/deposit` برای پرداخت آنلاین
 ودیعه (بازگشت درگاه: `/public/accommodations/deposits/callback`). این

@@ -17,6 +17,8 @@ interface ReportRow {
   revenue: number;
   bookings: number;
   occupancy?: number;
+  views?: number;
+  conversion?: number;
   commission?: number;
   net?: number;
 }
@@ -27,6 +29,8 @@ interface Report {
   rangeDays: number;
   properties: number;
   bookings: number;
+  views: number;
+  conversion: number;
   bookedNights: number;
   revenue: number;
   adr: number;
@@ -133,6 +137,11 @@ export default function AccommodationReportsPage() {
               { label: 'ADR (میانگین شب)', value: money(data.adr) },
               { label: 'RevPAR', value: money(data.revPar) },
               { label: 'رزروها', value: data.bookings.toLocaleString('fa-IR') },
+              { label: 'بازدید صفحه', value: data.views.toLocaleString('fa-IR') },
+              {
+                label: 'نرخ تبدیل',
+                value: `${data.conversion.toLocaleString('fa-IR')}٪`,
+              },
               { label: 'اقامتگاه‌ها', value: data.properties.toLocaleString('fa-IR') },
               { label: 'روزهای بازه', value: data.rangeDays.toLocaleString('fa-IR') },
             ].map((item) => (
@@ -151,6 +160,8 @@ export default function AccommodationReportsPage() {
                   <tr>
                     <th className="p-2">اقامتگاه</th>
                     <th className="p-2">رزرو</th>
+                    <th className="p-2">بازدید</th>
+                    <th className="p-2">تبدیل</th>
                     <th className="p-2">شب</th>
                     <th className="p-2">اشغال</th>
                     <th className="p-2">درآمد</th>
@@ -161,6 +172,8 @@ export default function AccommodationReportsPage() {
                     <tr key={row.propertyId} className="border-t border-[var(--vintage-border)]">
                       <td className="p-2 font-bold text-ink">{row.title}</td>
                       <td className="p-2">{row.bookings.toLocaleString('fa-IR')}</td>
+                      <td className="p-2">{(row.views ?? 0).toLocaleString('fa-IR')}</td>
+                      <td className="p-2">{(row.conversion ?? 0).toLocaleString('fa-IR')}٪</td>
                       <td className="p-2">{row.nights.toLocaleString('fa-IR')}</td>
                       <td className="p-2">{(row.occupancy ?? 0).toLocaleString('fa-IR')}٪</td>
                       <td className="p-2">{money(row.revenue)}</td>

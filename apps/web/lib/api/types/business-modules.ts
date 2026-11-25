@@ -166,6 +166,7 @@ export interface AccommodationProperty {
   instantBooking: boolean;
   rating: number | null;
   reviewsCount: number;
+  viewCount?: number;
   externalSource: string | null;
   externalUrl: string | null;
   externalRef: string | null;
