@@ -107,6 +107,25 @@ export default function ChannelsPage() {
     }
   }
 
+  async function syncAll() {
+    try {
+      const result = await api.post<{
+        channels: number;
+        synced: number;
+        results: Array<{ name: string; ok: boolean; synced: number }>;
+      }>('/accommodation-channels/sync-all', {});
+      const failed = result.results.filter((item) => !item.ok).length;
+      toast.success(
+        `${result.channels} کانال بررسی شد؛ ${result.synced} رویداد همگام شد${
+          failed ? ` • ${failed} خطا` : ''
+        }`,
+      );
+      await load();
+    } catch {
+      // API client already surfaced the failure message.
+    }
+  }
+
   async function fillJabamaCalendar() {
     const link = jabamaLink.trim();
     if (!link) return;
@@ -160,6 +179,14 @@ export default function ChannelsPage() {
           پلتفرم‌ها و حساب‌هایی که اقامتگاه را در آن‌ها ثبت کرده‌اید؛ این فهرست در
           صفحه‌ی عمومی اقامتگاه هم نمایش داده می‌شود.
         </p>
+        <button
+          type="button"
+          onClick={() => void syncAll()}
+          className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-brand"
+        >
+          <RefreshCw className="size-3" aria-hidden />
+          همگام‌سازی همه‌ی کانال‌ها
+        </button>
       </div>
 
       {workspace ? <BusinessPanelNav modules={workspace.modules} /> : null}

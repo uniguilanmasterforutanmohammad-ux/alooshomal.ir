@@ -68,4 +68,13 @@ export class AccommodationChannelsController {
   ) {
     return this.channels.sync(user.id, id, dto.propertyId);
   }
+
+  @Post('sync-all')
+  @ApiOperation({
+    summary:
+      'همگام‌سازی همه‌ی کانال‌های فعال با فید iCal و گزارش نتیجه‌ی هر کانال',
+  })
+  syncAll(@CurrentUser() user: AuthUser) {
+    return this.channels.syncAll(user.id);
+  }
 }

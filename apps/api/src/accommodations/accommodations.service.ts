@@ -7,11 +7,14 @@ import {
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 
+import { NotificationType, type AccommodationChannel } from '@prisma/client';
+
 import { BusinessModulesService } from '../business-modules/business-modules.service';
 import { paypingReturnBaseUrl } from '../common/app-url';
 import { safeFetch } from '../common/outbound-url';
 import { PaymentSimulatorService } from '../payping/payment-simulator.service';
 import { PaypingService } from '../payping/payping.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { AddAccommodationPhotoDto } from './dto/add-photo.dto';
@@ -45,6 +48,7 @@ export class AccommodationsService {
     private readonly payping: PaypingService,
     private readonly simulator: PaymentSimulatorService,
     private readonly jabamaCalendar: JabamaCalendarService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private async workspaceId(userId: string): Promise<string> {
@@ -246,6 +250,94 @@ export class AccommodationsService {
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /**
+   * One range for the whole workspace: every property plus the bookings and
+   * blocks that overlap it. The panel renders this as a single month grid so
+   * the host sees direct bookings, manual blocks and channel blocks together.
+   */
+  async calendarOverview(userId: string, from?: string, to?: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const range = this.resolveCalendarRange(from, to);
+    const properties = await this.prisma.accommodationProperty.findMany({
+      where: { workspaceId },
+      select: {
+        id: true,
+        title: true,
+        slug: true,
+        propertyType: true,
+        basePrice: true,
+        status: true,
+        instantBooking: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    const propertyIds = properties.map((property) => property.id);
+    const [blocks, bookings] = await Promise.all([
+      propertyIds.length
+        ? this.prisma.accommodationCalendarBlock.findMany({
+            where: {
+              propertyId: { in: propertyIds },
+              startDate: { lt: range.to },
+              endDate: { gt: range.from },
+            },
+            orderBy: { startDate: 'asc' },
+          })
+        : Promise.resolve([]),
+      this.prisma.accommodationBookingRequest.findMany({
+        where: {
+          workspaceId,
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          checkIn: { lt: range.to },
+          checkOut: { gt: range.from },
+        },
+        include: { channel: { select: { id: true, name: true } } },
+        orderBy: { checkIn: 'asc' },
+      }),
+    ]);
+    return {
+      from: this.toDateOnly(range.from),
+      to: this.toDateOnly(range.to),
+      properties,
+      blocks,
+      bookings,
+    };
+  }
+
+  private resolveCalendarRange(from?: string, to?: string) {
+    const now = new Date();
+    const defaultFrom = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
+    );
+    const defaultTo = new Date(
+      Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 1),
+    );
+    const start = from ? this.parseDateOnly(from) : defaultFrom;
+    const end = to ? this.parseDateOnly(to) : defaultTo;
+    if (!start || !end) {
+      throw new BadRequestException('بازه‌ی تقویم معتبر نیست');
+    }
+    if (end <= start) {
+      throw new BadRequestException('پایان بازه باید بعد از شروع باشد');
+    }
+    if (end.getTime() - start.getTime() > 370 * 86_400_000) {
+      throw new BadRequestException('بازه‌ی تقویم حداکثر یک سال است');
+    }
+    return { from: start, to: end };
+  }
+
+  private parseDateOnly(value: string): Date | null {
+    const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
+    if (!match) return null;
+    const date = new Date(
+      Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
+    );
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  private toDateOnly(date: Date): string {
+    return date.toISOString().slice(0, 10);
   }
 
   async updateBookingStatus(userId: string, bookingId: string, status: string) {
@@ -509,7 +601,7 @@ export class AccommodationsService {
       1,
       Math.ceil((checkOut.getTime() - checkIn.getTime()) / 86_400_000),
     );
-    return this.prisma.$transaction(async (tx) => {
+    const booking = await this.prisma.$transaction(async (tx) => {
       const booking = await tx.accommodationBookingRequest.create({
         data: {
           workspaceId: property.workspaceId,
@@ -541,6 +633,40 @@ export class AccommodationsService {
       }
       return booking;
     });
+    await this.notifyOwnerOfBooking(property, booking);
+    return booking;
+  }
+
+  /** Best-effort in-app notification so the host hears about a new request. */
+  private async notifyOwnerOfBooking(
+    property: { workspaceId: string; title: string },
+    booking: {
+      id: string;
+      guestName: string;
+      checkIn: Date;
+      checkOut: Date;
+      status: string;
+    },
+  ) {
+    try {
+      const workspace = await this.prisma.businessWorkspace.findUnique({
+        where: { id: property.workspaceId },
+        select: { ownerId: true },
+      });
+      if (!workspace?.ownerId) return;
+      const confirmed = booking.status === 'CONFIRMED';
+      await this.notifications.notify({
+        userId: workspace.ownerId,
+        type: confirmed ? NotificationType.SUCCESS : NotificationType.INFO,
+        title: confirmed ? 'رزرو جدید (تأیید خودکار)' : 'درخواست رزرو جدید',
+        body: `${booking.guestName} برای «${property.title}» از ${this.toDateOnly(
+          booking.checkIn,
+        )} تا ${this.toDateOnly(booking.checkOut)}`,
+        link: '/dashboard/business/bookings',
+      });
+    } catch {
+      // Notification failure must never break the booking itself.
+    }
   }
 
   // ---- calendar (iCal / OTA sync) ----
@@ -619,6 +745,83 @@ export class AccommodationsService {
       where: { id: channelId, workspaceId },
     });
     if (!channel) throw new NotFoundException('کانال رزرو پیدا نشد');
+    return this.syncChannelRecord(channel, propertyId);
+  }
+
+  /** Sync every active channel of the workspace, collecting per-channel errors. */
+  async syncAllChannels(userId: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const channels = await this.prisma.accommodationChannel.findMany({
+      where: { workspaceId, isActive: true, icalUrl: { not: null } },
+      orderBy: { sortOrder: 'asc' },
+    });
+    const results: Array<{
+      channelId: string;
+      name: string;
+      ok: boolean;
+      synced: number;
+      error?: string;
+    }> = [];
+    let synced = 0;
+    for (const channel of channels) {
+      try {
+        const result = await this.syncChannelRecord(channel);
+        synced += result.synced;
+        results.push({
+          channelId: channel.id,
+          name: channel.name,
+          ok: true,
+          synced: result.synced,
+        });
+      } catch (error) {
+        results.push({
+          channelId: channel.id,
+          name: channel.name,
+          ok: false,
+          synced: 0,
+          error:
+            error instanceof Error
+              ? error.message.slice(0, 200)
+              : 'خطای همگام‌سازی',
+        });
+      }
+    }
+    return { channels: results.length, synced, results };
+  }
+
+  /**
+   * Background sweep: sync every active channel whose last sync is older than
+   * `intervalMinutes`. Used by the periodic job so the calendar stays fresh
+   * without the host pressing «همگام‌سازی».
+   */
+  async syncDueChannels(intervalMinutes: number) {
+    const threshold = new Date(Date.now() - intervalMinutes * 60_000);
+    const channels = await this.prisma.accommodationChannel.findMany({
+      where: {
+        isActive: true,
+        icalUrl: { not: null },
+        OR: [{ lastSyncedAt: null }, { lastSyncedAt: { lt: threshold } }],
+      },
+      take: 50,
+    });
+    let synced = 0;
+    let failed = 0;
+    for (const channel of channels) {
+      try {
+        const result = await this.syncChannelRecord(channel);
+        synced += result.synced;
+      } catch {
+        failed += 1;
+      }
+    }
+    return { channels: channels.length, synced, failed };
+  }
+
+  private async syncChannelRecord(
+    channel: AccommodationChannel,
+    propertyId?: string,
+  ) {
+    const workspaceId = channel.workspaceId;
     if (!channel.icalUrl) {
       throw new BadRequestException('برای این کانال آدرس iCal ثبت نشده است');
     }

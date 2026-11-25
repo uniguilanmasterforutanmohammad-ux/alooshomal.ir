@@ -892,6 +892,7 @@ PY
 | `POST` | `/accommodations/:id/photos` | افزودن عکس (URL خروجی `POST /uploads/gallery`). |
 | `DELETE` | `/accommodations/:id/photos/:photoId` | حذف عکس. |
 | `GET` | `/accommodations/bookings` | همه‌ی رزروها (فیلتر `status`). |
+| `GET` | `/accommodations/calendar` | نمای یکپارچه‌ی تقویم کسب‌وکار در بازه‌ی `from`/`to` (`YYYY-MM-DD`): فهرست اقامتگاه‌ها + رزروهای فعال + مسدودی‌ها (دستی و کانال) با شناسه‌ی اقامتگاه. |
 | `PATCH` | `/accommodations/bookings/:id/status` | تغییر وضعیت رزرو. |
 | `PATCH` | `/accommodations/bookings/:id/deposit` | ثبت دستی وضعیت ودیعه. |
 | `POST` | `/accommodations/:id/bookings` | ثبت دستی رزرو توسط مالک. |
@@ -900,6 +901,7 @@ PY
 | `GET` | `/accommodations/:id/calendar.ics` | خروجی iCal تقویم (مسدودی‌ها + رزروها). |
 | `GET/POST/PATCH/DELETE` | `/accommodation-channels` | مدیریت کانال‌های رزرو (OTA/شبکه‌ی اجتماعی/سایت مستقیم). |
 | `POST` | `/accommodation-channels/:id/sync` | همگام‌سازی تقویم از فید iCal کانال. اگر `icalUrl` یک لینک صفحه‌ی جاباما (`.../stay/...`) باشد، تقویم مستقیماً از خود جاباما خوانده می‌شود (بدون فید خارجی). |
+| `POST` | `/accommodation-channels/sync-all` | همگام‌سازی همه‌ی کانال‌های فعال دارای `icalUrl` و برگرداندن نتیجه‌ی هر کانال (`results[]`). یک جاب دوره‌ای هم هر ۳۰ دقیقه (قابل تنظیم با `ACCOMMODATION_SYNC_INTERVAL_MINUTES`) کانال‌های کهنه را خودکار همگام می‌کند. |
 | `GET/POST/PATCH/DELETE` | `/crm/customers` | دفترچه‌ی مشتریان و تعامل‌ها. |
 | `GET/PATCH` | `/admin/accommodations/settings` | تعرفه‌ی ایمپورت هوش مصنوعی (هزینه‌ی هر ۱۰۰۰ توکن، حداقل هزینه و حداقل تعداد تصویر). |
 

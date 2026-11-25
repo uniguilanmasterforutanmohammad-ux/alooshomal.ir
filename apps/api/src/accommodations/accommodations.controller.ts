@@ -29,6 +29,7 @@ import {
 import { CreateAccommodationDto } from './dto/create-accommodation.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateCalendarBlockDto } from './dto/create-block.dto';
+import { CalendarOverviewQueryDto } from './dto/calendar-overview.dto';
 import { UpdateAccommodationDto } from './dto/update-accommodation.dto';
 import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 import { UpdateDepositDto } from './dto/update-deposit.dto';
@@ -85,6 +86,19 @@ export class AccommodationsController {
   @ApiOperation({ summary: 'همه‌ی درخواست‌های رزرو کسب‌وکار (با فیلتر وضعیت)' })
   bookings(@CurrentUser() user: AuthUser, @Query('status') status?: string) {
     return this.accommodations.listBookings(user.id, status);
+  }
+
+  @Get('calendar')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({
+    summary:
+      'نمای یکپارچه‌ی تقویم: همه‌ی اقامتگاه‌ها همراه رزروها و مسدودی‌ها در یک بازه',
+  })
+  calendarOverview(
+    @CurrentUser() user: AuthUser,
+    @Query() query: CalendarOverviewQueryDto,
+  ) {
+    return this.accommodations.calendarOverview(user.id, query.from, query.to);
   }
 
   @Patch('bookings/:id/status')

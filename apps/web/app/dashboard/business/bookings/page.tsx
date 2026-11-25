@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
 import { BusinessPanelNav } from '@/components/business/BusinessPanelNav';
+import { AccommodationCalendarGrid } from '@/components/business/AccommodationCalendarGrid';
 import { api, type AccommodationBooking } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
@@ -69,6 +70,8 @@ export default function BookingsPage() {
       </div>
 
       {workspace ? <BusinessPanelNav modules={workspace.modules} /> : null}
+
+      <AccommodationCalendarGrid />
 
       <div className="flex flex-wrap gap-2">
         {STATUSES.map((item) => (

@@ -20,7 +20,50 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.97.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.98.0**.
+
+## ۱۴۰۵/۰۹/۰۴ — M1 ابزار عملیات میزبان: تقویم یکپارچه + همگام‌سازی خودکار + اعلان رزرو — نسخه `v4.98.0`
+
+**هدف:** اجرای مرحله‌ی M1 سند `docs/HOST-OPS.md`: دیدن همه‌ی رزروها/مسدودی‌ها
+در یک تقویم، تازه‌ماندن خودکار تقویم کانال‌ها و باخبرشدن فوری میزبان از رزرو
+جدید.
+
+**تغییرات:**
+- `apps/api/src/accommodations/dto/calendar-overview.dto.ts`: DTO بازه‌ی
+  `from`/`to` با مستندات Swagger.
+- `apps/api/src/accommodations/accommodations.service.ts`: متد
+  `calendarOverview` (اقامتگاه‌ها + رزروهای فعال + مسدودی‌ها با فیلتر بازه)،
+  `syncAllChannels`، `syncDueChannels` و بازآرایی `syncChannelRecord` برای
+  استفاده‌ی مشترک در همگام‌سازی دستی و جاب؛ همچنین اعلان درون‌برنامه‌ای به
+  مالک هنگام ثبت درخواست رزرو عمومی (best-effort).
+- `apps/api/src/accommodations/accommodations.controller.ts`: مسیر
+  `GET /accommodations/calendar`.
+- `apps/api/src/accommodations/accommodation-channels.controller.ts` و
+  `accommodation-channels.service.ts`: مسیر `POST /accommodation-channels/sync-all`.
+- `apps/api/src/accommodations/accommodation-sync.job.ts`: جاب دوره‌ای هر ۱۰
+  دقیقه که کانال‌های با `lastSyncedAt` کهنه‌تر از ۳۰ دقیقه (قابل تنظیم با
+  `ACCOMMODATION_SYNC_INTERVAL_MINUTES`) را همگام می‌کند.
+- `apps/api/src/accommodations/accommodations.module.ts`: ثبت جاب و واردکردن
+  `NotificationsModule`.
+- `apps/web/components/business/AccommodationCalendarGrid.tsx`: جدول ماهانه‌ی
+  اقامتگاه‌ها/روزها با رنگ‌بندی رزرو تأییدشده، درخواست در انتظار، مسدودی کانال
+  و مسدودی دستی + دکمه‌ی «همگام‌سازی کانال‌ها».
+- `apps/web/app/dashboard/business/bookings/page.tsx`: نمایش تقویم یکپارچه بالای
+  فهرست رزروها.
+- `apps/web/app/dashboard/business/channels/page.tsx`: دکمه‌ی «همگام‌سازی همه‌ی
+  کانال‌ها».
+- `docs/API.md`: مستندسازی دو مسیر تازه و جاب خودکار.
+
+**تأیید/تست:**
+- `GET /api/accommodations/calendar?from=2026-11-01&to=2027-01-01` → ۲۰۰ با ۳
+  اقامتگاه، ۱ مسدودی و ۱ رزرو.
+- `POST /api/accommodation-channels/sync-all` → ۲۰۱؛ ۳ کانال بررسی و ۳ رویداد
+  همگام شد، خطای یک کانال تستی در `results` گزارش شد.
+- ثبت رزرو عمومی روی اقامتگاه منتشرشده → ۲۰۱ و ایجاد اعلان «درخواست رزرو جدید»
+  برای مالک؛ داده‌ی تست پاک شد.
+- لاگ بوت: «accommodation channel sync scheduled (every 30 min)».
+- `tsc --noEmit` برای `apps/api` و `apps/web` بدون خطا و
+  `check_api_docs.py` → exit 0 (۷۳۰ مسیر).
 
 ## ۱۴۰۵/۰۹/۰۴ — سند تکمیل «ابزار عملیات میزبان» برای بسته‌ی اقامت — نسخه `v4.97.1`
 

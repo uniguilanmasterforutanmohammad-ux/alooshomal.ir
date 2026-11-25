@@ -75,6 +75,10 @@ export class AccommodationChannelsService {
     return this.accommodations.syncChannel(userId, id, propertyId);
   }
 
+  async syncAll(userId: string) {
+    return this.accommodations.syncAllChannels(userId);
+  }
+
   private async assertOwned(userId: string, id: string) {
     const workspaceId = await this.workspaceId(userId);
     const channel = await this.prisma.accommodationChannel.findFirst({

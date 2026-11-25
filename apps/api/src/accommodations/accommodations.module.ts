@@ -2,11 +2,13 @@ import { Module } from '@nestjs/common';
 
 import { BusinessModulesModule } from '../business-modules/business-modules.module';
 import { FinanceModule } from '../finance/finance.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PaypingModule } from '../payping/payping.module';
 import { SettingsModule } from '../settings/settings.module';
 import { UploadsModule } from '../uploads/uploads.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { AccommodationAiImportService } from './accommodation-ai-import.service';
+import { AccommodationSyncJob } from './accommodation-sync.job';
 import { AccommodationChannelsController } from './accommodation-channels.controller';
 import { AccommodationChannelsService } from './accommodation-channels.service';
 import { AdminAccommodationsController } from './admin-accommodations.controller';
@@ -23,6 +25,7 @@ import { PublicAccommodationsController } from './public-accommodations.controll
     FinanceModule,
     UploadsModule,
     WalletModule,
+    NotificationsModule,
   ],
   controllers: [
     AccommodationsController,
@@ -35,6 +38,7 @@ import { PublicAccommodationsController } from './public-accommodations.controll
     AccommodationChannelsService,
     AccommodationAiImportService,
     JabamaCalendarService,
+    AccommodationSyncJob,
   ],
   exports: [AccommodationsService, AccommodationChannelsService],
 })
