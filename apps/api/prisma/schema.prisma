@@ -2438,6 +2438,22 @@ model CrmInteraction {
 // ---------------------------------------------------------------------------
 // «فروشگاه و خرده‌فروشی» — retail module
 // ---------------------------------------------------------------------------
+/// Admin-managed catalogue of product categories. Sellers pick one of these
+/// instead of typing a free-form category, so the public filters stay clean.
+model RetailProductCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products RetailProduct[]
+
+  @@map("retail_product_categories")
+}
+
 model RetailProduct {
   id           String   @id @default(cuid())
   workspaceId  String
@@ -2445,6 +2461,7 @@ model RetailProduct {
   title        String
   description  String?
   category     String?
+  categoryId   String?
   sku          String?
   price        Int      @default(0)
   compareAtPrice Int?
@@ -2458,14 +2475,22 @@ model RetailProduct {
   /// DRAFT | PUBLISHED | ARCHIVED
   status       String   @default("DRAFT")
   publishedAt  DateTime?
+  /// Set when the seller submits the product for admin review.
+  submittedAt  DateTime?
+  /// Admin decision metadata for the review queue.
+  reviewedAt   DateTime?
+  reviewedById String?
+  rejectionReason String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   workspace  BusinessWorkspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  categoryRef RetailProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   orderItems RetailOrderItem[]
   movements  RetailStockMovement[]
 
   @@index([workspaceId, status])
+  @@index([categoryId])
   @@map("retail_products")
 }
 

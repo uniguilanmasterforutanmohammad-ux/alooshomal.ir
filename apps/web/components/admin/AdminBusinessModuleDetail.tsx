@@ -14,6 +14,7 @@ import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 
+import { AdminRetailSettings } from './AdminRetailSettings';
 import type {
   AdminManagement,
   AdminModuleRow,
@@ -308,6 +309,8 @@ export function AdminBusinessModuleDetail({
           })}
         </div>
       </section>
+
+      {module.key === 'retailCatalog' ? <AdminRetailSettings /> : null}
     </div>
   );
 }

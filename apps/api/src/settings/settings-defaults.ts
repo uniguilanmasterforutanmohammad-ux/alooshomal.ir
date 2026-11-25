@@ -32,6 +32,8 @@ import {
   DEFAULT_NEWS_HEADLINE_COUNT,
   DEFAULT_PHONE_LOGIN_ENABLED,
   DEFAULT_POINTS_PER_NEWS,
+  DEFAULT_RETAIL_PRODUCT_MAX_IMAGES,
+  DEFAULT_RETAIL_PRODUCT_MAX_IMAGE_KB,
   DIRECTORY_DISPLAY_MODE_KEY,
   DIRECTORY_PAGE_SIZE_KEY,
   FEATURE_FLAGS,
@@ -43,6 +45,8 @@ import {
   NEWS_HEADLINE_COUNT_KEY,
   PHONE_LOGIN_ENABLED_KEY,
   POINTS_PER_NEWS_KEY,
+  RETAIL_PRODUCT_MAX_IMAGES_KEY,
+  RETAIL_PRODUCT_MAX_IMAGE_KB_KEY,
   DEFAULT_SUPPORT_CHAT_SMS_ENABLED,
   SUPPORT_CHAT_SMS_ENABLED_KEY,
   SUPPORT_CHAT_SMS_PHONE_KEY,
@@ -234,6 +238,22 @@ export async function ensureSettingsDefaults(
         create: {
           key: FEED_MAX_IMAGE_KB_KEY,
           value: String(DEFAULT_FEED_MAX_IMAGE_KB),
+        },
+      }),
+      prisma.setting.upsert({
+        where: { key: RETAIL_PRODUCT_MAX_IMAGES_KEY },
+        update: {},
+        create: {
+          key: RETAIL_PRODUCT_MAX_IMAGES_KEY,
+          value: String(DEFAULT_RETAIL_PRODUCT_MAX_IMAGES),
+        },
+      }),
+      prisma.setting.upsert({
+        where: { key: RETAIL_PRODUCT_MAX_IMAGE_KB_KEY },
+        update: {},
+        create: {
+          key: RETAIL_PRODUCT_MAX_IMAGE_KB_KEY,
+          value: String(DEFAULT_RETAIL_PRODUCT_MAX_IMAGE_KB),
         },
       }),
       ...ADMIN_NOTIFY_CATEGORIES.map((category) =>

@@ -54,6 +54,8 @@ import {
   DEFAULT_NEWS_HEADLINE_COUNT,
   DEFAULT_PHONE_LOGIN_ENABLED,
   DEFAULT_POINTS_PER_NEWS,
+  DEFAULT_RETAIL_PRODUCT_MAX_IMAGES,
+  DEFAULT_RETAIL_PRODUCT_MAX_IMAGE_KB,
   DEFAULT_PAYMENTS_ONLINE_ONLY,
   DEFAULT_SITE_THEME,
   DEFAULT_WALLET_SETTLEMENT_DAYS,
@@ -80,6 +82,8 @@ import {
   PHONE_LOGIN_ENABLED_KEY,
   PAYMENTS_ONLINE_ONLY_KEY,
   POINTS_PER_NEWS_KEY,
+  RETAIL_PRODUCT_MAX_IMAGES_KEY,
+  RETAIL_PRODUCT_MAX_IMAGE_KB_KEY,
   SITE_THEMES,
   SITE_THEME_KEY,
   SiteTheme,
@@ -1111,6 +1115,48 @@ export class SettingsService implements OnModuleInit {
       where: { key: FEED_MAX_IMAGE_KB_KEY },
       update: { value: String(clamped) },
       create: { key: FEED_MAX_IMAGE_KB_KEY, value: String(clamped) },
+    });
+    return clamped;
+  }
+
+  /** Max images per store product (1–20). */
+  async getRetailProductMaxImages(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: RETAIL_PRODUCT_MAX_IMAGES_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 1 && parsed <= 20
+      ? Math.floor(parsed)
+      : DEFAULT_RETAIL_PRODUCT_MAX_IMAGES;
+  }
+
+  async setRetailProductMaxImages(value: number): Promise<number> {
+    const clamped = Math.min(20, Math.max(1, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: RETAIL_PRODUCT_MAX_IMAGES_KEY },
+      update: { value: String(clamped) },
+      create: { key: RETAIL_PRODUCT_MAX_IMAGES_KEY, value: String(clamped) },
+    });
+    return clamped;
+  }
+
+  /** Max size of each store product image, in KB (64 KB – 20 MB). */
+  async getRetailProductMaxImageKb(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: RETAIL_PRODUCT_MAX_IMAGE_KB_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 64 && parsed <= 20480
+      ? Math.floor(parsed)
+      : DEFAULT_RETAIL_PRODUCT_MAX_IMAGE_KB;
+  }
+
+  async setRetailProductMaxImageKb(value: number): Promise<number> {
+    const clamped = Math.min(20480, Math.max(64, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: RETAIL_PRODUCT_MAX_IMAGE_KB_KEY },
+      update: { value: String(clamped) },
+      create: { key: RETAIL_PRODUCT_MAX_IMAGE_KB_KEY, value: String(clamped) },
     });
     return clamped;
   }

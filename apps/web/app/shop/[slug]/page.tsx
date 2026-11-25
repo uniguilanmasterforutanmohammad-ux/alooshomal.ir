@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { Header } from '@/components/layout/Header';
@@ -153,30 +154,67 @@ export default async function ShopPage({
               این فروشگاه هنوز محصولی منتشر نکرده است.
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {shop.products.map((product) => (
-                <article key={product.id} className="indeed-panel flex flex-col gap-2 p-4">
-                  {product.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={product.imageUrl} alt={product.title} className="h-40 w-full rounded-lg object-cover" />
-                  ) : null}
-                  <h2 className="text-sm font-extrabold text-ink">{product.title}</h2>
-                  {product.category ? (
-                    <p className="text-[11px] text-muted">{product.category}</p>
-                  ) : null}
-                  {product.description ? (
-                    <p className="line-clamp-3 text-xs leading-6 text-muted">{product.description}</p>
-                  ) : null}
-                  <p className="mt-auto text-sm font-bold text-brand">
-                    {product.price.toLocaleString('fa-IR')} تومان
-                    {product.compareAtPrice && product.compareAtPrice > product.price ? (
-                      <span className="ms-2 text-[11px] font-normal text-muted line-through">
-                        {product.compareAtPrice.toLocaleString('fa-IR')}
-                      </span>
-                    ) : null}
-                  </p>
-                </article>
-              ))}
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {shop.products.map((product) => {
+                const discount =
+                  product.compareAtPrice &&
+                  product.compareAtPrice > product.price
+                    ? Math.round(
+                        ((product.compareAtPrice - product.price) /
+                          product.compareAtPrice) *
+                          100,
+                      )
+                    : 0;
+                return (
+                  <Link
+                    key={product.id}
+                    href={`/shop/${shop.workspace.publicSlug}/p/${product.slug}`}
+                    className="indeed-panel group flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <div className="relative aspect-square w-full bg-[var(--vintage-paper)]">
+                      {product.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={product.imageUrl}
+                          alt={product.title}
+                          className="size-full object-cover transition group-hover:scale-105"
+                        />
+                      ) : null}
+                      {discount > 0 ? (
+                        <span className="absolute start-2 top-2 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                          {discount.toLocaleString('fa-IR')}٪
+                        </span>
+                      ) : null}
+                      {product.stock <= 0 ? (
+                        <span className="absolute inset-0 flex items-center justify-center bg-black/40 text-xs font-bold text-white">
+                          ناموجود
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-1 flex-col gap-1 p-2.5">
+                      {product.category ? (
+                        <p className="text-[10px] text-muted">
+                          {product.category}
+                        </p>
+                      ) : null}
+                      <h2 className="line-clamp-2 text-xs font-bold leading-5 text-ink">
+                        {product.title}
+                      </h2>
+                      <div className="mt-auto flex items-baseline gap-1.5 pt-1">
+                        <span className="text-sm font-extrabold text-brand">
+                          {product.price.toLocaleString('fa-IR')}
+                        </span>
+                        <span className="text-[10px] text-muted">تومان</span>
+                        {discount > 0 ? (
+                          <span className="text-[10px] text-muted line-through">
+                            {product.compareAtPrice?.toLocaleString('fa-IR')}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>

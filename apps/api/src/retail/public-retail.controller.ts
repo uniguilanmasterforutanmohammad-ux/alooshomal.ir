@@ -19,6 +19,14 @@ export class PublicRetailController {
     return this.retail.publicShop(slug);
   }
 
+  @Get(':slug/products/:product')
+  @ApiOperation({
+    summary: 'صفحه‌ی عمومی یک محصول منتشرشده همراه با محصولات مرتبط',
+  })
+  product(@Param('slug') slug: string, @Param('product') product: string) {
+    return this.retail.publicProduct(slug, product);
+  }
+
   @Post(':slug/orders')
   @ApiOperation({ summary: 'ثبت سفارش عمومی از ویترین فروشگاه' })
   order(@Param('slug') slug: string, @Body() dto: CreateOrderDto) {

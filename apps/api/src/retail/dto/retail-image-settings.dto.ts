@@ -1,0 +1,21 @@
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
+import { IsInt, IsOptional, Max, Min } from 'class-validator';
+
+export class UpdateRetailImageSettingsDto {
+  @ApiPropertyOptional({ description: 'حداکثر تعداد تصویر هر محصول (۱–۲۰)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  maxImages?: number;
+
+  @ApiPropertyOptional({ description: 'حداکثر حجم هر تصویر (کیلوبایت)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(64)
+  @Max(20480)
+  maxImageKb?: number;
+}

@@ -13,10 +13,35 @@ import {
 
 export const RETAIL_PRODUCT_STATUSES = [
   'DRAFT',
+  'PENDING_REVIEW',
   'PUBLISHED',
+  'REJECTED',
   'ARCHIVED',
 ] as const;
 export type RetailProductStatus = (typeof RETAIL_PRODUCT_STATUSES)[number];
+
+/** Statuses a seller may set from the panel (publishing needs admin review). */
+export const RETAIL_SELLER_PRODUCT_STATUSES = [
+  'DRAFT',
+  'PENDING_REVIEW',
+  'ARCHIVED',
+] as const;
+
+/** Common sale units offered as a dropdown instead of free text. */
+export const RETAIL_PRODUCT_UNITS = [
+  'عدد',
+  'کیلوگرم',
+  'گرم',
+  'لیتر',
+  'میلی‌لیتر',
+  'بسته',
+  'جعبه',
+  'کارتن',
+  'متر',
+  'متر مربع',
+  'دستگاه',
+  'خدمت',
+] as const;
 
 export class CreateProductDto {
   @ApiProperty({ example: 'زعفران سرگل ۵ گرمی', maxLength: 160 })
@@ -36,6 +61,11 @@ export class CreateProductDto {
   @IsString()
   @MaxLength(80)
   category?: string;
+
+  @ApiProperty({ description: 'شناسه‌ی دسته‌بندی مدیریت‌شده' })
+  @IsString()
+  @MaxLength(40)
+  categoryId!: string;
 
   @ApiPropertyOptional({ description: 'کد کالا / SKU', example: 'SF-5G' })
   @IsOptional()
@@ -81,9 +111,10 @@ export class CreateProductDto {
   @Min(0)
   lowStockThreshold?: number;
 
-  @ApiPropertyOptional({ default: 'عدد' })
+  @ApiPropertyOptional({ enum: RETAIL_PRODUCT_UNITS, default: 'عدد' })
   @IsOptional()
   @IsString()
+  @IsIn(RETAIL_PRODUCT_UNITS as unknown as string[])
   @MaxLength(20)
   unit?: string;
 
@@ -99,9 +130,14 @@ export class CreateProductDto {
   @IsString({ each: true })
   gallery?: string[];
 
-  @ApiPropertyOptional({ enum: RETAIL_PRODUCT_STATUSES, default: 'DRAFT' })
+  @ApiPropertyOptional({
+    enum: RETAIL_SELLER_PRODUCT_STATUSES,
+    default: 'DRAFT',
+    description:
+      'DRAFT یا PENDING_REVIEW (ارسال برای تأیید) یا ARCHIVED؛ انتشار مستقیم فقط پس از تأیید مدیر انجام می‌شود.',
+  })
   @IsOptional()
-  @IsIn(RETAIL_PRODUCT_STATUSES as unknown as string[])
+  @IsIn(RETAIL_SELLER_PRODUCT_STATUSES as unknown as string[])
   status?: RetailProductStatus;
 
   @ApiPropertyOptional({ description: 'نامک سفارشی' })

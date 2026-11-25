@@ -256,6 +256,7 @@ export interface RetailProduct {
   title: string;
   description: string | null;
   category: string | null;
+  categoryId: string | null;
   sku: string | null;
   price: number;
   compareAtPrice: number | null;
@@ -265,11 +266,42 @@ export interface RetailProduct {
   unit: string;
   imageUrl: string | null;
   gallery: string[];
-  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  status:
+    | 'DRAFT'
+    | 'PENDING_REVIEW'
+    | 'PUBLISHED'
+    | 'REJECTED'
+    | 'ARCHIVED';
   publishedAt: string | null;
+  submittedAt: string | null;
+  reviewedAt: string | null;
+  reviewedById: string | null;
+  rejectionReason: string | null;
   createdAt: string;
   updatedAt: string;
   lowStock?: boolean;
+}
+
+export interface RetailProductCategory {
+  id: string;
+  name: string;
+  slug: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  _count?: { products: number };
+}
+
+export interface RetailProductMeta {
+  categories: Array<{ id: string; name: string; slug: string }>;
+  maxImages: number;
+  maxImageKb: number;
+}
+
+export interface AdminRetailProduct extends RetailProduct {
+  workspace: { id: string; name: string; publicSlug: string | null };
+  categoryRef: { id: string; name: string } | null;
 }
 
 export interface RetailOrderItem {
@@ -361,6 +393,19 @@ export interface RetailInventory {
 export interface PublicShop {
   workspace: { id: string; name: string; publicSlug: string | null };
   products: RetailProduct[];
+  settings: RetailShopSettings;
+  card: {
+    cardNumber: string;
+    holderName: string;
+    bankName: string | null;
+    instructions: string | null;
+  } | null;
+}
+
+export interface PublicProduct {
+  workspace: { id: string; name: string; publicSlug: string | null };
+  product: RetailProduct;
+  related: RetailProduct[];
   settings: RetailShopSettings;
   card: {
     cardNumber: string;

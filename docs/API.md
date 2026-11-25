@@ -908,8 +908,10 @@ PY
 
 | متد | مسیر | توضیح |
 | --- | --- | --- |
-| `GET/POST` | `/retail/products` | فهرست/ثبت محصول (جستجو با `q`). |
-| `PATCH/DELETE` | `/retail/products/:id` | ویرایش/حذف محصول. |
+| `GET/POST` | `/retail/products` | فهرست/ثبت محصول (جستجو با `q`). ثبت فقط پیش‌نویس (`DRAFT`) یا ارسال برای تأیید (`PENDING_REVIEW`) یا بایگانی (`ARCHIVED`) می‌پذیرد؛ انتشار مستقیم توسط فروشنده ممکن نیست. کد کالا (`sku`) به‌طور سیستمی و یکتا تولید می‌شود و `categoryId` باید از دسته‌بندی‌های فعالِ مدیر باشد. |
+| `PATCH/DELETE` | `/retail/products/:id` | ویرایش/حذف محصول (با همان محدودیت وضعیت فروشنده). |
+| `GET` | `/retail/products/meta` | داده‌های فرم ثبت محصول: دسته‌بندی‌های فعال و محدودیت تعداد/حجم تصاویر (`maxImages`، `maxImageKb`). |
+| `POST` | `/retail/products/uploads` | آپلود تصویر محصول (multipart، فیلد `file`) با اعمال محدودیت حجم تعیین‌شده توسط مدیر؛ خروجی `{ url }`. |
 | `GET` | `/retail/orders` | صف سفارش‌ها (فیلتر `status`). |
 | `GET/PATCH` | `/retail/orders/:id` | جزئیات/تغییر وضعیت سفارش و پرداخت. |
 | `GET` | `/retail/inventory` | موجودی، هشدار کمبود و کاردکس انبار. |
@@ -919,7 +921,9 @@ PY
 
 مسیرهای عمومی زیر `/api/public/shops` (بدون احراز هویت):
 `GET /public/shops/:slug` ویترین فروشگاه (محصولات منتشرشده + تنظیمات محدوده/تحویل
-+ اطلاعات کارت به کارت در صورت فعال‌بودن ماژول)، `POST /public/shops/:slug/orders`
++ اطلاعات کارت به کارت در صورت فعال‌بودن ماژول)،
+`GET /public/shops/:slug/products/:product` صفحه‌ی یک محصول منتشرشده همراه با
+محصولات مرتبط و اطلاعات کارت به کارت، `POST /public/shops/:slug/orders`
 برای ثبت سفارش (روش تحویل `SNAP`/`PICKUP`، اعتبارسنجی محله و کرایه) و
 `GET /public/shops/:slug/orders/:token` برای پیگیری عمومی با لینک اختصاصی
 (`trackingToken`) و خط زمانی وضعیت. دایرکتوری محصولات `/shop` از
@@ -935,6 +939,18 @@ PY
 می‌شود. هر سفارش `paymentStatus` و `deliveryStatus` جدا دارد و در تأیید واریز
 کارت‌به‌کارت، فاکتور فروش (`RETAIL_ORDER_PAYMENT`) و آمار مشتری به‌طور خودکار
 ثبت می‌شود.
+
+### مدیریت فروشگاه توسط مدیر (`/api/admin/retail`)
+
+همه‌ی مسیرها فقط برای نقش `ADMIN` و با `@ApiBearerAuth`.
+
+| متد | مسیر | توضیح |
+| --- | --- | --- |
+| `GET/POST` | `/admin/retail/categories` | فهرست/افزودن دسته‌بندی محصول (فروشنده فقط از این‌ها انتخاب می‌کند). |
+| `PATCH/DELETE` | `/admin/retail/categories/:id` | ویرایش (نام/فعال‌بودن) یا حذف دسته‌بندی. |
+| `GET/PATCH` | `/admin/retail/settings` | تنظیم حداکثر تعداد تصویر (`maxImages` ۱–۲۰) و حداکثر حجم هر تصویر (`maxImageKb` ۶۴–۲۰۴۸۰ کیلوبایت). |
+| `GET` | `/admin/retail/products` | صف بررسی محصولات (فیلتر `status`، `q`، `take`). |
+| `PATCH` | `/admin/retail/products/:id/review` | تأیید (`approve: true` → `PUBLISHED`) یا رد (`approve: false` + `reason`) محصول در وضعیت `PENDING_REVIEW`. |
 
 ### مدیریت ساختمان (`/api/buildings`, `/api/building-charges`, `/api/building-finance`, `/api/building-maintenance`)
 

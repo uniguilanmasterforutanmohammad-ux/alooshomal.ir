@@ -248,6 +248,20 @@ class UpdateSettingsDto {
   @Min(64)
   @Max(20480)
   feedMaxImageKb?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  retailProductMaxImages?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(64)
+  @Max(20480)
+  retailProductMaxImageKb?: number;
 }
 const ADMIN_NOTIFY_CATEGORY_SET = new Set<string>(ADMIN_NOTIFY_CATEGORIES);
 const NEWS_ACCESS_LEVEL_SET = new Set<string>(NEWS_ACCESS_LEVELS);
@@ -270,6 +284,10 @@ export class SettingsController {
       emailLoginEnabled: await this.settingsService.getEmailLoginEnabled(),
       feedMaxImages: await this.settingsService.getFeedMaxImages(),
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
+      retailProductMaxImages:
+        await this.settingsService.getRetailProductMaxImages(),
+      retailProductMaxImageKb:
+        await this.settingsService.getRetailProductMaxImageKb(),
       biolinkTemplatesEnabled:
         await this.settingsService.getBiolinkTemplatesEnabled(),
       businessCardDirectoryViews:
@@ -331,6 +349,10 @@ export class AdminSettingsController {
       pointsPerNews: await this.settingsService.getPointsPerNews(),
       feedMaxImages: await this.settingsService.getFeedMaxImages(),
       feedMaxImageKb: await this.settingsService.getFeedMaxImageKb(),
+      retailProductMaxImages:
+        await this.settingsService.getRetailProductMaxImages(),
+      retailProductMaxImageKb:
+        await this.settingsService.getRetailProductMaxImageKb(),
       biolinkTemplatesEnabled:
         await this.settingsService.getBiolinkTemplatesEnabled(),
       businessCardDirectoryViews:
@@ -388,6 +410,8 @@ export class AdminSettingsController {
       pointsPerNews?: number;
       feedMaxImages?: number;
       feedMaxImageKb?: number;
+      retailProductMaxImages?: number;
+      retailProductMaxImageKb?: number;
     } = {};
     if (dto.siteTheme !== undefined) {
       result.siteTheme = await this.settingsService.setSiteTheme(dto.siteTheme);
@@ -572,6 +596,18 @@ export class AdminSettingsController {
       result.feedMaxImageKb = await this.settingsService.setFeedMaxImageKb(
         dto.feedMaxImageKb,
       );
+    }
+    if (dto.retailProductMaxImages !== undefined) {
+      result.retailProductMaxImages =
+        await this.settingsService.setRetailProductMaxImages(
+          dto.retailProductMaxImages,
+        );
+    }
+    if (dto.retailProductMaxImageKb !== undefined) {
+      result.retailProductMaxImageKb =
+        await this.settingsService.setRetailProductMaxImageKb(
+          dto.retailProductMaxImageKb,
+        );
     }
     return result;
   }

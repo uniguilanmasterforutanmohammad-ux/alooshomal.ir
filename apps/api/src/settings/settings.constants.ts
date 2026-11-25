@@ -123,6 +123,18 @@ export const FEED_MAX_IMAGE_KB_KEY = 'feedMaxImageKb';
 export const DEFAULT_FEED_MAX_IMAGE_KB = 2048;
 
 // ---------------------------------------------------------------------------
+//  «محصولات فروشگاه» (retail) limits
+// ---------------------------------------------------------------------------
+
+/** Max number of gallery images allowed on a single store product. */
+export const RETAIL_PRODUCT_MAX_IMAGES_KEY = 'retailProductMaxImages';
+export const DEFAULT_RETAIL_PRODUCT_MAX_IMAGES = 6;
+
+/** Max size (in KB) allowed for each store product image. */
+export const RETAIL_PRODUCT_MAX_IMAGE_KB_KEY = 'retailProductMaxImageKb';
+export const DEFAULT_RETAIL_PRODUCT_MAX_IMAGE_KB = 2048;
+
+// ---------------------------------------------------------------------------
 //  «نبض شهر» news settings
 // ---------------------------------------------------------------------------
 

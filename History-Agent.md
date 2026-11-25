@@ -20,13 +20,67 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.89.8**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.90.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۴ — بازطراحی ماژول محصولات فروشگاه (دسته‌بندی مدیر، SKU خودکار، تأیید انتشار، صفحه‌ی محصول دیجی‌کالایی) — نسخه `v4.90.0`
+
+**هدف:** رفع ایرادهای فرم ثبت محصول در `/dashboard/business/products` و
+شبیه‌سازی تجربه‌ی نمایش/صفحه‌ی محصول به سبک دیجی‌کالا: دسته‌بندی فقط از سوی
+مدیر تعریف شود، کد کالا سیستمی و خودکار باشد، «عدد» به واحدهای قابل‌انتخاب
+تبدیل شود، فیلدهای عددی برچسب/راهنما بگیرند، تعداد و حجم تصاویر در پنل مدیر
+قابل تنظیم باشد و انتشار محصول فقط پس از تأیید مدیر انجام شود.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: مدل `RetailProductCategory` و فیلدهای
+  `categoryId`/`submittedAt`/`reviewedAt`/`reviewedById`/`rejectionReason` روی
+  `RetailProduct`.
+- `apps/api/src/settings/*`: کلیدهای `retailProductMaxImages` و
+  `retailProductMaxImageKb` (پیش‌فرض ۶ تصویر، ۲ مگابایت) با گتر/ستر و
+  افزودن به تنظیمات عمومی و پنل مدیر.
+- `apps/api/src/retail/dto/*`: وضعیت‌های فروشنده (`DRAFT`/`PENDING_REVIEW`/
+  `ARCHIVED`)، لیست واحدها، `categoryId` اجباری، DTOهای دسته‌بندی، بررسی و
+  تنظیمات تصویر.
+- `apps/api/src/retail/retail.service.ts`: تولید SKU یکتا، اعتبارسنجی دسته‌بندی
+  فعال، سقف گالری، مدیریت دسته‌بندی‌ها، صف بررسی مدیر، تنظیمات تصویر و
+  `publicProduct` (محصول منتشرشده + مرتبط + کارت به کارت).
+- `apps/api/src/retail/retail-products.controller.ts`،
+  `admin-retail.controller.ts`، `public-retail.controller.ts`،
+  `retail.module.ts`: مسیرهای `meta`/`uploads`، CRUD دسته‌بندی و بررسی محصول،
+  تنظیمات تصویر و صفحه‌ی عمومی محصول.
+- `apps/web/app/dashboard/business/products/page.tsx`: فرم بازنویسی‌شده با
+  دسته‌بندی از متادیتا، SKU فقط‌خواندنی، انتخاب واحد، برچسب/راهنمای همه‌ی
+  فیلدها، آپلود چندتصویری با درگ‌اند‌دراپ و پیش‌نمایش/جابجایی، و دکمه‌های
+  «ذخیره پیش‌نویس»/«ارسال برای تأیید» با نشان وضعیت.
+- `apps/web/app/shop/[slug]/page.tsx`: ویترین به کارت‌های شبکه‌ای دیجی‌کالایی
+  با تصویر، درصد تخفیف و لینک به صفحه‌ی محصول.
+- `apps/web/app/shop/[slug]/p/[product]/page.tsx`: صفحه‌ی محصول با گالری،
+  قیمت/تخفیف، مشخصات، محصولات مشابه و JSON-LD.
+- `apps/web/components/shop/ProductBuyBox.tsx`: پنل خرید تک‌محصولی با تعداد،
+  روش تحویل/پرداخت و کارت به کارت.
+- `apps/web/components/admin/AdminRetailSettings.tsx` و
+  `AdminBusinessModuleDetail.tsx`: مدیریت دسته‌بندی، تنظیمات تصویر و صف بررسی
+  محصول در جزئیات ماژول `retailCatalog`.
+- `apps/web/lib/api/types/business-modules.ts`: انواع جدید/به‌روز محصول،
+  دسته‌بندی، متادیتا و محصول عمومی (شامل `card`).
+- `docs/API.md`: مستندسازی مسیرهای `meta`/`uploads`، صفحه‌ی عمومی محصول و
+  `/api/admin/retail/*`.
+
+**تأیید/تست:**
+- `tsc --noEmit` در `apps/api` (داخل کانتینر) و `apps/web` → بدون خطا.
+- `eslint` روی فایل‌های تغییریافته‌ی وب → ۰ خطا (فقط warningهای سبک موجود).
+- `python3 scripts/check_api_docs.py` → exit 0 (۷۱۷ مسیر، همه با `@ApiOperation`).
+- تست سرتاسری با توکن امضاشده روی API محلی: ساخت دسته‌بندی، تنظیمات تصویر،
+  `meta` فروشنده، ثبت محصول (SKU خودکار `SKU-JFVL-0001`، وضعیت
+  `PENDING_REVIEW`، `publishedAt=null`)، صف بررسی مدیر، تأیید → `PUBLISHED`، و
+  دریافت `GET /public/shops/:slug/products/:product` → همه موفق؛ سپس داده‌ی
+  آزمایشی پاک شد.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۴ — حذف انتخاب «بسته‌ی صنف» از تنظیمات کسب‌وکار — نسخه `v4.89.8`
 
