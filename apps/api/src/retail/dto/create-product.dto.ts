@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
+  ArrayMaxSize,
   IsArray,
   IsIn,
   IsInt,
@@ -9,6 +10,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 
 export const RETAIL_PRODUCT_STATUSES = [
@@ -42,6 +44,20 @@ export const RETAIL_PRODUCT_UNITS = [
   'دستگاه',
   'خدمت',
 ] as const;
+
+export class ProductSpecDto {
+  @ApiProperty({ description: 'عنوان مشخصه', example: 'ابعاد' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(80)
+  name!: string;
+
+  @ApiProperty({ description: 'مقدار مشخصه', example: '۳۰×۳۰ سانتی‌متر' })
+  @IsString()
+  @MinLength(1)
+  @MaxLength(300)
+  value!: string;
+}
 
 export class CreateProductDto {
   @ApiProperty({ example: 'زعفران سرگل ۵ گرمی', maxLength: 160 })
@@ -117,6 +133,23 @@ export class CreateProductDto {
   @IsIn(RETAIL_PRODUCT_UNITS as unknown as string[])
   @MaxLength(20)
   unit?: string;
+
+  @ApiPropertyOptional({ description: 'برند محصول', maxLength: 120 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  brand?: string;
+
+  @ApiPropertyOptional({
+    type: [ProductSpecDto],
+    description: 'مشخصات فنی محصول (ردیف‌های عنوان/مقدار)',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(40)
+  @ValidateNested({ each: true })
+  @Type(() => ProductSpecDto)
+  specs?: ProductSpecDto[];
 
   @ApiPropertyOptional({ description: 'آدرس تصویر اصلی (از `POST /uploads/gallery`)' })
   @IsOptional()

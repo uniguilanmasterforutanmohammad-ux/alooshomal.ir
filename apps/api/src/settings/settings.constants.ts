@@ -146,6 +146,10 @@ export const DEFAULT_RETAIL_AI_IMPORT_PRICE_PER_1K = 1500;
 export const RETAIL_AI_IMPORT_MIN_PRICE_KEY = 'retailAiImportMinPrice';
 export const DEFAULT_RETAIL_AI_IMPORT_MIN_PRICE = 5000;
 
+/** Minimum number of official product images an AI import must fetch. */
+export const RETAIL_AI_IMPORT_MIN_IMAGES_KEY = 'retailAiImportMinImages';
+export const DEFAULT_RETAIL_AI_IMPORT_MIN_IMAGES = 5;
+
 // ---------------------------------------------------------------------------
 //  «نبض شهر» news settings
 // ---------------------------------------------------------------------------

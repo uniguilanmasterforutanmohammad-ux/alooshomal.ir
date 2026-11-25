@@ -74,6 +74,7 @@ const field =
 
 interface FormState {
   title: string;
+  brand: string;
   description: string;
   categoryId: string;
   price: string;
@@ -82,11 +83,13 @@ interface FormState {
   stock: string;
   lowStockThreshold: string;
   unit: string;
+  specs: Array<{ name: string; value: string }>;
   images: string[];
 }
 
 const emptyForm: FormState = {
   title: '',
+  brand: '',
   description: '',
   categoryId: '',
   price: '0',
@@ -95,6 +98,7 @@ const emptyForm: FormState = {
   stock: '0',
   lowStockThreshold: '0',
   unit: 'عدد',
+  specs: [],
   images: [],
 };
 
@@ -178,6 +182,7 @@ export default function ProductsPage() {
     setEditing(product);
     setForm({
       title: product.title,
+      brand: product.brand ?? '',
       description: product.description ?? '',
       categoryId: product.categoryId ?? '',
       price: String(product.price),
@@ -188,6 +193,10 @@ export default function ProductsPage() {
       stock: String(product.stock),
       lowStockThreshold: String(product.lowStockThreshold),
       unit: product.unit,
+      specs: (product.specs ?? []).map((spec) => ({
+        name: spec.name,
+        value: spec.value,
+      })),
       images: [
         ...(product.imageUrl ? [product.imageUrl] : []),
         ...product.gallery.filter((url) => url !== product.imageUrl),
@@ -264,6 +273,7 @@ export default function ProductsPage() {
     setSaving(status);
     const payload = {
       title: form.title.trim(),
+      brand: form.brand.trim() || undefined,
       description: form.description.trim() || undefined,
       categoryId: form.categoryId,
       price: Number(form.price) || 0,
@@ -274,6 +284,12 @@ export default function ProductsPage() {
       stock: Number(form.stock) || 0,
       lowStockThreshold: Number(form.lowStockThreshold) || 0,
       unit: form.unit,
+      specs: form.specs
+        .map((spec) => ({
+          name: spec.name.trim(),
+          value: spec.value.trim(),
+        }))
+        .filter((spec) => spec.name && spec.value),
       imageUrl: form.images[0],
       gallery: form.images,
       status,
@@ -622,6 +638,19 @@ export default function ProductsPage() {
             </label>
 
             <label className="flex flex-col gap-1 text-xs font-bold text-muted">
+              برند
+              <input
+                className={field}
+                value={form.brand}
+                onChange={(event) =>
+                  setForm((prev) => ({ ...prev, brand: event.target.value }))
+                }
+                placeholder="مثلاً ناریکو (اختیاری)"
+                maxLength={120}
+              />
+            </label>
+
+            <label className="flex flex-col gap-1 text-xs font-bold text-muted">
               دسته‌بندی
               <select
                 className={field}
@@ -785,6 +814,87 @@ export default function ProductsPage() {
                 maxLength={5000}
               />
             </label>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-bold text-muted">مشخصات فنی</span>
+              <button
+                type="button"
+                onClick={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    specs: [...prev.specs, { name: '', value: '' }],
+                  }))
+                }
+                className="indeed-btn py-1 text-[11px]"
+              >
+                <Plus className="size-3" aria-hidden /> افزودن مشخصه
+              </button>
+            </div>
+            {form.specs.length === 0 ? (
+              <p className="text-[11px] text-muted">
+                مشخصات فنی (مثل ابعاد، وزن، جنس) را اضافه کنید تا در صفحه‌ی
+                محصول به‌صورت جدول نمایش داده شود.
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {form.specs.map((spec, index) => (
+                  <div
+                    key={index}
+                    className="grid grid-cols-[1fr_1.4fr_auto] items-center gap-2"
+                  >
+                    <input
+                      className={field}
+                      placeholder="عنوان (مثلاً ابعاد)"
+                      value={spec.name}
+                      maxLength={80}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          specs: prev.specs.map((row, position) =>
+                            position === index
+                              ? { ...row, name: event.target.value }
+                              : row,
+                          ),
+                        }))
+                      }
+                    />
+                    <input
+                      className={field}
+                      placeholder="مقدار (مثلاً ۳۰×۳۰ سانتی‌متر)"
+                      value={spec.value}
+                      maxLength={300}
+                      onChange={(event) =>
+                        setForm((prev) => ({
+                          ...prev,
+                          specs: prev.specs.map((row, position) =>
+                            position === index
+                              ? { ...row, value: event.target.value }
+                              : row,
+                          ),
+                        }))
+                      }
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          specs: prev.specs.filter(
+                            (_, position) => position !== index,
+                          ),
+                        }))
+                      }
+                      className="rounded-lg border border-[var(--vintage-border)] p-2 text-red-600"
+                      aria-label="حذف مشخصه"
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">

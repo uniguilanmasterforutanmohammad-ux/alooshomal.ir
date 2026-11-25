@@ -36,6 +36,7 @@ import {
   DEFAULT_RETAIL_PRODUCT_MAX_IMAGE_KB,
   DEFAULT_RETAIL_AI_IMPORT_PRICE_PER_1K,
   DEFAULT_RETAIL_AI_IMPORT_MIN_PRICE,
+  DEFAULT_RETAIL_AI_IMPORT_MIN_IMAGES,
   DIRECTORY_DISPLAY_MODE_KEY,
   DIRECTORY_PAGE_SIZE_KEY,
   FEATURE_FLAGS,
@@ -51,6 +52,7 @@ import {
   RETAIL_PRODUCT_MAX_IMAGE_KB_KEY,
   RETAIL_AI_IMPORT_PRICE_PER_1K_KEY,
   RETAIL_AI_IMPORT_MIN_PRICE_KEY,
+  RETAIL_AI_IMPORT_MIN_IMAGES_KEY,
   DEFAULT_SUPPORT_CHAT_SMS_ENABLED,
   SUPPORT_CHAT_SMS_ENABLED_KEY,
   SUPPORT_CHAT_SMS_PHONE_KEY,
@@ -274,6 +276,14 @@ export async function ensureSettingsDefaults(
         create: {
           key: RETAIL_AI_IMPORT_MIN_PRICE_KEY,
           value: String(DEFAULT_RETAIL_AI_IMPORT_MIN_PRICE),
+        },
+      }),
+      prisma.setting.upsert({
+        where: { key: RETAIL_AI_IMPORT_MIN_IMAGES_KEY },
+        update: {},
+        create: {
+          key: RETAIL_AI_IMPORT_MIN_IMAGES_KEY,
+          value: String(DEFAULT_RETAIL_AI_IMPORT_MIN_IMAGES),
         },
       }),
       ...ADMIN_NOTIFY_CATEGORIES.map((category) =>

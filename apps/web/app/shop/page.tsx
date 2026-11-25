@@ -161,53 +161,73 @@ export default async function ShopDirectoryPage({
             محصولی با این فیلترها پیدا نشد.
           </div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {products.map((product) => {
               const shopSlug = product.workspace.publicSlug;
               const href = shopSlug
-                ? `/shop/${encodeURIComponent(shopSlug)}`
+                ? `/shop/${encodeURIComponent(shopSlug)}/p/${encodeURIComponent(
+                    product.slug,
+                  )}`
                 : `/shop`;
+              const discount =
+                product.compareAtPrice &&
+                product.compareAtPrice > product.price
+                  ? Math.round(
+                      ((product.compareAtPrice - product.price) /
+                        product.compareAtPrice) *
+                        100,
+                    )
+                  : 0;
               return (
                 <Link
                   key={product.id}
                   href={href}
-                  className="indeed-panel flex flex-col gap-2 overflow-hidden transition hover:border-brand/50"
+                  className="indeed-panel group flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-md"
                 >
-                  <div className="h-44 bg-[var(--vintage-paper)]">
+                  <div className="relative aspect-square w-full bg-[var(--vintage-paper)]">
                     {product.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={product.imageUrl}
                         alt={product.title}
-                        className="size-full object-cover"
+                        className="size-full object-contain p-2 transition group-hover:scale-105"
                       />
                     ) : (
                       <div className="flex size-full items-center justify-center text-xs text-muted">
                         بدون تصویر
                       </div>
                     )}
+                    {discount > 0 ? (
+                      <span className="absolute start-2 top-2 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">
+                        {discount.toLocaleString('fa-IR')}٪
+                      </span>
+                    ) : null}
                   </div>
-                  <div className="flex flex-col gap-2 p-4">
-                    <h2 className="text-sm font-extrabold text-ink">{product.title}</h2>
-                    <p className="text-xs text-muted">{product.workspace.name}</p>
+                  <div className="flex flex-1 flex-col gap-1.5 p-3">
+                    <h2 className="line-clamp-2 text-xs font-bold leading-5 text-ink">
+                      {product.title}
+                    </h2>
+                    <p className="text-[10px] text-muted">
+                      {product.workspace.name}
+                    </p>
                     {product.category ? (
                       <span className="w-fit rounded-full bg-[var(--vintage-paper)] px-2 py-0.5 text-[10px] font-bold text-muted">
                         {product.category}
                       </span>
                     ) : null}
-                    {product.description ? (
-                      <p className="line-clamp-2 text-xs leading-6 text-muted">
-                        {product.description}
-                      </p>
-                    ) : null}
-                    <p className="mt-auto text-sm font-extrabold text-brand">
-                      {product.price.toLocaleString('fa-IR')} تومان
-                      {product.compareAtPrice && product.compareAtPrice > product.price ? (
-                        <span className="ms-2 text-[11px] font-normal text-muted line-through">
-                          {product.compareAtPrice.toLocaleString('fa-IR')}
+                    <div className="mt-auto flex items-baseline gap-2 pt-1">
+                      <span className="text-sm font-extrabold text-ink">
+                        {product.price.toLocaleString('fa-IR')}
+                        <span className="ms-1 text-[10px] font-normal text-muted">
+                          تومان
+                        </span>
+                      </span>
+                      {discount > 0 ? (
+                        <span className="text-[10px] text-muted line-through">
+                          {product.compareAtPrice?.toLocaleString('fa-IR')}
                         </span>
                       ) : null}
-                    </p>
+                    </div>
                   </div>
                 </Link>
               );

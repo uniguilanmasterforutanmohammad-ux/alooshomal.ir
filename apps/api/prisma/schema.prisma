@@ -2479,6 +2479,10 @@ model RetailProduct {
   stock        Int      @default(0)
   lowStockThreshold Int @default(0)
   unit         String   @default("عدد")
+  /// Brand name shown on the product page (Digikala-style).
+  brand        String?
+  /// Key/value specification rows, e.g. [{ name, value }].
+  specs        Json?
   imageUrl     String?
   gallery      String[] @default([])
   /// DRAFT | PUBLISHED | ARCHIVED

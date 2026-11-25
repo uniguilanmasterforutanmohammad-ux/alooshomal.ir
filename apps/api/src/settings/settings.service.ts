@@ -58,6 +58,7 @@ import {
   DEFAULT_RETAIL_PRODUCT_MAX_IMAGE_KB,
   DEFAULT_RETAIL_AI_IMPORT_PRICE_PER_1K,
   DEFAULT_RETAIL_AI_IMPORT_MIN_PRICE,
+  DEFAULT_RETAIL_AI_IMPORT_MIN_IMAGES,
   DEFAULT_PAYMENTS_ONLINE_ONLY,
   DEFAULT_SITE_THEME,
   DEFAULT_WALLET_SETTLEMENT_DAYS,
@@ -88,6 +89,7 @@ import {
   RETAIL_PRODUCT_MAX_IMAGE_KB_KEY,
   RETAIL_AI_IMPORT_PRICE_PER_1K_KEY,
   RETAIL_AI_IMPORT_MIN_PRICE_KEY,
+  RETAIL_AI_IMPORT_MIN_IMAGES_KEY,
   SITE_THEMES,
   SITE_THEME_KEY,
   SiteTheme,
@@ -1206,6 +1208,30 @@ export class SettingsService implements OnModuleInit {
       where: { key: RETAIL_AI_IMPORT_MIN_PRICE_KEY },
       update: { value: String(clamped) },
       create: { key: RETAIL_AI_IMPORT_MIN_PRICE_KEY, value: String(clamped) },
+    });
+    return clamped;
+  }
+
+  /** Minimum number of official images an AI product import must fetch. */
+  async getRetailAiImportMinImages(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: RETAIL_AI_IMPORT_MIN_IMAGES_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 1
+      ? Math.min(20, Math.floor(parsed))
+      : DEFAULT_RETAIL_AI_IMPORT_MIN_IMAGES;
+  }
+
+  async setRetailAiImportMinImages(value: number): Promise<number> {
+    const clamped = Math.min(20, Math.max(1, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: RETAIL_AI_IMPORT_MIN_IMAGES_KEY },
+      update: { value: String(clamped) },
+      create: {
+        key: RETAIL_AI_IMPORT_MIN_IMAGES_KEY,
+        value: String(clamped),
+      },
     });
     return clamped;
   }

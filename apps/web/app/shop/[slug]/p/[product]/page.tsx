@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 
 import { Header } from '@/components/layout/Header';
 import { ProductBuyBox } from '@/components/shop/ProductBuyBox';
+import { ProductGallery } from '@/components/shop/ProductGallery';
 import { JsonLd } from '@/components/seo/JsonLd';
 import type { PublicProduct } from '@/lib/api';
 import {
@@ -140,39 +141,7 @@ export default async function ProductPage({
         </nav>
 
         <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-          <div className="indeed-panel flex flex-col gap-3 p-4">
-            <div className="aspect-square w-full overflow-hidden rounded-xl bg-[var(--vintage-paper)]">
-              {images[0] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={images[0]}
-                  alt={item.title}
-                  className="size-full object-contain"
-                />
-              ) : (
-                <span className="flex size-full items-center justify-center text-sm text-muted">
-                  بدون تصویر
-                </span>
-              )}
-            </div>
-            {images.length > 1 ? (
-              <div className="grid grid-cols-5 gap-2">
-                {images.map((image, index) => (
-                  <div
-                    key={`${image}-${index}`}
-                    className="aspect-square overflow-hidden rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-paper)]"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={image}
-                      alt=""
-                      className="size-full object-cover"
-                    />
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          <ProductGallery images={images} title={item.title} />
 
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-2">
@@ -184,6 +153,12 @@ export default async function ProductPage({
               <h1 className="text-xl font-extrabold leading-8 text-ink">
                 {item.title}
               </h1>
+              {item.brand ? (
+                <p className="text-xs text-muted">
+                  برند:{' '}
+                  <span className="font-bold text-ink">{item.brand}</span>
+                </p>
+              ) : null}
               {item.sku ? (
                 <p className="text-[11px] text-muted" dir="ltr">
                   کد کالا: {item.sku}
@@ -233,9 +208,26 @@ export default async function ProductPage({
           </div>
         </div>
 
+        {item.specs && item.specs.length > 0 ? (
+          <section className="indeed-panel flex flex-col gap-3 p-5">
+            <h2 className="text-sm font-extrabold text-ink">مشخصات فنی</h2>
+            <dl className="grid gap-x-8 gap-y-1 sm:grid-cols-2">
+              {item.specs.map((spec, index) => (
+                <div
+                  key={`${spec.name}-${index}`}
+                  className="flex justify-between gap-3 border-b border-[var(--vintage-border)] py-1.5 text-xs last:border-0"
+                >
+                  <dt className="text-muted">{spec.name}</dt>
+                  <dd className="font-bold text-ink">{spec.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ) : null}
+
         {item.description ? (
           <section className="indeed-panel flex flex-col gap-2 p-5">
-            <h2 className="text-sm font-extrabold text-ink">مشخصات و توضیحات</h2>
+            <h2 className="text-sm font-extrabold text-ink">توضیحات محصول</h2>
             <p className="whitespace-pre-line text-sm leading-7 text-muted">
               {item.description}
             </p>

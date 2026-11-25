@@ -20,13 +20,51 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.91.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.92.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۴ — حداقل ۵ عکس رسمی در ایمپورت + برند/مشخصات و ویترین شبیه دیجی‌کالا — نسخه `v4.92.0`
+
+**هدف:** ایمپورت خودکار محصول حداقل ۵ عکس رسمی بگیرد (قابل تنظیم توسط ادمین)،
+فقط از CDN رسمی دیجی‌کالا عکس برداشته شود، و نمایش محصولات/صفحه‌ی تک‌محصول/فرم
+ثبت محصول شبیه دیجی‌کالا شود.
+
+**تغییرات:**
+- `apps/api/src/retail/retail-ai-import.service.ts`: استخراج صحیح عکس‌ها از ساختار
+  تودرتوی `images.list`/`images.main`/`variants_images` (رفع باگ که فقط یک عکس
+  اصلی را می‌گرفت)، فیلتر فقط هاست رسمی `dkstatics*.digikala.com`، و تلاش برای
+  رسیدن به حداقل تعداد عکس؛ ذخیره‌ی `brand` و `specs`.
+- `apps/api/prisma/schema.prisma`: افزودن `brand String?` و `specs Json?` به
+  `RetailProduct`.
+- `apps/api/src/settings/*`: کلید `retailAiImportMinImages` (پیش‌فرض ۵) و
+  getter/setter.
+- `apps/api/src/retail/dto/create-product.dto.ts`: فیلدهای `brand` و `specs`.
+- `apps/api/src/retail/dto/retail-image-settings.dto.ts` و `retail.service.ts`:
+  `aiMinImages` در تنظیمات مدیر و ذخیره‌ی `brand`/`specs`.
+- `apps/web/app/shop/page.tsx`: کارت‌های ویترین شبیه دیجی‌کالا و لینک مستقیم به
+  صفحه‌ی تک‌محصول.
+- `apps/web/components/shop/ProductGallery.tsx`: گالری تعاملی با تصویر اصلی و
+  بندانگشتی‌های قابل کلیک.
+- `apps/web/app/shop/[slug]/p/[product]/page.tsx`: استفاده از گالری، نمایش برند و
+  جدول مشخصات فنی.
+- `apps/web/app/dashboard/business/products/page.tsx`: فیلد برند و ویرایشگر
+  مشخصات فنی (ردیف‌های عنوان/مقدار).
+- `apps/web/components/admin/AdminRetailSettings.tsx`: فیلد «حداقل تعداد عکس
+  رسمی».
+- `apps/web/lib/api/types/business-modules.ts` و `docs/API.md`: تایپ‌ها و مستندات.
+
+**تأیید/تست:**
+- `tsc --noEmit` هر دو اپ بدون خطا؛ `eslint` فایل‌های وب فقط هشدار از پیش موجود
+  `set-state-in-effect` (۰ خطا).
+- `python3 scripts/check_api_docs.py` → ۷۲۲ مسیر، همه مستند (exit 0).
+- `prisma db push` و `prisma generate` موفق.
+- بررسی استخراج عکس (بدون هزینه‌ی AI) روی سه محصول دیجی‌کالا: ۱۹، ۲۹ و ۳۱ عکس
+  رسمی استخراج شد (پیش‌تر فقط ۱ عکس گرفته می‌شد).
 
 ## ۱۴۰۵/۰۹/۰۴ — رفع خطای «ماژول کاتالوگ محصولات فعال نیست» در پنل محصولات — نسخه `v4.91.1`
 

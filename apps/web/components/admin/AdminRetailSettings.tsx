@@ -33,6 +33,7 @@ export function AdminRetailSettings() {
     maxImageKb: 2048,
     aiPricePer1k: 1500,
     aiMinPrice: 5000,
+    aiMinImages: 5,
   });
   const [pending, setPending] = useState<AdminRetailProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -51,6 +52,7 @@ export function AdminRetailSettings() {
           maxImageKb: number;
           aiPricePer1k: number;
           aiMinPrice: number;
+          aiMinImages: number;
         }>('/admin/retail/settings'),
         api.get<AdminRetailProduct[]>(
           '/admin/retail/products?status=PENDING_REVIEW',
@@ -246,7 +248,7 @@ export function AdminRetailSettings() {
         <p className="mt-0.5 text-xs leading-6 text-muted">
           حداکثر تعداد تصویر و حجم هر تصویر که فروشنده می‌تواند آپلود کند.
         </p>
-        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <label className="text-[11px] font-bold text-muted">
             حداکثر تعداد تصویر
             <input
@@ -331,6 +333,22 @@ export function AdminRetailSettings() {
                 setSettings((prev) => ({
                   ...prev,
                   aiMinPrice: Number(event.target.value) || 0,
+                }))
+              }
+              className={`${field} mt-1`}
+            />
+          </label>
+          <label className="text-[11px] font-bold text-muted">
+            حداقل تعداد عکس رسمی
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={settings.aiMinImages}
+              onChange={(event) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  aiMinImages: Number(event.target.value) || 1,
                 }))
               }
               className={`${field} mt-1`}

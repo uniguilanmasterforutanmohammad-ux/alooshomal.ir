@@ -38,4 +38,16 @@ export class UpdateRetailImageSettingsDto {
   @Min(0)
   @Max(10_000_000)
   aiMinPrice?: number;
+
+  @ApiPropertyOptional({
+    description:
+      'حداقل تعداد عکس رسمی که هنگام ورود خودکار محصول از دیجی‌کالا گرفته می‌شود (۱–۲۰)',
+    default: 5,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  aiMinImages?: number;
 }

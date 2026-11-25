@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 
 import { BusinessModulesService } from '../business-modules/business-modules.service';
@@ -133,6 +134,21 @@ export class RetailService {
     return 'DRAFT';
   }
 
+  /** Trim, drop empty rows and cap the specification list. */
+  private normaliseSpecs(
+    specs?: Array<{ name: string; value: string }>,
+  ): Prisma.InputJsonValue | typeof Prisma.DbNull | undefined {
+    if (specs === undefined) return undefined;
+    const cleaned = specs
+      .map((spec) => ({
+        name: (spec.name ?? '').trim(),
+        value: (spec.value ?? '').trim(),
+      }))
+      .filter((spec) => spec.name && spec.value)
+      .slice(0, 40);
+    return cleaned.length > 0 ? cleaned : Prisma.DbNull;
+  }
+
   // -------------------------------------------------------------------------
   //  Shop settings (sales area, pickup, support policy)
   // -------------------------------------------------------------------------
@@ -235,6 +251,8 @@ export class RetailService {
           stock: dto.stock ?? 0,
           lowStockThreshold: dto.lowStockThreshold ?? 0,
           unit: dto.unit ?? 'عدد',
+          brand: dto.brand?.trim() || null,
+          specs: this.normaliseSpecs(dto.specs),
           imageUrl: dto.imageUrl,
           gallery: dto.gallery ?? [],
           status,
@@ -291,6 +309,12 @@ export class RetailService {
           ? { lowStockThreshold: dto.lowStockThreshold }
           : {}),
         ...(dto.unit !== undefined ? { unit: dto.unit } : {}),
+        ...(dto.brand !== undefined
+          ? { brand: dto.brand?.trim() || null }
+          : {}),
+        ...(dto.specs !== undefined
+          ? { specs: this.normaliseSpecs(dto.specs) }
+          : {}),
         ...(dto.imageUrl !== undefined ? { imageUrl: dto.imageUrl } : {}),
         ...(dto.gallery !== undefined ? { gallery: dto.gallery } : {}),
         ...(dto.stock !== undefined ? { stock: dto.stock } : {}),
@@ -494,31 +518,37 @@ export class RetailService {
   }
 
   async getImageSettings() {
-    const [maxImages, maxImageKb, aiPricePer1k, aiMinPrice] = await Promise.all([
-      this.settings.getRetailProductMaxImages(),
-      this.settings.getRetailProductMaxImageKb(),
-      this.settings.getRetailAiImportPricePer1k(),
-      this.settings.getRetailAiImportMinPrice(),
-    ]);
-    return { maxImages, maxImageKb, aiPricePer1k, aiMinPrice };
+    const [maxImages, maxImageKb, aiPricePer1k, aiMinPrice, aiMinImages] =
+      await Promise.all([
+        this.settings.getRetailProductMaxImages(),
+        this.settings.getRetailProductMaxImageKb(),
+        this.settings.getRetailAiImportPricePer1k(),
+        this.settings.getRetailAiImportMinPrice(),
+        this.settings.getRetailAiImportMinImages(),
+      ]);
+    return { maxImages, maxImageKb, aiPricePer1k, aiMinPrice, aiMinImages };
   }
 
   async updateImageSettings(dto: UpdateRetailImageSettingsDto) {
-    const [maxImages, maxImageKb, aiPricePer1k, aiMinPrice] = await Promise.all([
-      dto.maxImages !== undefined
-        ? this.settings.setRetailProductMaxImages(dto.maxImages)
-        : this.settings.getRetailProductMaxImages(),
-      dto.maxImageKb !== undefined
-        ? this.settings.setRetailProductMaxImageKb(dto.maxImageKb)
-        : this.settings.getRetailProductMaxImageKb(),
-      dto.aiPricePer1k !== undefined
-        ? this.settings.setRetailAiImportPricePer1k(dto.aiPricePer1k)
-        : this.settings.getRetailAiImportPricePer1k(),
-      dto.aiMinPrice !== undefined
-        ? this.settings.setRetailAiImportMinPrice(dto.aiMinPrice)
-        : this.settings.getRetailAiImportMinPrice(),
-    ]);
-    return { maxImages, maxImageKb, aiPricePer1k, aiMinPrice };
+    const [maxImages, maxImageKb, aiPricePer1k, aiMinPrice, aiMinImages] =
+      await Promise.all([
+        dto.maxImages !== undefined
+          ? this.settings.setRetailProductMaxImages(dto.maxImages)
+          : this.settings.getRetailProductMaxImages(),
+        dto.maxImageKb !== undefined
+          ? this.settings.setRetailProductMaxImageKb(dto.maxImageKb)
+          : this.settings.getRetailProductMaxImageKb(),
+        dto.aiPricePer1k !== undefined
+          ? this.settings.setRetailAiImportPricePer1k(dto.aiPricePer1k)
+          : this.settings.getRetailAiImportPricePer1k(),
+        dto.aiMinPrice !== undefined
+          ? this.settings.setRetailAiImportMinPrice(dto.aiMinPrice)
+          : this.settings.getRetailAiImportMinPrice(),
+        dto.aiMinImages !== undefined
+          ? this.settings.setRetailAiImportMinImages(dto.aiMinImages)
+          : this.settings.getRetailAiImportMinImages(),
+      ]);
+    return { maxImages, maxImageKb, aiPricePer1k, aiMinPrice, aiMinImages };
   }
 
   // -------------------------------------------------------------------------

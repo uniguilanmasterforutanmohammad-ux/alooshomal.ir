@@ -130,6 +130,28 @@ export class RetailAiImportService {
   }
 
   /**
+   * Digikala nests image URLs as `{ url: string[], webp_url: string[] }`
+   * (sometimes inside arrays). Walk the tree and collect the plain `url`
+   * variant, falling back to `webp_url`.
+   */
+  private collectImageUrls(node: unknown, out: string[]): void {
+    if (!node) return;
+    if (typeof node === 'string') {
+      out.push(node);
+      return;
+    }
+    if (Array.isArray(node)) {
+      for (const item of node) this.collectImageUrls(item, out);
+      return;
+    }
+    if (typeof node === 'object') {
+      const record = node as Record<string, unknown>;
+      if (record.url) this.collectImageUrls(record.url, out);
+      else if (record.webp_url) this.collectImageUrls(record.webp_url, out);
+    }
+  }
+
+  /**
    * Primary source: Digikala's own product JSON API. It is far more stable than
    * scraping the (client-rendered) product page.
    */
@@ -158,12 +180,14 @@ export class RetailAiImportService {
 
       const images: string[] = [];
       const imageBlock = product.images as
-        | { main?: { url?: string[] }; list?: string[] }
+        | { main?: unknown; list?: unknown }
         | undefined;
-      if (Array.isArray(imageBlock?.main?.url)) {
-        images.push(...imageBlock.main.url);
-      }
-      if (Array.isArray(imageBlock?.list)) images.push(...imageBlock.list);
+      this.collectImageUrls(imageBlock?.main, images);
+      this.collectImageUrls(imageBlock?.list, images);
+      this.collectImageUrls(
+        (product as { variants_images?: unknown }).variants_images,
+        images,
+      );
 
       const specs: Array<{ name: string; value: string }> = [];
       const specifications = product.specifications as
@@ -209,7 +233,7 @@ export class RetailAiImportService {
         price: this.rialToToman(variant?.price?.selling_price),
         compareAtPrice: this.rialToToman(variant?.price?.rrp_price),
         currency: 'IRT',
-        images: Array.from(new Set(images.filter(Boolean))).slice(0, 12),
+        images: Array.from(new Set(images.filter(Boolean))).slice(0, 20),
         specs: specs.slice(0, 25),
       };
     } catch {
@@ -535,11 +559,15 @@ export class RetailAiImportService {
     userId: string,
     urls: string[],
     maxImages: number,
+    minImages: number,
     maxImageKb: number,
   ): Promise<string[]> {
+    const cap = Math.min(Math.max(maxImages, 1), 20);
+    const target = Math.min(Math.max(minImages, 1), cap);
+    const candidates = urls.filter((url) => this.isOfficialImage(url));
     const uploaded: string[] = [];
-    for (const url of urls) {
-      if (uploaded.length >= maxImages) break;
+    for (const url of candidates) {
+      if (uploaded.length >= cap) break;
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), IMAGE_TIMEOUT_MS);
       try {
@@ -571,7 +599,26 @@ export class RetailAiImportService {
         clearTimeout(timer);
       }
     }
+    if (uploaded.length < target) {
+      this.logger.warn(
+        `AI import: only ${uploaded.length}/${target} official images could be stored`,
+      );
+    }
     return uploaded;
+  }
+
+  /** Only Digikala's own CDN images count as «عکس رسمی». */
+  private isOfficialImage(url: string): boolean {
+    try {
+      const host = new URL(url).hostname.toLowerCase();
+      return (
+        host === 'dkstatics-public.digikala.com' ||
+        host === 'dkstatics.digikala.com' ||
+        (host.startsWith('dkstatics') && host.endsWith('.digikala.com'))
+      );
+    } catch {
+      return false;
+    }
   }
 
   async import(userId: string, dto: ImportAiProductDto) {
@@ -640,6 +687,7 @@ export class RetailAiImportService {
         userId,
         source.images,
         imageSettings.maxImages,
+        imageSettings.aiMinImages,
         imageSettings.maxImageKb,
       );
 
@@ -667,6 +715,8 @@ export class RetailAiImportService {
             : undefined,
         stock: dto.stock ?? 0,
         unit,
+        brand: (product.brand ?? source.brand ?? undefined)?.slice(0, 120),
+        specs: source.specs.length > 0 ? source.specs : undefined,
         imageUrl: images[0],
         gallery: images,
         status: dto.status === 'DRAFT' ? 'DRAFT' : 'PENDING_REVIEW',

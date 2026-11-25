@@ -266,6 +266,8 @@ export interface RetailProduct {
   stock: number;
   lowStockThreshold: number;
   unit: string;
+  brand: string | null;
+  specs: Array<{ name: string; value: string }> | null;
   imageUrl: string | null;
   gallery: string[];
   status:
@@ -301,6 +303,7 @@ export interface RetailProductMeta {
   maxImageKb: number;
   aiPricePer1k: number;
   aiMinPrice: number;
+  aiMinImages: number;
 }
 
 export interface RetailAiImportEstimate {
