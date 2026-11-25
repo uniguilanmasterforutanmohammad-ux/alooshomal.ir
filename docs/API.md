@@ -921,6 +921,8 @@ PY
 | `PATCH/DELETE` | `/retail/products/:id` | ویرایش/حذف محصول (با همان محدودیت وضعیت فروشنده). |
 | `GET` | `/retail/products/meta` | داده‌های فرم ثبت محصول: دسته‌بندی‌های فعال و محدودیت تعداد/حجم تصاویر (`maxImages`، `maxImageKb`). |
 | `POST` | `/retail/products/uploads` | آپلود تصویر محصول (multipart، فیلد `file`) با اعمال محدودیت حجم تعیین‌شده توسط مدیر؛ خروجی `{ url }`. |
+| `POST` | `/retail/products/ai-import/estimate` | برآورد هزینه‌ی «ورود خودکار محصول از دیجی‌کالا» بدون فراخوانی هوش مصنوعی؛ بدنه `{ url }`، خروجی `{ estimatedTokens, pricePer1k, minPrice, price, sourceTitle }`. |
+| `POST` | `/retail/products/ai-import` | ایمپورت محصول از لینک دیجی‌کالا با هوش مصنوعی (پس از تأیید هزینه)؛ بدنه `{ url, categoryId, price?, stock?, unit?, status? }`، خروجی `{ product, usage:{promptTokens,completionTokens,totalTokens}, cost, importId }`. هزینه از کیف پول کسر و در فاکتور ثبت می‌شود. |
 | `GET` | `/retail/orders` | صف سفارش‌ها (فیلتر `status`). |
 | `GET/PATCH` | `/retail/orders/:id` | جزئیات/تغییر وضعیت سفارش و پرداخت. |
 | `GET` | `/retail/inventory` | موجودی، هشدار کمبود و کاردکس انبار. |
@@ -957,7 +959,7 @@ PY
 | --- | --- | --- |
 | `GET/POST` | `/admin/retail/categories` | فهرست/افزودن دسته‌بندی محصول (فروشنده فقط از این‌ها انتخاب می‌کند). |
 | `PATCH/DELETE` | `/admin/retail/categories/:id` | ویرایش (نام/فعال‌بودن) یا حذف دسته‌بندی. |
-| `GET/PATCH` | `/admin/retail/settings` | تنظیم حداکثر تعداد تصویر (`maxImages` ۱–۲۰) و حداکثر حجم هر تصویر (`maxImageKb` ۶۴–۲۰۴۸۰ کیلوبایت). |
+| `GET/PATCH` | `/admin/retail/settings` | تنظیم حداکثر تعداد تصویر (`maxImages` ۱–۲۰)، حداکثر حجم هر تصویر (`maxImageKb` ۶۴–۲۰۴۸۰ کیلوبایت) و تعرفه‌ی ایمپورت هوش مصنوعی (`aiPricePer1k`، `aiMinPrice` تومان). |
 | `GET` | `/admin/retail/products` | صف بررسی محصولات (فیلتر `status`، `q`، `take`). |
 | `PATCH` | `/admin/retail/products/:id/review` | تأیید (`approve: true` → `PUBLISHED`) یا رد (`approve: false` + `reason`) محصول در وضعیت `PENDING_REVIEW`. |
 

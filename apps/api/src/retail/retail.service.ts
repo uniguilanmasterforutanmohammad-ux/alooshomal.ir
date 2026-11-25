@@ -494,23 +494,31 @@ export class RetailService {
   }
 
   async getImageSettings() {
-    const [maxImages, maxImageKb] = await Promise.all([
+    const [maxImages, maxImageKb, aiPricePer1k, aiMinPrice] = await Promise.all([
       this.settings.getRetailProductMaxImages(),
       this.settings.getRetailProductMaxImageKb(),
+      this.settings.getRetailAiImportPricePer1k(),
+      this.settings.getRetailAiImportMinPrice(),
     ]);
-    return { maxImages, maxImageKb };
+    return { maxImages, maxImageKb, aiPricePer1k, aiMinPrice };
   }
 
   async updateImageSettings(dto: UpdateRetailImageSettingsDto) {
-    const [maxImages, maxImageKb] = await Promise.all([
+    const [maxImages, maxImageKb, aiPricePer1k, aiMinPrice] = await Promise.all([
       dto.maxImages !== undefined
         ? this.settings.setRetailProductMaxImages(dto.maxImages)
         : this.settings.getRetailProductMaxImages(),
       dto.maxImageKb !== undefined
         ? this.settings.setRetailProductMaxImageKb(dto.maxImageKb)
         : this.settings.getRetailProductMaxImageKb(),
+      dto.aiPricePer1k !== undefined
+        ? this.settings.setRetailAiImportPricePer1k(dto.aiPricePer1k)
+        : this.settings.getRetailAiImportPricePer1k(),
+      dto.aiMinPrice !== undefined
+        ? this.settings.setRetailAiImportMinPrice(dto.aiMinPrice)
+        : this.settings.getRetailAiImportMinPrice(),
     ]);
-    return { maxImages, maxImageKb };
+    return { maxImages, maxImageKb, aiPricePer1k, aiMinPrice };
   }
 
   // -------------------------------------------------------------------------

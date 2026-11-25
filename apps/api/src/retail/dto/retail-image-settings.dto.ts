@@ -18,4 +18,24 @@ export class UpdateRetailImageSettingsDto {
   @Min(64)
   @Max(20480)
   maxImageKb?: number;
+
+  @ApiPropertyOptional({
+    description: 'هزینه‌ی هر ۱۰۰۰ توکن ایمپورت محصول با هوش مصنوعی (تومان)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(1_000_000)
+  aiPricePer1k?: number;
+
+  @ApiPropertyOptional({
+    description: 'حداقل هزینه‌ی هر ایمپورت محصول با هوش مصنوعی (تومان)',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(10_000_000)
+  aiMinPrice?: number;
 }

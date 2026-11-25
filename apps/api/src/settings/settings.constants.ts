@@ -135,6 +135,18 @@ export const RETAIL_PRODUCT_MAX_IMAGE_KB_KEY = 'retailProductMaxImageKb';
 export const DEFAULT_RETAIL_PRODUCT_MAX_IMAGE_KB = 2048;
 
 // ---------------------------------------------------------------------------
+//  «ورود خودکار محصول از دیجی‌کالا» (AI import) pricing
+// ---------------------------------------------------------------------------
+
+/** Toman charged per 1,000 AI tokens consumed by an import. */
+export const RETAIL_AI_IMPORT_PRICE_PER_1K_KEY = 'retailAiImportPricePer1k';
+export const DEFAULT_RETAIL_AI_IMPORT_PRICE_PER_1K = 1500;
+
+/** Minimum Toman charged for one AI import, regardless of token count. */
+export const RETAIL_AI_IMPORT_MIN_PRICE_KEY = 'retailAiImportMinPrice';
+export const DEFAULT_RETAIL_AI_IMPORT_MIN_PRICE = 5000;
+
+// ---------------------------------------------------------------------------
 //  «نبض شهر» news settings
 // ---------------------------------------------------------------------------
 
@@ -522,6 +534,14 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     label: 'ماژول گزارش فروش و سود',
     description:
       'داشبورد فروش خالص، سود هر سفارش، واریزی‌های تطبیق‌نیافته و گزارش روزانه‌ی فروشگاه.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureRetailAiImport',
+    label: 'ورود خودکار محصول از دیجی‌کالا (هوش مصنوعی)',
+    description:
+      'با قراردادن لینک محصول دیجی‌کالا، مشخصات و تصاویر آن با هوش مصنوعی استخراج و به‌عنوان محصول فروشگاه ثبت می‌شود. هر ایمپورت هزینه‌ی جداگانه (بر اساس توکن مصرفی) دارد.',
     group: 'پنل کسب‌وکار',
     default: true,
   },

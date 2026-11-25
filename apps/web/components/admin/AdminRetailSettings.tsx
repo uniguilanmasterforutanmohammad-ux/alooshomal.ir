@@ -28,7 +28,12 @@ function formatToman(value: number): string {
 
 export function AdminRetailSettings() {
   const [categories, setCategories] = useState<RetailProductCategory[]>([]);
-  const [settings, setSettings] = useState({ maxImages: 6, maxImageKb: 2048 });
+  const [settings, setSettings] = useState({
+    maxImages: 6,
+    maxImageKb: 2048,
+    aiPricePer1k: 1500,
+    aiMinPrice: 5000,
+  });
   const [pending, setPending] = useState<AdminRetailProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -41,9 +46,12 @@ export function AdminRetailSettings() {
     try {
       const [cats, limits, queue] = await Promise.all([
         api.get<RetailProductCategory[]>('/admin/retail/categories'),
-        api.get<{ maxImages: number; maxImageKb: number }>(
-          '/admin/retail/settings',
-        ),
+        api.get<{
+          maxImages: number;
+          maxImageKb: number;
+          aiPricePer1k: number;
+          aiMinPrice: number;
+        }>('/admin/retail/settings'),
         api.get<AdminRetailProduct[]>(
           '/admin/retail/products?status=PENDING_REVIEW',
         ),
@@ -266,6 +274,63 @@ export function AdminRetailSettings() {
                 setSettings((prev) => ({
                   ...prev,
                   maxImageKb: Number(event.target.value) || 64,
+                }))
+              }
+              className={`${field} mt-1`}
+            />
+          </label>
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={() => void saveSettings()}
+              disabled={busy === 'settings'}
+              className="indeed-btn indeed-btn-primary py-1.5 text-xs disabled:opacity-50"
+            >
+              {busy === 'settings' ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Save className="size-3.5" aria-hidden />
+              )}
+              ذخیره
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section className="indeed-panel p-5">
+        <h4 className="text-sm font-extrabold text-ink">
+          تعرفه‌ی ورود خودکار محصول (هوش مصنوعی)
+        </h4>
+        <p className="mt-0.5 text-xs leading-6 text-muted">
+          هزینه‌ی هر ایمپورت محصول از دیجی‌کالا بر اساس توکن مصرفی و این نرخ
+          محاسبه و از کیف پول کاربر کسر می‌شود.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <label className="text-[11px] font-bold text-muted">
+            هزینه‌ی هر ۱۰۰۰ توکن (تومان)
+            <input
+              type="number"
+              min={0}
+              value={settings.aiPricePer1k}
+              onChange={(event) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  aiPricePer1k: Number(event.target.value) || 0,
+                }))
+              }
+              className={`${field} mt-1`}
+            />
+          </label>
+          <label className="text-[11px] font-bold text-muted">
+            حداقل هزینه‌ی هر ایمپورت (تومان)
+            <input
+              type="number"
+              min={0}
+              value={settings.aiMinPrice}
+              onChange={(event) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  aiMinPrice: Number(event.target.value) || 0,
                 }))
               }
               className={`${field} mt-1`}

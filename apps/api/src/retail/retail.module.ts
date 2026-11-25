@@ -4,9 +4,11 @@ import { BusinessModulesModule } from '../business-modules/business-modules.modu
 import { FinanceModule } from '../finance/finance.module';
 import { SettingsModule } from '../settings/settings.module';
 import { UploadsModule } from '../uploads/uploads.module';
+import { WalletModule } from '../wallet/wallet.module';
 import { AdminRetailController } from './admin-retail.controller';
 import { PublicProductsController } from './public-products.controller';
 import { PublicRetailController } from './public-retail.controller';
+import { RetailAiImportService } from './retail-ai-import.service';
 import { RetailInventoryController } from './retail-inventory.controller';
 import { RetailOrdersController } from './retail-orders.controller';
 import { RetailProductsController } from './retail-products.controller';
@@ -15,7 +17,13 @@ import { RetailShopSettingsController } from './retail-shop-settings.controller'
 import { RetailService } from './retail.service';
 
 @Module({
-  imports: [BusinessModulesModule, SettingsModule, FinanceModule, UploadsModule],
+  imports: [
+    BusinessModulesModule,
+    SettingsModule,
+    FinanceModule,
+    UploadsModule,
+    WalletModule,
+  ],
   controllers: [
     AdminRetailController,
     RetailProductsController,
@@ -26,7 +34,7 @@ import { RetailService } from './retail.service';
     PublicRetailController,
     PublicProductsController,
   ],
-  providers: [RetailService],
+  providers: [RetailService, RetailAiImportService],
   exports: [RetailService],
 })
 export class RetailModule {}

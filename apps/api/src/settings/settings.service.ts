@@ -56,6 +56,8 @@ import {
   DEFAULT_POINTS_PER_NEWS,
   DEFAULT_RETAIL_PRODUCT_MAX_IMAGES,
   DEFAULT_RETAIL_PRODUCT_MAX_IMAGE_KB,
+  DEFAULT_RETAIL_AI_IMPORT_PRICE_PER_1K,
+  DEFAULT_RETAIL_AI_IMPORT_MIN_PRICE,
   DEFAULT_PAYMENTS_ONLINE_ONLY,
   DEFAULT_SITE_THEME,
   DEFAULT_WALLET_SETTLEMENT_DAYS,
@@ -84,6 +86,8 @@ import {
   POINTS_PER_NEWS_KEY,
   RETAIL_PRODUCT_MAX_IMAGES_KEY,
   RETAIL_PRODUCT_MAX_IMAGE_KB_KEY,
+  RETAIL_AI_IMPORT_PRICE_PER_1K_KEY,
+  RETAIL_AI_IMPORT_MIN_PRICE_KEY,
   SITE_THEMES,
   SITE_THEME_KEY,
   SiteTheme,
@@ -1157,6 +1161,51 @@ export class SettingsService implements OnModuleInit {
       where: { key: RETAIL_PRODUCT_MAX_IMAGE_KB_KEY },
       update: { value: String(clamped) },
       create: { key: RETAIL_PRODUCT_MAX_IMAGE_KB_KEY, value: String(clamped) },
+    });
+    return clamped;
+  }
+
+  /** Toman charged per 1,000 AI tokens for a Digikala product import. */
+  async getRetailAiImportPricePer1k(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: RETAIL_AI_IMPORT_PRICE_PER_1K_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 0
+      ? Math.floor(parsed)
+      : DEFAULT_RETAIL_AI_IMPORT_PRICE_PER_1K;
+  }
+
+  async setRetailAiImportPricePer1k(value: number): Promise<number> {
+    const clamped = Math.max(0, Math.floor(value));
+    await this.prisma.setting.upsert({
+      where: { key: RETAIL_AI_IMPORT_PRICE_PER_1K_KEY },
+      update: { value: String(clamped) },
+      create: {
+        key: RETAIL_AI_IMPORT_PRICE_PER_1K_KEY,
+        value: String(clamped),
+      },
+    });
+    return clamped;
+  }
+
+  /** Minimum Toman charged for one AI import. */
+  async getRetailAiImportMinPrice(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: RETAIL_AI_IMPORT_MIN_PRICE_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 0
+      ? Math.floor(parsed)
+      : DEFAULT_RETAIL_AI_IMPORT_MIN_PRICE;
+  }
+
+  async setRetailAiImportMinPrice(value: number): Promise<number> {
+    const clamped = Math.max(0, Math.floor(value));
+    await this.prisma.setting.upsert({
+      where: { key: RETAIL_AI_IMPORT_MIN_PRICE_KEY },
+      update: { value: String(clamped) },
+      create: { key: RETAIL_AI_IMPORT_MIN_PRICE_KEY, value: String(clamped) },
     });
     return clamped;
   }

@@ -7,6 +7,8 @@ export type WalletEntryKind =
   | 'AD_DIRECTORY'
   | 'FEED_TAG'
   | 'FEED_PACKAGE'
+  | 'BUSINESS_MODULE'
+  | 'AI_IMPORT'
   | 'ADJUSTMENT'
   | 'PAYMENT';
 

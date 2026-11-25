@@ -299,6 +299,29 @@ export interface RetailProductMeta {
   categories: Array<{ id: string; name: string; slug: string }>;
   maxImages: number;
   maxImageKb: number;
+  aiPricePer1k: number;
+  aiMinPrice: number;
+}
+
+export interface RetailAiImportEstimate {
+  url: string;
+  sourceTitle: string | null;
+  estimatedTokens: number;
+  pricePer1k: number;
+  minPrice: number;
+  price: number;
+}
+
+export interface RetailAiImportResult {
+  product: RetailProduct;
+  usage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  cost: number;
+  estimatedTokens: number;
+  importId: string;
 }
 
 export interface AdminRetailProduct extends RetailProduct {

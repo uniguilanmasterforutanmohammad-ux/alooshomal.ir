@@ -34,6 +34,8 @@ import {
   DEFAULT_POINTS_PER_NEWS,
   DEFAULT_RETAIL_PRODUCT_MAX_IMAGES,
   DEFAULT_RETAIL_PRODUCT_MAX_IMAGE_KB,
+  DEFAULT_RETAIL_AI_IMPORT_PRICE_PER_1K,
+  DEFAULT_RETAIL_AI_IMPORT_MIN_PRICE,
   DIRECTORY_DISPLAY_MODE_KEY,
   DIRECTORY_PAGE_SIZE_KEY,
   FEATURE_FLAGS,
@@ -47,6 +49,8 @@ import {
   POINTS_PER_NEWS_KEY,
   RETAIL_PRODUCT_MAX_IMAGES_KEY,
   RETAIL_PRODUCT_MAX_IMAGE_KB_KEY,
+  RETAIL_AI_IMPORT_PRICE_PER_1K_KEY,
+  RETAIL_AI_IMPORT_MIN_PRICE_KEY,
   DEFAULT_SUPPORT_CHAT_SMS_ENABLED,
   SUPPORT_CHAT_SMS_ENABLED_KEY,
   SUPPORT_CHAT_SMS_PHONE_KEY,
@@ -254,6 +258,22 @@ export async function ensureSettingsDefaults(
         create: {
           key: RETAIL_PRODUCT_MAX_IMAGE_KB_KEY,
           value: String(DEFAULT_RETAIL_PRODUCT_MAX_IMAGE_KB),
+        },
+      }),
+      prisma.setting.upsert({
+        where: { key: RETAIL_AI_IMPORT_PRICE_PER_1K_KEY },
+        update: {},
+        create: {
+          key: RETAIL_AI_IMPORT_PRICE_PER_1K_KEY,
+          value: String(DEFAULT_RETAIL_AI_IMPORT_PRICE_PER_1K),
+        },
+      }),
+      prisma.setting.upsert({
+        where: { key: RETAIL_AI_IMPORT_MIN_PRICE_KEY },
+        update: {},
+        create: {
+          key: RETAIL_AI_IMPORT_MIN_PRICE_KEY,
+          value: String(DEFAULT_RETAIL_AI_IMPORT_MIN_PRICE),
         },
       }),
       ...ADMIN_NOTIFY_CATEGORIES.map((category) =>

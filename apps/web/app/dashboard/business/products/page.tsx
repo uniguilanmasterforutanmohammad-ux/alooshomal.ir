@@ -11,6 +11,7 @@ import {
   Plus,
   Search,
   Send,
+  Sparkles,
   Trash2,
   UploadCloud,
   X,
@@ -19,12 +20,15 @@ import {
 import { BusinessPanelNav } from '@/components/business/BusinessPanelNav';
 import {
   api,
+  type RetailAiImportEstimate,
+  type RetailAiImportResult,
   type RetailProduct,
   type RetailProductMeta,
   type UploadResult,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
+import { useFeatures } from '@/lib/features';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 
@@ -99,6 +103,7 @@ function formatToman(value: number): string {
 export default function ProductsPage() {
   const router = useRouter();
   const { token, hydrated } = useAuth();
+  const features = useFeatures();
   const enabled = hydrated && Boolean(token);
   const { workspace } = useBusinessWorkspace(enabled);
 
@@ -113,6 +118,16 @@ export default function ProductsPage() {
   const [dragging, setDragging] = useState(false);
   const [saving, setSaving] = useState<SellerStatus | null>(null);
   const fileInput = useRef<HTMLInputElement | null>(null);
+
+  const [showAi, setShowAi] = useState(false);
+  const [aiUrl, setAiUrl] = useState('');
+  const [aiCategoryId, setAiCategoryId] = useState('');
+  const [aiEstimate, setAiEstimate] = useState<RetailAiImportEstimate | null>(
+    null,
+  );
+  const [aiBusy, setAiBusy] = useState<'estimate' | 'import' | null>(null);
+  const [aiResult, setAiResult] = useState<RetailAiImportResult | null>(null);
+  const aiImportVisible = features.isFeatureVisible('featureRetailAiImport');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -280,6 +295,58 @@ export default function ProductsPage() {
     toast.success('محصول حذف شد');
   }
 
+  function openAi() {
+    setAiUrl('');
+    setAiEstimate(null);
+    setAiResult(null);
+    setAiCategoryId(meta?.categories[0]?.id ?? '');
+    setShowAi(true);
+  }
+
+  async function estimateAi() {
+    const url = aiUrl.trim();
+    if (!url) {
+      toast.error('لینک محصول دیجی‌کالا را وارد کنید.');
+      return;
+    }
+    setAiBusy('estimate');
+    setAiResult(null);
+    try {
+      const result = await api.post<RetailAiImportEstimate>(
+        '/retail/products/ai-import/estimate',
+        { url },
+      );
+      setAiEstimate(result);
+    } catch {
+      // API client already surfaced the error
+    } finally {
+      setAiBusy(null);
+    }
+  }
+
+  async function runAiImport() {
+    if (!aiEstimate) return;
+    if (!aiCategoryId) {
+      toast.error('دسته‌بندی محصول را انتخاب کنید.');
+      return;
+    }
+    setAiBusy('import');
+    try {
+      const result = await api.post<RetailAiImportResult>(
+        '/retail/products/ai-import',
+        { url: aiEstimate.url, categoryId: aiCategoryId },
+      );
+      setAiResult(result);
+      setAiEstimate(null);
+      toast.success('محصول با هوش مصنوعی ساخته شد');
+      await load();
+    } catch {
+      // API client already surfaced the error
+    } finally {
+      setAiBusy(null);
+    }
+  }
+
   const canAddImages = meta ? form.images.length < meta.maxImages : false;
 
   return (
@@ -299,6 +366,16 @@ export default function ProductsPage() {
           <Link href="/shop" className="indeed-btn">
             دایرکتوری عمومی
           </Link>
+          {aiImportVisible ? (
+            <button
+              type="button"
+              onClick={openAi}
+              className="indeed-btn"
+            >
+              <Sparkles className="size-4" aria-hidden />
+              ورود خودکار محصول از دیجی‌کالا
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={openCreate}
@@ -311,6 +388,144 @@ export default function ProductsPage() {
       </div>
 
       {workspace ? <BusinessPanelNav modules={workspace.modules} /> : null}
+
+      {showAi ? (
+        <div className="indeed-panel flex flex-col gap-4 p-5">
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <h2 className="flex items-center gap-2 text-lg font-extrabold text-ink">
+                <Sparkles className="size-5 text-brand" aria-hidden />
+                ورود خودکار محصول از دیجی‌کالا
+              </h2>
+              <p className="mt-1 text-xs leading-6 text-muted">
+                لینک صفحه‌ی محصول را در دیجی‌کالا بچسبانید. ابتدا برآورد
+                توکن و هزینه نمایش داده می‌شود و پس از تأیید شما، محصول با
+                هوش مصنوعی ساخته می‌شود.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAi(false);
+                setAiEstimate(null);
+                setAiResult(null);
+              }}
+              className="rounded-full p-1 text-muted hover:bg-[var(--vintage-paper)]"
+              aria-label="بستن"
+            >
+              <X className="size-5" aria-hidden />
+            </button>
+          </div>
+
+          <label className="flex flex-col gap-1 text-xs font-bold text-muted">
+            لینک محصول دیجی‌کالا
+            <input
+              className={field}
+              dir="ltr"
+              value={aiUrl}
+              onChange={(event) => {
+                setAiUrl(event.target.value);
+                setAiEstimate(null);
+              }}
+              placeholder="https://www.digikala.com/product/dkp-..."
+            />
+          </label>
+
+          <label className="flex flex-col gap-1 text-xs font-bold text-muted">
+            دسته‌بندی محصول
+            <select
+              className={field}
+              value={aiCategoryId}
+              onChange={(event) => setAiCategoryId(event.target.value)}
+            >
+              <option value="">انتخاب دسته‌بندی…</option>
+              {(meta?.categories ?? []).map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {aiEstimate ? (
+            <div className="rounded-xl border border-[var(--vintage-border)] bg-[var(--vintage-paper)] p-4 text-sm">
+              {aiEstimate.sourceTitle ? (
+                <p className="mb-2 font-bold text-ink">
+                  {aiEstimate.sourceTitle}
+                </p>
+              ) : null}
+              <div className="grid gap-2 text-xs text-muted sm:grid-cols-3">
+                <span>
+                  توکن برآوردی:{' '}
+                  <b className="text-ink">
+                    {formatToman(aiEstimate.estimatedTokens)}
+                  </b>
+                </span>
+                <span>
+                  نرخ هر ۱۰۰۰ توکن:{' '}
+                  <b className="text-ink">
+                    {formatToman(aiEstimate.pricePer1k)} تومان
+                  </b>
+                </span>
+                <span>
+                  هزینه‌ی برآوردی:{' '}
+                  <b className="text-brand">
+                    {formatToman(aiEstimate.price)} تومان
+                  </b>
+                </span>
+              </div>
+              <p className="mt-2 text-[11px] leading-5 text-muted">
+                مبلغ برآوردی از کیف پول شما کسر می‌شود؛ هزینه‌ی نهایی بر اساس
+                توکن مصرف‌شده‌ی واقعی محاسبه و در گزارش پرداخت‌ها ثبت می‌شود.
+              </p>
+            </div>
+          ) : null}
+
+          {aiResult ? (
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">
+              <p className="font-bold">محصول «{aiResult.product.title}» ساخته شد.</p>
+              <p className="mt-1 text-xs">
+                توکن مصرف‌شده: {formatToman(aiResult.usage.totalTokens)} (ورودی{' '}
+                {formatToman(aiResult.usage.promptTokens)} + خروجی{' '}
+                {formatToman(aiResult.usage.completionTokens)}) • هزینه:{' '}
+                {formatToman(aiResult.cost)} تومان
+              </p>
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-2 border-t border-[var(--vintage-border)] pt-4">
+            <button
+              type="button"
+              onClick={() => void estimateAi()}
+              disabled={aiBusy !== null}
+              className="indeed-btn disabled:opacity-50"
+            >
+              {aiBusy === 'estimate' ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <Search className="size-4" aria-hidden />
+              )}
+              برآورد هزینه
+            </button>
+            <button
+              type="button"
+              onClick={() => void runAiImport()}
+              disabled={aiBusy !== null || !aiEstimate}
+              className="indeed-btn indeed-btn-primary disabled:opacity-50"
+            >
+              {aiBusy === 'import' ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <Sparkles className="size-4" aria-hidden />
+              )}
+              پرداخت و ایمپورت
+            </button>
+            <span className="text-[11px] text-muted">
+              هر ایمپورت هزینه‌ی جداگانه دارد و بر اساس توکن مصرفی محاسبه می‌شود.
+            </span>
+          </div>
+        </div>
+      ) : null}
 
       {showForm ? (
         <form

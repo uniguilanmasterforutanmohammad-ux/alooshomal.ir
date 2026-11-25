@@ -27,8 +27,13 @@ import {
 } from '../common/decorators/current-user.decorator';
 import { MAX_FEED_UPLOAD_BYTES } from '../uploads/uploads.constants';
 import { UploadsService } from '../uploads/uploads.service';
+import {
+  EstimateAiImportDto,
+  ImportAiProductDto,
+} from './dto/ai-import.dto';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { RetailAiImportService } from './retail-ai-import.service';
 import { RetailService } from './retail.service';
 
 @ApiTags('retail')
@@ -40,6 +45,7 @@ export class RetailProductsController {
   constructor(
     private readonly retail: RetailService,
     private readonly uploads: UploadsService,
+    private readonly aiImport: RetailAiImportService,
   ) {}
 
   @Get()
@@ -54,6 +60,30 @@ export class RetailProductsController {
   })
   meta() {
     return this.retail.productFormMeta();
+  }
+
+  @Post('ai-import/estimate')
+  @ApiOperation({
+    summary:
+      'برآورد هزینه و توکن ورود خودکار محصول از دیجی‌کالا (پیش از پرداخت)',
+  })
+  estimateAiImport(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: EstimateAiImportDto,
+  ) {
+    return this.aiImport.estimate(user.id, dto.url);
+  }
+
+  @Post('ai-import')
+  @ApiOperation({
+    summary:
+      'ورود خودکار محصول از دیجی‌کالا با هوش مصنوعی (پس از تأیید هزینه)',
+  })
+  importAiProduct(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ImportAiProductDto,
+  ) {
+    return this.aiImport.import(user.id, dto);
   }
 
   @Post('uploads')

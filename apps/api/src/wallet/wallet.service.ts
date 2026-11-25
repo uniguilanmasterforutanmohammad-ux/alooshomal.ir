@@ -44,6 +44,9 @@ export interface WalletChargeInput {
   idempotencyKey?: string;
 }
 
+/** Same shape as a charge minus the ledger `kind` (a refund is an ADJUSTMENT). */
+export type WalletRefundInput = Omit<WalletChargeInput, 'kind'>;
+
 /**
  * «کیف پول» — a running tab per user.
  *
@@ -201,6 +204,61 @@ export class WalletService implements OnModuleInit {
       throw error;
     }
     return charged ? amount : 0;
+  }
+
+  /**
+   * Reverse a previous `charge()` (e.g. a paid action that then failed). Writes
+   * a positive ledger entry so the balance moves back toward zero; idempotent
+   * via `idempotencyKey`. A no-op when the wallet feature is off.
+   */
+  async refund(input: WalletRefundInput): Promise<number> {
+    const amount = Math.floor(input.amount);
+    if (!Number.isFinite(amount) || amount <= 0) return 0;
+    if (!(await this.settings.isFeatureEnabled('featureWallet'))) return 0;
+    const nationalCode = await this.nationalCodeOf(input.userId);
+
+    let refunded = false;
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        if (input.idempotencyKey) {
+          const existing = await tx.walletEntry.findUnique({
+            where: { idempotencyKey: input.idempotencyKey },
+            select: { id: true },
+          });
+          if (existing) return;
+        }
+        const wallet = await tx.userWallet.upsert({
+          where: { userId: input.userId },
+          create: { userId: input.userId, nationalCode },
+          update: nationalCode ? { nationalCode } : {},
+        });
+        await tx.walletEntry.create({
+          data: {
+            walletId: wallet.id,
+            kind: WalletEntryKind.ADJUSTMENT,
+            nationalCode,
+            idempotencyKey: input.idempotencyKey ?? null,
+            amount,
+            title: input.title,
+            sourceType: input.sourceType ?? null,
+            sourceId: input.sourceId ?? null,
+          },
+        });
+        const newBalance = wallet.balance + amount;
+        await tx.userWallet.update({
+          where: { id: wallet.id },
+          data: {
+            balance: { increment: amount },
+            ...(newBalance >= 0 ? { dueAt: null, reminderSentAt: null } : {}),
+          },
+        });
+        refunded = true;
+      });
+    } catch (error) {
+      if ((error as { code?: string }).code === 'P2002') return 0;
+      throw error;
+    }
+    return refunded ? amount : 0;
   }
 
   /** Current balance (negative = debt). */

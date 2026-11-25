@@ -1671,6 +1671,7 @@ enum WalletEntryKind {
   FEED_TAG
   FEED_PACKAGE
   BUSINESS_MODULE
+  AI_IMPORT
   ADJUSTMENT
   PAYMENT
 }
@@ -2500,6 +2501,27 @@ model RetailProduct {
   @@index([workspaceId, status])
   @@index([categoryId])
   @@map("retail_products")
+}
+
+/// One «ورود خودکار محصول از دیجی‌کالا» run: the source link, the AI model and
+/// the exact token usage + charged amount, so every import's cost is auditable.
+model RetailAiImport {
+  id               String   @id @default(cuid())
+  userId           String
+  workspaceId      String
+  productId        String?
+  url              String
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  /// Toman charged to the user's wallet tab for this import.
+  cost             Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("retail_ai_imports")
 }
 
 /// Storefront-wide settings for the retail package: the delivery area (city +

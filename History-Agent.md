@@ -20,13 +20,62 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.90.5**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.91.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۴ — ورود خودکار محصول از دیجی‌کالا با هوش مصنوعی (با پیش‌نمایش هزینه) — نسخه `v4.91.0`
+
+**هدف:** کاربر فروشگاه بتواند با چسباندن لینک محصول دیجی‌کالا، مشخصات و تصاویر
+آن را به‌صورت خودکار به‌عنوان محصول خود ثبت کند؛ پیش از ایمپورت، تعداد توکن
+برآوردی و هزینه نمایش داده شود و پس از تأیید کاربر، هزینه از کیف پول کسر و
+فاکتور ثبت گردد. توکن مصرفی واقعی هر ایمپورت نیز ذخیره و نمایش داده می‌شود.
+
+**تغییرات:**
+- `apps/api/src/retail/retail-ai-import.service.ts`: سرویس جدید ایمپورت؛ استخراج
+  داده از API محصول دیجی‌کالا (`/product/v1/products/:id/`) با فالبک HTML
+  (JSON-LD/OG)، فراخوانی مدل `deepseek/deepseek-v4.1-flash-1017` روی
+  `ai.chabokan.net`، دانلود و آپلود تصاویر، ساخت محصول، کسر کیف پول و ثبت فاکتور
+  (با بازگشت هزینه در صورت شکست).
+- `apps/api/src/retail/dto/ai-import.dto.ts`: DTO برآورد و ایمپورت.
+- `apps/api/src/retail/retail-products.controller.ts`: دو مسیر
+  `POST /retail/products/ai-import/estimate` و `POST /retail/products/ai-import`.
+- `apps/api/src/retail/retail.module.ts`: ثبت سرویس و ایمپورت `WalletModule`.
+- `apps/api/src/retail/dto/retail-image-settings.dto.ts` و
+  `apps/api/src/retail/retail.service.ts`: تعرفه‌ی ایمپورت (`aiPricePer1k`،
+  `aiMinPrice`) در تنظیمات مدیر.
+- `apps/api/src/settings/*`: کلیدهای تعرفه، فلگ `featureRetailAiImport` و
+  مقدارهای پیش‌فرض.
+- `apps/api/src/wallet/wallet.service.ts`: متد `refund` برای بازگشت هزینه‌ی
+  ایمپورت ناموفق؛ `WalletEntryKind.AI_IMPORT` در `apps/api/prisma/schema.prisma`.
+- `apps/api/src/finance/finance.constants.ts` و `finance.service.ts`: منبع
+  `RETAIL_AI_IMPORT` و افزودن به `backfill`.
+- `apps/api/prisma/schema.prisma`: مدل `RetailAiImport` برای ثبت توکن/هزینه‌ی هر
+  ایمپورت.
+- `apps/web/app/dashboard/business/products/page.tsx`: دکمه و پنل «ورود خودکار
+  محصول از دیجی‌کالا» (برآورد → پرداخت و ایمپورت → نمایش توکن/هزینه).
+- `apps/web/components/admin/AdminRetailSettings.tsx`: تنظیم تعرفه‌ی ایمپورت.
+- `apps/web/lib/api/types/business-modules.ts` و `wallet.ts`: تایپ‌های جدید.
+- `docker-compose.yml`: پاس‌دادن `API_AI_CHABOKAN_IMPORT_PRODUCTS` به سرویس API.
+- `docs/API.md`: مستندسازی دو مسیر جدید و تنظیمات تعرفه.
+
+**تأیید/تست:**
+- `tsc --noEmit` هر دو اپ (API و web) بدون خطا؛ `eslint` فایل‌های وب فقط
+  هشدارهای از پیش موجود `set-state-in-effect` را داد (۰ خطا).
+- `python3 scripts/check_api_docs.py` → ۷۲۲ مسیر، همه مستند (exit 0).
+- `prisma db push` موفق و `prisma generate` انجام شد.
+- تست واقعی (فقط یک ایمپورت برای کنترل هزینه): `POST /retail/products/ai-import/estimate`
+  برای محصول `dkp/15118694` → ۱۵۵۶ توکن برآوردی و قیمت ۵۰۰۰ تومان؛ سپس
+  `POST /retail/products/ai-import` → محصول با عنوان/توضیح/قیمت ۴۹۲٬۰۰۰ تومان و
+  تصویر آپلودشده ساخته شد؛ رکورد `retail_ai_imports` نشان داد ۳۷۰ توکن ورودی +
+  ۲۵۳۱ خروجی = ۲۹۰۱ توکن و هزینه ۵۰۰۰ تومان، و فاکتور `RETAIL_AI_IMPORT_PAYMENT`
+  ثبت شد. داده‌ی تست سپس پاک شد. (در تست محلی فلگ `featureWallet` خاموش بود؛
+  منطق نهایی فقط وقتی این فلگ روشن است هزینه/فاکتور ثبت می‌کند و در غیر این صورت
+  ایمپورت رایگان است، هم‌سو با سایر قابلیت‌های پولی.)
 
 ## ۱۴۰۵/۰۹/۰۴ — اسکلتون بارگذاری در پنل و نشانگر لود در نوبار موبایل — نسخه `v4.90.5`
 

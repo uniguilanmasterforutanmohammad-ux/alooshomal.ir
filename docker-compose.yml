@@ -167,6 +167,9 @@ services:
       # «api.ir» panel. The dotted variable name is passed through from `.env`.
       API_KEY_API.IR:
       APIIR_BASE_URL: ${APIIR_BASE_URL:-https://s.api.ir}
+      # Chabokan AI key used by «ورود خودکار محصول از دیجی‌کالا». Stays
+      # server-side; empty disables the feature with a friendly error.
+      API_AI_CHABOKAN_IMPORT_PRODUCTS: ${API_AI_CHABOKAN_IMPORT_PRODUCTS:-}
     ports:
       - "${API_PORT:-4000}:4000"
     volumes:
