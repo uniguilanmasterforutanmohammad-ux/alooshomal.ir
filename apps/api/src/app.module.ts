@@ -1,4 +1,9 @@
-import { Module } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 
@@ -22,6 +27,7 @@ import { BoostsModule } from './boosts/boosts.module';
 import { BusinessCardsModule } from './businesscards/business-cards.module';
 import { BusinessModulesModule } from './business-modules/business-modules.module';
 import { WorkspaceContextInterceptor } from './business-modules/workspace-context.interceptor';
+import { WorkspaceContextMiddleware } from './business-modules/workspace-context.middleware';
 import { CrmModule } from './crm/crm.module';
 import { CardToCardModule } from './card-to-card/card-to-card.module';
 import { BuildingsModule } from './buildings/buildings.module';
@@ -126,4 +132,11 @@ import { ZohalModule } from './zohal/zohal.module';
     { provide: APP_INTERCEPTOR, useClass: WorkspaceContextInterceptor },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    // Runs before guards so `BusinessModuleGuard` sees the selected workspace.
+    consumer
+      .apply(WorkspaceContextMiddleware)
+      .forRoutes({ path: '*', method: RequestMethod.ALL });
+  }
+}

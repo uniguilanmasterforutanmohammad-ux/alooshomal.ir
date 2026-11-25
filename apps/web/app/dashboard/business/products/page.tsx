@@ -18,7 +18,9 @@ import {
 } from 'lucide-react';
 
 import { BusinessPanelNav } from '@/components/business/BusinessPanelNav';
+import { ManagementNudge } from '@/components/business/ManagementNudge';
 import {
+  ApiError,
   api,
   type RetailAiImportEstimate,
   type RetailAiImportResult,
@@ -111,6 +113,7 @@ export default function ProductsPage() {
   const [meta, setMeta] = useState<RetailProductMeta | null>(null);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState(true);
+  const [moduleDisabled, setModuleDisabled] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<RetailProduct | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -130,10 +133,16 @@ export default function ProductsPage() {
   const aiImportVisible = features.isFeatureVisible('featureRetailAiImport');
 
   const load = useCallback(async () => {
+    setModuleDisabled(false);
     setLoading(true);
     try {
       const query = q.trim() ? `?q=${encodeURIComponent(q.trim())}` : '';
       setItems(await api.get<RetailProduct[]>(`/retail/products${query}`));
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'MODULE_DISABLED') {
+        setModuleDisabled(true);
+        setItems([]);
+      }
     } finally {
       setLoading(false);
     }
@@ -152,7 +161,11 @@ export default function ProductsPage() {
     api
       .get<RetailProductMeta>('/retail/products/meta')
       .then(setMeta)
-      .catch(() => undefined);
+      .catch((error) => {
+        if (error instanceof ApiError && error.code === 'MODULE_DISABLED') {
+          setModuleDisabled(true);
+        }
+      });
   }, [enabled]);
 
   function openCreate() {
@@ -348,6 +361,41 @@ export default function ProductsPage() {
   }
 
   const canAddImages = meta ? form.images.length < meta.maxImages : false;
+
+  if (moduleDisabled) {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+          <h1 className="text-2xl font-extrabold text-ink">محصولات فروشگاه</h1>
+          <p className="mt-1 text-sm text-muted">
+            برای ثبت و مدیریت محصولات، ابتدا بسته‌ی مدیریت فروشگاه را فعال کنید.
+          </p>
+        </div>
+
+        {workspace ? <BusinessPanelNav modules={workspace.modules} /> : null}
+
+        <div className="indeed-panel flex flex-col items-start gap-3 p-6">
+          <div className="flex items-center gap-2 text-lg font-extrabold text-ink">
+            <Sparkles className="size-5 text-brand" aria-hidden />
+            ماژول «کاتالوگ محصولات» فعال نیست
+          </div>
+          <p className="text-sm leading-7 text-muted">
+            برای این کسب‌وکار هنوز بسته‌ی مدیریت فروشگاه خریداری یا فعال نشده
+            است. با خرید بسته‌ی متناسب با دسته‌بندی کسب‌وکار، ماژول محصولات،
+            سفارش‌ها و گزارش‌های فروشگاه فعال می‌شود.
+          </p>
+          <Link
+            href="/dashboard/business/overview"
+            className="indeed-btn indeed-btn-primary"
+          >
+            خرید و فعال‌سازی بسته‌ی مدیریت فروشگاه
+          </Link>
+        </div>
+
+        <ManagementNudge />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-6">
