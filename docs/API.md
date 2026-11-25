@@ -883,7 +883,7 @@ PY
 | متد | مسیر | توضیح |
 | --- | --- | --- |
 | `GET` | `/accommodations` | فهرست اقامتگاه‌های من. |
-| `POST` | `/accommodations` | ثبت اقامتگاه (پیش‌نویس/منتشرشده). |
+| `POST` | `/accommodations` | ثبت اقامتگاه (پیش‌نویس/منتشرشده). فیلد `unitCount` تعداد واحدهای یکسان زیر یک آگهی را تعیین می‌کند و با مقدار بیش از ۱، رزروهای هم‌پوشان تا سقف همان تعداد پذیرفته می‌شوند. |
 | `POST` | `/accommodations/ai-import/estimate` | برآورد هزینه‌ی «ورود خودکار اقامتگاه از جاباما» بدون فراخوانی هوش مصنوعی؛ بدنه `{ url }`، خروجی `{ estimatedTokens, pricePer1k, minPrice, price, sourceTitle }`. |
 | `POST` | `/accommodations/ai-import` | ایمپورت اقامتگاه از لینک جاباما با هوش مصنوعی (پس از تأیید هزینه)؛ بدنه `{ url, status?, cityId?, propertyType? }`، خروجی `{ property, usage, cost, importId, images }`. هزینه از کیف پول کسر و در فاکتور ثبت می‌شود. فقط عکس‌های رسمی جاباما (CDN `cdn.jabama.com`) گرفته می‌شود. |
 | `GET` | `/accommodations/:id` | جزئیات + عکس‌ها، رزروها و مسدودی‌ها. |
@@ -904,6 +904,11 @@ PY
 | `GET/POST` | `/accommodations/:id/rates` | نرخ‌های فصلی/آخر هفته (`dayType`: ALL/WEEKEND/WEEKDAY/HOLIDAY). |
 | `PATCH/DELETE` | `/accommodations/:id/rates/:rateId` | ویرایش/حذف نرخ. |
 | `POST` | `/accommodations/:id/quote` | برآورد قیمت اقامت با نرخ‌ها، هزینه‌ی نظافت، مهمان اضافه و تخفیف اقامت بلندمدت. |
+| `GET/POST` | `/accommodations/tasks` | وظایف عملیاتی (نظافت/تعمیر/سایر) با فیلتر `status`؛ هر رزرو تأییدشده خودکار یک وظیفه‌ی نظافت پس از خروج می‌سازد. |
+| `PATCH/DELETE` | `/accommodations/tasks/:id` | تغییر وضعیت/تکمیل یا حذف وظیفه. |
+| `GET` | `/accommodations/:id/reviews` | نظرات مهمانان یک اقامتگاه (همه‌ی وضعیت‌ها) برای میزبان. |
+| `PATCH` | `/accommodations/:id/reviews/:reviewId/reply` | ثبت پاسخ عمومی میزبان به نظر مهمان؛ بدنه `{ reply }`. |
+| `PATCH` | `/accommodations/:id/reviews/:reviewId/status` | نمایش/پنهان‌کردن نظر (`PUBLISHED`/`HIDDEN`)؛ بدنه `{ status }`. |
 | `GET` | `/accommodations/:id/calendar.ics` | خروجی iCal تقویم (مسدودی‌ها + رزروها). |
 | `GET/POST/PATCH/DELETE` | `/accommodation-channels` | مدیریت کانال‌های رزرو (OTA/شبکه‌ی اجتماعی/سایت مستقیم). |
 | `POST` | `/accommodation-channels/:id/sync` | همگام‌سازی تقویم از فید iCal کانال. اگر `icalUrl` یک لینک صفحه‌ی جاباما (`.../stay/...`) باشد، تقویم مستقیماً از خود جاباما خوانده می‌شود (بدون فید خارجی). |
@@ -924,6 +929,9 @@ PY
 ساخته‌شده از تقویم جاباما برای درج در ایربی‌ان‌بی/OTA دیگر؛ جاباما خروجی iCal
 عمومی ندارد و این فید از تقویم قابل‌مشاهده‌ی صفحه‌ی اقامتگاه ساخته می‌شود)،
 `POST /public/accommodations/:slug/quote` (برآورد قیمت برای فرم رزرو)،
+`GET /public/accommodations/:slug/reviews` (نظرات منتشرشده) و
+`POST /public/accommodations/:slug/reviews` (ثبت نظر مهمان؛ میانگین امتیاز
+اقامتگاه بازمحاسبه می‌شود)،
 `POST /public/accommodations/:slug/bookings` برای ثبت درخواست رزرو و
 `POST /public/accommodations/:slug/bookings/:id/deposit` برای پرداخت آنلاین
 ودیعه (بازگشت درگاه: `/public/accommodations/deposits/callback`). این

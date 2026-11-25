@@ -28,6 +28,8 @@ import { UpdateAccommodationAiSettingsDto } from './dto/accommodation-ai-setting
 import { QuoteStayDto } from './dto/quote.dto';
 import { CreateRateDto, UpdateRateDto } from './dto/rate.dto';
 import { CreateMessageDto } from './dto/message.dto';
+import { CreateReviewDto } from './dto/review.dto';
+import { CreateTaskDto, UpdateTaskDto } from './dto/task.dto';
 import { UpdateAccommodationDto } from './dto/update-accommodation.dto';
 import type { PublicAccommodationListDto } from './dto/public-accommodation-list.dto';
 import { buildIcalCalendar, parseIcalEvents } from './ical';
@@ -90,11 +92,12 @@ export class AccommodationsService {
 
   async listMine(userId: string) {
     const workspaceId = await this.workspaceId(userId);
-    return this.prisma.accommodationProperty.findMany({
+    const rows = await this.prisma.accommodationProperty.findMany({
       where: { workspaceId },
       include: PROPERTY_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
+    return rows;
   }
 
   async create(userId: string, dto: CreateAccommodationDto) {
@@ -126,6 +129,7 @@ export class AccommodationsService {
         longStayMinNights: dto.longStayMinNights ?? 0,
         cancellationPolicy: dto.cancellationPolicy ?? 'FLEXIBLE',
         cancellationDays: dto.cancellationDays ?? 3,
+        unitCount: dto.unitCount ?? 1,
         currency: dto.currency ?? 'IRR',
         minNights: dto.minNights ?? 1,
         checkInTime: dto.checkInTime,
@@ -200,6 +204,7 @@ export class AccommodationsService {
         longStayMinNights: dto.longStayMinNights,
         cancellationPolicy: dto.cancellationPolicy,
         cancellationDays: dto.cancellationDays,
+        unitCount: dto.unitCount,
         currency: dto.currency,
         minNights: dto.minNights,
         checkInTime: dto.checkInTime,
@@ -368,11 +373,41 @@ export class AccommodationsService {
       where: { id: bookingId, workspaceId },
     });
     if (!booking) throw new NotFoundException('درخواست رزرو پیدا نشد');
-    return this.prisma.accommodationBookingRequest.update({
+    const updated = await this.prisma.accommodationBookingRequest.update({
       where: { id: bookingId },
       data: { status },
       include: { property: { select: { id: true, title: true, slug: true } } },
     });
+    if (status === 'CONFIRMED') await this.ensureCleaningTask(updated);
+    return updated;
+  }
+
+  /** Create the post-checkout cleaning task once per confirmed booking. */
+  private async ensureCleaningTask(booking: {
+    id: string;
+    workspaceId: string;
+    propertyId: string;
+    checkOut: Date;
+  }) {
+    try {
+      const existing = await this.prisma.accommodationTask.findFirst({
+        where: { bookingId: booking.id, kind: 'CLEANING' },
+        select: { id: true },
+      });
+      if (existing) return;
+      await this.prisma.accommodationTask.create({
+        data: {
+          workspaceId: booking.workspaceId,
+          propertyId: booking.propertyId,
+          bookingId: booking.id,
+          title: 'نظافت پس از خروج مهمان',
+          kind: 'CLEANING',
+          dueDate: booking.checkOut,
+        },
+      });
+    } catch {
+      // Task creation is best-effort and must not break the booking flow.
+    }
   }
 
   /**
@@ -604,6 +639,175 @@ export class AccommodationsService {
     };
   }
 
+  // ---- operations tasks ----
+
+  async listTasks(userId: string, status?: string) {
+    const workspaceId = await this.workspaceId(userId);
+    return this.prisma.accommodationTask.findMany({
+      where: { workspaceId, ...(status ? { status } : {}) },
+      include: {
+        property: { select: { id: true, title: true } },
+        booking: {
+          select: { id: true, guestName: true, checkIn: true, checkOut: true },
+        },
+      },
+      orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { createdAt: 'desc' }],
+    });
+  }
+
+  async createTask(userId: string, dto: CreateTaskDto) {
+    const workspaceId = await this.workspaceId(userId);
+    if (dto.propertyId) {
+      await this.assertOwnedProperty(userId, dto.propertyId);
+    }
+    return this.prisma.accommodationTask.create({
+      data: {
+        workspaceId,
+        propertyId: dto.propertyId,
+        bookingId: dto.bookingId,
+        title: dto.title,
+        kind: dto.kind ?? 'CLEANING',
+        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+        assignee: dto.assignee,
+        notes: dto.notes,
+      },
+    });
+  }
+
+  async updateTask(userId: string, taskId: string, dto: UpdateTaskDto) {
+    const workspaceId = await this.workspaceId(userId);
+    const task = await this.prisma.accommodationTask.findFirst({
+      where: { id: taskId, workspaceId },
+    });
+    if (!task) throw new NotFoundException('وظیفه پیدا نشد');
+    return this.prisma.accommodationTask.update({
+      where: { id: taskId },
+      data: {
+        title: dto.title,
+        kind: dto.kind,
+        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+        assignee: dto.assignee,
+        notes: dto.notes,
+        status: dto.status,
+        completedAt:
+          dto.status === 'DONE'
+            ? new Date()
+            : dto.status
+              ? null
+              : undefined,
+      },
+    });
+  }
+
+  async removeTask(userId: string, taskId: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const task = await this.prisma.accommodationTask.findFirst({
+      where: { id: taskId, workspaceId },
+      select: { id: true },
+    });
+    if (!task) throw new NotFoundException('وظیفه پیدا نشد');
+    await this.prisma.accommodationTask.delete({ where: { id: taskId } });
+    return { id: taskId };
+  }
+
+  // ---- reviews ----
+
+  async listReviews(userId: string, propertyId: string) {
+    await this.assertOwnedProperty(userId, propertyId);
+    return this.prisma.accommodationReview.findMany({
+      where: { propertyId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async replyReview(
+    userId: string,
+    propertyId: string,
+    reviewId: string,
+    reply: string,
+  ) {
+    await this.assertOwnedProperty(userId, propertyId);
+    const review = await this.prisma.accommodationReview.findFirst({
+      where: { id: reviewId, propertyId },
+    });
+    if (!review) throw new NotFoundException('نظر پیدا نشد');
+    return this.prisma.accommodationReview.update({
+      where: { id: reviewId },
+      data: { reply },
+    });
+  }
+
+  async setReviewStatus(
+    userId: string,
+    propertyId: string,
+    reviewId: string,
+    status: string,
+  ) {
+    await this.assertOwnedProperty(userId, propertyId);
+    const review = await this.prisma.accommodationReview.findFirst({
+      where: { id: reviewId, propertyId },
+    });
+    if (!review) throw new NotFoundException('نظر پیدا نشد');
+    return this.prisma.accommodationReview.update({
+      where: { id: reviewId },
+      data: { status },
+    });
+  }
+
+  async publicReviews(slug: string) {
+    await this.settings.assertFeatureEnabled('featureAccommodationRental');
+    const property = await this.prisma.accommodationProperty.findFirst({
+      where: { slug, status: 'PUBLISHED' },
+      select: { id: true },
+    });
+    if (!property) throw new NotFoundException('اقامتگاه پیدا نشد');
+    return this.prisma.accommodationReview.findMany({
+      where: { propertyId: property.id, status: 'PUBLISHED' },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+  }
+
+  async createPublicReview(slug: string, dto: CreateReviewDto) {
+    await this.settings.assertFeatureEnabled('featureAccommodationRental');
+    const property = await this.prisma.accommodationProperty.findFirst({
+      where: { slug, status: 'PUBLISHED' },
+      select: { id: true },
+    });
+    if (!property) throw new NotFoundException('اقامتگاه پیدا نشد');
+    if (dto.bookingId) {
+      const booking = await this.prisma.accommodationBookingRequest.findFirst({
+        where: { id: dto.bookingId, propertyId: property.id },
+        select: { id: true },
+      });
+      if (!booking) {
+        throw new BadRequestException('رزرو مرتبط با این اقامتگاه پیدا نشد');
+      }
+    }
+    const review = await this.prisma.accommodationReview.create({
+      data: {
+        propertyId: property.id,
+        bookingId: dto.bookingId,
+        guestName: dto.guestName,
+        rating: dto.rating,
+        comment: dto.comment,
+      },
+    });
+    const aggregate = await this.prisma.accommodationReview.aggregate({
+      where: { propertyId: property.id, status: 'PUBLISHED' },
+      _avg: { rating: true },
+      _count: { _all: true },
+    });
+    await this.prisma.accommodationProperty.update({
+      where: { id: property.id },
+      data: {
+        rating: aggregate._avg.rating ?? null,
+        reviewsCount: aggregate._count._all,
+      },
+    });
+    return review;
+  }
+
   async createManualBooking(userId: string, propertyId: string, dto: CreateBookingDto) {
     await this.assertOwnedProperty(userId, propertyId);
     const property = await this.prisma.accommodationProperty.findFirstOrThrow({
@@ -627,7 +831,7 @@ export class AccommodationsService {
       dto.guestEmail,
       'MANUAL',
     );
-    return this.prisma.accommodationBookingRequest.create({
+    const booking = await this.prisma.accommodationBookingRequest.create({
       data: {
         workspaceId: property.workspaceId,
         propertyId,
@@ -648,6 +852,8 @@ export class AccommodationsService {
       },
       include: { customer: true, property: true },
     });
+    await this.ensureCleaningTask(booking);
+    return booking;
   }
 
   async listBlocks(userId: string, propertyId: string) {
@@ -808,7 +1014,7 @@ export class AccommodationsService {
         : query.sort === 'price-desc'
           ? { basePrice: 'desc' as const }
           : { publishedAt: 'desc' as const };
-    return this.prisma.accommodationProperty.findMany({
+    const rows = await this.prisma.accommodationProperty.findMany({
       where: {
         status: 'PUBLISHED',
         ...(query.cityId ? { cityId: query.cityId } : {}),
@@ -834,13 +1040,6 @@ export class AccommodationsService {
                   endDate: { gt: range.checkIn },
                 },
               },
-              bookings: {
-                none: {
-                  status: { in: ['PENDING', 'CONFIRMED'] },
-                  checkIn: { lt: range.checkOut },
-                  checkOut: { gt: range.checkIn },
-                },
-              },
             }
           : {}),
       },
@@ -848,6 +1047,23 @@ export class AccommodationsService {
       orderBy,
       take: 60,
     });
+    if (!range) return rows;
+    const overlaps = await this.prisma.accommodationBookingRequest.groupBy({
+      by: ['propertyId'],
+      where: {
+        propertyId: { in: rows.map((row) => row.id) },
+        status: { in: ['PENDING', 'CONFIRMED'] },
+        checkIn: { lt: range.checkOut },
+        checkOut: { gt: range.checkIn },
+      },
+      _count: { _all: true },
+    });
+    const counts = new Map(
+      overlaps.map((row) => [row.propertyId, row._count._all]),
+    );
+    return rows.filter(
+      (row) => (counts.get(row.id) ?? 0) < Math.max(1, row.unitCount),
+    );
   }
 
   /**
@@ -928,6 +1144,11 @@ export class AccommodationsService {
           },
         },
         blocks: { orderBy: { startDate: 'asc' } },
+        reviews: {
+          where: { status: 'PUBLISHED' },
+          orderBy: { createdAt: 'desc' },
+          take: 20,
+        },
       },
     });
     if (!property) throw new NotFoundException('اقامتگاه پیدا نشد');
@@ -955,15 +1176,16 @@ export class AccommodationsService {
     if (overlapBlock) {
       throw new ConflictException('این بازه توسط مالک مسدود شده است');
     }
-    const overlapBooking = await this.prisma.accommodationBookingRequest.findFirst({
-      where: {
-        propertyId: property.id,
-        status: { in: ['PENDING', 'CONFIRMED'] },
-        checkIn: { lt: checkOut },
-        checkOut: { gt: checkIn },
-      },
-    });
-    if (overlapBooking) {
+    const overlappingBookings =
+      await this.prisma.accommodationBookingRequest.count({
+        where: {
+          propertyId: property.id,
+          status: { in: ['PENDING', 'CONFIRMED'] },
+          checkIn: { lt: checkOut },
+          checkOut: { gt: checkIn },
+        },
+      });
+    if (overlappingBookings >= Math.max(1, property.unitCount)) {
       throw new ConflictException('این بازه قبلاً درخواست/رزرو شده است');
     }
 
@@ -1014,6 +1236,7 @@ export class AccommodationsService {
       return booking;
     });
     await this.notifyOwnerOfBooking(property, booking);
+    if (booking.status === 'CONFIRMED') await this.ensureCleaningTask(booking);
     return booking;
   }
 

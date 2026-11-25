@@ -148,6 +148,12 @@ export default function AccommodationsPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link
+            href="/dashboard/business/accommodations/tasks"
+            className="indeed-btn"
+          >
+            وظایف عملیاتی
+          </Link>
+          <Link
             href="/dashboard/business/accommodations/reports"
             className="indeed-btn"
           >

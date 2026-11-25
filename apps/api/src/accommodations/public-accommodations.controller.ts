@@ -17,6 +17,7 @@ import { CreateBookingDto } from './dto/create-booking.dto';
 import { JabamaCalendarQueryDto } from './dto/jabama-calendar.dto';
 import { PublicAccommodationListDto } from './dto/public-accommodation-list.dto';
 import { QuoteStayDto } from './dto/quote.dto';
+import { CreateReviewDto } from './dto/review.dto';
 import { JabamaCalendarService } from './jabama-calendar.service';
 
 @ApiTags('accommodations')
@@ -91,6 +92,18 @@ export class PublicAccommodationsController {
   })
   quote(@Param('slug') slug: string, @Body() dto: QuoteStayDto) {
     return this.accommodations.publicQuote(slug, dto);
+  }
+
+  @Get(':slug/reviews')
+  @ApiOperation({ summary: 'نظرات منتشرشده‌ی مهمانان یک اقامتگاه' })
+  reviews(@Param('slug') slug: string) {
+    return this.accommodations.publicReviews(slug);
+  }
+
+  @Post(':slug/reviews')
+  @ApiOperation({ summary: 'ثبت نظر مهمان برای یک اقامتگاه (بدون نیاز به ورود)' })
+  createReview(@Param('slug') slug: string, @Body() dto: CreateReviewDto) {
+    return this.accommodations.createPublicReview(slug, dto);
   }
 
   @Get(':slug/calendar.ics')

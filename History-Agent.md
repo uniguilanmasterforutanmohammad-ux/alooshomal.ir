@@ -20,7 +20,44 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.99.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.100.0**.
+
+## ۱۴۰۵/۰۹/۰۴ — M3 ابزار عملیات میزبان: وظایف عملیاتی، نظرات مهمان و واحدهای چندگانه — نسخه `v4.100.0`
+
+**هدف:** تکمیل مرحله‌ی M3 سند `docs/HOST-OPS.md`: پیگیری وظایف نظافت/تعمیر،
+مدیریت نظرات مهمان با پاسخ میزبان، و پشتیبانی از چند واحد یکسان زیر یک آگهی.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: `unitCount` روی اقامتگاه؛ مدل‌های
+  `AccommodationTask` (نظافت/تعمیر/سایر) و `AccommodationReview` (امتیاز،
+  دیدگاه، پاسخ میزبان، وضعیت انتشار).
+- `apps/api/src/accommodations/dto/task.dto.ts` و `dto/review.dto.ts`: DTOهای
+  وظیفه و نظر با `@ApiProperty`.
+- `apps/api/src/accommodations/accommodations.service.ts`: CRUD وظایف،
+  `ensureCleaningTask` (ساخت خودکار وظیفه‌ی نظافت پس از تأیید رزرو)، CRUD و
+  پاسخ/انتشار نظرات، بازمحاسبه‌ی میانگین امتیاز اقامتگاه، و پذیرش رزروهای
+  هم‌پوشان تا سقف `unitCount` در رزرو عمومی و دایرکتوری `/stay`.
+- `apps/api/src/accommodations/accommodations.controller.ts` و
+  `public-accommodations.controller.ts`: مسیرهای وظایف، نظرات میزبان و نظرات
+  عمومی (`GET/POST /public/accommodations/:slug/reviews`).
+- `apps/web/lib/api/types/business-modules.ts`: انواع `AccommodationTask`،
+  `AccommodationReview` و `unitCount`.
+- `apps/web/components/business/AccommodationForm.tsx`: فیلد تعداد واحد یکسان.
+- `apps/web/app/dashboard/business/accommodations/tasks/page.tsx`: صفحه‌ی
+  «ابزار عملیات میزبان» (افزودن/تکمیل/حذف وظیفه).
+- `apps/web/app/dashboard/business/accommodations/[id]/page.tsx`: بخش نظرات
+  مهمانان با پاسخ و پنهان/انتشار.
+- `apps/web/components/stay/StayReviews.tsx` و `app/stay/[slug]/page.tsx`:
+  نمایش نظرات و فرم ثبت دیدگاه در صفحه‌ی عمومی.
+- `docs/API.md`: مستندسازی مسیرهای وظایف، نظرات و `unitCount`.
+
+**تأیید/تست:**
+- `tsc` برای `apps/api` و `apps/web` بدون خطا.
+- `python3 scripts/check_api_docs.py` → exit 0 (۷۴۹ مسیر، همه دارای
+  `@ApiOperation`).
+- تست زنده‌ی API: ساخت/تکمیل/حذف وظیفه، ثبت نظر عمومی، پاسخ میزبان، پنهان‌کردن
+  نظر و حذف آن از فهرست عمومی؛ سپس داده‌ی تست از دیتابیس پاک شد.
+- `python3 scripts/sync_install.py` و `--check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۴ — M2 ابزار عملیات میزبان: نرخ‌گذاری، گزارش/کمیسیون، صندوق پیام، لغو/بازگشت و ایمپورت هوشمند — نسخه `v4.99.0`
 

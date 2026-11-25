@@ -188,6 +188,17 @@ export class CreateAccommodationDto {
   @Max(365)
   cancellationDays?: number;
 
+  @ApiPropertyOptional({
+    description: 'تعداد واحدهای یکسان زیر این آگهی (برای رزرو هم‌زمان چند واحد)',
+    default: 1,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  unitCount?: number;
+
   @ApiPropertyOptional({ default: 'IRR' })
   @IsOptional()
   @IsString()

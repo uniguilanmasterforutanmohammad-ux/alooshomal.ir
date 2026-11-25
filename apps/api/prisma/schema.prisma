@@ -2099,6 +2099,7 @@ model BusinessWorkspace {
   channels        AccommodationChannel[]
   bookingRequests AccommodationBookingRequest[]
   accommodationMessages AccommodationMessage[]
+  accommodationTasks AccommodationTask[]
   customers       CrmCustomer[]
   interactions    CrmInteraction[]
   products        RetailProduct[]
@@ -2303,6 +2304,9 @@ model AccommodationProperty {
   cancellationPolicy String @default("FLEXIBLE")
   /// Days before check-in until which a cancellation is fully refunded.
   cancellationDays   Int    @default(3)
+  /// Number of identical units under this listing. More than one lets several
+  /// bookings overlap on the same dates.
+  unitCount          Int    @default(1)
   /// Display rating imported from the source listing (0–5). Null = no rating.
   rating       Float?
   reviewsCount Int      @default(0)
@@ -2322,6 +2326,8 @@ model AccommodationProperty {
   bookings  AccommodationBookingRequest[]
   blocks    AccommodationCalendarBlock[]
   rates     AccommodationRate[]
+  tasks     AccommodationTask[]
+  reviews   AccommodationReview[]
 
   @@index([workspaceId, status])
   @@index([cityId])
@@ -2414,6 +2420,8 @@ model AccommodationBookingRequest {
   customer  CrmCustomer?               @relation(fields: [customerId], references: [id], onDelete: SetNull)
   channel   AccommodationChannel?      @relation(fields: [channelId], references: [id], onDelete: SetNull)
   messages  AccommodationMessage[]
+  tasks     AccommodationTask[]
+  review    AccommodationReview?
 
   @@index([workspaceId, status])
   @@index([propertyId, checkIn, checkOut])
@@ -2482,6 +2490,52 @@ model AccommodationMessage {
   @@index([workspaceId, createdAt])
   @@index([bookingId, createdAt])
   @@map("accommodation_messages")
+}
+
+/// Operational task for a property/booking (cleaning between stays,
+/// maintenance, …).
+model AccommodationTask {
+  id          String    @id @default(cuid())
+  workspaceId String
+  propertyId  String?
+  bookingId   String?
+  title       String
+  /// CLEANING | MAINTENANCE | OTHER
+  kind        String    @default("CLEANING")
+  dueDate     DateTime?
+  assignee    String?
+  /// OPEN | DONE | CANCELLED
+  status      String    @default("OPEN")
+  notes       String?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  workspace BusinessWorkspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  property  AccommodationProperty?         @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  booking   AccommodationBookingRequest?   @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, status, dueDate])
+  @@map("accommodation_tasks")
+}
+
+/// Guest review of a stay. `reply` is the host's public answer.
+model AccommodationReview {
+  id         String   @id @default(cuid())
+  propertyId String
+  bookingId  String?  @unique
+  guestName  String
+  rating     Int
+  comment    String?
+  reply      String?
+  /// PUBLISHED | HIDDEN
+  status     String   @default("PUBLISHED")
+  createdAt  DateTime @default(now())
+
+  property AccommodationProperty       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  booking  AccommodationBookingRequest? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+
+  @@index([propertyId, status])
+  @@map("accommodation_reviews")
 }
 
 model AccommodationAiImport {

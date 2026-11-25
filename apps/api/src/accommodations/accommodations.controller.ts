@@ -34,6 +34,8 @@ import { CancelBookingDto } from './dto/cancel-booking.dto';
 import { CreateMessageDto } from './dto/message.dto';
 import { QuoteStayDto } from './dto/quote.dto';
 import { CreateRateDto, UpdateRateDto } from './dto/rate.dto';
+import { ReplyReviewDto } from './dto/review.dto';
+import { CreateTaskDto, UpdateTaskDto } from './dto/task.dto';
 import { UpdateAccommodationDto } from './dto/update-accommodation.dto';
 import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 import { UpdateDepositDto } from './dto/update-deposit.dto';
@@ -116,6 +118,38 @@ export class AccommodationsController {
     @Query() query: CalendarOverviewQueryDto,
   ) {
     return this.accommodations.reports(user.id, query.from, query.to);
+  }
+
+  @Get('tasks')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'وظایف عملیاتی (نظافت/تعمیر) با فیلتر وضعیت' })
+  tasks(@CurrentUser() user: AuthUser, @Query('status') status?: string) {
+    return this.accommodations.listTasks(user.id, status);
+  }
+
+  @Post('tasks')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'افزودن وظیفه‌ی عملیاتی' })
+  createTask(@CurrentUser() user: AuthUser, @Body() dto: CreateTaskDto) {
+    return this.accommodations.createTask(user.id, dto);
+  }
+
+  @Patch('tasks/:id')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'ویرایش/تکمیل وظیفه' })
+  updateTask(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: UpdateTaskDto,
+  ) {
+    return this.accommodations.updateTask(user.id, id, dto);
+  }
+
+  @Delete('tasks/:id')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'حذف وظیفه' })
+  removeTask(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.accommodations.removeTask(user.id, id);
   }
 
   @Patch('bookings/:id/cancel')
@@ -283,6 +317,37 @@ export class AccommodationsController {
     @Body() dto: QuoteStayDto,
   ) {
     return this.accommodations.quoteForOwner(user.id, id, dto);
+  }
+
+  @Get(':id/reviews')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'نظرات مهمانان این اقامتگاه' })
+  reviews(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.accommodations.listReviews(user.id, id);
+  }
+
+  @Patch(':id/reviews/:reviewId/reply')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'پاسخ میزبان به نظر مهمان' })
+  replyReview(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('reviewId') reviewId: string,
+    @Body() dto: ReplyReviewDto,
+  ) {
+    return this.accommodations.replyReview(user.id, id, reviewId, dto.reply);
+  }
+
+  @Patch(':id/reviews/:reviewId/status')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'نمایش/پنهان‌کردن نظر' })
+  reviewStatus(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('reviewId') reviewId: string,
+    @Body('status') status: string,
+  ) {
+    return this.accommodations.setReviewStatus(user.id, id, reviewId, status);
   }
 
   @Get(':id/calendar.ics')

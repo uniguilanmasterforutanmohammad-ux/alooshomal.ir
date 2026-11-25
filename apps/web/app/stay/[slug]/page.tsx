@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 
 import { Header } from '@/components/layout/Header';
 import { StayBookingForm } from '@/components/stay/StayBookingForm';
+import { StayReviews } from '@/components/stay/StayReviews';
 import { JsonLd } from '@/components/seo/JsonLd';
 import type { AccommodationProperty } from '@/lib/api';
 import {
@@ -210,6 +211,12 @@ export default async function StayDetailPage({
               </ul>
             </section>
           ) : null}
+
+          <StayReviews
+            slug={stay.slug}
+            initial={stay.reviews ?? []}
+            reviewsCount={stay.reviewsCount}
+          />
 
           {stay.externalUrl ? (
             <p className="text-xs text-muted">

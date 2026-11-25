@@ -156,6 +156,7 @@ export interface AccommodationProperty {
   longStayMinNights?: number;
   cancellationPolicy?: string;
   cancellationDays?: number;
+  unitCount?: number;
   currency: string;
   minNights: number;
   checkInTime: string | null;
@@ -177,6 +178,7 @@ export interface AccommodationProperty {
   _count?: { bookings: number };
   blocks?: AccommodationCalendarBlock[];
   bookings?: AccommodationBooking[];
+  reviews?: AccommodationReview[];
   workspace?: {
     id: string;
     name: string;
@@ -204,6 +206,40 @@ export interface AccommodationRate {
   dayType: 'ALL' | 'WEEKEND' | 'WEEKDAY' | 'HOLIDAY' | string;
   price: number;
   minNights: number | null;
+  createdAt: string;
+}
+
+export interface AccommodationTask {
+  id: string;
+  workspaceId: string;
+  propertyId: string | null;
+  bookingId: string | null;
+  title: string;
+  kind: 'CLEANING' | 'MAINTENANCE' | 'OTHER' | string;
+  dueDate: string | null;
+  assignee: string | null;
+  status: 'OPEN' | 'DONE' | 'CANCELLED' | string;
+  notes: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  property?: { id: string; title: string } | null;
+  booking?: {
+    id: string;
+    guestName: string;
+    checkIn: string;
+    checkOut: string;
+  } | null;
+}
+
+export interface AccommodationReview {
+  id: string;
+  propertyId: string;
+  bookingId: string | null;
+  guestName: string;
+  rating: number;
+  comment: string | null;
+  reply: string | null;
+  status: 'PUBLISHED' | 'HIDDEN' | string;
   createdAt: string;
 }
 

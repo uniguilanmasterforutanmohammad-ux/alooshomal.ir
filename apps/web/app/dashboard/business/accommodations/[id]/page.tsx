@@ -14,6 +14,7 @@ import {
   type AccommodationCalendarBlock,
   type AccommodationProperty,
   type AccommodationRate,
+  type AccommodationReview,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
@@ -32,6 +33,8 @@ export default function AccommodationDetailPage() {
   const [uploading, setUploading] = useState(false);
   const [blockForm, setBlockForm] = useState({ startDate: '', endDate: '', reason: '' });
   const [rates, setRates] = useState<AccommodationRate[]>([]);
+  const [reviews, setReviews] = useState<AccommodationReview[]>([]);
+  const [replyDraft, setReplyDraft] = useState<Record<string, string>>({});
   const [rateForm, setRateForm] = useState({
     label: '',
     startDate: '',
@@ -50,6 +53,9 @@ export default function AccommodationDetailPage() {
       ]);
       setProperty(item);
       setRates(rateList);
+      setReviews(
+        await api.get<AccommodationReview[]>(`/accommodations/${params.id}/reviews`),
+      );
     } finally {
       setLoading(false);
     }
@@ -144,6 +150,28 @@ export default function AccommodationDetailPage() {
     await api.patch(`/accommodations/bookings/${booking.id}/status`, { status });
     await load();
     toast.success('وضعیت رزرو به‌روزرسانی شد');
+  }
+
+  async function replyToReview(review: AccommodationReview) {
+    const reply = (replyDraft[review.id] ?? '').trim();
+    if (!reply) return;
+    await api.patch(
+      `/accommodations/${params.id}/reviews/${review.id}/reply`,
+      { reply },
+    );
+    setReplyDraft((prev) => ({ ...prev, [review.id]: '' }));
+    await load();
+    toast.success('پاسخ ثبت شد');
+  }
+
+  async function toggleReview(review: AccommodationReview) {
+    const next = review.status === 'PUBLISHED' ? 'HIDDEN' : 'PUBLISHED';
+    await api.patch(
+      `/accommodations/${params.id}/reviews/${review.id}/status`,
+      { status: next },
+    );
+    await load();
+    toast.success(next === 'HIDDEN' ? 'نظر پنهان شد' : 'نظر منتشر شد');
   }
 
   if (loading && !property) {
@@ -364,6 +392,68 @@ export default function AccommodationDetailPage() {
             ))
           )}
         </div>
+      </section>
+
+      <section className="indeed-panel p-5">
+        <h2 className="mb-1 text-lg font-extrabold text-ink">نظرات مهمانان</h2>
+        <p className="mb-4 text-xs text-muted">
+          نظرهای ثبت‌شده از صفحه‌ی عمومی را تأیید، پنهان یا به آن‌ها پاسخ دهید.
+        </p>
+        {reviews.length === 0 ? (
+          <p className="text-sm text-muted">هنوز نظری ثبت نشده است.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {reviews.map((review) => (
+              <div key={review.id} className="rounded-lg border px-3 py-3 text-xs">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold text-ink">
+                    {review.guestName} — ★ {review.rating.toLocaleString('fa-IR')}
+                  </span>
+                  <span className="text-muted">
+                    {new Date(review.createdAt).toLocaleDateString('fa-IR')}
+                    {' • '}
+                    {review.status === 'PUBLISHED' ? 'منتشرشده' : 'پنهان'}
+                  </span>
+                </div>
+                {review.comment ? (
+                  <p className="mt-1 leading-6 text-muted">{review.comment}</p>
+                ) : null}
+                {review.reply ? (
+                  <p className="mt-2 rounded-lg bg-[var(--vintage-paper)] px-2 py-1.5 text-muted">
+                    <b className="text-ink">پاسخ میزبان:</b> {review.reply}
+                  </p>
+                ) : null}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <input
+                    value={replyDraft[review.id] ?? ''}
+                    onChange={(event) =>
+                      setReplyDraft((prev) => ({
+                        ...prev,
+                        [review.id]: event.target.value,
+                      }))
+                    }
+                    placeholder="پاسخ شما…"
+                    className="min-w-40 flex-1 rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-2 py-1.5 text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void replyToReview(review)}
+                    className="rounded border px-2 py-1 font-bold text-brand hover:bg-brand-light"
+                  >
+                    ارسال پاسخ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void toggleReview(review)}
+                    className="rounded border px-2 py-1 font-bold text-muted hover:border-brand hover:text-brand"
+                  >
+                    {review.status === 'PUBLISHED' ? 'پنهان‌کردن' : 'انتشار'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="indeed-panel p-5">

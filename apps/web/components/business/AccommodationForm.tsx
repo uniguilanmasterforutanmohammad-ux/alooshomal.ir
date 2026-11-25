@@ -17,6 +17,7 @@ export interface AccommodationFormValues {
   basePrice: number;
   depositAmount: number;
   minNights: number;
+  unitCount: number;
   checkInTime?: string;
   checkOutTime?: string;
   amenities: string[];
@@ -63,6 +64,7 @@ export function AccommodationForm({
     initial?.depositAmount ?? 0,
   );
   const [minNights, setMinNights] = useState(initial?.minNights ?? 1);
+  const [unitCount, setUnitCount] = useState(initial?.unitCount ?? 1);
   const [checkInTime, setCheckInTime] = useState(initial?.checkInTime ?? '');
   const [checkOutTime, setCheckOutTime] = useState(initial?.checkOutTime ?? '');
   const [amenities, setAmenities] = useState(
@@ -91,6 +93,7 @@ export function AccommodationForm({
       basePrice,
       depositAmount,
       minNights,
+      unitCount,
       checkInTime: checkInTime.trim() || undefined,
       checkOutTime: checkOutTime.trim() || undefined,
       amenities: amenities
@@ -259,6 +262,20 @@ export function AccommodationForm({
             value={minNights}
             onChange={(event) => setMinNights(Number(event.target.value))}
           />
+        </div>
+        <div>
+          <label className={label}>تعداد واحد یکسان</label>
+          <input
+            className={field}
+            type="number"
+            min={1}
+            max={200}
+            value={unitCount}
+            onChange={(event) => setUnitCount(Number(event.target.value))}
+          />
+          <p className="mt-1 text-[10px] text-muted">
+            بیش از ۱ یعنی چند واحد هم‌شکل زیر همین آگهی قابل رزرو هم‌زمان هستند.
+          </p>
         </div>
         <div>
           <label className={label}>ساعت ورود</label>
