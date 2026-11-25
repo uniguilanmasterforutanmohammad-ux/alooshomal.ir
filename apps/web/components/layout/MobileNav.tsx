@@ -111,7 +111,7 @@ export function MobileNav() {
                 // plenty and the network stays calm.
                 prefetch={false}
                 className={cn(
-                  'relative flex flex-col items-center gap-0.5 whitespace-nowrap px-0.5 py-2 text-[10px] font-bold transition',
+                  'relative flex flex-col items-center gap-0.5 whitespace-nowrap px-0.5 py-2 text-[9px] font-bold transition sm:text-[10px]',
                   active ? 'text-brand' : 'text-muted',
                 )}
               >
