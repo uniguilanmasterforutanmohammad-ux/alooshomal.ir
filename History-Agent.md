@@ -20,7 +20,53 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.98.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.99.0**.
+
+## ۱۴۰۵/۰۹/۰۴ — M2 ابزار عملیات میزبان: نرخ‌گذاری، گزارش/کمیسیون، صندوق پیام، لغو/بازگشت و ایمپورت هوشمند — نسخه `v4.99.0`
+
+**هدف:** اجرای مرحله‌ی M2 سند `docs/HOST-OPS.md`: قیمت‌گذاری واقعی شب‌ها،
+گزارش درآمد/اشغال با کمیسیون کانال، پیام‌رسانی با مهمان، چرخه‌ی لغو و بازگشت
+ودیعه، و به‌روزرسانی جای ساخت تکراری در ایمپورت جاباما.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: فیلدهای `baseGuests`، `cleaningFee`،
+  `extraGuestFee`، `longStayDiscountPercent/MinNights`، `cancellationPolicy/Days`
+  روی اقامتگاه؛ `commissionPercent` روی کانال؛ `cancelledAt`،
+  `cancellationReason`، `refundAmount/Status` روی رزرو؛ مدل‌های
+  `AccommodationRate` و `AccommodationMessage`.
+- `apps/api/src/accommodations/pricing.ts`: موتور قیمت شبانه (نرخ منطبق،
+  آخر هفته پنجشنبه/جمعه، نظافت، مهمان اضافه، تخفیف اقامت بلند).
+- `apps/api/src/accommodations/accommodations.service.ts`: CRUD نرخ‌ها،
+  `publicQuote`/`quoteForOwner`، `reports` (درآمد/اشغال/ADR/RevPAR/کانال/ماه)،
+  `cancelBooking` با سیاست لغو، و `listMessages`/`createMessage`؛ محاسبه‌ی
+  `totalAmount` رزروهای عمومی و دستی از موتور قیمت.
+- `apps/api/src/accommodations/accommodation-ai-import.service.ts`: اگر
+  اقامتگاهی با همان `externalSource/externalRef` وجود داشته باشد به‌روزرسانی
+  می‌شود (به‌جای ساخت تکراری) و فقط عکس‌های تازه اضافه می‌شوند؛ خروجی
+  `updated` گرفت.
+- DTOهای تازه: `rate.dto.ts`، `quote.dto.ts`، `cancel-booking.dto.ts`،
+  `message.dto.ts` و فیلدهای تازه در `create-accommodation.dto.ts` و
+  `create-channel.dto.ts`.
+- مسیرهای تازه در کنترلرها: نرخ‌ها، quote (مالک/عمومی)، گزارش، لغو رزرو،
+  پیام‌های رزرو.
+- وب: `AccommodationCalendarGrid` (M1) و اکنون
+  `components/business/BookingMessages.tsx`، دکمه‌ی لغو و نمایش مبلغ بازگشتی
+  در صفحه‌ی رزروها، صفحه‌ی `/dashboard/business/accommodations/reports`،
+  بخش نرخ‌های فصلی در صفحه‌ی جزئیات اقامتگاه، فیلد کمیسیون کانال، و برآورد
+  قیمت زنده در `StayBookingForm`.
+- `docs/API.md`: مستندسازی مسیرهای M2.
+
+**تأیید/تست:**
+- `POST /accommodations/:id/rates` → ۲۰۱؛ `POST /accommodations/:id/quote`
+  برای ۳ شب در بازه‌ی نرخ → `total=4,500,000` (۳×۱,۵۰۰,۰۰۰)؛ حذف نرخ ۲۰۰.
+- `GET /accommodations/reports?from=2027-04-01&to=2027-05-01` با یک رزرو
+  تأییدشده‌ی ۳ شبه → `revenue=1,500,000`، `bookedNights=3`، `ADR=500,000`،
+  `occupancy=3٪` و تفکیک اقامتگاه درست.
+- `POST/GET /accommodations/bookings/:id/messages` → ثبت و بازخوانی پیام.
+- `PATCH /accommodations/bookings/:id/cancel` → وضعیت `CANCELLED` و ثبت
+  `cancelledAt`/دلیل؛ داده‌ی تست پاک شد.
+- `tsc --noEmit` برای `apps/api` و `apps/web` بدون خطا؛
+  `check_api_docs.py` → exit 0.
 
 ## ۱۴۰۵/۰۹/۰۴ — M1 ابزار عملیات میزبان: تقویم یکپارچه + همگام‌سازی خودکار + اعلان رزرو — نسخه `v4.98.0`
 

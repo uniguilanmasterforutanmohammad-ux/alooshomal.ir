@@ -37,6 +37,7 @@ export default function ChannelsPage() {
     icalUrl: '',
     accountRef: '',
     notes: '',
+    commissionPercent: '',
   });
   const [jabamaLink, setJabamaLink] = useState('');
   const [jabamaLoading, setJabamaLoading] = useState(false);
@@ -74,8 +75,11 @@ export default function ChannelsPage() {
         icalUrl: form.icalUrl.trim() || undefined,
         accountRef: form.accountRef.trim() || undefined,
         notes: form.notes.trim() || undefined,
+        commissionPercent: form.commissionPercent
+          ? Number(form.commissionPercent)
+          : undefined,
       });
-      setForm({ name: '', kind: 'OTA', url: '', icalUrl: '', accountRef: '', notes: '' });
+      setForm({ name: '', kind: 'OTA', url: '', icalUrl: '', accountRef: '', notes: '', commissionPercent: '' });
       await load();
       toast.success('کانال رزرو اضافه شد');
     } finally {
@@ -270,6 +274,15 @@ export default function ChannelsPage() {
           value={form.notes}
           onChange={(event) => setForm((prev) => ({ ...prev, notes: event.target.value }))}
         />
+        <input
+          className={field}
+          placeholder="کمیسیون پلتفرم (٪، مثلاً 15)"
+          inputMode="decimal"
+          value={form.commissionPercent}
+          onChange={(event) =>
+            setForm((prev) => ({ ...prev, commissionPercent: event.target.value }))
+          }
+        />
         <button
           type="submit"
           disabled={submitting}
@@ -344,6 +357,11 @@ export default function ChannelsPage() {
                       {item.lastSyncStatus === 'OK' ? '· همگام' : '· خطا'}
                     </span>
                   ) : null}
+                </p>
+              ) : null}
+              {item.commissionPercent ? (
+                <p className="text-[11px] text-muted">
+                  کمیسیون پلتفرم: {item.commissionPercent.toLocaleString('fa-IR')}٪
                 </p>
               ) : null}
               {item.lastSyncError ? (

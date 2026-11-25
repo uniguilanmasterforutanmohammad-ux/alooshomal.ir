@@ -119,6 +119,75 @@ export class CreateAccommodationDto {
   @Min(0)
   depositAmount?: number;
 
+  @ApiPropertyOptional({
+    description: 'تعداد مهمان شامل قیمت پایه؛ مهمان اضافه هزینه‌ی جدا دارد',
+    default: 2,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  baseGuests?: number;
+
+  @ApiPropertyOptional({ description: 'هزینه‌ی نظافت یک‌باره (تومان)', default: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  cleaningFee?: number;
+
+  @ApiPropertyOptional({
+    description: 'هزینه‌ی هر مهمان اضافه در هر شب (تومان)',
+    default: 0,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  extraGuestFee?: number;
+
+  @ApiPropertyOptional({
+    description: 'درصد تخفیف اقامت بلندمدت',
+    default: 0,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  longStayDiscountPercent?: number;
+
+  @ApiPropertyOptional({
+    description: 'حداقل شب برای اعمال تخفیف اقامت بلندمدت',
+    default: 0,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(365)
+  longStayMinNights?: number;
+
+  @ApiPropertyOptional({
+    enum: ['FLEXIBLE', 'MODERATE', 'STRICT', 'NON_REFUNDABLE'],
+    default: 'FLEXIBLE',
+  })
+  @IsOptional()
+  @IsIn(['FLEXIBLE', 'MODERATE', 'STRICT', 'NON_REFUNDABLE'])
+  cancellationPolicy?: string;
+
+  @ApiPropertyOptional({
+    description: 'تا چند روز قبل از ورود، لغو بدون جریمه است',
+    default: 3,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(365)
+  cancellationDays?: number;
+
   @ApiPropertyOptional({ default: 'IRR' })
   @IsOptional()
   @IsString()

@@ -30,6 +30,10 @@ import { CreateAccommodationDto } from './dto/create-accommodation.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateCalendarBlockDto } from './dto/create-block.dto';
 import { CalendarOverviewQueryDto } from './dto/calendar-overview.dto';
+import { CancelBookingDto } from './dto/cancel-booking.dto';
+import { CreateMessageDto } from './dto/message.dto';
+import { QuoteStayDto } from './dto/quote.dto';
+import { CreateRateDto, UpdateRateDto } from './dto/rate.dto';
 import { UpdateAccommodationDto } from './dto/update-accommodation.dto';
 import { UpdateBookingStatusDto } from './dto/update-booking-status.dto';
 import { UpdateDepositDto } from './dto/update-deposit.dto';
@@ -99,6 +103,50 @@ export class AccommodationsController {
     @Query() query: CalendarOverviewQueryDto,
   ) {
     return this.accommodations.calendarOverview(user.id, query.from, query.to);
+  }
+
+  @Get('reports')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({
+    summary:
+      'گزارش اشغال و درآمد (ADR/RevPAR) به تفکیک اقامتگاه، کانال و ماه',
+  })
+  reports(
+    @CurrentUser() user: AuthUser,
+    @Query() query: CalendarOverviewQueryDto,
+  ) {
+    return this.accommodations.reports(user.id, query.from, query.to);
+  }
+
+  @Patch('bookings/:id/cancel')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({
+    summary: 'لغو رزرو و محاسبه‌ی مبلغ بازگشتی بر اساس سیاست لغو اقامتگاه',
+  })
+  cancelBooking(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: CancelBookingDto,
+  ) {
+    return this.accommodations.cancelBooking(user.id, id, dto.reason);
+  }
+
+  @Get('bookings/:id/messages')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'پیام‌های یک رزرو (صندوق پیام مهمان)' })
+  messages(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.accommodations.listMessages(user.id, id);
+  }
+
+  @Post('bookings/:id/messages')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'ثبت پیام برای مهمان یک رزرو' })
+  addMessage(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: CreateMessageDto,
+  ) {
+    return this.accommodations.createMessage(user.id, id, dto);
   }
 
   @Patch('bookings/:id/status')
@@ -183,6 +231,58 @@ export class AccommodationsController {
     @Param('blockId') blockId: string,
   ) {
     return this.accommodations.removeBlock(user.id, id, blockId);
+  }
+
+  @Get(':id/rates')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'نرخ‌های فصلی/آخر هفته‌ی اقامتگاه' })
+  rates(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.accommodations.listRates(user.id, id);
+  }
+
+  @Post(':id/rates')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'افزودن نرخ فصلی/آخر هفته' })
+  createRate(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: CreateRateDto,
+  ) {
+    return this.accommodations.createRate(user.id, id, dto);
+  }
+
+  @Patch(':id/rates/:rateId')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'ویرایش نرخ' })
+  updateRate(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('rateId') rateId: string,
+    @Body() dto: UpdateRateDto,
+  ) {
+    return this.accommodations.updateRate(user.id, id, rateId, dto);
+  }
+
+  @Delete(':id/rates/:rateId')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'حذف نرخ' })
+  removeRate(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Param('rateId') rateId: string,
+  ) {
+    return this.accommodations.removeRate(user.id, id, rateId);
+  }
+
+  @Post(':id/quote')
+  @RequireModule('accommodationReservations')
+  @ApiOperation({ summary: 'برآورد قیمت اقامت بر اساس نرخ‌ها و هزینه‌ها' })
+  quote(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: QuoteStayDto,
+  ) {
+    return this.accommodations.quoteForOwner(user.id, id, dto);
   }
 
   @Get(':id/calendar.ics')

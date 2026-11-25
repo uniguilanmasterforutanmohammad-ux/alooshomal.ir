@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { CardToCardForm } from '@/components/payments/CardToCardForm';
 import { JalaliDatePicker } from '@/components/ui/JalaliDatePicker';
@@ -37,6 +37,49 @@ export function StayBookingForm({
     depositStatus: string;
   } | null>(null);
   const [paying, setPaying] = useState(false);
+  const [quote, setQuote] = useState<{
+    nights: number;
+    subtotal: number;
+    discount: number;
+    cleaningFee: number;
+    extraGuestFee: number;
+    total: number;
+  } | null>(null);
+  const [quoteError, setQuoteError] = useState('');
+
+  useEffect(() => {
+    if (!form.checkIn || !form.checkOut || form.checkOut <= form.checkIn) {
+      setQuote(null);
+      setQuoteError('');
+      return;
+    }
+    const timer = setTimeout(() => {
+      api
+        .post<{
+          nights: number;
+          subtotal: number;
+          discount: number;
+          cleaningFee: number;
+          extraGuestFee: number;
+          total: number;
+        }>(`/public/accommodations/${encodeURIComponent(slug)}/quote`, {
+          checkIn: form.checkIn,
+          checkOut: form.checkOut,
+          guests: form.guests,
+        })
+        .then((data) => {
+          setQuote(data);
+          setQuoteError('');
+        })
+        .catch((error: unknown) => {
+          setQuote(null);
+          setQuoteError(
+            error instanceof Error ? error.message : 'محاسبه‌ی قیمت ممکن نشد',
+          );
+        });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [slug, form.checkIn, form.checkOut, form.guests]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -91,7 +134,7 @@ export function StayBookingForm({
     start && end && end > start
       ? Math.ceil((end.getTime() - start.getTime()) / 86_400_000)
       : 0;
-  const total = nights && basePrice ? nights * basePrice : 0;
+  const total = quote?.total ?? (nights && basePrice ? nights * basePrice : 0);
 
   if (booking) {
     return (
@@ -182,11 +225,34 @@ export function StayBookingForm({
         <div className="rounded-lg bg-[var(--vintage-paper)] p-3 text-xs text-muted">
           <div className="flex items-center justify-between">
             <span>
-              {nights.toLocaleString('fa-IR')} شب ×{' '}
-              {(basePrice ?? 0).toLocaleString('fa-IR')} تومان
+              {nights.toLocaleString('fa-IR')} شب
+              {quote
+                ? ` • میانگین ${Math.round(quote.subtotal / quote.nights).toLocaleString('fa-IR')} تومان/شب`
+                : ` × ${(basePrice ?? 0).toLocaleString('fa-IR')} تومان`}
             </span>
             <b className="text-ink">{total.toLocaleString('fa-IR')} تومان</b>
           </div>
+          {quote && quote.discount > 0 ? (
+            <div className="mt-1 flex items-center justify-between text-emerald-700">
+              <span>تخفیف اقامت بلندمدت</span>
+              <span>{quote.discount.toLocaleString('fa-IR')}- تومان</span>
+            </div>
+          ) : null}
+          {quote && quote.cleaningFee > 0 ? (
+            <div className="mt-1 flex items-center justify-between">
+              <span>هزینه‌ی نظافت</span>
+              <span>{quote.cleaningFee.toLocaleString('fa-IR')} تومان</span>
+            </div>
+          ) : null}
+          {quote && quote.extraGuestFee > 0 ? (
+            <div className="mt-1 flex items-center justify-between">
+              <span>هزینه‌ی مهمان اضافه</span>
+              <span>{quote.extraGuestFee.toLocaleString('fa-IR')} تومان</span>
+            </div>
+          ) : null}
+          {quoteError ? (
+            <p className="mt-1 text-red-600">{quoteError}</p>
+          ) : null}
           {minNights && nights < minNights ? (
             <p className="mt-1 text-red-600">
               حداقل اقامت این اقامتگاه {minNights.toLocaleString('fa-IR')} شب است.

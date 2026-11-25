@@ -4,10 +4,12 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsNumber,
   IsOptional,
   IsString,
   IsUrl,
   MaxLength,
+  Max,
   Min,
   MinLength,
 } from 'class-validator';
@@ -54,6 +56,18 @@ export class CreateChannelDto {
   @IsString()
   @MaxLength(1000)
   notes?: string;
+
+  @ApiPropertyOptional({
+    description: 'درصد کمیسیون پلتفرم از درآمد ناخالص (۰ تا ۱۰۰)',
+    example: 15,
+    default: 0,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  commissionPercent?: number;
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()

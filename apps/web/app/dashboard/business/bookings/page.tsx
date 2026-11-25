@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { BusinessPanelNav } from '@/components/business/BusinessPanelNav';
 import { AccommodationCalendarGrid } from '@/components/business/AccommodationCalendarGrid';
+import { BookingMessages } from '@/components/business/BookingMessages';
 import { api, type AccommodationBooking } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
@@ -27,6 +28,7 @@ export default function BookingsPage() {
   const [items, setItems] = useState<AccommodationBooking[]>([]);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
+  const [openMessages, setOpenMessages] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,6 +59,18 @@ export default function BookingsPage() {
       status: 'PAID',
     });
     toast.success('ودیعه به‌صورت دستی پرداخت‌شده ثبت شد');
+    await load();
+  }
+
+  async function cancelBooking(booking: AccommodationBooking) {
+    const reason = window.prompt('دلیل لغو (اختیاری):') ?? '';
+    if (!window.confirm('این رزرو لغو شود؟ مبلغ بازگشتی بر اساس سیاست لغو محاسبه می‌شود.')) {
+      return;
+    }
+    await api.patch(`/accommodations/bookings/${booking.id}/cancel`, {
+      reason: reason.trim() || undefined,
+    });
+    toast.success('رزرو لغو شد');
     await load();
   }
 
@@ -138,6 +152,12 @@ export default function BookingsPage() {
                           : booking.depositStatus}
                     </span>
                   ) : null}
+                  {booking.refundAmount ? (
+                    <span className="text-[11px] font-bold text-amber-700">
+                      بازگشت: {booking.refundAmount.toLocaleString('fa-IR')} تومان
+                      {booking.refundStatus === 'PAID' ? ' (پرداخت شد)' : ' (در انتظار)'}
+                    </span>
+                  ) : null}
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -161,7 +181,33 @@ export default function BookingsPage() {
                     ثبت پرداخت ودیعه
                   </button>
                 ) : null}
+                {booking.status !== 'CANCELLED' && booking.status !== 'COMPLETED' ? (
+                  <button
+                    type="button"
+                    onClick={() => void cancelBooking(booking)}
+                    className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-50"
+                  >
+                    لغو رزرو
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setOpenMessages((current) =>
+                      current === booking.id ? null : booking.id,
+                    )
+                  }
+                  className="rounded-lg border px-2.5 py-1 text-xs font-bold text-muted hover:border-brand hover:text-brand"
+                >
+                  {openMessages === booking.id ? 'بستن پیام‌ها' : 'پیام‌ها'}
+                </button>
               </div>
+              {openMessages === booking.id ? (
+                <BookingMessages
+                  bookingId={booking.id}
+                  guestPhone={booking.guestPhone}
+                />
+              ) : null}
             </article>
           ))}
         </div>

@@ -2098,6 +2098,7 @@ model BusinessWorkspace {
   properties      AccommodationProperty[]
   channels        AccommodationChannel[]
   bookingRequests AccommodationBookingRequest[]
+  accommodationMessages AccommodationMessage[]
   customers       CrmCustomer[]
   interactions    CrmInteraction[]
   products        RetailProduct[]
@@ -2288,6 +2289,20 @@ model AccommodationProperty {
   rules        String[] @default([])
   /// Instant booking («رزرو آنی») — a guest request is accepted automatically.
   instantBooking Boolean @default(false)
+  /// Guests included in the nightly price; each extra guest pays
+  /// `extraGuestFee` per night.
+  baseGuests   Int @default(2)
+  /// One-off cleaning fee added to every booking (Toman).
+  cleaningFee  Int @default(0)
+  /// Per-night fee for each guest above `baseGuests` (Toman).
+  extraGuestFee Int @default(0)
+  /// Percentage discount applied when the stay reaches `longStayMinNights`.
+  longStayDiscountPercent Int @default(0)
+  longStayMinNights       Int @default(0)
+  /// Cancellation policy: FLEXIBLE | MODERATE | STRICT | NON_REFUNDABLE.
+  cancellationPolicy String @default("FLEXIBLE")
+  /// Days before check-in until which a cancellation is fully refunded.
+  cancellationDays   Int    @default(3)
   /// Display rating imported from the source listing (0–5). Null = no rating.
   rating       Float?
   reviewsCount Int      @default(0)
@@ -2306,6 +2321,7 @@ model AccommodationProperty {
   photos    AccommodationPhoto[]
   bookings  AccommodationBookingRequest[]
   blocks    AccommodationCalendarBlock[]
+  rates     AccommodationRate[]
 
   @@index([workspaceId, status])
   @@index([cityId])
@@ -2341,6 +2357,8 @@ model AccommodationChannel {
   /// Optional iCal feed URL of this channel (Booking.com, Airbnb, …). When set
   /// the owner can pull its reservations into the local calendar.
   icalUrl     String?
+  /// Platform commission withheld from the host (percent of gross revenue).
+  commissionPercent Float @default(0)
   lastSyncedAt   DateTime?
   lastSyncStatus String?
   lastSyncError  String?
@@ -2379,6 +2397,12 @@ model AccommodationBookingRequest {
   depositAmount      Int      @default(0)
   /// NONE | PENDING | PAID | REFUNDED
   depositStatus      String   @default("NONE")
+  /// Cancellation bookkeeping: when/why and how much of the deposit is owed
+  /// back to the guest (NONE | PENDING | PAID).
+  cancelledAt        DateTime?
+  cancellationReason String?
+  refundAmount       Int      @default(0)
+  refundStatus       String   @default("NONE")
   depositClientRefId String?  @unique
   depositPaymentCode String?  @unique
   depositPaidAt      DateTime?
@@ -2389,6 +2413,7 @@ model AccommodationBookingRequest {
   property  AccommodationProperty      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
   customer  CrmCustomer?               @relation(fields: [customerId], references: [id], onDelete: SetNull)
   channel   AccommodationChannel?      @relation(fields: [channelId], references: [id], onDelete: SetNull)
+  messages  AccommodationMessage[]
 
   @@index([workspaceId, status])
   @@index([propertyId, checkIn, checkOut])
@@ -2413,6 +2438,50 @@ model AccommodationCalendarBlock {
   @@unique([propertyId, externalId])
   @@index([propertyId, startDate, endDate])
   @@map("accommodation_calendar_blocks")
+}
+
+/// Seasonal / weekday price override for a property. A booking night uses the
+/// most specific matching rate (narrowest date range, then day type), falling
+/// back to the property's `basePrice`.
+model AccommodationRate {
+  id         String   @id @default(cuid())
+  propertyId String
+  label      String?
+  startDate  DateTime
+  /// Exclusive end date.
+  endDate    DateTime
+  /// ALL | WEEKEND | WEEKDAY | HOLIDAY
+  dayType    String   @default("ALL")
+  price      Int
+  minNights  Int?
+  createdAt  DateTime @default(now())
+
+  property AccommodationProperty @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, startDate, endDate])
+  @@map("accommodation_rates")
+}
+
+/// Message exchanged with a guest about a booking (inbox). `direction` is
+/// IN/OUT and `channel` is NOTE | WHATSAPP | SMS | EMAIL | PLATFORM.
+model AccommodationMessage {
+  id          String   @id @default(cuid())
+  workspaceId String
+  bookingId   String?
+  customerId  String?
+  direction   String   @default("OUT")
+  channel     String   @default("NOTE")
+  body        String
+  authorId    String?
+  createdAt   DateTime @default(now())
+
+  workspace BusinessWorkspace             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  booking   AccommodationBookingRequest?  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  customer  CrmCustomer?                  @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, createdAt])
+  @@index([bookingId, createdAt])
+  @@map("accommodation_messages")
 }
 
 model AccommodationAiImport {
@@ -2456,6 +2525,7 @@ model CrmCustomer {
   workspace    BusinessWorkspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   bookings     AccommodationBookingRequest[]
   interactions CrmInteraction[]
+  accommodationMessages AccommodationMessage[]
 
   @@unique([workspaceId, phone])
   @@index([workspaceId])

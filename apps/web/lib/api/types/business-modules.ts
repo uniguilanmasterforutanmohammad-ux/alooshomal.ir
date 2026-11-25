@@ -149,6 +149,13 @@ export interface AccommodationProperty {
   areaSize: number | null;
   basePrice: number;
   depositAmount: number;
+  baseGuests?: number;
+  cleaningFee?: number;
+  extraGuestFee?: number;
+  longStayDiscountPercent?: number;
+  longStayMinNights?: number;
+  cancellationPolicy?: string;
+  cancellationDays?: number;
   currency: string;
   minNights: number;
   checkInTime: string | null;
@@ -188,6 +195,18 @@ export interface AccommodationCalendarBlock {
   createdAt: string;
 }
 
+export interface AccommodationRate {
+  id: string;
+  propertyId: string;
+  label: string | null;
+  startDate: string;
+  endDate: string;
+  dayType: 'ALL' | 'WEEKEND' | 'WEEKDAY' | 'HOLIDAY' | string;
+  price: number;
+  minNights: number | null;
+  createdAt: string;
+}
+
 export interface AccommodationChannel {
   id: string;
   workspaceId: string;
@@ -196,6 +215,7 @@ export interface AccommodationChannel {
   url: string | null;
   accountRef: string | null;
   icalUrl: string | null;
+  commissionPercent?: number;
   lastSyncedAt: string | null;
   lastSyncStatus: string | null;
   lastSyncError: string | null;
@@ -224,6 +244,10 @@ export interface AccommodationBooking {
   depositAmount: number;
   depositStatus: 'NONE' | 'PENDING' | 'PAID' | 'REFUNDED' | string;
   depositPaidAt: string | null;
+  cancelledAt?: string | null;
+  cancellationReason?: string | null;
+  refundAmount?: number;
+  refundStatus?: 'NONE' | 'PENDING' | 'PAID' | string;
   createdAt: string;
   property?: { id: string; title: string; slug: string };
   customer?: CrmCustomer | null;

@@ -733,7 +733,18 @@ export class AccommodationAiImportService {
           : source.propertyType) ||
         'OTHER';
 
-      const created = await this.accommodations.create(userId, {
+      const externalRef = this.extractRef(url) ?? undefined;
+      const existing = externalRef
+        ? await this.prisma.accommodationProperty.findFirst({
+            where: {
+              workspaceId,
+              externalSource: 'JABAMA',
+              externalRef,
+            },
+            include: { photos: { select: { url: true } } },
+          })
+        : null;
+      const payload = {
         title: (stay.title || source.title || 'اقامتگاه جاباما').slice(0, 160),
         description: (stay.description || source.description)?.slice(0, 5000),
         propertyType,
@@ -764,16 +775,28 @@ export class AccommodationAiImportService {
           0,
         externalSource: 'JABAMA',
         externalUrl: url,
-        externalRef: this.extractRef(url) ?? undefined,
-        status: dto.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT',
-      });
+        externalRef,
+        status: (dto.status === 'PUBLISHED' ? 'PUBLISHED' : 'DRAFT') as
+          | 'PUBLISHED'
+          | 'DRAFT',
+      };
 
-      for (const [index, imageUrl] of images.entries()) {
+      const created = existing
+        ? await this.accommodations.update(userId, existing.id, payload)
+        : await this.accommodations.create(userId, payload);
+
+      const existingPhotos = new Set(
+        existing ? existing.photos.map((photo) => photo.url) : [],
+      );
+      let photoIndex = existingPhotos.size;
+      for (const imageUrl of images) {
+        if (existingPhotos.has(imageUrl)) continue;
         await this.accommodations.addPhoto(userId, created.id, {
           url: imageUrl,
-          sortOrder: index,
-          isCover: index === 0,
+          sortOrder: photoIndex,
+          isCover: photoIndex === 0,
         });
+        photoIndex += 1;
       }
 
       await this.prisma.accommodationAiImport.update({
@@ -807,6 +830,7 @@ export class AccommodationAiImportService {
 
       return {
         property: created,
+        updated: Boolean(existing),
         usage,
         cost: charged,
         estimatedTokens,

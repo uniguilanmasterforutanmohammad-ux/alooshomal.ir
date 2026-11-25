@@ -13,6 +13,7 @@ import {
   type AccommodationBooking,
   type AccommodationCalendarBlock,
   type AccommodationProperty,
+  type AccommodationRate,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
@@ -30,13 +31,25 @@ export default function AccommodationDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [blockForm, setBlockForm] = useState({ startDate: '', endDate: '', reason: '' });
+  const [rates, setRates] = useState<AccommodationRate[]>([]);
+  const [rateForm, setRateForm] = useState({
+    label: '',
+    startDate: '',
+    endDate: '',
+    dayType: 'ALL',
+    price: '',
+    minNights: '',
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setProperty(
-        await api.get<AccommodationProperty>(`/accommodations/${params.id}`),
-      );
+      const [item, rateList] = await Promise.all([
+        api.get<AccommodationProperty>(`/accommodations/${params.id}`),
+        api.get<AccommodationRate[]>(`/accommodations/${params.id}/rates`),
+      ]);
+      setProperty(item);
+      setRates(rateList);
     } finally {
       setLoading(false);
     }
@@ -101,6 +114,29 @@ export default function AccommodationDetailPage() {
   async function removeBlock(blockId: string) {
     if (!property) return;
     await api.delete(`/accommodations/${property.id}/blocks/${blockId}`);
+    await load();
+  }
+
+  async function addRate() {
+    if (!property || !rateForm.startDate || !rateForm.endDate || !rateForm.price) {
+      return;
+    }
+    await api.post(`/accommodations/${property.id}/rates`, {
+      label: rateForm.label.trim() || undefined,
+      startDate: rateForm.startDate,
+      endDate: rateForm.endDate,
+      dayType: rateForm.dayType,
+      price: Number(rateForm.price),
+      minNights: rateForm.minNights ? Number(rateForm.minNights) : undefined,
+    });
+    setRateForm({ label: '', startDate: '', endDate: '', dayType: 'ALL', price: '', minNights: '' });
+    await load();
+    toast.success('نرخ اضافه شد');
+  }
+
+  async function removeRate(rateId: string) {
+    if (!property) return;
+    await api.delete(`/accommodations/${property.id}/rates/${rateId}`);
     await load();
   }
 
@@ -252,6 +288,81 @@ export default function AccommodationDetailPage() {
               </button>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section className="indeed-panel p-5">
+        <h2 className="mb-1 text-lg font-extrabold text-ink">نرخ‌های فصلی و آخر هفته</h2>
+        <p className="mb-4 text-xs text-muted">
+          هر شب از نزدیک‌ترین نرخ منطبق استفاده می‌کند؛ اگر نرخی نباشد قیمت پایه اعمال می‌شود.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          <input
+            value={rateForm.label}
+            onChange={(event) => setRateForm((prev) => ({ ...prev, label: event.target.value }))}
+            placeholder="برچسب (اختیاری)"
+            className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-sm"
+          />
+          <JalaliDatePicker
+            value={rateForm.startDate}
+            onChange={(iso) => setRateForm((prev) => ({ ...prev, startDate: iso }))}
+            min={todayIso()}
+            aria-label="شروع نرخ"
+          />
+          <JalaliDatePicker
+            value={rateForm.endDate}
+            onChange={(iso) => setRateForm((prev) => ({ ...prev, endDate: iso }))}
+            min={rateForm.startDate || todayIso()}
+            aria-label="پایان نرخ"
+          />
+          <select
+            value={rateForm.dayType}
+            onChange={(event) => setRateForm((prev) => ({ ...prev, dayType: event.target.value }))}
+            className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-sm"
+          >
+            <option value="ALL">همه‌ی روزها</option>
+            <option value="WEEKEND">آخر هفته</option>
+            <option value="WEEKDAY">روزهای عادی</option>
+            <option value="HOLIDAY">تعطیلات</option>
+          </select>
+          <input
+            value={rateForm.price}
+            onChange={(event) => setRateForm((prev) => ({ ...prev, price: event.target.value }))}
+            placeholder="قیمت هر شب (تومان)"
+            inputMode="numeric"
+            className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-sm"
+          />
+          <button type="button" onClick={() => void addRate()} className="indeed-btn indeed-btn-primary">
+            افزودن نرخ
+          </button>
+        </div>
+        <div className="mt-4 flex flex-col gap-2">
+          {rates.length === 0 ? (
+            <p className="text-xs text-muted">هنوز نرخی ثبت نشده است.</p>
+          ) : (
+            rates.map((rate) => (
+              <div key={rate.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-xs">
+                <span>
+                  {new Date(rate.startDate).toLocaleDateString('fa-IR')} تا{' '}
+                  {new Date(rate.endDate).toLocaleDateString('fa-IR')}
+                  {' • '}
+                  {rate.dayType === 'WEEKEND'
+                    ? 'آخر هفته'
+                    : rate.dayType === 'WEEKDAY'
+                      ? 'روزهای عادی'
+                      : rate.dayType === 'HOLIDAY'
+                        ? 'تعطیلات'
+                        : 'همه‌ی روزها'}
+                  {rate.label ? ` • ${rate.label}` : ''}
+                  {' • '}
+                  <b className="text-ink">{rate.price.toLocaleString('fa-IR')} تومان</b>
+                </span>
+                <button type="button" onClick={() => void removeRate(rate.id)} className="text-red-600">
+                  حذف
+                </button>
+              </div>
+            ))
+          )}
         </div>
       </section>
 

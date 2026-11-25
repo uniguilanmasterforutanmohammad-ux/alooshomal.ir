@@ -25,6 +25,9 @@ import {
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateCalendarBlockDto } from './dto/create-block.dto';
 import { UpdateAccommodationAiSettingsDto } from './dto/accommodation-ai-settings.dto';
+import { QuoteStayDto } from './dto/quote.dto';
+import { CreateRateDto, UpdateRateDto } from './dto/rate.dto';
+import { CreateMessageDto } from './dto/message.dto';
 import { UpdateAccommodationDto } from './dto/update-accommodation.dto';
 import type { PublicAccommodationListDto } from './dto/public-accommodation-list.dto';
 import { buildIcalCalendar, parseIcalEvents } from './ical';
@@ -32,6 +35,11 @@ import {
   isJabamaStayUrl,
   JabamaCalendarService,
 } from './jabama-calendar.service';
+import {
+  quoteStay,
+  type PricingProperty,
+  type PricingRate,
+} from './pricing';
 
 const PROPERTY_INCLUDE = {
   photos: { orderBy: { sortOrder: 'asc' as const } },
@@ -111,6 +119,13 @@ export class AccommodationsService {
         areaSize: dto.areaSize,
         basePrice: dto.basePrice ?? 0,
         depositAmount: dto.depositAmount ?? 0,
+        baseGuests: dto.baseGuests ?? 2,
+        cleaningFee: dto.cleaningFee ?? 0,
+        extraGuestFee: dto.extraGuestFee ?? 0,
+        longStayDiscountPercent: dto.longStayDiscountPercent ?? 0,
+        longStayMinNights: dto.longStayMinNights ?? 0,
+        cancellationPolicy: dto.cancellationPolicy ?? 'FLEXIBLE',
+        cancellationDays: dto.cancellationDays ?? 3,
         currency: dto.currency ?? 'IRR',
         minNights: dto.minNights ?? 1,
         checkInTime: dto.checkInTime,
@@ -178,6 +193,13 @@ export class AccommodationsService {
         areaSize: dto.areaSize,
         basePrice: dto.basePrice,
         depositAmount: dto.depositAmount,
+        baseGuests: dto.baseGuests,
+        cleaningFee: dto.cleaningFee,
+        extraGuestFee: dto.extraGuestFee,
+        longStayDiscountPercent: dto.longStayDiscountPercent,
+        longStayMinNights: dto.longStayMinNights,
+        cancellationPolicy: dto.cancellationPolicy,
+        cancellationDays: dto.cancellationDays,
         currency: dto.currency,
         minNights: dto.minNights,
         checkInTime: dto.checkInTime,
@@ -353,9 +375,251 @@ export class AccommodationsService {
     });
   }
 
+  /**
+   * Cancel a booking and compute the refund owed on the paid deposit using the
+   * property's cancellation policy. The actual money movement is recorded as
+   * `refundStatus = PENDING` so the owner settles it (gateway refunds are not
+   * automated yet).
+   */
+  async cancelBooking(
+    userId: string,
+    bookingId: string,
+    reason?: string,
+  ) {
+    const workspaceId = await this.workspaceId(userId);
+    const booking = await this.prisma.accommodationBookingRequest.findFirst({
+      where: { id: bookingId, workspaceId },
+      include: { property: true },
+    });
+    if (!booking) throw new NotFoundException('درخواست رزرو پیدا نشد');
+    if (booking.status === 'CANCELLED') return booking;
+    if (booking.status === 'COMPLETED') {
+      throw new BadRequestException('رزرو تکمیل‌شده قابل لغو نیست');
+    }
+    const paid =
+      booking.depositStatus === 'PAID' ? booking.depositAmount : 0;
+    const daysBefore = Math.floor(
+      (booking.checkIn.getTime() - Date.now()) / 86_400_000,
+    );
+    const policy = booking.property.cancellationPolicy;
+    const threshold = booking.property.cancellationDays;
+    let refund = 0;
+    if (paid > 0) {
+      if (policy === 'NON_REFUNDABLE') {
+        refund = 0;
+      } else if (policy === 'STRICT') {
+        refund = daysBefore >= Math.max(threshold, 7) ? paid : 0;
+      } else if (policy === 'MODERATE') {
+        refund =
+          daysBefore >= Math.max(threshold, 3)
+            ? paid
+            : Math.round(paid / 2);
+      } else {
+        refund = daysBefore >= threshold ? paid : Math.round(paid / 2);
+      }
+    }
+    return this.prisma.accommodationBookingRequest.update({
+      where: { id: bookingId },
+      data: {
+        status: 'CANCELLED',
+        cancelledAt: new Date(),
+        cancellationReason: reason,
+        refundAmount: refund,
+        refundStatus: refund > 0 ? 'PENDING' : 'NONE',
+      },
+      include: { property: { select: { id: true, title: true, slug: true } } },
+    });
+  }
+
+  // ---- guest inbox ----
+
+  async listMessages(userId: string, bookingId: string) {
+    await this.assertOwnedBooking(userId, bookingId);
+    return this.prisma.accommodationMessage.findMany({
+      where: { bookingId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async createMessage(
+    userId: string,
+    bookingId: string,
+    dto: CreateMessageDto,
+  ) {
+    const booking = await this.assertOwnedBooking(userId, bookingId);
+    return this.prisma.accommodationMessage.create({
+      data: {
+        workspaceId: booking.workspaceId,
+        bookingId,
+        customerId: booking.customerId,
+        direction: dto.direction ?? 'OUT',
+        channel: dto.channel ?? 'NOTE',
+        body: dto.body,
+        authorId: userId,
+      },
+    });
+  }
+
+  private async assertOwnedBooking(userId: string, bookingId: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const booking = await this.prisma.accommodationBookingRequest.findFirst({
+      where: { id: bookingId, workspaceId },
+      select: {
+        id: true,
+        workspaceId: true,
+        customerId: true,
+        guestPhone: true,
+      },
+    });
+    if (!booking) throw new NotFoundException('درخواست رزرو پیدا نشد');
+    return booking;
+  }
+
+  // ---- reports ----
+
+  async reports(userId: string, from?: string, to?: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const range = this.resolveCalendarRange(from, to);
+    const rangeDays = Math.max(
+      1,
+      Math.round(
+        (range.to.getTime() - range.from.getTime()) / 86_400_000,
+      ),
+    );
+    const properties = await this.prisma.accommodationProperty.findMany({
+      where: { workspaceId },
+      select: { id: true, title: true },
+    });
+    const bookings = await this.prisma.accommodationBookingRequest.findMany({
+      where: {
+        workspaceId,
+        status: { in: ['CONFIRMED', 'COMPLETED'] },
+        checkIn: { lt: range.to },
+        checkOut: { gt: range.from },
+      },
+      include: {
+        channel: {
+          select: { id: true, name: true, commissionPercent: true },
+        },
+      },
+    });
+
+    const perProperty = new Map<
+      string,
+      { propertyId: string; title: string; nights: number; revenue: number; bookings: number }
+    >();
+    for (const property of properties) {
+      perProperty.set(property.id, {
+        propertyId: property.id,
+        title: property.title,
+        nights: 0,
+        revenue: 0,
+        bookings: 0,
+      });
+    }
+    const perChannel = new Map<
+      string,
+      { channelId: string | null; name: string; bookings: number; revenue: number; commission: number }
+    >();
+    const monthly = new Map<string, { month: string; nights: number; revenue: number }>();
+
+    let bookedNights = 0;
+    let revenue = 0;
+    for (const booking of bookings) {
+      const start = booking.checkIn > range.from ? booking.checkIn : range.from;
+      const end = booking.checkOut < range.to ? booking.checkOut : range.to;
+      const overlapNights = Math.max(
+        0,
+        Math.round((end.getTime() - start.getTime()) / 86_400_000),
+      );
+      const totalNights = Math.max(
+        1,
+        Math.round(
+          (booking.checkOut.getTime() - booking.checkIn.getTime()) /
+            86_400_000,
+        ),
+      );
+      const gross = booking.totalAmount ?? 0;
+      const share = Math.round((gross * overlapNights) / totalNights);
+      bookedNights += overlapNights;
+      revenue += share;
+
+      const propertyRow = perProperty.get(booking.propertyId);
+      if (propertyRow) {
+        propertyRow.nights += overlapNights;
+        propertyRow.revenue += share;
+        propertyRow.bookings += 1;
+      }
+      const channelKey = booking.channelId ?? 'direct';
+      const channelRow = perChannel.get(channelKey) ?? {
+        channelId: booking.channelId,
+        name: booking.channel?.name ?? 'رزرو مستقیم',
+        bookings: 0,
+        revenue: 0,
+        commission: 0,
+      };
+      channelRow.bookings += 1;
+      channelRow.revenue += share;
+      channelRow.commission += Math.round(
+        (share * (booking.channel?.commissionPercent ?? 0)) / 100,
+      );
+      perChannel.set(channelKey, channelRow);
+
+      const month = booking.checkIn.toISOString().slice(0, 7);
+      const monthRow = monthly.get(month) ?? { month, nights: 0, revenue: 0 };
+      monthRow.nights += overlapNights;
+      monthRow.revenue += share;
+      monthly.set(month, monthRow);
+    }
+
+    const totalPropertyNights = properties.length * rangeDays;
+    return {
+      from: this.toDateOnly(range.from),
+      to: this.toDateOnly(range.to),
+      rangeDays,
+      properties: properties.length,
+      bookings: bookings.length,
+      bookedNights,
+      revenue,
+      adr: bookedNights ? Math.round(revenue / bookedNights) : 0,
+      revPar: totalPropertyNights
+        ? Math.round(revenue / totalPropertyNights)
+        : 0,
+      occupancy: totalPropertyNights
+        ? Math.round((bookedNights / totalPropertyNights) * 100)
+        : 0,
+      perProperty: [...perProperty.values()].map((row) => ({
+        ...row,
+        occupancy: rangeDays
+          ? Math.round((row.nights / rangeDays) * 100)
+          : 0,
+      })),
+      perChannel: [...perChannel.values()].map((row) => ({
+        ...row,
+        net: row.revenue - row.commission,
+      })),
+      monthly: [...monthly.values()].sort((a, b) =>
+        a.month.localeCompare(b.month),
+      ),
+    };
+  }
+
   async createManualBooking(userId: string, propertyId: string, dto: CreateBookingDto) {
-    const property = await this.assertOwnedProperty(userId, propertyId);
+    await this.assertOwnedProperty(userId, propertyId);
+    const property = await this.prisma.accommodationProperty.findFirstOrThrow({
+      where: { id: propertyId },
+      include: { rates: true },
+    });
     this.assertDates(dto.checkIn, dto.checkOut);
+    const checkIn = new Date(dto.checkIn);
+    const checkOut = new Date(dto.checkOut);
+    const quote = quoteStay(
+      property,
+      property.rates,
+      checkIn,
+      checkOut,
+      dto.guests ?? 1,
+    );
     const customer = await this.upsertCustomer(
       property.workspaceId,
       dto.guestName,
@@ -372,12 +636,15 @@ export class AccommodationsService {
         guestName: dto.guestName,
         guestPhone: dto.guestPhone,
         guestEmail: dto.guestEmail,
-        checkIn: new Date(dto.checkIn),
-        checkOut: new Date(dto.checkOut),
+        checkIn,
+        checkOut,
         guests: dto.guests ?? 1,
         message: dto.message,
         source: 'MANUAL',
         status: 'CONFIRMED',
+        totalAmount: quote.total || null,
+        depositAmount: property.depositAmount,
+        depositStatus: property.depositAmount > 0 ? 'PENDING' : 'NONE',
       },
       include: { customer: true, property: true },
     });
@@ -416,6 +683,115 @@ export class AccommodationsService {
     if (!block) throw new NotFoundException('بازه‌ی مسدود پیدا نشد');
     await this.prisma.accommodationCalendarBlock.delete({ where: { id: blockId } });
     return { id: blockId };
+  }
+
+  // ---- rates (seasonal pricing) ----
+
+  async listRates(userId: string, propertyId: string) {
+    await this.assertOwnedProperty(userId, propertyId);
+    return this.prisma.accommodationRate.findMany({
+      where: { propertyId },
+      orderBy: { startDate: 'asc' },
+    });
+  }
+
+  async createRate(userId: string, propertyId: string, dto: CreateRateDto) {
+    await this.assertOwnedProperty(userId, propertyId);
+    this.assertDates(dto.startDate, dto.endDate);
+    return this.prisma.accommodationRate.create({
+      data: {
+        propertyId,
+        label: dto.label,
+        startDate: new Date(dto.startDate),
+        endDate: new Date(dto.endDate),
+        dayType: dto.dayType ?? 'ALL',
+        price: dto.price,
+        minNights: dto.minNights,
+      },
+    });
+  }
+
+  async updateRate(
+    userId: string,
+    propertyId: string,
+    rateId: string,
+    dto: UpdateRateDto,
+  ) {
+    await this.assertOwnedProperty(userId, propertyId);
+    const rate = await this.prisma.accommodationRate.findFirst({
+      where: { id: rateId, propertyId },
+    });
+    if (!rate) throw new NotFoundException('نرخ پیدا نشد');
+    if (dto.startDate && dto.endDate) {
+      this.assertDates(dto.startDate, dto.endDate);
+    }
+    return this.prisma.accommodationRate.update({
+      where: { id: rateId },
+      data: {
+        label: dto.label,
+        startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+        endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+        dayType: dto.dayType,
+        price: dto.price,
+        minNights: dto.minNights,
+      },
+    });
+  }
+
+  async removeRate(userId: string, propertyId: string, rateId: string) {
+    await this.assertOwnedProperty(userId, propertyId);
+    const rate = await this.prisma.accommodationRate.findFirst({
+      where: { id: rateId, propertyId },
+    });
+    if (!rate) throw new NotFoundException('نرخ پیدا نشد');
+    await this.prisma.accommodationRate.delete({ where: { id: rateId } });
+    return { id: rateId };
+  }
+
+  /** Owner-side quote for a property (used by the panel before booking). */
+  async quoteForOwner(userId: string, propertyId: string, dto: QuoteStayDto) {
+    const property = await this.prisma.accommodationProperty.findFirst({
+      where: { id: propertyId, workspaceId: await this.workspaceId(userId) },
+      include: { rates: true },
+    });
+    if (!property) throw new NotFoundException('اقامتگاه پیدا نشد');
+    return this.quoteProperty(property, dto);
+  }
+
+  /** Public quote used by the booking form on the stay page. */
+  async publicQuote(slug: string, dto: QuoteStayDto) {
+    await this.settings.assertFeatureEnabled('featureAccommodationRental');
+    const property = await this.prisma.accommodationProperty.findFirst({
+      where: { slug, status: 'PUBLISHED' },
+      include: { rates: true },
+    });
+    if (!property) throw new NotFoundException('اقامتگاه پیدا نشد');
+    return this.quoteProperty(property, dto);
+  }
+
+  private quoteProperty(
+    property: PricingProperty & { rates: PricingRate[]; minNights: number },
+    dto: QuoteStayDto,
+  ) {
+    this.assertDates(dto.checkIn, dto.checkOut);
+    const checkIn = new Date(dto.checkIn);
+    const checkOut = new Date(dto.checkOut);
+    const nights = Math.max(
+      1,
+      Math.ceil((checkOut.getTime() - checkIn.getTime()) / 86_400_000),
+    );
+    if (nights < property.minNights) {
+      throw new BadRequestException(
+        `حداقل اقامت این اقامتگاه ${property.minNights} شب است`,
+      );
+    }
+    return quoteStay(
+      property,
+      property.rates,
+      checkIn,
+      checkOut,
+      dto.guests ?? 1,
+    );
   }
 
   // ---- public side ----
@@ -562,6 +938,7 @@ export class AccommodationsService {
     await this.settings.assertFeatureEnabled('featureAccommodationRental');
     const property = await this.prisma.accommodationProperty.findFirst({
       where: { slug, status: 'PUBLISHED' },
+      include: { rates: true },
     });
     if (!property) throw new NotFoundException('اقامتگاه پیدا نشد');
     this.assertDates(dto.checkIn, dto.checkOut);
@@ -597,9 +974,12 @@ export class AccommodationsService {
       dto.guestEmail,
       'PUBLIC_BOOKING',
     );
-    const nights = Math.max(
-      1,
-      Math.ceil((checkOut.getTime() - checkIn.getTime()) / 86_400_000),
+    const quote = quoteStay(
+      property,
+      property.rates,
+      checkIn,
+      checkOut,
+      dto.guests ?? 1,
     );
     const booking = await this.prisma.$transaction(async (tx) => {
       const booking = await tx.accommodationBookingRequest.create({
@@ -616,7 +996,7 @@ export class AccommodationsService {
           message: dto.message,
           source: 'DIRECT',
           status: property.instantBooking ? 'CONFIRMED' : 'PENDING',
-          totalAmount: property.basePrice ? property.basePrice * nights : null,
+          totalAmount: quote.total || null,
           depositAmount: property.depositAmount,
           depositStatus: property.depositAmount > 0 ? 'PENDING' : 'NONE',
         },

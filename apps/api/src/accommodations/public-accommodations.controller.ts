@@ -16,6 +16,7 @@ import { AccommodationsService } from './accommodations.service';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { JabamaCalendarQueryDto } from './dto/jabama-calendar.dto';
 import { PublicAccommodationListDto } from './dto/public-accommodation-list.dto';
+import { QuoteStayDto } from './dto/quote.dto';
 import { JabamaCalendarService } from './jabama-calendar.service';
 
 @ApiTags('accommodations')
@@ -82,6 +83,14 @@ export class PublicAccommodationsController {
   @ApiOperation({ summary: 'ثبت درخواست رزرو عمومی (بدون نیاز به ورود)' })
   book(@Param('slug') slug: string, @Body() dto: CreateBookingDto) {
     return this.accommodations.createPublicBooking(slug, dto);
+  }
+
+  @Post(':slug/quote')
+  @ApiOperation({
+    summary: 'برآورد قیمت اقامت برای فرم رزرو (نرخ فصلی، نظافت، مهمان اضافه)',
+  })
+  quote(@Param('slug') slug: string, @Body() dto: QuoteStayDto) {
+    return this.accommodations.publicQuote(slug, dto);
   }
 
   @Get(':slug/calendar.ics')

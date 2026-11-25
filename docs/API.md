@@ -893,11 +893,17 @@ PY
 | `DELETE` | `/accommodations/:id/photos/:photoId` | حذف عکس. |
 | `GET` | `/accommodations/bookings` | همه‌ی رزروها (فیلتر `status`). |
 | `GET` | `/accommodations/calendar` | نمای یکپارچه‌ی تقویم کسب‌وکار در بازه‌ی `from`/`to` (`YYYY-MM-DD`): فهرست اقامتگاه‌ها + رزروهای فعال + مسدودی‌ها (دستی و کانال) با شناسه‌ی اقامتگاه. |
+| `GET` | `/accommodations/reports` | گزارش بازه‌ی `from`/`to`: درآمد، شب رزروشده، اشغال، ADR، RevPAR، تفکیک اقامتگاه/کانال (ناخالص/کمیسیون/خالص) و روند ماهانه. |
 | `PATCH` | `/accommodations/bookings/:id/status` | تغییر وضعیت رزرو. |
+| `PATCH` | `/accommodations/bookings/:id/cancel` | لغو رزرو و محاسبه‌ی `refundAmount` بر اساس `cancellationPolicy`/`cancellationDays` اقامتگاه؛ بازگشت پول با وضعیت `PENDING` ثبت می‌شود. |
+| `GET/POST` | `/accommodations/bookings/:id/messages` | صندوق پیام مهمان: فهرست و ثبت پیام/یادداشت برای یک رزرو. |
 | `PATCH` | `/accommodations/bookings/:id/deposit` | ثبت دستی وضعیت ودیعه. |
 | `POST` | `/accommodations/:id/bookings` | ثبت دستی رزرو توسط مالک. |
 | `GET/POST` | `/accommodations/:id/blocks` | فهرست/افزودن بازه‌ی مسدود. |
 | `DELETE` | `/accommodations/:id/blocks/:blockId` | حذف بازه‌ی مسدود. |
+| `GET/POST` | `/accommodations/:id/rates` | نرخ‌های فصلی/آخر هفته (`dayType`: ALL/WEEKEND/WEEKDAY/HOLIDAY). |
+| `PATCH/DELETE` | `/accommodations/:id/rates/:rateId` | ویرایش/حذف نرخ. |
+| `POST` | `/accommodations/:id/quote` | برآورد قیمت اقامت با نرخ‌ها، هزینه‌ی نظافت، مهمان اضافه و تخفیف اقامت بلندمدت. |
 | `GET` | `/accommodations/:id/calendar.ics` | خروجی iCal تقویم (مسدودی‌ها + رزروها). |
 | `GET/POST/PATCH/DELETE` | `/accommodation-channels` | مدیریت کانال‌های رزرو (OTA/شبکه‌ی اجتماعی/سایت مستقیم). |
 | `POST` | `/accommodation-channels/:id/sync` | همگام‌سازی تقویم از فید iCal کانال. اگر `icalUrl` یک لینک صفحه‌ی جاباما (`.../stay/...`) باشد، تقویم مستقیماً از خود جاباما خوانده می‌شود (بدون فید خارجی). |
@@ -917,6 +923,7 @@ PY
 `GET /public/accommodations/jabama/calendar.ics?url=<jabama-stay-url>` (فید iCal
 ساخته‌شده از تقویم جاباما برای درج در ایربی‌ان‌بی/OTA دیگر؛ جاباما خروجی iCal
 عمومی ندارد و این فید از تقویم قابل‌مشاهده‌ی صفحه‌ی اقامتگاه ساخته می‌شود)،
+`POST /public/accommodations/:slug/quote` (برآورد قیمت برای فرم رزرو)،
 `POST /public/accommodations/:slug/bookings` برای ثبت درخواست رزرو و
 `POST /public/accommodations/:slug/bookings/:id/deposit` برای پرداخت آنلاین
 ودیعه (بازگشت درگاه: `/public/accommodations/deposits/callback`). این
