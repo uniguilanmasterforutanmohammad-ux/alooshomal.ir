@@ -7,8 +7,10 @@ import { BadgeCheck, Clock, Eye, IdCard, LifeBuoy } from 'lucide-react';
 
 import { api, type Biolink, type BusinessCard, type Paged } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useBusinessWorkspace } from '@/lib/business-modules';
 import { useFeatures } from '@/lib/features';
 import { useProfileStatus } from '@/lib/profile-status';
+import { ManagementNudge } from '@/components/business/ManagementNudge';
 
 interface TicketSummary {
   open: number;
@@ -55,6 +57,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const { token, user, hydrated } = useAuth();
   const { isFeatureVisible } = useFeatures();
+  const { workspace } = useBusinessWorkspace(hydrated && Boolean(token));
   const { status: profileStatus } = useProfileStatus(
     hydrated && Boolean(token),
   );
@@ -106,8 +109,17 @@ export default function DashboardPage() {
           <p className="text-sm text-muted">
             {user?.fullName ? `${user.fullName} عزیز، خوش آمدید` : 'خوش آمدید'}
           </p>
+          {workspace ? (
+            <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-[var(--vintage-border)] bg-[var(--vintage-paper)] px-2.5 py-1 text-[11px] font-bold text-ink">
+              کسب‌وکار فعال:
+              <span className="text-brand">{workspace.name}</span>
+              <span className="text-muted">· {workspace.industry.label}</span>
+            </p>
+          ) : null}
         </div>
       </div>
+
+      <ManagementNudge variant="banner" />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatTile icon={IdCard} label="بیولینک‌ها" value={biolinks.length} />

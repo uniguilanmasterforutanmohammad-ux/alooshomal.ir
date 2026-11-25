@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 import { BusinessPanelNav } from '@/components/business/BusinessPanelNav';
+import { ManagementNudge } from '@/components/business/ManagementNudge';
 import { MyBusinessCardsPanel } from '@/components/business/MyBusinessCardsPanel';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
@@ -29,6 +30,8 @@ export default function BusinessCardsTabPage() {
       </div>
 
       {workspace ? <BusinessPanelNav modules={workspace.modules} /> : null}
+
+      <ManagementNudge variant="banner" />
 
       <MyBusinessCardsPanel />
     </div>
