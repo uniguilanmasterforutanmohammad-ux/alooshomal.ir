@@ -15,6 +15,7 @@ import {
 
 import { BusinessPanelNav, moduleIcon } from '@/components/business/BusinessPanelNav';
 import { CreateWorkspaceDialog } from '@/components/dashboard/CreateWorkspaceDialog';
+import { PageSkeleton } from '@/components/ui/Skeleton';
 import { api, WORKSPACE_STORAGE_KEY } from '@/lib/api';
 import type {
   BusinessWorkspace,
@@ -187,7 +188,7 @@ function BusinessPanelContent() {
   }
 
   if (loading && !workspace) {
-    return <p className="text-muted">در حال بارگذاری پنل کسب‌وکار…</p>;
+    return <PageSkeleton cards={6} withNav />;
   }
   if (error && !workspace) {
     return (

@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import Link, { useLinkStatus } from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   BadgeCheck,
@@ -8,6 +8,7 @@ import {
   IdCard,
   ImagePlus,
   LayoutDashboard,
+  Loader2,
   LogIn,
   Newspaper,
 } from 'lucide-react';
@@ -22,6 +23,20 @@ interface Item {
   label: string;
   icon: typeof Home;
   exact?: boolean;
+}
+
+/**
+ * Pending indicator for a nav link: while the destination route is loading,
+ * the tapped item shows a spinner overlay so the user knows their tap landed.
+ */
+function NavPending() {
+  const { pending } = useLinkStatus();
+  if (!pending) return null;
+  return (
+    <span className="absolute inset-0 flex items-center justify-center rounded-lg bg-[var(--vintage-surface)]/70">
+      <Loader2 className="size-4 animate-spin text-brand" aria-hidden />
+    </span>
+  );
 }
 
 /**
@@ -82,12 +97,13 @@ export function MobileNav() {
                 // plenty and the network stays calm.
                 prefetch={false}
                 className={cn(
-                  'flex flex-col items-center gap-0.5 whitespace-nowrap px-0.5 py-2 text-[10px] font-bold transition',
+                  'relative flex flex-col items-center gap-0.5 whitespace-nowrap px-0.5 py-2 text-[10px] font-bold transition',
                   active ? 'text-brand' : 'text-muted',
                 )}
               >
                 <item.icon className="size-5" aria-hidden />
                 {item.label}
+                <NavPending />
               </Link>
             </li>
           );

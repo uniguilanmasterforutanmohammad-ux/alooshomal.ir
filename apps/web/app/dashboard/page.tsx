@@ -11,6 +11,7 @@ import { useBusinessWorkspace } from '@/lib/business-modules';
 import { useFeatures } from '@/lib/features';
 import { useProfileStatus } from '@/lib/profile-status';
 import { ManagementNudge } from '@/components/business/ManagementNudge';
+import { Skeleton } from '@/components/ui/Skeleton';
 
 interface TicketSummary {
   open: number;
@@ -69,7 +70,9 @@ export default function DashboardPage() {
     closed: 0,
     total: 0,
   });
+  const [loading, setLoading] = useState(true);
   const load = useCallback(async () => {
+    setLoading(true);
     try {
       const [mine, cards, ticketSummary] = await Promise.all([
         // `workspace=all`: the dashboard summary counts the user's items across
@@ -84,6 +87,8 @@ export default function DashboardPage() {
     } catch {
       setBiolinks([]);
       setBusinessCards([]);
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -122,15 +127,33 @@ export default function DashboardPage() {
       <ManagementNudge variant="banner" />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile icon={IdCard} label="بیولینک‌ها" value={biolinks.length} />
-        <StatTile
-          icon={IdCard}
-          label="کارت‌های ویزیت"
-          value={businessCards.length}
-          tone="ok"
-        />
-        <StatTile icon={BadgeCheck} label="منتشرشده" value={published} tone="ok" />
-        <StatTile icon={Clock} label="در انتظار تأیید" value={pending} tone="warn" />
+        {loading ? (
+          Array.from({ length: 4 }).map((_, index) => (
+            <Skeleton key={index} className="h-[76px] w-full" />
+          ))
+        ) : (
+          <>
+            <StatTile icon={IdCard} label="بیولینک‌ها" value={biolinks.length} />
+            <StatTile
+              icon={IdCard}
+              label="کارت‌های ویزیت"
+              value={businessCards.length}
+              tone="ok"
+            />
+            <StatTile
+              icon={BadgeCheck}
+              label="منتشرشده"
+              value={published}
+              tone="ok"
+            />
+            <StatTile
+              icon={Clock}
+              label="در انتظار تأیید"
+              value={pending}
+              tone="warn"
+            />
+          </>
+        )}
       </section>
 
       <div className="grid gap-5 md:grid-cols-2">
