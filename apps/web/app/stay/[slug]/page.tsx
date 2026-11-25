@@ -122,24 +122,61 @@ export default async function StayDetailPage({
       <main className="container-page grid gap-6 py-8 lg:grid-cols-[1.6fr_1fr]">
         <div className="flex flex-col gap-6">
           <div>
-            <h1 className="text-2xl font-extrabold text-ink">{stay.title}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-2xl font-extrabold text-ink">{stay.title}</h1>
+              {stay.rating != null ? (
+                <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">
+                  ★ {stay.rating.toLocaleString('fa-IR')}
+                  {stay.reviewsCount
+                    ? ` (${stay.reviewsCount.toLocaleString('fa-IR')} دیدگاه)`
+                    : ''}
+                </span>
+              ) : null}
+              {stay.instantBooking ? (
+                <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-bold text-emerald-800">
+                  رزرو آنی
+                </span>
+              ) : null}
+            </div>
             <p className="mt-1 text-sm text-muted">
               {stay.city?.name ?? stay.address ?? 'موقعیت نامشخص'} • {stay.maxGuests} مهمان •{' '}
               {stay.bedrooms} اتاق خواب • {stay.beds} تخت
+              {stay.areaSize ? ` • ${stay.areaSize} متر` : ''}
             </p>
           </div>
 
           {stay.photos.length ? (
-            <div className="grid gap-2 sm:grid-cols-2">
-              {stay.photos.map((photo) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={photo.id}
-                  src={photo.url}
-                  alt={photo.caption ?? stay.title}
-                  className="h-56 w-full rounded-lg object-cover"
-                />
-              ))}
+            <div className="grid gap-2 sm:grid-cols-[2fr_1fr]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={stay.photos[0].url}
+                alt={stay.photos[0].caption ?? stay.title}
+                className="h-72 w-full rounded-lg object-cover"
+              />
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-1">
+                {stay.photos.slice(1, 3).map((photo) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={photo.id}
+                    src={photo.url}
+                    alt={photo.caption ?? stay.title}
+                    className="h-[8.5rem] w-full rounded-lg object-cover"
+                  />
+                ))}
+              </div>
+              {stay.photos.length > 3 ? (
+                <div className="grid grid-cols-3 gap-2 sm:col-span-2">
+                  {stay.photos.slice(3, 6).map((photo) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={photo.id}
+                      src={photo.url}
+                      alt={photo.caption ?? stay.title}
+                      className="h-32 w-full rounded-lg object-cover"
+                    />
+                  ))}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -161,6 +198,31 @@ export default async function StayDetailPage({
                 ))}
               </div>
             </section>
+          ) : null}
+
+          {stay.rules.length ? (
+            <section className="indeed-panel p-5">
+              <h2 className="mb-3 text-lg font-extrabold text-ink">قوانین اقامتگاه</h2>
+              <ul className="list-inside list-disc space-y-1 text-sm leading-7 text-muted">
+                {stay.rules.map((rule) => (
+                  <li key={rule}>{rule}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {stay.externalUrl ? (
+            <p className="text-xs text-muted">
+              منبع این آگهی:{' '}
+              <a
+                href={stay.externalUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="font-bold text-brand underline"
+              >
+                {stay.externalSource === 'JABAMA' ? 'جاباما' : stay.externalSource}
+              </a>
+            </p>
           ) : null}
 
           {stay.workspace?.channels?.length ? (
@@ -203,6 +265,9 @@ export default async function StayDetailPage({
               <StayBookingForm
                 slug={stay.slug}
                 publicSlug={stay.workspace?.publicSlug ?? null}
+                basePrice={stay.basePrice}
+                minNights={stay.minNights}
+                instantBooking={stay.instantBooking}
               />
             </div>
           </div>

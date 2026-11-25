@@ -173,6 +173,25 @@ export const RETAIL_AI_IMPORT_MIN_IMAGES_KEY = 'retailAiImportMinImages';
 export const DEFAULT_RETAIL_AI_IMPORT_MIN_IMAGES = 5;
 
 // ---------------------------------------------------------------------------
+//  «ورود خودکار اقامتگاه از جاباما» (AI import) pricing
+// ---------------------------------------------------------------------------
+
+/** Toman charged per 1,000 AI tokens consumed by an accommodation import. */
+export const ACCOMMODATION_AI_IMPORT_PRICE_PER_1K_KEY =
+  'accommodationAiImportPricePer1k';
+export const DEFAULT_ACCOMMODATION_AI_IMPORT_PRICE_PER_1K = 1500;
+
+/** Minimum Toman charged for one accommodation import. */
+export const ACCOMMODATION_AI_IMPORT_MIN_PRICE_KEY =
+  'accommodationAiImportMinPrice';
+export const DEFAULT_ACCOMMODATION_AI_IMPORT_MIN_PRICE = 5000;
+
+/** Minimum number of Jabama images an accommodation import must fetch. */
+export const ACCOMMODATION_AI_IMPORT_MIN_IMAGES_KEY =
+  'accommodationAiImportMinImages';
+export const DEFAULT_ACCOMMODATION_AI_IMPORT_MIN_IMAGES = 3;
+
+// ---------------------------------------------------------------------------
 //  «نبض شهر» news settings
 // ---------------------------------------------------------------------------
 
@@ -577,6 +596,14 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     label: 'ورود خودکار محصول از دیجی‌کالا (هوش مصنوعی)',
     description:
       'با قراردادن لینک محصول دیجی‌کالا، مشخصات و تصاویر آن با هوش مصنوعی استخراج و به‌عنوان محصول فروشگاه ثبت می‌شود. هر ایمپورت هزینه‌ی جداگانه (بر اساس توکن مصرفی) دارد.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureAccommodationAiImport',
+    label: 'ورود خودکار اقامتگاه از جاباما (هوش مصنوعی)',
+    description:
+      'با قراردادن لینک اقامتگاه جاباما، مشخصات، امکانات و تصاویر آن با هوش مصنوعی استخراج و به‌عنوان اقامتگاه اجاره‌ی روزانه ثبت می‌شود. هر ایمپورت هزینه‌ی جداگانه (بر اساس توکن مصرفی) دارد.',
     group: 'پنل کسب‌وکار',
     default: true,
   },

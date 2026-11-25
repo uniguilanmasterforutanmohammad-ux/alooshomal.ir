@@ -13,12 +13,15 @@ export interface AccommodationFormValues {
   bedrooms: number;
   beds: number;
   bathrooms: number;
+  areaSize?: number;
   basePrice: number;
   depositAmount: number;
   minNights: number;
   checkInTime?: string;
   checkOutTime?: string;
   amenities: string[];
+  rules: string[];
+  instantBooking: boolean;
   status: 'DRAFT' | 'PUBLISHED' | 'PAUSED';
 }
 
@@ -52,6 +55,9 @@ export function AccommodationForm({
   const [bedrooms, setBedrooms] = useState(initial?.bedrooms ?? 1);
   const [beds, setBeds] = useState(initial?.beds ?? 1);
   const [bathrooms, setBathrooms] = useState(initial?.bathrooms ?? 1);
+  const [areaSize, setAreaSize] = useState<number | ''>(
+    initial?.areaSize ?? '',
+  );
   const [basePrice, setBasePrice] = useState(initial?.basePrice ?? 0);
   const [depositAmount, setDepositAmount] = useState(
     initial?.depositAmount ?? 0,
@@ -61,6 +67,10 @@ export function AccommodationForm({
   const [checkOutTime, setCheckOutTime] = useState(initial?.checkOutTime ?? '');
   const [amenities, setAmenities] = useState(
     (initial?.amenities ?? []).join('، '),
+  );
+  const [rules, setRules] = useState((initial?.rules ?? []).join('، '));
+  const [instantBooking, setInstantBooking] = useState(
+    initial?.instantBooking ?? false,
   );
   const [status, setStatus] = useState<'DRAFT' | 'PUBLISHED' | 'PAUSED'>(
     (initial?.status as 'DRAFT' | 'PUBLISHED' | 'PAUSED') ?? 'DRAFT',
@@ -77,6 +87,7 @@ export function AccommodationForm({
       bedrooms,
       beds,
       bathrooms,
+      areaSize: areaSize === '' ? undefined : Number(areaSize),
       basePrice,
       depositAmount,
       minNights,
@@ -86,6 +97,11 @@ export function AccommodationForm({
         .split(/[،,]/)
         .map((item) => item.trim())
         .filter(Boolean),
+      rules: rules
+        .split(/[،,]/)
+        .map((item) => item.trim())
+        .filter(Boolean),
+      instantBooking,
       status,
     });
   }
@@ -197,6 +213,21 @@ export function AccommodationForm({
           />
         </div>
         <div>
+          <label className={label}>متراژ (متر مربع)</label>
+          <input
+            className={field}
+            type="number"
+            min={0}
+            value={areaSize}
+            onChange={(event) =>
+              setAreaSize(
+                event.target.value === '' ? '' : Number(event.target.value),
+              )
+            }
+            placeholder="مثلاً ۱۲۰"
+          />
+        </div>
+        <div>
           <label className={label}>قیمت هر شب (تومان)</label>
           <input
             className={field}
@@ -257,6 +288,23 @@ export function AccommodationForm({
           placeholder="استخر، پارکینگ، اینترنت، آشپزخانه"
         />
       </div>
+      <div>
+        <label className={label}>قوانین اقامتگاه (با ویرگول جدا کنید)</label>
+        <input
+          className={field}
+          value={rules}
+          onChange={(event) => setRules(event.target.value)}
+          placeholder="ورود حیوان ممنوع، استعمال دخانیات ممنوع"
+        />
+      </div>
+      <label className="flex items-center gap-2 text-xs font-bold text-muted">
+        <input
+          type="checkbox"
+          checked={instantBooking}
+          onChange={(event) => setInstantBooking(event.target.checked)}
+        />
+        رزرو آنی (درخواست مهمان بدون تأیید مالک تأیید می‌شود)
+      </label>
       <button
         type="submit"
         disabled={submitting}

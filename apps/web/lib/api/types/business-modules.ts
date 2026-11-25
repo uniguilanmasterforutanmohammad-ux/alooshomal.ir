@@ -146,6 +146,7 @@ export interface AccommodationProperty {
   bedrooms: number;
   beds: number;
   bathrooms: number;
+  areaSize: number | null;
   basePrice: number;
   depositAmount: number;
   currency: string;
@@ -153,6 +154,13 @@ export interface AccommodationProperty {
   checkInTime: string | null;
   checkOutTime: string | null;
   amenities: string[];
+  rules: string[];
+  instantBooking: boolean;
+  rating: number | null;
+  reviewsCount: number;
+  externalSource: string | null;
+  externalUrl: string | null;
+  externalRef: string | null;
   status: 'DRAFT' | 'PUBLISHED' | 'PAUSED';
   publishedAt: string | null;
   createdAt: string;
@@ -325,6 +333,34 @@ export interface RetailAiImportResult {
   cost: number;
   estimatedTokens: number;
   importId: string;
+}
+
+export interface AccommodationAiImportEstimate {
+  url: string;
+  sourceTitle: string | null;
+  estimatedTokens: number;
+  pricePer1k: number;
+  minPrice: number;
+  price: number;
+}
+
+export interface AccommodationAiImportResult {
+  property: AccommodationProperty;
+  usage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
+  cost: number;
+  estimatedTokens: number;
+  importId: string;
+  images: number;
+}
+
+export interface AccommodationAiImportSettings {
+  pricePer1k: number;
+  minPrice: number;
+  minImages: number;
 }
 
 export interface AdminRetailProduct extends RetailProduct {

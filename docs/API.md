@@ -884,6 +884,8 @@ PY
 | --- | --- | --- |
 | `GET` | `/accommodations` | فهرست اقامتگاه‌های من. |
 | `POST` | `/accommodations` | ثبت اقامتگاه (پیش‌نویس/منتشرشده). |
+| `POST` | `/accommodations/ai-import/estimate` | برآورد هزینه‌ی «ورود خودکار اقامتگاه از جاباما» بدون فراخوانی هوش مصنوعی؛ بدنه `{ url }`، خروجی `{ estimatedTokens, pricePer1k, minPrice, price, sourceTitle }`. |
+| `POST` | `/accommodations/ai-import` | ایمپورت اقامتگاه از لینک جاباما با هوش مصنوعی (پس از تأیید هزینه)؛ بدنه `{ url, status?, cityId?, propertyType? }`، خروجی `{ property, usage, cost, importId, images }`. هزینه از کیف پول کسر و در فاکتور ثبت می‌شود. فقط عکس‌های رسمی جاباما (CDN `cdn.jabama.com`) گرفته می‌شود. |
 | `GET` | `/accommodations/:id` | جزئیات + عکس‌ها، رزروها و مسدودی‌ها. |
 | `PATCH` | `/accommodations/:id` | ویرایش اقامتگاه. |
 | `DELETE` | `/accommodations/:id` | حذف اقامتگاه. |
@@ -899,10 +901,11 @@ PY
 | `GET/POST/PATCH/DELETE` | `/accommodation-channels` | مدیریت کانال‌های رزرو (OTA/شبکه‌ی اجتماعی/سایت مستقیم). |
 | `POST` | `/accommodation-channels/:id/sync` | همگام‌سازی تقویم از فید iCal کانال. |
 | `GET/POST/PATCH/DELETE` | `/crm/customers` | دفترچه‌ی مشتریان و تعامل‌ها. |
+| `GET/PATCH` | `/admin/accommodations/settings` | تعرفه‌ی ایمپورت هوش مصنوعی (هزینه‌ی هر ۱۰۰۰ توکن، حداقل هزینه و حداقل تعداد تصویر). |
 
 مسیرهای عمومی (بدون احراز هویت) زیر `/api/public/accommodations` هستند:
 `GET /public/accommodations` (دایرکتوری `/stay`) که فیلترهای
-`q`، `cityId`، `type`، `guests`، `minPrice`، `maxPrice` و `sort`
+`q`، `cityId`، `type`، `guests`، `minPrice`، `maxPrice`، `checkIn`، `checkOut` و `sort`
 (`newest`/`price-asc`/`price-desc`) را می‌پذیرد، `GET /public/accommodations/filters`
 برای گزینه‌های فیلتر (شهرها و نوع‌های دارای اقامتگاه)، صفحه‌ی عمومی یک اقامتگاه
 (همراه کانال‌های فعال)، `GET /public/accommodations/:slug/calendar.ics` (فید iCal
@@ -911,7 +914,8 @@ PY
 `POST /public/accommodations/:slug/bookings/:id/deposit` برای پرداخت آنلاین
 ودیعه (بازگشت درگاه: `/public/accommodations/deposits/callback`). این
 مسیرها با سوئیچ سراسری `featureAccommodationRental` و صفحه‌ی عمومی `/stay`
-با سوئیچ «نمایش» همان ویژگی کنترل می‌شوند.
+با سوئیچ «نمایش» همان ویژگی کنترل می‌شوند. ایمپورت هوش مصنوعی سوئیچ جداگانه‌ی
+`featureAccommodationAiImport` دارد.
 
 ### فروشگاه و خرده‌فروشی (`/api/retail`)
 

@@ -11,9 +11,15 @@ import { toast } from '@/lib/toast';
 export function StayBookingForm({
   slug,
   publicSlug,
+  basePrice,
+  minNights,
+  instantBooking,
 }: {
   slug: string;
   publicSlug?: string | null;
+  basePrice?: number;
+  minNights?: number;
+  instantBooking?: boolean;
 }) {
   const [form, setForm] = useState({
     guestName: '',
@@ -78,6 +84,14 @@ export function StayBookingForm({
 
   const field =
     'w-full rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-sm text-ink outline-none focus:border-brand';
+
+  const start = form.checkIn ? new Date(form.checkIn) : null;
+  const end = form.checkOut ? new Date(form.checkOut) : null;
+  const nights =
+    start && end && end > start
+      ? Math.ceil((end.getTime() - start.getTime()) / 86_400_000)
+      : 0;
+  const total = nights && basePrice ? nights * basePrice : 0;
 
   if (booking) {
     return (
@@ -164,6 +178,27 @@ export function StayBookingForm({
           </div>
         </label>
       </div>
+      {nights > 0 && total > 0 ? (
+        <div className="rounded-lg bg-[var(--vintage-paper)] p-3 text-xs text-muted">
+          <div className="flex items-center justify-between">
+            <span>
+              {nights.toLocaleString('fa-IR')} شب ×{' '}
+              {(basePrice ?? 0).toLocaleString('fa-IR')} تومان
+            </span>
+            <b className="text-ink">{total.toLocaleString('fa-IR')} تومان</b>
+          </div>
+          {minNights && nights < minNights ? (
+            <p className="mt-1 text-red-600">
+              حداقل اقامت این اقامتگاه {minNights.toLocaleString('fa-IR')} شب است.
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      {instantBooking ? (
+        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-[11px] font-bold text-emerald-800">
+          رزرو آنی: درخواست شما بدون انتظار برای تأیید مالک ثبت می‌شود.
+        </p>
+      ) : null}
       <textarea
         className={field}
         rows={3}

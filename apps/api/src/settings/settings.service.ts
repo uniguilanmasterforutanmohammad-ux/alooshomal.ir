@@ -10,6 +10,9 @@ import {
   ADMIN_NOTIFY_CATEGORIES,
   ADMIN_NOTIFY_KEY_PREFIX,
   ADMIN_NOTIFY_SMS_KEY_PREFIX,
+  ACCOMMODATION_AI_IMPORT_MIN_IMAGES_KEY,
+  ACCOMMODATION_AI_IMPORT_MIN_PRICE_KEY,
+  ACCOMMODATION_AI_IMPORT_PRICE_PER_1K_KEY,
   AD_DAILY_SLOTS_KEY,
   AD_DIRECTORY_DURATION_DAYS_KEY,
   AD_DIRECTORY_PRICE_KEY,
@@ -30,6 +33,9 @@ import {
   BusinessAssetFormRules,
   CreationLocks,
   DEFAULT_ACTIVITY_RETENTION_MONTHS,
+  DEFAULT_ACCOMMODATION_AI_IMPORT_MIN_IMAGES,
+  DEFAULT_ACCOMMODATION_AI_IMPORT_MIN_PRICE,
+  DEFAULT_ACCOMMODATION_AI_IMPORT_PRICE_PER_1K,
   DEFAULT_ADMIN_LIST_PAGE_SIZE,
   DEFAULT_AD_DAILY_SLOTS,
   DEFAULT_AD_DIRECTORY_DURATION_DAYS,
@@ -1238,6 +1244,77 @@ export class SettingsService implements OnModuleInit {
       update: { value: String(clamped) },
       create: {
         key: RETAIL_AI_IMPORT_MIN_IMAGES_KEY,
+        value: String(clamped),
+      },
+    });
+    return clamped;
+  }
+
+  // ---- «ورود خودکار اقامتگاه از جاباما» pricing ----
+
+  async getAccommodationAiImportPricePer1k(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: ACCOMMODATION_AI_IMPORT_PRICE_PER_1K_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 0
+      ? Math.floor(parsed)
+      : DEFAULT_ACCOMMODATION_AI_IMPORT_PRICE_PER_1K;
+  }
+
+  async setAccommodationAiImportPricePer1k(value: number): Promise<number> {
+    const clamped = Math.max(0, Math.floor(value));
+    await this.prisma.setting.upsert({
+      where: { key: ACCOMMODATION_AI_IMPORT_PRICE_PER_1K_KEY },
+      update: { value: String(clamped) },
+      create: {
+        key: ACCOMMODATION_AI_IMPORT_PRICE_PER_1K_KEY,
+        value: String(clamped),
+      },
+    });
+    return clamped;
+  }
+
+  async getAccommodationAiImportMinPrice(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: ACCOMMODATION_AI_IMPORT_MIN_PRICE_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 0
+      ? Math.floor(parsed)
+      : DEFAULT_ACCOMMODATION_AI_IMPORT_MIN_PRICE;
+  }
+
+  async setAccommodationAiImportMinPrice(value: number): Promise<number> {
+    const clamped = Math.max(0, Math.floor(value));
+    await this.prisma.setting.upsert({
+      where: { key: ACCOMMODATION_AI_IMPORT_MIN_PRICE_KEY },
+      update: { value: String(clamped) },
+      create: {
+        key: ACCOMMODATION_AI_IMPORT_MIN_PRICE_KEY,
+        value: String(clamped),
+      },
+    });
+    return clamped;
+  }
+
+  async getAccommodationAiImportMinImages(): Promise<number> {
+    const setting = await this.prisma.setting.findUnique({
+      where: { key: ACCOMMODATION_AI_IMPORT_MIN_IMAGES_KEY },
+    });
+    const parsed = setting ? Number(setting.value) : NaN;
+    return Number.isFinite(parsed) && parsed >= 1
+      ? Math.min(20, Math.floor(parsed))
+      : DEFAULT_ACCOMMODATION_AI_IMPORT_MIN_IMAGES;
+  }
+
+  async setAccommodationAiImportMinImages(value: number): Promise<number> {
+    const clamped = Math.min(20, Math.max(1, Math.floor(value)));
+    await this.prisma.setting.upsert({
+      where: { key: ACCOMMODATION_AI_IMPORT_MIN_IMAGES_KEY },
+      update: { value: String(clamped) },
+      create: {
+        key: ACCOMMODATION_AI_IMPORT_MIN_IMAGES_KEY,
         value: String(clamped),
       },
     });

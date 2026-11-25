@@ -678,6 +678,7 @@ export class FinanceService implements OnModuleInit {
       modulePurchases,
       retailOrders,
       aiImports,
+      accommodationAiImports,
     ] =
       await Promise.all([
       this.prisma.subscriptionPayment.findMany({
@@ -715,6 +716,9 @@ export class FinanceService implements OnModuleInit {
         include: { items: true },
       }),
       this.prisma.retailAiImport.findMany({
+        where: { cost: { gt: 0 } },
+      }),
+      this.prisma.accommodationAiImport.findMany({
         where: { cost: { gt: 0 } },
       }),
     ]);
@@ -855,6 +859,23 @@ export class FinanceService implements OnModuleInit {
         sourceType: FINANCE_SOURCE_TYPES.RETAIL_AI_IMPORT,
         sourceId: aiImport.id,
         title: 'ورود خودکار محصول از دیجی‌کالا',
+        amount: aiImport.cost,
+        issuedAt: aiImport.createdAt,
+        paidAt: aiImport.createdAt,
+        userId: aiImport.userId,
+        metadata: {
+          workspaceId: aiImport.workspaceId,
+          model: aiImport.model,
+          totalTokens: aiImport.totalTokens,
+        },
+      });
+    }
+
+    for (const aiImport of accommodationAiImports) {
+      await ensure({
+        sourceType: FINANCE_SOURCE_TYPES.ACCOMMODATION_AI_IMPORT,
+        sourceId: aiImport.id,
+        title: 'ورود خودکار اقامتگاه از جاباما',
         amount: aiImport.cost,
         issuedAt: aiImport.createdAt,
         paidAt: aiImport.createdAt,

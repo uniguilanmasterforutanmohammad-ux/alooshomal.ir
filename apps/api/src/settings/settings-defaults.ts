@@ -5,6 +5,9 @@ import {
   ADMIN_LIST_PAGE_SIZE_KEY,
   ADMIN_NOTIFY_CATEGORIES,
   ADMIN_NOTIFY_KEY_PREFIX,
+  ACCOMMODATION_AI_IMPORT_MIN_IMAGES_KEY,
+  ACCOMMODATION_AI_IMPORT_MIN_PRICE_KEY,
+  ACCOMMODATION_AI_IMPORT_PRICE_PER_1K_KEY,
   AD_DAILY_SLOTS_KEY,
   AD_DIRECTORY_DURATION_DAYS_KEY,
   AD_DIRECTORY_PRICE_KEY,
@@ -15,6 +18,9 @@ import {
   BOOST_DURATION_DAYS_KEY,
   BOOST_PRICE_KEY,
   DEFAULT_ACTIVITY_RETENTION_MONTHS,
+  DEFAULT_ACCOMMODATION_AI_IMPORT_MIN_IMAGES,
+  DEFAULT_ACCOMMODATION_AI_IMPORT_MIN_PRICE,
+  DEFAULT_ACCOMMODATION_AI_IMPORT_PRICE_PER_1K,
   DEFAULT_ADMIN_LIST_PAGE_SIZE,
   DEFAULT_AD_DAILY_SLOTS,
   DEFAULT_AD_DIRECTORY_DURATION_DAYS,
@@ -292,6 +298,30 @@ export async function ensureSettingsDefaults(
         create: {
           key: RETAIL_AI_IMPORT_MIN_IMAGES_KEY,
           value: String(DEFAULT_RETAIL_AI_IMPORT_MIN_IMAGES),
+        },
+      }),
+      prisma.setting.upsert({
+        where: { key: ACCOMMODATION_AI_IMPORT_PRICE_PER_1K_KEY },
+        update: {},
+        create: {
+          key: ACCOMMODATION_AI_IMPORT_PRICE_PER_1K_KEY,
+          value: String(DEFAULT_ACCOMMODATION_AI_IMPORT_PRICE_PER_1K),
+        },
+      }),
+      prisma.setting.upsert({
+        where: { key: ACCOMMODATION_AI_IMPORT_MIN_PRICE_KEY },
+        update: {},
+        create: {
+          key: ACCOMMODATION_AI_IMPORT_MIN_PRICE_KEY,
+          value: String(DEFAULT_ACCOMMODATION_AI_IMPORT_MIN_PRICE),
+        },
+      }),
+      prisma.setting.upsert({
+        where: { key: ACCOMMODATION_AI_IMPORT_MIN_IMAGES_KEY },
+        update: {},
+        create: {
+          key: ACCOMMODATION_AI_IMPORT_MIN_IMAGES_KEY,
+          value: String(DEFAULT_ACCOMMODATION_AI_IMPORT_MIN_IMAGES),
         },
       }),
       prisma.setting.upsert({

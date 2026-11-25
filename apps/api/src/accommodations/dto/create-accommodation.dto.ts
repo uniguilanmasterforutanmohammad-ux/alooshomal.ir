@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsArray,
+  IsBoolean,
   IsIn,
   IsInt,
   IsNumber,
@@ -93,6 +94,14 @@ export class CreateAccommodationDto {
   @Max(50)
   bathrooms?: number;
 
+  @ApiPropertyOptional({ description: 'متراژ اقامتگاه (متر مربع)', example: 120 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  @Max(100000)
+  areaSize?: number;
+
   @ApiPropertyOptional({ description: 'قیمت پایه‌ی هر شب (تومان)', default: 0 })
   @IsOptional()
   @Type(() => Number)
@@ -144,6 +153,56 @@ export class CreateAccommodationDto {
   @IsArray()
   @IsString({ each: true })
   amenities?: string[];
+
+  @ApiPropertyOptional({
+    description: 'قوانین اقامتگاه (مثلاً «ورود حیوان ممنوع»)',
+    type: [String],
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  rules?: string[];
+
+  @ApiPropertyOptional({
+    description: 'رزرو آنی؛ درخواست مهمان بدون تأیید مالک تأیید می‌شود',
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  instantBooking?: boolean;
+
+  @ApiPropertyOptional({ description: 'امتیاز نمایشی (۰ تا ۵)', example: 4.8 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  @Max(5)
+  rating?: number;
+
+  @ApiPropertyOptional({ description: 'تعداد دیدگاه‌های منبع', default: 0 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  reviewsCount?: number;
+
+  @ApiPropertyOptional({ description: 'منبع ورود داده (مثلاً JABAMA)' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  externalSource?: string;
+
+  @ApiPropertyOptional({ description: 'آدرس صفحه‌ی منبع' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(600)
+  externalUrl?: string;
+
+  @ApiPropertyOptional({ description: 'شناسه‌ی اقامتگاه در منبع' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  externalRef?: string;
 
   @ApiPropertyOptional({ enum: ACCOMMODATION_STATUSES, default: 'DRAFT' })
   @IsOptional()

@@ -20,13 +20,57 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.95.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.96.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۴ — ماژول اقامتگاه به سبک جاباما + ورود خودکار از لینک جاباما — نسخه `v4.96.0`
+
+**هدف:** هم‌راستا کردن ماژول اجاره‌ی روزانه‌ی اقامتگاه با تجربه‌ی جاباما
+(جست‌وجوی تاریخ‌دار، امتیاز، متراژ، رزرو آنی، گالری و قوانین) و افزودن
+ایمپورت خودکار اقامتگاه از لینک جاباما با هوش مصنوعی، هم‌سو با ایمپورت
+محصول از دیجی‌کالا.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `areaSize`، `rules`، `instantBooking`،
+  `rating`، `reviewsCount`، `externalSource/Url/Ref` به اقامتگاه و مدل
+  `AccommodationAiImport` برای رهگیری توکن/هزینه‌ی ایمپورت.
+- `apps/api/src/accommodations/accommodation-ai-import.service.ts`: استخراج
+  داده‌ی اقامتگاه از JSON-LD و payload جاباما، نرمال‌سازی با هوش مصنوعی،
+  دانلود تصاویر رسمی `cdn.jabama.com`، ساخت اقامتگاه و عکس‌ها، کسر از کیف پول
+  و صدور فاکتور (با بازگشت هزینه در صورت خطا).
+- `apps/api/src/accommodations/accommodations.controller.ts` و
+  `admin-accommodations.controller.ts`: مسیرهای
+  `POST /accommodations/ai-import/estimate`، `POST /accommodations/ai-import`
+  و `GET/PATCH /admin/accommodations/settings`.
+- `apps/api/src/accommodations/accommodations.service.ts` و DTOها: ذخیره‌ی
+  فیلدهای تازه، فیلتر بازه‌ی تاریخ در دایرکتوری عمومی، تأیید خودکار رزرو
+  برای اقامتگاه‌های «رزرو آنی» و تنظیمات تعرفه‌ی ایمپورت.
+- `apps/api/src/settings/*` و `apps/api/src/finance/*`: کلیدهای تعرفه‌ی
+  ایمپورت اقامتگاه، سوئیچ `featureAccommodationAiImport`، منبع مالی
+  `ACCOMMODATION_AI_IMPORT` و افزودن آن به `backfill`.
+- `apps/web/app/stay/page.tsx` و `apps/web/app/stay/[slug]/page.tsx`: فیلتر
+  تاریخ ورود/خروج، نشان امتیاز و «رزرو آنی»، متراژ، پیش‌نمایش امکانات، گالری
+  و بخش قوانین و منبع آگهی.
+- `apps/web/app/dashboard/business/accommodations/page.tsx`،
+  `apps/web/components/business/AccommodationForm.tsx` و
+  `apps/web/components/admin/AdminAccommodationSettings.tsx`: پنل ایمپورت
+  جاباما، فیلدهای متراژ/قوانین/رزرو آنی و تنظیم تعرفه در پنل مدیر.
+- `apps/web/lib/api/types/business-modules.ts`، `apps/web/lib/catalog-server.ts`
+  و `docs/API.md`: تایپ‌ها، پارامترهای جست‌وجو و مستندات مسیرهای تازه.
+
+**تأیید/تست:**
+- `npx prisma generate` (نسخه‌ی ۷.۱۰.۱) موفق و کلاینت به‌روز شد.
+- `./node_modules/.bin/tsc -p tsconfig.build.json --noEmit` در `apps/api`
+  و `./node_modules/.bin/tsc -p tsconfig.json --noEmit` در `apps/web` بدون خطا.
+- `python3 scripts/check_api_docs.py` → ۷۲۶ مسیر، همه با `@ApiOperation` (exit 0).
+- استخراج واقعی از صفحه‌ی `https://www.jabama.com/stay/cottage-660018`
+  بررسی شد: ظرفیت ۱۰ نفر، ۲ اتاق، ۳۰۰ متر، قیمت پایه ۸٬۷۰۰٬۰۰۰ تومان،
+  شهر ماسال/گیلان، مختصات ۳۷.۴۵۷۲۷/۴۹.۰۹۳۶۶، ۲۴ امکان و ۵ قانون.
 
 ## ۱۴۰۵/۰۹/۰۴ — فشرده‌سازی برچسب‌های نوار پایین موبایل — نسخه `v4.95.1`
 

@@ -15,6 +15,7 @@ import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 
 import { AdminRetailSettings } from './AdminRetailSettings';
+import { AdminAccommodationSettings } from './AdminAccommodationSettings';
 import type {
   AdminManagement,
   AdminModuleRow,
@@ -311,6 +312,9 @@ export function AdminBusinessModuleDetail({
       </section>
 
       {module.key === 'retailCatalog' ? <AdminRetailSettings /> : null}
+      {module.key === 'accommodationRental' ? (
+        <AdminAccommodationSettings />
+      ) : null}
     </div>
   );
 }

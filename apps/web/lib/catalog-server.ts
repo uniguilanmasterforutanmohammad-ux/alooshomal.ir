@@ -106,6 +106,8 @@ export interface StayDirectoryParams {
   guests?: string;
   minPrice?: string;
   maxPrice?: string;
+  checkIn?: string;
+  checkOut?: string;
   sort?: string;
 }
 

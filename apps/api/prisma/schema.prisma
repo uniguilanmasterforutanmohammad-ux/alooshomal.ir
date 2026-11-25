@@ -2273,6 +2273,8 @@ model AccommodationProperty {
   bedrooms     Int      @default(1)
   beds         Int      @default(1)
   bathrooms    Int      @default(1)
+  /// Built area in square metres (متراژ), shown on the public listing.
+  areaSize     Int?
   basePrice    Int      @default(0)
   /// Deposit («ودیعه») requested from a guest when they book, in Toman. 0 = no
   /// online deposit is collected.
@@ -2282,6 +2284,18 @@ model AccommodationProperty {
   checkInTime  String?
   checkOutTime String?
   amenities    String[] @default([])
+  /// House rules shown on the public page (e.g. «ورود حیوان ممنوع»).
+  rules        String[] @default([])
+  /// Instant booking («رزرو آنی») — a guest request is accepted automatically.
+  instantBooking Boolean @default(false)
+  /// Display rating imported from the source listing (0–5). Null = no rating.
+  rating       Float?
+  reviewsCount Int      @default(0)
+  /// Source the listing was imported from (e.g. «JABAMA»), plus its URL and
+  /// stable external id so a re-import can be detected.
+  externalSource String?
+  externalUrl    String?
+  externalRef    String?
   status       String   @default("DRAFT")
   publishedAt  DateTime?
   createdAt    DateTime @default(now())
@@ -2295,6 +2309,7 @@ model AccommodationProperty {
 
   @@index([workspaceId, status])
   @@index([cityId])
+  @@index([externalSource, externalRef])
   @@map("accommodation_properties")
 }
 
@@ -2398,6 +2413,25 @@ model AccommodationCalendarBlock {
   @@unique([propertyId, externalId])
   @@index([propertyId, startDate, endDate])
   @@map("accommodation_calendar_blocks")
+}
+
+model AccommodationAiImport {
+  id               String   @id @default(cuid())
+  userId           String
+  workspaceId      String
+  propertyId       String?
+  url              String
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  /// Toman charged to the user's wallet tab for this import.
+  cost             Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@map("accommodation_ai_imports")
 }
 
 // ---------------------------------------------------------------------------

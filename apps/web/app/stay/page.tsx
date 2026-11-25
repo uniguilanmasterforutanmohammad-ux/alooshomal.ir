@@ -32,6 +32,8 @@ type StaySearchParams = {
   guests?: string;
   minPrice?: string;
   maxPrice?: string;
+  checkIn?: string;
+  checkOut?: string;
   sort?: string;
 };
 
@@ -78,6 +80,8 @@ export default async function StayDirectoryPage({
       params.guests ||
       params.minPrice ||
       params.maxPrice ||
+      params.checkIn ||
+      params.checkOut ||
       params.sort,
   );
 
@@ -150,6 +154,24 @@ export default async function StayDirectoryPage({
             />
           </label>
           <label className="flex flex-col gap-1 text-xs font-bold text-muted">
+            تاریخ ورود
+            <input
+              type="date"
+              name="checkIn"
+              defaultValue={params.checkIn ?? ''}
+              className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-bold text-muted">
+            تاریخ خروج
+            <input
+              type="date"
+              name="checkOut"
+              defaultValue={params.checkOut ?? ''}
+              className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-sm text-ink outline-none focus:border-brand"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-xs font-bold text-muted">
             از قیمت (تومان)
             <input
               type="number"
@@ -211,7 +233,7 @@ export default async function StayDirectoryPage({
                   href={`/stay/${encodeURIComponent(stay.slug)}`}
                   className="indeed-panel overflow-hidden transition hover:border-brand/50"
                 >
-                  <div className="h-44 bg-[var(--vintage-paper)]">
+                  <div className="relative h-44 bg-[var(--vintage-paper)]">
                     {cover ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={cover.url} alt={stay.title} className="size-full object-cover" />
@@ -220,6 +242,19 @@ export default async function StayDirectoryPage({
                         بدون تصویر
                       </div>
                     )}
+                    {stay.rating != null ? (
+                      <span className="absolute start-2 top-2 rounded-full bg-black/65 px-2 py-1 text-[11px] font-bold text-white">
+                        ★ {stay.rating.toLocaleString('fa-IR')}
+                        {stay.reviewsCount
+                          ? ` (${stay.reviewsCount.toLocaleString('fa-IR')})`
+                          : ''}
+                      </span>
+                    ) : null}
+                    {stay.instantBooking ? (
+                      <span className="absolute end-2 top-2 rounded-full bg-emerald-600 px-2 py-1 text-[10px] font-bold text-white">
+                        رزرو آنی
+                      </span>
+                    ) : null}
                   </div>
                   <div className="flex flex-col gap-2 p-4">
                     <h2 className="text-sm font-extrabold text-ink">{stay.title}</h2>
@@ -228,10 +263,16 @@ export default async function StayDirectoryPage({
                     </p>
                     <p className="text-xs text-muted">
                       {stay.maxGuests} مهمان • {stay.bedrooms} اتاق خواب
+                      {stay.areaSize ? ` • ${stay.areaSize} متر` : ''}
                       {stay.propertyType
                         ? ` • ${PROPERTY_TYPE_LABELS[stay.propertyType] ?? stay.propertyType}`
                         : ''}
                     </p>
+                    {stay.amenities.length ? (
+                      <p className="line-clamp-1 text-[11px] text-muted">
+                        {stay.amenities.slice(0, 4).join(' • ')}
+                      </p>
+                    ) : null}
                     <p className="mt-1 text-sm font-extrabold text-brand">
                       {stay.basePrice.toLocaleString('fa-IR')} تومان / شب
                     </p>

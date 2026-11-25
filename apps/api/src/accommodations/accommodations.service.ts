@@ -21,6 +21,7 @@ import {
 } from './dto/create-accommodation.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateCalendarBlockDto } from './dto/create-block.dto';
+import { UpdateAccommodationAiSettingsDto } from './dto/accommodation-ai-settings.dto';
 import { UpdateAccommodationDto } from './dto/update-accommodation.dto';
 import type { PublicAccommodationListDto } from './dto/public-accommodation-list.dto';
 import { buildIcalCalendar, parseIcalEvents } from './ical';
@@ -98,6 +99,7 @@ export class AccommodationsService {
         bedrooms: dto.bedrooms ?? 1,
         beds: dto.beds ?? 1,
         bathrooms: dto.bathrooms ?? 1,
+        areaSize: dto.areaSize,
         basePrice: dto.basePrice ?? 0,
         depositAmount: dto.depositAmount ?? 0,
         currency: dto.currency ?? 'IRR',
@@ -105,6 +107,13 @@ export class AccommodationsService {
         checkInTime: dto.checkInTime,
         checkOutTime: dto.checkOutTime,
         amenities: dto.amenities ?? [],
+        rules: dto.rules ?? [],
+        instantBooking: dto.instantBooking ?? false,
+        rating: dto.rating,
+        reviewsCount: dto.reviewsCount ?? 0,
+        externalSource: dto.externalSource,
+        externalUrl: dto.externalUrl,
+        externalRef: dto.externalRef,
         status,
         publishedAt: this.publishedAt(status, null),
       },
@@ -157,6 +166,7 @@ export class AccommodationsService {
         bedrooms: dto.bedrooms,
         beds: dto.beds,
         bathrooms: dto.bathrooms,
+        areaSize: dto.areaSize,
         basePrice: dto.basePrice,
         depositAmount: dto.depositAmount,
         currency: dto.currency,
@@ -164,6 +174,13 @@ export class AccommodationsService {
         checkInTime: dto.checkInTime,
         checkOutTime: dto.checkOutTime,
         amenities: dto.amenities,
+        rules: dto.rules,
+        instantBooking: dto.instantBooking,
+        rating: dto.rating,
+        reviewsCount: dto.reviewsCount,
+        externalSource: dto.externalSource,
+        externalUrl: dto.externalUrl,
+        externalRef: dto.externalRef,
         status,
         publishedAt: this.publishedAt(status, current.publishedAt),
       },
@@ -311,6 +328,7 @@ export class AccommodationsService {
     const minPrice = this.toPositiveInt(query.minPrice);
     const maxPrice = this.toPositiveInt(query.maxPrice);
     const guests = this.toPositiveInt(query.guests);
+    const range = this.availabilityRange(query.checkIn, query.checkOut);
     const orderBy =
       query.sort === 'price-asc'
         ? { basePrice: 'asc' as const }
@@ -333,6 +351,23 @@ export class AccommodationsService {
                 { description: { contains: query.q, mode: 'insensitive' } },
                 { address: { contains: query.q, mode: 'insensitive' } },
               ],
+            }
+          : {}),
+        ...(range
+          ? {
+              blocks: {
+                none: {
+                  startDate: { lt: range.checkOut },
+                  endDate: { gt: range.checkIn },
+                },
+              },
+              bookings: {
+                none: {
+                  status: { in: ['PENDING', 'CONFIRMED'] },
+                  checkIn: { lt: range.checkOut },
+                  checkOut: { gt: range.checkIn },
+                },
+              },
             }
           : {}),
       },
@@ -372,6 +407,28 @@ export class AccommodationsService {
   private toPositiveInt(value: unknown): number | undefined {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : undefined;
+  }
+
+  /**
+   * Parse the optional `checkIn`/`checkOut` pair for the public directory.
+   * Only a complete, ordered pair narrows the result; a lone or invalid date
+   * is ignored so the directory still renders.
+   */
+  private availabilityRange(
+    checkIn?: string,
+    checkOut?: string,
+  ): { checkIn: Date; checkOut: Date } | null {
+    if (!checkIn || !checkOut) return null;
+    const start = new Date(checkIn);
+    const end = new Date(checkOut);
+    if (
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime()) ||
+      end <= start
+    ) {
+      return null;
+    }
+    return { checkIn: start, checkOut: end };
   }
 
   async publicFind(slug: string) {
@@ -461,7 +518,7 @@ export class AccommodationsService {
           guests: dto.guests ?? 1,
           message: dto.message,
           source: 'DIRECT',
-          status: 'PENDING',
+          status: property.instantBooking ? 'CONFIRMED' : 'PENDING',
           totalAmount: property.basePrice ? property.basePrice * nights : null,
           depositAmount: property.depositAmount,
           depositStatus: property.depositAmount > 0 ? 'PENDING' : 'NONE',
@@ -789,6 +846,32 @@ export class AccommodationsService {
         depositPaidAt: status === 'PAID' ? new Date() : null,
       },
     });
+  }
+
+  // ---- «ورود خودکار از جاباما» pricing (admin) ----
+
+  async getAiImportSettings() {
+    const [pricePer1k, minPrice, minImages] = await Promise.all([
+      this.settings.getAccommodationAiImportPricePer1k(),
+      this.settings.getAccommodationAiImportMinPrice(),
+      this.settings.getAccommodationAiImportMinImages(),
+    ]);
+    return { pricePer1k, minPrice, minImages };
+  }
+
+  async updateAiImportSettings(dto: UpdateAccommodationAiSettingsDto) {
+    const [pricePer1k, minPrice, minImages] = await Promise.all([
+      dto.aiPricePer1k !== undefined
+        ? this.settings.setAccommodationAiImportPricePer1k(dto.aiPricePer1k)
+        : this.settings.getAccommodationAiImportPricePer1k(),
+      dto.aiMinPrice !== undefined
+        ? this.settings.setAccommodationAiImportMinPrice(dto.aiMinPrice)
+        : this.settings.getAccommodationAiImportMinPrice(),
+      dto.aiMinImages !== undefined
+        ? this.settings.setAccommodationAiImportMinImages(dto.aiMinImages)
+        : this.settings.getAccommodationAiImportMinImages(),
+    ]);
+    return { pricePer1k, minPrice, minImages };
   }
 
   private async assertOwnedProperty(userId: string, propertyId: string) {

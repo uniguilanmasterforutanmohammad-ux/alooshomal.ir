@@ -1,6 +1,14 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, MaxLength, Min } from 'class-validator';
+import {
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 /** Sort orders offered by the public accommodation directory. */
 export const ACCOMMODATION_SORTS = ['newest', 'price-asc', 'price-desc'] as const;
@@ -46,6 +54,22 @@ export class PublicAccommodationListDto {
   @IsInt()
   @Min(0)
   maxPrice?: number;
+
+  @ApiPropertyOptional({
+    description: 'تاریخ ورود (YYYY-MM-DD)؛ اقامتگاه‌های آزاد در این بازه نمایش داده می‌شوند',
+    example: '2026-12-01',
+  })
+  @IsOptional()
+  @IsDateString()
+  checkIn?: string;
+
+  @ApiPropertyOptional({
+    description: 'تاریخ خروج (YYYY-MM-DD)؛ باید بعد از تاریخ ورود باشد',
+    example: '2026-12-04',
+  })
+  @IsOptional()
+  @IsDateString()
+  checkOut?: string;
 
   @ApiPropertyOptional({
     enum: ACCOMMODATION_SORTS,

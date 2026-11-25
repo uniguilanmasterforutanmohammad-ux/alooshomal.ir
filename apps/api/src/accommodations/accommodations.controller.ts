@@ -20,7 +20,12 @@ import {
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
 import { AccommodationsService } from './accommodations.service';
+import { AccommodationAiImportService } from './accommodation-ai-import.service';
 import { AddAccommodationPhotoDto } from './dto/add-photo.dto';
+import {
+  EstimateAccommodationAiImportDto,
+  ImportAccommodationAiImportDto,
+} from './dto/ai-import.dto';
 import { CreateAccommodationDto } from './dto/create-accommodation.dto';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import { CreateCalendarBlockDto } from './dto/create-block.dto';
@@ -34,7 +39,10 @@ import { UpdateDepositDto } from './dto/update-deposit.dto';
 @RequireModule('accommodationRental')
 @Controller('accommodations')
 export class AccommodationsController {
-  constructor(private readonly accommodations: AccommodationsService) {}
+  constructor(
+    private readonly accommodations: AccommodationsService,
+    private readonly aiImport: AccommodationAiImportService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'فهرست اقامتگاه‌های من' })
@@ -46,6 +54,30 @@ export class AccommodationsController {
   @ApiOperation({ summary: 'ثبت اقامتگاه جدید (پیش‌نویس یا منتشرشده)' })
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateAccommodationDto) {
     return this.accommodations.create(user.id, dto);
+  }
+
+  @Post('ai-import/estimate')
+  @ApiOperation({
+    summary:
+      'برآورد هزینه و توکن ورود خودکار اقامتگاه از جاباما (پیش از پرداخت)',
+  })
+  estimateAiImport(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: EstimateAccommodationAiImportDto,
+  ) {
+    return this.aiImport.estimate(user.id, dto);
+  }
+
+  @Post('ai-import')
+  @ApiOperation({
+    summary:
+      'ورود خودکار اقامتگاه از جاباما با هوش مصنوعی (پس از تأیید هزینه)',
+  })
+  importAiAccommodation(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: ImportAccommodationAiImportDto,
+  ) {
+    return this.aiImport.import(user.id, dto);
   }
 
   @Get('bookings')
