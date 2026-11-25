@@ -11,6 +11,7 @@ import {
   Loader2,
   LogIn,
   Newspaper,
+  Wallet,
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
@@ -23,6 +24,8 @@ interface Item {
   label: string;
   icon: typeof Home;
   exact?: boolean;
+  /** When set, the item is hidden if that feature is disabled/not visible. */
+  feature?: string;
 }
 
 /**
@@ -48,7 +51,7 @@ function NavPending() {
 export function MobileNav() {
   const pathname = usePathname();
   const { token, hydrated } = useAuth();
-  const { showNav } = useFeatures();
+  const { showNav, isFeatureVisible } = useFeatures();
 
   // Hide on the auth screens: they are a focused, full-screen flow.
   const hideOnAuth =
@@ -64,12 +67,17 @@ export function MobileNav() {
     { href: '/biolinks', label: 'بیولینک', icon: IdCard },
     { href: '/pulse', label: 'اخبار', icon: Newspaper },
     { href: '/feeds', label: 'پست‌ها', icon: ImagePlus },
+    { href: '/dashboard/wallet', label: 'کیف پول', icon: Wallet, feature: 'featureWallet' },
     hydrated && token
       ? { href: '/dashboard', label: 'داشبورد', icon: LayoutDashboard }
       : { href: '/login', label: 'ورود', icon: LogIn },
   ];
   // Items the admin has hidden (their feature is disabled or not visible).
-  const items = allItems.filter((item) => showNav(item.href));
+  const items = allItems.filter(
+    (item) =>
+      showNav(item.href) &&
+      (!item.feature || isFeatureVisible(item.feature)),
+  );
   // The grid slot for the theme toggle is `auto`, so hiding a feature never
   // shifts the toggle under a finger that is tapping the adjacent nav item.
   const columns = `repeat(${items.length}, minmax(0, 1fr)) auto`;

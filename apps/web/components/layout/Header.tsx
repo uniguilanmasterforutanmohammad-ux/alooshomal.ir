@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, LogIn } from 'lucide-react';
+import { LayoutDashboard, LogIn, Wallet } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useAuth } from '@/lib/auth';
@@ -25,9 +25,10 @@ import { cn } from '@/lib/utils';
 export function Header() {
   const pathname = usePathname();
   const { token, hydrated } = useAuth();
-  const { showNav } = useFeatures();
+  const { showNav, isFeatureVisible } = useFeatures();
   const signedIn = hydrated && Boolean(token);
   const navItems = HEADER_NAV.filter((item) => showNav(item.href));
+  const walletVisible = isFeatureVisible('featureWallet');
 
   return (
     <header className="sticky top-[var(--feature-notice-h)] z-50 hidden border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[var(--vintage-surface)]/95 backdrop-blur lg:block">
@@ -81,6 +82,17 @@ export function Header() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
+          {walletVisible ? (
+            <Link
+              href={signedIn ? '/dashboard/wallet' : '/login?next=/dashboard/wallet'}
+              prefetch={false}
+              aria-label="کیف پول"
+              title="کیف پول"
+              className="flex size-9 items-center justify-center rounded-lg border border-[var(--vintage-border)] text-muted transition hover:bg-soft hover:text-brand"
+            >
+              <Wallet className="size-4" aria-hidden />
+            </Link>
+          ) : null}
           <ThemeToggle />
           {/* The secondary button only fits from `xl` up. It is wrapped rather
               than given Tailwind's `hidden` directly: the unlayered
