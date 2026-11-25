@@ -54,6 +54,7 @@ export class SubscriptionsService implements OnModuleInit {
       await this.backfillFreeEmailHidden();
       await this.backfillPlanPrices();
       await this.backfillPlanBusinessLimits();
+      await this.backfillPlanTermMonths();
     } catch {
       // The table may not exist yet on a very first boot; ignore and let the
       // entrypoint `prisma db push` create it, a later boot will seed it.
@@ -100,6 +101,39 @@ export class SubscriptionsService implements OnModuleInit {
           features: plan.features,
         },
       });
+    }
+    await this.prisma.setting.upsert({
+      where: { key: marker },
+      update: {},
+      create: { key: marker, value: new Date().toISOString() },
+    });
+  }
+
+  /**
+   * One-time migration: seed every user's `planTermMonths` from their latest
+   * paid subscription payment, so existing multi-month subscribers keep the
+   * matching management-package term instead of defaulting to monthly.
+   */
+  private async backfillPlanTermMonths() {
+    const marker = 'planTermMonthsBackfillV1';
+    const done = await this.prisma.setting.findUnique({ where: { key: marker } });
+    if (done) return;
+    const payments = await this.prisma.subscriptionPayment.findMany({
+      where: { status: 'PAID' },
+      orderBy: { createdAt: 'desc' },
+      select: { userId: true, months: true },
+    });
+    const seen = new Set<string>();
+    for (const payment of payments) {
+      if (seen.has(payment.userId)) continue;
+      seen.add(payment.userId);
+      if (![1, 3, 6, 12].includes(payment.months)) continue;
+      await this.prisma.user
+        .update({
+          where: { id: payment.userId },
+          data: { planTermMonths: payment.months },
+        })
+        .catch(() => undefined);
     }
     await this.prisma.setting.upsert({
       where: { key: marker },
@@ -264,8 +298,15 @@ export class SubscriptionsService implements OnModuleInit {
       where: { id: userId },
       data:
         user.planId === freeId
-          ? { planExpiresAt: addMonths(now, FREE_PLAN_MONTHS) }
-          : { planId: freeId, planExpiresAt: addMonths(now, FREE_PLAN_MONTHS) },
+          ? {
+              planExpiresAt: addMonths(now, FREE_PLAN_MONTHS),
+              planTermMonths: FREE_PLAN_MONTHS,
+            }
+          : {
+              planId: freeId,
+              planExpiresAt: addMonths(now, FREE_PLAN_MONTHS),
+              planTermMonths: FREE_PLAN_MONTHS,
+            },
       include: { plan: true },
     });
   }
@@ -368,6 +409,17 @@ export class SubscriptionsService implements OnModuleInit {
   }
 
   /**
+   * Term length (months) the user's current plan was bought for. Business
+   * «مدیریت» packages must use the same term, so a monthly Plus subscription
+   * can only buy a monthly management package.
+   */
+  async subscriptionTermMonths(userId: string): Promise<number> {
+    const user = await this.refreshExpiredPlanForUser(userId);
+    const months = user?.planTermMonths ?? 1;
+    return [1, 3, 6, 12].includes(months) ? months : 1;
+  }
+
+  /**
    * «ارتقا فقط»: a user may never move to a *lower* plan (e.g. از بلاس به اکو).
    * Sideways/upward moves and the free-plan upgrade path stay allowed.
    */
@@ -420,7 +472,11 @@ export class SubscriptionsService implements OnModuleInit {
     }
     await tx.user.update({
       where: { id: userId },
-      data: { planId, planExpiresAt: expiresAt },
+      data: {
+        planId,
+        planExpiresAt: expiresAt,
+        planTermMonths: months > 0 ? months : 1,
+      },
     });
     return { startsAt, expiresAt };
   }

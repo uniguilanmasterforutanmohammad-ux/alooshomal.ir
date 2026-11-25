@@ -704,7 +704,9 @@ export default function SubscriptionsPage() {
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
             {suggestedPackage.terms.map((term) => {
               const active =
-                (managementTerm[suggestedPackage.key] ?? 1) === term.months;
+                (managementTerm[suggestedPackage.key] ??
+                  suggestedPackage.terms[0]?.months ??
+                  1) === term.months;
               return (
                 <button
                   key={term.months}
@@ -735,7 +737,10 @@ export default function SubscriptionsPage() {
               <button
                 type="button"
                 onClick={() => {
-                  const term = managementTerm[suggestedPackage.key] ?? 1;
+                  const term =
+                    managementTerm[suggestedPackage.key] ??
+                    suggestedPackage.terms[0]?.months ??
+                    1;
                   void buyManagementPackage(suggestedPackage, term);
                 }}
                 disabled={busyPlanId === `mgmt:${suggestedPackage.key}`}
@@ -747,7 +752,9 @@ export default function SubscriptionsPage() {
                       suggestedPackage.terms.find(
                         (term) =>
                           term.months ===
-                          (managementTerm[suggestedPackage.key] ?? 1),
+                          (managementTerm[suggestedPackage.key] ??
+                            suggestedPackage.terms[0]?.months ??
+                            1),
                       )?.price ?? suggestedPackage.totalPrice,
                     )}`}
               </button>

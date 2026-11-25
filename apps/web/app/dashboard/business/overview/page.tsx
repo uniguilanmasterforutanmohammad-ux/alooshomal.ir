@@ -339,7 +339,7 @@ function BusinessPanelContent() {
             <p className="text-xs text-muted">
               {workspace.industryLocked
                 ? 'این کسب‌وکار بسته‌ی صنف خود را انتخاب کرده است؛ برای راه‌اندازی صنف دیگری یک کسب‌وکار جدید بسازید.'
-                : 'هر «مدیریت کسب‌وکار» مجموعه‌ای از ماژول‌هاست. قیمت پایه، مجموع قیمت ماهانه‌ی ماژول‌هاست و دوره‌های ۱/۳/۶/۱۲ ماهه با تخفیف قابل خریدند.'}
+                : 'هر «مدیریت کسب‌وکار» مجموعه‌ای از ماژول‌هاست و فقط بسته‌ی متناسب با دسته‌بندی کسب‌وکار شما نمایش داده می‌شود. دوره‌ی بسته هم‌زمان با دوره‌ی اشتراک اصلی شماست.'}
             </p>
           </div>
           <span className="text-xs text-muted">
@@ -357,7 +357,8 @@ function BusinessPanelContent() {
               const isCurrent = workspace.industryKey === item.key;
               const owned = isCurrent && workspace.industryLocked;
               const paidModules = item.modules.filter((module) => module.billable);
-              const term = selectedTerm[item.key] ?? 1;
+              const term =
+                selectedTerm[item.key] ?? item.terms[0]?.months ?? 1;
               const selectedTermData = item.terms.find(
                 (option) => option.months === term,
               );

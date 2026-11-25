@@ -20,13 +20,41 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.90.2**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.90.3**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۴ — هم‌ترازی دوره‌ی بسته‌ی مدیریت با اشتراک و فیلتر دسته‌بندی — نسخه `v4.90.3`
+
+**هدف:** در `/dashboard/business/overview` و `/dashboard/subscriptions`، فروش
+بسته‌ی مدیریت به هر دوره‌ای ممکن نباشد؛ دوره باید دقیقاً برابر دوره‌ی اشتراک
+اصلی باشد (مثلاً پلاس یک‌ماهه ⇒ فقط بسته‌ی یک‌ماهه). همچنین فقط بسته‌ی متناسب
+با دسته‌بندی کسب‌وکار نمایش داده شود. پایان دوره باعث حذف داده نمی‌شود و فقط
+انتشار/دسترسی ماژول‌ها را قطع می‌کند (رفتار موجود `isModuleEnabledForWorkspace`).
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `User.planTermMonths`.
+- `apps/api/src/subscriptions/subscriptions.service.ts`: ثبت دوره هنگام
+  `applyPlanToUser`، بازگشت به ۱ ماه در انقضا، متد `subscriptionTermMonths` و
+  backfill یک‌باره از آخرین پرداخت اشتراک.
+- `apps/api/src/business-modules/business-modules.service.ts`: محدودکردن
+  `terms`/`extension.terms` به دوره‌ی اشتراک در `listManagements` و
+  `suggestedManagement`، اجبار دوره در `purchaseManagement` (خطای ۴۰۰) و
+  فیلتر بسته بر اساس دسته‌بندی (با fallback کلیدواژه‌ای وقتی لینک ادمین نیست).
+- `apps/web/app/dashboard/business/overview/page.tsx` و
+  `apps/web/app/dashboard/subscriptions/page.tsx`: انتخاب پیش‌فرض دوره از
+  گزینه‌های بازگشتی و به‌روزرسانی متن راهنما.
+
+**تأیید/تست:**
+- `tsc --noEmit` در `apps/api` و `apps/web` → بدون خطا.
+- `prisma db push` و `prisma generate` روی دیتابیس محلی موفق.
+- تست API: `GET /business-modules/managements` برای پلاس یک‌ماهه ⇒ فقط
+  `terms=[(1, 150000)]`؛ `POST .../purchase` با `months:3` ⇒ ۴۰۰ «دوره‌ی بسته‌ی
+  مدیریت باید برابر با دوره‌ی اشتراک شما (1 ماه) باشد». داده‌ی آزمایشی پاک شد.
 
 ## ۱۴۰۵/۰۹/۰۴ — نمایش نام کسب‌وکار فعال و ترغیب به خرید مدیریت در داشبورد و کارت‌ها — نسخه `v4.90.2`
 

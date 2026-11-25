@@ -451,6 +451,9 @@ model User {
   /// End of the paid subscription term (null = free plan / no expiry).
   /// When it passes, the account falls back to the free plan lazily.
   planExpiresAt DateTime?
+  /// Term length the current plan was bought for (months). Business-management
+  /// packages must use the same term. Defaults to 1 (monthly / free plan).
+  planTermMonths Int @default(1)
   /// running total of the points ledger; kept in sync with every ledger write
   pointsBalance Int     @default(0)
   createdAt    DateTime @default(now())

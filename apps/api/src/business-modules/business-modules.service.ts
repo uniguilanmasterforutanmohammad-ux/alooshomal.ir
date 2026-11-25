@@ -685,6 +685,19 @@ export class BusinessModulesService implements OnModuleInit {
     });
   }
 
+  /**
+   * Restrict the purchasable terms to the one that matches the user's main
+   * subscription term. A monthly Plus subscription can only buy a monthly
+   * management package, keeping both periods in sync.
+   */
+  private termsForSubscription(
+    terms: ManagementTerm[],
+    termMonths: number,
+  ): ManagementTerm[] {
+    const match = terms.find((item) => item.months === termMonths);
+    return match ? [match] : terms.slice(0, 1);
+  }
+
   private async ensureManagementsLoaded(): Promise<void> {
     if (this.managementCache.length === 0) {
       await this.reloadManagements();
@@ -1491,6 +1504,8 @@ export class BusinessModulesService implements OnModuleInit {
     );
     const now = Date.now();
     const paid = await this.paidState(workspace.id);
+    // The management term must match the main subscription term.
+    const termMonths = await this.subscriptions.subscriptionTermMonths(userId);
     // Paid «مدیریت کسب‌وکار» purchases of this workspace, used to decide
     // whether the one-time renewal is still available and which term it had.
     const paidPackagePurchases =
@@ -1516,6 +1531,18 @@ export class BusinessModulesService implements OnModuleInit {
       });
       if (links.length > 0) {
         linkedKeys = new Set(links.map((link) => link.management.key));
+      } else {
+        // No admin link yet: fall back to the keyword mapping so the buyer
+        // still only sees the package that matches their category.
+        const category = await this.prisma.businessCategory.findUnique({
+          where: { id: categoryIds[0] },
+          select: { id: true, name: true },
+        });
+        if (category) {
+          linkedKeys = new Set([
+            await this.managementKeyForCategory(category.id, category.name),
+          ]);
+        }
       }
     }
 
@@ -1574,7 +1601,8 @@ export class BusinessModulesService implements OnModuleInit {
       const extensionTerms = alreadyExtended
         ? []
         : this.managementTerms(totalPrice, industry.discounts).filter(
-            (option) => option.months > currentMonths,
+            (option) =>
+              option.months > currentMonths && option.months === termMonths,
           );
       const paidUntilDate = paidUntil ? new Date(paidUntil) : null;
       const remainingDays =
@@ -1590,7 +1618,10 @@ export class BusinessModulesService implements OnModuleInit {
         remainingPrice: billable
           .filter((module) => !module.purchased)
           .reduce((sum, module) => sum + module.price, 0),
-        terms: this.managementTerms(totalPrice, industry.discounts),
+        terms: this.termsForSubscription(
+          this.managementTerms(totalPrice, industry.discounts),
+          termMonths,
+        ),
         active: modules.every((module) => module.enabled),
         activeModules: modules.filter((module) => module.enabled).length,
         moduleCount: modules.length,
@@ -1664,12 +1695,16 @@ export class BusinessModulesService implements OnModuleInit {
     const paidUntilDate = paid.paidUntil;
     const purchased = !!paidUntilDate && paidUntilDate.getTime() > Date.now();
     const limits = await this.subscriptions.limitsForUser(userId);
+    const termMonths = await this.subscriptions.subscriptionTermMonths(userId);
     return {
       key: industry.key,
       label: industry.label,
       description: industry.description,
       totalPrice,
-      terms: this.managementTerms(totalPrice, industry.discounts),
+      terms: this.termsForSubscription(
+        this.managementTerms(totalPrice, industry.discounts),
+        termMonths,
+      ),
       purchased,
       paidUntil: paidUntilDate ? paidUntilDate.toISOString() : null,
       canPurchase: !isFreePlan(limits),
@@ -1748,6 +1783,14 @@ export class BusinessModulesService implements OnModuleInit {
     )
       ? (requestedMonths as 1 | 3 | 6 | 12)
       : 1;
+    // The management term is pinned to the main subscription term so both
+    // always expire together.
+    const termMonths = await this.subscriptions.subscriptionTermMonths(userId);
+    if (months !== termMonths) {
+      throw new BadRequestException(
+        `دوره‌ی بسته‌ی مدیریت باید برابر با دوره‌ی اشتراک شما (${termMonths} ماه) باشد.`,
+      );
+    }
     // A workspace that already bought its package may renew the *same* package
     // once with a longer term; the unused days of the current term are carried
     // over, so a paid-for period is never thrown away.
