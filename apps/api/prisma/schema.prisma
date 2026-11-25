@@ -2707,6 +2707,9 @@ model RetailShopSettings {
   returnPolicy  String?
   /// Minutes a placed order keeps its stock reserved until a receipt arrives.
   reservationMinutes Int @default(30)
+  /// MANUAL = the seller approves the order before the customer pays;
+  /// AUTO = the order is confirmed immediately and the customer pays at once.
+  orderApprovalMode String @default("MANUAL")
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 

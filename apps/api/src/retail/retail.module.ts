@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { BusinessModulesModule } from '../business-modules/business-modules.module';
 import { FinanceModule } from '../finance/finance.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { SettingsModule } from '../settings/settings.module';
 import { UploadsModule } from '../uploads/uploads.module';
 import { WalletModule } from '../wallet/wallet.module';
@@ -21,6 +22,7 @@ import { RetailService } from './retail.service';
     BusinessModulesModule,
     SettingsModule,
     FinanceModule,
+    NotificationsModule,
     UploadsModule,
     WalletModule,
   ],

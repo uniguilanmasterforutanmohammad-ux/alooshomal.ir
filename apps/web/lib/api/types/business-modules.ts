@@ -556,6 +556,8 @@ export interface RetailShopSettings {
   supportPhone: string | null;
   returnPolicy: string | null;
   reservationMinutes: number;
+  /** MANUAL = seller approves order before payment; AUTO = pay immediately. */
+  orderApprovalMode?: 'MANUAL' | 'AUTO' | string;
 }
 
 export interface RetailReportDay {
@@ -590,6 +592,7 @@ export interface RetailReportsOverview {
 }
 
 export interface PublicOrderTracking {
+  id: string;
   orderNumber: string;
   status: string;
   paymentStatus: string;
@@ -608,6 +611,14 @@ export interface PublicOrderTracking {
   dispatchedAt: string | null;
   deliveredAt: string | null;
   items: Array<{ title: string; quantity: number; lineTotal: number }>;
+  paymentAllowed: boolean;
+  orderApprovalMode: string;
+  card: {
+    cardNumber: string;
+    holderName: string;
+    bankName: string | null;
+    instructions: string | null;
+  } | null;
   events: Array<{
     kind: string;
     fromStatus: string | null;

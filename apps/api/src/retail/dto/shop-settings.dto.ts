@@ -3,12 +3,15 @@ import { Type } from 'class-transformer';
 import {
   IsArray,
   IsBoolean,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
   MaxLength,
   Min,
 } from 'class-validator';
+
+export const ORDER_APPROVAL_MODES = ['MANUAL', 'AUTO'] as const;
 
 export class UpsertShopSettingsDto {
   @ApiPropertyOptional({ description: 'شهر محل فروش', example: 'تنکابن' })
@@ -82,4 +85,14 @@ export class UpsertShopSettingsDto {
   @IsInt()
   @Min(5)
   reservationMinutes?: number;
+
+  @ApiPropertyOptional({
+    enum: ORDER_APPROVAL_MODES,
+    default: 'MANUAL',
+    description:
+      'MANUAL = تأیید سفارش توسط فروشنده پیش از پرداخت؛ AUTO = پرداخت بلافاصله پس از ثبت سفارش',
+  })
+  @IsOptional()
+  @IsIn(ORDER_APPROVAL_MODES as unknown as string[])
+  orderApprovalMode?: string;
 }

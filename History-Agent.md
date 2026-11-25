@@ -20,7 +20,48 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.102.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.103.0**.
+
+## ۱۴۰۵/۰۹/۰۴ — تکمیل سناریوی فروش فروشگاه: حالت تأیید سفارش، دروازه‌ی پرداخت و پرداخت از صفحه‌ی پیگیری — نسخه `v4.103.0`
+
+**هدف:** تکمیل جریان فروش فروشگاه مطابق سناریو: انتخاب حالت تأیید سفارش توسط
+فروشنده (تأیید پیش از پرداخت یا پرداخت فوری)، جلوگیری از پرداخت پیش از تأیید،
+و امکان کارت‌به‌کارت و ارسال رسید از صفحه‌ی پیگیری عمومی.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: فیلد `orderApprovalMode` (`MANUAL`/`AUTO`)
+  روی `RetailShopSettings`.
+- `apps/api/src/retail/dto/shop-settings.dto.ts`: فیلد `orderApprovalMode` با
+  `@IsIn` و مستندسازی Swagger.
+- `apps/api/src/retail/retail.service.ts`: ذخیره‌ی حالت تأیید، وضعیت اولیه‌ی
+  سفارش (`AUTO`→`CONFIRMED`، `MANUAL`→`PENDING`)، افزودن `paymentAllowed`،
+  `orderApprovalMode` و اطلاعات کارت به پیگیری عمومی، متدهای
+  `approveOrder`/`declineOrder` و اعلان بهترین‌تلاش سفارش جدید به مالک.
+- `apps/api/src/retail/retail-orders.controller.ts` و
+  `dto/decline-order.dto.ts`: مسیرهای `POST /retail/orders/:id/approve` و
+  `POST /retail/orders/:id/decline`.
+- `apps/api/src/card-to-card/card-to-card.service.ts`: رد پرداخت کارت‌به‌کارت
+  برای سفارشِ لغوشده/پرداخت‌شده/غیرکارت‌به‌کارت و سفارشِ تأییدنشده.
+- `apps/api/src/retail/retail.module.ts`: افزودن `NotificationsModule`.
+- `apps/web/lib/api/types/business-modules.ts`: فیلدهای جدید تنظیمات و پیگیری.
+- `apps/web/app/dashboard/business/shop-settings/page.tsx`: انتخاب حالت تأیید.
+- `apps/web/components/shop/ShopOrderForm.tsx`: نمایش فرم پرداخت فقط پس از
+  تأیید سفارش.
+- `apps/web/components/shop/OrderPayPanel.tsx` و صفحه‌ی پیگیری عمومی: امکان
+  پرداخت کارت‌به‌کارت و ارسال رسید از لینک پیگیری.
+- `apps/web/app/dashboard/business/orders/page.tsx`: دکمه‌های «تأیید/رد سفارش»
+  و لینک بررسی رسید.
+- `docs/API.md`: مستندسازی مسیرها و حالت تأیید.
+
+**تأیید/تست:**
+- `tsc` برای `apps/api` و `apps/web` بدون خطا.
+- تست زنده‌ی کامل: سفارش در حالت `MANUAL` → `PENDING` و پرداخت رد (۴۰۰)؛
+  تأیید فروشنده → `CONFIRMED` و `paymentAllowed=true`؛ ارسال رسید →
+  `PENDING_REVIEW`؛ تأیید رسید → `PAID` + فاکتور `RETAIL_ORDER_PAYMENT`؛
+  حالت `AUTO` → سفارش `CONFIRMED` و قابل پرداخت؛ رد سفارش → `CANCELLED` و
+  بازگشت موجودی. داده‌ی تست پاک و وضعیت اولیه بازگردانده شد.
+- `python3 scripts/check_api_docs.py` → exit 0 (۷۵۲ مسیر).
+- `python3 scripts/sync_install.py` و `--check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۴ — آمار بازدید و نرخ تبدیل صفحه‌ی عمومی اقامتگاه (P3) — نسخه `v4.102.0`
 

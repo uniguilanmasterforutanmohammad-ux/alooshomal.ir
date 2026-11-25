@@ -4,12 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { NotificationType, Prisma } from '@prisma/client';
 import { randomBytes } from 'node:crypto';
 
 import { BusinessModulesService } from '../business-modules/business-modules.service';
 import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
 import { FinanceService } from '../finance/finance.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { SettingsService } from '../settings/settings.service';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -44,6 +45,7 @@ const DEFAULT_SHOP_SETTINGS = {
   supportPhone: null as string | null,
   returnPolicy: null as string | null,
   reservationMinutes: 30,
+  orderApprovalMode: 'MANUAL' as string,
 };
 
 @Injectable()
@@ -53,6 +55,7 @@ export class RetailService {
     private readonly modules: BusinessModulesService,
     private readonly settings: SettingsService,
     private readonly finance: FinanceService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private async workspaceId(userId: string): Promise<string> {
@@ -195,6 +198,9 @@ export class RetailService {
         : {}),
       ...(dto.reservationMinutes !== undefined
         ? { reservationMinutes: dto.reservationMinutes }
+        : {}),
+      ...(dto.orderApprovalMode !== undefined
+        ? { orderApprovalMode: dto.orderApprovalMode }
         : {}),
     };
     return this.prisma.retailShopSettings.upsert({
@@ -783,6 +789,42 @@ export class RetailService {
     return updated;
   }
 
+  /** Seller approves a pending order so the customer can pay. */
+  async approveOrder(userId: string, id: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const order = await this.prisma.retailOrder.findFirst({
+      where: { id, workspaceId },
+      select: { status: true },
+    });
+    if (!order) throw new NotFoundException('سفارش پیدا نشد');
+    if (order.status !== 'PENDING') {
+      throw new BadRequestException('فقط سفارش‌های در انتظار تأیید قابل تأیید هستند');
+    }
+    return this.updateOrder(userId, id, { status: 'CONFIRMED' });
+  }
+
+  /** Seller rejects a pending/confirmed order (restores stock). */
+  async declineOrder(userId: string, id: string, reason?: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const order = await this.prisma.retailOrder.findFirst({
+      where: { id, workspaceId },
+      select: { status: true, paymentStatus: true },
+    });
+    if (!order) throw new NotFoundException('سفارش پیدا نشد');
+    if (order.paymentStatus === 'PAID') {
+      throw new BadRequestException(
+        'پرداخت این سفارش تأیید شده است؛ برای لغو از مسیر بازپرداخت استفاده کنید',
+      );
+    }
+    if (!['PENDING', 'CONFIRMED'].includes(order.status)) {
+      throw new BadRequestException('این سفارش در وضعیت فعلی قابل رد نیست');
+    }
+    return this.updateOrder(userId, id, {
+      status: 'CANCELLED',
+      cancelReason: reason?.trim() || 'رد سفارش توسط فروشنده',
+    });
+  }
+
   /**
    * Mark an order as paid (used by the card-to-card approval flow). Idempotent:
    * a second call for an already-paid order is a no-op.
@@ -979,6 +1021,7 @@ export class RetailService {
     supportPhone: string | null;
     returnPolicy: string | null;
     reservationMinutes: number;
+    orderApprovalMode: string;
   }) {
     const [snapGlobal, pickupGlobal, cashGlobal, cardGlobal] = await Promise.all([
       this.settings.getRetailSnapEnabled(),
@@ -1002,6 +1045,7 @@ export class RetailService {
       supportPhone: settings.supportPhone,
       returnPolicy: settings.returnPolicy,
       reservationMinutes: settings.reservationMinutes,
+      orderApprovalMode: settings.orderApprovalMode,
     };
   }
 
@@ -1311,8 +1355,11 @@ export class RetailService {
       dto.customerName,
       dto.customerPhone,
     );
+    // The seller chooses whether an order needs their approval before payment.
+    const autoConfirm = effectiveSettings.orderApprovalMode === 'AUTO';
+    const initialStatus = autoConfirm ? 'CONFIRMED' : 'PENDING';
 
-    return this.prisma.$transaction(async (tx) => {
+    const created = await this.prisma.$transaction(async (tx) => {
       const order = await tx.retailOrder.create({
         data: {
           workspaceId: workspace.id,
@@ -1326,6 +1373,7 @@ export class RetailService {
           note: dto.note,
           paymentMethod,
           deliveryMethod: delivery.method,
+          status: initialStatus,
           deliveryStatus: 'PENDING',
           itemsAmount,
           deliveryFee: delivery.deliveryFee,
@@ -1355,8 +1403,10 @@ export class RetailService {
           orderId: order.id,
           workspaceId: workspace.id,
           kind: 'CREATED',
-          toStatus: 'PENDING',
-          note: 'سفارش ثبت شد',
+          toStatus: initialStatus,
+          note: autoConfirm
+            ? 'سفارش ثبت و به‌صورت خودکار تأیید شد'
+            : 'سفارش ثبت شد و در انتظار تأیید فروشنده است',
         },
       });
       if (customer) {
@@ -1371,6 +1421,32 @@ export class RetailService {
       }
       return order;
     });
+    await this.notifyOwnerOfNewOrder(workspace.id, created, autoConfirm);
+    return created;
+  }
+
+  /** Best-effort in-app notification so the seller hears about a new order. */
+  private async notifyOwnerOfNewOrder(
+    workspaceId: string,
+    order: { orderNumber: string; customerName: string; totalAmount: number },
+    autoConfirm: boolean,
+  ) {
+    try {
+      const workspace = await this.prisma.businessWorkspace.findUnique({
+        where: { id: workspaceId },
+        select: { ownerId: true },
+      });
+      if (!workspace?.ownerId) return;
+      await this.notifications.notify({
+        userId: workspace.ownerId,
+        type: autoConfirm ? NotificationType.SUCCESS : NotificationType.INFO,
+        title: autoConfirm ? 'سفارش جدید (تأیید خودکار)' : 'سفارش جدید در انتظار تأیید',
+        body: `${order.customerName} — سفارش ${order.orderNumber} به مبلغ ${order.totalAmount.toLocaleString('fa-IR')} تومان`,
+        link: '/dashboard/business/orders',
+      });
+    } catch {
+      // Notification failure must never break order creation.
+    }
   }
 
   /** Public order tracking by its secret token (no login required). */
@@ -1386,7 +1462,22 @@ export class RetailService {
     });
     if (!order) throw new NotFoundException('سفارش پیدا نشد');
     const settings = await this.shopSettingsOrDefault(workspace.id);
+    const effectiveSettings = await this.publicSettings(settings);
+    const cardEnabled = await this.modules.isModuleEnabledForWorkspace(
+      workspace.id,
+      'cardToCard',
+    );
+    const card = cardEnabled
+      ? await this.prisma.cardToCardAccount.findUnique({
+          where: { workspaceId: workspace.id },
+        })
+      : null;
+    const paymentAllowed =
+      order.paymentMethod === 'CARD_TO_CARD' &&
+      order.status === 'CONFIRMED' &&
+      order.paymentStatus === 'UNPAID';
     return {
+      id: order.id,
       orderNumber: order.orderNumber,
       status: order.status,
       paymentStatus: order.paymentStatus,
@@ -1405,6 +1496,17 @@ export class RetailService {
       dispatchedAt: order.dispatchedAt,
       deliveredAt: order.deliveredAt,
       items: order.items,
+      paymentAllowed,
+      orderApprovalMode: effectiveSettings.orderApprovalMode,
+      card:
+        card && card.isActive
+          ? {
+              cardNumber: card.cardNumber,
+              holderName: card.holderName,
+              bankName: card.bankName,
+              instructions: card.instructions,
+            }
+          : null,
       events: order.events.map((event) => ({
         kind: event.kind,
         fromStatus: event.fromStatus,
@@ -1415,7 +1517,7 @@ export class RetailService {
       shop: {
         name: workspace.name,
         publicSlug: workspace.publicSlug,
-        ...(await this.publicSettings(settings)),
+        ...effectiveSettings,
       },
     };
   }

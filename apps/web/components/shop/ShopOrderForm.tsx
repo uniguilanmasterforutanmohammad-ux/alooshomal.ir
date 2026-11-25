@@ -125,14 +125,21 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
           </Link>
         ) : null}
         {order.paymentMethod === 'CARD_TO_CARD' && shop.card ? (
-          <CardToCardForm
-            slug={shop.workspace.publicSlug ?? ''}
-            card={shop.card}
-            referenceType="ORDER"
-            referenceId={order.id}
-            defaultAmount={order.totalAmount}
-            title="پرداخت سفارش با کارت به کارت"
-          />
+          order.status === 'CONFIRMED' ? (
+            <CardToCardForm
+              slug={shop.workspace.publicSlug ?? ''}
+              card={shop.card}
+              referenceType="ORDER"
+              referenceId={order.id}
+              defaultAmount={order.totalAmount}
+              title="پرداخت سفارش با کارت به کارت"
+            />
+          ) : (
+            <p className="rounded-lg bg-amber-50 p-3 text-[11px] leading-6 text-amber-800">
+              سفارش شما در انتظار تأیید فروشنده است. پس از تأیید، از همین صفحه‌ی
+              پیگیری می‌توانید مبلغ را کارت‌به‌کارت کنید و رسید را ارسال کنید.
+            </p>
+          )
         ) : null}
         <button type="button" onClick={() => setOrder(null)} className="indeed-btn justify-self-start">
           ثبت سفارش دیگر

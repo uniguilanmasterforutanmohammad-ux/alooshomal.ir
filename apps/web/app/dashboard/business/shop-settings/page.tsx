@@ -25,6 +25,7 @@ type FormState = {
   supportPhone: string;
   returnPolicy: string;
   reservationMinutes: string;
+  orderApprovalMode: 'MANUAL' | 'AUTO';
 };
 
 const empty: FormState = {
@@ -39,6 +40,7 @@ const empty: FormState = {
   supportPhone: '',
   returnPolicy: '',
   reservationMinutes: '30',
+  orderApprovalMode: 'MANUAL',
 };
 
 export default function ShopSettingsPage() {
@@ -83,6 +85,8 @@ export default function ShopSettingsPage() {
           supportPhone: settings.supportPhone ?? '',
           returnPolicy: settings.returnPolicy ?? '',
           reservationMinutes: String(settings.reservationMinutes),
+          orderApprovalMode:
+            settings.orderApprovalMode === 'AUTO' ? 'AUTO' : 'MANUAL',
         });
         setCapabilities({
           snapEnabled: publicSettings?.retailCapabilities?.snapEnabled !== false,
@@ -117,6 +121,7 @@ export default function ShopSettingsPage() {
         supportPhone: form.supportPhone.trim() || undefined,
         returnPolicy: form.returnPolicy.trim() || undefined,
         reservationMinutes: Number(form.reservationMinutes) || 30,
+        orderApprovalMode: form.orderApprovalMode,
       });
       toast.success('تنظیمات فروشگاه ذخیره شد');
     } finally {
@@ -184,6 +189,34 @@ export default function ShopSettingsPage() {
               </p>
             ) : null}
           </div>
+
+          <div className="flex items-center gap-2 text-sm font-extrabold text-ink md:col-span-2">
+            جریان تأیید سفارش
+          </div>
+          <label className="flex flex-col gap-1 text-xs text-muted md:col-span-2">
+            نحوه‌ی تأیید سفارش
+            <select
+              className={field}
+              value={form.orderApprovalMode}
+              onChange={(event) =>
+                setForm((prev) => ({
+                  ...prev,
+                  orderApprovalMode: event.target.value as 'MANUAL' | 'AUTO',
+                }))
+              }
+            >
+              <option value="MANUAL">
+                تأیید فروشنده پیش از پرداخت (سفارش ابتدا در انتظار تأیید می‌ماند)
+              </option>
+              <option value="AUTO">
+                پرداخت بلافاصله پس از ثبت سفارش (بدون نیاز به تأیید فروشنده)
+              </option>
+            </select>
+            <span className="text-[11px] text-muted">
+              در هر دو حالت، مشتری پس از پرداخت کارت‌به‌کارت رسید را ارسال می‌کند و
+              شما آن را از بخش «کارت به کارت» تأیید یا رد می‌کنید.
+            </span>
+          </label>
 
           <div className="flex items-center gap-2 text-sm font-extrabold text-ink md:col-span-2">
             دریافت حضوری و پشتیبانی

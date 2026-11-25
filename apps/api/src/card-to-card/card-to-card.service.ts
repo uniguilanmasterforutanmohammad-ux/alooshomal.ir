@@ -194,9 +194,29 @@ export class CardToCardService {
     if (dto.referenceType === 'ORDER' && dto.referenceId) {
       const order = await this.prisma.retailOrder.findFirst({
         where: { id: dto.referenceId, workspaceId: workspace.id },
-        select: { id: true, totalAmount: true },
+        select: {
+          id: true,
+          totalAmount: true,
+          status: true,
+          paymentStatus: true,
+          paymentMethod: true,
+        },
       });
       if (!order) throw new BadRequestException('سفارش مرتبط پیدا نشد');
+      if (order.paymentMethod !== 'CARD_TO_CARD') {
+        throw new BadRequestException('روش پرداخت این سفارش کارت به کارت نیست');
+      }
+      if (order.paymentStatus === 'PAID') {
+        throw new BadRequestException('این سفارش قبلاً پرداخت شده است');
+      }
+      if (order.status === 'CANCELLED') {
+        throw new BadRequestException('این سفارش لغو شده است');
+      }
+      if (order.status !== 'CONFIRMED') {
+        throw new BadRequestException(
+          'ابتدا فروشنده باید سفارش را تأیید کند؛ سپس امکان ارسال رسید فعال می‌شود',
+        );
+      }
       expectedAmount = order.totalAmount;
     }
     if (dto.referenceType === 'BOOKING' && dto.referenceId) {

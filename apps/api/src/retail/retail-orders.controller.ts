@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -15,6 +16,7 @@ import {
   AuthUser,
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
+import { DeclineOrderDto } from './dto/decline-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { RetailService } from './retail.service';
 
@@ -46,5 +48,21 @@ export class RetailOrdersController {
     @Body() dto: UpdateOrderDto,
   ) {
     return this.retail.updateOrder(user.id, id, dto);
+  }
+
+  @Post(':id/approve')
+  @ApiOperation({ summary: 'تأیید سفارش در انتظار (اجازه‌ی پرداخت به مشتری)' })
+  approve(@CurrentUser() user: AuthUser, @Param('id') id: string) {
+    return this.retail.approveOrder(user.id, id);
+  }
+
+  @Post(':id/decline')
+  @ApiOperation({ summary: 'رد سفارش در انتظار و بازگرداندن موجودی' })
+  decline(
+    @CurrentUser() user: AuthUser,
+    @Param('id') id: string,
+    @Body() dto: DeclineOrderDto,
+  ) {
+    return this.retail.declineOrder(user.id, id, dto.reason);
   }
 }

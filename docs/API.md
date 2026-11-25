@@ -952,9 +952,11 @@ PY
 | `POST` | `/retail/products/ai-import` | ایمپورت محصول از لینک دیجی‌کالا با هوش مصنوعی (پس از تأیید هزینه)؛ بدنه `{ url, categoryId, price?, stock?, unit?, status? }`، خروجی `{ product, usage:{promptTokens,completionTokens,totalTokens}, cost, importId }`. هزینه از کیف پول کسر و در فاکتور ثبت می‌شود. فقط عکس‌های رسمی دیجی‌کالا (CDN `dkstatics`) گرفته می‌شود و حداقل تعداد عکس با تنظیم `aiMinImages` کنترل می‌شود. |
 | `GET` | `/retail/orders` | صف سفارش‌ها (فیلتر `status`). |
 | `GET/PATCH` | `/retail/orders/:id` | جزئیات/تغییر وضعیت سفارش و پرداخت. |
+| `POST` | `/retail/orders/:id/approve` | تأیید سفارشِ در انتظار (فقط از `PENDING` به `CONFIRMED`) تا مشتری بتواند پرداخت کند. |
+| `POST` | `/retail/orders/:id/decline` | رد سفارش در انتظار/تأییدشده (بدنه‌ی اختیاری `{ reason }`) و بازگرداندن موجودی. |
 | `GET` | `/retail/inventory` | موجودی، هشدار کمبود و کاردکس انبار. |
 | `POST` | `/retail/inventory/movements` | ثبت ورود/خروج/اصلاح موجودی. |
-| `GET/PUT` | `/retail/shop-settings` | تنظیمات فروشگاه: شهر/محله‌های تحت پوشش، کرایه‌ی ثابت ارسال، دریافت حضوری، پشتیبانی و شرایط مرجوعی. |
+| `GET/PUT` | `/retail/shop-settings` | تنظیمات فروشگاه: شهر/محله‌های تحت پوشش، کرایه‌ی ثابت ارسال، دریافت حضوری، پشتیبانی، شرایط مرجوعی و `orderApprovalMode` (`MANUAL` = تأیید فروشنده پیش از پرداخت، `AUTO` = پرداخت بلافاصله). |
 | `GET` | `/retail/reports/overview` | داشبورد فروش: فروش خالص، سود سفارش، واریزی‌های تطبیق‌نیافته، کالای کم‌موجود و گزارش روزانه (۳۰ روز). |
 
 مسیرهای عمومی زیر `/api/public/shops` (بدون احراز هویت):
@@ -964,7 +966,9 @@ PY
 محصولات مرتبط و اطلاعات کارت به کارت، `POST /public/shops/:slug/orders`
 برای ثبت سفارش (روش تحویل `SNAP`/`PICKUP`، اعتبارسنجی محله و کرایه) و
 `GET /public/shops/:slug/orders/:token` برای پیگیری عمومی با لینک اختصاصی
-(`trackingToken`) و خط زمانی وضعیت. دایرکتوری محصولات `/shop` از
+(`trackingToken`)، خط زمانی وضعیت و امکان پرداخت کارت‌به‌کارت پس از تأیید
+سفارش (فیلدهای `paymentAllowed` و `card`). پرداخت کارت‌به‌کارت فقط برای سفارش
+`CONFIRMED` و پرداخت‌نشده پذیرفته می‌شود. دایرکتوری محصولات `/shop` از
 `GET /public/products` (فیلترهای `q`، `shop`، `category`، `minPrice`،
 `maxPrice` و `sort`) و `GET /public/products/facets` (دسته‌ها و فروشگاه‌های
 دارای محصول منتشرشده) تغذیه می‌شود؛ این دایرکتوری فقط محصولات منتشرشده‌ی

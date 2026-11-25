@@ -93,6 +93,22 @@ export default function OrdersPage() {
     });
   }
 
+  async function approveOrder(order: RetailOrder) {
+    await api.post(`/retail/orders/${order.id}/approve`, {});
+    toast.success('سفارش تأیید شد؛ مشتری اکنون می‌تواند پرداخت کند');
+    await load();
+  }
+
+  async function declineOrder(order: RetailOrder) {
+    const reason = window.prompt('دلیل رد سفارش (اختیاری):') ?? '';
+    if (!window.confirm('این سفارش رد و موجودی کالاها آزاد شود؟')) return;
+    await api.post(`/retail/orders/${order.id}/decline`, {
+      reason: reason.trim() || undefined,
+    });
+    toast.success('سفارش رد شد');
+    await load();
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -161,8 +177,34 @@ export default function OrdersPage() {
                         لینک پیگیری مشتری
                       </Link>
                     ) : null}
+                    {order.paymentStatus === 'PENDING_REVIEW' ? (
+                      <Link
+                        href="/dashboard/business/card-to-card"
+                        className="mt-1 block text-[11px] font-bold text-amber-700 underline"
+                      >
+                        رسید پرداخت در انتظار بررسی است — بررسی در «کارت به کارت»
+                      </Link>
+                    ) : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
+                    {order.status === 'PENDING' ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => void approveOrder(order)}
+                          className="rounded-lg border border-emerald-300 px-2.5 py-1 text-xs font-bold text-emerald-700 hover:bg-emerald-50"
+                        >
+                          تأیید سفارش
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void declineOrder(order)}
+                          className="rounded-lg border border-red-200 px-2.5 py-1 text-xs font-bold text-red-600 hover:bg-red-50"
+                        >
+                          رد سفارش
+                        </button>
+                      </>
+                    ) : null}
                     <select
                       className={field}
                       value={order.status}

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { Header } from '@/components/layout/Header';
+import { OrderPayPanel } from '@/components/shop/OrderPayPanel';
 import type { PublicOrderTracking } from '@/lib/api';
 import { SERVER_API_URL, decodeSlugParam } from '@/lib/site';
 
@@ -146,6 +147,13 @@ export default async function TrackOrderPage({
             </div>
           </div>
         </section>
+
+        <div className="mb-4">
+          <OrderPayPanel
+            slug={order.shop.publicSlug ?? decodeSlugParam(slug)}
+            order={order}
+          />
+        </div>
 
         <section className="indeed-panel mb-4 p-5">
           <h2 className="mb-3 text-sm font-extrabold text-ink">خط زمانی</h2>
