@@ -10,7 +10,17 @@ export class CreateWorkspaceDto {
   name?: string;
 
   @ApiPropertyOptional({
-    description: 'کلید بسته‌ی صنف',
+    description:
+      'شناسه‌ی دسته‌بندی کسب‌وکار (از `GET /businesses`). برای ساخت کسب‌وکار جدید الزامی است و صنف/بسته‌ی مدیریت از آن تعیین می‌شود.',
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  categoryId?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'کلید بسته‌ی صنف (جایگزین قدیمی `categoryId`؛ اگر هر دو داده شوند `categoryId` اولویت دارد).',
     example: 'dailyRental',
   })
   @IsOptional()

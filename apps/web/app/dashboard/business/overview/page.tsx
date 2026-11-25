@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { BusinessPanelNav, moduleIcon } from '@/components/business/BusinessPanelNav';
+import { CreateWorkspaceDialog } from '@/components/dashboard/CreateWorkspaceDialog';
 import { api, WORKSPACE_STORAGE_KEY } from '@/lib/api';
 import type {
   BusinessWorkspace,
@@ -45,6 +46,7 @@ function BusinessPanelContent() {
   const [savingName, setSavingName] = useState(false);
   const [workspaces, setWorkspaces] = useState<BusinessWorkspaceSummary[]>([]);
   const [managements, setManagements] = useState<ManagementPackage[]>([]);
+  const [showCreate, setShowCreate] = useState(false);
   const [selectedTerm, setSelectedTerm] = useState<
     Record<string, 1 | 3 | 6 | 12>
   >({});
@@ -147,30 +149,6 @@ function BusinessPanelContent() {
     }
   }
 
-  async function addWorkspace() {
-    const nextName = window.prompt('نام کسب‌وکار جدید:');
-    if (!nextName?.trim()) return;
-    setBusy('create');
-    try {
-      const list = await api.post<BusinessWorkspaceSummary[]>(
-        '/business-modules/workspaces',
-        { name: nextName.trim() },
-      );
-      const created = list.find((item) => item.name === nextName.trim());
-      if (created) {
-        window.localStorage.setItem(WORKSPACE_STORAGE_KEY, created.id);
-        window.dispatchEvent(new Event('alooshomal:workspace-changed'));
-      }
-      setWorkspaces(list);
-      toast.success('کسب‌وکار جدید ساخته شد');
-      await reload();
-    } catch {
-      // The API already surfaced the plan-limit message.
-    } finally {
-      setBusy(null);
-    }
-  }
-
   async function buyManagement(packageKey: string, months: 1 | 3 | 6 | 12) {
     setBusy(`buy:${packageKey}`);
     try {
@@ -246,9 +224,8 @@ function BusinessPanelContent() {
           </span>
           <button
             type="button"
-            onClick={() => void addWorkspace()}
-            disabled={busy === 'create'}
-            className="indeed-btn indeed-btn-primary disabled:opacity-50"
+            onClick={() => setShowCreate(true)}
+            className="indeed-btn indeed-btn-primary"
           >
             <Plus className="size-4" aria-hidden />
             کسب‌وکار جدید
@@ -723,6 +700,20 @@ function BusinessPanelContent() {
         </div>
         )}
       </section>
+
+      <CreateWorkspaceDialog
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        onCreated={(list, createdId) => {
+          setShowCreate(false);
+          setWorkspaces(list);
+          if (createdId) {
+            window.localStorage.setItem(WORKSPACE_STORAGE_KEY, createdId);
+            window.dispatchEvent(new Event('alooshomal:workspace-changed'));
+          }
+          void reload();
+        }}
+      />
     </div>
   );
 }

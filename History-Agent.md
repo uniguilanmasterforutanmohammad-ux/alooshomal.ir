@@ -20,13 +20,38 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.90.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.90.1**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۴ — الزام انتخاب دسته‌بندی هنگام ساخت کسب‌وکار — نسخه `v4.90.1`
+
+**هدف:** هنگام ساخت کسب‌وکار جدید، علاوه بر نام، انتخاب «دسته‌بندی کسب‌وکار»
+الزامی شد تا بسته‌ی مدیریت متناسب با همان دسته به کاربر پیشنهاد شود. فرم‌های
+`window.prompt` با یک دیالوگ استاندارد جایگزین شدند.
+
+**تغییرات:**
+- `apps/api/src/business-modules/dto/create-workspace.dto.ts`: افزودن فیلد
+  `categoryId`.
+- `apps/api/src/business-modules/business-modules.service.ts`: `createWorkspace`
+  حالا `categoryId` را اعتبارسنجی می‌کند، `onboardingData.businessId` را ذخیره
+  و صنف/بسته‌ی مدیریت را از دسته استخراج می‌کند؛ نبود دسته ⇒ خطای ۴۰۰.
+- `apps/web/components/dashboard/CreateWorkspaceDialog.tsx`: دیالوگ جدید ساخت
+  کسب‌وکار با نام + انتخاب دسته (از `GET /businesses`).
+- `apps/web/components/dashboard/WorkspaceSwitcher.tsx` و
+  `apps/web/app/dashboard/business/overview/page.tsx`: استفاده از دیالوگ جدید
+  به‌جای `window.prompt`.
+
+**تأیید/تست:**
+- `tsc --noEmit` در `apps/api` و `apps/web` → بدون خطا.
+- `check_api_docs.py` → exit 0.
+- تست API: `POST /business-modules/workspaces` بدون `categoryId` ⇒ ۴۰۰ با پیام
+  «دسته‌بندی کسب‌وکار را انتخاب کنید»؛ با `categoryId` دسته‌ی «اقامت و سفر» ⇒
+  ساخت موفق با `industryKey=dailyRental`. داده‌ی آزمایشی پاک شد.
 
 ## ۱۴۰۵/۰۹/۰۴ — بازطراحی ماژول محصولات فروشگاه (دسته‌بندی مدیر، SKU خودکار، تأیید انتشار، صفحه‌ی محصول دیجی‌کالایی) — نسخه `v4.90.0`
 

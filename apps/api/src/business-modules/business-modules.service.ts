@@ -1071,7 +1071,7 @@ export class BusinessModulesService implements OnModuleInit {
 
   async createWorkspace(
     userId: string,
-    dto: { name?: string; industryKey?: string },
+    dto: { name?: string; industryKey?: string; categoryId?: string },
   ) {
     await this.ensureManagementsLoaded();
     const limits = await this.subscriptions.limitsForUser(userId);
@@ -1085,11 +1085,38 @@ export class BusinessModulesService implements OnModuleInit {
         code: 'WORKSPACE_LIMIT',
       });
     }
+    // A new business must declare its category so the matching «مدیریت
+    // کسب‌وکار» can be offered. The category also fixes the industry package.
+    let industryKey = dto.industryKey?.trim();
+    let onboardingData: Prisma.InputJsonValue | undefined;
+    if (dto.categoryId) {
+      const category = await this.prisma.businessCategory.findUnique({
+        where: { id: dto.categoryId },
+        select: { id: true, name: true },
+      });
+      if (!category) {
+        throw new BadRequestException('دسته‌بندی انتخاب‌شده معتبر نیست.');
+      }
+      industryKey = await this.managementKeyForCategory(
+        category.id,
+        category.name,
+      );
+      onboardingData = { businessId: category.id };
+    }
+    if (!industryKey) {
+      throw new BadRequestException(
+        'برای ساخت کسب‌وکار، دسته‌بندی کسب‌وکار را انتخاب کنید.',
+      );
+    }
+    if (!this.management(industryKey)) {
+      throw new BadRequestException('صنف انتخاب‌شده معتبر نیست.');
+    }
     const created = await this.createWorkspaceRow(
       userId,
       dto.name,
-      dto.industryKey ?? 'generalBusiness',
+      industryKey,
       used === 0,
+      onboardingData,
     );
     await this.pruneEmptyPlaceholders(userId);
     await this.activity.log({

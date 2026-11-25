@@ -10,6 +10,8 @@ import { useFeatures } from '@/lib/features';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 
+import { CreateWorkspaceDialog } from './CreateWorkspaceDialog';
+
 export const WORKSPACE_CHANGED_EVENT = 'alooshomal:workspace-changed';
 
 /**
@@ -23,7 +25,7 @@ export function WorkspaceSwitcher() {
   const [items, setItems] = useState<BusinessWorkspaceSummary[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const enabled = hydrated && Boolean(token) && isFeatureVisible('featureBusinessWorkspace');
 
@@ -87,30 +89,11 @@ export function WorkspaceSwitcher() {
     }
   }
 
-  async function createWorkspace() {
-    const name = window.prompt('نام کسب‌وکار جدید:');
-    if (!name?.trim()) return;
-    setBusy(true);
-    try {
-      const list = await api.post<BusinessWorkspaceSummary[]>(
-        '/business-modules/workspaces',
-        { name: name.trim() },
-      );
-      setItems(list);
-      const created = list.find((item) => item.name === name.trim());
-      if (created) switchTo(created.id);
-      toast.success('کسب‌وکار جدید ساخته شد');
-    } catch {
-      // The API surfaces the plan-limit message as a toast already.
-    } finally {
-      setBusy(false);
-    }
-  }
-
   if (!enabled || items.length === 0) return null;
   const active = items.find((item) => item.id === activeId) ?? items[0];
 
   return (
+    <>
     <div ref={boxRef} className="relative">
       <button
         type="button"
@@ -153,9 +136,11 @@ export function WorkspaceSwitcher() {
           ))}
           <button
             type="button"
-            onClick={() => void createWorkspace()}
-            disabled={busy}
-            className="mt-1 flex w-full items-center gap-2 rounded-lg border border-dashed border-[var(--vintage-border)] px-2 py-2 text-xs font-bold text-brand disabled:opacity-50"
+            onClick={() => {
+              setOpen(false);
+              setShowCreate(true);
+            }}
+            className="mt-1 flex w-full items-center gap-2 rounded-lg border border-dashed border-[var(--vintage-border)] px-2 py-2 text-xs font-bold text-brand"
           >
             <Plus className="size-3.5" aria-hidden />
             افزودن کسب‌وکار
@@ -163,5 +148,16 @@ export function WorkspaceSwitcher() {
         </div>
       ) : null}
     </div>
+    <CreateWorkspaceDialog
+      open={showCreate}
+      onClose={() => setShowCreate(false)}
+      onCreated={(list, createdId) => {
+        setShowCreate(false);
+        setItems(list);
+        if (createdId) switchTo(createdId);
+        toast.success('کسب‌وکار جدید ساخته شد');
+      }}
+    />
+    </>
   );
 }
