@@ -9,6 +9,7 @@ import { BookingMessages } from '@/components/business/BookingMessages';
 import { api, type AccommodationBooking } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
+import { useFeatures } from '@/lib/features';
 import { toast } from '@/lib/toast';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -25,6 +26,8 @@ export default function BookingsPage() {
   const { token, hydrated } = useAuth();
   const enabled = hydrated && Boolean(token);
   const { workspace } = useBusinessWorkspace(enabled);
+  const features = useFeatures();
+  const inboxVisible = features.isFeatureVisible('featureAccommodationInbox');
   const [items, setItems] = useState<AccommodationBooking[]>([]);
   const [status, setStatus] = useState('');
   const [loading, setLoading] = useState(true);
@@ -190,17 +193,19 @@ export default function BookingsPage() {
                     لغو رزرو
                   </button>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setOpenMessages((current) =>
-                      current === booking.id ? null : booking.id,
-                    )
-                  }
-                  className="rounded-lg border px-2.5 py-1 text-xs font-bold text-muted hover:border-brand hover:text-brand"
-                >
-                  {openMessages === booking.id ? 'بستن پیام‌ها' : 'پیام‌ها'}
-                </button>
+                {inboxVisible ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpenMessages((current) =>
+                        current === booking.id ? null : booking.id,
+                      )
+                    }
+                    className="rounded-lg border px-2.5 py-1 text-xs font-bold text-muted hover:border-brand hover:text-brand"
+                  >
+                    {openMessages === booking.id ? 'بستن پیام‌ها' : 'پیام‌ها'}
+                  </button>
+                ) : null}
               </div>
               {openMessages === booking.id ? (
                 <BookingMessages

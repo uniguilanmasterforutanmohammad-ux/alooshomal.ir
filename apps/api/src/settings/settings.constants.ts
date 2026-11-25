@@ -608,6 +608,38 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     default: true,
   },
   {
+    key: 'featureAccommodationRates',
+    label: 'نرخ‌گذاری فصلی اقامتگاه',
+    description:
+      'تعریف نرخ شبانه برای بازه‌ها و روزهای خاص (آخر هفته/تعطیلات)، هزینه‌ی نظافت و مهمان اضافه و تخفیف اقامت بلندمدت.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureAccommodationReports',
+    label: 'گزارش درآمد و اشغال اقامتگاه',
+    description:
+      'داشبورد درآمد، شب رزروشده، نرخ اشغال، ADR/RevPAR و تفکیک درآمد هر اقامتگاه و کانال (ناخالص/کمیسیون/خالص).',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureAccommodationInbox',
+    label: 'صندوق پیام مهمان',
+    description:
+      'ثبت و پیگیری پیام‌ها و یادداشت‌های مربوط به هر رزرو برای هماهنگی با مهمان.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
+    key: 'featureAccommodationTasks',
+    label: 'ابزار عملیات میزبان (وظایف)',
+    description:
+      'پیگیری وظایف نظافت، تعمیر و کارهای اجرایی هر اقامتگاه؛ هر رزرو تأییدشده خودکار یک وظیفه‌ی نظافت پس از خروج می‌سازد.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
     key: 'featureBuildingUnits',
     label: 'ماژول ساختمان و واحدها',
     description:

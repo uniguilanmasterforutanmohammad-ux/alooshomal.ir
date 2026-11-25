@@ -20,7 +20,30 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.100.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.101.0**.
+
+## ۱۴۰۵/۰۹/۰۴ — سوئیچ فعال/نمایش برای زیرقابلیت‌های ابزار میزبان (قانون ۹) — نسخه `v4.101.0`
+
+**هدف:** افزودن کلید فعال/نمایش برای قابلیت‌های تازه‌ی بسته‌ی اقامتگاه
+(نرخ‌گذاری، گزارش، صندوق پیام، وظایف) و اعمال آن‌ها در سرور و رابط.
+
+**تغییرات:**
+- `apps/api/src/settings/settings.constants.ts`: چهار آیتم تازه در
+  `FEATURE_FLAGS`: `featureAccommodationRates`، `featureAccommodationReports`،
+  `featureAccommodationInbox`، `featureAccommodationTasks` (هر کدام با کلید
+  فعال + نمایش خودکار).
+- `apps/api/src/accommodations/accommodations.service.ts`: فراخوانی
+  `assertFeatureEnabled` در ورودی متدهای نرخ‌ها، گزارش، پیام‌ها و وظایف.
+- `apps/web/app/dashboard/business/accommodations/page.tsx`،
+  `[id]/page.tsx` و `bookings/page.tsx`: پنهان‌کردن لینک/بخش‌ها با
+  `useFeatures().isFeatureVisible`.
+- `docs/HOST-OPS.md`: به‌روزرسانی وضعیت اقلام M1/M2/M3 و جدول ماژول‌ها.
+
+**تأیید/تست:**
+- `tsc` برای `apps/api` و `apps/web` بدون خطا.
+- تست زنده: خاموش‌کردن `featureAccommodationTasks` از `PATCH /admin/settings`
+  → `GET /accommodations/tasks` پاسخ ۴۰۳؛ روشن‌کردن مجدد → ۲۰۰.
+- `python3 scripts/sync_install.py` و `--check` بدون تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۴ — M3 ابزار عملیات میزبان: وظایف عملیاتی، نظرات مهمان و واحدهای چندگانه — نسخه `v4.100.0`
 

@@ -18,6 +18,7 @@ import {
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
+import { useFeatures } from '@/lib/features';
 import { todayIso } from '@/lib/jalali';
 import { toast } from '@/lib/toast';
 
@@ -27,6 +28,8 @@ export default function AccommodationDetailPage() {
   const { token, hydrated } = useAuth();
   const enabled = hydrated && Boolean(token);
   const { workspace } = useBusinessWorkspace(enabled);
+  const features = useFeatures();
+  const ratesVisible = features.isFeatureVisible('featureAccommodationRates');
   const [property, setProperty] = useState<AccommodationProperty | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -47,19 +50,20 @@ export default function AccommodationDetailPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [item, rateList] = await Promise.all([
-        api.get<AccommodationProperty>(`/accommodations/${params.id}`),
-        api.get<AccommodationRate[]>(`/accommodations/${params.id}/rates`),
-      ]);
+      const item = await api.get<AccommodationProperty>(`/accommodations/${params.id}`);
       setProperty(item);
-      setRates(rateList);
+      setRates(
+        ratesVisible
+          ? await api.get<AccommodationRate[]>(`/accommodations/${params.id}/rates`)
+          : [],
+      );
       setReviews(
         await api.get<AccommodationReview[]>(`/accommodations/${params.id}/reviews`),
       );
     } finally {
       setLoading(false);
     }
-  }, [params.id]);
+  }, [params.id, ratesVisible]);
 
   useEffect(() => {
     if (hydrated && !token) {
@@ -319,6 +323,7 @@ export default function AccommodationDetailPage() {
         </div>
       </section>
 
+      {ratesVisible ? (
       <section className="indeed-panel p-5">
         <h2 className="mb-1 text-lg font-extrabold text-ink">نرخ‌های فصلی و آخر هفته</h2>
         <p className="mb-4 text-xs text-muted">
@@ -393,6 +398,7 @@ export default function AccommodationDetailPage() {
           )}
         </div>
       </section>
+      ) : null}
 
       <section className="indeed-panel p-5">
         <h2 className="mb-1 text-lg font-extrabold text-ink">نظرات مهمانان</h2>

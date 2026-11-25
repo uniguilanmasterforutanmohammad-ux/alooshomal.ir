@@ -469,6 +469,7 @@ export class AccommodationsService {
   // ---- guest inbox ----
 
   async listMessages(userId: string, bookingId: string) {
+    await this.settings.assertFeatureEnabled('featureAccommodationInbox');
     await this.assertOwnedBooking(userId, bookingId);
     return this.prisma.accommodationMessage.findMany({
       where: { bookingId },
@@ -481,6 +482,7 @@ export class AccommodationsService {
     bookingId: string,
     dto: CreateMessageDto,
   ) {
+    await this.settings.assertFeatureEnabled('featureAccommodationInbox');
     const booking = await this.assertOwnedBooking(userId, bookingId);
     return this.prisma.accommodationMessage.create({
       data: {
@@ -513,6 +515,7 @@ export class AccommodationsService {
   // ---- reports ----
 
   async reports(userId: string, from?: string, to?: string) {
+    await this.settings.assertFeatureEnabled('featureAccommodationReports');
     const workspaceId = await this.workspaceId(userId);
     const range = this.resolveCalendarRange(from, to);
     const rangeDays = Math.max(
@@ -642,6 +645,7 @@ export class AccommodationsService {
   // ---- operations tasks ----
 
   async listTasks(userId: string, status?: string) {
+    await this.settings.assertFeatureEnabled('featureAccommodationTasks');
     const workspaceId = await this.workspaceId(userId);
     return this.prisma.accommodationTask.findMany({
       where: { workspaceId, ...(status ? { status } : {}) },
@@ -656,6 +660,7 @@ export class AccommodationsService {
   }
 
   async createTask(userId: string, dto: CreateTaskDto) {
+    await this.settings.assertFeatureEnabled('featureAccommodationTasks');
     const workspaceId = await this.workspaceId(userId);
     if (dto.propertyId) {
       await this.assertOwnedProperty(userId, dto.propertyId);
@@ -675,6 +680,7 @@ export class AccommodationsService {
   }
 
   async updateTask(userId: string, taskId: string, dto: UpdateTaskDto) {
+    await this.settings.assertFeatureEnabled('featureAccommodationTasks');
     const workspaceId = await this.workspaceId(userId);
     const task = await this.prisma.accommodationTask.findFirst({
       where: { id: taskId, workspaceId },
@@ -700,6 +706,7 @@ export class AccommodationsService {
   }
 
   async removeTask(userId: string, taskId: string) {
+    await this.settings.assertFeatureEnabled('featureAccommodationTasks');
     const workspaceId = await this.workspaceId(userId);
     const task = await this.prisma.accommodationTask.findFirst({
       where: { id: taskId, workspaceId },
@@ -894,6 +901,7 @@ export class AccommodationsService {
   // ---- rates (seasonal pricing) ----
 
   async listRates(userId: string, propertyId: string) {
+    await this.settings.assertFeatureEnabled('featureAccommodationRates');
     await this.assertOwnedProperty(userId, propertyId);
     return this.prisma.accommodationRate.findMany({
       where: { propertyId },
@@ -902,6 +910,7 @@ export class AccommodationsService {
   }
 
   async createRate(userId: string, propertyId: string, dto: CreateRateDto) {
+    await this.settings.assertFeatureEnabled('featureAccommodationRates');
     await this.assertOwnedProperty(userId, propertyId);
     this.assertDates(dto.startDate, dto.endDate);
     return this.prisma.accommodationRate.create({
@@ -923,6 +932,7 @@ export class AccommodationsService {
     rateId: string,
     dto: UpdateRateDto,
   ) {
+    await this.settings.assertFeatureEnabled('featureAccommodationRates');
     await this.assertOwnedProperty(userId, propertyId);
     const rate = await this.prisma.accommodationRate.findFirst({
       where: { id: rateId, propertyId },
@@ -945,6 +955,7 @@ export class AccommodationsService {
   }
 
   async removeRate(userId: string, propertyId: string, rateId: string) {
+    await this.settings.assertFeatureEnabled('featureAccommodationRates');
     await this.assertOwnedProperty(userId, propertyId);
     const rate = await this.prisma.accommodationRate.findFirst({
       where: { id: rateId, propertyId },
@@ -956,6 +967,7 @@ export class AccommodationsService {
 
   /** Owner-side quote for a property (used by the panel before booking). */
   async quoteForOwner(userId: string, propertyId: string, dto: QuoteStayDto) {
+    await this.settings.assertFeatureEnabled('featureAccommodationRates');
     const property = await this.prisma.accommodationProperty.findFirst({
       where: { id: propertyId, workspaceId: await this.workspaceId(userId) },
       include: { rates: true },

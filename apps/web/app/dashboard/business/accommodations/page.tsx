@@ -147,18 +147,22 @@ export default function AccommodationsPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href="/dashboard/business/accommodations/tasks"
-            className="indeed-btn"
-          >
-            وظایف عملیاتی
-          </Link>
-          <Link
-            href="/dashboard/business/accommodations/reports"
-            className="indeed-btn"
-          >
-            گزارش و تحلیل
-          </Link>
+          {features.isFeatureVisible('featureAccommodationTasks') ? (
+            <Link
+              href="/dashboard/business/accommodations/tasks"
+              className="indeed-btn"
+            >
+              وظایف عملیاتی
+            </Link>
+          ) : null}
+          {features.isFeatureVisible('featureAccommodationReports') ? (
+            <Link
+              href="/dashboard/business/accommodations/reports"
+              className="indeed-btn"
+            >
+              گزارش و تحلیل
+            </Link>
+          ) : null}
           <Link href="/stay" className="indeed-btn">
             دایرکتوری عمومی
           </Link>
