@@ -87,20 +87,6 @@ function BusinessPanelContent() {
     }
   }, [searchParams, reload]);
 
-  async function changeIndustry(industryKey: string) {
-    setBusy('industry');
-    try {
-      const next = await api.patch<BusinessWorkspace>(
-        '/business-modules/my/industry',
-        { industryKey },
-      );
-      setWorkspace(next);
-      toast.success('بسته‌ی صنف به‌روزرسانی شد');
-    } finally {
-      setBusy(null);
-    }
-  }
-
   async function saveName() {
     if (!name.trim()) return;
     setSavingName(true);
@@ -331,7 +317,7 @@ function BusinessPanelContent() {
       </section>
 
       <section className="indeed-panel p-5">
-        <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
+        <div className="grid gap-4">
           <div>
             <label className="mb-1 block text-xs font-bold text-muted">
               نام نمایشی کسب‌وکار
@@ -363,28 +349,6 @@ function BusinessPanelContent() {
                 این کسب‌وکار پیش‌فرض من باشد
               </button>
             ) : null}
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-bold text-muted">
-              بسته‌ی صنف
-            </label>
-            <select
-              value={workspace.industryKey}
-              onChange={(event) => void changeIndustry(event.target.value)}
-              disabled={busy === 'industry' || workspace.industryLocked}
-              className="w-full rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-surface)] px-3 py-2 text-sm text-ink outline-none focus:border-brand"
-            >
-              {workspace.industries.map((industry) => (
-                <option key={industry.key} value={industry.key}>
-                  {industry.label}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-muted">
-              {workspace.industryLocked
-                ? 'پس از خرید «مدیریت کسب‌وکار»، صنف این کسب‌وکار ثابت است و قابل تغییر نیست. برای صنف دیگر یک کسب‌وکار جدید بسازید.'
-                : workspace.industry.description}
-            </p>
           </div>
         </div>
       </section>
