@@ -2,7 +2,11 @@ services:
   api:
     build:
       target: development
-    command: npm run start:dev
+    # هر بار که کانتینر dev بالا می‌آید، کلاینت Prisma را از روی اسکیمای فعلی
+    # دوباره می‌سازیم. چون `node_modules` روی volume نام‌دار پایدار می‌ماند،
+    # تغییر `schema.prisma` بدون این مرحله باعث می‌شود `nest --watch` با کلاینت
+    # کهنه کامپایل کند و مسیرهای/فیلدهای جدید با TS2551/TS2353 بشکنند.
+    command: sh -c "npx prisma generate && npm run start:dev"
     volumes:
       - ./apps/api:/usr/src/app
       - api_node_modules:/usr/src/app/node_modules

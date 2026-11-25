@@ -20,7 +20,37 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.96.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.96.1**.
+
+## ۱۴۰۵/۰۹/۰۴ — رفع خطای ۵۰۰ ایمپورت جاباما در لوکال (کلاینت کهنه‌ی Prisma) — نسخه `v4.96.1`
+
+**هدف:** رفع «خطای داخلی سرور» هنگام ایمپورت اقامتگاه از لینک جاباما در محیط
+توسعه. علت ریشه‌ای این بود که در کانتینر dev، پوشه‌ی `node_modules` روی یک
+volume نام‌دار مانده و پس از تغییر `schema.prisma` دستور `prisma generate`
+دوباره اجرا نمی‌شد؛ در نتیجه `nest --watch` با کلاینت قدیمی کامپایل می‌کرد و
+مسیرهای جدید (`accommodationAiImport`، `areaSize`، `instantBooking`، ...) با
+خطاهای `TS2551/TS2353/TS2339` شکست می‌خوردند و API عملاً بالا نمی‌آمد.
+
+**تغییرات:**
+- `docker-compose.dev.yml`: دستور شروع سرویس `api` به
+  `sh -c "npx prisma generate && npm run start:dev"` تغییر کرد تا در هر بوت
+  محیط dev، کلاینت Prisma از روی اسکیمای فعلی بازسازی شود و خطای کامپایل کهنه
+  تکرار نشود (تصویر production کلاینت را هنگام build می‌سازد، پس نیازی به تغییر
+  entrypoint ندارد).
+
+**تأیید/تست:**
+- بازسازی کانتینر dev با فایل‌های compose جدید؛ لاگ شروع:
+  «✔ Generated Prisma Client (v7.10.1)» و سپس watch: «Found 0 errors» و
+  «Nest application successfully started»؛ `GET /api/health` → 200.
+- `GET /api/docs-json` شامل `/api/accommodations/ai-import`،
+  `/api/accommodations/ai-import/estimate` و `/api/admin/accommodations/settings` شد.
+- `POST /api/accommodations/ai-import/estimate` برای `cottage-660018` و
+  `suite-784475` موفق (۲۰۰) و `POST /api/accommodations/ai-import` برای هر دو
+  موفق (۲۰۱): عنوان/نوع/ظرفیت/متراژ/قیمت/مختصات/امکانات/قوانین و تصاویر
+  درست استخراج و اقامتگاه ساخته شد (سوییت: ۲ تصویر، کاتیج: ۱۹ تصویر). داده‌ی
+  آزمایشی و فاکتور/تراکنش/رکورد ایمپورت پاک شد.
+- `python3 scripts/check_api_docs.py` → exit 0.
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
