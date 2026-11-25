@@ -6,6 +6,7 @@ import { Check, Minus, Plus, ShoppingBag, Truck } from 'lucide-react';
 
 import { CardToCardForm } from '@/components/payments/CardToCardForm';
 import { api, type PublicShop, type RetailOrder } from '@/lib/api';
+import { useCart } from '@/lib/cart';
 import { toast } from '@/lib/toast';
 
 const field =
@@ -13,7 +14,8 @@ const field =
 
 export function ShopOrderForm({ shop }: { shop: PublicShop }) {
   const settings = shop.settings;
-  const [cart, setCart] = useState<Record<string, number>>({});
+  const slug = shop.workspace.publicSlug ?? '';
+  const { items: cartItems, setQuantity, clearShop } = useCart();
   const [customer, setCustomer] = useState({
     customerName: '',
     customerPhone: '',
@@ -26,16 +28,24 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
   const [busy, setBusy] = useState(false);
   const [order, setOrder] = useState<RetailOrder | null>(null);
 
+  const quantities = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const item of cartItems) {
+      if (item.slug === slug) map[item.productId] = item.quantity;
+    }
+    return map;
+  }, [cartItems, slug]);
+
   const lines = useMemo(
     () =>
       shop.products
-        .filter((product) => (cart[product.id] ?? 0) > 0)
+        .filter((product) => (quantities[product.id] ?? 0) > 0)
         .map((product) => ({
           product,
-          quantity: cart[product.id],
-          total: product.price * cart[product.id],
+          quantity: quantities[product.id],
+          total: product.price * quantities[product.id],
         })),
-    [cart, shop.products],
+    [quantities, shop.products],
   );
   const itemsTotal = lines.reduce((sum, line) => sum + line.total, 0);
   const deliveryFee =
@@ -43,10 +53,11 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
   const total = itemsTotal + deliveryFee;
 
   function change(productId: string, delta: number, max: number) {
-    setCart((prev) => {
-      const next = Math.max(0, Math.min(max, (prev[productId] ?? 0) + delta));
-      return { ...prev, [productId]: next };
-    });
+    const next = Math.max(
+      0,
+      Math.min(max, (quantities[productId] ?? 0) + delta),
+    );
+    setQuantity(slug, productId, next);
   }
 
   async function submit(event: React.FormEvent) {
@@ -75,7 +86,7 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
         },
       );
       setOrder(created);
-      setCart({});
+      clearShop(slug);
       toast.success('سفارش ثبت شد');
     } finally {
       setBusy(false);
@@ -133,7 +144,7 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
       ) : (
         <ul className="flex flex-col gap-2">
           {shop.products.map((product) => {
-            const quantity = cart[product.id] ?? 0;
+            const quantity = quantities[product.id] ?? 0;
             const out = product.stock <= 0;
             return (
               <li key={product.id} className="flex items-center gap-3 rounded-lg border border-[var(--vintage-border)] p-2">

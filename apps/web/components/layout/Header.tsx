@@ -3,10 +3,11 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, LogIn, Wallet } from 'lucide-react';
+import { LayoutDashboard, LogIn, ShoppingCart, Wallet } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { useAuth } from '@/lib/auth';
+import { useCart } from '@/lib/cart';
 import { useFeatures } from '@/lib/features';
 import { HEADER_NAV } from '@/lib/nav';
 import { cn } from '@/lib/utils';
@@ -26,9 +27,11 @@ export function Header() {
   const pathname = usePathname();
   const { token, hydrated } = useAuth();
   const { showNav, isFeatureVisible } = useFeatures();
+  const { count: cartCount } = useCart();
   const signedIn = hydrated && Boolean(token);
   const navItems = HEADER_NAV.filter((item) => showNav(item.href));
   const walletVisible = isFeatureVisible('featureWallet');
+  const cartVisible = isFeatureVisible('featureRetailCart');
 
   return (
     <header className="sticky top-[var(--feature-notice-h)] z-50 hidden border-b-2 border-dashed border-[var(--vintage-accent-hover)] bg-[var(--vintage-surface)]/95 backdrop-blur lg:block">
@@ -82,6 +85,22 @@ export function Header() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
+          {cartVisible ? (
+            <Link
+              href="/cart"
+              prefetch={false}
+              aria-label="سبد خرید"
+              title="سبد خرید"
+              className="relative flex size-9 items-center justify-center rounded-lg border border-[var(--vintage-border)] text-muted transition hover:bg-soft hover:text-brand"
+            >
+              <ShoppingCart className="size-4" aria-hidden />
+              {cartCount > 0 ? (
+                <span className="absolute -top-1.5 -end-1.5 flex min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold leading-4 text-white">
+                  {cartCount.toLocaleString('fa-IR')}
+                </span>
+              ) : null}
+            </Link>
+          ) : null}
           {walletVisible ? (
             <Link
               href={signedIn ? '/dashboard/wallet' : '/login?next=/dashboard/wallet'}

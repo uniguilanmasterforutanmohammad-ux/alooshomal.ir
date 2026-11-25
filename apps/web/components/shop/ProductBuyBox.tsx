@@ -8,11 +8,13 @@ import {
   Plus,
   ShieldCheck,
   ShoppingBag,
+  ShoppingCart,
   Truck,
 } from 'lucide-react';
 
 import { CardToCardForm } from '@/components/payments/CardToCardForm';
 import { api, type PublicProduct, type RetailOrder } from '@/lib/api';
+import { useCart } from '@/lib/cart';
 import { toast } from '@/lib/toast';
 
 const field =
@@ -21,6 +23,7 @@ const field =
 export function ProductBuyBox({ data }: { data: PublicProduct }) {
   const { product, settings, card, workspace } = data;
   const slug = workspace.publicSlug ?? '';
+  const { add } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -41,6 +44,23 @@ export function ProductBuyBox({ data }: { data: PublicProduct }) {
   const deliveryFee =
     customer.deliveryMethod === 'SNAP' ? settings.deliveryFee : 0;
   const total = itemsTotal + deliveryFee;
+
+  function addToCart() {
+    add(
+      {
+        productId: product.id,
+        slug,
+        shopName: workspace.name,
+        title: product.title,
+        price: product.price,
+        unit: product.unit,
+        stock: product.stock,
+        imageUrl: product.imageUrl ?? null,
+      },
+      quantity,
+    );
+    toast.success('به سبد خرید اضافه شد');
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -143,15 +163,26 @@ export function ProductBuyBox({ data }: { data: PublicProduct }) {
       </div>
 
       {!open ? (
-        <button
-          type="button"
-          disabled={out}
-          onClick={() => setOpen(true)}
-          className="indeed-btn indeed-btn-primary w-full disabled:opacity-50"
-        >
-          <ShoppingBag className="size-4" aria-hidden />
-          {out ? 'ناموجود' : 'ثبت سفارش'}
-        </button>
+        <div className="flex flex-col gap-2">
+          <button
+            type="button"
+            disabled={out}
+            onClick={addToCart}
+            className="indeed-btn indeed-btn-primary w-full disabled:opacity-50"
+          >
+            <ShoppingCart className="size-4" aria-hidden />
+            {out ? 'ناموجود' : 'افزودن به سبد خرید'}
+          </button>
+          <button
+            type="button"
+            disabled={out}
+            onClick={() => setOpen(true)}
+            className="indeed-btn w-full disabled:opacity-50"
+          >
+            <ShoppingBag className="size-4" aria-hidden />
+            خرید فوری
+          </button>
+        </div>
       ) : (
         <form onSubmit={submit} className="flex flex-col gap-3">
           <div className="flex items-center justify-between">

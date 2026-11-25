@@ -518,6 +518,15 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     publicSection: { name: 'فروشگاه‌های آنلاین', routes: ['/shop'] },
   },
   {
+    key: 'featureRetailCart',
+    label: 'سبد خرید فروشگاه‌ها',
+    description:
+      'افزودن چند محصول از فروشگاه‌ها به یک سبد مشترک و تسویه‌ی یکجا. خاموش‌کردن «نمایش» صفحه‌ی عمومی `/cart` را هم متوقف می‌کند.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+    publicSection: { name: 'سبد خرید', routes: ['/cart'] },
+  },
+  {
     key: 'featureRetailOrders',
     label: 'ماژول سفارش‌های فروشگاه',
     description:

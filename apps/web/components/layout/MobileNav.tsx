@@ -11,10 +11,12 @@ import {
   Loader2,
   LogIn,
   Newspaper,
+  ShoppingCart,
   Wallet,
 } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
+import { useCart } from '@/lib/cart';
 import { useFeatures } from '@/lib/features';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { cn } from '@/lib/utils';
@@ -26,6 +28,8 @@ interface Item {
   exact?: boolean;
   /** When set, the item is hidden if that feature is disabled/not visible. */
   feature?: string;
+  /** Small count bubble (e.g. cart units). */
+  badge?: number;
 }
 
 /**
@@ -52,6 +56,7 @@ export function MobileNav() {
   const pathname = usePathname();
   const { token, hydrated } = useAuth();
   const { showNav, isFeatureVisible } = useFeatures();
+  const { count: cartCount } = useCart();
 
   // Hide on the auth screens: they are a focused, full-screen flow.
   const hideOnAuth =
@@ -68,6 +73,7 @@ export function MobileNav() {
     { href: '/pulse', label: 'اخبار', icon: Newspaper },
     { href: '/feeds', label: 'پست‌ها', icon: ImagePlus },
     { href: '/dashboard/wallet', label: 'کیف پول', icon: Wallet, feature: 'featureWallet' },
+    { href: '/cart', label: 'سبد', icon: ShoppingCart, feature: 'featureRetailCart', badge: cartCount },
     hydrated && token
       ? { href: '/dashboard', label: 'داشبورد', icon: LayoutDashboard }
       : { href: '/login', label: 'ورود', icon: LogIn },
@@ -111,6 +117,11 @@ export function MobileNav() {
               >
                 <item.icon className="size-5" aria-hidden />
                 {item.label}
+                {item.badge && item.badge > 0 ? (
+                  <span className="absolute -top-0.5 end-1 flex min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[9px] font-bold leading-4 text-white">
+                    {item.badge.toLocaleString('fa-IR')}
+                  </span>
+                ) : null}
                 <NavPending />
               </Link>
             </li>
