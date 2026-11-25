@@ -93,7 +93,8 @@ export class AdminRetailController {
 
   @Get('settings')
   @ApiOperation({
-    summary: 'تنظیمات تصاویر محصول (حداکثر تعداد و حجم)',
+    summary:
+      'تنظیمات فروشگاه: تصاویر محصول، تعرفه‌ی ایمپورت و قابلیت‌های سراسری سفارش',
   })
   settings() {
     return this.retail.getImageSettings();
@@ -101,7 +102,8 @@ export class AdminRetailController {
 
   @Patch('settings')
   @ApiOperation({
-    summary: 'ذخیره تنظیمات تصاویر محصول (حداکثر تعداد و حجم)',
+    summary:
+      'ذخیره تنظیمات فروشگاه: تصاویر، تعرفه‌ی ایمپورت و سوئیچ‌های سراسری سفارش',
   })
   updateSettings(@Body() dto: UpdateRetailImageSettingsDto) {
     return this.retail.updateImageSettings(dto);

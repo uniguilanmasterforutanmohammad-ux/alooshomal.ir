@@ -227,7 +227,7 @@ ENABLE_SWAGGER=true docker compose -f docker-compose.yml -f docker-compose.prod.
 
 | متد | مسیر | توضیح |
 | --- | --- | --- |
-| `GET` | `/settings/public` | در کنار سایر تنظیمات عمومی، فیلد `siteTheme` (`vintage` \| `modern` \| `bazaar` \| `twitter` \| `kashi`) را برمی‌گرداند؛ لایه‌ی ریشه‌ی وب آن را روی `<html data-theme>` می‌نویسد (برای `twitter` به‌صورت `data-theme="modern"` + `data-skin="twitter"`). همچنین `hiddenNavHrefs`/`stoppedSections` (بخش‌های پنهان/متوقف) و `featureNoticeEnabled` (نمایش نوار اعلان «توقف موقت») را برمی‌گرداند. |
+| `GET` | `/settings/public` | در کنار سایر تنظیمات عمومی، فیلد `siteTheme` (`vintage` \| `modern` \| `bazaar` \| `twitter` \| `kashi`) را برمی‌گرداند؛ لایه‌ی ریشه‌ی وب آن را روی `<html data-theme>` می‌نویسد (برای `twitter` به‌صورت `data-theme="modern"` + `data-skin="twitter"`). همچنین `hiddenNavHrefs`/`stoppedSections` (بخش‌های پنهان/متوقف)، `featureNoticeEnabled` (نمایش نوار اعلان «توقف موقت») و `retailCapabilities` (سوئیچ‌های سراسری سفارش فروشگاه: `snapEnabled`/`pickupEnabled`/`cashOnDeliveryEnabled`/`cardToCardEnabled`) را برمی‌گرداند. |
 | `PATCH` | `/admin/settings` | با بدنه‌ی `{ "siteTheme": "modern" }` (یا `vintage`/`bazaar`/`twitter`/`kashi`) تم سراسری را عوض می‌کند. فقط مدیر. |
 
 تغییر تم، همه‌ی صفحات عمومی، کارت ویزیت، بیولینک، داشبورد و پنل مدیر را هم‌زمان
@@ -959,7 +959,7 @@ PY
 | --- | --- | --- |
 | `GET/POST` | `/admin/retail/categories` | فهرست/افزودن دسته‌بندی محصول (فروشنده فقط از این‌ها انتخاب می‌کند). |
 | `PATCH/DELETE` | `/admin/retail/categories/:id` | ویرایش (نام/فعال‌بودن) یا حذف دسته‌بندی. |
-| `GET/PATCH` | `/admin/retail/settings` | تنظیم حداکثر تعداد تصویر (`maxImages` ۱–۲۰)، حداکثر حجم هر تصویر (`maxImageKb` ۶۴–۲۰۴۸۰ کیلوبایت)، تعرفه‌ی ایمپورت هوش مصنوعی (`aiPricePer1k`، `aiMinPrice` تومان) و حداقل تعداد عکس رسمی ایمپورت (`aiMinImages` ۱–۲۰). |
+| `GET/PATCH` | `/admin/retail/settings` | تنظیم حداکثر تعداد تصویر (`maxImages` ۱–۲۰)، حداکثر حجم هر تصویر (`maxImageKb` ۶۴–۲۰۴۸۰ کیلوبایت)، تعرفه‌ی ایمپورت هوش مصنوعی (`aiPricePer1k`، `aiMinPrice` تومان)، حداقل تعداد عکس رسمی ایمپورت (`aiMinImages` ۱–۲۰) و سوئیچ‌های سراسری سفارش: `snapEnabled` (ارسال با پیک)، `pickupEnabled` (دریافت حضوری)، `cashOnDeliveryEnabled` (پرداخت در محل) و `cardToCardEnabled` (کارت به کارت). مقدار مؤثر هر روش در فروشگاه = تنظیم فروشگاه AND سوئیچ سراسری. |
 | `GET` | `/admin/retail/products` | صف بررسی محصولات (فیلتر `status`، `q`، `take`). |
 | `PATCH` | `/admin/retail/products/:id/review` | تأیید (`approve: true` → `PUBLISHED`) یا رد (`approve: false` + `reason`) محصول در وضعیت `PENDING_REVIEW`. |
 

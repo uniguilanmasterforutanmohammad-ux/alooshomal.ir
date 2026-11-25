@@ -135,6 +135,28 @@ export const RETAIL_PRODUCT_MAX_IMAGE_KB_KEY = 'retailProductMaxImageKb';
 export const DEFAULT_RETAIL_PRODUCT_MAX_IMAGE_KB = 2048;
 
 // ---------------------------------------------------------------------------
+//  «فروشگاه» — global order capabilities (admin master switches)
+// ---------------------------------------------------------------------------
+
+/**
+ * Master switches for the order capabilities a shop may offer. Each shop also
+ * has its own per-shop switch; the effective value is `shop AND global`, so an
+ * admin can disable a method site-wide (e.g. courier delivery) and no shop can
+ * re-enable it.
+ */
+export const RETAIL_SNAP_ENABLED_KEY = 'retailSnapEnabled';
+export const DEFAULT_RETAIL_SNAP_ENABLED = true;
+
+export const RETAIL_PICKUP_ENABLED_KEY = 'retailPickupEnabled';
+export const DEFAULT_RETAIL_PICKUP_ENABLED = true;
+
+export const RETAIL_CASH_ON_DELIVERY_KEY = 'retailCashOnDeliveryEnabled';
+export const DEFAULT_RETAIL_CASH_ON_DELIVERY = true;
+
+export const RETAIL_CARD_TO_CARD_ORDER_KEY = 'retailCardToCardOrderEnabled';
+export const DEFAULT_RETAIL_CARD_TO_CARD_ORDER = true;
+
+// ---------------------------------------------------------------------------
 //  «ورود خودکار محصول از دیجی‌کالا» (AI import) pricing
 // ---------------------------------------------------------------------------
 

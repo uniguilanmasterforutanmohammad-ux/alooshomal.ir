@@ -53,6 +53,14 @@ import {
   RETAIL_AI_IMPORT_PRICE_PER_1K_KEY,
   RETAIL_AI_IMPORT_MIN_PRICE_KEY,
   RETAIL_AI_IMPORT_MIN_IMAGES_KEY,
+  RETAIL_SNAP_ENABLED_KEY,
+  RETAIL_PICKUP_ENABLED_KEY,
+  RETAIL_CASH_ON_DELIVERY_KEY,
+  RETAIL_CARD_TO_CARD_ORDER_KEY,
+  DEFAULT_RETAIL_SNAP_ENABLED,
+  DEFAULT_RETAIL_PICKUP_ENABLED,
+  DEFAULT_RETAIL_CASH_ON_DELIVERY,
+  DEFAULT_RETAIL_CARD_TO_CARD_ORDER,
   DEFAULT_SUPPORT_CHAT_SMS_ENABLED,
   SUPPORT_CHAT_SMS_ENABLED_KEY,
   SUPPORT_CHAT_SMS_PHONE_KEY,
@@ -284,6 +292,38 @@ export async function ensureSettingsDefaults(
         create: {
           key: RETAIL_AI_IMPORT_MIN_IMAGES_KEY,
           value: String(DEFAULT_RETAIL_AI_IMPORT_MIN_IMAGES),
+        },
+      }),
+      prisma.setting.upsert({
+        where: { key: RETAIL_SNAP_ENABLED_KEY },
+        update: {},
+        create: {
+          key: RETAIL_SNAP_ENABLED_KEY,
+          value: DEFAULT_RETAIL_SNAP_ENABLED ? 'true' : 'false',
+        },
+      }),
+      prisma.setting.upsert({
+        where: { key: RETAIL_PICKUP_ENABLED_KEY },
+        update: {},
+        create: {
+          key: RETAIL_PICKUP_ENABLED_KEY,
+          value: DEFAULT_RETAIL_PICKUP_ENABLED ? 'true' : 'false',
+        },
+      }),
+      prisma.setting.upsert({
+        where: { key: RETAIL_CASH_ON_DELIVERY_KEY },
+        update: {},
+        create: {
+          key: RETAIL_CASH_ON_DELIVERY_KEY,
+          value: DEFAULT_RETAIL_CASH_ON_DELIVERY ? 'true' : 'false',
+        },
+      }),
+      prisma.setting.upsert({
+        where: { key: RETAIL_CARD_TO_CARD_ORDER_KEY },
+        update: {},
+        create: {
+          key: RETAIL_CARD_TO_CARD_ORDER_KEY,
+          value: DEFAULT_RETAIL_CARD_TO_CARD_ORDER ? 'true' : 'false',
         },
       }),
       ...ADMIN_NOTIFY_CATEGORIES.map((category) =>

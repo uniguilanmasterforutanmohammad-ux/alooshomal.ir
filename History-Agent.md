@@ -20,13 +20,51 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.94.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.95.0**.
 
 > **قانون فاکتور هر پرداخت (قانون ۱۱ در `AGENTS.md`):** هر تراکنش `PAID` باید
 > همان لحظه با `FinanceService.recordSale` فاکتور کامل بگیرد (منبع یکتا در
 > `FINANCE_SOURCE_TYPES`، افزودن به `backfill`، و `invoiceId` در
 > `GET /payments/mine`) تا در پنل مالی ادمین و «پرداخت‌های من» کاربر با
 > جزئیات کامل ثبت شود.
+
+## ۱۴۰۵/۰۹/۰۴ — کنترل سراسری قابلیت‌های سفارش فروشگاه توسط ادمین — نسخه `v4.95.0`
+
+**هدف:** مدیر بتواند هر قابلیت سفارش فروشگاه (ارسال با پیک، دریافت حضوری،
+پرداخت در محل، کارت به کارت) را برای همه‌ی فروشگاه‌ها یکجا فعال/غیرفعال کند؛
+فروشنده هم نتواند روشی را که مدیر بسته است انتخاب کند.
+
+**تغییرات:**
+- `apps/api/src/settings/settings.constants.ts`: کلیدهای سراسری
+  `retailSnapEnabled`، `retailPickupEnabled`، `retailCashOnDeliveryEnabled` و
+  `retailCardToCardOrderEnabled` (پیش‌فرض همه روشن).
+- `apps/api/src/settings/settings-defaults.ts`: seed این چهار کلید.
+- `apps/api/src/settings/settings.service.ts`: getter/setter بولی برای هر کلید.
+- `apps/api/src/settings/settings.controller.ts`: افزودن `retailCapabilities` به
+  `GET /settings/public` تا فرم فروشنده از سوئیچ‌های سراسری باخبر شود.
+- `apps/api/src/retail/retail.service.ts`: مقدار مؤثر هر روش = تنظیم فروشگاه AND
+  سوئیچ سراسری؛ `publicSettings` این مقادیر مؤثر را برمی‌گرداند و `publicOrder`
+  روش پرداخت/تحویل غیرمجاز را با ۴۰۰ رد می‌کند.
+- `apps/api/src/retail/dto/retail-image-settings.dto.ts` و
+  `apps/api/src/retail/admin-retail.controller.ts`: افزودن چهار سوئیچ به
+  `GET/PATCH /admin/retail/settings`.
+- `apps/web/components/admin/AdminRetailSettings.tsx`: بخش «قابلیت‌های سفارش
+  فروشگاه (سراسری)» با چهار چک‌باکس.
+- `apps/web/app/dashboard/business/shop-settings/page.tsx`: غیرفعال‌شدن چک‌باکس
+  پیک/دریافت حضوری وقتی مدیر آن را سراسری بسته است.
+- `apps/web/components/shop/ShopOrderForm.tsx`، `ProductBuyBox.tsx` و
+  `CartView.tsx`: پنهان‌شدن روش‌های تحویل/پرداخت غیرفعال و جلوگیری از ثبت سفارش.
+- `apps/web/lib/api/types/business-modules.ts` و `docs/API.md`: تایپ‌ها و مستندات.
+
+**تأیید/تست:**
+- `tsc --noEmit` در هر دو اپ بدون خطا؛ `eslint` فایل‌های وب: ۰ خطا (یک هشدار
+  از پیش موجود `set-state-in-effect`).
+- `python3 scripts/check_api_docs.py` → ۷۲۲ مسیر، exit 0.
+- تست زمان اجرا: با خاموش‌کردن `retailSnapEnabled`، پاسخ `GET /public/shops/:slug`
+  مقدار `snapEnabled=false`/`deliveryEnabled=false` داد و ثبت سفارش با پیک ۴۰۰
+  شد؛ با خاموش‌کردن `retailCashOnDeliveryEnabled`، سفارش «پرداخت در محل» ۴۰۰ شد
+  (هر دو کلید سپس به `true` بازگردانده شدند).
+- `GET /admin/retail/settings` با توکن مدیر، چهار فیلد جدید را برگرداند.
 
 ## ۱۴۰۵/۰۹/۰۴ — سبد خرید مشترک فروشگاه‌ها و نمایش آیکن آن — نسخه `v4.94.0`
 

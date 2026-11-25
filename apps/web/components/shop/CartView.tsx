@@ -74,6 +74,10 @@ function ShopCartCheckout({
         setShop(data);
         setCustomer((prev) => ({
           ...prev,
+          paymentMethod:
+            data.settings.cardToCardEnabled === false
+              ? 'CASH_ON_DELIVERY'
+              : 'CARD_TO_CARD',
           deliveryMethod: data.settings.snapEnabled
             ? 'SNAP'
             : data.settings.pickupEnabled
@@ -150,6 +154,10 @@ function ShopCartCheckout({
 
   const snapAvailable = shop.settings.snapEnabled;
   const pickupAvailable = shop.settings.pickupEnabled;
+  const cardAvailable = shop.settings.cardToCardEnabled !== false;
+  const cashAvailable = shop.settings.cashOnDeliveryEnabled !== false;
+  const paymentAvailable = cardAvailable || cashAvailable;
+  const deliveryAvailable = snapAvailable || pickupAvailable;
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-3 border-t border-dashed border-[var(--vintage-border)] pt-3">
@@ -246,8 +254,8 @@ function ShopCartCheckout({
             setCustomer((prev) => ({ ...prev, paymentMethod: event.target.value }))
           }
         >
-          <option value="CARD_TO_CARD">کارت به کارت</option>
-          <option value="CASH_ON_DELIVERY">پرداخت در محل</option>
+          {cardAvailable ? <option value="CARD_TO_CARD">کارت به کارت</option> : null}
+          {cashAvailable ? <option value="CASH_ON_DELIVERY">پرداخت در محل</option> : null}
         </select>
         <textarea
           className={`${field} sm:col-span-2`}
@@ -259,6 +267,17 @@ function ShopCartCheckout({
           }
         />
       </div>
+
+      {!paymentAvailable ? (
+        <p className="text-[11px] text-amber-700">
+          روش پرداخت توسط مدیر غیرفعال شده است؛ لطفاً بعداً تلاش کنید.
+        </p>
+      ) : null}
+      {!deliveryAvailable ? (
+        <p className="text-[11px] text-amber-700">
+          روش تحویل توسط مدیر غیرفعال شده است؛ لطفاً بعداً تلاش کنید.
+        </p>
+      ) : null}
 
       <div className="flex flex-col gap-1 text-xs text-muted">
         <div className="flex items-center justify-between">
@@ -279,7 +298,7 @@ function ShopCartCheckout({
 
       <button
         type="submit"
-        disabled={busy}
+        disabled={busy || !paymentAvailable || !deliveryAvailable}
         className="indeed-btn indeed-btn-primary disabled:opacity-50"
       >
         {busy ? (

@@ -34,6 +34,10 @@ export function AdminRetailSettings() {
     aiPricePer1k: 1500,
     aiMinPrice: 5000,
     aiMinImages: 5,
+    snapEnabled: true,
+    pickupEnabled: true,
+    cashOnDeliveryEnabled: true,
+    cardToCardEnabled: true,
   });
   const [pending, setPending] = useState<AdminRetailProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +57,10 @@ export function AdminRetailSettings() {
           aiPricePer1k: number;
           aiMinPrice: number;
           aiMinImages: number;
+          snapEnabled: boolean;
+          pickupEnabled: boolean;
+          cashOnDeliveryEnabled: boolean;
+          cardToCardEnabled: boolean;
         }>('/admin/retail/settings'),
         api.get<AdminRetailProduct[]>(
           '/admin/retail/products?status=PENDING_REVIEW',
@@ -124,7 +132,7 @@ export function AdminRetailSettings() {
     setBusy('settings');
     try {
       await api.patch('/admin/retail/settings', settings);
-      toast.success('تنظیمات تصاویر ذخیره شد');
+      toast.success('تنظیمات فروشگاه ذخیره شد');
     } catch {
       // handled
     } finally {
@@ -296,6 +304,83 @@ export function AdminRetailSettings() {
               ذخیره
             </button>
           </div>
+        </div>
+      </section>
+
+      <section className="indeed-panel p-5">
+        <h4 className="text-sm font-extrabold text-ink">
+          قابلیت‌های سفارش فروشگاه (سراسری)
+        </h4>
+        <p className="mt-0.5 text-xs leading-6 text-muted">
+          این سوئیچ‌ها روی همه‌ی فروشگاه‌ها اعمال می‌شوند؛ اگر روشی را خاموش کنید،
+          فروشندگان هم نمی‌توانند آن را برای فروشگاه خود فعال یا انتخاب کنند.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted">
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={settings.snapEnabled}
+              onChange={(event) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  snapEnabled: event.target.checked,
+                }))
+              }
+            />
+            ارسال با پیک (اسنپ)
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={settings.pickupEnabled}
+              onChange={(event) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  pickupEnabled: event.target.checked,
+                }))
+              }
+            />
+            دریافت حضوری
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={settings.cashOnDeliveryEnabled}
+              onChange={(event) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  cashOnDeliveryEnabled: event.target.checked,
+                }))
+              }
+            />
+            پرداخت در محل
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={settings.cardToCardEnabled}
+              onChange={(event) =>
+                setSettings((prev) => ({
+                  ...prev,
+                  cardToCardEnabled: event.target.checked,
+                }))
+              }
+            />
+            پرداخت کارت به کارت
+          </label>
+          <button
+            type="button"
+            onClick={() => void saveSettings()}
+            disabled={busy === 'settings'}
+            className="indeed-btn indeed-btn-primary py-1.5 text-xs disabled:opacity-50"
+          >
+            {busy === 'settings' ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Save className="size-3.5" aria-hidden />
+            )}
+            ذخیره
+          </button>
         </div>
       </section>
 

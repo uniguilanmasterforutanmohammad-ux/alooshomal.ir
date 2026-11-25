@@ -288,6 +288,17 @@ export class SettingsController {
         await this.settingsService.getRetailProductMaxImages(),
       retailProductMaxImageKb:
         await this.settingsService.getRetailProductMaxImageKb(),
+      // Admin master switches for store order capabilities. The storefront
+      // already receives the effective (shop AND global) values per shop; this
+      // copy lets the seller settings page disable methods the admin turned off.
+      retailCapabilities: {
+        snapEnabled: await this.settingsService.getRetailSnapEnabled(),
+        pickupEnabled: await this.settingsService.getRetailPickupEnabled(),
+        cashOnDeliveryEnabled:
+          await this.settingsService.getRetailCashOnDeliveryEnabled(),
+        cardToCardEnabled:
+          await this.settingsService.getRetailCardToCardOrderEnabled(),
+      },
       biolinkTemplatesEnabled:
         await this.settingsService.getBiolinkTemplatesEnabled(),
       businessCardDirectoryViews:

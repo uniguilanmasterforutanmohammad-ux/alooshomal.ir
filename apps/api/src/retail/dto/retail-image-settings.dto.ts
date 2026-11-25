@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsBoolean, IsInt, IsOptional, Max, Min } from 'class-validator';
 
 export class UpdateRetailImageSettingsDto {
   @ApiPropertyOptional({ description: 'حداکثر تعداد تصویر هر محصول (۱–۲۰)' })
@@ -50,4 +50,32 @@ export class UpdateRetailImageSettingsDto {
   @Min(1)
   @Max(20)
   aiMinImages?: number;
+
+  @ApiPropertyOptional({
+    description: 'فعال‌بودن ارسال با پیک (اسنپ) به‌صورت سراسری برای همه‌ی فروشگاه‌ها',
+  })
+  @IsOptional()
+  @IsBoolean()
+  snapEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'فعال‌بودن دریافت حضوری به‌صورت سراسری برای همه‌ی فروشگاه‌ها',
+  })
+  @IsOptional()
+  @IsBoolean()
+  pickupEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'فعال‌بودن پرداخت در محل به‌صورت سراسری برای همه‌ی فروشگاه‌ها',
+  })
+  @IsOptional()
+  @IsBoolean()
+  cashOnDeliveryEnabled?: boolean;
+
+  @ApiPropertyOptional({
+    description: 'فعال‌بودن پرداخت کارت به کارت برای سفارش‌های فروشگاه',
+  })
+  @IsOptional()
+  @IsBoolean()
+  cardToCardEnabled?: boolean;
 }

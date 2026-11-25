@@ -59,6 +59,10 @@ import {
   DEFAULT_RETAIL_AI_IMPORT_PRICE_PER_1K,
   DEFAULT_RETAIL_AI_IMPORT_MIN_PRICE,
   DEFAULT_RETAIL_AI_IMPORT_MIN_IMAGES,
+  DEFAULT_RETAIL_SNAP_ENABLED,
+  DEFAULT_RETAIL_PICKUP_ENABLED,
+  DEFAULT_RETAIL_CASH_ON_DELIVERY,
+  DEFAULT_RETAIL_CARD_TO_CARD_ORDER,
   DEFAULT_PAYMENTS_ONLINE_ONLY,
   DEFAULT_SITE_THEME,
   DEFAULT_WALLET_SETTLEMENT_DAYS,
@@ -90,6 +94,10 @@ import {
   RETAIL_AI_IMPORT_PRICE_PER_1K_KEY,
   RETAIL_AI_IMPORT_MIN_PRICE_KEY,
   RETAIL_AI_IMPORT_MIN_IMAGES_KEY,
+  RETAIL_SNAP_ENABLED_KEY,
+  RETAIL_PICKUP_ENABLED_KEY,
+  RETAIL_CASH_ON_DELIVERY_KEY,
+  RETAIL_CARD_TO_CARD_ORDER_KEY,
   SITE_THEMES,
   SITE_THEME_KEY,
   SiteTheme,
@@ -1234,5 +1242,75 @@ export class SettingsService implements OnModuleInit {
       },
     });
     return clamped;
+  }
+
+  // ---- Global store order capabilities (admin master switches) ----
+
+  private async getBooleanSetting(
+    key: string,
+    fallback: boolean,
+  ): Promise<boolean> {
+    const row = await this.prisma.setting.findUnique({ where: { key } });
+    return row ? row.value !== 'false' : fallback;
+  }
+
+  private async setBooleanSetting(
+    key: string,
+    value: boolean,
+  ): Promise<boolean> {
+    await this.prisma.setting.upsert({
+      where: { key },
+      update: { value: value ? 'true' : 'false' },
+      create: { key, value: value ? 'true' : 'false' },
+    });
+    return value;
+  }
+
+  /** Whether courier (Snap) delivery is allowed site-wide. */
+  async getRetailSnapEnabled(): Promise<boolean> {
+    return this.getBooleanSetting(
+      RETAIL_SNAP_ENABLED_KEY,
+      DEFAULT_RETAIL_SNAP_ENABLED,
+    );
+  }
+
+  async setRetailSnapEnabled(value: boolean): Promise<boolean> {
+    return this.setBooleanSetting(RETAIL_SNAP_ENABLED_KEY, value);
+  }
+
+  /** Whether in-person pickup is allowed site-wide. */
+  async getRetailPickupEnabled(): Promise<boolean> {
+    return this.getBooleanSetting(
+      RETAIL_PICKUP_ENABLED_KEY,
+      DEFAULT_RETAIL_PICKUP_ENABLED,
+    );
+  }
+
+  async setRetailPickupEnabled(value: boolean): Promise<boolean> {
+    return this.setBooleanSetting(RETAIL_PICKUP_ENABLED_KEY, value);
+  }
+
+  /** Whether cash-on-delivery is allowed site-wide. */
+  async getRetailCashOnDeliveryEnabled(): Promise<boolean> {
+    return this.getBooleanSetting(
+      RETAIL_CASH_ON_DELIVERY_KEY,
+      DEFAULT_RETAIL_CASH_ON_DELIVERY,
+    );
+  }
+
+  async setRetailCashOnDeliveryEnabled(value: boolean): Promise<boolean> {
+    return this.setBooleanSetting(RETAIL_CASH_ON_DELIVERY_KEY, value);
+  }
+
+  /** Whether card-to-card payment is allowed for store orders site-wide. */
+  async getRetailCardToCardOrderEnabled(): Promise<boolean> {
+    return this.getBooleanSetting(
+      RETAIL_CARD_TO_CARD_ORDER_KEY,
+      DEFAULT_RETAIL_CARD_TO_CARD_ORDER,
+    );
+  }
+
+  async setRetailCardToCardOrderEnabled(value: boolean): Promise<boolean> {
+    return this.setBooleanSetting(RETAIL_CARD_TO_CARD_ORDER_KEY, value);
   }
 }

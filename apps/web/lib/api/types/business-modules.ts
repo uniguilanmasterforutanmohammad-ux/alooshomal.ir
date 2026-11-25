@@ -450,6 +450,10 @@ export interface RetailShopSettings {
   deliveryEnabled: boolean;
   snapEnabled: boolean;
   pickupEnabled: boolean;
+  /** Effective global switch (admin may disable card-to-card site-wide). */
+  cardToCardEnabled?: boolean;
+  /** Effective global switch (admin may disable cash-on-delivery site-wide). */
+  cashOnDeliveryEnabled?: boolean;
   pickupAddress: string | null;
   pickupHours: string | null;
   supportPhone: string | null;

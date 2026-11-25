@@ -518,37 +518,91 @@ export class RetailService {
   }
 
   async getImageSettings() {
-    const [maxImages, maxImageKb, aiPricePer1k, aiMinPrice, aiMinImages] =
-      await Promise.all([
-        this.settings.getRetailProductMaxImages(),
-        this.settings.getRetailProductMaxImageKb(),
-        this.settings.getRetailAiImportPricePer1k(),
-        this.settings.getRetailAiImportMinPrice(),
-        this.settings.getRetailAiImportMinImages(),
-      ]);
-    return { maxImages, maxImageKb, aiPricePer1k, aiMinPrice, aiMinImages };
+    const [
+      maxImages,
+      maxImageKb,
+      aiPricePer1k,
+      aiMinPrice,
+      aiMinImages,
+      snapEnabled,
+      pickupEnabled,
+      cashOnDeliveryEnabled,
+      cardToCardEnabled,
+    ] = await Promise.all([
+      this.settings.getRetailProductMaxImages(),
+      this.settings.getRetailProductMaxImageKb(),
+      this.settings.getRetailAiImportPricePer1k(),
+      this.settings.getRetailAiImportMinPrice(),
+      this.settings.getRetailAiImportMinImages(),
+      this.settings.getRetailSnapEnabled(),
+      this.settings.getRetailPickupEnabled(),
+      this.settings.getRetailCashOnDeliveryEnabled(),
+      this.settings.getRetailCardToCardOrderEnabled(),
+    ]);
+    return {
+      maxImages,
+      maxImageKb,
+      aiPricePer1k,
+      aiMinPrice,
+      aiMinImages,
+      snapEnabled,
+      pickupEnabled,
+      cashOnDeliveryEnabled,
+      cardToCardEnabled,
+    };
   }
 
   async updateImageSettings(dto: UpdateRetailImageSettingsDto) {
-    const [maxImages, maxImageKb, aiPricePer1k, aiMinPrice, aiMinImages] =
-      await Promise.all([
-        dto.maxImages !== undefined
-          ? this.settings.setRetailProductMaxImages(dto.maxImages)
-          : this.settings.getRetailProductMaxImages(),
-        dto.maxImageKb !== undefined
-          ? this.settings.setRetailProductMaxImageKb(dto.maxImageKb)
-          : this.settings.getRetailProductMaxImageKb(),
-        dto.aiPricePer1k !== undefined
-          ? this.settings.setRetailAiImportPricePer1k(dto.aiPricePer1k)
-          : this.settings.getRetailAiImportPricePer1k(),
-        dto.aiMinPrice !== undefined
-          ? this.settings.setRetailAiImportMinPrice(dto.aiMinPrice)
-          : this.settings.getRetailAiImportMinPrice(),
-        dto.aiMinImages !== undefined
-          ? this.settings.setRetailAiImportMinImages(dto.aiMinImages)
-          : this.settings.getRetailAiImportMinImages(),
-      ]);
-    return { maxImages, maxImageKb, aiPricePer1k, aiMinPrice, aiMinImages };
+    const [
+      maxImages,
+      maxImageKb,
+      aiPricePer1k,
+      aiMinPrice,
+      aiMinImages,
+      snapEnabled,
+      pickupEnabled,
+      cashOnDeliveryEnabled,
+      cardToCardEnabled,
+    ] = await Promise.all([
+      dto.maxImages !== undefined
+        ? this.settings.setRetailProductMaxImages(dto.maxImages)
+        : this.settings.getRetailProductMaxImages(),
+      dto.maxImageKb !== undefined
+        ? this.settings.setRetailProductMaxImageKb(dto.maxImageKb)
+        : this.settings.getRetailProductMaxImageKb(),
+      dto.aiPricePer1k !== undefined
+        ? this.settings.setRetailAiImportPricePer1k(dto.aiPricePer1k)
+        : this.settings.getRetailAiImportPricePer1k(),
+      dto.aiMinPrice !== undefined
+        ? this.settings.setRetailAiImportMinPrice(dto.aiMinPrice)
+        : this.settings.getRetailAiImportMinPrice(),
+      dto.aiMinImages !== undefined
+        ? this.settings.setRetailAiImportMinImages(dto.aiMinImages)
+        : this.settings.getRetailAiImportMinImages(),
+      dto.snapEnabled !== undefined
+        ? this.settings.setRetailSnapEnabled(dto.snapEnabled)
+        : this.settings.getRetailSnapEnabled(),
+      dto.pickupEnabled !== undefined
+        ? this.settings.setRetailPickupEnabled(dto.pickupEnabled)
+        : this.settings.getRetailPickupEnabled(),
+      dto.cashOnDeliveryEnabled !== undefined
+        ? this.settings.setRetailCashOnDeliveryEnabled(dto.cashOnDeliveryEnabled)
+        : this.settings.getRetailCashOnDeliveryEnabled(),
+      dto.cardToCardEnabled !== undefined
+        ? this.settings.setRetailCardToCardOrderEnabled(dto.cardToCardEnabled)
+        : this.settings.getRetailCardToCardOrderEnabled(),
+    ]);
+    return {
+      maxImages,
+      maxImageKb,
+      aiPricePer1k,
+      aiMinPrice,
+      aiMinImages,
+      snapEnabled,
+      pickupEnabled,
+      cashOnDeliveryEnabled,
+      cardToCardEnabled,
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -913,7 +967,7 @@ export class RetailService {
     return workspace;
   }
 
-  private publicSettings(settings: {
+  private async publicSettings(settings: {
     city: string | null;
     neighborhoods: string[];
     deliveryFee: number;
@@ -926,13 +980,23 @@ export class RetailService {
     returnPolicy: string | null;
     reservationMinutes: number;
   }) {
+    const [snapGlobal, pickupGlobal, cashGlobal, cardGlobal] = await Promise.all([
+      this.settings.getRetailSnapEnabled(),
+      this.settings.getRetailPickupEnabled(),
+      this.settings.getRetailCashOnDeliveryEnabled(),
+      this.settings.getRetailCardToCardOrderEnabled(),
+    ]);
     return {
       city: settings.city,
       neighborhoods: settings.neighborhoods,
       deliveryFee: settings.deliveryFee,
-      deliveryEnabled: settings.deliveryEnabled,
-      snapEnabled: settings.snapEnabled,
-      pickupEnabled: settings.pickupEnabled,
+      // Effective values: the shop can only offer what the admin allows
+      // site-wide, so a global off-switch wins over the shop's own setting.
+      deliveryEnabled: settings.deliveryEnabled && snapGlobal,
+      snapEnabled: settings.snapEnabled && snapGlobal,
+      pickupEnabled: settings.pickupEnabled && pickupGlobal,
+      cashOnDeliveryEnabled: cashGlobal,
+      cardToCardEnabled: cardGlobal,
       pickupAddress: settings.pickupAddress,
       pickupHours: settings.pickupHours,
       supportPhone: settings.supportPhone,
@@ -967,7 +1031,7 @@ export class RetailService {
         publicSlug: workspace.publicSlug,
       },
       products,
-      settings: this.publicSettings(settings),
+      settings: await this.publicSettings(settings),
       card:
         card && card.isActive
           ? {
@@ -1021,7 +1085,7 @@ export class RetailService {
       },
       product,
       related,
-      settings: this.publicSettings(settings),
+      settings: await this.publicSettings(settings),
       card:
         card && card.isActive
           ? {
@@ -1135,7 +1199,7 @@ export class RetailService {
 
   /** Validate the chosen delivery method against the shop's sales area. */
   private resolveDelivery(
-    settings: ReturnType<RetailService['publicSettings']>,
+    settings: Awaited<ReturnType<RetailService['publicSettings']>>,
     dto: CreateOrderDto,
   ) {
     const method = (dto.deliveryMethod ?? 'SNAP') as (typeof DELIVERY_METHODS)[number];
@@ -1203,10 +1267,25 @@ export class RetailService {
     }
 
     const shopSettings = await this.shopSettingsOrDefault(workspace.id);
-    const delivery = this.resolveDelivery(
-      this.publicSettings(shopSettings),
-      dto,
-    );
+    const effectiveSettings = await this.publicSettings(shopSettings);
+    const delivery = this.resolveDelivery(effectiveSettings, dto);
+    const paymentMethod = dto.paymentMethod ?? 'CARD_TO_CARD';
+    if (
+      paymentMethod === 'CASH_ON_DELIVERY' &&
+      !effectiveSettings.cashOnDeliveryEnabled
+    ) {
+      throw new BadRequestException(
+        'پرداخت در محل توسط مدیر غیرفعال شده است؛ روش دیگری را انتخاب کنید',
+      );
+    }
+    if (
+      paymentMethod === 'CARD_TO_CARD' &&
+      !effectiveSettings.cardToCardEnabled
+    ) {
+      throw new BadRequestException(
+        'پرداخت کارت به کارت توسط مدیر غیرفعال شده است؛ روش دیگری را انتخاب کنید',
+      );
+    }
 
     const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}-${randomBytes(2).toString('hex').toUpperCase()}`;
     const trackingToken = randomBytes(16).toString('hex');
@@ -1245,7 +1324,7 @@ export class RetailService {
           customerAddress: dto.customerAddress,
           neighborhood: delivery.neighborhood,
           note: dto.note,
-          paymentMethod: dto.paymentMethod ?? 'CARD_TO_CARD',
+          paymentMethod,
           deliveryMethod: delivery.method,
           deliveryStatus: 'PENDING',
           itemsAmount,
@@ -1336,7 +1415,7 @@ export class RetailService {
       shop: {
         name: workspace.name,
         publicSlug: workspace.publicSlug,
-        ...this.publicSettings(settings),
+        ...(await this.publicSettings(settings)),
       },
     };
   }

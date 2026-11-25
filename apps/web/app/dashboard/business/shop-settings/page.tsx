@@ -47,6 +47,10 @@ export default function ShopSettingsPage() {
   const enabled = hydrated && Boolean(token);
   const { workspace } = useBusinessWorkspace(enabled);
   const [form, setForm] = useState<FormState>(empty);
+  const [capabilities, setCapabilities] = useState({
+    snapEnabled: true,
+    pickupEnabled: true,
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -57,9 +61,15 @@ export default function ShopSettingsPage() {
     }
     if (!enabled) return;
     let active = true;
-    api
-      .get<RetailShopSettings>('/retail/shop-settings')
-      .then((settings) => {
+    Promise.all([
+      api.get<RetailShopSettings>('/retail/shop-settings'),
+      api
+        .get<{ retailCapabilities?: { snapEnabled?: boolean; pickupEnabled?: boolean } }>(
+          '/settings/public',
+        )
+        .catch(() => null),
+    ])
+      .then(([settings, publicSettings]) => {
         if (!active) return;
         setForm({
           city: settings.city ?? '',
@@ -73,6 +83,11 @@ export default function ShopSettingsPage() {
           supportPhone: settings.supportPhone ?? '',
           returnPolicy: settings.returnPolicy ?? '',
           reservationMinutes: String(settings.reservationMinutes),
+        });
+        setCapabilities({
+          snapEnabled: publicSettings?.retailCapabilities?.snapEnabled !== false,
+          pickupEnabled:
+            publicSettings?.retailCapabilities?.pickupEnabled !== false,
         });
       })
       .finally(() => {
@@ -147,17 +162,27 @@ export default function ShopSettingsPage() {
           </label>
           <div className="flex flex-wrap gap-4 text-xs text-muted md:col-span-2">
             <label className="flex items-center gap-2">
-              <input type="checkbox" checked={form.deliveryEnabled} onChange={(event) => setForm((prev) => ({ ...prev, deliveryEnabled: event.target.checked }))} />
+              <input type="checkbox" checked={form.deliveryEnabled} disabled={!capabilities.snapEnabled} onChange={(event) => setForm((prev) => ({ ...prev, deliveryEnabled: event.target.checked }))} />
               ارسال با پیک فعال
             </label>
             <label className="flex items-center gap-2">
-              <input type="checkbox" checked={form.snapEnabled} onChange={(event) => setForm((prev) => ({ ...prev, snapEnabled: event.target.checked }))} />
+              <input type="checkbox" checked={form.snapEnabled} disabled={!capabilities.snapEnabled} onChange={(event) => setForm((prev) => ({ ...prev, snapEnabled: event.target.checked }))} />
               اسنپ فعال
             </label>
             <label className="flex items-center gap-2">
-              <input type="checkbox" checked={form.pickupEnabled} onChange={(event) => setForm((prev) => ({ ...prev, pickupEnabled: event.target.checked }))} />
+              <input type="checkbox" checked={form.pickupEnabled} disabled={!capabilities.pickupEnabled} onChange={(event) => setForm((prev) => ({ ...prev, pickupEnabled: event.target.checked }))} />
               دریافت حضوری فعال
             </label>
+            {!capabilities.snapEnabled ? (
+              <p className="w-full text-[11px] text-amber-700">
+                ارسال با پیک توسط مدیر به‌صورت سراسری غیرفعال شده است.
+              </p>
+            ) : null}
+            {!capabilities.pickupEnabled ? (
+              <p className="w-full text-[11px] text-amber-700">
+                دریافت حضوری توسط مدیر به‌صورت سراسری غیرفعال شده است.
+              </p>
+            ) : null}
           </div>
 
           <div className="flex items-center gap-2 text-sm font-extrabold text-ink md:col-span-2">

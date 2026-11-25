@@ -34,7 +34,8 @@ export function ProductBuyBox({ data }: { data: PublicProduct }) {
     customerAddress: '',
     neighborhood: '',
     note: '',
-    paymentMethod: 'CARD_TO_CARD',
+    paymentMethod:
+      settings.cardToCardEnabled === false ? 'CASH_ON_DELIVERY' : 'CARD_TO_CARD',
     deliveryMethod: settings.snapEnabled ? 'SNAP' : 'PICKUP',
   });
 
@@ -44,6 +45,10 @@ export function ProductBuyBox({ data }: { data: PublicProduct }) {
   const deliveryFee =
     customer.deliveryMethod === 'SNAP' ? settings.deliveryFee : 0;
   const total = itemsTotal + deliveryFee;
+  const cardAvailable = settings.cardToCardEnabled !== false;
+  const cashAvailable = settings.cashOnDeliveryEnabled !== false;
+  const paymentAvailable = cardAvailable || cashAvailable;
+  const deliveryAvailable = settings.snapEnabled || settings.pickupEnabled;
 
   function addToCart() {
     add(
@@ -317,9 +322,19 @@ export function ProductBuyBox({ data }: { data: PublicProduct }) {
               }))
             }
           >
-            <option value="CARD_TO_CARD">کارت به کارت</option>
-            <option value="CASH_ON_DELIVERY">پرداخت در محل</option>
+            {cardAvailable ? <option value="CARD_TO_CARD">کارت به کارت</option> : null}
+            {cashAvailable ? <option value="CASH_ON_DELIVERY">پرداخت در محل</option> : null}
           </select>
+          {!paymentAvailable ? (
+            <p className="text-[11px] text-amber-700">
+              روش پرداخت توسط مدیر غیرفعال شده است؛ لطفاً بعداً تلاش کنید.
+            </p>
+          ) : null}
+          {!deliveryAvailable ? (
+            <p className="text-[11px] text-amber-700">
+              روش تحویل توسط مدیر غیرفعال شده است؛ لطفاً بعداً تلاش کنید.
+            </p>
+          ) : null}
           <textarea
             className={field}
             rows={2}
@@ -349,7 +364,7 @@ export function ProductBuyBox({ data }: { data: PublicProduct }) {
 
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || !paymentAvailable || !deliveryAvailable}
             className="indeed-btn indeed-btn-primary w-full disabled:opacity-50"
           >
             {busy ? 'در حال ثبت…' : 'ثبت سفارش'}
