@@ -1050,6 +1050,7 @@ export class ZohalService {
     key: string,
     payload: Record<string, unknown> = {},
     returnTo?: string,
+    options: { stopOnFailure?: boolean; moduleOrder?: string[] } = {},
   ) {
     await this.settings.assertFeatureEnabled('featureZohalInquiries');
     const composites = await this.readComposites();
@@ -1069,7 +1070,17 @@ export class ZohalService {
     if (amount < 1000) {
       throw new BadRequestException('مبلغ این محصول برای پرداخت آنلاین معتبر نیست.');
     }
-    const modules = composite.serviceKeys.map((serviceKey) => {
+    const orderedKeys = options.moduleOrder
+      ? [
+          ...options.moduleOrder.filter((serviceKey) =>
+            composite.serviceKeys.includes(serviceKey),
+          ),
+          ...composite.serviceKeys.filter(
+            (serviceKey) => !options.moduleOrder?.includes(serviceKey),
+          ),
+        ]
+      : composite.serviceKeys;
+    const modules = orderedKeys.map((serviceKey) => {
       const service = this.findService(serviceKey);
       return {
         serviceKey,
@@ -1084,6 +1095,40 @@ export class ZohalService {
       amount,
       modules,
       returnTo,
+      stopOnFailure: options.stopOnFailure,
+    });
+  }
+
+  /**
+   * The admin-defined composite that verifies a bank card against the owner's
+   * national code and converts it to an IBAN. Used by the card-to-card module;
+   * detection is by service keys so the admin only has to create the product.
+   */
+  async findCardVerificationComposite(): Promise<ZohalCompositeView | null> {
+    const required = ['check_card_with_national_code', 'card_to_iban'];
+    const composites = await this.listComposites();
+    const candidates = composites.filter(
+      (composite) => required.every((key) => composite.serviceKeys.includes(key)),
+    );
+    const enabled = candidates.filter((composite) => composite.enabled);
+    return (
+      enabled.find((composite) => composite.serviceKeys.length === 2) ??
+      enabled[0] ??
+      candidates.find((composite) => composite.serviceKeys.length === 2) ??
+      candidates[0] ??
+      null
+    );
+  }
+
+  /** Latest paid run of a composite for one user (for post-payment delivery). */
+  async latestCompositePayment(userId: string, key: string) {
+    return this.prisma.servicePayment.findFirst({
+      where: {
+        userId,
+        serviceKey: `${COMPOSITE_PRODUCT_PREFIX}${key}`,
+        status: PaymentStatus.PAID,
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -1134,6 +1179,7 @@ export class ZohalService {
         payload: Record<string, unknown>;
       }>;
       returnTo?: string;
+      stopOnFailure?: boolean;
     },
   ) {
     const user = await this.prisma.user.findUnique({
@@ -1142,7 +1188,11 @@ export class ZohalService {
     });
     if (!user) throw new NotFoundException('کاربر یافت نشد');
     const { serviceKey, title, amount, modules } = input;
-    const items = { modules, returnTo: this.safeReturnTo(input.returnTo) };
+    const items = {
+      modules,
+      returnTo: this.safeReturnTo(input.returnTo),
+      stopOnFailure: Boolean(input.stopOnFailure),
+    };
 
     await this.prisma.servicePayment.updateMany({
       where: { userId, serviceKey, status: PaymentStatus.PENDING },
@@ -1224,10 +1274,12 @@ export class ZohalService {
       payload: Record<string, unknown>;
     }>;
     returnTo: string;
+    stopOnFailure: boolean;
   } {
     const raw = (payment.items ?? {}) as {
       modules?: unknown;
       returnTo?: unknown;
+      stopOnFailure?: unknown;
     };
     const modules = Array.isArray(raw.modules)
       ? (raw.modules as Array<Record<string, unknown>>)
@@ -1247,6 +1299,7 @@ export class ZohalService {
       returnTo: this.safeReturnTo(
         typeof raw.returnTo === 'string' ? raw.returnTo : null,
       ),
+      stopOnFailure: raw.stopOnFailure === true,
     };
   }
 
@@ -1257,23 +1310,24 @@ export class ZohalService {
     });
     if (!payment) throw new NotFoundException('پرداخت یافت نشد');
     if (payment.consumedAt) return;
-    const { modules } = this.compositeItems(payment);
+    const { modules, stopOnFailure } = this.compositeItems(payment);
     const results: Array<Record<string, unknown>> = [];
     for (const module of modules) {
+      let entry: Record<string, unknown>;
       try {
         const result = await this.call(module.serviceKey, module.payload, {
           force: true,
         });
-        results.push({
+        entry = {
           serviceKey: module.serviceKey,
           label: module.label,
           ok: result.ok,
           message: result.message,
           data: result.data,
           latencyMs: result.latencyMs,
-        });
+        };
       } catch (error) {
-        results.push({
+        entry = {
           serviceKey: module.serviceKey,
           label: module.label,
           ok: false,
@@ -1281,7 +1335,11 @@ export class ZohalService {
             error instanceof Error ? error.message : 'اجرای ماژول ناموفق بود',
           data: null,
           latencyMs: null,
-        });
+        };
+      }
+      results.push(entry);
+      if (stopOnFailure && !this.moduleSucceeded(entry)) {
+        break;
       }
     }
     await this.prisma.servicePayment.update({
@@ -1291,6 +1349,16 @@ export class ZohalService {
         consumedAt: new Date(),
       },
     });
+  }
+
+  /** A module is successful when the call succeeded and no `matched` flag is false. */
+  private moduleSucceeded(entry: Record<string, unknown>): boolean {
+    if (entry.ok !== true) return false;
+    const data = entry.data;
+    if (!data || typeof data !== 'object') return true;
+    const matched = (data as Record<string, unknown>).matched;
+    if (matched === undefined || matched === null) return true;
+    return matched === true || matched === 'true' || matched === 1;
   }
 
   /** Gateway return URL for composite payments. */

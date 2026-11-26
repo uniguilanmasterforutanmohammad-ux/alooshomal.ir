@@ -659,6 +659,45 @@ export interface CardToCardAccount {
   updatedAt: string;
 }
 
+export interface CardVerificationComposite {
+  key: string;
+  label: string;
+  amount: number;
+  purchasable: boolean;
+  issues: string[];
+}
+
+export interface CardVerificationLatest {
+  paymentId: string;
+  createdAt: string;
+  amount: number;
+  status: 'DONE' | 'RUNNING' | string;
+  matched: boolean | null;
+  iban: string | null;
+  cardNumberMasked: string | null;
+  applied: boolean;
+  message: string | null;
+}
+
+export interface CardVerificationOverview {
+  available: boolean;
+  composite: CardVerificationComposite | null;
+  profile: {
+    ready: boolean;
+    nationalCodeMasked: string | null;
+    hasBirthDate: boolean;
+  };
+  latest: CardVerificationLatest | null;
+}
+
+export interface CardVerificationApplyResult {
+  applied: boolean;
+  matched: boolean | null;
+  iban: string | null;
+  account: CardToCardAccount | null;
+  message: string;
+}
+
 export interface CardToCardPayment {
   id: string;
   workspaceId: string;

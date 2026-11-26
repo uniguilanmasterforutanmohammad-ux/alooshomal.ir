@@ -20,7 +20,42 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.103.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.104.0**.
+
+## ۱۴۰۵/۰۹/۰۵ — تأیید کارت به نام صاحب کسب‌وکار و ثبت خودکار شبا — نسخه `v4.104.0`
+
+**هدف:** در صفحه‌ی «پرداخت کارت به کارت» فقط شماره کارت از مالک گرفته شود و
+پس از پرداخت هزینه‌ی استعلام ترکیبی، تطابق کارت با کد ملی بررسی و در صورت
+موفقیت، شماره شبا همان کارت به‌صورت خودکار استخراج و ذخیره شود.
+
+**تغییرات:**
+- `apps/api/src/zohal/zohal.service.ts`: افزودن `stopOnFailure` و `moduleOrder`
+  به پرداخت ترکیبی، توقف اجرای ماژول‌های بعدی هنگام شکست/عدم تطابق، شناسایی
+  خودکار محصول ترکیبی «کارت با کد ملی + تبدیل به شبا» و متد دریافت آخرین
+  پرداخت ترکیبی کاربر.
+- `apps/api/src/card-to-card/card-to-card.service.ts`: متدهای
+  `verificationOverview`، `startVerification` و `applyVerification` برای
+  شروع پرداخت، خواندن نتیجه و ذخیره‌ی کارت/نام صاحب کارت/بانک/شبا.
+- `apps/api/src/card-to-card/dto/verify-card.dto.ts`: DTO شماره کارت.
+- `apps/api/src/card-to-card/card-to-card.controller.ts` و
+  `card-to-card.module.ts`: مسیرهای `GET /card-to-card/verification`،
+  `POST /card-to-card/verification/checkout` و
+  `POST /card-to-card/verification/apply` و اتصال `ZohalModule`.
+- `apps/web/app/dashboard/business/card-to-card/page.tsx`: فرم فقط با شماره
+  کارت، اخطار «کارت باید به نام خودتان و مطابق کد ملی باشد»، نمایش هزینه و
+  نتیجه‌ی استعلام و ثبت خودکار شبا پس از بازگشت از درگاه.
+- `apps/web/lib/api/types/business-modules.ts`: تایپ‌های وضعیت استعلام کارت.
+- `docs/API.md`: مستندسازی مسیرهای جدید و جریان استعلام.
+
+**تأیید/تست:**
+- `tsc --noEmit --incremental false` برای `apps/api` و `tsc --noEmit` برای
+  `apps/web` بدون خطا.
+- `python3 scripts/check_api_docs.py` بدون خطا (۷۵۵ مسیر مستند).
+- `python3 scripts/sync_install.py --check` بدون تغییر معلق.
+- تست زنده با توکن مدیر: `GET /card-to-card/verification` محصول ترکیبی و
+  آمادگی پروفایل را برگرداند؛ `POST .../checkout` پرداخت ۵٬۰۰۰ تومانی و URL
+  شبیه‌ساز درگاه را ساخت؛ با نتیجه‌ی `matched=true` شبا روی حساب ذخیره شد و
+  با نتیجه‌ی `matched=false` حساب قبلی دست‌نخورده ماند.
 
 ## ۱۴۰۵/۰۹/۰۴ — تکمیل سناریوی فروش فروشگاه: حالت تأیید سفارش، دروازه‌ی پرداخت و پرداخت از صفحه‌ی پیگیری — نسخه `v4.103.0`
 

@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Put,
   Query,
   UseGuards,
@@ -19,6 +20,7 @@ import {
 import { CardToCardService } from './card-to-card.service';
 import { ReviewCardPaymentDto } from './dto/review-payment.dto';
 import { UpsertCardAccountDto } from './dto/upsert-account.dto';
+import { VerifyCardDto } from './dto/verify-card.dto';
 
 @ApiTags('card-to-card')
 @ApiBearerAuth()
@@ -41,6 +43,35 @@ export class CardToCardController {
     @Body() dto: UpsertCardAccountDto,
   ) {
     return this.cardToCard.upsertAccount(user.id, dto);
+  }
+
+  @Get('verification')
+  @ApiOperation({
+    summary:
+      'وضعیت استعلام کارت: محصول ترکیبی، آمادگی پروفایل و آخرین نتیجه',
+  })
+  verification(@CurrentUser() user: AuthUser) {
+    return this.cardToCard.verificationOverview(user.id);
+  }
+
+  @Post('verification/checkout')
+  @ApiOperation({
+    summary:
+      'شروع پرداخت استعلام ترکیبی کارت با کد ملی + تبدیل کارت به شبا',
+  })
+  startVerification(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: VerifyCardDto,
+  ) {
+    return this.cardToCard.startVerification(user.id, dto);
+  }
+
+  @Post('verification/apply')
+  @ApiOperation({
+    summary: 'ثبت شبا و اطلاعات کارت از نتیجه‌ی پرداخت‌شده‌ی استعلام',
+  })
+  applyVerification(@CurrentUser() user: AuthUser) {
+    return this.cardToCard.applyVerification(user.id);
   }
 
   @Get('payments')

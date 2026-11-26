@@ -10,9 +10,15 @@ import { BusinessModulesService } from '../business-modules/business-modules.ser
 import { PrismaService } from '../prisma/prisma.service';
 import { RetailService } from '../retail/retail.service';
 import { SettingsService } from '../settings/settings.service';
+import { ZohalService } from '../zohal/zohal.service';
 import { ReviewCardPaymentDto } from './dto/review-payment.dto';
 import { SubmitCardPaymentDto } from './dto/submit-payment.dto';
 import { UpsertCardAccountDto } from './dto/upsert-account.dto';
+import { VerifyCardDto } from './dto/verify-card.dto';
+
+const CARD_VERIFICATION_CHECK = 'check_card_with_national_code';
+const CARD_VERIFICATION_IBAN = 'card_to_iban';
+const CARD_VERIFICATION_RETURN_TO = '/dashboard/business/card-to-card';
 
 /** Normalise Persian/Arabic digits and strip separators from a card number. */
 function normalizeCardNumber(value: string): string {
@@ -22,6 +28,48 @@ function normalizeCardNumber(value: string): string {
     .replace(/\D/g, '');
 }
 
+/** Normalise an IBAN returned by the inquiry provider (`IR…`, no spaces). */
+function normalizeIban(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const cleaned = value.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+  if (!cleaned) return null;
+  return cleaned.startsWith('IR') ? cleaned : `IR${cleaned}`;
+}
+
+function isMatched(value: unknown): boolean {
+  return value === true || value === 'true' || value === 1 || value === '1';
+}
+
+function maskCardNumber(value: string): string {
+  const digits = normalizeCardNumber(value);
+  return digits.length >= 8
+    ? `${digits.slice(0, 4)} **** **** ${digits.slice(-4)}`
+    : digits;
+}
+
+function maskNationalCode(value: string): string | null {
+  const digits = value.replace(/\D/g, '');
+  return digits.length >= 6
+    ? `${digits.slice(0, 3)}****${digits.slice(-3)}`
+    : null;
+}
+
+interface CompositeModuleSnapshot {
+  serviceKey: string;
+  label: string;
+  amount: number;
+  payload: Record<string, unknown>;
+}
+
+interface CompositeResultEntry {
+  serviceKey: string;
+  label?: string;
+  ok: boolean;
+  message?: string;
+  data?: unknown;
+  latencyMs?: number | null;
+}
+
 @Injectable()
 export class CardToCardService {
   constructor(
@@ -29,6 +77,7 @@ export class CardToCardService {
     private readonly modules: BusinessModulesService,
     private readonly settings: SettingsService,
     private readonly retail: RetailService,
+    private readonly zohal: ZohalService,
   ) {}
 
   private async workspaceId(userId: string): Promise<string> {
@@ -42,6 +91,297 @@ export class CardToCardService {
   async getAccount(userId: string) {
     const workspaceId = await this.workspaceId(userId);
     return this.prisma.cardToCardAccount.findUnique({ where: { workspaceId } });
+  }
+
+  // -------------------------------------------------------------------------
+  //  Owner: verify the card belongs to the user, then derive its IBAN
+  // -------------------------------------------------------------------------
+
+  private parseModules(items: unknown): CompositeModuleSnapshot[] {
+    const raw = (items ?? {}) as { modules?: unknown };
+    if (!Array.isArray(raw.modules)) return [];
+    return (raw.modules as Array<Record<string, unknown>>)
+      .filter((item) => typeof item?.serviceKey === 'string')
+      .map((item) => ({
+        serviceKey: String(item.serviceKey),
+        label: String(item.label ?? item.serviceKey),
+        amount: Number(item.amount ?? 0),
+        payload:
+          item.payload && typeof item.payload === 'object'
+            ? (item.payload as Record<string, unknown>)
+            : {},
+      }));
+  }
+
+  private parseResults(result: unknown): CompositeResultEntry[] {
+    if (!Array.isArray(result)) return [];
+    return (result as Array<Record<string, unknown>>)
+      .filter((item) => typeof item?.serviceKey === 'string')
+      .map((item) => ({
+        serviceKey: String(item.serviceKey),
+        label: typeof item.label === 'string' ? item.label : undefined,
+        ok: item.ok === true,
+        message: typeof item.message === 'string' ? item.message : undefined,
+        data: item.data,
+        latencyMs:
+          typeof item.latencyMs === 'number' ? item.latencyMs : null,
+      }));
+  }
+
+  private summarizeVerification(
+    payment: {
+      id: string;
+      amount: number;
+      createdAt: Date;
+      consumedAt: Date | null;
+      items: unknown;
+      result: unknown;
+    },
+    account: { cardNumber: string; iban: string | null } | null,
+  ) {
+    const modules = this.parseModules(payment.items);
+    const results = this.parseResults(payment.result);
+    const check = results.find(
+      (entry) => entry.serviceKey === CARD_VERIFICATION_CHECK,
+    );
+    const ibanEntry = results.find(
+      (entry) => entry.serviceKey === CARD_VERIFICATION_IBAN,
+    );
+    const checkData = (check?.data ?? {}) as Record<string, unknown>;
+    const ibanData = (ibanEntry?.data ?? {}) as Record<string, unknown>;
+    const matched = check ? check.ok && isMatched(checkData.matched) : null;
+    const iban = ibanEntry ? normalizeIban(ibanData.IBAN) : null;
+    const cardRaw =
+      modules.find((item) => item.serviceKey === CARD_VERIFICATION_CHECK)
+        ?.payload.card_number ??
+      modules.find((item) => item.serviceKey === CARD_VERIFICATION_IBAN)
+        ?.payload.card_number;
+    const cardNumber =
+      typeof cardRaw === 'string' ? normalizeCardNumber(cardRaw) : '';
+    const applied = Boolean(
+      account &&
+        cardNumber.length === 16 &&
+        account.cardNumber === cardNumber &&
+        iban &&
+        account.iban === iban,
+    );
+    return {
+      paymentId: payment.id,
+      createdAt: payment.createdAt.toISOString(),
+      amount: payment.amount,
+      status: payment.consumedAt ? 'DONE' : 'RUNNING',
+      matched,
+      iban,
+      cardNumberMasked: cardNumber ? maskCardNumber(cardNumber) : null,
+      applied,
+      message: check?.message ?? ibanEntry?.message ?? null,
+    };
+  }
+
+  async verificationOverview(userId: string) {
+    const [composite, user, account] = await Promise.all([
+      this.zohal.findCardVerificationComposite(),
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { nationalCode: true, birthDate: true },
+      }),
+      this.getAccount(userId),
+    ]);
+    const nationalCode = user?.nationalCode?.trim() ?? '';
+    const birthDate = user?.birthDate?.trim() ?? '';
+    const profileReady = /^\d{10}$/.test(nationalCode) && Boolean(birthDate);
+    let latest = null;
+    if (composite) {
+      const payment = await this.zohal.latestCompositePayment(
+        userId,
+        composite.key,
+      );
+      if (payment) {
+        latest = this.summarizeVerification(
+          {
+            id: payment.id,
+            amount: payment.amount,
+            createdAt: payment.createdAt,
+            consumedAt: payment.consumedAt,
+            items: payment.items,
+            result: payment.result,
+          },
+          account,
+        );
+      }
+    }
+    return {
+      available: Boolean(composite),
+      composite: composite
+        ? {
+            key: composite.key,
+            label: composite.label,
+            amount: composite.amount,
+            purchasable: composite.purchasable,
+            issues: composite.issues,
+          }
+        : null,
+      profile: {
+        ready: profileReady,
+        nationalCodeMasked: nationalCode
+          ? maskNationalCode(nationalCode)
+          : null,
+        hasBirthDate: Boolean(birthDate),
+      },
+      latest,
+    };
+  }
+
+  async startVerification(userId: string, dto: VerifyCardDto) {
+    const cardNumber = normalizeCardNumber(dto.cardNumber);
+    if (cardNumber.length !== 16) {
+      throw new BadRequestException('شماره کارت باید ۱۶ رقم باشد');
+    }
+    const composite = await this.zohal.findCardVerificationComposite();
+    if (!composite) {
+      throw new BadRequestException(
+        'محصول ترکیبی «کارت با کدملی + تبدیل به شبا» در پنل مدیریت تعریف نشده است.',
+      );
+    }
+    if (!composite.purchasable) {
+      throw new BadRequestException(
+        composite.issues[0] ?? 'این استعلام در حال حاضر قابل خرید نیست.',
+      );
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { nationalCode: true, birthDate: true },
+    });
+    const nationalCode = user?.nationalCode?.trim() ?? '';
+    const birthDate = user?.birthDate?.trim() ?? '';
+    if (!/^\d{10}$/.test(nationalCode)) {
+      throw new BadRequestException(
+        'برای استعلام کارت، ابتدا کد ملی خود را در پروفایل کامل کنید.',
+      );
+    }
+    if (!birthDate) {
+      throw new BadRequestException(
+        'برای استعلام کارت، ابتدا تاریخ تولد خود را در پروفایل کامل کنید.',
+      );
+    }
+    return this.zohal.checkoutComposite(
+      userId,
+      composite.key,
+      {
+        national_code: nationalCode,
+        birth_date: birthDate,
+        card_number: cardNumber,
+      },
+      CARD_VERIFICATION_RETURN_TO,
+      {
+        stopOnFailure: true,
+        moduleOrder: [CARD_VERIFICATION_CHECK, CARD_VERIFICATION_IBAN],
+      },
+    );
+  }
+
+  async applyVerification(userId: string) {
+    const composite = await this.zohal.findCardVerificationComposite();
+    if (!composite) {
+      throw new BadRequestException(
+        'محصول ترکیبی «کارت با کدملی + تبدیل به شبا» در پنل مدیریت تعریف نشده است.',
+      );
+    }
+    const payment = await this.zohal.latestCompositePayment(
+      userId,
+      composite.key,
+    );
+    const account = await this.getAccount(userId);
+    if (!payment) {
+      return {
+        applied: false,
+        matched: null,
+        iban: null,
+        account,
+        message: 'نتیجه‌ی استعلامی برای ثبت پیدا نشد.',
+      };
+    }
+    if (!payment.consumedAt) {
+      return {
+        applied: false,
+        matched: null,
+        iban: null,
+        account,
+        message: 'نتیجه‌ی استعلام هنوز آماده نیست؛ چند لحظه بعد دوباره تلاش کنید.',
+      };
+    }
+    const modules = this.parseModules(payment.items);
+    const results = this.parseResults(payment.result);
+    const check = results.find(
+      (entry) => entry.serviceKey === CARD_VERIFICATION_CHECK,
+    );
+    const ibanEntry = results.find(
+      (entry) => entry.serviceKey === CARD_VERIFICATION_IBAN,
+    );
+    const checkData = (check?.data ?? {}) as Record<string, unknown>;
+    const ibanData = (ibanEntry?.data ?? {}) as Record<string, unknown>;
+    const matched = Boolean(check?.ok && isMatched(checkData.matched));
+    const iban = ibanEntry ? normalizeIban(ibanData.IBAN) : null;
+    const cardRaw =
+      modules.find((item) => item.serviceKey === CARD_VERIFICATION_CHECK)
+        ?.payload.card_number ??
+      modules.find((item) => item.serviceKey === CARD_VERIFICATION_IBAN)
+        ?.payload.card_number;
+    const cardNumber =
+      typeof cardRaw === 'string' ? normalizeCardNumber(cardRaw) : '';
+    if (!matched) {
+      return {
+        applied: false,
+        matched: false,
+        iban: null,
+        account,
+        message:
+          check?.message ||
+          'شماره کارت با کد ملی مطابقت ندارد؛ کارت باید به نام خودتان باشد.',
+      };
+    }
+    if (!iban || cardNumber.length !== 16) {
+      return {
+        applied: false,
+        matched: true,
+        iban: null,
+        account,
+        message:
+          ibanEntry?.message || 'تبدیل کارت به شبا انجام نشد؛ دوباره تلاش کنید.',
+      };
+    }
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true },
+    });
+    const holderName =
+      (typeof ibanData.name === 'string' && ibanData.name.trim()) ||
+      user?.fullName?.trim() ||
+      'صاحب کارت';
+    const bankName =
+      typeof ibanData.bank_name === 'string' && ibanData.bank_name.trim()
+        ? ibanData.bank_name.trim()
+        : null;
+    const workspaceId = await this.workspaceId(userId);
+    const saved = await this.prisma.cardToCardAccount.upsert({
+      where: { workspaceId },
+      update: { cardNumber, holderName, bankName, iban },
+      create: {
+        workspaceId,
+        cardNumber,
+        holderName,
+        bankName,
+        iban,
+        isActive: true,
+      },
+    });
+    return {
+      applied: true,
+      matched: true,
+      iban,
+      account: saved,
+      message: 'کارت تأیید شد و شماره شبا به‌صورت خودکار ثبت گردید.',
+    };
   }
 
   async upsertAccount(userId: string, dto: UpsertCardAccountDto) {
