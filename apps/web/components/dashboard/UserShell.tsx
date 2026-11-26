@@ -4,10 +4,10 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
+  Bell,
   Bookmark,
   Building2,
   Coins,
-  CreditCard,
   Crown,
   Headset,
   IdCard,
@@ -17,7 +17,9 @@ import {
   Menu,
   ImagePlus,
   Newspaper,
+  Receipt,
   ShieldCheck,
+  ShoppingCart,
   Sparkles,
   TrendingUp,
   UserRound,
@@ -48,6 +50,13 @@ interface NavItem {
   feature?: string;
 }
 
+interface NavGroup {
+  title: string;
+  /** Only shown once the user owns a real (non-placeholder) business. */
+  businessOnly?: boolean;
+  items: NavItem[];
+}
+
 /** The single most-used entry, kept above the groups. */
 const NAV_PRIMARY: NavItem = {
   href: '/dashboard',
@@ -57,40 +66,38 @@ const NAV_PRIMARY: NavItem = {
 };
 
 /**
- * Grouped navigation: the user's own content, then the growth/subscription
- * products, then account & support. Related panels sit together so a growing
- * feature set stays scannable.
+ * Grouped navigation: «حساب من» is the customer area every account gets, and
+ * «کسب‌وکار من» is unlocked only after the user creates a real workspace via
+ * «شروع آسان». New accounts therefore start with the limited customer panel.
  */
-const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
+const NAV_GROUPS: NavGroup[] = [
   {
-    title: 'محتوا و علاقه‌مندی‌ها',
+    title: 'حساب من',
     items: [
-      { href: '/dashboard/onboarding', label: 'شروع آسان', icon: Sparkles, exact: false, feature: 'featureOnboarding' },
-      { href: '/dashboard/business', label: 'مدیریت کسب‌وکار', icon: Building2, exact: false, feature: 'featureBusinessWorkspace' },
-      // کارت ویزیت و بیولینک دیگر اینجا به‌صورت مجزا نیستند؛ تب‌های همان
-      // «پنل کسب‌وکار» آن‌ها را نشان می‌دهند (مسیر قدیمی همچنان کار می‌کند).
-      { href: '/dashboard/feeds', label: 'پست‌های من', icon: ImagePlus, exact: false, feature: 'featureFeedPosts' },
+      { href: '/dashboard/wallet', label: 'کیف پول', icon: Wallet, exact: false, feature: 'featureWallet' },
+      { href: '/dashboard/cart', label: 'سبد خرید', icon: ShoppingCart, exact: false, feature: 'featureRetailCart' },
+      { href: '/dashboard/payments', label: 'سوابق خرید و پرداخت', icon: Receipt, exact: false, feature: 'featureMyPayments' },
+      { href: '/dashboard/tickets', label: 'تیکت‌های پشتیبانی', icon: LifeBuoy, exact: false },
+      { href: '/dashboard/support', label: 'پشتیبانی آنلاین', icon: Headset, exact: false },
+      { href: '/dashboard/profile', label: 'پروفایل کاربری', icon: UserRound, exact: false },
       { href: '/dashboard/saved', label: 'ذخیره‌شده‌های من', icon: Bookmark, exact: false },
+      { href: '/dashboard/notifications', label: 'اعلان‌ها', icon: Bell, exact: false },
     ],
   },
   {
-    title: 'رشد و اشتراک',
+    title: 'کسب‌وکار من',
+    businessOnly: true,
     items: [
+      { href: '/dashboard/business', label: 'مدیریت کسب‌وکار', icon: Building2, exact: false, feature: 'featureBusinessWorkspace' },
+      { href: '/dashboard/onboarding', label: 'شروع آسان', icon: Sparkles, exact: false, feature: 'featureOnboarding' },
+      // کارت ویزیت و بیولینک دیگر اینجا به‌صورت مجزا نیستند؛ تب‌های همان
+      // «پنل کسب‌وکار» آن‌ها را نشان می‌دهند (مسیر قدیمی همچنان کار می‌کند).
+      { href: '/dashboard/feeds', label: 'پست‌های من', icon: ImagePlus, exact: false, feature: 'featureFeedPosts' },
       { href: '/dashboard/subscriptions', label: 'اشتراک من', icon: Crown, exact: false },
-      { href: '/dashboard/wallet', label: 'کیف پول', icon: Wallet, exact: false, feature: 'featureWallet' },
-      { href: '/dashboard/payments', label: 'پرداخت‌های من', icon: CreditCard, exact: false, feature: 'featureMyPayments' },
       { href: '/dashboard/inquiries', label: 'استعلام و خدمات', icon: ShieldCheck, exact: false, feature: 'featureZohalInquiries' },
       { href: '/dashboard/boost', label: 'افزایش بازدید و تبلیغات', icon: TrendingUp, exact: false, feature: 'featureBoostRequests' },
       { href: '/dashboard/points', label: 'امتیاز من', icon: Coins, exact: false, feature: 'featureNews' },
       { href: '/dashboard/reporter', label: 'شهروند خبرنگار', icon: Newspaper, exact: false, feature: 'featureNews' },
-    ],
-  },
-  {
-    title: 'حساب و پشتیبانی',
-    items: [
-      { href: '/dashboard/support', label: 'پشتیبانی آنلاین', icon: Headset, exact: false },
-      { href: '/dashboard/tickets', label: 'تیکت‌های پشتیبانی', icon: LifeBuoy, exact: false },
-      { href: '/dashboard/profile', label: 'پروفایل کاربری', icon: UserRound, exact: false },
     ],
   },
 ];
@@ -133,6 +140,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
   const isRegularUser =
     user?.role === 'USER' || user?.role === 'CITIZEN_REPORTER';
   const businessVisible = isFeatureVisible('featureBusinessWorkspace');
+  const onboardingVisible = isFeatureVisible('featureOnboarding');
   const { workspace } = useBusinessWorkspace(
     Boolean(user) && businessVisible,
   );
@@ -147,12 +155,15 @@ export function UserShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const isVisible = (item: NavItem) =>
     (!item.feature || isFeatureVisible(item.feature)) &&
-    !(item.href === '/dashboard/business' && !hasBusiness) &&
     !(item.href === '/dashboard/onboarding' && onboardingFinished);
-  const groups = NAV_GROUPS.map((group) => ({
-    title: group.title,
-    items: group.items.filter(isVisible),
-  })).filter((group) => group.items.length > 0);
+  const groups = NAV_GROUPS.filter(
+    (group) => !group.businessOnly || hasBusiness,
+  )
+    .map((group) => ({
+      title: group.title,
+      items: group.items.filter(isVisible),
+    }))
+    .filter((group) => group.items.length > 0);
 
   // A limited «کاربر ادمین» has no dashboard — only the content-review panel.
   useEffect(() => {
@@ -213,6 +224,18 @@ export function UserShell({ children }: { children: React.ReactNode }) {
               ))}
             </div>
           ))}
+
+          {!hasBusiness && businessVisible && onboardingVisible ? (
+            <Link
+              href="/dashboard/onboarding"
+              prefetch={false}
+              onClick={() => setOpen(false)}
+              className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-brand bg-brand-light px-3 py-2.5 text-sm font-extrabold text-brand transition hover:bg-brand hover:text-white"
+            >
+              <Building2 className="size-4" aria-hidden />
+              ایجاد کسب‌وکار
+            </Link>
+          ) : null}
 
           {user?.role === 'ADMIN' ? (
             <Link
@@ -306,8 +329,8 @@ export function UserShell({ children }: { children: React.ReactNode }) {
           <div className="mx-4 mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 md:mx-6">
             <ShieldCheck className="size-4 shrink-0" aria-hidden />
             <span className="flex-1 leading-6">
-              پروفایل شما ناقص است؛ برای ساخت بیولینک، کارت ویزیت، پست و
-              خرید خدمات، ابتدا استعلام هویت را در «شروع آسان» کامل کنید.
+              پروفایل شما ناقص است؛ برای خرید و استفاده از خدمات، ابتدا
+              استعلام هویت را در «شروع آسان» کامل کنید.
             </span>
             <Link
               href="/dashboard/onboarding"

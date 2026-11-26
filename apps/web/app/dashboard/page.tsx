@@ -6,30 +6,23 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
   BadgeCheck,
+  Bell,
   Bookmark,
   Building2,
-  Coins,
-  CreditCard,
-  Crown,
   Headset,
-  ImagePlus,
   LifeBuoy,
-  Newspaper,
+  Receipt,
   ShieldCheck,
+  ShoppingCart,
   Sparkles,
-  TrendingUp,
   UserRound,
   Wallet,
 } from 'lucide-react';
 
-import {
-  api,
-  type FeedMineOverview,
-  type MySubscriptions,
-  type MyWallet,
-} from '@/lib/api';
+import { api, type MyWallet } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
+import { useCart } from '@/lib/cart';
 import { useFeatures } from '@/lib/features';
 import { useProfileStatus } from '@/lib/profile-status';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -42,6 +35,10 @@ interface TicketSummary {
   total: number;
 }
 
+interface PaymentRow {
+  status: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELED';
+}
+
 interface QuickLink {
   href: string;
   label: string;
@@ -50,20 +47,12 @@ interface QuickLink {
   feature?: string;
 }
 
+/**
+ * The end-user (customer) panel. A brand-new account starts here: only the
+ * customer-facing sections are advertised. The business panel is unlocked
+ * later, once the user runs «شروع آسان» and a real workspace is created.
+ */
 const QUICK_LINKS: QuickLink[] = [
-  {
-    href: '/dashboard/saved',
-    label: 'ذخیره‌شده‌های من',
-    description: 'بیولینک‌ها، کارت‌ها و پست‌های ذخیره‌شده',
-    icon: Bookmark,
-  },
-  {
-    href: '/dashboard/feeds',
-    label: 'پست‌های من',
-    description: 'انتشار پست و مدیریت محتوا',
-    icon: ImagePlus,
-    feature: 'featureFeedPosts',
-  },
   {
     href: '/dashboard/wallet',
     label: 'کیف پول',
@@ -72,24 +61,24 @@ const QUICK_LINKS: QuickLink[] = [
     feature: 'featureWallet',
   },
   {
+    href: '/dashboard/cart',
+    label: 'سبد خرید',
+    description: 'کالاهای انتخابی از فروشگاه‌ها',
+    icon: ShoppingCart,
+    feature: 'featureRetailCart',
+  },
+  {
     href: '/dashboard/payments',
-    label: 'پرداخت‌های من',
+    label: 'سوابق خرید و پرداخت',
     description: 'فاکتورها و سابقه‌ی تراکنش‌ها',
-    icon: CreditCard,
+    icon: Receipt,
     feature: 'featureMyPayments',
   },
   {
-    href: '/dashboard/subscriptions',
-    label: 'اشتراک من',
-    description: 'وضعیت اشتراک، تمدید و ارتقا',
-    icon: Crown,
-  },
-  {
-    href: '/dashboard/inquiries',
-    label: 'استعلام و خدمات',
-    description: 'تیک سفید، تیک آبی و خدمات',
-    icon: ShieldCheck,
-    feature: 'featureZohalInquiries',
+    href: '/dashboard/profile',
+    label: 'پروفایل کاربری',
+    description: 'اطلاعات حساب و امنیت',
+    icon: UserRound,
   },
   {
     href: '/dashboard/tickets',
@@ -104,31 +93,16 @@ const QUICK_LINKS: QuickLink[] = [
     icon: Headset,
   },
   {
-    href: '/dashboard/profile',
-    label: 'پروفایل کاربری',
-    description: 'اطلاعات حساب و امنیت',
-    icon: UserRound,
+    href: '/dashboard/saved',
+    label: 'ذخیره‌شده‌های من',
+    description: 'کسب‌وکارها و پست‌های ذخیره‌شده',
+    icon: Bookmark,
   },
   {
-    href: '/dashboard/boost',
-    label: 'افزایش بازدید و تبلیغات',
-    description: 'پله، تبلیغ و دیده‌شدن بیشتر',
-    icon: TrendingUp,
-    feature: 'featureBoostRequests',
-  },
-  {
-    href: '/dashboard/reporter',
-    label: 'شهروند خبرنگار',
-    description: 'ارسال خبر و گزارش محلی',
-    icon: Newspaper,
-    feature: 'featureNews',
-  },
-  {
-    href: '/dashboard/points',
-    label: 'امتیاز من',
-    description: 'امتیازها و جوایز فعالیت',
-    icon: Coins,
-    feature: 'featureNews',
+    href: '/dashboard/notifications',
+    label: 'اعلان‌ها',
+    description: 'پیام‌ها و اطلاع‌رسانی‌های حساب',
+    icon: Bell,
   },
 ];
 
@@ -182,47 +156,43 @@ export default function UserDashboardPage() {
     hydrated && Boolean(token),
   );
   const { workspace } = useBusinessWorkspace(hydrated && Boolean(token));
+  const { count: cartCount, hydrated: cartHydrated } = useCart();
   const [wallet, setWallet] = useState<MyWallet | null>(null);
-  const [subscriptions, setSubscriptions] = useState<MySubscriptions | null>(
-    null,
-  );
   const [tickets, setTickets] = useState<TicketSummary>({
     open: 0,
     inProgress: 0,
     closed: 0,
     total: 0,
   });
-  const [feeds, setFeeds] = useState<FeedMineOverview | null>(null);
+  const [paidCount, setPaidCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     const isVisible = isFeatureVisibleRef.current;
     const walletEnabled = isVisible('featureWallet');
-    const feedsEnabled = isVisible('featureFeedPosts');
-    const [walletResult, subscriptionResult, ticketResult, feedResult] =
+    const paymentsEnabled = isVisible('featureMyPayments');
+    const [walletResult, ticketResult, paymentResult] =
       await Promise.allSettled([
         walletEnabled ? api.get<MyWallet>('/wallet/me') : Promise.resolve(null),
-        api.get<MySubscriptions>('/subscriptions/me'),
         api.get<TicketSummary>('/tickets/mine/summary'),
-        feedsEnabled
-          ? api.get<FeedMineOverview>('/feeds/mine')
+        paymentsEnabled
+          ? api.get<PaymentRow[]>('/payments/mine')
           : Promise.resolve(null),
       ]);
     setWallet(
       walletResult.status === 'fulfilled' ? walletResult.value : null,
-    );
-    setSubscriptions(
-      subscriptionResult.status === 'fulfilled'
-        ? subscriptionResult.value
-        : null,
     );
     setTickets(
       ticketResult.status === 'fulfilled'
         ? ticketResult.value
         : { open: 0, inProgress: 0, closed: 0, total: 0 },
     );
-    setFeeds(feedResult.status === 'fulfilled' ? feedResult.value : null);
+    setPaidCount(
+      paymentResult.status === 'fulfilled' && paymentResult.value
+        ? paymentResult.value.filter((row) => row.status === 'PAID').length
+        : null,
+    );
     setLoading(false);
   }, []);
 
@@ -249,7 +219,14 @@ export default function UserDashboardPage() {
     walletBalance < 0
       ? `${Math.abs(walletBalance).toLocaleString('fa-IR')} تومان بدهی`
       : `${walletBalance.toLocaleString('fa-IR')} تومان`;
-  const planLabel = subscriptions?.plan?.name ?? 'بدون اشتراک';
+  const cartLabel = cartHydrated
+    ? `${cartCount.toLocaleString('fa-IR')} قلم`
+    : '—';
+  const paidLabel =
+    paidCount === null ? '—' : `${paidCount.toLocaleString('fa-IR')} خرید`;
+  const businessHref = onboardingVisible
+    ? '/dashboard/onboarding'
+    : '/dashboard/business/overview';
 
   return (
     <div className="flex flex-col gap-5">
@@ -275,12 +252,17 @@ export default function UserDashboardPage() {
               تکمیل احراز هویت
             </Link>
           )}
-          {subscriptions?.plan ? (
+          {hasBusiness ? (
             <span className="inline-flex items-center gap-1 rounded-full border border-[var(--vintage-border)] bg-[var(--vintage-paper)] px-2.5 py-1 text-ink">
-              <Crown className="size-3.5" aria-hidden />
-              {subscriptions.plan.name}
+              <Building2 className="size-3.5" aria-hidden />
+              صاحب کسب‌وکار
             </span>
-          ) : null}
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full border border-[var(--vintage-border)] bg-[var(--vintage-paper)] px-2.5 py-1 text-ink">
+              <UserRound className="size-3.5" aria-hidden />
+              کاربر
+            </span>
+          )}
         </div>
       </header>
 
@@ -314,7 +296,12 @@ export default function UserDashboardPage() {
               hint={wallet?.overdue ? 'تسویه‌حساب سررسید شده است' : undefined}
               tone={wallet?.overdue ? 'warn' : 'default'}
             />
-            <StatTile icon={Crown} label="اشتراک فعلی" value={planLabel} />
+            <StatTile
+              icon={ShoppingCart}
+              label="سبد خرید"
+              value={cartLabel}
+              hint="آماده‌ی ثبت سفارش"
+            />
             <StatTile
               icon={LifeBuoy}
               label="تیکت‌های باز"
@@ -323,12 +310,10 @@ export default function UserDashboardPage() {
               tone={tickets.open > 0 ? 'warn' : 'ok'}
             />
             <StatTile
-              icon={ImagePlus}
-              label="پست‌های من"
-              value={
-                feeds ? feeds.posts.length.toLocaleString('fa-IR') : '—'
-              }
-              hint={feeds?.active ? 'اشتراک پست فعال' : undefined}
+              icon={Receipt}
+              label="خریدهای موفق"
+              value={paidLabel}
+              hint="سابقه‌ی پرداخت‌ها"
               tone="ok"
             />
           </>
@@ -373,66 +358,63 @@ export default function UserDashboardPage() {
 
         <div className="flex flex-col gap-5">
           {businessVisible ? (
-            <section className="indeed-panel flex flex-col gap-3 p-5">
-              <div className="flex items-center gap-2">
-                <Building2 className="size-4 text-brand" aria-hidden />
-                <h2 className="text-sm font-extrabold text-ink">کسب‌وکار</h2>
-              </div>
-              {hasBusiness && workspace ? (
-                <>
-                  <p className="text-xs leading-6 text-muted">
-                    کسب‌وکار فعال شما:
+            hasBusiness && workspace ? (
+              <section className="indeed-panel flex flex-col gap-3 p-5">
+                <div className="flex items-center gap-2">
+                  <Building2 className="size-4 text-brand" aria-hidden />
+                  <h2 className="text-sm font-extrabold text-ink">
+                    کسب‌وکار من
+                  </h2>
+                </div>
+                <div className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-paper)] p-3">
+                  <p className="text-sm font-extrabold text-ink">
+                    {workspace.name}
                   </p>
-                  <div className="rounded-lg border border-[var(--vintage-border)] bg-[var(--vintage-paper)] p-3">
-                    <p className="text-sm font-extrabold text-ink">
-                      {workspace.name}
-                    </p>
-                    <p className="mt-1 text-[11px] text-muted">
-                      {workspace.industry.label} ·{' '}
-                      {workspace.modules.filter((module) => module.enabled).length}{' '}
-                      ماژول فعال
-                    </p>
-                  </div>
-                  <Link
-                    href="/dashboard/business"
-                    prefetch={false}
-                    className="indeed-btn indeed-btn-primary py-2 text-sm"
-                  >
-                    ورود به پنل کسب‌وکار
-                    <ArrowLeft className="size-4" aria-hidden />
-                  </Link>
-                  <Link
-                    href="/dashboard/business/overview"
-                    prefetch={false}
-                    className="text-center text-[11px] font-bold text-brand underline underline-offset-4"
-                  >
-                    مدیریت کسب‌وکار و ماژول‌ها
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <p className="text-xs leading-6 text-muted">
-                    هنوز کسب‌وکاری نساخته‌اید. با «شروع آسان» می‌توانید
-                    کسب‌وکار خود را ثبت کنید و از پنل مدیریت کسب‌وکار استفاده
-                    کنید.
+                  <p className="mt-1 text-[11px] text-muted">
+                    {workspace.industry.label} ·{' '}
+                    {workspace.modules.filter((module) => module.enabled).length}{' '}
+                    ماژول فعال
                   </p>
-                  <Link
-                    href={
-                      onboardingVisible
-                        ? '/dashboard/onboarding'
-                        : '/dashboard/business/overview'
-                    }
-                    prefetch={false}
-                    className="indeed-btn indeed-btn-primary py-2 text-sm"
-                  >
-                    <Sparkles className="size-4" aria-hidden />
-                    {onboardingVisible
-                      ? 'شروع کسب‌وکار'
-                      : 'ورود به پنل کسب‌وکار'}
-                  </Link>
-                </>
-              )}
-            </section>
+                </div>
+                <Link
+                  href="/dashboard/business"
+                  prefetch={false}
+                  className="indeed-btn indeed-btn-primary py-2 text-sm"
+                >
+                  ورود به پنل کسب‌وکار
+                  <ArrowLeft className="size-4" aria-hidden />
+                </Link>
+                <Link
+                  href="/dashboard/business/overview"
+                  prefetch={false}
+                  className="text-center text-[11px] font-bold text-brand underline underline-offset-4"
+                >
+                  مدیریت کسب‌وکار و ماژول‌ها
+                </Link>
+              </section>
+            ) : (
+              <section className="indeed-panel border-brand/50 bg-brand-light/30 p-5">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="size-4 text-brand" aria-hidden />
+                  <h2 className="text-sm font-extrabold text-ink">
+                    کسب‌وکار خودت را بساز
+                  </h2>
+                </div>
+                <p className="mt-2 text-xs leading-6 text-muted">
+                  هنوز کسب‌وکاری نساخته‌ای. با «شروع آسان» مرحله‌به‌مرحله
+                  احراز هویت، ثبت کسب‌وکار و انتخاب اشتراک را کامل کن؛ بعد از
+                  آن پنل مدیریت کسب‌وکار برایت فعال می‌شود.
+                </p>
+                <Link
+                  href={businessHref}
+                  prefetch={false}
+                  className="indeed-btn indeed-btn-primary mt-3 w-full py-2 text-sm"
+                >
+                  <Building2 className="size-4" aria-hidden />
+                  ایجاد کسب‌وکار
+                </Link>
+              </section>
+            )
           ) : null}
 
           <section className="indeed-panel p-5">
