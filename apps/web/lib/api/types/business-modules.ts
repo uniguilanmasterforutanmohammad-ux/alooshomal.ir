@@ -638,6 +638,28 @@ export interface PublicProduct extends RetailProduct {
   workspace: { id: string; name: string; publicSlug: string | null };
 }
 
+/**
+ * A purchase the signed-in customer made from a shop. Returned by
+ * `GET /retail/my-orders` and shown in the customer panel's purchase history.
+ */
+export interface MyPurchaseOrder {
+  id: string;
+  orderNumber: string;
+  trackingToken: string | null;
+  status: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  deliveryMethod: string;
+  deliveryStatus: string;
+  itemsAmount: number;
+  deliveryFee: number;
+  totalAmount: number;
+  createdAt: string;
+  items: Array<{ title: string; quantity: number; lineTotal: number }>;
+  shop: { name: string; publicSlug: string | null };
+  invoiceId: string | null;
+}
+
 /** Filter options of the `/shop` directory. */
 export interface PublicProductFacets {
   categories: string[];

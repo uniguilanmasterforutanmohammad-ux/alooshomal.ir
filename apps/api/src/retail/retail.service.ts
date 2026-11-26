@@ -663,6 +663,61 @@ export class RetailService {
   }
 
   /**
+   * The signed-in customer's own purchase history across every shop. Scoped by
+   * `customerUserId` (set when an authenticated user places an order), so it is
+   * independent of any business workspace the user may also own.
+   */
+  async listMyOrders(userId: string) {
+    await this.settings.assertFeatureEnabled('featureRetailCart');
+    const orders = await this.prisma.retailOrder.findMany({
+      where: { customerUserId: userId },
+      include: {
+        items: { select: { title: true, quantity: true, lineTotal: true } },
+        workspace: { select: { name: true, publicSlug: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    if (orders.length === 0) return [];
+
+    const invoices = await this.prisma.invoice.findMany({
+      where: {
+        sourceType: FINANCE_SOURCE_TYPES.RETAIL_ORDER,
+        sourceId: { in: orders.map((order) => order.id) },
+      },
+      select: { id: true, sourceId: true },
+    });
+    const invoiceBySource = new Map(
+      invoices
+        .filter((row): row is { id: string; sourceId: string } =>
+          Boolean(row.sourceId),
+        )
+        .map((row) => [row.sourceId, row.id]),
+    );
+
+    return orders.map((order) => ({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      trackingToken: order.trackingToken,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
+      deliveryMethod: order.deliveryMethod,
+      deliveryStatus: order.deliveryStatus,
+      itemsAmount: order.itemsAmount,
+      deliveryFee: order.deliveryFee,
+      totalAmount: order.totalAmount,
+      createdAt: order.createdAt,
+      items: order.items,
+      shop: {
+        name: order.workspace.name,
+        publicSlug: order.workspace.publicSlug,
+      },
+      invoiceId: invoiceBySource.get(order.id) ?? null,
+    }));
+  }
+
+  /**
    * Owner-side lookup by the customer tracking token, so the business can
    * manage an order directly from the customer tracking page while keeping
    * both views in sync (same underlying order record).
@@ -941,6 +996,7 @@ export class RetailService {
     id: string;
     orderNumber: string;
     workspaceId: string;
+    customerUserId: string | null;
     customerName: string;
     customerPhone: string;
     totalAmount: number;
@@ -973,6 +1029,7 @@ export class RetailService {
       title: `فروش فروشگاه — سفارش ${order.orderNumber}`,
       amount: order.totalAmount,
       paidAt: new Date(),
+      userId: order.customerUserId ?? undefined,
       customerName: order.customerName,
       customerPhone: order.customerPhone,
       items,

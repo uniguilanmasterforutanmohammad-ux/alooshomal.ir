@@ -10,6 +10,7 @@ import { AdminRetailController } from './admin-retail.controller';
 import { PublicProductsController } from './public-products.controller';
 import { PublicRetailController } from './public-retail.controller';
 import { RetailAiImportService } from './retail-ai-import.service';
+import { RetailCustomerController } from './retail-customer.controller';
 import { RetailInventoryController } from './retail-inventory.controller';
 import { RetailOrdersController } from './retail-orders.controller';
 import { RetailProductsController } from './retail-products.controller';
@@ -30,6 +31,7 @@ import { RetailService } from './retail.service';
     AdminRetailController,
     RetailProductsController,
     RetailOrdersController,
+    RetailCustomerController,
     RetailInventoryController,
     RetailShopSettingsController,
     RetailReportsController,

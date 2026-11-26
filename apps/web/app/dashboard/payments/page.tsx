@@ -1,75 +1,45 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CheckCircle2,
   Clock3,
-  CreditCard,
   FileText,
   Loader2,
+  Receipt,
+  ShoppingBag,
+  Truck,
   XCircle,
 } from 'lucide-react';
 
-import { api } from '@/lib/api';
-import type { FinanceInvoice } from '@/lib/api/types/finance';
+import { api, type FinanceInvoice, type MyPurchaseOrder } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { printInvoiceDocument } from '@/lib/invoice-print';
 import { cn } from '@/lib/utils';
 
-interface PaymentDetailRow {
-  label: string;
-  value: string;
-}
-
-interface MyPayment {
-  id: string;
-  kind: 'SUBSCRIPTION' | 'SERVICE' | 'WALLET' | 'BOOST' | 'AD' | 'BUSINESS_MODULE';
-  title: string;
-  amount: number;
-  status: 'PENDING' | 'PAID' | 'FAILED' | 'CANCELED';
-  createdAt: string;
-  paidAt: string | null;
-  refId: string | null;
-  failureReason: string | null;
-  details: PaymentDetailRow[];
-  invoiceId: string | null;
-  results: Array<{ label: string; ok: boolean; message: string }>;
-}
-
-const KIND_LABELS: Record<MyPayment['kind'], string> = {
-  SUBSCRIPTION: 'اشتراک',
-  SERVICE: 'استعلام/خدمت',
-  WALLET: 'کیف پول',
-  BOOST: 'پله',
-  AD: 'تبلیغ',
-  BUSINESS_MODULE: 'ماژول کسب‌وکار',
+const ORDER_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'در انتظار تأیید',
+  CONFIRMED: 'تأییدشده',
+  PAID: 'پرداخت‌شده',
+  SHIPPED: 'ارسال‌شده',
+  DELIVERED: 'تحویل‌شده',
+  CANCELLED: 'لغوشده',
 };
 
-const STATUS_META: Record<
-  MyPayment['status'],
-  { label: string; className: string; icon: typeof CheckCircle2 }
-> = {
-  PAID: {
-    label: 'پرداخت موفق',
-    className: 'bg-emerald-50 text-emerald-700',
-    icon: CheckCircle2,
-  },
-  PENDING: {
-    label: 'در انتظار پرداخت',
-    className: 'bg-amber-50 text-amber-700',
-    icon: Clock3,
-  },
-  FAILED: {
-    label: 'ناموفق',
-    className: 'bg-red-50 text-red-700',
-    icon: XCircle,
-  },
-  CANCELED: {
-    label: 'لغو شده',
-    className: 'bg-slate-100 text-slate-600',
-    icon: XCircle,
-  },
+const PAYMENT_STATUS_LABELS: Record<string, string> = {
+  UNPAID: 'پرداخت‌نشده',
+  PENDING_REVIEW: 'در انتظار بررسی رسید',
+  PAID: 'پرداخت تأییدشده',
+  REFUNDED: 'بازگشت‌داده‌شده',
+};
+
+const PAYMENT_STATUS_CLASS: Record<string, string> = {
+  PAID: 'bg-emerald-50 text-emerald-700',
+  PENDING_REVIEW: 'bg-amber-50 text-amber-700',
+  UNPAID: 'bg-slate-100 text-slate-600',
+  REFUNDED: 'bg-sky-50 text-sky-700',
 };
 
 function faPrice(value: number): string {
@@ -84,14 +54,37 @@ function faDateTime(value: string | null): string {
   });
 }
 
-export default function MyPaymentsPage() {
+export default function MyPurchaseHistoryPage() {
   const router = useRouter();
   const { token, hydrated } = useAuth();
-  const [payments, setPayments] = useState<MyPayment[]>([]);
+  const [orders, setOrders] = useState<MyPurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'all' | MyPayment['status']>('all');
+  const [filter, setFilter] = useState<'all' | 'open' | 'done' | 'cancelled'>(
+    'all',
+  );
   const [invoiceBusy, setInvoiceBusy] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      setOrders(await api.get<MyPurchaseOrder[]>('/retail/my-orders'));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'بارگذاری سوابق خرید ناموفق بود');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!token) {
+      router.replace('/login?next=/dashboard/payments');
+      return;
+    }
+    void load();
+  }, [hydrated, token, router, load]);
 
   async function openInvoice(invoiceId: string) {
     setInvoiceBusy(invoiceId);
@@ -107,73 +100,56 @@ export default function MyPaymentsPage() {
     }
   }
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await api.get<MyPayment[]>('/payments/mine');
-      setPayments(data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'بارگذاری پرداخت‌ها ناموفق بود');
-    } finally {
-      setLoading(false);
+  const visible = useMemo(() => {
+    if (filter === 'all') return orders;
+    if (filter === 'cancelled') {
+      return orders.filter((order) => order.status === 'CANCELLED');
     }
-  }, []);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    if (!token) {
-      router.replace('/login?next=/dashboard/payments');
-      return;
+    if (filter === 'done') {
+      return orders.filter((order) => order.status === 'DELIVERED');
     }
-    void load();
-  }, [hydrated, token, router, load]);
-
-  const visible = useMemo(
-    () =>
-      filter === 'all'
-        ? payments
-        : payments.filter((payment) => payment.status === filter),
-    [payments, filter],
-  );
+    return orders.filter(
+      (order) => order.status !== 'CANCELLED' && order.status !== 'DELIVERED',
+    );
+  }, [orders, filter]);
 
   const summary = useMemo(() => {
-    const paid = payments.filter((payment) => payment.status === 'PAID');
+    const paid = orders.filter((order) => order.paymentStatus === 'PAID');
     return {
-      count: payments.length,
+      count: orders.length,
       paidCount: paid.length,
-      paidAmount: paid.reduce((sum, payment) => sum + payment.amount, 0),
+      paidAmount: paid.reduce((sum, order) => sum + order.totalAmount, 0),
     };
-  }, [payments]);
+  }, [orders]);
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
       <div>
         <h1 className="flex items-center gap-2 text-xl font-extrabold text-ink">
-          <CreditCard className="size-5 text-brand" aria-hidden />
-          پرداخت‌های من
+          <Receipt className="size-5 text-brand" aria-hidden />
+          سوابق خرید
         </h1>
         <p className="mt-1 text-sm leading-7 text-muted">
-          همه‌ی پرداخت‌های شما (اشتراک، استعلام، کیف پول، پله، تبلیغ و ماژول
-          کسب‌وکار) همراه با جزئیات سفارش، وضعیت و فاکتور رسمی.
+          همه‌ی خریدهای شما از فروشگاه‌های شمالی‌کارت، همراه با وضعیت سفارش،
+          پرداخت و لینک پیگیری.
         </p>
       </div>
 
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="indeed-panel p-3">
-          <p className="text-[11px] text-muted">کل پرداخت‌ها</p>
+          <p className="text-[11px] text-muted">کل خریدها</p>
           <p className="mt-1 font-extrabold text-ink">
             {summary.count.toLocaleString('fa-IR')}
           </p>
         </div>
         <div className="indeed-panel p-3">
-          <p className="text-[11px] text-muted">موفق</p>
+          <p className="text-[11px] text-muted">پرداخت‌شده</p>
           <p className="mt-1 font-extrabold text-emerald-700">
             {summary.paidCount.toLocaleString('fa-IR')}
           </p>
         </div>
         <div className="indeed-panel p-3">
-          <p className="text-[11px] text-muted">جمع پرداخت موفق</p>
+          <p className="text-[11px] text-muted">جمع خرید موفق</p>
           <p className="mt-1 text-xs font-extrabold text-brand">
             {faPrice(summary.paidAmount)}
           </p>
@@ -184,9 +160,9 @@ export default function MyPaymentsPage() {
         {(
           [
             ['all', 'همه'],
-            ['PAID', 'موفق'],
-            ['PENDING', 'در انتظار'],
-            ['FAILED', 'ناموفق'],
+            ['open', 'در جریان'],
+            ['done', 'تحویل‌شده'],
+            ['cancelled', 'لغوشده'],
           ] as const
         ).map(([key, label]) => (
           <button
@@ -215,107 +191,110 @@ export default function MyPaymentsPage() {
           در حال بارگذاری...
         </p>
       ) : visible.length === 0 ? (
-        <p className="text-sm text-muted">پرداختی با این وضعیت ثبت نشده است.</p>
+        <div className="indeed-panel flex flex-col items-center gap-3 p-10 text-center">
+          <ShoppingBag className="size-10 text-muted" aria-hidden />
+          <p className="text-sm font-bold text-ink">هنوز خریدی ثبت نشده است</p>
+          <p className="text-xs text-muted">
+            از فروشگاه‌های آنلاین شمالی‌کارت خرید کنید تا سوابق اینجا نمایش داده شود.
+          </p>
+          <Link href="/shop" className="indeed-btn indeed-btn-primary">
+            رفتن به فروشگاه‌ها
+          </Link>
+        </div>
       ) : (
         <div className="flex flex-col gap-3">
-          {visible.map((payment) => {
-            const meta = STATUS_META[payment.status];
-            const Icon = meta.icon;
+          {visible.map((order) => {
+            const trackingHref =
+              order.shop.publicSlug && order.trackingToken
+                ? `/shop/${order.shop.publicSlug}/track/${order.trackingToken}`
+                : null;
+            const paymentClass =
+              PAYMENT_STATUS_CLASS[order.paymentStatus] ?? 'bg-slate-100 text-slate-600';
             return (
-              <div key={payment.id} className="indeed-panel p-4">
+              <div key={order.id} className="indeed-panel p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <p className="font-extrabold text-ink">{payment.title}</p>
+                    <p className="font-extrabold text-ink">{order.shop.name}</p>
                     <p className="mt-1 text-[11px] text-muted">
-                      {KIND_LABELS[payment.kind]} — {faDateTime(payment.createdAt)}
+                      سفارش {order.orderNumber} — {faDateTime(order.createdAt)}
                     </p>
                   </div>
-                  <span
-                    className={cn(
-                      'flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold',
-                      meta.className,
-                    )}
-                  >
-                    <Icon className="size-3.5" aria-hidden />
-                    {meta.label}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="flex items-center gap-1 rounded-full bg-brand-light px-2 py-0.5 text-[11px] font-bold text-brand">
+                      {order.status === 'DELIVERED' ? (
+                        <CheckCircle2 className="size-3.5" aria-hidden />
+                      ) : order.status === 'CANCELLED' ? (
+                        <XCircle className="size-3.5" aria-hidden />
+                      ) : (
+                        <Clock3 className="size-3.5" aria-hidden />
+                      )}
+                      {ORDER_STATUS_LABELS[order.status] ?? order.status}
+                    </span>
+                    <span
+                      className={cn(
+                        'rounded-full px-2 py-0.5 text-[11px] font-bold',
+                        paymentClass,
+                      )}
+                    >
+                      {PAYMENT_STATUS_LABELS[order.paymentStatus] ?? order.paymentStatus}
+                    </span>
+                  </div>
                 </div>
 
-                <p className="mt-2 text-lg font-extrabold text-brand">
-                  {faPrice(payment.amount)}
-                </p>
-
-                <div className="mt-2 grid gap-1 text-[11px] text-muted sm:grid-cols-2">
-                  {payment.details.map((row) => (
-                    <p key={row.label}>
-                      <span className="font-bold text-ink">{row.label}: </span>
-                      {row.value}
-                    </p>
+                <ul className="mt-3 divide-y divide-[var(--vintage-border)] text-xs">
+                  {order.items.map((item, index) => (
+                    <li
+                      key={index}
+                      className="flex items-center justify-between py-1.5"
+                    >
+                      <span className="text-ink">
+                        {item.title} × {item.quantity.toLocaleString('fa-IR')}
+                      </span>
+                      <span className="text-muted">
+                        {item.lineTotal.toLocaleString('fa-IR')} تومان
+                      </span>
+                    </li>
                   ))}
-                  {payment.paidAt ? (
-                    <p>
-                      <span className="font-bold text-ink">زمان پرداخت: </span>
-                      {faDateTime(payment.paidAt)}
-                    </p>
-                  ) : null}
-                  {payment.refId ? (
-                    <p dir="ltr">
-                      <span className="font-bold text-ink">کد پیگیری: </span>
-                      {payment.refId}
-                    </p>
-                  ) : null}
+                </ul>
+
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-[var(--vintage-border)] pt-2">
+                  <p className="flex items-center gap-1 text-[11px] text-muted">
+                    <Truck className="size-3.5" aria-hidden />
+                    {order.deliveryMethod === 'PICKUP' ? 'دریافت حضوری' : 'ارسال با پیک'}
+                  </p>
+                  <p className="text-sm font-extrabold text-brand">
+                    {faPrice(order.totalAmount)}
+                  </p>
                 </div>
 
-                {payment.invoiceId ? (
-                  <button
-                    type="button"
-                    onClick={() => void openInvoice(payment.invoiceId!)}
-                    disabled={invoiceBusy === payment.invoiceId}
-                    className="indeed-btn indeed-btn-secondary mt-2 py-1.5 text-[11px]"
-                  >
-                    {invoiceBusy === payment.invoiceId ? (
-                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                    ) : (
-                      <FileText className="size-3.5" aria-hidden />
-                    )}
-                    {invoiceBusy === payment.invoiceId
-                      ? 'در حال دریافت فاکتور...'
-                      : 'مشاهده و چاپ فاکتور'}
-                  </button>
-                ) : null}
-
-                {payment.failureReason ? (
-                  <p className="mt-2 rounded-lg bg-red-50 p-2 text-[11px] text-red-700">
-                    {payment.failureReason}
-                  </p>
-                ) : null}
-
-                {payment.results.length > 0 ? (
-                  <div className="mt-3 rounded-lg border border-line bg-background p-2">
-                    <p className="text-[11px] font-bold text-ink">نتیجه استعلام‌ها</p>
-                    <ul className="mt-1 flex flex-col gap-1">
-                      {payment.results.map((result) => (
-                        <li
-                          key={`${payment.id}-${result.label}`}
-                          className={cn(
-                            'flex items-start gap-1 text-[11px]',
-                            result.ok ? 'text-emerald-700' : 'text-red-700',
-                          )}
-                        >
-                          {result.ok ? (
-                            <CheckCircle2 className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                          ) : (
-                            <XCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-                          )}
-                          <span>
-                            <span className="font-bold">{result.label}: </span>
-                            {result.message}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {trackingHref ? (
+                    <Link
+                      href={trackingHref}
+                      className="indeed-btn indeed-btn-secondary py-1.5 text-[11px]"
+                    >
+                      <Receipt className="size-3.5" aria-hidden />
+                      پیگیری سفارش
+                    </Link>
+                  ) : null}
+                  {order.invoiceId ? (
+                    <button
+                      type="button"
+                      onClick={() => void openInvoice(order.invoiceId!)}
+                      disabled={invoiceBusy === order.invoiceId}
+                      className="indeed-btn indeed-btn-secondary py-1.5 text-[11px]"
+                    >
+                      {invoiceBusy === order.invoiceId ? (
+                        <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <FileText className="size-3.5" aria-hidden />
+                      )}
+                      {invoiceBusy === order.invoiceId
+                        ? 'در حال دریافت فاکتور...'
+                        : 'مشاهده و چاپ فاکتور'}
+                    </button>
+                  ) : null}
+                </div>
               </div>
             );
           })}

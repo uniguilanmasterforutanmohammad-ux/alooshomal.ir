@@ -20,7 +20,43 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.109.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.110.0**.
+
+## ۱۴۰۵/۰۹/۰۵ — جداسازی «سوابق خرید» کاربر نهایی از پرداخت‌های کسب‌وکار — نسخه `v4.110.0`
+
+**هدف:** صفحه‌ی `/dashboard/payments` در پنل کاربر نهایی باید سوابق خرید
+مشتری از فروشگاه‌ها را نشان دهد، نه پرداخت‌های خدمات کسب‌وکار (اشتراک، استعلام،
+کیف پول، پله، تبلیغ و ماژول). پرداخت‌های خدمات به پنل کسب‌وکار منتقل شد.
+
+**تغییرات:**
+- `apps/api/src/retail/retail.service.ts`: افزودن `listMyOrders(userId)` برای
+  سوابق خرید خودِ کاربر (بر اساس `customerUserId`) همراه با اطلاعات فروشگاه و
+  `invoiceId`؛ و ثبت `userId` روی فاکتور سفارش (`recordOrderInvoice`) تا فاکتور
+  به خریدار تعلق گیرد.
+- `apps/api/src/retail/retail-customer.controller.ts` (جدید): مسیر
+  `GET /retail/my-orders` بدون گیت ماژول کسب‌وکار (مخصوص مشتری).
+- `apps/api/src/retail/retail.module.ts`: ثبت کنترلر جدید.
+- `apps/api/src/payments/payments.service.ts`: اجازه‌ی مشاهده‌ی فاکتور سفارش‌های
+  قدیمی از طریق مالکیت سفارش (وقتی `customerUserId` فاکتور خالی است).
+- `apps/web/app/dashboard/payments/page.tsx`: بازنویسی به «سوابق خرید» مشتری
+  (سفارش‌ها، وضعیت، پیگیری و فاکتور).
+- `apps/web/app/dashboard/business/payments/page.tsx` (جدید): انتقال نمای
+  قبلی «پرداخت‌های من» (خدمات کسب‌وکار) به پنل کسب‌وکار.
+- `apps/web/components/dashboard/UserShell.tsx`: منوی «سوابق خرید» در «حساب من»
+  و «پرداخت‌ها و فاکتورها» در «کسب‌وکار من».
+- `apps/web/lib/api/types/business-modules.ts`: نوع `MyPurchaseOrder`.
+- `docs/API.md`: مستندسازی `GET /retail/my-orders`.
+
+**تأیید/تست:**
+- `cd apps/api && ./node_modules/.bin/tsc --noEmit --incremental false` → exit 0.
+- `cd apps/web && ./node_modules/.bin/tsc --noEmit` → exit 0.
+- `python3 scripts/check_api_docs.py` → exit 0 (۸۴ کنترلر / ۷۶۱ مسیر).
+- `GET /api/retail/my-orders` با توکن کاربر (بدون هدر workspace) → 200 و
+  سفارش با `shop` و `invoiceId`.
+- `GET /api/payments/invoices/<id>` برای فاکتور سفارش قدیمی (بدون
+  `customerUserId`) → 200 از طریق مالکیت سفارش.
+- صفحات `/dashboard/payments`، `/dashboard/business/payments`، `/dashboard` و
+  `/cart` → HTTP 200.
 
 ## ۱۴۰۵/۰۹/۰۵ — مدیریت سفارش در صفحه‌ی پیگیری، پیش‌پرکردن کارت‌به‌کارت و اعلان‌های سفارش — نسخه `v4.109.0`
 

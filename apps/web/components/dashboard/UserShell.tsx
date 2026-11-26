@@ -77,7 +77,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/dashboard/wallet', label: 'کیف پول', icon: Wallet, exact: false, feature: 'featureWallet' },
       { href: '/dashboard/cart', label: 'سبد خرید', icon: ShoppingCart, exact: false, feature: 'featureRetailCart' },
-      { href: '/dashboard/payments', label: 'سوابق خرید و پرداخت', icon: Receipt, exact: false, feature: 'featureMyPayments' },
+      { href: '/dashboard/payments', label: 'سوابق خرید', icon: Receipt, exact: false, feature: 'featureRetailCart' },
       { href: '/dashboard/tickets', label: 'تیکت‌های پشتیبانی', icon: LifeBuoy, exact: false },
       { href: '/dashboard/support', label: 'پشتیبانی آنلاین', icon: Headset, exact: false },
       { href: '/dashboard/profile', label: 'پروفایل کاربری', icon: UserRound, exact: false },
@@ -95,6 +95,7 @@ const NAV_GROUPS: NavGroup[] = [
       // «پنل کسب‌وکار» آن‌ها را نشان می‌دهند (مسیر قدیمی همچنان کار می‌کند).
       { href: '/dashboard/feeds', label: 'پست‌های من', icon: ImagePlus, exact: false, feature: 'featureFeedPosts' },
       { href: '/dashboard/subscriptions', label: 'اشتراک من', icon: Crown, exact: false },
+      { href: '/dashboard/business/payments', label: 'پرداخت‌ها و فاکتورها', icon: Receipt, exact: false, feature: 'featureMyPayments' },
       { href: '/dashboard/inquiries', label: 'استعلام و خدمات', icon: ShieldCheck, exact: false, feature: 'featureZohalInquiries' },
       { href: '/dashboard/boost', label: 'افزایش بازدید و تبلیغات', icon: TrendingUp, exact: false, feature: 'featureBoostRequests' },
       { href: '/dashboard/points', label: 'امتیاز من', icon: Coins, exact: false, feature: 'featureNews' },

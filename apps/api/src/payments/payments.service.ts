@@ -7,6 +7,7 @@ import {
   getBusinessModule,
   INDUSTRY_PACKAGES,
 } from '../business-modules/business-modules.registry';
+import { FINANCE_SOURCE_TYPES } from '../finance/finance.constants';
 
 export type PaymentKind =
   | 'SUBSCRIPTION'
@@ -285,7 +286,7 @@ export class PaymentsService {
    */
   async invoice(userId: string, invoiceId: string) {
     const invoice = await this.prisma.invoice.findFirst({
-      where: { id: invoiceId, customerUserId: userId },
+      where: { id: invoiceId },
       include: {
         items: true,
         customer: {
@@ -304,6 +305,19 @@ export class PaymentsService {
       },
     });
     if (!invoice) throw new NotFoundException('فاکتور یافت نشد');
-    return invoice;
+    if (invoice.customerUserId === userId) return invoice;
+    // Older retail-order invoices may not carry `customerUserId`; fall back to
+    // the owning order so the buyer can still open their own receipt.
+    if (
+      invoice.sourceType === FINANCE_SOURCE_TYPES.RETAIL_ORDER &&
+      invoice.sourceId
+    ) {
+      const order = await this.prisma.retailOrder.findFirst({
+        where: { id: invoice.sourceId, customerUserId: userId },
+        select: { id: true },
+      });
+      if (order) return invoice;
+    }
+    throw new NotFoundException('فاکتور یافت نشد');
   }
 }
