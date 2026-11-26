@@ -220,6 +220,16 @@ function CardToCardContent() {
           </span>
         </div>
 
+        {overview?.simulated ? (
+          <div className="rounded-lg bg-sky-50 p-3 text-xs leading-6 text-sky-800">
+            <p className="font-bold">حالت شبیه‌سازی محلی فعال است</p>
+            <p>
+              هیچ استعلام واقعی یا هزینه‌ای انجام نمی‌شود. برای تست عدم تطابق،
+              شماره کارت <b dir="ltr">1111 2222 3333 4444</b> را وارد کنید.
+            </p>
+          </div>
+        ) : null}
+
         {!overview && loading ? (
           <p className="text-sm text-muted">در حال بارگذاری…</p>
         ) : !overview?.available || !composite ? (

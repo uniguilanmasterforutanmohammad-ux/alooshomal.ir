@@ -212,6 +212,7 @@ export class CardToCardService {
     }
     return {
       available: Boolean(composite),
+      simulated: this.zohal.cardInquirySimulated,
       composite: composite
         ? {
             key: composite.key,

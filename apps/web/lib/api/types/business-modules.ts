@@ -681,6 +681,7 @@ export interface CardVerificationLatest {
 
 export interface CardVerificationOverview {
   available: boolean;
+  simulated: boolean;
   composite: CardVerificationComposite | null;
   profile: {
     ready: boolean;

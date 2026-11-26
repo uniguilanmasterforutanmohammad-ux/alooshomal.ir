@@ -50,6 +50,12 @@ const LEGACY_IDENTITY_BUNDLE_KEYS = [
   'identity_license_bundle',
 ] as const;
 const IDENTITY_SERVICE_KEYS = ['shahkar', 'national_identity_inquiry'] as const;
+const CARD_SERVICE_KEYS = [
+  'check_card_with_national_code',
+  'card_to_iban',
+] as const;
+/** A card that always fails the local card↔national-code match. */
+const CARD_SIMULATOR_MISMATCH_CARD = '1111222233334444';
 
 /** Setting that stores the admin-defined composite products as a JSON array. */
 const COMPOSITE_SETTING_KEY = 'zohal.composites';
@@ -59,6 +65,11 @@ const COMPOSITE_PRODUCT_PREFIX = 'composite:';
 /** Whether a service key is one of the two paid identity inquiries. */
 function isIdentityServiceKey(key: string): boolean {
   return (IDENTITY_SERVICE_KEYS as readonly string[]).includes(key);
+}
+
+/** Whether a service key is one of the two card/IBAN inquiries. */
+function isCardServiceKey(key: string): boolean {
+  return (CARD_SERVICE_KEYS as readonly string[]).includes(key);
 }
 
 /** Loopback check used to auto-enable the simulator on a local machine. */
@@ -98,6 +109,7 @@ export class ZohalService {
   private readonly baseUrl: string;
   private readonly token: string;
   private readonly simulatorEnabled: boolean;
+  private readonly cardSimulatorEnabled: boolean;
 
   constructor(
     config: ConfigService,
@@ -136,6 +148,23 @@ export class ZohalService {
         'Identity simulator is ENABLED — Shahkar/identity inquiries are not sent to Zohal and are not charged.',
       );
     }
+
+    // Same idea for the two card/IBAN inquiries used by card-to-card: on a
+    // local loopback dev run they answer from here, so the whole paid flow can
+    // be exercised without a real (billed) inquiry.
+    const cardFlag = (config.get<string>('CARD_INQUIRY_SIMULATOR') ?? '')
+      .trim()
+      .toLowerCase();
+    this.cardSimulatorEnabled =
+      cardFlag === 'true' ||
+      (cardFlag !== 'false' &&
+        nodeEnv !== 'production' &&
+        isLoopbackUrl(appUrl));
+    if (this.cardSimulatorEnabled) {
+      this.logger.warn(
+        'Card inquiry simulator is ENABLED — card↔national-code and card→IBAN inquiries are answered locally and are not charged.',
+      );
+    }
   }
 
   get configured(): boolean {
@@ -149,6 +178,11 @@ export class ZohalService {
   /** Whether Shahkar/identity inquiries are answered locally. */
   get identitySimulated(): boolean {
     return this.simulatorEnabled;
+  }
+
+  /** Whether card↔national-code / card→IBAN inquiries are answered locally. */
+  get cardInquirySimulated(): boolean {
+    return this.cardSimulatorEnabled;
   }
 
   private settingKey(key: string) {
@@ -1552,6 +1586,9 @@ export class ZohalService {
     if (this.simulatorEnabled && isIdentityServiceKey(key)) {
       return this.simulatedIdentityCall<T>(key, payload);
     }
+    if (this.cardSimulatorEnabled && isCardServiceKey(key)) {
+      return this.simulatedCardCall<T>(key, payload);
+    }
     if (!this.configured) {
       throw new ServiceUnavailableException(
         'توکن زحل تنظیم نشده است. مقدار ZOHAL_TOKEN را در محیط سرور قرار دهید.',
@@ -1685,6 +1722,90 @@ export class ZohalService {
       httpStatus: null,
       latencyMs: 0,
     };
+  }
+
+  /**
+   * Local answer for the two card inquiries used by card-to-card. The mismatch
+   * test card (`1111222233334444`) returns `matched: false`, so the conditional
+   * composite stops before card→IBAN. All other cards produce a deterministic
+   * fake IBAN derived from the card number.
+   */
+  private async simulatedCardCall<T>(
+    key: string,
+    payload: Record<string, unknown>,
+  ): Promise<ZohalCallResult<T>> {
+    const cardNumber =
+      typeof payload.card_number === 'string'
+        ? payload.card_number.replace(/\D/g, '')
+        : '';
+    const nationalCode =
+      typeof payload.national_code === 'string'
+        ? payload.national_code.trim()
+        : '';
+    const mismatch =
+      cardNumber === CARD_SIMULATOR_MISMATCH_CARD ||
+      cardNumber.startsWith('0000');
+
+    if (key === 'check_card_with_national_code') {
+      return {
+        ok: true,
+        result: 1,
+        message: mismatch
+          ? 'شبیه‌سازی محلی — شماره کارت با کد ملی مطابقت ندارد.'
+          : 'شبیه‌سازی محلی — شماره کارت با کد ملی مطابقت دارد.',
+        errorCode: null,
+        data: { matched: !mismatch } as T,
+        httpStatus: null,
+        latencyMs: 0,
+      };
+    }
+
+    if (mismatch) {
+      return {
+        ok: false,
+        result: 6,
+        message:
+          'شبیه‌سازی محلی — برای کارت آزمایشی عدم تطابق، تبدیل به شبا انجام نمی‌شود.',
+        errorCode: 'simulated_mismatch',
+        data: null,
+        httpStatus: null,
+        latencyMs: 0,
+      };
+    }
+
+    const user = nationalCode
+      ? await this.prisma.user.findFirst({
+          where: { nationalCode },
+          select: { fullName: true },
+        })
+      : null;
+    const iban = `IR${(cardNumber || '0000000000000000')
+      .padEnd(24, '0')
+      .slice(0, 24)}`;
+    return {
+      ok: true,
+      result: 1,
+      message: 'شبیه‌سازی محلی — شماره شبا از کارت استخراج شد.',
+      errorCode: null,
+      data: {
+        name: user?.fullName?.trim() || 'صاحب کارت آزمایشی',
+        IBAN: iban,
+        bank_name: this.simulatedBankName(cardNumber),
+      } as T,
+      httpStatus: null,
+      latencyMs: 0,
+    };
+  }
+
+  private simulatedBankName(cardNumber: string): string {
+    const names: Record<string, string> = {
+      '6037': 'بانک ملی ایران',
+      '6104': 'بانک ملت',
+      '5022': 'بانک پاسارگاد',
+      '6274': 'بانک سپه',
+      '6219': 'بانک تجارت',
+    };
+    return names[cardNumber.slice(0, 4)] ?? 'بانک آزمایشی';
   }
 
   /**
