@@ -64,6 +64,8 @@ export interface WorkspaceSummary {
 export interface ResolvedWorkspace {
   id: string;
   name: string;
+  /** True while the workspace is only the auto-created placeholder. */
+  isPlaceholder: boolean;
   /** A display-name change awaiting admin approval, if any. */
   pendingName: string | null;
   /** Public storefront slug (`/shop/<slug>`), used to build tracking links. */
@@ -1318,6 +1320,7 @@ export class BusinessModulesService implements OnModuleInit {
     return {
       id: workspace.id,
       name: workspace.name,
+      isPlaceholder: workspace.isPlaceholder,
       pendingName: workspace.pendingName ?? null,
       publicSlug: workspace.publicSlug,
       industryKey: industry.key,

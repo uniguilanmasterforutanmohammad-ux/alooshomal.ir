@@ -137,7 +137,7 @@ export function Header() {
             </Link>
           </div>
           <Link
-            href={signedIn ? '/dashboard/business-cards' : '/login?next=/dashboard/business-cards'}
+            href={signedIn ? '/dashboard/business-cards' : '/login'}
             className="indeed-btn indeed-btn-primary"
           >
             <LayoutDashboard className="size-4" aria-hidden />

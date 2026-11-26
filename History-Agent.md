@@ -20,7 +20,44 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.105.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.106.0**.
+
+## ۱۴۰۵/۰۹/۰۵ — پنل کاربر نهایی و نمایش پیش‌فرض آن پس از ثبت‌نام — نسخه `v4.106.0`
+
+**هدف:** افزودن یک پنل اختصاصی «کاربر نهایی» (متمایز از پنل کسب‌وکار) و کاری که
+کاربر تازه‌ثبت‌نام‌شده در بدو ورود به پنل عادی برسد، نه پنل کسب‌وکار.
+
+**تغییرات:**
+- `apps/web/app/dashboard/page.tsx`: بازنویسی کامل به‌عنوان «پنل من» برای کاربر
+  نهایی؛ هدر خوش‌آمدگویی و نشان هویت/اشتراک، بنر تکمیل پروفایل، چهار کارت
+  آماری (کیف پول، اشتراک، تیکت‌های باز، پست‌ها) با `Promise.allSettled` و
+  احترام به سوئیچ ویژگی‌ها، شبکه‌ی «دسترسی سریع» فیلترشده با
+  `isFeatureVisible`، کارت کسب‌وکار (ورود به پنل کسب‌وکار فقط وقتی workspace
+  واقعی وجود دارد وگرنه CTA «شروع کسب‌وکار») و کارت وضعیت تیکت‌ها/شروع آسان.
+  مسیر اشتراک به `/subscriptions/me` اصلاح و `isFeatureVisible` در یک `ref`
+  نگه داشته شد تا `load` پایدار بماند و حلقه‌ی بی‌پایان رخ ندهد.
+- `apps/web/components/dashboard/UserShell.tsx`: ورودی ناوبری
+  «پنل کسب‌وکار» به «مدیریت کسب‌وکار» تغییر نام یافت و تنها زمانی نمایش داده
+  می‌شود که کاربر workspace واقعی (غیر placeholder) داشته باشد؛ کاربر تازه فقط
+  پنل عادی را می‌بیند.
+- `apps/web/components/layout/Header.tsx`: CTA اصلی مهمان از
+  `/login?next=/dashboard/business-cards` به `/login` تغییر کرد تا ثبت‌نام
+  تازه به `/dashboard` (پنل کاربر) برسد.
+- `apps/api/src/business-modules/business-modules.service.ts` و
+  `apps/web/lib/api/types/business-modules.ts`: افزودن `isPlaceholder` به
+  خروجی `resolve()`/نوع `BusinessWorkspace` تا رابط بتواند placeholder را از
+  کسب‌وکار واقعی تشخیص دهد.
+
+**تأیید/تست:**
+- `apps/web` و `apps/api`: `tsc --noEmit` بدون خطا (exit 0).
+- `python3 scripts/check_api_docs.py` → exit 0 (۸۲ کنترلر / ۷۵۵ مسیر مستند).
+- `python3 scripts/sync_install.py --check` → `patched: 0`, `added: 0`.
+- تست API با توکن dev (`POST /api/auth/dev/quick-login`): همه‌ی مسیرهای مصرفی
+  صفحه ۲۰۰ برگرداندند (`/wallet/me`, `/subscriptions/me`,
+  `/tickets/mine/summary`, `/feeds/mine`, `/business-modules/my`,
+  `/profile/me`). بررسی DB نشان داد کاربران تازه `isPlaceholder=true` دارند،
+  پس ورودی کسب‌وکار برایشان پنهان می‌شود.
+- `curl http://localhost:3000/dashboard` → ۲۰۰ و لاگ Next بدون خطای کامپایل.
 
 ## ۱۴۰۵/۰۹/۰۵ — شبیه‌ساز محلی استعلام کارت و شبا برای تست بدون هزینه — نسخه `v4.105.0`
 

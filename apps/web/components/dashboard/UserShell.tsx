@@ -26,6 +26,7 @@ import {
 
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
+import { useBusinessWorkspace } from '@/lib/business-modules';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { WorkspaceSwitcher } from '@/components/dashboard/WorkspaceSwitcher';
@@ -65,7 +66,7 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
     title: 'محتوا و علاقه‌مندی‌ها',
     items: [
       { href: '/dashboard/onboarding', label: 'شروع آسان', icon: Sparkles, exact: false, feature: 'featureOnboarding' },
-      { href: '/dashboard/business', label: 'پنل کسب‌وکار', icon: Building2, exact: false, feature: 'featureBusinessWorkspace' },
+      { href: '/dashboard/business', label: 'مدیریت کسب‌وکار', icon: Building2, exact: false, feature: 'featureBusinessWorkspace' },
       // کارت ویزیت و بیولینک دیگر اینجا به‌صورت مجزا نیستند؛ تب‌های همان
       // «پنل کسب‌وکار» آن‌ها را نشان می‌دهند (مسیر قدیمی همچنان کار می‌کند).
       { href: '/dashboard/feeds', label: 'پست‌های من', icon: ImagePlus, exact: false, feature: 'featureFeedPosts' },
@@ -131,6 +132,13 @@ export function UserShell({ children }: { children: React.ReactNode }) {
   const { isFeatureVisible } = useFeatures();
   const isRegularUser =
     user?.role === 'USER' || user?.role === 'CITIZEN_REPORTER';
+  const businessVisible = isFeatureVisible('featureBusinessWorkspace');
+  const { workspace } = useBusinessWorkspace(
+    Boolean(user) && businessVisible,
+  );
+  // Only a real (non-placeholder) workspace unlocks the business panel entry;
+  // brand-new users land on the normal user panel and start from there.
+  const hasBusiness = Boolean(workspace && !workspace.isPlaceholder);
   const { status: profileStatus, completed: profileCompleted } =
     useProfileStatus(isRegularUser);
   const onboardingFinished = profileStatus?.onboardingFinished === true;
@@ -139,6 +147,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const isVisible = (item: NavItem) =>
     (!item.feature || isFeatureVisible(item.feature)) &&
+    !(item.href === '/dashboard/business' && !hasBusiness) &&
     !(item.href === '/dashboard/onboarding' && onboardingFinished);
   const groups = NAV_GROUPS.map((group) => ({
     title: group.title,
