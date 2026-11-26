@@ -510,6 +510,7 @@ model User {
   inquiryLogs           InquiryLog[]
   businessWorkspaces    BusinessWorkspace[]
   buildingMembers       BuildingMember[]
+  addresses             UserAddress[]
 
   // `email` and `phone` are already @unique; Postgres backs each with a unique
   // index, so a separate @@index would only double the write cost.
@@ -3625,4 +3626,27 @@ model BuildingContractor {
 
   @@index([buildingId])
   @@map("building_contractors")
+}
+
+/// A saved delivery address in the end-user's address book. Used to prefill the
+/// shopping cart / shop order form so a customer does not retype it each time.
+model UserAddress {
+  id           String   @id @default(cuid())
+  userId       String
+  title        String   @default("آدرس من")
+  receiverName String
+  phone        String
+  province     String?
+  city         String?
+  neighborhood String?
+  address      String
+  postalCode   String?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_addresses")
 }

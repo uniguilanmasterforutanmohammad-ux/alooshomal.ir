@@ -6,6 +6,7 @@ import { Check, Minus, Plus, ShoppingBag, Truck } from 'lucide-react';
 
 import { CardToCardForm } from '@/components/payments/CardToCardForm';
 import { api, type PublicShop, type RetailOrder } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
 import { toast } from '@/lib/toast';
 
@@ -16,9 +17,10 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
   const settings = shop.settings;
   const slug = shop.workspace.publicSlug ?? '';
   const { items: cartItems, setQuantity, clearShop } = useCart();
+  const { user } = useAuth();
   const [customer, setCustomer] = useState({
-    customerName: '',
-    customerPhone: '',
+    customerName: user?.fullName ?? '',
+    customerPhone: user?.phone ?? '',
     customerAddress: '',
     neighborhood: '',
     note: '',

@@ -52,6 +52,13 @@ export function WorkspaceSwitcher() {
       if (next.id !== stored && typeof window !== 'undefined') {
         window.localStorage.setItem(WORKSPACE_STORAGE_KEY, next.id);
       }
+    } else {
+      // No real business yet: make sure no stale workspace id keeps scoping
+      // requests to a placeholder the user never created.
+      setActiveId(null);
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(WORKSPACE_STORAGE_KEY);
+      }
     }
   }, [enabled]);
 

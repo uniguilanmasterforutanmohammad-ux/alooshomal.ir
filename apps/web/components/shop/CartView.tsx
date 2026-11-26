@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Check,
   Loader2,
@@ -12,8 +12,15 @@ import {
   Truck,
 } from 'lucide-react';
 
-import { CardToCardForm } from '@/components/payments/CardToCardForm';
-import { api, type PublicShop, type RetailOrder } from '@/lib/api';
+import { MyAddressesPanel } from '@/components/shop/MyAddressesPanel';
+import { OrderTrackingLoader } from '@/components/shop/OrderTrackingPanel';
+import {
+  api,
+  type PublicShop,
+  type RetailOrder,
+  type UserAddress,
+} from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { useCart, type CartItem } from '@/lib/cart';
 import { toast } from '@/lib/toast';
 
@@ -23,9 +30,10 @@ const field =
 interface PlacedOrder {
   slug: string;
   shopName: string;
-  order: RetailOrder;
-  card: PublicShop['card'];
+  token: string;
 }
+
+const PLACED_KEY = 'alooshomal.placed_orders.v1';
 
 function groupByShop(items: CartItem[]) {
   const groups = new Map<string, { slug: string; shopName: string; items: CartItem[] }>();
@@ -45,11 +53,18 @@ function ShopCartCheckout({
   slug,
   shopName,
   items,
+  prefill,
   onPlaced,
 }: {
   slug: string;
   shopName: string;
   items: CartItem[];
+  prefill?: {
+    name: string;
+    phone: string;
+    address: string;
+    neighborhood: string;
+  };
   onPlaced: (placed: PlacedOrder) => void;
 }) {
   const { clearShop } = useCart();
@@ -58,14 +73,28 @@ function ShopCartCheckout({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [customer, setCustomer] = useState({
-    customerName: '',
-    customerPhone: '',
-    customerAddress: '',
-    neighborhood: '',
+    customerName: prefill?.name ?? '',
+    customerPhone: prefill?.phone ?? '',
+    customerAddress: prefill?.address ?? '',
+    neighborhood: prefill?.neighborhood ?? '',
     note: '',
     paymentMethod: 'CARD_TO_CARD',
     deliveryMethod: 'SNAP',
   });
+
+  // Keep the contact/address fields in sync when the customer picks a saved
+  // address (or the profile finishes loading) — never clobber a typed value
+  // with an empty prefill.
+  useEffect(() => {
+    if (!prefill) return;
+    setCustomer((prev) => ({
+      ...prev,
+      customerName: prefill.name || prev.customerName,
+      customerPhone: prefill.phone || prev.customerPhone,
+      customerAddress: prefill.address || prev.customerAddress,
+      neighborhood: prefill.neighborhood || prev.neighborhood,
+    }));
+  }, [prefill]);
 
   useEffect(() => {
     api
@@ -121,12 +150,9 @@ function ShopCartCheckout({
           })),
         },
       );
-      onPlaced({
-        slug,
-        shopName,
-        order: created,
-        card: shop?.card ?? null,
-      });
+      if (created.trackingToken) {
+        onPlaced({ slug, shopName, token: created.trackingToken });
+      }
       clearShop(slug);
       toast.success('سفارش ثبت شد');
     } catch {
@@ -314,8 +340,46 @@ function ShopCartCheckout({
 
 export function CartView() {
   const { items, hydrated, count, setQuantity, remove } = useCart();
+  const { user } = useAuth();
   const [placed, setPlaced] = useState<PlacedOrder[]>([]);
+  const [selectedAddress, setSelectedAddress] = useState<UserAddress | null>(
+    null,
+  );
   const groups = useMemo(() => groupByShop(items), [items]);
+
+  // Restore orders placed earlier in this browser so their status/receipt stays
+  // visible on the cart page even after a reload.
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(PLACED_KEY);
+      if (raw) setPlaced(JSON.parse(raw) as PlacedOrder[]);
+    } catch {
+      // ignore a corrupt cache
+    }
+  }, []);
+
+  const rememberPlaced = useCallback((entry: PlacedOrder) => {
+    setPlaced((prev) => {
+      if (prev.some((row) => row.token === entry.token)) return prev;
+      const next = [entry, ...prev];
+      try {
+        window.localStorage.setItem(PLACED_KEY, JSON.stringify(next));
+      } catch {
+        // storage may be full/unavailable; the in-memory list still works
+      }
+      return next;
+    });
+  }, []);
+
+  const prefill = useMemo(
+    () => ({
+      name: selectedAddress?.receiverName || user?.fullName || '',
+      phone: selectedAddress?.phone || user?.phone || '',
+      address: selectedAddress?.address || '',
+      neighborhood: selectedAddress?.neighborhood || '',
+    }),
+    [selectedAddress, user?.fullName, user?.phone],
+  );
 
   if (!hydrated) {
     return (
@@ -328,39 +392,27 @@ export function CartView() {
 
   return (
     <div className="flex flex-col gap-6">
-      {placed.map((entry) => (
-        <div key={entry.order.id} className="indeed-panel flex flex-col gap-3 p-5">
-          <p className="flex items-center gap-2 text-sm font-extrabold text-emerald-700">
-            <Check className="size-4" aria-hidden />
-            سفارش «{entry.shopName}» ثبت شد
-          </p>
-          <p className="text-xs text-muted">
-            شماره سفارش:{' '}
-            <span className="font-bold text-ink">{entry.order.orderNumber}</span>
-          </p>
-          <p className="text-sm font-bold text-brand">
-            مبلغ قابل پرداخت: {entry.order.totalAmount.toLocaleString('fa-IR')} تومان
-          </p>
-          {entry.order.trackingToken ? (
-            <Link
-              href={`/shop/${entry.slug}/track/${entry.order.trackingToken}`}
-              className="text-xs font-bold text-brand underline"
+      <MyAddressesPanel onSelect={setSelectedAddress} />
+
+      {placed.length > 0 ? (
+        <section className="flex flex-col gap-4">
+          <h2 className="text-sm font-extrabold text-ink">
+            پیگیری سفارش‌های اخیر
+          </h2>
+          {placed.map((entry) => (
+            <div
+              key={entry.token}
+              className="indeed-panel flex flex-col gap-3 p-5"
             >
-              مشاهده‌ی صفحه‌ی پیگیری سفارش
-            </Link>
-          ) : null}
-          {entry.order.paymentMethod === 'CARD_TO_CARD' && entry.card ? (
-            <CardToCardForm
-              slug={entry.slug}
-              card={entry.card}
-              referenceType="ORDER"
-              referenceId={entry.order.id}
-              defaultAmount={entry.order.totalAmount}
-              title="پرداخت سفارش با کارت به کارت"
-            />
-          ) : null}
-        </div>
-      ))}
+              <p className="flex items-center gap-2 text-sm font-extrabold text-emerald-700">
+                <Check className="size-4" aria-hidden />
+                سفارش «{entry.shopName}» ثبت شد
+              </p>
+              <OrderTrackingLoader slug={entry.slug} token={entry.token} />
+            </div>
+          ))}
+        </section>
+      ) : null}
 
       {groups.length === 0 ? (
         placed.length === 0 ? (
@@ -479,7 +531,8 @@ export function CartView() {
                   slug={group.slug}
                   shopName={group.shopName}
                   items={group.items}
-                  onPlaced={(entry) => setPlaced((prev) => [...prev, entry])}
+                  prefill={prefill}
+                  onPlaced={rememberPlaced}
                 />
               </section>
             );

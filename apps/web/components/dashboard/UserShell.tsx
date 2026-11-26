@@ -29,6 +29,7 @@ import {
 import { useAuth } from '@/lib/auth';
 import { api } from '@/lib/api';
 import { useBusinessWorkspace } from '@/lib/business-modules';
+import { useCart } from '@/lib/cart';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { WorkspaceSwitcher } from '@/components/dashboard/WorkspaceSwitcher';
@@ -137,6 +138,7 @@ export function UserShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, clear } = useAuth();
   const { isFeatureVisible } = useFeatures();
+  const { count: cartCount } = useCart();
   const isRegularUser =
     user?.role === 'USER' || user?.role === 'CITIZEN_REPORTER';
   const businessVisible = isFeatureVisible('featureBusinessWorkspace');
@@ -302,6 +304,33 @@ export function UserShell({ children }: { children: React.ReactNode }) {
 
           <div className="flex items-center gap-2">
             <WorkspaceSwitcher />
+            {isFeatureVisible('featureWallet') ? (
+              <Link
+                href="/dashboard/wallet"
+                prefetch={false}
+                aria-label="کیف پول"
+                title="کیف پول"
+                className="flex size-9 items-center justify-center rounded-lg border border-[var(--vintage-border)] text-muted transition hover:bg-soft hover:text-brand"
+              >
+                <Wallet className="size-4" aria-hidden />
+              </Link>
+            ) : null}
+            {isFeatureVisible('featureRetailCart') ? (
+              <Link
+                href="/dashboard/cart"
+                prefetch={false}
+                aria-label="سبد خرید"
+                title="سبد خرید"
+                className="relative flex size-9 items-center justify-center rounded-lg border border-[var(--vintage-border)] text-muted transition hover:bg-soft hover:text-brand"
+              >
+                <ShoppingCart className="size-4" aria-hidden />
+                {cartCount > 0 ? (
+                  <span className="absolute -top-1.5 -end-1.5 flex min-w-4 items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold leading-4 text-white">
+                    {cartCount.toLocaleString('fa-IR')}
+                  </span>
+                ) : null}
+              </Link>
+            ) : null}
             <ThemeToggle />
             <NotificationBell scope="user" />
             <div className="hidden text-left sm:block">

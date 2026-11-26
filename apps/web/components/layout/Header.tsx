@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { LayoutDashboard, LogIn, ShoppingCart, Wallet } from 'lucide-react';
 
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
@@ -28,7 +29,12 @@ export function Header() {
   const { token, hydrated } = useAuth();
   const { showNav, isFeatureVisible } = useFeatures();
   const { count: cartCount } = useCart();
-  const signedIn = hydrated && Boolean(token);
+  // The persisted auth store rehydrates on the client, so rendering the
+  // signed-in chrome during the very first client render would not match the
+  // server HTML. Flip a `mounted` flag after hydration so both sides agree.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const signedIn = mounted && hydrated && Boolean(token);
   const navItems = HEADER_NAV.filter((item) => showNav(item.href));
   const walletVisible = isFeatureVisible('featureWallet');
   const cartVisible = isFeatureVisible('featureRetailCart');
@@ -85,9 +91,9 @@ export function Header() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
-          {cartVisible ? (
+          {signedIn && cartVisible ? (
             <Link
-              href="/cart"
+              href="/dashboard/cart"
               prefetch={false}
               aria-label="سبد خرید"
               title="سبد خرید"
@@ -101,9 +107,9 @@ export function Header() {
               ) : null}
             </Link>
           ) : null}
-          {walletVisible ? (
+          {signedIn && walletVisible ? (
             <Link
-              href={signedIn ? '/dashboard/wallet' : '/login?next=/dashboard/wallet'}
+              href="/dashboard/wallet"
               prefetch={false}
               aria-label="کیف پول"
               title="کیف پول"

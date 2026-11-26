@@ -1070,7 +1070,9 @@ export class BusinessModulesService implements OnModuleInit {
     await this.ensureManagementsLoaded();
     await this.pruneEmptyPlaceholders(userId);
     const rows = await this.prisma.businessWorkspace.findMany({
-      where: { ownerId: userId },
+      // Only real businesses: a brand-new account's auto-created placeholder
+      // must not appear in the switcher (and must not become "active").
+      where: { ownerId: userId, isPlaceholder: false },
       include: { modules: { where: { enabled: true }, select: { id: true } } },
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
     });

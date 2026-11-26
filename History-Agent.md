@@ -20,7 +20,52 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.107.1**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.108.0**.
+
+## ۱۴۰۵/۰۹/۰۵ — آیکن‌های کیف پول/سبد، گیت سوییچر کسب‌وکار و دفترچه آدرس سبد خرید — نسخه `v4.108.0`
+
+**هدف:** نمایش آیکن کیف پول و سبد خرید در پنل و (فقط برای کاربر واردشده) در
+سایت، پنهان‌کردن سوییچر «کسب‌وکار من» تا پیش از ساخت کسب‌وکار، و کامل‌کردن
+صفحه‌ی سبد خرید با پیش‌پرکردن مشخصات، «آدرس‌های من» و پیگیری/رسید سفارش در
+همان صفحه.
+
+**تغییرات:**
+- `apps/web/components/layout/Header.tsx`: آیکن‌های کیف پول و سبد خرید فقط در
+  حالت ورود نمایش داده می‌شوند و به پنل (`/dashboard/wallet`, `/dashboard/cart`)
+  اشاره می‌کنند؛ رندر وابسته به احراز هویت با `mounted` هیدریشن‌ایمن شد.
+- `apps/web/components/dashboard/UserShell.tsx`: افزودن آیکن‌های کیف پول و سبد
+  خرید (با شمارنده) به هدر پنل، با احترام به سوئیچ ویژگی‌ها.
+- `apps/api/src/business-modules/business-modules.service.ts` و
+  `apps/web/components/dashboard/WorkspaceSwitcher.tsx`: `listWorkspaces` فقط
+  کسب‌وکارهای واقعی (غیر placeholder) را برمی‌گرداند و سوییچر برای کاربر بدون
+  کسب‌وکار پنهان می‌ماند؛ شناسه‌ی workspace کهنه هم پاک می‌شود.
+- `apps/api/prisma/schema.prisma`: مدل `UserAddress` (`user_addresses`) و رابطه
+  `User.addresses`.
+- `apps/api/src/addresses/*`: ماژول CRUD آدرس‌های من (GET/POST/PATCH/DELETE
+  `/addresses`) با DTO و `@ApiOperation`/`@ApiBearerAuth`؛ ثبت در `app.module.ts`.
+- `apps/web/lib/api/types/addresses.ts` و `apps/web/lib/api.ts`: نوع `UserAddress`
+  و `AddressInput`.
+- `apps/web/components/shop/MyAddressesPanel.tsx`: بخش «آدرس‌های من» (افزودن،
+  انتخاب، حذف، پیش‌فرض) برای پیش‌پرکردن فرم سفارش.
+- `apps/web/components/shop/OrderTrackingPanel.tsx`: پنل کامل وضعیت/اقلام/پرداخت
+  و رسید/خط زمانی سفارش؛ `OrderTrackingLoader` برای بارگذاری با توکن.
+- `apps/web/components/shop/CartView.tsx`: پیش‌پرکردن نام/تلفن/آدرس از پروفایل و
+  آدرس انتخاب‌شده، نمایش «آدرس‌های من»، و نمایش درون‌صفحه‌ای پیگیری/رسید سفارش
+  (با ذخیره‌ی سفارش‌های اخیر در localStorage).
+- `apps/web/components/shop/ShopOrderForm.tsx`: پیش‌پرکردن نام/تلفن از حساب.
+- `docs/API.md`: بخش «آدرس‌های من (`/api/addresses`)».
+- `apps/web/lib/version.ts`: افزایش نسخه به `v4.108.0`.
+
+**تأیید/تست:**
+- `apps/web` و `apps/api`: `tsc --noEmit` بدون خطا (exit 0).
+- `python3 scripts/check_api_docs.py` → exit 0 (۸۳ کنترلر / ۷۵۹ مسیر).
+- `python3 scripts/sync_install.py --check` → `patched: 0`, `added: 0`.
+- `prisma db push` روی دیتابیس لوکال موفق؛ جدول `user_addresses` ساخته شد.
+- تست API با توکن dev: `GET/POST/DELETE /addresses` (۲۰۰/۲۰۱/۲۰۰)،
+  `GET /business-modules/workspaces` فقط کسب‌وکارهای واقعی را برگرداند، و
+  `GET /public/shops/:slug/orders/:token` → ۲۰۰.
+- `curl` روی `/`, `/cart`, `/dashboard`, `/dashboard/cart` → ۲۰۰ و کامپایل
+  بدون خطا در لاگ Next.
 
 ## ۱۴۰۵/۰۹/۰۵ — حذف اخطار احراز هویت از پنل مشتری — نسخه `v4.107.1`
 

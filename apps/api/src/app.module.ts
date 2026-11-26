@@ -38,6 +38,7 @@ import { FeedsModule } from './feeds/feeds.module';
 import { FinanceModule } from './finance/finance.module';
 import { HealthModule } from './health/health.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { AddressesModule } from './addresses/addresses.module';
 import { NewsModule } from './news/news.module';
 import { ModeratorModule } from './moderator/moderator.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
@@ -117,6 +118,7 @@ import { ZohalModule } from './zohal/zohal.module';
     AdminModule,
     TaxonomyModule,
     TicketsModule,
+    AddressesModule,
     SupportChatModule,
     UploadsModule,
     SeoModule,
