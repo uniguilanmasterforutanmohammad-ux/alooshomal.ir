@@ -147,11 +147,8 @@ export function UserShell({ children }: { children: React.ReactNode }) {
   // Only a real (non-placeholder) workspace unlocks the business panel entry;
   // brand-new users land on the normal user panel and start from there.
   const hasBusiness = Boolean(workspace && !workspace.isPlaceholder);
-  const { status: profileStatus, completed: profileCompleted } =
-    useProfileStatus(isRegularUser);
+  const { status: profileStatus } = useProfileStatus(isRegularUser);
   const onboardingFinished = profileStatus?.onboardingFinished === true;
-  const showProfileBanner =
-    isRegularUser && !profileCompleted && pathname !== '/dashboard/onboarding';
   const [open, setOpen] = useState(false);
   const isVisible = (item: NavItem) =>
     (!item.feature || isFeatureVisible(item.feature)) &&
@@ -324,23 +321,6 @@ export function UserShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
         </header>
-
-        {showProfileBanner ? (
-          <div className="mx-4 mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 md:mx-6">
-            <ShieldCheck className="size-4 shrink-0" aria-hidden />
-            <span className="flex-1 leading-6">
-              پروفایل شما ناقص است؛ برای خرید و استفاده از خدمات، ابتدا
-              استعلام هویت را در «شروع آسان» کامل کنید.
-            </span>
-            <Link
-              href="/dashboard/onboarding"
-              prefetch={false}
-              className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700"
-            >
-              شروع آسان
-            </Link>
-          </div>
-        ) : null}
 
         <main className="p-4 md:p-6">{children}</main>
       </div>

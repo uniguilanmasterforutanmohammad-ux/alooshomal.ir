@@ -5,14 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ArrowLeft,
-  BadgeCheck,
   Bell,
   Bookmark,
   Building2,
   Headset,
   LifeBuoy,
   Receipt,
-  ShieldCheck,
   ShoppingCart,
   Sparkles,
   UserRound,
@@ -24,7 +22,6 @@ import { useAuth } from '@/lib/auth';
 import { useBusinessWorkspace } from '@/lib/business-modules';
 import { useCart } from '@/lib/cart';
 import { useFeatures } from '@/lib/features';
-import { useProfileStatus } from '@/lib/profile-status';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { cn } from '@/lib/utils';
 
@@ -152,9 +149,6 @@ export default function UserDashboardPage() {
   // `load` stays stable and the effect doesn't refetch in an endless loop.
   const isFeatureVisibleRef = useRef(isFeatureVisible);
   isFeatureVisibleRef.current = isFeatureVisible;
-  const { status: profileStatus } = useProfileStatus(
-    hydrated && Boolean(token),
-  );
   const { workspace } = useBusinessWorkspace(hydrated && Boolean(token));
   const { count: cartCount, hydrated: cartHydrated } = useCart();
   const [wallet, setWallet] = useState<MyWallet | null>(null);
@@ -205,9 +199,6 @@ export default function UserDashboardPage() {
     void load();
   }, [hydrated, token, router, load]);
 
-  const identity = profileStatus?.identity ?? null;
-  const profileCompleted = profileStatus?.profileCompleted === true;
-  const onboardingFinished = profileStatus?.onboardingFinished === true;
   const businessVisible = isFeatureVisible('featureBusinessWorkspace');
   const onboardingVisible = isFeatureVisible('featureOnboarding');
   const hasBusiness = Boolean(workspace && !workspace.isPlaceholder);
@@ -238,20 +229,6 @@ export default function UserDashboardPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold">
-          {identity?.verified ? (
-            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-emerald-700">
-              <BadgeCheck className="size-3.5" aria-hidden />
-              هویت تأیید شده
-            </span>
-          ) : (
-            <Link
-              href="/dashboard/onboarding"
-              className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-amber-800"
-            >
-              <ShieldCheck className="size-3.5" aria-hidden />
-              تکمیل احراز هویت
-            </Link>
-          )}
           {hasBusiness ? (
             <span className="inline-flex items-center gap-1 rounded-full border border-[var(--vintage-border)] bg-[var(--vintage-paper)] px-2.5 py-1 text-ink">
               <Building2 className="size-3.5" aria-hidden />
@@ -265,22 +242,6 @@ export default function UserDashboardPage() {
           )}
         </div>
       </header>
-
-      {!profileCompleted ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <ShieldCheck className="size-4 shrink-0" aria-hidden />
-          <span className="flex-1 leading-6">
-            پروفایل شما کامل نیست؛ برای استفاده از خدمات و خرید، ابتدا استعلام
-            هویت را در «شروع آسان» تکمیل کنید.
-          </span>
-          <Link
-            href="/dashboard/onboarding"
-            className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700"
-          >
-            تکمیل پروفایل
-          </Link>
-        </div>
-      ) : null}
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {loading ? (
@@ -451,27 +412,6 @@ export default function UserDashboardPage() {
               </li>
             </ul>
           </section>
-
-          {!onboardingFinished && onboardingVisible ? (
-            <section className="indeed-panel border-brand/40 p-5">
-              <div className="flex items-center gap-2">
-                <Sparkles className="size-4 text-brand" aria-hidden />
-                <h2 className="text-sm font-extrabold text-ink">شروع آسان</h2>
-              </div>
-              <p className="mt-2 text-xs leading-6 text-muted">
-                احراز هویت، ثبت کسب‌وکار و انتخاب اشتراک را مرحله‌به‌مرحله
-                کامل کنید.
-              </p>
-              <Link
-                href="/dashboard/onboarding"
-                prefetch={false}
-                className="indeed-btn indeed-btn-secondary mt-3 w-full py-2 text-sm"
-              >
-                ادامه‌ی شروع آسان
-                <ArrowLeft className="size-4" aria-hidden />
-              </Link>
-            </section>
-          ) : null}
         </div>
       </div>
     </div>
