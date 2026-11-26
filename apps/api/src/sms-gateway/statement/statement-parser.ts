@@ -71,7 +71,7 @@ function parseNumber(value: ExcelJS.CellValue): number | null {
 /** `1405/09/05  20:51` → Date (Tehran wall clock). */
 function parseJalaliDateTime(value: string): Date | null {
   const match = normalizeText(value).match(
-    /(\d{4})[/\-](\d{1,2})[/\-](\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/,
+    /(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?:\s+(\d{1,2}):(\d{2}))?/,
   );
   if (!match) return null;
   return jalaliToDate(
