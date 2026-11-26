@@ -166,6 +166,9 @@ export default function OrdersPage() {
                       {order.customerPhone}
                       {order.neighborhood ? ` • ${order.neighborhood}` : ''}
                       {order.customerAddress ? ` • ${order.customerAddress}` : ''}
+                      {order.payerCardLast4
+                        ? ` • کارت پرداخت‌کننده: ${order.payerCardLast4}`
+                        : ''}
                     </p>
                     <p className="mt-1 text-xs font-bold text-brand">
                       {order.totalAmount.toLocaleString('fa-IR')} تومان •{' '}

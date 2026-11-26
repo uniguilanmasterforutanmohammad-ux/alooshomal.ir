@@ -1457,6 +1457,12 @@ export class RetailService {
         'پرداخت کارت به کارت توسط مدیر غیرفعال شده است؛ روش دیگری را انتخاب کنید',
       );
     }
+    const payerCardLast4 = dto.payerCardLast4?.trim() || null;
+    if (paymentMethod === 'CARD_TO_CARD' && !payerCardLast4) {
+      throw new BadRequestException(
+        'برای پرداخت کارت‌به‌کارت، چهار رقم آخر کارت خود را وارد کنید تا پرداخت به‌صورت خودکار تأیید شود.',
+      );
+    }
 
     const orderNumber = `ORD-${Date.now().toString(36).toUpperCase()}-${randomBytes(2).toString('hex').toUpperCase()}`;
     const trackingToken = randomBytes(16).toString('hex');
@@ -1497,6 +1503,8 @@ export class RetailService {
           customerName: dto.customerName,
           customerPhone: dto.customerPhone,
           customerAddress: dto.customerAddress,
+          payerCardLast4:
+            paymentMethod === 'CARD_TO_CARD' ? payerCardLast4 : null,
           neighborhood: delivery.neighborhood,
           note: dto.note,
           paymentMethod,

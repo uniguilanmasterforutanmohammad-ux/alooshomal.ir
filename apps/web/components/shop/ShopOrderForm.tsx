@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { Check, Minus, Plus, ShoppingBag, Truck } from 'lucide-react';
 
 import { CardToCardForm } from '@/components/payments/CardToCardForm';
+import { PayerCardField } from '@/components/shop/PayerCardField';
 import { api, type PublicShop, type RetailOrder } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useCart } from '@/lib/cart';
@@ -22,6 +23,7 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
     customerName: user?.fullName ?? '',
     customerPhone: user?.phone ?? '',
     customerAddress: '',
+    payerCardLast4: '',
     neighborhood: '',
     note: '',
     paymentMethod:
@@ -74,6 +76,13 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
       return;
     }
     if (!customer.customerName.trim() || !customer.customerPhone.trim()) return;
+    if (
+      customer.paymentMethod === 'CARD_TO_CARD' &&
+      customer.payerCardLast4.length !== 4
+    ) {
+      toast.error('۴ رقم آخر کارت خود را وارد کنید');
+      return;
+    }
     setBusy(true);
     try {
       const created = await api.post<RetailOrder>(
@@ -82,6 +91,10 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
           customerName: customer.customerName.trim(),
           customerPhone: customer.customerPhone.trim(),
           customerAddress: customer.customerAddress.trim() || undefined,
+          payerCardLast4:
+            customer.paymentMethod === 'CARD_TO_CARD'
+              ? customer.payerCardLast4
+              : undefined,
           neighborhood: customer.neighborhood || undefined,
           note: customer.note.trim() || undefined,
           paymentMethod: customer.paymentMethod,
@@ -256,6 +269,14 @@ export function ShopOrderForm({ shop }: { shop: PublicShop }) {
           {cardAvailable ? <option value="CARD_TO_CARD">کارت به کارت</option> : null}
           {cashAvailable ? <option value="CASH_ON_DELIVERY">پرداخت در محل</option> : null}
         </select>
+        {customer.paymentMethod === 'CARD_TO_CARD' ? (
+          <PayerCardField
+            value={customer.payerCardLast4}
+            onChange={(value) =>
+              setCustomer((prev) => ({ ...prev, payerCardLast4: value }))
+            }
+          />
+        ) : null}
         {!paymentAvailable ? (
           <p className="text-[11px] text-amber-700">
             روش پرداخت توسط مدیر غیرفعال شده است؛ لطفاً بعداً تلاش کنید.

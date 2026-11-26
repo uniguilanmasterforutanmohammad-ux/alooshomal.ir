@@ -114,6 +114,9 @@ export default function SmsGatewayPage() {
   const [candidates, setCandidates] = useState<SmsTransactionCandidateOrder[]>(
     [],
   );
+  const [candidatePayerLast4, setCandidatePayerLast4] = useState<string | null>(
+    null,
+  );
   const [candidateBusy, setCandidateBusy] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState('');
   const [statementBusy, setStatementBusy] = useState(false);
@@ -197,13 +200,16 @@ export default function SmsGatewayPage() {
     setLinking(transaction);
     setSelectedOrder('');
     setCandidates([]);
+    setCandidatePayerLast4(null);
     setCandidateBusy(true);
     try {
       const data = await api.get<{
         amount: number;
+        payerLast4: string | null;
         orders: SmsTransactionCandidateOrder[];
       }>(`/sms-gateway/transactions/${transaction.id}/candidates`);
       setCandidates(data.orders);
+      setCandidatePayerLast4(data.payerLast4);
       if (data.orders.length === 1) setSelectedOrder(data.orders[0].id);
     } finally {
       setCandidateBusy(false);
@@ -573,6 +579,9 @@ export default function SmsGatewayPage() {
                         {transaction.trackingNumber
                           ? ` — پیگیری ${transaction.trackingNumber}`
                           : ''}
+                        {transaction.sourceCardLast4
+                          ? ` — کارت پرداخت‌کننده ${transaction.sourceCardLast4}`
+                          : ''}
                       </div>
                     </div>
                     <span
@@ -699,6 +708,13 @@ export default function SmsGatewayPage() {
                       {order.customerName} — {faPrice(order.totalAmount)}
                       <span className="mt-1 block text-muted">
                         {order.customerPhone} — {faDateTime(order.createdAt)}
+                        {order.payerCardLast4
+                          ? ` — کارت اعلام‌شده ${order.payerCardLast4}`
+                          : ''}
+                        {candidatePayerLast4 &&
+                        order.payerCardLast4 === candidatePayerLast4 ? (
+                          <b className="text-emerald-700"> ✓ مطابق واریز</b>
+                        ) : null}
                       </span>
                     </span>
                   </label>

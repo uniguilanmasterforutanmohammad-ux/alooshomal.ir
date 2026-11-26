@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
@@ -7,11 +7,21 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
   Min,
   MinLength,
   ValidateNested,
 } from 'class-validator';
+
+/** Persian/Arabic digits → ASCII so `۱۲۳۴` passes the ASCII-only check. */
+function toAsciiDigits(value: unknown): unknown {
+  if (typeof value !== 'string') return value;
+  return value
+    .replace(/[۰-۹]/g, (digit) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)))
+    .replace(/[٠-٩]/g, (digit) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)))
+    .replace(/\D/g, '');
+}
 
 export const RETAIL_PAYMENT_METHODS = [
   'CARD_TO_CARD',
@@ -62,6 +72,18 @@ export class CreateOrderDto {
   @IsString()
   @MaxLength(2000)
   note?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'چهار رقم آخر کارت خودِ مشتری (کارتی که با آن کارت‌به‌کارت می‌کند). برای پرداخت کارت‌به‌کارت الزامی است.',
+    example: '1234',
+  })
+  @IsOptional()
+  @Transform(({ value }) => toAsciiDigits(value))
+  @Matches(/^\d{4}$/, {
+    message: 'چهار رقم آخر کارت باید عدد و دقیقاً ۴ رقم باشد',
+  })
+  payerCardLast4?: string;
 
   @ApiPropertyOptional({ enum: RETAIL_PAYMENT_METHODS, default: 'CARD_TO_CARD' })
   @IsOptional()

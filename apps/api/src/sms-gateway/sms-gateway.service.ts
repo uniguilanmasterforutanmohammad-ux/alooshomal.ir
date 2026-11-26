@@ -39,6 +39,7 @@ interface MatchCandidate {
   orderNumber: string;
   customerName: string;
   totalAmount: number;
+  payerCardLast4: string | null;
   createdAt: Date;
 }
 
@@ -285,7 +286,12 @@ export class SmsGatewayService {
     const workspaceId = await this.workspaceId(userId);
     const transaction = await this.prisma.smsGatewayTransaction.findFirst({
       where: { id, workspaceId },
-      select: { id: true, amount: true },
+      select: {
+        id: true,
+        amount: true,
+        sourceCard: true,
+        sourceCardLast4: true,
+      },
     });
     if (!transaction) throw new NotFoundException('پیامک پیدا نشد');
     const orders = await this.prisma.retailOrder.findMany({
@@ -304,12 +310,24 @@ export class SmsGatewayService {
         customerName: true,
         customerPhone: true,
         totalAmount: true,
+        payerCardLast4: true,
         status: true,
         paymentStatus: true,
         createdAt: true,
       },
     });
-    return { amount: transaction.amount, orders };
+    const payerLast4 =
+      transaction.sourceCardLast4 ?? transaction.sourceCard?.slice(-4) ?? null;
+    // Surface orders that declared the same payer card first so manual linking
+    // is a one-click choice in the common case.
+    const sorted = payerLast4
+      ? [...orders].sort((a, b) => {
+          const aMatch = a.payerCardLast4 === payerLast4 ? 1 : 0;
+          const bMatch = b.payerCardLast4 === payerLast4 ? 1 : 0;
+          return bMatch - aMatch;
+        })
+      : orders;
+    return { amount: transaction.amount, payerLast4, orders: sorted };
   }
 
   async rematchTransaction(userId: string, id: string) {
@@ -570,6 +588,8 @@ export class SmsGatewayService {
           bankName: parsed.bankName ?? account.bankName ?? null,
           destinationLast4: row.destinationCard.slice(-4),
           destinationCard: row.destinationCard,
+          sourceCard: row.sourceCard,
+          sourceCardLast4: row.sourceCard?.slice(-4) ?? null,
           trackingNumber: row.trackingNumber,
           smsReceivedAt: row.occurredAt,
           note: 'از فایل صورت‌حساب بانکی',
@@ -637,6 +657,9 @@ export class SmsGatewayService {
         senderName: dto.senderName?.trim() || null,
         destinationLast4,
         destinationCard,
+        sourceCard: dto.sourceCard?.trim() || null,
+        sourceCardLast4:
+          dto.sourceCardLast4?.trim() || dto.sourceCard?.trim().slice(-4) || null,
         trackingNumber: dto.trackingNumber?.trim() || null,
         smsReceivedAt,
         note: dto.note?.trim() || null,
@@ -677,6 +700,8 @@ export class SmsGatewayService {
       amount: number;
       destinationLast4: string | null;
       destinationCard: string | null;
+      sourceCard?: string | null;
+      sourceCardLast4?: string | null;
       trackingNumber: string | null;
       smsReceivedAt: Date | null;
       note: string | null;
@@ -742,12 +767,35 @@ export class SmsGatewayService {
         orderNumber: true,
         customerName: true,
         totalAmount: true,
+        payerCardLast4: true,
         createdAt: true,
       },
     });
 
-    if (candidates.length === 1) {
-      const order = candidates[0];
+    // The customer tells us the last 4 digits of their own card at checkout.
+    // When the bank message/statement also reveals the payer card, that is a
+    // strong signal: prefer orders whose declared payer card matches, and never
+    // auto-approve an order that declared a *different* card.
+    const payerLast4 =
+      transaction.sourceCardLast4 ??
+      transaction.sourceCard?.slice(-4) ??
+      null;
+    let pool = candidates;
+    let payerNote = '';
+    if (payerLast4) {
+      const strong = candidates.filter(
+        (candidate) => candidate.payerCardLast4 === payerLast4,
+      );
+      if (strong.length) {
+        pool = strong;
+        payerNote = ` (کارت پرداخت‌کننده ${payerLast4} مطابق سفارش)`;
+      } else {
+        pool = candidates.filter((candidate) => !candidate.payerCardLast4);
+      }
+    }
+
+    if (pool.length === 1) {
+      const order = pool[0];
       const result = await this.approveOrder(
         transaction.workspaceId,
         order.id,
@@ -762,26 +810,36 @@ export class SmsGatewayService {
           status: 'AUTO_APPROVED' as TransactionStatus,
           orderId: order.id,
           cardPaymentId: result.paymentId,
-          note: `تأیید خودکار سفارش ${order.orderNumber}`,
+          note: `تأیید خودکار سفارش ${order.orderNumber}${payerNote}`,
         },
         message: `پرداخت سفارش ${order.orderNumber} به‌صورت خودکار تأیید شد.`,
       };
     }
-    if (candidates.length > 1) {
+    if (pool.length > 1) {
       return {
         matched: false,
         data: {
           status: 'AMBIGUOUS' as TransactionStatus,
-          candidates: candidates.map((candidate) => ({
+          candidates: pool.map((candidate) => ({
             orderId: candidate.id,
             orderNumber: candidate.orderNumber,
             customerName: candidate.customerName,
             totalAmount: candidate.totalAmount,
             createdAt: candidate.createdAt.toISOString(),
           })),
-          note: `${candidates.length} سفارش هم‌مبلغ پیدا شد؛ تطبیق دستی لازم است.`,
+          note: `${pool.length} سفارش هم‌مبلغ پیدا شد؛ تطبیق دستی لازم است.`,
         },
         message: 'چند سفارش هم‌مبلغ وجود دارد؛ از پنل تطبیق دهید.',
+      };
+    }
+    if (candidates.length && !pool.length) {
+      return {
+        matched: false,
+        data: {
+          status: 'UNMATCHED' as TransactionStatus,
+          note: `سفارش هم‌مبلغ هست، اما کارت پرداخت‌کننده (${payerLast4}) با کارت اعلام‌شده در سفارش‌ها نمی‌خواند؛ تطبیق دستی لازم است.`,
+        },
+        message: 'کارت پرداخت‌کننده با سفارش‌های هم‌مبلغ مطابقت ندارد.',
       };
     }
     return {

@@ -14,6 +14,7 @@ import {
 
 import { MyAddressesPanel } from '@/components/shop/MyAddressesPanel';
 import { OrderTrackingLoader } from '@/components/shop/OrderTrackingPanel';
+import { PayerCardField } from '@/components/shop/PayerCardField';
 import {
   api,
   type PublicShop,
@@ -76,6 +77,7 @@ function ShopCartCheckout({
     customerName: prefill?.name ?? '',
     customerPhone: prefill?.phone ?? '',
     customerAddress: prefill?.address ?? '',
+    payerCardLast4: '',
     neighborhood: prefill?.neighborhood ?? '',
     note: '',
     paymentMethod: 'CARD_TO_CARD',
@@ -132,6 +134,13 @@ function ShopCartCheckout({
       toast.error('نام و شماره‌ی تماس را وارد کنید.');
       return;
     }
+    if (
+      customer.paymentMethod === 'CARD_TO_CARD' &&
+      customer.payerCardLast4.length !== 4
+    ) {
+      toast.error('۴ رقم آخر کارت خود را وارد کنید');
+      return;
+    }
     setBusy(true);
     try {
       const created = await api.post<RetailOrder>(
@@ -140,6 +149,10 @@ function ShopCartCheckout({
           customerName: customer.customerName.trim(),
           customerPhone: customer.customerPhone.trim(),
           customerAddress: customer.customerAddress.trim() || undefined,
+          payerCardLast4:
+            customer.paymentMethod === 'CARD_TO_CARD'
+              ? customer.payerCardLast4
+              : undefined,
           neighborhood: customer.neighborhood || undefined,
           note: customer.note.trim() || undefined,
           paymentMethod: customer.paymentMethod,
@@ -283,6 +296,14 @@ function ShopCartCheckout({
           {cardAvailable ? <option value="CARD_TO_CARD">کارت به کارت</option> : null}
           {cashAvailable ? <option value="CASH_ON_DELIVERY">پرداخت در محل</option> : null}
         </select>
+        {customer.paymentMethod === 'CARD_TO_CARD' ? (
+          <PayerCardField
+            value={customer.payerCardLast4}
+            onChange={(value) =>
+              setCustomer((prev) => ({ ...prev, payerCardLast4: value }))
+            }
+          />
+        ) : null}
         <textarea
           className={`${field} sm:col-span-2`}
           rows={2}

@@ -38,6 +38,22 @@ export class ReportSmsTransactionDto {
   @Matches(/^\d{16}$/)
   destinationCard?: string;
 
+  @ApiPropertyOptional({
+    description:
+      'چهار رقم آخر کارت واریزکننده (در صورت وجود در پیامک) — برای تطبیق دقیق سفارش',
+    example: '1234',
+  })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{4}$/)
+  sourceCardLast4?: string;
+
+  @ApiPropertyOptional({ description: 'شماره کامل کارت واریزکننده (در صورت وجود)' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{16}$/)
+  sourceCard?: string;
+
   @ApiPropertyOptional({ example: 'بانک ملی' })
   @IsOptional()
   @IsString()

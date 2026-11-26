@@ -35,6 +35,8 @@ export interface SmsGatewayTransaction {
   senderName: string | null;
   destinationLast4: string | null;
   destinationCard: string | null;
+  sourceCard: string | null;
+  sourceCardLast4: string | null;
   trackingNumber: string | null;
   smsReceivedAt: string | null;
   status: SmsTransactionStatus | string;
@@ -83,6 +85,7 @@ export interface SmsTransactionCandidateOrder {
   customerName: string;
   customerPhone: string;
   totalAmount: number;
+  payerCardLast4: string | null;
   status: string;
   paymentStatus: string;
   createdAt: string;

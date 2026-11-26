@@ -451,6 +451,7 @@ export interface RetailOrder {
   customerName: string;
   customerPhone: string;
   customerAddress: string | null;
+  payerCardLast4: string | null;
   neighborhood: string | null;
   note: string | null;
   status:

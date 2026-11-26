@@ -2740,6 +2740,10 @@ model RetailOrder {
   customerName    String
   customerPhone   String
   customerAddress String?
+  /// Last 4 digits of the customer's own card, entered at checkout for
+  /// card-to-card orders so the deposit can be matched to this order (the bank
+  /// statement/SMS carries the payer card).
+  payerCardLast4  String?
   /// Neighborhood chosen by the customer (validated against the shop area).
   neighborhood    String?
   note            String?
@@ -2964,6 +2968,9 @@ model SmsGatewayTransaction {
   senderName         String?
   destinationLast4   String?
   destinationCard    String?
+  /// Payer (source) card when the bank message/statement reveals it.
+  sourceCard         String?
+  sourceCardLast4    String?
   trackingNumber     String?
   smsReceivedAt      DateTime?
   /// UNMATCHED | AMBIGUOUS | AUTO_APPROVED | MANUALLY_LINKED | IGNORED
