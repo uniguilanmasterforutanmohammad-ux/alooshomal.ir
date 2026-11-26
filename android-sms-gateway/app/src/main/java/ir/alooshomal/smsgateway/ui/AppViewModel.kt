@@ -9,6 +9,7 @@ import ir.alooshomal.smsgateway.data.ApiException
 import ir.alooshomal.smsgateway.data.AppSettings
 import ir.alooshomal.smsgateway.data.DeviceTransaction
 import ir.alooshomal.smsgateway.sms.SmsInboxReader
+import ir.alooshomal.smsgateway.sync.HeartbeatWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -84,6 +85,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         info = "گوشی با موفقیت به «${response.workspace.name}» متصل شد.",
                     )
                 }
+                HeartbeatWorker.schedule(getApplication())
                 backfillInbox()
                 refresh()
             } catch (error: ApiException) {
@@ -113,6 +115,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         transactions = me.transactions,
                     )
                 }
+                HeartbeatWorker.schedule(getApplication())
                 runCatching { api.heartbeat(settings.serverUrl, token) }
             } catch (error: ApiException) {
                 _state.update {
@@ -150,6 +153,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun unpair() {
         settings.clearPairing()
+        HeartbeatWorker.cancel(getApplication())
         _state.update {
             UiState(
                 loading = false,

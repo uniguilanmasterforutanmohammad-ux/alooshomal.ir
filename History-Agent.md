@@ -20,7 +20,45 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.111.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.112.0**.
+
+## ۱۴۰۵/۰۹/۰۵ — ضربان دوره‌ای اپ اندروید و Gradle wrapper — نسخه `v4.112.0`
+
+**هدف:** پنل فروشنده «آخرین اتصال» گوشی را تازه نشان دهد حتی وقتی اپ باز نشده
+است؛ و ساخت اپ با `./gradlew` بدون نصب Gradle سیستمی ممکن شود.
+
+**تغییرات:**
+- `android-sms-gateway/app/src/main/java/ir/alooshomal/smsgateway/sync/HeartbeatWorker.kt`
+  (جدید): Worker دوره‌ای هر ۶ ساعت با `POST /sms-gateway/device/heartbeat`؛ در
+  ۴۰۱/۴۰۳ کار را لغو می‌کند و در خطای شبکه `retry` می‌دهد.
+- `android-sms-gateway/app/src/main/java/ir/alooshomal/smsgateway/AlooshomalApp.kt`:
+  فعال‌سازی ضربان برای دستگاه‌های متصلِ قبلی هنگام اجرای اپ.
+- `android-sms-gateway/app/src/main/java/ir/alooshomal/smsgateway/ui/AppViewModel.kt`:
+  زمان‌بندی ضربان پس از pair/refresh موفق و لغو آن در unpair.
+- `apps/api/src/sms-gateway/sms-gateway.service.ts`: ثبت هر واریز، `lastSeenAt`
+  دستگاه را هم به‌روز می‌کند.
+- `android-sms-gateway/gradlew`، `gradlew.bat` و `gradle/wrapper/*` (جدید):
+  Gradle wrapper 8.11.1 با `distributionSha256Sum` رسمی و آینه‌ی Tencent برای
+  دسترسی از ایران.
+- `android-sms-gateway/app/build.gradle.kts`: `versionCode=2`،
+  `versionName=1.1.0`.
+- `android-sms-gateway/.gitignore` و `README.md`: کلید امضا و
+  `keystore.properties` از مخزن خارج شدند و راهنمای ساخت با wrapper به‌روز شد.
+- `docs/SMS-GATEWAY.md`: توضیح heartbeat و به‌روزرسانی `lastSeenAt`.
+- `apps/web/lib/version.ts`: نسخه به `v4.112.0`.
+
+**تأیید/تست:**
+- `./gradlew :app:testDebugUnitTest`: ۶ تست `BankSmsParserTest` موفق.
+- `./gradlew :app:assembleRelease`: موفق؛ `aapt2 dump badging` →
+  `versionCode=2`، `versionName=1.1.0`؛ `apksigner verify` امضای release را
+  تأیید کرد؛ خروجی در
+  `android-sms-gateway/dist/alooshomal-sms-gateway-1.1.0.apk`
+  (SHA-256: `516e995084053188c7614c75b0e24ec691aa5e1565c7854d097e860283f37492`).
+- `./gradlew --version` با wrapper و checksum: موفق (Gradle 8.11.1).
+- `docker compose exec api npx tsc --noEmit -p tsconfig.json`: exit 0.
+- `docker compose exec web npx tsc --noEmit`: exit 0.
+- `python3 scripts/check_api_docs.py`: ۸۶ کنترلر و ۷۷۴ مسیر (exit 0).
+- `python3 scripts/sync_install.py --check`: ۰ تغییر معلق.
 
 ## ۱۴۰۵/۰۹/۰۵ — دروازه‌ی پیامک بانکی و اپ اندروید تأیید خودکار پرداخت — نسخه `v4.111.0`
 

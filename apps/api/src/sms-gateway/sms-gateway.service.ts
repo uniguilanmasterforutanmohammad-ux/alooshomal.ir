@@ -549,7 +549,11 @@ export class SmsGatewayService {
     });
     await this.prisma.smsGatewayDevice.update({
       where: { id: device.id },
-      data: { lastSmsAt: smsReceivedAt ?? new Date() },
+      data: {
+        lastSmsAt: smsReceivedAt ?? new Date(),
+        // A reported deposit also proves the phone is online right now.
+        lastSeenAt: new Date(),
+      },
     });
 
     const evaluation = await this.evaluate(transaction, account);
