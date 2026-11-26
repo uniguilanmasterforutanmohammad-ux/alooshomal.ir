@@ -11,6 +11,7 @@ import {
   ExternalLink,
   Loader2,
   ShieldCheck,
+  Smartphone,
   X,
   XCircle,
 } from 'lucide-react';
@@ -193,6 +194,13 @@ function CardToCardContent() {
           شماره کارت بانکی خودتان را ثبت کنید تا مشتریان بتوانند مبلغ را واریز و
           رسید را برای تأیید شما ارسال کنند.
         </p>
+        <Link
+          href="/dashboard/business/card-to-card/sms-gateway"
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-brand-light px-3 py-1.5 text-xs font-bold text-brand"
+        >
+          <Smartphone className="size-3.5" aria-hidden />
+          اتصال اپ اندروید و تأیید خودکار با پیامک بانکی
+        </Link>
       </div>
 
       {workspace ? <BusinessPanelNav modules={workspace.modules} /> : null}
@@ -475,14 +483,20 @@ function CardToCardContent() {
                   </span>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <a
-                    href={payment.receiptUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="indeed-btn py-1 text-xs"
-                  >
-                    <ExternalLink className="size-3" aria-hidden /> مشاهده رسید
-                  </a>
+                  {payment.source === 'SMS_GATEWAY' ? (
+                    <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2 py-1 text-[11px] font-bold text-emerald-700">
+                      <CheckCircle2 className="size-3" aria-hidden /> تأیید خودکار با پیامک بانکی
+                    </span>
+                  ) : (
+                    <a
+                      href={payment.receiptUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="indeed-btn py-1 text-xs"
+                    >
+                      <ExternalLink className="size-3" aria-hidden /> مشاهده رسید
+                    </a>
+                  )}
                   {payment.status === 'PENDING' ? (
                     <>
                       <button

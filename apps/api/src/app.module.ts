@@ -58,6 +58,7 @@ import { SeoModule } from './seo/seo.module';
 import { SettingsModule } from './settings/settings.module';
 import { SocialAccountsModule } from './social-accounts/social-accounts.module';
 import { SmsModule } from './sms/sms.module';
+import { SmsGatewayModule } from './sms-gateway/sms-gateway.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { SupportChatModule } from './support-chat/support-chat.module';
 import { TaxonomyModule } from './taxonomy/taxonomy.module';
@@ -93,6 +94,7 @@ import { ZohalModule } from './zohal/zohal.module';
     RealEstateModule,
     EducationModule,
     CardToCardModule,
+    SmsGatewayModule,
     CrmModule,
     FeedsModule,
     FinanceModule,

@@ -2128,6 +2128,9 @@ model BusinessWorkspace {
   eduWaitlist     EduWaitlist[]
   cardAccount     CardToCardAccount?
   cardPayments    CardToCardPayment[]
+  smsDevices      SmsGatewayDevice[]
+  smsPairingCodes SmsGatewayPairingCode[]
+  smsTransactions SmsGatewayTransaction[]
   businessCards   BusinessCard[]
   biolinks        Biolink[]
 
@@ -2881,6 +2884,10 @@ model CardToCardPayment {
   note           String?
   /// PENDING | APPROVED | REJECTED
   status         String    @default("PENDING")
+  /// RECEIPT | SMS_GATEWAY — where the proof of payment came from.
+  source         String    @default("RECEIPT")
+  /// The SMS-gateway transaction that produced this payment (when automatic).
+  smsTransactionId String?
   reviewNote     String?
   reviewedAt     DateTime?
   reviewedBy     String?
@@ -2892,6 +2899,89 @@ model CardToCardPayment {
   @@index([workspaceId, status])
   @@index([referenceType, referenceId])
   @@map("card_to_card_payments")
+}
+
+// ---------------------------------------------------------------------------
+// «دروازه‌ی پیامک» — Android SMS gateway for automatic card-to-card matching
+// ---------------------------------------------------------------------------
+/// One Android phone paired by a business owner. The device reads incoming bank
+/// SMS locally and posts parsed deposits to the API; the raw token is only
+/// shown once at pairing time and stored hashed here.
+model SmsGatewayDevice {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  tokenHash   String    @unique
+  tokenPrefix String
+  platform    String    @default("ANDROID")
+  appVersion  String?
+  /// ACTIVE | REVOKED
+  status      String    @default("ACTIVE")
+  lastSeenAt  DateTime?
+  lastSmsAt   DateTime?
+  pairedAt    DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace    BusinessWorkspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  transactions SmsGatewayTransaction[]
+
+  @@index([workspaceId, status])
+  @@map("sms_gateway_devices")
+}
+
+/// Short-lived, single-use code the owner types into the Android app. Only the
+/// hash is stored, so a database leak does not reveal usable pairing codes.
+model SmsGatewayPairingCode {
+  id          String    @id @default(cuid())
+  workspaceId String
+  codeHash    String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdBy   String
+  createdAt   DateTime  @default(now())
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, expiresAt])
+  @@map("sms_gateway_pairing_codes")
+}
+
+/// One parsed bank deposit SMS received by a paired device, plus the matching
+/// decision. Kept even when unmatched so the owner can link it to an order
+/// manually from the panel.
+model SmsGatewayTransaction {
+  id                 String    @id @default(cuid())
+  workspaceId        String
+  deviceId           String?
+  /// sha256(deviceId + ':' + (smsId || rawText + receivedAt)) — makes retries
+  /// from the phone idempotent.
+  dedupeKey          String
+  rawText            String
+  /// Amount in Toman (the phone converts Rial → Toman).
+  amount             Int
+  bankName           String?
+  senderName         String?
+  destinationLast4   String?
+  destinationCard    String?
+  trackingNumber     String?
+  smsReceivedAt      DateTime?
+  /// UNMATCHED | AMBIGUOUS | AUTO_APPROVED | MANUALLY_LINKED | IGNORED
+  status             String    @default("UNMATCHED")
+  orderId            String?
+  cardPaymentId      String?
+  candidates         Json?
+  note               String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  device    SmsGatewayDevice? @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@unique([workspaceId, dedupeKey])
+  @@index([workspaceId, status, createdAt])
+  @@index([orderId])
+  @@map("sms_gateway_transactions")
 }
 
 // ---------------------------------------------------------------------------

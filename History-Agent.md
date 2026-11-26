@@ -20,7 +20,61 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.110.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.111.0**.
+
+## ۱۴۰۵/۰۹/۰۵ — دروازه‌ی پیامک بانکی و اپ اندروید تأیید خودکار پرداخت — نسخه `v4.111.0`
+
+**هدف:** فروشنده بتواند با نصب یک اپ اندروید روی گوشی خود، پیامک‌های واریز
+بانکی را به پنل وصل کند تا سفارش کارت‌به‌کارتِ هم‌مبلغ به‌صورت خودکار تأیید
+شود؛ روش دستی ارسال رسید هم دست‌نخورده بماند. اپ در پوشه‌ی مستقل
+`android-sms-gateway/` است و در `install.sh`، `docker-compose` و استقرار
+سرور قرار نمی‌گیرد.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `SmsGatewayDevice`،
+  `SmsGatewayPairingCode` و `SmsGatewayTransaction`؛ افزودن `source` و
+  `smsTransactionId` به `CardToCardPayment` و relationهای `BusinessWorkspace`.
+- `apps/api/src/sms-gateway/` (جدید): سرویس تطبیق، کنترلر پنل، کنترلر دستگاه،
+  `SmsDeviceGuard` با توکن هش‌شده، DTOهای Swagger و ماژول.
+- `apps/api/src/app.module.ts`: ثبت `SmsGatewayModule`.
+- `apps/api/src/settings/settings.constants.ts`: افزودن سوئیچ
+  `featureSmsGateway` به `FEATURE_FLAGS`.
+- `apps/web/app/dashboard/business/card-to-card/sms-gateway/page.tsx` (جدید):
+  ساخت کد اتصال، فهرست دستگاه‌ها، صف پیامک‌ها، تطبیق دستی، تطبیق دوباره و
+  نادیده‌گرفتن.
+- `apps/web/app/dashboard/business/card-to-card/page.tsx`: لینک ورود به
+  دروازه‌ی پیامک و نشان «تأیید خودکار با پیامک بانکی» روی رسیدهای خودکار.
+- `apps/web/lib/api/types/sms-gateway.ts` (جدید) و `apps/web/lib/api.ts`.
+- `apps/web/lib/api/types/business-modules.ts`: افزودن `source` به نوع
+  `CardToCardPayment`.
+- `docs/SMS-GATEWAY.md` (جدید) و `docs/API.md`: مستندات جریان، مدل داده،
+  امنیت و مسیرهای API.
+- `android-sms-gateway/` (جدید، خارج از مونوریپوی استقرار): پروژه‌ی کامل
+  Kotlin/Compose با پارسر پیامک بانکی، `SmsReceiver`، `WorkManager`، ذخیره‌ی
+  رمزنگاری‌شده‌ی توکن، رابط فارسی، تست واحد پارسر، README، PRIVACY و
+  SAMPLE-SMS. پارسر کارت ماسک‌شده (مثل `6037******5678`) اصلاح شد تا چهار
+  رقم آخر (نه چهار رقم اول) به‌عنوان `destinationLast4` خوانده شود.
+- `apps/web/lib/version.ts`: نسخه به `v4.111.0`.
+
+**تأیید/تست:**
+- `docker compose exec api npx prisma db push` و `npx prisma generate`: موفق.
+- `docker compose exec api npx tsc --noEmit -p tsconfig.json`: بدون خطا.
+- `docker compose exec web npx tsc --noEmit`: بدون خطا.
+- `python3 scripts/check_api_docs.py`: ۸۶ کنترلر و ۷۷۴ مسیر، همه با
+  `@ApiOperation`/`@ApiTags` (exit 0).
+- تست HTTP واقعی روی کانتینر لوکال: ساخت کد اتصال، pair دستگاه، `device/me`،
+  ثبت واریز ۴۵۰٬۰۰۰ تومانی → `AUTO_APPROVED`، سفارش `PAID`، پرداخت
+  `source=SMS_GATEWAY` و فاکتور `RETAIL_ORDER_PAYMENT` صادر شد.
+- تست تکرار همان پیامک → `duplicate: true` بدون تراکنش تکراری.
+- تست دو سفارش هم‌مبلغ → `AMBIGUOUS`، سپس `candidates` و `link` دستی →
+  `MANUALLY_LINKED` و سفارش `PAID`.
+- تست واریز به کارت دیگر → `UNMATCHED` و سفارش دست‌نخورده.
+- ساخت APK: `gradle :app:assembleRelease` موفق؛ `apksigner verify` امضای
+  release را تأیید کرد؛ خروجی در
+  `android-sms-gateway/dist/alooshomal-sms-gateway-1.0.0.apk`
+  (SHA-256: `e8633948c9135c1201760004747974f11f5a52c02f501fc91d23e959d5a69f23`).
+- `gradle :app:testDebugUnitTest`: ۶ تست `BankSmsParserTest` موفق (شامل
+  کارت ماسک‌شده، کارت کامل ۱۶ رقمی، ارقام فارسی، رد برداشت/خرید/OTP).
 
 ## ۱۴۰۵/۰۹/۰۵ — جداسازی «سوابق خرید» کاربر نهایی از پرداخت‌های کسب‌وکار — نسخه `v4.110.0`
 

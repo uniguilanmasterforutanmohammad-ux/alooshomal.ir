@@ -739,6 +739,9 @@ export interface CardToCardPayment {
   receiptUrl: string;
   note: string | null;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | string;
+  /** RECEIPT (customer upload) | SMS_GATEWAY (automatic bank-SMS match). */
+  source?: 'RECEIPT' | 'SMS_GATEWAY' | string;
+  smsTransactionId?: string | null;
   reviewNote: string | null;
   reviewedAt: string | null;
   reviewedBy: string | null;

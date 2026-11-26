@@ -1166,6 +1166,34 @@ PY
 برای `referenceType=BOOKING` وضعیت ودیعه‌ی رزرو `PAID` ثبت می‌شود. ماژول با
 سوئیچ `featureCardToCard` کنترل می‌شود.
 
+## دروازه‌ی پیامک بانکی (`/api/sms-gateway`)
+
+اتصال اپ اندروید فروشنده و تطبیق خودکار واریزهای کارت‌به‌کارت.
+
+### مسیرهای پنل (Bearer JWT)
+
+- `GET /api/sms-gateway/overview` — کارت، دستگاه‌ها، آمار و آخرین تراکنش‌ها.
+- `POST /api/sms-gateway/pairing-code` — کد اتصال یک‌بارمصرف ۸ کاراکتری.
+- `DELETE /api/sms-gateway/devices/:id` — قطع اتصال دستگاه.
+- `GET /api/sms-gateway/transactions?status=` — صف پیامک‌ها.
+- `GET /api/sms-gateway/transactions/:id/candidates` — سفارش‌های هم‌مبلغ.
+- `POST /api/sms-gateway/transactions/:id/link` — تطبیق دستی + تأیید.
+- `POST /api/sms-gateway/transactions/:id/rematch` — تلاش دوباره.
+- `POST /api/sms-gateway/transactions/:id/ignore` — نادیده‌گرفتن.
+
+### مسیرهای دستگاه (Bearer device token)
+
+- `POST /api/sms-gateway/device/pair` — بدون توکن؛ با کد اتصال.
+- `GET /api/sms-gateway/device/me`
+- `GET /api/sms-gateway/device/transactions`
+- `POST /api/sms-gateway/device/transactions`
+- `POST /api/sms-gateway/device/heartbeat`
+
+وضعیت تراکنش: `UNMATCHED` | `AMBIGUOUS` | `AUTO_APPROVED` |
+`MANUALLY_LINKED` | `IGNORED`.
+
+راهنمای کامل: `docs/SMS-GATEWAY.md`.
+
 ## وظیفه‌ی دائمی ایجنت (قانون ۸)
 
 هنگام **افزودن یا تغییر هر مسیر API**، ایجنت موظف است پیش از اعلام اتمام کار:

@@ -680,6 +680,14 @@ export const FEATURE_FLAGS: FeatureFlag[] = [
     default: true,
   },
   {
+    key: 'featureSmsGateway',
+    label: 'دروازه‌ی پیامک بانکی (اپ اندروید)',
+    description:
+      'اتصال گوشی اندروید فروشنده به پنل برای خواندن پیامک واریز بانکی و تأیید خودکار پرداخت سفارش‌های کارت به کارت. روش دستی همیشه فعال می‌ماند.',
+    group: 'پنل کسب‌وکار',
+    default: true,
+  },
+  {
     key: 'featurePropertyFiles',
     label: 'ماژول بانک فایل‌های ملکی',
     description:

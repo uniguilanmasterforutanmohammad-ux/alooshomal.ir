@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">پیامک‌یار الوشمال</string>
+    <string name="notification_channel_sync">وضعیت همگام‌سازی پیامک</string>
+    <string name="notification_channel_sync_desc">نتیجه‌ی ارسال پیامک‌های بانکی به پنل فروشگاه</string>
+</resources>
