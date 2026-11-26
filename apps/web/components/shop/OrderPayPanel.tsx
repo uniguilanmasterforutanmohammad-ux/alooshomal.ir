@@ -65,6 +65,8 @@ export function OrderPayPanel({
         referenceType="ORDER"
         referenceId={order.id}
         defaultAmount={order.totalAmount}
+        defaultCustomerName={order.customerName}
+        defaultCustomerPhone={order.customerPhone}
         title="پرداخت سفارش با کارت به کارت"
       />
     </section>

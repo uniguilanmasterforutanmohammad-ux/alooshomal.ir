@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 
 import { OrderPayPanel } from '@/components/shop/OrderPayPanel';
+import { OwnerOrderManager } from '@/components/shop/OwnerOrderManager';
 import { api, type PublicOrderTracking } from '@/lib/api';
 
 const ORDER_STATUS_LABELS: Record<string, string> = {
@@ -231,6 +232,7 @@ export function OrderTrackingLoader({
           بروزرسانی وضعیت
         </button>
       </div>
+      <OwnerOrderManager slug={slug} token={token} />
       <OrderTrackingPanel order={order} slug={slug} />
     </div>
   );

@@ -447,6 +447,7 @@ export interface RetailOrder {
   orderNumber: string;
   trackingToken: string | null;
   customerId: string | null;
+  customerUserId?: string | null;
   customerName: string;
   customerPhone: string;
   customerAddress: string | null;
@@ -605,6 +606,7 @@ export interface PublicOrderTracking {
   deliveryFee: number;
   totalAmount: number;
   customerName: string;
+  customerPhone: string;
   customerAddress: string | null;
   neighborhood: string | null;
   note: string | null;

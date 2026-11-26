@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 
 import { Header } from '@/components/layout/Header';
 import { OrderPayPanel } from '@/components/shop/OrderPayPanel';
+import { OwnerOrderManager } from '@/components/shop/OwnerOrderManager';
 import type { PublicOrderTracking } from '@/lib/api';
 import { SERVER_API_URL, decodeSlugParam } from '@/lib/site';
 
@@ -78,6 +79,7 @@ export default async function TrackOrderPage({
   const { slug, token } = await params;
   const order = await fetchTracking(slug, token);
   if (!order) notFound();
+  const decodedSlug = decodeSlugParam(slug);
 
   return (
     <>
@@ -90,6 +92,8 @@ export default async function TrackOrderPage({
             <span className="font-bold text-ink">{order.orderNumber}</span>
           </p>
         </div>
+
+        <OwnerOrderManager slug={decodedSlug} token={token} />
 
         <section className="indeed-panel mb-4 grid gap-3 p-5 sm:grid-cols-2">
           <div>

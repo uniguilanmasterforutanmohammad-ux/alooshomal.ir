@@ -965,6 +965,7 @@ PY
 | `POST` | `/retail/products/ai-import` | ایمپورت محصول از لینک دیجی‌کالا با هوش مصنوعی (پس از تأیید هزینه)؛ بدنه `{ url, categoryId, price?, stock?, unit?, status? }`، خروجی `{ product, usage:{promptTokens,completionTokens,totalTokens}, cost, importId }`. هزینه از کیف پول کسر و در فاکتور ثبت می‌شود. فقط عکس‌های رسمی دیجی‌کالا (CDN `dkstatics`) گرفته می‌شود و حداقل تعداد عکس با تنظیم `aiMinImages` کنترل می‌شود. |
 | `GET` | `/retail/orders` | صف سفارش‌ها (فیلتر `status`). |
 | `GET/PATCH` | `/retail/orders/:id` | جزئیات/تغییر وضعیت سفارش و پرداخت. |
+| `GET` | `/retail/orders/by-token/:token` | جزئیات سفارش برای مالک از روی توکن پیگیری؛ برای مدیریت سفارش مستقیماً از صفحه‌ی پیگیری مشتری (هم‌سینک با پنل سفارش‌ها). |
 | `POST` | `/retail/orders/:id/approve` | تأیید سفارشِ در انتظار (فقط از `PENDING` به `CONFIRMED`) تا مشتری بتواند پرداخت کند. |
 | `POST` | `/retail/orders/:id/decline` | رد سفارش در انتظار/تأییدشده (بدنه‌ی اختیاری `{ reason }`) و بازگرداندن موجودی. |
 | `GET` | `/retail/inventory` | موجودی، هشدار کمبود و کاردکس انبار. |

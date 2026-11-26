@@ -32,6 +32,30 @@ import { UpdateProductDto } from './dto/update-product.dto';
 
 const DELIVERY_METHODS = ['SNAP', 'PICKUP'] as const;
 
+/** Persian labels reused in order notifications. */
+const ORDER_STATUS_FA: Record<string, string> = {
+  PENDING: 'در انتظار تأیید',
+  CONFIRMED: 'تأییدشده',
+  PAID: 'پرداخت‌شده',
+  SHIPPED: 'ارسال‌شده',
+  DELIVERED: 'تحویل‌شده',
+  CANCELLED: 'لغوشده',
+};
+const PAYMENT_STATUS_FA: Record<string, string> = {
+  UNPAID: 'پرداخت‌نشده',
+  PENDING_REVIEW: 'در انتظار بررسی رسید',
+  PAID: 'پرداخت‌شده',
+  REFUNDED: 'بازگشت‌داده‌شده',
+};
+const DELIVERY_STATUS_FA: Record<string, string> = {
+  PENDING: 'در انتظار آماده‌سازی',
+  PREPARING: 'در حال آماده‌سازی',
+  READY: 'آماده‌ی تحویل',
+  DISPATCHED: 'تحویل به پیک',
+  DELIVERED: 'تحویل‌شده',
+  FAILED: 'ناموفق در تحویل',
+};
+
 /** Defaults used until the owner opens «تنظیمات فروشگاه» for the first time. */
 const DEFAULT_SHOP_SETTINGS = {
   city: null as string | null,
@@ -638,6 +662,21 @@ export class RetailService {
     return order;
   }
 
+  /**
+   * Owner-side lookup by the customer tracking token, so the business can
+   * manage an order directly from the customer tracking page while keeping
+   * both views in sync (same underlying order record).
+   */
+  async findOrderByTokenForOwner(userId: string, token: string) {
+    const workspaceId = await this.workspaceId(userId);
+    const order = await this.prisma.retailOrder.findFirst({
+      where: { trackingToken: token, workspaceId },
+      include: { items: true, events: { orderBy: { createdAt: 'asc' } } },
+    });
+    if (!order) throw new NotFoundException('سفارش پیدا نشد');
+    return order;
+  }
+
   async updateOrder(userId: string, id: string, dto: UpdateOrderDto) {
     const workspaceId = await this.workspaceId(userId);
     const order = await this.prisma.retailOrder.findFirst({
@@ -786,6 +825,30 @@ export class RetailService {
       await this.recordOrderInvoice(updated);
       await this.bumpCustomerTotals(updated);
     }
+
+    const changes: string[] = [];
+    if (nextStatus !== order.status) {
+      changes.push(`وضعیت سفارش: ${ORDER_STATUS_FA[nextStatus] ?? nextStatus}`);
+    }
+    if (dto.paymentStatus && dto.paymentStatus !== order.paymentStatus) {
+      changes.push(
+        `وضعیت پرداخت: ${PAYMENT_STATUS_FA[dto.paymentStatus] ?? dto.paymentStatus}`,
+      );
+    }
+    if (dto.deliveryStatus && dto.deliveryStatus !== order.deliveryStatus) {
+      changes.push(
+        `وضعیت تحویل: ${DELIVERY_STATUS_FA[dto.deliveryStatus] ?? dto.deliveryStatus}`,
+      );
+    }
+    if (changes.length > 0) {
+      await this.notifyOrderCustomer(
+        updated.id,
+        workspaceId,
+        userId,
+        'به‌روزرسانی سفارش شما',
+        changes.join(' • '),
+      );
+    }
     return updated;
   }
 
@@ -864,6 +927,13 @@ export class RetailService {
 
     await this.recordOrderInvoice(updated);
     await this.bumpCustomerTotals(updated);
+    await this.notifyOrderCustomer(
+      updated.id,
+      workspaceId,
+      actorId ?? null,
+      'پرداخت سفارش تأیید شد',
+      'پرداخت شما تأیید شد؛ سفارش در حال آماده‌سازی است.',
+    );
     return updated;
   }
 
@@ -1282,7 +1352,7 @@ export class RetailService {
     return { method, deliveryFee: settings.deliveryFee, neighborhood };
   }
 
-  async publicOrder(slug: string, dto: CreateOrderDto) {
+  async publicOrder(slug: string, dto: CreateOrderDto, customerUserId?: string) {
     await this.settings.assertFeatureEnabled('featureRetailCatalog');
     const workspace = await this.resolveShop(slug);
     const ordersEnabled = await this.modules.isModuleEnabledForWorkspace(
@@ -1366,6 +1436,7 @@ export class RetailService {
           orderNumber,
           trackingToken,
           customerId: customer?.id,
+          customerUserId: customerUserId ?? null,
           customerName: dto.customerName,
           customerPhone: dto.customerPhone,
           customerAddress: dto.customerAddress,
@@ -1422,6 +1493,15 @@ export class RetailService {
       return order;
     });
     await this.notifyOwnerOfNewOrder(workspace.id, created, autoConfirm);
+    await this.notifyOrderCustomer(
+      created.id,
+      workspace.id,
+      null,
+      'سفارش شما ثبت شد',
+      autoConfirm
+        ? 'سفارش ثبت و تأیید شد؛ اکنون می‌توانید پرداخت کنید.'
+        : 'سفارش ثبت شد و در انتظار تأیید فروشنده است.',
+    );
     return created;
   }
 
@@ -1446,6 +1526,86 @@ export class RetailService {
       });
     } catch {
       // Notification failure must never break order creation.
+    }
+  }
+
+  /** Public tracking link for a customer notification. */
+  private async orderTrackingLink(workspaceId: string, token: string | null) {
+    if (!token) return '/cart';
+    const workspace = await this.prisma.businessWorkspace.findUnique({
+      where: { id: workspaceId },
+      select: { publicSlug: true },
+    });
+    return workspace?.publicSlug
+      ? `/shop/${workspace.publicSlug}/track/${token}`
+      : '/cart';
+  }
+
+  /**
+   * Notify the customer who placed the order (only when they were signed in and
+   * are not the actor themselves). Best-effort: never breaks the caller.
+   */
+  async notifyOrderCustomer(
+    orderId: string,
+    workspaceId: string,
+    actorId: string | null | undefined,
+    title: string,
+    body: string,
+  ) {
+    try {
+      const order = await this.prisma.retailOrder.findUnique({
+        where: { id: orderId },
+        select: {
+          orderNumber: true,
+          customerUserId: true,
+          trackingToken: true,
+        },
+      });
+      if (!order?.customerUserId) return;
+      if (actorId && actorId === order.customerUserId) return;
+      const link = await this.orderTrackingLink(workspaceId, order.trackingToken);
+      await this.notifications.notify({
+        userId: order.customerUserId,
+        type: NotificationType.INFO,
+        title,
+        body: `${order.orderNumber}: ${body}`,
+        link,
+      });
+    } catch {
+      // Notifications are best-effort.
+    }
+  }
+
+  /** Notify the workspace owner about a customer-side order action. */
+  async notifyOrderOwner(
+    orderId: string,
+    workspaceId: string,
+    actorId: string | null | undefined,
+    title: string,
+    body: string,
+  ) {
+    try {
+      const [order, workspace] = await Promise.all([
+        this.prisma.retailOrder.findUnique({
+          where: { id: orderId },
+          select: { orderNumber: true },
+        }),
+        this.prisma.businessWorkspace.findUnique({
+          where: { id: workspaceId },
+          select: { ownerId: true },
+        }),
+      ]);
+      if (!order || !workspace?.ownerId) return;
+      if (actorId && actorId === workspace.ownerId) return;
+      await this.notifications.notify({
+        userId: workspace.ownerId,
+        type: NotificationType.INFO,
+        title,
+        body: `${order.orderNumber}: ${body}`,
+        link: '/dashboard/business/orders',
+      });
+    } catch {
+      // Notifications are best-effort.
     }
   }
 
@@ -1488,6 +1648,7 @@ export class RetailService {
       deliveryFee: order.deliveryFee,
       totalAmount: order.totalAmount,
       customerName: order.customerName,
+      customerPhone: order.customerPhone,
       customerAddress: order.customerAddress,
       neighborhood: order.neighborhood,
       note: order.note,

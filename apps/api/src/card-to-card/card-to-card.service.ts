@@ -464,6 +464,14 @@ export class CardToCardService {
             actorId: userId,
           },
         });
+        await this.retail.notifyOrderCustomer(
+          payment.referenceId,
+          workspaceId,
+          userId,
+          'رسید پرداخت رد شد',
+          dto.reviewNote?.trim() ||
+            'رسید پرداخت شما تأیید نشد؛ لطفاً دوباره ارسال کنید.',
+        );
       }
     }
     if (
@@ -615,6 +623,13 @@ export class CardToCardService {
           note: trackingNumber ? `شماره پیگیری ${trackingNumber}` : null,
         },
       });
+      await this.retail.notifyOrderOwner(
+        dto.referenceId,
+        workspace.id,
+        null,
+        'رسید پرداخت سفارش ارسال شد',
+        'مشتری رسید کارت‌به‌کارت را برای بررسی ارسال کرد.',
+      );
     }
     return payment;
   }

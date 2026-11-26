@@ -17,6 +17,8 @@ export function CardToCardForm({
   referenceType,
   referenceId,
   defaultAmount,
+  defaultCustomerName,
+  defaultCustomerPhone,
   title = 'پرداخت کارت به کارت',
 }: {
   slug: string;
@@ -24,6 +26,8 @@ export function CardToCardForm({
   referenceType?: 'ORDER' | 'BOOKING' | 'OTHER';
   referenceId?: string;
   defaultAmount?: number;
+  defaultCustomerName?: string;
+  defaultCustomerPhone?: string;
   title?: string;
 }) {
   const [card, setCard] = useState<PublicCardInfo['card'] | null>(
@@ -31,8 +35,8 @@ export function CardToCardForm({
   );
   const [loaded, setLoaded] = useState(Boolean(initialCard));
   const [form, setForm] = useState({
-    customerName: '',
-    customerPhone: '',
+    customerName: defaultCustomerName ?? '',
+    customerPhone: defaultCustomerPhone ?? '',
     amount: defaultAmount ? String(defaultAmount) : '',
     trackingNumber: '',
     paidAt: new Date().toISOString().slice(0, 10),

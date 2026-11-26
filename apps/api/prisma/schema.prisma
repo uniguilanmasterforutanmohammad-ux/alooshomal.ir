@@ -511,6 +511,7 @@ model User {
   businessWorkspaces    BusinessWorkspace[]
   buildingMembers       BuildingMember[]
   addresses             UserAddress[]
+  retailOrders          RetailOrder[]
 
   // `email` and `phone` are already @unique; Postgres backs each with a unique
   // index, so a separate @@index would only double the write cost.
@@ -2730,6 +2731,9 @@ model RetailOrder {
   /// every new order gets one.
   trackingToken   String?  @unique
   customerId      String?
+  /// The signed-in user who placed the order (null for guest checkout), used to
+  /// deliver in-app notifications about status/payment changes.
+  customerUserId  String?
   customerName    String
   customerPhone   String
   customerAddress String?
@@ -2766,11 +2770,13 @@ model RetailOrder {
   updatedAt       DateTime @updatedAt
 
   workspace BusinessWorkspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  customerUser User? @relation(fields: [customerUserId], references: [id], onDelete: SetNull)
   items     RetailOrderItem[]
   events    RetailOrderEvent[]
 
   @@index([workspaceId, status])
   @@index([customerId])
+  @@index([customerUserId])
   @@map("retail_orders")
 }
 

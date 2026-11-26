@@ -20,7 +20,52 @@
 > می‌کند و منبع یکتای آن `apps/web/lib/version.ts` است (نمایش در فوتر پنل کاربری و
 > صفحات عمومی). ایجنت پس از اتمام و تست هر تغییر، به‌طور خودکار و بر اساس حجم درخواست
 > نسخه را بالا می‌برد: تغییرات بزرگ/شکستن‌ساز → `MAJOR`، قابلیت جدید → `MINOR`،
-> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.108.0**.
+> اصلاح کوچک/استایل/متن → `PATCH`. نسخه‌ی فعلی: **v4.109.0**.
+
+## ۱۴۰۵/۰۹/۰۵ — مدیریت سفارش در صفحه‌ی پیگیری، پیش‌پرکردن کارت‌به‌کارت و اعلان‌های سفارش — نسخه `v4.109.0`
+
+**هدف:** مدیر کسب‌وکار بتواند مستقیماً از صفحه‌ی پیگیری مشتری
+(`/shop/<slug>/track/<token>`) همان اقدام‌های پنل سفارش‌ها را انجام دهد و دو
+نما هم‌سینک بمانند؛ فرم کارت‌به‌کارت مشخصات مشتری (نام/موبایل) را خودکار پر
+کند؛ و هر تغییر سفارش به مشتری و مدیر اطلاع‌رسانی شود.
+
+**تغییرات:**
+- `apps/api/prisma/schema.prisma`: افزودن `customerUserId` (اختیاری) به
+  `RetailOrder` برای اطلاع‌رسانی به مشتریِ ثبت‌کننده، به‌همراه رابطه‌ی
+  `customerUser` و ایندکس.
+- `apps/api/src/retail/public-retail.controller.ts`: `POST :slug/orders` با
+  `@OptionalAuth()` تا شناسه‌ی کاربر واردشده به سفارش متصل شود.
+- `apps/api/src/retail/retail.service.ts`: ذخیره‌ی `customerUserId` هنگام ثبت
+  سفارش، افزودن `customerPhone` به خروجی پیگیری عمومی، متد
+  `findOrderByTokenForOwner` برای مدیریت سفارش از روی توکن، و اعلان‌های
+  مشتری/مالک در ثبت سفارش، تغییر وضعیت، تأیید پرداخت و رد رسید.
+- `apps/api/src/retail/retail-orders.controller.ts`: مسیر
+  `GET /retail/orders/by-token/:token` (مستندشده با `@ApiOperation`).
+- `apps/api/src/card-to-card/card-to-card.service.ts`: اعلان به مشتری هنگام رد
+  رسید و به مالک هنگام ارسال رسید سفارش.
+- `apps/web/components/shop/OwnerOrderManager.tsx` (جدید): پنل مدیریت سفارش
+  مخصوص مالک در صفحه‌ی پیگیری (تأیید/رد، وضعیت سفارش/پرداخت/تحویل، هزینه‌ها و
+  خط زمانی) که پس از هر اقدام `router.refresh()` می‌کند تا نمای مشتری هم‌سینک شود.
+- `apps/web/app/shop/[slug]/track/[token]/page.tsx` و
+  `apps/web/components/shop/OrderTrackingPanel.tsx`: رندر پنل مالک.
+- `apps/web/components/payments/CardToCardForm.tsx` و
+  `OrderPayPanel.tsx`/`ShopOrderForm.tsx`/`ProductBuyBox.tsx`: افزودن
+  `defaultCustomerName`/`defaultCustomerPhone` و پیش‌پرکردن نام و موبایل مشتری.
+- `apps/web/lib/api/types/business-modules.ts`: افزودن `customerPhone` به
+  `PublicOrderTracking` و `customerUserId` به `RetailOrder`.
+- `docs/API.md`: مستندسازی مسیر `GET /retail/orders/by-token/:token`.
+
+**تأیید/تست:**
+- `cd apps/api && ./node_modules/.bin/tsc --noEmit --incremental false` → exit 0.
+- `cd apps/web && ./node_modules/.bin/tsc --noEmit` → exit 0.
+- `python3 scripts/check_api_docs.py` → «همه‌ی مسیرها @ApiOperation دارند» (exit 0).
+- `python3 scripts/sync_install.py --check` → بدون تغییر معلق (exit 0).
+- `GET /api/retail/orders/by-token/<token>` با توکن مدیر و هدر
+  `x-workspace-id` فروشگاه → HTTP 200 با داده‌ی سفارش.
+- `GET /api/public/shops/<slug>/orders/<token>` → شامل `customerPhone`.
+- PATCH وضعیت تحویل سفارش → رکورد اعلان «به‌روزرسانی سفارش شما» با لینک پیگیری
+  برای مشتری ساخته شد (سپس داده‌ی تست پاک شد).
+- صفحات `/`، `/cart`، `/dashboard` و صفحه‌ی پیگیری → HTTP 200.
 
 ## ۱۴۰۵/۰۹/۰۵ — آیکن‌های کیف پول/سبد، گیت سوییچر کسب‌وکار و دفترچه آدرس سبد خرید — نسخه `v4.108.0`
 

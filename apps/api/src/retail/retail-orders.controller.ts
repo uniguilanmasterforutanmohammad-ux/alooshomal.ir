@@ -40,6 +40,14 @@ export class RetailOrdersController {
     return this.retail.findOrder(user.id, id);
   }
 
+  @Get('by-token/:token')
+  @ApiOperation({
+    summary: 'جزئیات سفارش برای مالک از روی توکن پیگیری (صفحه‌ی پیگیری مشتری)',
+  })
+  findByToken(@CurrentUser() user: AuthUser, @Param('token') token: string) {
+    return this.retail.findOrderByTokenForOwner(user.id, token);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'تغییر وضعیت سفارش یا وضعیت پرداخت' })
   update(
