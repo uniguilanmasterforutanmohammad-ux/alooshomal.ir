@@ -1180,6 +1180,9 @@ PY
 - `POST /api/sms-gateway/transactions/:id/link` — تطبیق دستی + تأیید.
 - `POST /api/sms-gateway/transactions/:id/rematch` — تلاش دوباره.
 - `POST /api/sms-gateway/transactions/:id/ignore` — نادیده‌گرفتن.
+- `POST /api/sms-gateway/statement/import` — بارگذاری صورت‌حساب بانکی
+  (multipart، فیلد `file`؛ Excel/CSV) و تأیید خودکار واریزهای کارت‌به‌کارت
+  بدون نیاز به گوشی.
 
 ### مسیرهای دستگاه (Bearer device token)
 

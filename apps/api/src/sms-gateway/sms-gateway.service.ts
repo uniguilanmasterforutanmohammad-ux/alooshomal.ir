@@ -17,6 +17,7 @@ import { PairDeviceDto } from './dto/pair-device.dto';
 import { ReportSmsTransactionDto } from './dto/report-transaction.dto';
 import { SmsDeviceHeartbeatDto } from './dto/heartbeat.dto';
 import { SmsDeviceContext, hashDeviceToken } from './sms-device.guard';
+import { parseStatementFile } from './statement/statement-parser';
 
 const FEATURE_KEY = 'featureSmsGateway';
 const PAIRING_CODE_TTL_MS = 15 * 60 * 1000;
@@ -495,6 +496,100 @@ export class SmsGatewayService {
     return { ok: true };
   }
 
+  /**
+   * Imports a bank statement export (Excel/CSV) uploaded by the owner. Every
+   * deposit to the registered card is stored as a gateway transaction and run
+   * through the same matching engine as SMS, so end-of-day statements approve
+   * pending card-to-card orders without the Android phone being online.
+   */
+  async importStatement(userId: string, file: Express.Multer.File) {
+    await this.assertEnabled();
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('فایلی ارسال نشده است');
+    }
+    const workspaceId = await this.workspaceId(userId);
+    const account = await this.activeAccount(workspaceId);
+    const registered = account.cardNumber.replace(/\D/g, '');
+    const parsed = await parseStatementFile(file.buffer);
+
+    const result = {
+      totalRows: parsed.rows.length,
+      deposits: 0,
+      imported: 0,
+      duplicates: 0,
+      otherCard: 0,
+      invalid: 0,
+      autoApproved: 0,
+      ambiguous: 0,
+      unmatched: 0,
+      accountNumber: parsed.accountNumber,
+      bankName: parsed.bankName,
+      errors: [] as string[],
+    };
+
+    for (const row of parsed.rows) {
+      if (row.type === 'WITHDRAWAL') continue;
+      if (!row.destinationCard) {
+        result.invalid += 1;
+        result.errors.push(
+          `ردیف ${row.rowNumber}: شماره کارت مقصد در توضیح تراکنش پیدا نشد.`,
+        );
+        continue;
+      }
+      if (row.destinationCard.slice(-4) !== registered.slice(-4)) {
+        result.otherCard += 1;
+        continue;
+      }
+      result.deposits += 1;
+
+      const dedupeKey = sha256(
+        [
+          'statement',
+          row.trackingNumber ?? '',
+          row.description,
+          row.occurredAt?.toISOString() ?? '',
+          String(row.amountRial),
+        ].join('|'),
+      );
+      const existing = await this.prisma.smsGatewayTransaction.findUnique({
+        where: { workspaceId_dedupeKey: { workspaceId, dedupeKey } },
+        select: { id: true },
+      });
+      if (existing) {
+        result.duplicates += 1;
+        continue;
+      }
+
+      const transaction = await this.prisma.smsGatewayTransaction.create({
+        data: {
+          workspaceId,
+          deviceId: null,
+          dedupeKey,
+          rawText: row.description,
+          amount: row.amountToman,
+          bankName: parsed.bankName ?? account.bankName ?? null,
+          destinationLast4: row.destinationCard.slice(-4),
+          destinationCard: row.destinationCard,
+          trackingNumber: row.trackingNumber,
+          smsReceivedAt: row.occurredAt,
+          note: 'از فایل صورت‌حساب بانکی',
+        },
+      });
+      result.imported += 1;
+
+      const evaluation = await this.evaluate(transaction, account);
+      const updated = await this.prisma.smsGatewayTransaction.update({
+        where: { id: transaction.id },
+        data: evaluation.data,
+      });
+      if (updated.status === 'AUTO_APPROVED') result.autoApproved += 1;
+      else if (updated.status === 'AMBIGUOUS') result.ambiguous += 1;
+      else result.unmatched += 1;
+    }
+
+    return result;
+  }
+
   async reportTransaction(
     device: SmsDeviceContext,
     dto: ReportSmsTransactionDto,
@@ -625,8 +720,11 @@ export class SmsGatewayService {
       };
     }
 
+    // Anchor the window at the deposit time so a statement uploaded days later
+    // still matches the orders that were pending when the transfer happened.
+    const reference = transaction.smsReceivedAt ?? new Date();
     const since = new Date(
-      Date.now() - MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+      reference.getTime() - MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000,
     );
     const candidates: MatchCandidate[] = await this.prisma.retailOrder.findMany({
       where: {

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,8 +8,16 @@ import {
   Post,
   Query,
   Req,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Request } from 'express';
 
 import {
@@ -87,5 +96,22 @@ export class SmsGatewayController {
     @Body() dto: IgnoreTransactionDto,
   ) {
     return this.gateway.ignoreTransaction(user.id, id, dto);
+  }
+
+  @Post('statement/import')
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({
+    summary:
+      'بارگذاری صورت‌حساب بانکی (Excel/CSV) و تأیید خودکار واریزهای کارت به کارت',
+  })
+  importStatement(
+    @CurrentUser() user: AuthUser,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) throw new BadRequestException('فایلی ارسال نشده است');
+    return this.gateway.importStatement(user.id, file);
   }
 }

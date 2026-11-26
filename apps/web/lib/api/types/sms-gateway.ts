@@ -87,3 +87,18 @@ export interface SmsTransactionCandidateOrder {
   paymentStatus: string;
   createdAt: string;
 }
+
+export interface SmsStatementImportResult {
+  totalRows: number;
+  deposits: number;
+  imported: number;
+  duplicates: number;
+  otherCard: number;
+  invalid: number;
+  autoApproved: number;
+  ambiguous: number;
+  unmatched: number;
+  accountNumber: string | null;
+  bankName: string | null;
+  errors: string[];
+}

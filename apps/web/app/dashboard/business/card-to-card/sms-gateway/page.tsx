@@ -6,11 +6,13 @@ import {
   ArrowRight,
   CheckCircle2,
   Copy,
+  FileSpreadsheet,
   Loader2,
   RefreshCw,
   ShieldAlert,
   Smartphone,
   Trash2,
+  UploadCloud,
   XCircle,
 } from 'lucide-react';
 
@@ -20,6 +22,7 @@ import {
   type SmsGatewayOverview,
   type SmsGatewayTransaction,
   type SmsPairingCode,
+  type SmsStatementImportResult,
   type SmsTransactionCandidateOrder,
 } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
@@ -113,6 +116,10 @@ export default function SmsGatewayPage() {
   );
   const [candidateBusy, setCandidateBusy] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState('');
+  const [statementBusy, setStatementBusy] = useState(false);
+  const [statementResult, setStatementResult] =
+    useState<SmsStatementImportResult | null>(null);
+  const [statementError, setStatementError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -218,6 +225,35 @@ export default function SmsGatewayPage() {
     }
   }
 
+  async function importStatement(file: File | undefined) {
+    if (!file) {
+      setStatementError('ابتدا فایل صورت‌حساب را انتخاب کنید');
+      return;
+    }
+    setStatementBusy(true);
+    setStatementError(null);
+    setStatementResult(null);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const result = await api.upload<SmsStatementImportResult>(
+        '/sms-gateway/statement/import',
+        form,
+      );
+      setStatementResult(result);
+      toast.success(
+        `${result.autoApproved.toLocaleString('fa-IR')} پرداخت به‌صورت خودکار تأیید شد`,
+      );
+      await load();
+    } catch (err) {
+      setStatementError(
+        err instanceof Error ? err.message : 'بارگذاری صورت‌حساب ناموفق بود',
+      );
+    } finally {
+      setStatementBusy(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -236,7 +272,8 @@ export default function SmsGatewayPage() {
           <p className="mt-1 max-w-3xl text-sm leading-7 text-muted">
             اپ اندروید را روی گوشی فروشنده نصب کنید تا پیامک‌های واریز بانکی
             خوانده و سفارش هم‌مبلغ به‌صورت خودکار تأیید شود. روش دستی ارسال رسید
-            همیشه فعال می‌ماند.
+            همیشه فعال می‌ماند. اگر گوشی متصل ندارید، خروجی پایان‌روز
+            صورت‌حساب بانکی را هم می‌توانید بارگذاری کنید.
           </p>
         </div>
         <button
@@ -407,8 +444,82 @@ export default function SmsGatewayPage() {
       </section>
 
       <section className="indeed-panel flex flex-col gap-4 p-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <FileSpreadsheet className="size-5 text-brand" aria-hidden />
+          <div className="text-sm font-extrabold text-ink">
+            بارگذاری صورت‌حساب بانکی (پایان روز)
+          </div>
+        </div>
+        <p className="text-xs leading-6 text-muted">
+          اگر گوشی متصل ندارید، خروجی صورت‌حساب حساب بانکی (Excel یا CSV) را که
+          بانک در پایان روز می‌دهد همین‌جا بارگذاری کنید. واریزهای کارت‌به‌کارت
+          به کارت ثبت‌شده خوانده و سفارش‌های هم‌مبلغ به‌صورت خودکار تأیید
+          می‌شوند. بارگذاری دوباره‌ی یک فایل، تراکنش تکراری نمی‌سازد.
+        </p>
+        <input
+          type="file"
+          accept=".xlsx,.xls,.csv"
+          disabled={statementBusy || !overview?.account}
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            event.target.value = '';
+            void importStatement(file);
+          }}
+          className="block w-full cursor-pointer text-xs text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-2 file:text-xs file:font-bold file:text-white disabled:cursor-not-allowed disabled:opacity-60"
+        />
+        {statementBusy ? (
+          <p className="flex items-center gap-2 text-xs text-muted">
+            <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            در حال خواندن صورت‌حساب و تطبیق واریزها…
+          </p>
+        ) : null}
+        {statementError ? (
+          <p className="rounded-lg bg-red-50 p-3 text-xs text-red-700">
+            {statementError}
+          </p>
+        ) : null}
+        {statementResult ? (
+          <div className="rounded-lg bg-[var(--vintage-surface)] p-3 text-xs leading-6 text-ink">
+            <div>
+              ردیف‌های خوانده‌شده:{' '}
+              <b>{statementResult.totalRows.toLocaleString('fa-IR')}</b> —
+              واریز به کارت شما:{' '}
+              <b>{statementResult.deposits.toLocaleString('fa-IR')}</b>
+            </div>
+            <div className="text-muted">
+              ثبت جدید: {statementResult.imported.toLocaleString('fa-IR')} —
+              تکراری: {statementResult.duplicates.toLocaleString('fa-IR')} —
+              کارت دیگر: {statementResult.otherCard.toLocaleString('fa-IR')}
+              {statementResult.invalid
+                ? ` — نامعتبر: ${statementResult.invalid.toLocaleString('fa-IR')}`
+                : ''}
+            </div>
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+              <span className="text-emerald-700">
+                تأیید خودکار:{' '}
+                {statementResult.autoApproved.toLocaleString('fa-IR')}
+              </span>
+              <span className="text-orange-700">
+                چندگزینه‌ای: {statementResult.ambiguous.toLocaleString('fa-IR')}
+              </span>
+              <span className="text-amber-700">
+                بدون سفارش: {statementResult.unmatched.toLocaleString('fa-IR')}
+              </span>
+            </div>
+            {statementResult.errors.length ? (
+              <ul className="mt-2 list-disc space-y-1 pr-4 text-[11px] text-red-700">
+                {statementResult.errors.slice(0, 10).map((message) => (
+                  <li key={message}>{message}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
+      </section>
+
+      <section className="indeed-panel flex flex-col gap-4 p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="text-sm font-extrabold text-ink">پیامک‌های واریز</div>
+          <div className="text-sm font-extrabold text-ink">واریزهای بانکی</div>
           <div className="flex flex-wrap gap-1">
             {FILTERS.map((item) => (
               <button
@@ -432,8 +543,8 @@ export default function SmsGatewayPage() {
           <p className="text-sm text-muted">در حال بارگذاری…</p>
         ) : !transactions.length ? (
           <p className="text-sm text-muted">
-            پیامکی در این دسته ثبت نشده است. پس از اتصال گوشی، واریزی‌های بانکی
-            همین‌جا ظاهر می‌شوند.
+            واریزی‌ای در این دسته ثبت نشده است. پس از اتصال گوشی یا بارگذاری
+            صورت‌حساب بانکی، واریزها همین‌جا ظاهر می‌شوند.
           </p>
         ) : (
           <div className="flex flex-col gap-3">
